@@ -1,0 +1,57 @@
+[main(103)]:ENTER: Starting
+    [err_sethandler(203)]:LEAVE: err_default_handler is activated
+
+    [launcher(175)]:  Activating env buffer
+    [tf1(49)]:ENTER: tf1: Bare tests
+        [ungetch(24)]:LEAVE: buf = 1, c = [a]
+        [getch(13)]:  bufp = 1, [a]
+        [tf1(61)]:  SUB1 PASSED
+        [ungetch(24)]:LEAVE: buf = 1, c = [a]
+        [ungetch(24)]:LEAVE: buf = 2, c = [b]
+        [ungetch(24)]:LEAVE: buf = 3, c = [c]
+        [ungetch(24)]:LEAVE: buf = 4, c = [d]
+        [ungetch(24)]:LEAVE: buf = 5, c = [e]
+        [ungetch(24)]:LEAVE: buf = 6, c = [f]
+        [ungetch(24)]:LEAVE: buf = 7, c = [g]
+        [ungetch(24)]:LEAVE: buf = 8, c = [h]
+        [ungetch(24)]:LEAVE: buf = 9, c = [i]
+        [ungetch(24)]:LEAVE: buf = 10, c = [j]
+        [ungetch(24)]:LEAVE: buf = 11, c = [k]
+        [ungetch(24)]:LEAVE: buf = 12, c = [l]
+        [ungetch(24)]:LEAVE: buf = 13, c = [m]
+        [ungetch(24)]:LEAVE: buf = 14, c = [n]
+        [ungetch(24)]:LEAVE: buf = 15, c = [o]
+        [ungetch(24)]:LEAVE: buf = 16, c = [p]
+        [ungetch(24)]:LEAVE: buf = 17, c = [q]
+        [ungetch(24)]:LEAVE: buf = 18, c = [r]
+        [ungetch(24)]:LEAVE: buf = 19, c = [s]
+        [ungetch(24)]:LEAVE: buf = 20, c = [t]
+        [getch(13)]:  bufp = 20, [t]
+        [getch(13)]:  bufp = 19, [s]
+        [getch(13)]:  bufp = 18, [r]
+        [getch(13)]:  bufp = 17, [q]
+        [getch(13)]:  bufp = 16, [p]
+        [getch(13)]:  bufp = 15, [o]
+        [getch(13)]:  bufp = 14, [n]
+        [getch(13)]:  bufp = 13, [m]
+        [getch(13)]:  bufp = 12, [l]
+        [getch(13)]:  bufp = 11, [k]
+        [getch(13)]:  bufp = 10, [j]
+        [getch(13)]:  bufp = 9, [i]
+        [getch(13)]:  bufp = 8, [h]
+        [getch(13)]:  bufp = 7, [g]
+        [getch(13)]:  bufp = 6, [f]
+        [getch(13)]:  bufp = 5, [e]
+        [getch(13)]:  bufp = 4, [d]
+        [getch(13)]:  bufp = 3, [c]
+        [getch(13)]:  bufp = 2, [b]
+        [getch(13)]:  bufp = 1, [a]
+        [tf1(72)]:  SUB2 PASSED
+        [ungets(30)]:  cnt = 4
+        [tf1(80)]:  SUB3 PASSED (sizeof pattern = 5)
+        [getch(13)]:  bufp = 4, [t]
+        [getch(13)]:  bufp = 3, [s]
+        [getch(13)]:  bufp = 2, [u]
+        [getch(13)]:  bufp = 1, [J]
+    [tf1(92)]:LEAVE: done, 4 subtests
+[main(109)]:LEAVE: end...
