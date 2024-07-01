@@ -91,7 +91,7 @@ static Oper                 get_op(char *s, int sz){
             }
             else if (strcmp(s, "set") == 0){
                 c = SET;
-                get_word_lowcase(s, sz);  // TODO: use Oper.str[] here!!!!
+                get_word_lowcase(op.sz, sz);  // TODO: use Oper.str[] here!!!!
                 logmsg("set : [%s]", s);
             }
             else if (strcmp(s, "unset") == 0){

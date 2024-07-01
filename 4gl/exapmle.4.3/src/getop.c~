@@ -13,17 +13,15 @@ char            op_buf[MAXOP];
 
 /******************************************************************* TOKENS ********************************************************/
 static bool         get_number(char *s, int sz);    // return true if number is parsed, otherwise ungetch all back and return false
-static int          get_op(char *s, int sz);        // return operation or UNKNOWN
+static Oper         get_op(char *s, int sz);        // return operation or UNKNOWN
 static void         skip_spaces(void);
-static int          get_word_lowcase(char c, char *s, int maxlen);
+static int          get_word_lowcase(char *s, int maxlen);
 
 // probably is it possible to setup SOURCE instead of void
-Oper                 getop(void){
+Oper                        getop(void){
     logenter("");
 
-    Oper op = {EOF, op_buf, 0.0, 0};    // TODO: possible to refactor normally?
-
-    skip_spaces();
+    Oper op = {EOF, "", 0.0, 0};    // TODO: possible to refactor normally?
 
     if (get_number(op_buf, sizeof op_buf)){
         op.dval = atof(op_buf);
@@ -32,7 +30,7 @@ Oper                 getop(void){
     }
 
     // otherwise return as operator or EOF
-    op.type = get_op(op_buf, sizeof op_buf); // no need to change str pointer
+    op = get_op(op_buf, sizeof op_buf);
 
     return logret(op, "oper [%d]", op.type);
 }
@@ -40,10 +38,11 @@ Oper                 getop(void){
 // + - * / % sin exp pow help  help quit printst
 //  PLUS, MINUS, DIV, MUL, MOD, SIN, EXP, POW,
 //  HELP, QUIT, PRINT_STACK, CLEAR, DOU, EXCH,
-// GET, SET, UNSET,
-static int          get_op(char *s, int sz){
+// GET, SET, UNSET, ARR
+static Oper                 get_op(char *s, int sz){
     logenter("[%c]", s[0]);
 
+    Oper res = {EOF, "", 0.0, 0};
     int     c = s[0] = tolower(getch());
     s[1] = '\0';     // sz definetly > 2
 
@@ -67,7 +66,7 @@ static int          get_op(char *s, int sz){
             c = MOD;
         break;
         default:    // commands or vars
-            get_word_lowcase(c, s, sz);     // TODO: think how to optimize that!
+            get_word_lowcase(s + 1, sz - 1);     // TODO: think how to optimize that!
             if (strcmp(s, "sin") == 0)
                 c = SIN;
             else if (strcmp(s, "exp") == 0)
@@ -88,47 +87,58 @@ static int          get_op(char *s, int sz){
                 c = EXCH;
             else if (strcmp(s, "get") == 0){
                 c = GET;
-                skip_spaces();
-                get_word_lowcase('\0', s, sz);  // TODO: that is creepy, refactor that!
+                get_word_lowcase(s, sz);  // TODO: that is creepy, refactor that!
             }
             else if (strcmp(s, "set") == 0){
                 c = SET;
-                skip_spaces();
-                logmsg("after spaces: [%s]", s);
-                get_word_lowcase('\0', s, sz);
+                get_word_lowcase(s, sz);  // TODO: use Oper.str[] here!!!!
                 logmsg("set : [%s]", s);
             }
             else if (strcmp(s, "unset") == 0){
                 c = UNSET;
-                skip_spaces();
-                get_word_lowcase('\0', s, sz);
+                get_word_lowcase(s, sz);
+            }
+            else if (strcmp(s, "arr") == 0){    //  arr v 4000
+                c = ARR;
+                get_word_lowcase(s, sz);
+                logmsg("arr name = %s", s);
+                strncpy(op.str, s, MAXNAME - 1);
+                op.str[MAXNAME - 1] = '\0';
+                if (!get_numbers(s, sz)){
+                    fprintf(stderr, "Unable to init  ARR with [%s]\n", s);
+                    c = UNKNOWN;
+                }
+                if ( (op.ival = atoi(s)) <= 0)
+                    fprintf(stderr, "Unable to allocate array with %d elements", op.ival);
+                    c = UNKNOWN;
+                }
             }
             else
                 c = UNKNOWN;
         break;
     }
+    res.type = c;
 
     return logret(c, "oper [%d] [%s]", c, s);
 }
 
 
 
-static int          get_word_lowcase(char c, char *s, int maxlen){
+static int          get_word_lowcase(char *s, int maxlen){
+    skip_spaces();
     int     i = 0;
-    if (c != '\0'){     // TODO: remove c at all!!!
-        s[0] = c;
-        i++;
-    }
     while (i < maxlen - 1 && isalnum(c = getch()) )
         s[i++] = tolower(c);
     s[i] = '\0';
-    return i;
+    return logsimpleret(i, "s = [%s]", s);
 }
 
 
 
 static bool         get_number(char *s, int sz){
-    logenter("[%c]", s[0]);
+    logenter("");
+
+    skip_spaces();
 
     int c = s[0] = getch();
     int i = 0;
