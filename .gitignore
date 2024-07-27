@@ -1,0 +1,8 @@
+*.swp
+*~
+test/
+lib/
+debug/
+*.dSYM
+*.o
+
