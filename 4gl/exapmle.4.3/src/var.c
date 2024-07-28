@@ -2,11 +2,12 @@
 #include <ctype.h>
 #include <stdio.h>
 
-static const int    VARSZ = 'z' - 'a' + 1 + 1;
+static const int                VARSZ = 'z' - 'a' + 1 + 1;
 
-enum { VAR_UNSET = 0, VAR_SET = 1, VAR_ARR = 2} TypeVar;
+enum { VAR_UNSET = 0, VAR_SET = 1, VAR_ARR = 2} 
+    TypeVar;
 
-struct tvar {
+struct Tvar {
     union {
         double      value;
         struct {
@@ -14,16 +15,16 @@ struct tvar {
             double  *arr;
         };
     };
-    TypeVar     flags;   // arr pointed to memory ONLY  if VAR_ARR
+    TypeVar     flags;   // arr pointed to memory ONLY  if VAR_ARR, value if VAR_SET
 };
 
 // INTERNAL API
-static tvar        *var_get(char c);
-static int          var_getind(char c);
+static Tvar                *var_get(char c);
+static int                  var_getind(char c);
 
-static struct tvar         vals[VARSZ];
+static struct Tvar          vals[VARSZ];
 
-static bool         var_checkname(const char *name, bool print){
+static bool                 var_checkname(const char *name, bool print){
     char c = *name;
     if (name[1] != '\0' || !(isalpha(c) || c == '?' )){
         if (print)
@@ -33,7 +34,7 @@ static bool         var_checkname(const char *name, bool print){
     return true;
 }
 
-static bool         var_checkarray(const char *name, bool print){
+static bool                 var_checkarray(const char *name, bool print){
     if (!var_checkname(name, print))
         return false;
     if (var_get(name[0]->flags != VAR_ARR)){
@@ -44,7 +45,7 @@ static bool         var_checkarray(const char *name, bool print){
 }
 
 // (MUST exists, no checking here!)
-static int          var_getind(char c){
+static int                  var_getind(char c){
     c = tolower(c);
     if (c == '?')
         return VARSZ - 1;

@@ -1,8 +1,10 @@
 *.swp
 *~
+*.c~
 test/
 lib/
 debug/
 *.dSYM
 *.o
+.*un~
 
