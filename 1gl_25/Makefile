@@ -6,20 +6,23 @@ LDLIBS=
 
 all:
 
-hello: hello.c ../log.c
+hello: src/hello.c
 	$(CC) $(CFLAGS) $^ -o $@
 
-testing: testing.o
-	$(CC) $(CFLAGS)  $^ -o $@_test
+test_pi: src/test_pi.c
+	$(CC) $(CFLAGS) $^ -o out/$@
 
-common.o: ../common.c ../common.h
-	$(CC) $(CFLAGS)  $^ -c
+test1: src/test1.c
+	$(CC) $(CFLAGS) $^ -o out/$@
 
-log: log.o ../testing.c ../common.o			# not sure
-	$(CC) $(CFLAGS) $^ -o $@_test
+#common.o: ../common.c ../common.h
+#	$(CC) $(CFLAGS)  $^ -c
 
-log.o:	../log.c ../log.h
-	$(CC) $(CFLAGS) -DLOGTESTING $^ -c
+#log: log.o ../testing.c ../common.o			# not sure
+#	$(CC) $(CFLAGS) $^ -o $@_test
+
+#log.o:	../log.c ../log.h
+#	$(CC) $(CFLAGS) -DLOGTESTING $^ -c
 
 # WO error fow now, for simplify
 #error: error.o error.h log.c common.c	# can depends on log, not sure
@@ -33,10 +36,11 @@ clean:
 	-rm *_test
 	-rm -r *.dSYM
 	-rm *.gch
+	-rm out/*
 	find . -perm -u=x -type f -ls -maxdepth 1 -exec rm {} \;
 
 cleanlog:
-	-rm *.log
+	-rm log/*
 
 cleanall: clean cleanlog
 
