@@ -15,20 +15,27 @@ test_pi: src/test_pi.c
 test1: src/test1.c
 	$(CC) $(CFLAGS) $^ -o out/$@
 
-#common.o: ../common.c ../common.h
-#	$(CC) $(CFLAGS)  $^ -c
+2 95task: src/95task.c lib/log.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
 
-#log: log.o ../testing.c ../common.o			# not sure
-#	$(CC) $(CFLAGS) $^ -o $@_test
+UTIL_PATH = ../utils
 
-#log.o:	../log.c ../log.h
-#	$(CC) $(CFLAGS) -DLOGTESTING $^ -c
+# libs from utils
+lib/log.o:
+	cd $(UTIL_PATH) && $(MAKE) log.o
+	@cp $(UTIL_PATH)/lib/log.o lib/
 
-# WO error fow now, for simplify
-#error: error.o error.h log.c common.c	# can depends on log, not sure
-#	$(CC) $(FLAGS) $^ -o $@_test
+lib/test.o:
+	cd $(UTIL_PATH) && $(MAKE) test.o
+	@cp $(UTIL_PATH)/lib/test.o lib/
 
-#error.o: error.c
+lib/error.o:
+	cd $(UTIL_PATH) && $(MAKE) error.o
+	@cp $(UTIL_PATH)/lib/error.o lib/
+
+lib/common.o:
+	cd $(UTIL_PATH) && $(MAKE) common.o
+	@cp $(UTIL_PATH)/lib/common.o lib/
 
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
