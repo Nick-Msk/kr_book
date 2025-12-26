@@ -1,7 +1,0 @@
-[main(100)]:ENTER: Starting
-    [err_sethandler(203)]:LEAVE: err_default_handler is activated
-
-    [launcher(175)]:  Activating env buffer
-    [tf1(77)]:ENTER: tf1: Bare test set/check/unset
-    [tf1(89)]:LEAVE: done
-[main(112)]:LEAVE: end...
