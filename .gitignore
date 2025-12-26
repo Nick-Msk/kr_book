@@ -6,5 +6,8 @@ lib/
 debug/
 *.dSYM
 *.o
+*.a
 .*un~
+*.log
+*_test
 
