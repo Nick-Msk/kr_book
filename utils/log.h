@@ -298,8 +298,8 @@ log_numbers(LogAction            act,
       log_close(); \
 	  _LG_INIT; }
 
-#define	logfile								log_file()			// wrapper for log_file()
-#define logoffset							log_offset()		// wrapper for log_offset()
+#define	logfile								(log_file())			// wrapper for log_file()
+#define logoffset							(log_offset())		// wrapper for log_offset()
 
 // TODO: перавая версия простая, но подумать, можно ли сделать автовключение лога при возврате на предыдущий/текущей уровень _LG_LV
 #define logoff()                            log_prog_switch(false)
