@@ -3,6 +3,7 @@
 *.c~
 test/
 lib/
+out/
 debug/
 *.dSYM
 *.o
