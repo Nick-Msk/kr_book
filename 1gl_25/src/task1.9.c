@@ -8,16 +8,15 @@ int     main(int argc, char *argv[]){
     bool    prev = false;
 
     while((c = getchar()) != EOF){
-        if (c == '\n' || c == '\t' || c == ' '){
+        if (c != ' ')
+            prev = false;
+        if (c == ' '){
             if (!prev){
-                putchar(' ');
+                putchar(c);
                 prev = true;
             }
-        }    
-        else {
-            prev = false;
+        } else
             putchar(c);
-        }
     }
     return 0;
 }

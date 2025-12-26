@@ -18,6 +18,9 @@ test1: src/test1.c
 task1.6: src/task1.6.c
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+task1.9: src/task1.9.c
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 1.8.task: src/1.8.task.c
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
