@@ -15,7 +15,7 @@ test_pi: src/test_pi.c
 test1: src/test1.c
 	$(CC) $(CFLAGS) $^ -o out/$@
 
-2 95task: src/95task.c lib/log.o
+task1.6: src/task1.6.c
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 UTIL_PATH = ../utils
