@@ -1,5 +1,5 @@
 CC=gcc #clang
-CFLAGS= -I../utils -Wall -Wextra -std=gnu11 -g -O0
+CFLAGS= -I../utils -Wall -Wextra -std=gnu11 -g -O0 -Wno-gnu-folding-constant
 # -Wno-initializer-overrides -Wno-unused-function -Wno-format-zero-length
 LDFLAGS=
 LDLIBS=
@@ -28,6 +28,9 @@ task1.9: src/task1.9.c
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 1.12.task: src/1.12.task.c
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
+1.13.task: src/1.13.task.c lib/log.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 UTIL_PATH = ../utils
