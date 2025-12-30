@@ -36,6 +36,9 @@ task1.9: src/task1.9.c
 1.7gl: src/1.7gl.c
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+1.9gl: src/1.9gl.c
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
