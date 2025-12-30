@@ -18,21 +18,25 @@ static int              show_histogram(const int *arr, int sz, int maxcnt, SHOW_
 int                     main(int argc, const char *argv[]){
 
     static const char *logfilename = "log/1.13.task.log";
-    loginit(logfilename, false, 0, "Start");
+    loginit(logfilename, false, 0, "Start");    // TODO: rework that to LOG("logdir") or LOGAPPEND("logdir") or LOGSWITCH("logdir") 
 
     //LOG(const char *logfilename = "log/1.13.task.log");
 
     SHOW_MODE mode = SHOW_MODE_NUMBER;
 
-    if (argc > 1 && strcmp(argv[1], "hist") == 0)
-        mode = SHOW_MODE_HORIZONT;
+    if (argc > 1){
+        if (strcmp(argv[1], "hist") == 0)
+            mode = SHOW_MODE_HORIZONT;
+        else if (strcmp(argv[1], "vert") == 0)
+            mode = SHOW_MODE_VERTICAL;
+    }
 
     static const int MAX_LEN = 1000;
     int hist[MAX_LEN];
     int wc, max_len;
 
     int max_cnt = fill_words(hist, MAX_LEN, &max_len, &wc);
-    printf("Total %d words, max cnt = %d amx len = %d\n", wc, max_cnt, max_len);
+    printf("Total %d words, max cnt = %d max len = %d\n", wc, max_cnt, max_len);
 
     show_histogram(hist, max_len, max_cnt, mode);
 
@@ -81,13 +85,38 @@ static int              fill_words(int *arr, int max_sz, int *p_max_len, int *p_
     return logret(max_cnt, "total %d, maxlen %d maxcnt %d", wc, max_len, max_cnt);
 }
 
-static int              printline(char c, int val, int maxval, int maxpos){
+static int              print_line(char c, int val, int maxval, int maxpos){
     //logsimple("val = %d, maxval = %d, maxpos = %d", val, maxval, maxpos);
     int cnt = (long) maxpos * val / maxval;
     for (int i = 0; i < cnt; i++)
         putchar(c);
     putchar('\n');
     return logsimpleret(cnt, "for %d cnt is %d", val, cnt);
+}
+
+
+static int              print_vertical(char c, const int *arr, int sz, int maxcnt, int maxpos){
+    bool no_data = false;
+    int level = 1;
+    while (!no_data){
+        // print new line
+        no_data = true;
+        for (int i = 1; i<= sz; i++){
+            logsimple("level %d, arr[%d]=%d, maxval %d, sz %d", level, i, arr[i], maxcnt, sz);
+            int cnt = (long) maxpos * arr[i] / maxcnt;
+            logsimple("cnt %d", cnt);
+            if (cnt >= level){
+                printf("%c\t", c);
+                no_data = false;    // find something on that level
+            }
+            else
+                printf("%c\t", ' ');
+        }
+        level++;
+        logsimple("EOC: no data %s", bool_str(no_data));
+        putchar('\n');
+    }
+    return logsimpleret(level, "max level %d was reached", level);
 }
 
 static int              show_histogram(const int *arr, int sz, int maxcnt, SHOW_MODE mode){
@@ -103,10 +132,14 @@ static int              show_histogram(const int *arr, int sz, int maxcnt, SHOW_
             for (int i = 0; i <= sz; i++)
                 if (arr[i] > 0){
                     printf("%3d: ", i);
-                    printline('#', arr[i], maxcnt, MAX_LINE);
+                    print_line('#', arr[i], maxcnt, MAX_LINE);
                 }
         break;
         case SHOW_MODE_VERTICAL:
+            for (int i = 1; i <= sz; i++)
+                printf("%d-%d\t", i, arr[i]);
+            putchar('\n');
+            print_vertical('#', arr, sz, maxcnt, MAX_LINE);
         break;
         default:
             fprintf(stderr, "Unsupported mode %d", mode);
