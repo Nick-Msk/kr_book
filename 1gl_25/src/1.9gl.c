@@ -11,7 +11,7 @@ int             main(int argc, const char *argv[]){
     char    line[MAXLINE];
     char    longest[MAXLINE];
 
-    while ( (len = get_line(line, MAXLINE) > 0)){
+    while ( (len = get_line(line, MAXLINE)) > 0){
         if (len > max){
             max = len;
             copy(longest, line);

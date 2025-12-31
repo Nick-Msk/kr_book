@@ -39,6 +39,9 @@ task1.9: src/task1.9.c
 1.9gl: src/1.9gl.c
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+1.16.task: src/1.16.task.c lib/log.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
