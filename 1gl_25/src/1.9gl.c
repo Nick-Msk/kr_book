@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-static const int        MAXLINE = 10000;
+static const int        MAXLINE = 1000;
 
 static int      get_line(char s[], int lim);
 static int      copy(char to[], const char from[]);
