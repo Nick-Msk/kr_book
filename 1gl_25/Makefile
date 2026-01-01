@@ -45,6 +45,9 @@ task1.9: src/task1.9.c
 1.17.task: src/1.17.task.c 
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+1.18.task: src/1.18.task.c 
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
