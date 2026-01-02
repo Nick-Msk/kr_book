@@ -27,20 +27,33 @@ int                     main(int argc, const char *argv[]){
 }
 
 static int                split_stream(int splitsize){
-    int     cnt = 0, pos = 0;
+    int     cnt = 0, pos = 0, spcpos = -1;
     int     c;
-    char    buf[splitsize + 1];
+    //char    buf[splitsize + 1];
 
     while ( (c = getchar()) != EOF){
         if (c == '\n'){
             pos = 0;
+            spcpos = -1;
             putchar(c);
         } else if (pos == splitsize){
             putchar('\n');
             cnt++;
             pos = 1;
+            spcpos = -1;
             putchar(c); // on the new line
-        } else {
+        } else if (c == ' ' || c == '\t'){ // TODO: actually tab isn't pretty equal to space...  probably tab shoud counted as + pos % tabsize
+            if (spcpos == -1)
+                spcpos = pos;   // fix first space occurence
+            else
+                spcpos++; 
+            pos++;
+        }
+        else {
+            if (spcpos > 0){
+                printf("%*c", pos - spcpos - 1, ' ');
+                spcpos = -1;
+            }
             putchar(c);
             pos++;
         }
