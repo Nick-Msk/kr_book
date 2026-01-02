@@ -60,6 +60,9 @@ task1.9: src/task1.9.c
 1.22.task: src/1.22.task.c  lib/log.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+remover.1.23: src/remover.1.23.c  lib/log.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
