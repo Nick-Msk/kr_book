@@ -10,6 +10,7 @@ static int          comment_remover(void){
     int c, c2;
     bool string = false, letter = false, ct1 = false, ct2 = false;  // ct1 - // comment, ct2 - /* */ comment
     
+    const char *tmp = " /*hjghjghghgjjhgh */ ";
     /* main cycle 
     -----
     */
@@ -23,9 +24,9 @@ static int          comment_remover(void){
             if (c == '/'){  // in that case we have to get one more symbol
                 c2 = getchar();
                 if (c2 == '/')
-                    ct1 = true;
+                    ct1 = true, cnt++;
                 else if (c2 == '*')
-                    ct2 = true;
+                    ct2 = true, cnt++;
                 else
                     ungetc(c2, stdin);
             }
@@ -43,8 +44,10 @@ static int          comment_remover(void){
         } else if (ct2){
             if (c == '*'){
                 c2 = getchar();
-                if (c2 == '/')
+                if (c2 == '/'){
                     ct2 = false;
+                    continue;
+                }
                 else
                     ungetc(c2, stdin);
             }
