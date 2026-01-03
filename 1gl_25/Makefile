@@ -63,6 +63,9 @@ task1.9: src/task1.9.c
 remover.1.23: src/remover.1.23.c  lib/log.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+checker.1.24: src/checker.1.24.c  lib/log.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
