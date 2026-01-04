@@ -1,7 +1,6 @@
 *.swp
 *~
 *.c~
-test/
 lib/
 out/
 debug/
