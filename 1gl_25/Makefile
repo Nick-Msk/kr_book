@@ -87,11 +87,10 @@ lib/common.o:
 
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
-	-rm *.o
-	-rm *_test
-	-rm -r *.dSYM
-	-rm *.gch
-	-rm out/*
+	-rm src/*.c~
+	-rm src/.*.un~
+	-rm -rf out/*
+	-rm lib/*
 	find . -perm -u=x -type f -ls -maxdepth 1 -exec rm {} \;
 
 cleanlog:
