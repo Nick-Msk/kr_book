@@ -1,30 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "bool.h"
-#include "log.h"
-#include "error.h"
-
-static bool             check_input(int *errnum);
-
-int                     main(int argc, const char *argv[]){
-   if (argc > 1){
-        if (strcmp(argv[1], "-v") == 0 || strcmp(argv[1], "--version") == 0){
-            printf("%s simple error checker task 1.24 KR\nUsage: %s\n", __FILE__, *argv);
-            return 0;
-        }
-    }
-
-    int errnum = 0;
-    if (check_input(&errnum))
-        printf("Checks are passed\n");
-    else
-        printf("Error're occurs (%d)\n", errnum);
-
-    return 0;
-}
-
 // TODO: make a struct here
 static const int        MX_SZ = 2000;
 static char             bracket_array[MX_SZ];
@@ -32,7 +5,7 @@ static int              pos = 0;
 
 static inline bool      br_add(char c){
     //~
-    if (pos < MX_SZ) /*~*/
+    if (pos < MX_SZ)) /*~*/
         bracket_array[pos++] = c;
     else {
         fprintf(stderr, "%s: %s Pos (%d) is out of range\n", __FILE__, __func__, pos);
@@ -72,7 +45,7 @@ static inline char      br_arc(char c){
 
 static inline bool      br_remove(char c){
     if (pos > 0){
-        //fprintf(stderr, "%c - %c\n", bracket_array[pos - 1], br_arc(c));
+        fprintf(stderr, "%c - %c\n", bracket_array[pos - 1], br_arc(c));
         if (bracket_array[pos - 1] == br_arc(c))
             bracket_array[--pos] = '\0';
         else {
@@ -119,7 +92,7 @@ static bool             check_input(int *p_errnum){
             }
         } else if (in_comm1){   // ....
             if (c == '\n')
-                in_comm1 = false;
+                in_comm1 = true;
         } else if (in_comm2){   /* ..... */ 
             if (c == '*'){
                 if ( (c2 =  getchar()) == '/')
