@@ -1,10 +1,13 @@
 #include <limits.h>
 #include <float.h>
 #include <stdio.h>
+#include <math.h>
 
 static int             calc_max_int(void);
 static long            calc_max_long(void);
-static float           calc_max_float(float, float);
+static float           calc_max_float(void);
+static float           calc_min_float(void);
+static double          calc_max_double(void);
 
 int                     main(void){
 
@@ -37,12 +40,20 @@ int                     main(void){
 
         printf("calculated max int = %d, long = %ld\n", max_int, max_long);
 
-        /*
-        float max_float = calc_max_float(10000.0, 2.0);
-
+        
+        float max_float = calc_max_float();
         printf("calculated float = %e, FLT_MAX = %e, diff = %e, diff%% = %f\n", 
                         max_float, FLT_MAX, fabs(max_float - FLT_MAX), 100 * fabs(max_float - FLT_MAX) / FLT_MAX);
+
+        /*float min_float = calc_min_float();
+        printf("calculated float = %e, FLT_MIN = %e, diff = %e, diff%% = %f\n", 
+                        min_float, FLT_MIN, fabs(min_float - FLT_MIN), 100 * fabs(min_float - FLT_MIN) / FLT_MIN);
         */
+
+
+        double max_double = calc_max_double();
+        printf("calculated double = %e, DBL_MAX = %e, diff = %e, diff%% = %f\n", 
+                        max_float, DBL_MAX, fabs(max_double - DBL_MAX), 100 * fabs(max_double - DBL_MAX) / DBL_MAX);
         return 0;
 }
 
@@ -66,4 +77,80 @@ static long            calc_max_long(void){
             maxlong = n;
     }
     return maxlong;
+}
+
+static float           calc_max_float(void){
+    float f = 1.0, prev;
+    float mul = 2.0;
+    int maxiter = 1000;
+    while (!isinf(f)){
+        prev = f;
+        f *= mul;
+        //printf("new f=%e, max=%e\n", f, prev);
+    }
+    mul = sqrt(mul);
+    f = prev;
+    //printf("f = %e, mul = %f\n", f, mul);
+    while (mul > 1 + FLT_EPSILON && maxiter-- > 0){
+        f *= mul;
+        //printf("f %e, mul %f prev %e\n", f, mul, prev);
+        if (isinf(f)){
+            f = prev;
+            mul = sqrt(mul);
+        } else 
+            prev = f;
+    }
+    printf("Iter = %d\n", 1000 - maxiter);
+    return prev;
+}
+
+/*
+static float           calc_min_float(void){
+    float f = 1.0, prev;
+    float mul = 2.0;
+    int maxiter = 1000;
+    while (f > FLT_EPSILON){
+        prev = f;
+        f /= mul;
+        //printf("new f=%e, max=%e\n", f, prev);
+    }
+    mul = sqrt(mul);
+    f = prev;
+    //printf("f = %e, mul = %f\n", f, mul);
+    while (mul > 1 + FLT_EPSILON && maxiter-- > 0){
+        f /= mul;
+        //printf("f %e, mul %f prev %e\n", f, mul, prev);
+        if (f == 0){
+            f = prev;
+            mul = sqrt(mul);
+        } else 
+            prev = f;
+    }
+    printf("Iter = %d\n", 1000 - maxiter);
+    return prev;
+}*/
+
+static double           calc_max_double(void){
+    double      f = 1.0, prev;
+    double      mul = 2.0;
+    int         maxiter = 1000;
+    while (!isinf(f)){
+        prev = f;
+        f *= mul;
+    }
+    mul = sqrt(mul);
+    f = prev;
+    
+    //printf("f = %e, mul = %f\n", f, mul);
+    while (mul > 1 + DBL_EPSILON && maxiter-- > 0){
+        f *= mul;
+        //printf("f %e, mul %f prev %e\n", f, mul, prev);
+        if (isinf(f)){
+            f = prev;
+            mul = sqrt(mul);
+        } else
+            prev = f;
+    }
+    printf("Iter = %d\n", 1000 - maxiter);
+    return prev;
 }
