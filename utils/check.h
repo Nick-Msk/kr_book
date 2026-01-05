@@ -59,4 +59,8 @@ int						inv_fprintf_int(FILE *restrict out, const char *restrict expr, int res,
 
 #endif /* NOINVARIANT */
 
+// NEW checker strategy (22-jul-2024)
+#define             check_arg(argcmax, msg, ...)\
+    ( argc < (argcmax) ? fprintf(stderr, msg, ##__VA_ARGS__), 0 : 1)
+
 #endif /* !CHECKER_H */
