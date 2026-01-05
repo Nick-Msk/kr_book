@@ -9,6 +9,9 @@ all:
 limits.2.9: src/limits.2.9.c
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+htoi.2.3: src/htoi.2.3.c
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
