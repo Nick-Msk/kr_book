@@ -12,6 +12,9 @@ limits.2.9: src/limits.2.9.c
 htoi.2.3: src/htoi.2.3.c lib/log.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+squeeze.2.4: src/squeeze.2.4.c lib/log.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
