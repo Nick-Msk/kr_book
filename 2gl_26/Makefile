@@ -12,7 +12,7 @@ limits.2.9: src/limits.2.9.c
 htoi.2.3: src/htoi.2.3.c lib/log.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-squeeze.2.4: src/squeeze.2.4.c lib/log.o
+squeeze.2.4: src/squeeze.2.4.c lib/log.o lib/metric.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 findanysym.2.5: src/findanysym.2.5.c lib/log.o lib/metric.o
