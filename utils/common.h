@@ -59,7 +59,7 @@ extern int                 get_line(char *line, int lim);
 // check if compatible
 #define IS_COMPATIBLE(x, T) _Generic((x), T: 1, default 0)
 
-#define FREE(x) { free(x); x = 0; }
+#define FREE(x) { free(x); (x) = 0; }
 
 #ifndef NDEBUG
 
