@@ -34,6 +34,16 @@ common.o: common.c
 test: test.c error.o log.o
 	$(CC) $(CFLAGS) -DTESTTESTING $^ -o test/$@_test
 
+
+metric: metric.c log.c test.c
+	$(CC) $(CFLAGS) -DCHECKERTESTING $^ -o test/$@_test
+	@mv log.o test.o lib/
+
+metric.o: metric.c log.c
+	$(CC) $(CFLAGS) $^ -c
+	@mv $@ lib/
+	@mv log.o lib/
+
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
 	@rm *.o
