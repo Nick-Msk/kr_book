@@ -358,9 +358,12 @@ test_fopen(void)
 	print("Temporary file name %s\n", tf.name);
 
 	if ( (tf.f = fopen(tf.name, "w+")) == NULL)
+    // TODO: 
+    // int fd = mkstemp(name);
+    //  tf.f = fdopen(fd, "rw")
+    //
 	{
 		perror("Unable to open file for rw\n");
-		free(tf.name);
 		sysraiseint("Unable to open file for 'rw'");
 	}
 	return tf;
@@ -382,6 +385,7 @@ test_fclose(TFILE tf)
 			fprint(stderr, "Unable to remove [%s]\n", tf.name);
 			res = false;
 		}
+        // remove that after refactoring to mkstemp()
 		free(tf.name);
 	}
 	logsimple("Temporary file closed and removed");
