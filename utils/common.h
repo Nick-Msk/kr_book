@@ -97,4 +97,17 @@ extern int                 get_line(char *line, int lim);
 
 #define				CASE_RETURN(x) case x:  return #x
 
+// simple comparator
+static inline int        char_cmp(const void *s1, const void *s2){
+    const char *c1 = s1;
+    const char *c2 = s2;
+    return *c1 - *c2;
+}
+
+static inline void      char_exch(char *s1, char *s2){
+    char c = *s1;
+    *s1 = *s2;
+    *s2 = c;
+}
+
 #endif /* ! _COMMON_H */
