@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <strings.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #include "metric.h"
 #include "log.h"
@@ -23,8 +24,8 @@ static inline const char *getFindTypeName(enum FindType t){
 static int                       findanysym(const char *restrict str, const char *restrict pt, enum FindType ty);
 
 // to common.c!!! TODO:
-char                    *read_from_file(FILE *f, int cnt /* not used for now*/, int p_cnt){
-    logenter("read from input (%d)");
+char                    *read_from_file(FILE *f, int cnt /* not used for now*/, int *p_cnt){
+    logenter("read from input (%d)", cnt);
     int      sz = 1024, len, sum = 0;
     char    *s = 0;        // string to store
     s = malloc(sz);
@@ -72,7 +73,7 @@ int                       main(int argc, const char *argv[]){
     const char  *pt = strdup(argv[1]);
     Metric *m = 0;
     int cnt = 0;
-    char *s = fead_from_file(stdin, cnt, &cnt);
+    char *s = read_from_file(stdin, cnt, &cnt);
 
     if (!s){
         fprintf(stderr, "Unable to read from input source\n");
@@ -82,7 +83,7 @@ int                       main(int argc, const char *argv[]){
     if (ty == FIND_ONEBYONE)
         m = metric_get("FIND_ONEBYONE_cnt", true);
 
-    printf("Found pos %d\n", findanysym(str, pt, ty));
+    printf("Found pos %d\n", findanysym(s, pt, ty));
 
     metric_print(m);
     free(s);
@@ -92,28 +93,20 @@ int                       main(int argc, const char *argv[]){
 }
 
 static char                      *uniq_srt(char *s, int *p_len){
-    logsenter("str [%s]", s);
+    logenter("str [%s]", s);
     bool    hash[256] = {false};
-    int     i = 0, j = 0;
+    int     j = 0;
     char    c;
     while ( (c = s[j]) != '\0'){
-        if (!hash[c]){
-            hash[c] = true;
+        if (!hash[(int) c]){
+            hash[(int) c] = true;
             s[j++] = c;
         }
-        i++;
     }
     s[j] = '\0';
     if (p_len)
         *p_len = j;
     return logret(s, "new len = %d, new str[%s]", j, s);
-}
-
-// to common.c          TODO:
-int                             char_cmp(const void *s1, const void *s2){
-    const char *c1 = s1;
-    const char *c2 = s2;
-    return *c1 - *c2;
 }
 
 static char                     *sort_str(char *s, int len){
