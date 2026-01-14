@@ -32,7 +32,11 @@ extern Metric               g_metric_array[MAX_METRIC];
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
 // get or create
-Metric      *metric_get(const char *name, bool create);
+Metric                   *metric_get(const char *name, bool create);
+
+static inline Metric     *metric_create(const char *name){
+    return metric_get(name, true);
+} 
 
 // -------------- ACCESS AND MODIFICATION ----------
 
