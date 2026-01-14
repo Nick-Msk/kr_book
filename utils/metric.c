@@ -11,14 +11,11 @@
 
 // static globals
 
-Metric                      g_metric_array[MAX_METRIC];
-int                         g_metricfreepos = 0;
-
 // internal type
 
 // ---------- pseudo-header for utility procedures -----------------
 
-static Metric *metric_create(int pos, const char *name);
+static Metric *metric_cr(int pos, const char *name);
 static Metric *metric_search(const char *name);
 
 // ------------------------------ Utilities ------------------------
@@ -31,7 +28,7 @@ static Metric *metric_search(const char *name){
     return 0;
 }
 
-static Metric *metric_create(int pos, const char *name){
+static Metric *metric_cr(int pos, const char *name){
     logsimple("create on %d position with [%s]", pos, name);
     g_metric_array[pos].value = 0;
     strncpy(g_metric_array[pos].name, name, MAX_METRIC_NAME - 1);
@@ -53,7 +50,7 @@ Metric      *metric_get(const char *name, bool create){
         return logret(m, "found");
     // not found
     if (create && g_metricfreepos < MAX_METRIC)
-        m = metric_create(g_metricfreepos++, name);
+        m = metric_cr(g_metricfreepos++, name);
     return logret(m, "created? %p", m);
 }
 
@@ -61,7 +58,7 @@ Metric      *metric_get(const char *name, bool create){
 
 int                       metric_fprint(FILE *f, Metric *m){
     if (m)
-        return fprintf(f, "[%s] = [%d]\n", m->name, m->value);
+        return fprintf(f, "\nMETRIC:\n[%s] = [%d]\n", m->name, m->value);
     else
         return 0;
 }
