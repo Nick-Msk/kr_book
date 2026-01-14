@@ -110,6 +110,11 @@ static inline void      char_exch(char *s1, char *s2){
     *s2 = c;
 }
 
+//  binary char search
+static inline char              *bcharsearch(char c, const char *pt, int len){
+    return  bsearch(&c, pt, len, 1, char_cmp /* from common.h */);
+} 
+
 char                    *read_from_file(FILE *f, int *p_cnt);
 
 #endif /* ! _COMMON_H */
