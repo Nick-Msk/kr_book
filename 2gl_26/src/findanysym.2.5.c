@@ -30,6 +30,7 @@ static int                       print_str_n(const char *s, int n, int lastchar)
     return i;
 }
 
+static char                     *uniq_str(char *s, int *p_len);
 static int                       findanysym(const char *restrict str, const char *restrict pt, enum FindType ty);
 
 // to common.c!!! TODO:
@@ -87,7 +88,9 @@ int                       main(int argc, const char *argv[]){
         fprintf(stderr, "Unsupported method %s\n", argv[2]);
         return 2;
     }
-    const char  *pt = strdup(argv[1]);
+    char  *pt = strdup(argv[1]);
+    // remove extra symbols
+    uniq_str(pt, 0);
     Metric *m = 0;
     int cnt = 0;
     char *s = read_from_file(stdin, &cnt);
@@ -114,12 +117,12 @@ int                       main(int argc, const char *argv[]){
     return 0;
 }
 
-static char                      *uniq_srt(char *s, int *p_len){
+static char                      *uniq_str(char *s, int *p_len){
     logenter("str [%s]", s);
     bool    hash[256] = {false};
-    int     j = 0;
+    int     j = 0, i = 0;
     char    c;
-    while ( (c = s[j]) != '\0'){
+    while ( (c = s[i++]) != '\0'){
         if (!hash[(int) c]){
             hash[(int) c] = true;
             s[j++] = c;
