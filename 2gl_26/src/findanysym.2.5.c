@@ -5,12 +5,12 @@
 
 #include "metric.h"
 #include "log.h"
-#include "check.h"
+#include "checker.h"
 #include "common.h"
 
 enum FindType {
     FIND_ONEBYONE       = 0,
-    FIND_SORTED_PATTERN = 1
+    FIND_SORTED_PATTERN = 1     // ^
 };
 
 static inline const char *getFindTypeName(enum FindType t){
@@ -21,34 +21,47 @@ static inline const char *getFindTypeName(enum FindType t){
     }
 }
 
+static int                       print_str_n(const char *s, int n, int lastchar){
+    int i;
+    for (i = 0; i < n && s[i] != '\0'; i++)
+        putchar(s[i]);
+    if (lastchar != EOF)
+        putchar(lastchar), i++;
+    return i;
+}
+
 static int                       findanysym(const char *restrict str, const char *restrict pt, enum FindType ty);
 
 // to common.c!!! TODO:
-char                    *read_from_file(FILE *f, int cnt /* not used for now*/, int *p_cnt){
-    logenter("read from input (%d)", cnt);
-    int      sz = 1024, len, sum = 0;
+/*
+char                    *read_from_file(FILE *f, int *p_cnt){
+    logenter("read from input (%p)", f);
+    int      sz = 1024, len, pos = 0, cnt = sz;
     char    *s = 0;        // string to store
     s = malloc(sz);
     if (!s){
         fprintf(stderr, "Unable to acclocate %d\n", sz);
         return 0;
     }
-    while ((len = fread(s, 1, sz - 1, f)) > 0){
-        sum += len;
-        if (len == sz - 1){
+    while ((len = fread(s + pos, 1, cnt - 1, f)) > 0){
+        pos += len;
+        logmsg("pos %d, len %d, sz %d", pos, len, sz);
+        // check if next cnt bytes is available
+        if (pos + cnt > sz - 1){
             s = realloc(s, sz *= 2);
             if (!s){
                 fprintf(stderr, "Unable to acclocate %d\n", sz);
                 free(s);
                 return 0;
             }
+            logmsg("new sz = %d", sz);
         }
     }
-    s[sum] = '\0';      // to make a normal c-string
+    s[pos] = '\0';      // to make a normal c-string
     if (p_cnt)
-        *p_cnt = sum;
-    return logret(s, "%d bytes were read", sum);
-}
+        *p_cnt = pos;
+    return logret(s, "%d bytes were read", pos);
+}*/
 
 int                       main(int argc, const char *argv[]){
 
@@ -58,7 +71,7 @@ int                       main(int argc, const char *argv[]){
     enum FindType ty = FIND_ONEBYONE;
     if (argc > 1){
         if (strcmp(argv[1], "-v") == 0 || strcmp(argv[1], "--version") == 0){
-            printf("%s any string KR task 2.5\nUsage: %s <pattern> <method F/S>\n", __FILE__, *argv); // Usage here??
+            printf("%s any string KR task 2.5 (input:  stdin)\nUsage: %s <pattern> <method F/S>\n", __FILE__, *argv); // Usage here??
             return 0;
         }
     }
@@ -70,10 +83,14 @@ int                       main(int argc, const char *argv[]){
         ty = FIND_ONEBYONE;
     else if (toupper(*argv[2]) == 'S')
         ty = FIND_SORTED_PATTERN;
+    else {
+        fprintf(stderr, "Unsupported method %s\n", argv[2]);
+        return 2;
+    }
     const char  *pt = strdup(argv[1]);
     Metric *m = 0;
     int cnt = 0;
-    char *s = read_from_file(stdin, cnt, &cnt);
+    char *s = read_from_file(stdin, &cnt);
 
     if (!s){
         fprintf(stderr, "Unable to read from input source\n");
@@ -81,9 +98,14 @@ int                       main(int argc, const char *argv[]){
     }
 
     if (ty == FIND_ONEBYONE)
-        m = metric_get("FIND_ONEBYONE_cnt", true);
+        m = metric_create("FIND_ONEBYONE_cnt");
+    else
+        m = metric_create("FIND_SORTED_PATTERN_cnt");
 
-    printf("Found pos %d\n", findanysym(s, pt, ty));
+    cnt = findanysym(s, pt, ty);
+    printf("Found pos %d\nPattern [%s] from\n", cnt, pt);
+    //fputs(s, stdout);
+    print_str_n(s, 100, '\n');    // TODO: is there any lib to do that?
 
     metric_print(m);
     free(s);

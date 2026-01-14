@@ -15,7 +15,7 @@ htoi.2.3: src/htoi.2.3.c lib/log.o
 squeeze.2.4: src/squeeze.2.4.c lib/log.o lib/metric.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-findanysym.2.5: src/findanysym.2.5.c lib/log.o lib/metric.o
+findanysym.2.5: src/findanysym.2.5.c lib/log.o lib/metric.o lib/common.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 UTIL_PATH = ../utils
