@@ -110,4 +110,6 @@ static inline void      char_exch(char *s1, char *s2){
     *s2 = c;
 }
 
+char                    *read_from_file(FILE *f, int *p_cnt);
+
 #endif /* ! _COMMON_H */

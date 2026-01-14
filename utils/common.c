@@ -1,4 +1,5 @@
 #include "common.h"
+#include "log.h"
 
 // fill with 0.0 cnt elements 
 void                cleaner_double(void *arr, int cnt)
@@ -17,5 +18,34 @@ int			        get_line(char *line, int lim){
 		line[i++] = c;
 	line[i] = '\0';
 	return i;
+}
+
+char                    *read_from_file(FILE *f, int *p_cnt){
+    logenter("read from input (%p)", f);
+    int      sz = 1024, len, pos = 0, cnt = sz;
+    char    *s = 0;        // string to store
+    s = malloc(sz);
+    if (!s){
+        fprintf(stderr, "Unable to acclocate %d\n", sz);
+        return 0;
+    }
+    while ((len = fread(s + pos, 1, cnt - 1, f)) > 0){
+        pos += len;
+        logmsg("pos %d, len %d, sz %d", pos, len, sz);
+        // check if next cnt bytes is available
+        if (pos + cnt > sz - 1){
+            s = realloc(s, sz *= 2);
+            if (!s){
+                fprintf(stderr, "Unable to acclocate %d\n", sz);
+                free(s);
+                return 0;
+            }
+            logmsg("new sz = %d", sz);
+        }
+    }
+    s[pos] = '\0';      // to make a normal c-string
+    if (p_cnt)
+        *p_cnt = pos;
+    return logret(s, "%d bytes were read", pos);
 }
 
