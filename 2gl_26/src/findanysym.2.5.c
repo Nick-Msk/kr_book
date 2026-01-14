@@ -31,38 +31,7 @@ static int                       print_str_n(const char *s, int n, int lastchar)
 }
 
 static char                     *uniq_str(char *s, int *p_len);
-static int                       findanysym(const char *restrict str, const char *restrict pt, enum FindType ty);
-
-// to common.c!!! TODO:
-/*
-char                    *read_from_file(FILE *f, int *p_cnt){
-    logenter("read from input (%p)", f);
-    int      sz = 1024, len, pos = 0, cnt = sz;
-    char    *s = 0;        // string to store
-    s = malloc(sz);
-    if (!s){
-        fprintf(stderr, "Unable to acclocate %d\n", sz);
-        return 0;
-    }
-    while ((len = fread(s + pos, 1, cnt - 1, f)) > 0){
-        pos += len;
-        logmsg("pos %d, len %d, sz %d", pos, len, sz);
-        // check if next cnt bytes is available
-        if (pos + cnt > sz - 1){
-            s = realloc(s, sz *= 2);
-            if (!s){
-                fprintf(stderr, "Unable to acclocate %d\n", sz);
-                free(s);
-                return 0;
-            }
-            logmsg("new sz = %d", sz);
-        }
-    }
-    s[pos] = '\0';      // to make a normal c-string
-    if (p_cnt)
-        *p_cnt = pos;
-    return logret(s, "%d bytes were read", pos);
-}*/
+static int                       findanysym(const char *restrict str, char *restrict pt, enum FindType ty);
 
 int                       main(int argc, const char *argv[]){
 
@@ -140,6 +109,7 @@ static char                     *sort_str(char *s, int len){
     return logret(s, "[%s]", s);
 }
 
+// TODO: think about complex testing
 static int                       findanysym_onebyne(const char *restrict str, const char *restrict pt){
 
     Metric *m = metric_get("FIND_ONEBYONE_cnt", false); // if not found it's ok!
@@ -152,8 +122,22 @@ static int                       findanysym_onebyne(const char *restrict str, co
     return -1;
 }
 
+static int                       findanysym_bsearch(const char *restrict str, char *restrict pt){
+
+    Metric *m = metric_get("FIND_SORTED_PATTERN_cnt", false);
+    int len = strlen(pt);   // it can be optimized, but actually pattern isn't too big because of unique
+    sort_str(pt, len);
+    for (int i = 0; str[i] != '\0'; i++){
+        metric_inc(m);  // +1
+        if (bcharsearch(str[i], pt, len) != 0)
+            return logsimpleret(i, "found %d", i);
+    }
+
+    return logsimpleret(-1, "Not found");
+}
+
 // just a launcher
-static int                       findanysym(const char *restrict str, const char *restrict pt, enum FindType ty){
+static int                       findanysym(const char *restrict str, char *restrict pt, enum FindType ty){
     logenter("method %s, pattter [%s]", getFindTypeName(ty), pt);
     int  pos = -1;
 
@@ -162,7 +146,7 @@ static int                       findanysym(const char *restrict str, const char
             pos = findanysym_onebyne(str, pt);
         break;
         case FIND_SORTED_PATTERN:
-            printf("TODO! %s", getFindTypeName(ty));
+            pos = findanysym_bsearch(str, pt);
         break;
         default:
             fprintf(stderr, "Unknown method %c", ty);
