@@ -11,6 +11,9 @@
 
 // static globals
 
+Metric                      g_metric_array[MAX_METRIC];
+int                         g_metricfreepos = 0;
+
 // internal type
 
 // ---------- pseudo-header for utility procedures -----------------
