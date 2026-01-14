@@ -6,6 +6,9 @@ LDLIBS=
 
 all:
 
+printf_n: printf_n.c
+	$(CC) $(CFLAGS) $^ -o out/$@_test
+
 t7.8.1: t7.8.1.c
 	$(CC) $(CFLAGS) $^ -o $@_test
 
