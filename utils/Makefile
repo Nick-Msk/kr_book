@@ -6,10 +6,10 @@ LDLIBS=
 
 all:
 
-check: check.c log.o test.o error.o
+checker: checker.c log.o test.o error.o
 	$(CC) $(CFLAGS) -DCHECKERTESTING $^ -o test/$@_test
 
-check.o: check.c log.c
+checker.o: checker.c log.c
 	$(CC) $(CFLAGS) $^ -c
 	@mv $@ lib/
 
