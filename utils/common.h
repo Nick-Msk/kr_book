@@ -2,6 +2,7 @@
 #define _COMMON_H
 
 #include <stdlib.h>
+#include <string.h>
 
 /***************************************************************
 				USEFUL MACRO AND FUNCTIONS
@@ -117,15 +118,15 @@ static inline char              *sort_str(char *s, int len){
 }
 
 // simpe file reader, must call free(s); after usage!!
-extern char                *read_from_file(FILE *f, int *p_cnt);
+extern char                     *read_from_file(FILE *f, int *p_cnt);
 
 // make s unique by symbols (no odering!!!)
-extern char                *uniq_str(char *s, int *p_len);
+extern char                     *uniq_str(char *s, int *p_len);
 
 // fill with 0.0 cnt elements
-extern void                 cleaner_double(void *arr, int cnt);
+extern void                     cleaner_double(void *arr, int cnt);
 
 // for now in common.c, then will be moved out
-extern int                  get_line(char *line, int lim);
+extern int                      get_line(char *line, int lim);
 
 #endif /* ! _COMMON_H */
