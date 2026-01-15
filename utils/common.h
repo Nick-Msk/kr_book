@@ -129,4 +129,15 @@ extern void                     cleaner_double(void *arr, int cnt);
 // for now in common.c, then will be moved out
 extern int                      get_line(char *line, int lim);
 
+// print int as bits
+extern int                      fprint_bits(FILE *f, const char *str, unsigned val);
+
+// print int as bits
+static inline int               print_bits(const char *str, unsigned  val){
+    return fprint_bits(stdout, str, val);
+}
+
+// reverse string
+extern char                     *reverse(char *s, int len);
+
 #endif /* ! _COMMON_H */

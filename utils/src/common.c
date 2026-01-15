@@ -65,3 +65,25 @@ char                      *uniq_str(char *s, int *p_len){
     return s; // logret(s, "new len = %d, new str[%s]", j, s);
 }
 
+int                     fprint_bits(FILE *f, const char *str, unsigned val){
+    char            buf[100];
+    unsigned        pos = 0, bit;
+    while (pos < sizeof(buf) - 1 && val > 0){ 
+        bit = val & 0x1;
+        buf[pos++] = bit + '0';
+        val >>= 1;
+    }   
+    buf[pos] = '\0';
+    reverse(buf, pos);
+    return fprintf(f, "%s: %s\n", str, buf);
+}
+
+// reverse string
+char*                   reverse(char *s, int len){
+    logenter("[%s]", s);
+    int i = 0, j = len - 1;
+    while (i < j)
+        char_exch(s + i++, s + j--);
+    return logret(s, "Reversed: [%s]", s);
+}
+
