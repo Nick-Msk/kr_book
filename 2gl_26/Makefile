@@ -22,6 +22,9 @@ findanysym.2.5: src/findanysym.2.5.c lib/log.o lib/metric.o lib/common.o
 setbits.2.6: src/setbits.2.6.c lib/log.o lib/common.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+invert.2.7: src/invert.2.7.c lib/log.o lib/common.o lib/checker.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
