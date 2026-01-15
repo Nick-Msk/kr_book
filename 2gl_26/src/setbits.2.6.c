@@ -31,6 +31,7 @@ int                     main(int argc, const char *argv[]){
 
     int res = setbits(x, p, n, y);
     printf("Res = %d\n", res);
+    print_bits("x=", x);
     print_bits("Bits=", res);
 
     logclose("...");
@@ -38,9 +39,27 @@ int                     main(int argc, const char *argv[]){
 }
 
 static int          setbits(unsigned x, unsigned p, unsigned n, unsigned y){
-    int res = x;
-    
-    // TODO: 
-    return res;
+
+    char        buf[100];
+    logenter("x = %s", bits_str(buf, sizeof(buf), x) );
+
+    unsigned    mask = ~0;
+    unsigned    i = n;
+    while (i > 0){
+        mask &= ~(1 << (p + --i));
+    }
+    x &= mask;
+    fprint_bits(logfile, "x & mask ", x);
+
+    i = n; mask = 0;
+    while (i-- > 0)
+        //mask &= ~(1 << (0 + --i));
+        mask = (mask << 1) | 0x1; 
+
+    y = (y & mask) << p;
+    fprint_bits(logfile, "masked and shifted y=", y);
+    x |= y;
+
+    return logret(x, "res = %s", bits_str(buf, sizeof(buf), x));
 }
 
