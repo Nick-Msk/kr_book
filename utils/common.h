@@ -132,6 +132,9 @@ extern int                      get_line(char *line, int lim);
 // print int as bits
 extern int                      fprint_bits(FILE *f, const char *str, unsigned val);
 
+// bits to string (STATIC for now)
+extern const char              *bits_str(char *buf, int len, unsigned val);
+
 // print int as bits
 static inline int               print_bits(const char *str, unsigned  val){
     return fprint_bits(stdout, str, val);
