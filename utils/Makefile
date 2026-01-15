@@ -6,40 +6,44 @@ LDLIBS=
 
 all:
 
-checker: checker.c log.o test.o error.o
+checker: src/checker.c log.o test.o error.o
 	$(CC) $(CFLAGS) -DCHECKERTESTING $^ -o test/$@_test
 
-checker.o: checker.c log.c
+checker.o: src/checker.c
 	$(CC) $(CFLAGS) $^ -c
 	@mv $@ lib/
 
-error: error.c log.o common.o test.o
+error: src/error.c log.o common.o test.o
 	$(CC) $(CFLAGS) -DERRORTESTING $^ -o test/$@_test
 
-error.o: error.c log.o common.o
+error.o: src/error.c
 	$(CC) $(CFLAGS)  $^ -c
 	@mv $@ lib/
 
-log: log.c test.o error.o
+log: src/log.c test.o error.o
 	$(CC) $(CFLAGS) -DLOGTESTING $^ -o test/$@_test
 
-log.o:	log.c
+log.o:	src/log.c
 	$(CC) $(CFLAGS) $^ -c
 	@mv $@ lib/
 
-common.o: common.c
+common.o: src/common.c
 	$(CC) $(CFLAGS) $^ -c
 	@mv $@ lib
 
-test: test.c error.o log.o
+test.o:	src/test.c
+	$(CC) $(CFLAGS) $^ -c
+	@mv $@ lib/
+
+test: src/test.c error.o log.o
 	$(CC) $(CFLAGS) -DTESTTESTING $^ -o test/$@_test
 
 
-metric: metric.c log.c test.c
+metric: src/metric.c log.o test.o
 	$(CC) $(CFLAGS) -DCHECKERTESTING $^ -o test/$@_test
 	@mv log.o test.o lib/
 
-metric.o: metric.c
+metric.o: src/metric.c
 	$(CC) $(CFLAGS) $^ -c
 	@mv $@ lib/
 
