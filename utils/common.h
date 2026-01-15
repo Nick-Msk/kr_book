@@ -115,6 +115,11 @@ static inline char              *bcharsearch(char c, const char *pt, int len){
     return  bsearch(&c, pt, len, 1, char_cmp /* from common.h */);
 } 
 
+static inline char              *sort_str(char *s, int len){
+    qsort(s, len, 1, char_cmp);
+    return s;
+}
+
 char                    *read_from_file(FILE *f, int *p_cnt);
 
 #endif /* ! _COMMON_H */
