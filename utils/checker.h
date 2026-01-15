@@ -29,7 +29,7 @@ int						inv_fprintf_int(FILE *restrict out, const char *restrict expr, int res,
 
 // TODO: add ACTION here
 // basic invariant checker, raise SIGINT, but returns true/false
-// TODO: raise signal
+// userraisig is temporary disabled TODO:
 #define	inv(expr, msg, ...)\
 	({ 	bool _INV_RES = (expr);\
 	   	if (! _INV_RES){\
@@ -40,13 +40,17 @@ int						inv_fprintf_int(FILE *restrict out, const char *restrict expr, int res,
 	})
 
 // should be generic, now onl int or unsigned???
-// TODO: raise signal
+// userraisig is temporary disabled TODO:
 #define	inv2(expr, val, msg, ...)\
 	({	typeof(val)  _RES, _VAL = (val);\
 		_RES = (expr);\
 		if (_VAL != _RES){\
 			inv_fprintf_int(stderr, #expr, _RES, _VAL, msg, ##__VA_ARGS__);\
+<<<<<<< HEAD
 			/*userraiseint(0, ERRNUM_INVARIANT_VIOLATION, msg, ##__VA_ARGS__);*/\
+=======
+			/* userraiseint(0, ERRNUM_INVARIANT_VIOLATION, msg, ##__VA_ARGS__);*/\
+>>>>>>> d209c74 (UTILS: checker.h: userraise is temporary disable (TODO: fix error.h))
 		}\
 		_RES == _VAL;\
 	})
