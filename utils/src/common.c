@@ -49,3 +49,19 @@ char                    *read_from_file(FILE *f, int *p_cnt){
     return logret(s, "%d bytes were read", pos);
 }
 
+char                      *uniq_str(char *s, int *p_len){
+    bool    hash[256] = {false};
+    int     j = 0, i = 0;
+    char    c;
+    while ( (c = s[i++]) != '\0'){
+        if (!hash[(int) c]){
+            hash[(int) c] = true;
+            s[j++] = c;
+        }
+    }
+    s[j] = '\0';
+    if (p_len)
+        *p_len = j;
+    return s; // logret(s, "new len = %d, new str[%s]", j, s);
+}
+
