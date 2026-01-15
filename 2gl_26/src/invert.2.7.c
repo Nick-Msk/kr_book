@@ -30,7 +30,7 @@ int                     main(int argc, const char *argv[]){
 
     int res = invert(x, p, n);
     printf("Res = %d\n", res);
-    print_bits("x=", x);
+    print_bits("Orig=", x);
     print_bits("Bits=", res);
 
     logclose("...");
@@ -41,23 +41,19 @@ static int          invert(unsigned x, unsigned p, unsigned n){
 
     char        buf[100];
     logenter("x = %s", bits_str(buf, sizeof(buf), x) );
-/*
-    unsigned    mask = ~0;
-    unsigned    i = n;
-    while (i > 0){
-        mask &= ~(1 << (p + --i));
-    }
-    x &= mask;
-    fprint_bits(logfile, "x & mask ", x);
+    unsigned mask = 0;
+    unsigned i = n;
+    while (i > 0)
+        mask |= (1 << (p + --i) );
+    fprint_bits(logfile, "mask=", mask);
 
-    i = n; mask = 0;
-    while (i-- > 0)
-        //mask &= ~(1 << (0 + --i));
-        mask = (mask << 1) | 0x1; 
+    unsigned y = x & mask;
+    y = (~y) & mask; // insert
+    fprint_bits(logfile, "inverted positions=", y);
 
-    y = (y & mask) << p;
-    fprint_bits(logfile, "masked and shifted y=", y);
-    x |= y; */
+    x &= ~mask; // free positions
+    fprint_bits(logfile, "x before setup", x);
+    x |= y;
 
     return logret(x, "res = %s", bits_str(buf, sizeof(buf), x));
 }
