@@ -19,6 +19,9 @@ squeeze.2.4: src/squeeze.2.4.c lib/log.o lib/metric.o lib/common.o lib/checker.o
 findanysym.2.5: src/findanysym.2.5.c lib/log.o lib/metric.o lib/common.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+setbits.2.6: src/setbits.2.6.c lib/log.o lib/common.o lib/checker.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
