@@ -8,16 +8,16 @@
 #include "checker.h"
 #include "common.h"
 
-enum FindType {
+enum                            FindType {
     FIND_ONEBYONE       = 0,
     FIND_SORTED_PATTERN = 1     // ^
 };
 
-static inline const char *getFindTypeName(enum FindType t){
+static inline const char        *getFindTypeName(enum FindType t){
     switch (t){
         CASE_RETURN(FIND_ONEBYONE);
         CASE_RETURN(FIND_SORTED_PATTERN);
-        default: return 0;
+        default: return "";
     }
 }
 
@@ -30,10 +30,9 @@ static int                       print_str_n(const char *s, int n, int lastchar)
     return i;
 }
 
-static char                     *uniq_str(char *s, int *p_len);
-static int                       findanysym(const char *restrict str, char *restrict pt, enum FindType ty);
+static int                      findanysym(const char *restrict str, char *restrict pt, enum FindType ty);
 
-int                       main(int argc, const char *argv[]){
+int                             main(int argc, const char *argv[]){
 
     static const char *logfilename = "log/findanysym.2.5.log";
     loginit(logfilename, false, 0, "Start");    // TODO: rework that to LOG("logdir") or LOGAPPEND("logdir") or LOGSWITCH("logdir") 
@@ -86,23 +85,6 @@ int                       main(int argc, const char *argv[]){
     return 0;
 }
 
-static char                      *uniq_str(char *s, int *p_len){
-    logenter("str [%s]", s);
-    bool    hash[256] = {false};
-    int     j = 0, i = 0;
-    char    c;
-    while ( (c = s[i++]) != '\0'){
-        if (!hash[(int) c]){
-            hash[(int) c] = true;
-            s[j++] = c;
-        }
-    }
-    s[j] = '\0';
-    if (p_len)
-        *p_len = j;
-    return logret(s, "new len = %d, new str[%s]", j, s);
-}
-
 // TODO: think about complex testing
 static int                       findanysym_onebyne(const char *restrict str, const char *restrict pt){
 
@@ -147,3 +129,4 @@ static int                       findanysym(const char *restrict str, char *rest
     } 
     return logret(pos, "found %d", pos);
 }
+
