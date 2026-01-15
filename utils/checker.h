@@ -46,11 +46,7 @@ int						inv_fprintf_int(FILE *restrict out, const char *restrict expr, int res,
 		_RES = (expr);\
 		if (_VAL != _RES){\
 			inv_fprintf_int(stderr, #expr, _RES, _VAL, msg, ##__VA_ARGS__);\
-<<<<<<< HEAD
 			/*userraiseint(0, ERRNUM_INVARIANT_VIOLATION, msg, ##__VA_ARGS__);*/\
-=======
-			/* userraiseint(0, ERRNUM_INVARIANT_VIOLATION, msg, ##__VA_ARGS__);*/\
->>>>>>> d209c74 (UTILS: checker.h: userraise is temporary disable (TODO: fix error.h))
 		}\
 		_RES == _VAL;\
 	})
