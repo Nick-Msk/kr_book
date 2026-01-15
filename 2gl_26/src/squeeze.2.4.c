@@ -2,10 +2,10 @@
 #include <strings.h>
 
 #include "log.h"
-#include "check.h"
+#include "checker.h"
 #include "metric.h"
 
-static char               *squeezestr(char * restrict t, const char * restrict pt);
+static char               *squeezestr(char * restrict t, char * restrict pt);
 
 int                       main(int argc, const char *argv[]){
 
@@ -22,7 +22,11 @@ int                       main(int argc, const char *argv[]){
     	return 1;
 	}
     char        *str = strdup(argv[1]);
-    const char  *pt = argv[2];
+    char        *pt = strdup(argv[2]);
+
+    if (!inv(pt != 0, "unable to allocate string [2]!"))
+        return 2;
+
     Metric *m = metric_get("squeeze_cnt", true);
 
     printf("%s\n", squeezestr(str, pt));
@@ -47,12 +51,15 @@ static char               *squeezechar(char *str, char c){
     return str;
 }
 
-static char               *squeezestr(char *restrict str, const char *restrict pt){
+static char               *squeezestr(char *restrict str, char *restrict pt){
+    logenter("str [%s], pt [%s]", str, pt);
+    uniq_str(pt, 0);
+    logmsg("after uniq pt [%s]", pt);
     // very simple alg! TODO: try Virt alg for compare
     for (int k = 0; pt[k] != 0; k++){
         char c = pt[k];
         squeezechar(str, c);
     }
-    return str;
+    return logret(str, "%s", str);
 }
 
