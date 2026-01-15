@@ -103,12 +103,6 @@ static char                      *uniq_str(char *s, int *p_len){
     return logret(s, "new len = %d, new str[%s]", j, s);
 }
 
-static char                     *sort_str(char *s, int len){
-    logenter("[%s]:%d", s, len);
-    qsort(s, len, 1, char_cmp);
-    return logret(s, "[%s]", s);
-}
-
 // TODO: think about complex testing
 static int                       findanysym_onebyne(const char *restrict str, const char *restrict pt){
 
