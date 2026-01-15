@@ -67,6 +67,7 @@ char                      *uniq_str(char *s, int *p_len){
 
 // bits to string (STATIC for now) TODO: think about FastString usage here
 extern const char         *bits_str(char *buf, int len, unsigned val){
+    logenter("val %u", val);
     int        pos = 0, bit;
     while (pos < len - 1 && val > 0){ 
         bit = val & 0x1;
@@ -75,7 +76,7 @@ extern const char         *bits_str(char *buf, int len, unsigned val){
     }
     buf[pos] = '\0';
     reverse(buf, pos);
-    return buf;
+    return logret(buf, "[%s]", buf);
 }
 
 int                         fprint_bits(FILE *f, const char *str, unsigned val){
