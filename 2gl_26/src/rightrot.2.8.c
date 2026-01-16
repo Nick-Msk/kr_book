@@ -54,20 +54,6 @@ static int          rightrot(unsigned x, unsigned n){
     cpy = (cpy & mask) << (INT_WIDTH_BIT - n);
     fprint_bits(logfile, "cpy with mask=", cpy);
     x |= cpy;
-/*
-    unsigned mask = 0;
-    unsigned i = n;
-    while (i > 0)
-        mask |= (1 << (p + --i) );
-    fprint_bits(logfile, "mask=", mask);
-
-    unsigned y = x & mask;
-    y = (~y) & mask; // insert
-    fprint_bits(logfile, "inverted positions=", y);
-
-    x &= ~mask; // free positions
-    fprint_bits(logfile, "x before setup", x);
-    x |= y;*/
 
     return logret(x, "res = %s", bits_str(buf, sizeof(buf), x));
 }
