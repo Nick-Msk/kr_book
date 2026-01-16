@@ -140,6 +140,13 @@ static inline int               print_bits(const char *str, unsigned  val){
     return fprint_bits(stdout, str, val);
 }
 
+static inline int               round_up_2(int val){
+    int prev = 0;
+    while (val)
+        val &= ( (prev = val) - 1);
+    return prev <<= 1;
+}
+
 // reverse string
 extern char                     *reverse(char *s, int len);
 
