@@ -31,6 +31,9 @@ rightrot.2.8: src/rightrot.2.8.c lib/log.o lib/common.o lib/checker.o
 bitcount.2.9: src/bitcount.2.9.c lib/log.o lib/common.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+lower.2.10: src/lower.2.10.c lib/log.o lib/common.o lib/checker.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
