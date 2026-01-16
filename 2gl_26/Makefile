@@ -25,6 +25,9 @@ setbits.2.6: src/setbits.2.6.c lib/log.o lib/common.o lib/checker.o
 invert.2.7: src/invert.2.7.c lib/log.o lib/common.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+rightrot.2.8: src/rightrot.2.8.c lib/log.o lib/common.o lib/checker.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
