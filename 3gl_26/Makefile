@@ -7,7 +7,7 @@ LDLIBS=
 all:
 
 # TODO: refactor to use log: metric: common: checker:
-binsearch.3.1: src/binsearch.3.1.c lib/log.o lib/metric.o lib/common.o lib/checker.o
+binsearch.3.1: src/binsearch.3.1.c lib/log.o lib/metric.o lib/common.o lib/checker.o lib/array.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 UTIL_PATH = ../utils
@@ -37,6 +37,10 @@ lib/checker.o:
 lib/metric.o:
 	cd $(UTIL_PATH) && $(MAKE) metric.o
 	@cp $(UTIL_PATH)/lib/metric.o lib/
+
+lib/array.o:
+	cd $(UTIL_PATH) && $(MAKE) array.o
+	@cp $(UTIL_PATH)/lib/array.o lib/
 
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
