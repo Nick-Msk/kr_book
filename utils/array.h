@@ -48,6 +48,8 @@ typedef struct {
 // CREATE  and fill with method
 extern IArray                   IArray_create(int cnt, ArrayFillType typ);
 
+extern void                     IArray_free(IArray *val);
+
 // -------------- ACCESS AND MODIFICATION ----------
 
 extern void                     IArray_fill(IArray a, ArrayFillType typ);
