@@ -47,6 +47,10 @@ metric.o: src/metric.c
 	$(CC) $(CFLAGS) $^ -c
 	@mv $@ lib/
 
+array.o: src/array.c
+	$(CC) $(CFLAGS) $^ -c
+	@mv $@ lib/
+
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
 	@rm *.o
