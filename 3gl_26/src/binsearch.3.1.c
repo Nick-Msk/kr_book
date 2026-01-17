@@ -113,10 +113,50 @@ static int              binsearch_typ2(int x, IArray arr){
         return logret(-1, "Not found");
 }
 
+// make 1 iteration for every checking value
+// arr MUST be filled with data
+static int              iter_check(IArray arr, Metric *m1, Metric *m2){
+
+    int     check_val;
+    int     ret = 0;
+    int     fnd1, fnd2;
+
+    metric_reset(m1);
+    metric_reset(m2);
+
+    IArray_fill(arr, ARRAY_ACS);
+
+    for (check_val = arr.v[0] - 1; check_val <= arr.v[arr.len - 1] + 1; check_val++){
+        fnd1 = binsearch_typ2(check_val, arr);
+        fnd2 = binsearch_kr(check_val, arr);
+
+        if (fnd1 != fnd2){
+            // TODO: raise here!
+            fprintf(stderr, "!!!! %d != %d\n",  fnd1, fnd2);
+            exit(3);
+        }
+        if (metric_getval(m1) != metric_getval(m2)){
+            printf("typ2 has %d while kr method - %d\n", metric_getval(m1), metric_getval(m2));
+            ret++;
+        }
+    }
+    return ret;
+}
+
+// make a iter iteration with random  arrays 'size'
 static int              force_testing(int iter, int size){
     logenter("iter %d, size %d", iter, size);
 
     int     res = 0;
 
-    return logret(res, "Total failed %d", res);
+    Metric *m1 = metric_create("binsearch_typ2");
+    Metric *m2 = metric_create("binsearch_kr");
+
+    IArray arr = IArray_create(size, ARRAY_ACS);
+    for (int i = 0; i < iter; i++){
+           res += iter_check(arr, m1, m2);
+    }
+    IArray_free(&arr);
+    return logret(res, "Total diff ineration %d", res);
 }
+
