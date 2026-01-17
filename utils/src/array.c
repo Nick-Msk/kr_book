@@ -1,4 +1,4 @@
-
+#include <limits.h>
 
 #include "array.h"
 
@@ -20,39 +20,31 @@
 
 #define                 IArray_init(...) (IArray){.len = 0, .sz = 0, .v = 0}
 
-// CREATE  and fill with method
-// increase and shrink are reuiqred too
-IArray                  IArray_create(int cnt, ArrayFillType typ){
-    logenter("cnt %d, typ %s", cnt, ArrayFillTypeName(typ));
-    IArray      res = IArray_init();
-    int         initval;
-
-    res.sz    = round_up_2(cnt);   // 2^(x + 1)
-    res.len   = cnt;
-    res.v   = malloc(res.sz * sizeof(int));    // TODO: sysraise should be here!!!
+void                    IArray_fill(IArray a, ArrayFillType typ){
+    int     initval;
     // fill
     switch (typ){
         case ARRAY_DESC:
-            initval = 100 * res.len;   // hope it'll ne owerwelhm int
+            initval = 100 * a.len;   // hope it'll ne owerwelhm int
             int     dec_value = 10;          // for now!!! It'll be changed
-            for (int i = 0; i < res.len; i++)
-                res.v[i] = initval -= rndint(dec_value);
+            for (int i = 0; i < a.len; i++)
+                a.v[i] = initval -= rndint(dec_value);
         break;
         case ARRAY_ACS:
-            initval = res.len / 10;
+            initval = a.len / 10;
             int     asc_value = 10;          // for now!!! It'll be changed
-            for (int i = 0; i < res.len; i++)
-                res.v[i] = initval += rndint(asc_value);
+            for (int i = 0; i < a.len; i++)
+                a.v[i] = initval += rndint(asc_value);
         break;
         case ARRAY_RND:
         case ARRAY_ZERO:
-            for (int i = 0; i < res.len; i++){ // iter??? TODO:
+            for (int i = 0; i < a.len; i++){ // iter??? TODO:
                 switch (typ){
                     case ARRAY_RND:
-                        res.v[i] = rndint(10 * res.len);
+                        a.v[i] = rndint(10 * a.len);
                     break;
                     case ARRAY_ZERO:
-                        res.v[i] = 0;
+                        a.v[i] = 0;
                     break;
                     default:
                     break;
@@ -63,9 +55,25 @@ IArray                  IArray_create(int cnt, ArrayFillType typ){
             // just do nothing
         break;
         default:
-            logmsg("Unsupported type %d", typ);
+            logsimple("Unsupported type %d", typ);
         break;
     }
+}
+
+// CREATE  and fill with method
+// increase and shrink are reuiqred too
+IArray                  IArray_create(int cnt, ArrayFillType typ){
+    logenter("cnt %d, typ %s", cnt, ArrayFillTypeName(typ));
+    IArray      res = IArray_init();
+
+    res.sz    = round_up_2(cnt);   // 2^(x + 1)
+    res.len   = cnt;
+    res.v   = malloc(res.sz * sizeof(int));
+    if (!res.v){
+        fprintf(stderr, "Unable to allocate %d\n", res.sz);
+        res.sz = INT_MIN;   // userraisesig hehe TODO:
+    }
+    IArray_fill(res, typ);
     return logret(res, "sz = %d", res.sz);
 }
 

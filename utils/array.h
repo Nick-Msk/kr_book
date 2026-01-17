@@ -29,7 +29,7 @@ static inline const char        *ArrayFillTypeName(ArrayFillType t){
         CASE_RETURN(ARRAY_RND);
         CASE_RETURN(ARRAY_ZERO);
         default: return "";
-    }   
+    }
 }
 
 // ------------------- TYPES -----------------------
@@ -49,6 +49,8 @@ typedef struct {
 extern IArray                   IArray_create(int cnt, ArrayFillType typ);
 
 // -------------- ACCESS AND MODIFICATION ----------
+
+extern void                     IArray_fill(IArray a, ArrayFillType typ);
 
 // ----------------- PRINTERS ----------------------
 
