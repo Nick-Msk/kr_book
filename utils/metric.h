@@ -66,6 +66,12 @@ static inline bool       metric_setval(Metric *m, int val){
         return false;
 }
 
+static inline int       metric_getval(Metric *m){
+    if (m)
+        return m->value;
+    else
+        return 0;
+}
 
 // ----------------- PRINTERS ----------------------
 
