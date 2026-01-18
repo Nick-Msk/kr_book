@@ -6,8 +6,10 @@ LDLIBS=
 
 all:
 
-# TODO: refactor to use log: metric: common: checker:
 binsearch.3.1: src/binsearch.3.1.c lib/log.o lib/metric.o lib/common.o lib/checker.o lib/array.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
+escape.3.2: src/escape.3.2.c lib/log.o lib/common.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 UTIL_PATH = ../utils
