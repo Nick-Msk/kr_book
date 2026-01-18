@@ -32,7 +32,7 @@ int                     main(int argc, const char *argv[]){
     if (!check_arg(4, usage_str, *argv) ){
         return 1;
     }
-    int     arr_len = atoi(argv[1]);
+    int     arr_len = atoi(argv[1]), res;
     char    gen_type = toupper(*argv[3]);
     int     val = atoi(argv[2]);
 
@@ -46,7 +46,7 @@ int                     main(int argc, const char *argv[]){
 
         Metric *a = metric_create("binsearch_kr");
 
-        int res = binsearch_kr(val, arr1);
+        res = binsearch_kr(val, arr1);
         if (res < 0)
             printf("Not found\n");
         else 
@@ -62,8 +62,10 @@ int                     main(int argc, const char *argv[]){
             printf("Type2: Found pos = %d\n", res);
 
         metric_print(a2);
-    } else 
-        force_testing(val, arr_len);
+    } else {
+        res = force_testing(val, arr_len);
+        printf("Total diff %d", res);
+    }
     logclose("...");
     return 0;
 }
@@ -121,22 +123,24 @@ static int              iter_check(IArray arr, Metric *m1, Metric *m2){
     int     ret = 0;
     int     fnd1, fnd2;
 
-    metric_reset(m1);
-    metric_reset(m2);
-
     IArray_fill(arr, ARRAY_ACS);
 
     for (check_val = arr.v[0] - 1; check_val <= arr.v[arr.len - 1] + 1; check_val++){
+        metric_reset(m1);
+        metric_reset(m2);
+
         fnd1 = binsearch_typ2(check_val, arr);
         fnd2 = binsearch_kr(check_val, arr);
 
-        if (fnd1 != fnd2){
+        if (fnd1 != fnd2 && arr.v[fnd1] != arr.v[fnd2]){
             // TODO: raise here!
-            fprintf(stderr, "!!!! %d != %d\n",  fnd1, fnd2);
+            fprintf(stderr, "!!!! %d != %d\n",  arr.v[fnd1], arr.v[fnd2]);
             exit(3);
         }
         if (metric_getval(m1) != metric_getval(m2)){
-            printf("typ2 has %d while kr method - %d\n", metric_getval(m1), metric_getval(m2));
+            int max = metric_getval(m1) > metric_getval(m2) ? metric_getval(m1) : metric_getval(m2);
+            int pers = 100 * (metric_getval(m1) - metric_getval(m2)) / max;
+            printf("typ2 has %d while kr method - %d (%d%%)\n", metric_getval(m1), metric_getval(m2), pers);
             ret++;
         }
     }
