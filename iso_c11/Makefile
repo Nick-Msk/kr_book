@@ -6,6 +6,9 @@ LDLIBS=
 
 all:
 
+malloc_test: src/malloc_test.c
+	$(CC) $(CFLAGS) $^ -o out/$@_test
+
 printf_n: printf_n.c
 	$(CC) $(CFLAGS) $^ -o out/$@_test
 
