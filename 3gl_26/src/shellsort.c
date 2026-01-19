@@ -15,7 +15,7 @@ static void             shell_sort(IArray arr);
 const char *usage_str = "Usage: %s <len:int> <type of gen A:asc D:desc R:random)\n";
 
 int                     main(int argc, const char *argv[]){
-    static const char *logfilename = "log/binsearch.3.1.log";
+    static const char *logfilename = "log/shellsort.log";
     loginit(logfilename, false, 0, "Start");    // TODO: rework that to LOG("logdir") or LOGAPPEND("logdir") or LOGSWITCH("logdir")
 
     if (argc > 1){
@@ -49,8 +49,10 @@ int                     main(int argc, const char *argv[]){
         break;
     }
 
+    g_array_rec_line = 15;
     shell_sort(arr);
     metric_print(m);
+    // setup 
     IArray_print(arr, 500);
 
     logclose("...");
@@ -66,7 +68,8 @@ static void             shell_sort(IArray arr){
                  int_exch(arr.v + j, arr.v + j + gap);
                  metric_inc(m);
             }
-            //IArray_print(arr, 500); // tech print
+            /* IArray_print(arr, 500); // tech print
+            printf("--------------------------------------------\n"); */
         }
 }
 
