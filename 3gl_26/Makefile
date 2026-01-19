@@ -15,6 +15,9 @@ escape.3.2: src/escape.3.2.c lib/log.o lib/common.o lib/checker.o
 shellsort: src/shellsort.c lib/log.o lib/common.o lib/checker.o lib/array.o lib/metric.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+expand.3.3: src/expand.3.3.c lib/log.o lib/common.o lib/checker.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
