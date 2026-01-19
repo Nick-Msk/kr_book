@@ -36,7 +36,11 @@ Metric                   *metric_get(const char *name, bool create);
 
 static inline Metric     *metric_create(const char *name){
     return metric_get(name, true);
-} 
+}
+
+static inline Metric     *metric_acq(const char *name){
+    return metric_get(name, false);
+}
 
 // -------------- ACCESS AND MODIFICATION ----------
 
