@@ -140,6 +140,13 @@ static inline int               print_bits(const char *str, unsigned  val){
     return fprint_bits(stdout, str, val);
 }
 
+// print n chars to f
+extern int                      fprintn(FILE *f, const char *str, int sz);
+
+static inline int               printn(const char *str, int sz){
+    return fprintn(stdout, str, sz);
+}
+
 static inline int               round_up_2(int val){
     int prev = 0;
     while (val)

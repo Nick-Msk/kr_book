@@ -93,3 +93,12 @@ char*                       reverse(char *s, int len){
     return s;
 }
 
+int                         fprintn(FILE *f, const char *str, int sz){
+    char c;
+    int i = 0;
+    while (str && i < sz &&(c = str[i++]) != '\0')
+        fputc(c, f);
+    fputc('\n', f);
+    return i;
+}
+
