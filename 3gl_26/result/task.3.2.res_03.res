@@ -12,7 +12,8 @@ static int              escape(char *restrict t, const char *restrict s, int sz)
 
 static int              unescape(char *restrict t, const char *restrict s, int sz);
 
-const char *usage_str = "Usage: E(espace)/U(unescape) %s\n";
+const char *usage_str = "Usage: E(espace)/U(unescape) %s
+";
 
 int                     main(int argc, const char *argv[]){
 
@@ -21,7 +22,8 @@ int                     main(int argc, const char *argv[]){
 
     if (argc > 1){
         if (strcmp(argv[1], "-v") == 0 || strcmp(argv[1], "--version") == 0){
-            printf("%s secape KR task 3.2\n", __FILE__);
+            printf("%s secape KR task 3.2
+", __FILE__);
             printf(usage_str, *argv);
             return 0;
         }
@@ -38,14 +40,16 @@ int                     main(int argc, const char *argv[]){
 
     const char *s = read_from_file(stdin, &sz);
     if (!s){
-        fprintf(stderr, "Unable to read from stdin\n");
+        fprintf(stderr, "Unable to read from stdin
+");
         return 1;
     }
     //printf("%s", s);
 
     char *t = malloc(sz * 2 + 1);
     if (!t){
-        fprintf(stderr, "Unable  to allocate %d\n", sz + 1);
+        fprintf(stderr, "Unable  to allocate %d
+", sz + 1);
         return 2;
     }
     if (op == 'E')
@@ -70,11 +74,12 @@ static int              escape(char *restrict t, const char *restrict s, int sz)
         if (j % 100 == 0)
             logmsg("j %d, c [%c], i %d", j, c, i);
         switch(c){
-            case '\n':
+            case '
+':
                 t[j++] = '\\';
                 t[j++] = 'n';
             break;
-            case '\t':
+            case '	':
                 t[j++] = '\\';
                 t[j++] = 't';
             break;
@@ -100,10 +105,11 @@ static int              unescape(char *restrict t, const char *restrict s, int s
                 c1 = s[i++];
                 switch (c1){
                     case 'n':
-                        t[j++] = '\n';
+                        t[j++] = '
+';
                     break;
                     case 't':
-                        t[j++] = '\t';
+                        t[j++] = '	';
                     break;
                     default:
                         t[j++] = '\\';
