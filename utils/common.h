@@ -107,6 +107,13 @@ static inline void      char_exch(char *s1, char *s2){
     *s2 = c;
 }
 
+// simple int iexchanger
+static inline void      int_exch(int *i1, int *i2){
+    int tmp = *i1;
+    *i1 = *i2;
+    *i2 = tmp;
+}
+
 //  binary char search
 static inline char              *bcharsearch(char c, const char *pt, int len){
     return  bsearch(&c, pt, len, 1, char_cmp /* from common.h */);
