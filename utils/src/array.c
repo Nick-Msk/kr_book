@@ -8,6 +8,8 @@
 
 // static globals
 
+int                      g_array_rec_line = 20;
+
 // internal type
 
 // ---------- pseudo-header for utility procedures -----------------
@@ -87,14 +89,14 @@ void                    IArray_free(IArray *val){
 // -------------------------- (API) printers -----------------------
 
 int                     IArray_fprint(FILE *f, IArray val, int limit){
-    int     array_rec_line = 20;        // TODO: should be external to be able to replace
     int     cnt = 0, i;
     limit = (limit == 0)? val.len : (limit < val.len) ? limit : val.len;
 
     for (i = 0; i < limit; i++){
         cnt += fprintf(f, "%6d\t", val.v[i]);
-        if ( (i + 1) % array_rec_line == 0)
+        if ( ( (i + 1) % g_array_rec_line) == 0){
             cnt += fprintf(f, "\n");
+        }
     }
     if (i < val.len)
         cnt += fprintf(f, "and more (%d) ...\n", val.len - i);
