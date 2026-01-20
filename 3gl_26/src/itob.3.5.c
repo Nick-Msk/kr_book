@@ -53,8 +53,7 @@ static const char             *itob(int n, char *s, int base){
     int     i = 0, sign;
     sign = n;
     do {
-        //logsimple("n %% 10 = %d, n / 10 = %d", n % 10, n / 10);
-        s[i++] = itoc(abs(n % base));;
+        s[i++] = itohex(abs(n % base));;
     } while ( abs( (n /= base) ) > 0);
     if (sign < 0)
         s[i++] = '-';
