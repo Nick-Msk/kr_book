@@ -18,6 +18,9 @@ shellsort: src/shellsort.c lib/log.o lib/common.o lib/checker.o lib/array.o lib/
 expand.3.3: src/expand.3.3.c lib/log.o lib/common.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+itoa.3.4: src/itoa.3.4.c lib/log.o lib/common.o lib/checker.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
