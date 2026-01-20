@@ -59,7 +59,7 @@ static int             expand(char *restrict t, const char *restrict s, int sz){
     char        c, prev = (char) EOF, cstart;
     bool        ready_to_series = false;
 
-    while (j < sz && ( (c = s[i]) != '\0')){
+    while (j < sz - 1 && ( (c = s[i]) != '\0')){
         if (c != '-'){
             if (isalnum(c) && ready_to_series){
                 int inc = putseries(t + j, cstart + 1, c, sz - j);          // + 1 because of first sym is already in t[]
@@ -89,6 +89,8 @@ static int             expand(char *restrict t, const char *restrict s, int sz){
         //logmsg("prev [%c], c [%c], i %d, j %d ", prev, c, i, j);
         prev = c;
     }
+    if (j < sz - 1 && ready_to_series)
+        t[j++] = '-';   // last one
     t[j] = '\0';
     return logret(j, "expanded to %d  chars", j);
 }
