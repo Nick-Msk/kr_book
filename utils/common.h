@@ -114,6 +114,10 @@ static inline void      int_exch(int *i1, int *i2){
     *i2 = tmp;
 }
 
+static inline char      itoc(int c){
+    return c + '0';
+}
+
 //  binary char search
 static inline char              *bcharsearch(char c, const char *pt, int len){
     return  bsearch(&c, pt, len, 1, char_cmp /* from common.h */);
