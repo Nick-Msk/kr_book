@@ -21,6 +21,9 @@ expand.3.3: src/expand.3.3.c lib/log.o lib/common.o lib/checker.o
 itoa.3.4: src/itoa.3.4.c lib/log.o lib/common.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+itoa.3.6: src/itoa.3.6.c lib/log.o lib/common.o lib/checker.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
