@@ -118,6 +118,13 @@ static inline char      itoc(int c){
     return c + '0';
 }
 
+static inline char      itohex(int c){
+    if (c < 10)
+        return c + '0';
+    else
+        return c - 10 + 'A';
+}
+
 //  binary char search
 static inline char              *bcharsearch(char c, const char *pt, int len){
     return  bsearch(&c, pt, len, 1, char_cmp /* from common.h */);
