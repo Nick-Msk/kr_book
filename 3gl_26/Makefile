@@ -27,6 +27,9 @@ itoa.3.6: src/itoa.3.6.c lib/log.o lib/common.o lib/checker.o
 itob.3.5: src/itob.3.5.c lib/log.o lib/common.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+trim: src/trim.c lib/log.o lib/common.o lib/checker.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
