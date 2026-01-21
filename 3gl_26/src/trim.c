@@ -39,11 +39,17 @@ int                     main(int argc, const char *argv[]){
 }
 
 static const char             *trim(char *s){
-   int  n;
-   for (n = strlen(s) - 1;n >= 0; n--)
-    if (!isspace(s[n] ) )
-        break;
-    s[n] = '\0';
-    logsimple("truncated to %d", n);
-    return s; 
+    int  n, i, initlen = strlen(s);
+    for (n = initlen - 1; n >= 0; n--)
+        if (!isspace(s[n]) )
+            break;
+    s[n + 1] = '\0';
+    for (n = 0; s[n] != '\0'; n++)
+        if (!isspace(s[n]) )
+            break;
+    for (i = n; s[i] != '\0'; i++)
+        s[i - n] = s[i];
+    s[i - n] = '\0';
+    logsimple("truncated to %d from %d [%s]", i - n + 1, initlen, s);
+    return s;
 }
