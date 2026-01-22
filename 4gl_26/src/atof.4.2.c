@@ -58,6 +58,25 @@ static double           myatof(const char *str){
         val = 10.0 * val + ctoi(*str++);
         power *= 10;
     }
+    if (tolower(*str++) == 'e'){
+        int     expsign;
+        int     exp = 0;
+        expsign = *str == '-' ? -1: 1;
+        if (*str == '+' || *str == '-')
+            str++;
+            while (isdigit(*str)){
+                exp = exp * 10 + ctoi(*str++);
+            }
+            logauto(exp);
+            // simople one, no checking from exp
+            while (--exp > 0){
+                if (expsign  > 0)
+                    power /= 10;
+                else
+                    power *= 10;
+            }
+            logauto(power);
+    }
     return sign * val / power;
 }
 
