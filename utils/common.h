@@ -114,6 +114,10 @@ static inline void      int_exch(int *i1, int *i2){
     *i2 = tmp;
 }
 
+static inline char      ctoi(char c){
+    return c - '0';
+}
+
 static inline char      itoc(int c){
     return c + '0';
 }
