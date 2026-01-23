@@ -1,5 +1,5 @@
-CC=gcc #clang
-CFLAGS= -I../../utils -Wall -Wextra -std=gnu11 -g -O0 -Wno-gnu-folding-constant
+CC=gcc
+CFLAGS= -I../../utils -Isrc/ -Wall -Wextra -std=gnu11 -g -O0 -Wno-gnu-folding-constant
 # -Wno-initializer-overrides -Wno-unused-function -Wno-format-zero-length
 LDFLAGS=
 LDLIBS=
@@ -7,20 +7,19 @@ LDLIBS=
 calc: src/calc.c lib/log.o lib/common.o lib/checker.o stack.o getop.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-stack.o: stack.c
+stack.o: src/stack.c
 	$(CC) $(CFLAGS)  $^ -c
-	@mv $@.o lib/
+	@mv $@ lib/
 
-#TODO:
-stack: stack.c lib/log.o lib/test.o lib/error.o
+stack: src/stack.c lib/log.o lib/test.o lib/error.o
 	$(CC) $(CFLAGS) -DSTACKTESTING $^ -o test/$@_test
 
-getop.o: stack.c
-	$(CC) $(CFLAGS)  $^ -c
-	@mv $@.o lib/
-
-getop: getop.c lib/log.o lib/test.o lib/error.o
+getop: src/getop.c lib/log.o lib/test.o lib/error.o
 	$(CC) $(CFLAGS) -DGETOPTESTING $^ -o test/$@_test
+
+getop.o: src/getop.c
+	$(CC) $(CFLAGS)  $^ -c
+	@mv $@ lib/
 
 UTIL_PATH = ../../utils
 
