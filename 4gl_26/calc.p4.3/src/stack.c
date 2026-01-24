@@ -44,6 +44,10 @@ bool                    stack_push(double val){
     return ret;
 }
 
+int                     stack_count(void){
+    return sp;
+}
+
 // -------------------------- (Utility) printers -------------------
 
 // --------------------------- API ---------------------------------

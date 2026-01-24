@@ -14,20 +14,21 @@
 
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
-// TODO:
-void                    stack_clear(void);
+extern void                    stack_clear(void);
 
 // -------------- ACCESS AND MODIFICATION ----------
 
-double                  stack_pop(void);
+extern double                  stack_pop(void);
 
-bool                    stack_push(double val);
+extern bool                    stack_push(double val);
+
+extern int                     stack_count(void);
 
 // ----------------- PRINTERS ----------------------
 
-int                     stack_fprint(FILE *f);
+extern int                     stack_fprint(FILE *f);
 
-static inline int       stack_print(void){
+static inline int              stack_print(void){
     return stack_fprint(stdout);
 }
 
