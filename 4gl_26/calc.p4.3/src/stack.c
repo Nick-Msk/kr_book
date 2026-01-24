@@ -65,20 +65,72 @@ int                     stack_fprint(FILE *f){
 
 #ifdef STACKTESTING
 
-#include "testing.h"
 #include <signal.h>
+#include "test.h"
+#include "array.h"
+
+//types for testing
 
 // ------------------------- TEST 1 ---------------------------------
 
+static TestStatus
+tf1(void)
+{
+    logenter("Simple Push/pop test");
+
+    double some_val = 444.333, res;
+    stack_push(some_val);
+    res = stack_pop();
+    if (res != some_val){
+        return logerr(TEST_FAILED, "Pop return %f but is must be %f", res, some_val);
+    }
+    stack_clear();
+    if (sp != 0)
+        return logret(TEST_FAILED, "Stack must be empty, but sp = %d", sp);
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
 // ------------------------- TEST 2 ---------------------------------
 
-// -------------------------------------------------------------------
+static TestStatus
+tf2(void)
+{
+    logenter("Multiple push/pop test");
 
-// TODO:!!!!!!!!
+    DArray arr = DArray_create(STACK_MAXVAL, ARRAY_RND);
+    double res, *some_vals = arr.v;
+    for (int i = 0; i < STACK_MAXVAL; i++)
+        stack_push(some_vals[i]);
+    for (int i = STACK_MAXVAL - 1; i >=0; i--){
+        res = stack_pop();
+        if (res != some_vals[i]){
+            return logerr(TEST_FAILED, "i = %d, Pop return %f but is must be %f", 
+                    i, res, some_vals[i]);
+        }
+    }
+    stack_clear();
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
+
+// ------------------------- TEST 3 ---------------------------------
+
+static TestStatus
+tf3(void)
+{
+    logenter("Empty stack test");
+
+    double res = stack_pop();
+    if (res != 0.0){
+        return logerr(TEST_FAILED, "Pop return %f but is must be %f", res, 0.0);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
 int
 main(int argc, char *argv[])
 {
-    const char *logfilename = "stack.log";
+    const char *logfilename = "log/stack.log";
 
     if (argc > 1)
         logfilename = argv[1];
@@ -86,13 +138,12 @@ main(int argc, char *argv[])
     loginit(logfilename, false, 0, "Starting");
 
     testenginestd(
-        testnew(.f2 = tf1, .num = 1, .name = "Simple invariant text"       , .desc = "", .mandatory=true)
-      , testnew(.f2 = tf2, .num = 2, .name = "Complex invariant test"      , .desc = "", .mandatory=true)
-      //, testnew(.f2 = f3, .num = 3, .name = "Interrupt raising test"        , .desc = "Exception test."                                                             , .mandatory=true)
-      //, testnew(.f2 = f4, .num = 4, .name = "System error test."            , .desc = "System error raising test (w/o exception)."  , .mandatory=true)
+        testnew(.f2 = tf1, .num = 1, .name = "Simple Push/pop test"       , .desc = "", .mandatory=true)
+      , testnew(.f2 = tf2, .num = 2, .name = "Multiple push/pop test"     , .desc = "", .mandatory=true)
+      , testnew(.f2 = tf3, .num = 3, .name = "Empty stack test"           , .desc = "", .mandatory=true)
     );
 
-        logclose("end...");
+    logclose("end...");
     return 0;
 }
 
