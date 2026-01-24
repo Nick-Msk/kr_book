@@ -42,6 +42,12 @@ typedef struct {
     int    *v;
 } IArray;
 
+typedef struct {
+    int     len;
+    int     sz; // total size, > len + 1
+    double  *v;
+} DArray;
+
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
 // init
@@ -64,6 +70,25 @@ static inline int               IArray_print(IArray val, int limit){
     return IArray_fprint(stdout, val, limit);
 }
 
+// ----------------- Double -----------------------
+
+// CREATE  and fill with method for double
+extern DArray                   DArray_create(int cnt, ArrayFillType typ);
+
+// the same: TODO: create a macro Array_free()
+extern void                     DArray_free(DArray *val);
+
+// -------------- ACCESS AND MODIFICATION ----------
+
+extern void                     DArray_fill(DArray a, ArrayFillType typ);
+
+// ----------------- PRINTERS ----------------------
+
+extern int                      DArray_fprint(FILE *f, DArray val, int limit);
+
+static inline int               DArray_print(DArray val, int limit){
+    return DArray_fprint(stdout, val, limit);
+}
 // ------------------ ETC. -------------------------
 
 #endif /* !ARRAY_H */

@@ -22,6 +22,8 @@ int                      g_array_rec_line = 20;
 
 #define                 IArray_init(...) (IArray){.len = 0, .sz = 0, .v = 0}
 
+#define                 DArray_init(...) (DArray){.len = 0, .sz = 0, .v = 0}
+
 void                    IArray_fill(IArray a, ArrayFillType typ){
     int     initval;
     // fill
@@ -104,6 +106,86 @@ int                     IArray_fprint(FILE *f, IArray val, int limit){
 }
 
 
+void                    DArray_fill(DArray a, ArrayFillType typ){
+    double     initval;
+    // fill
+    switch (typ){
+        case ARRAY_DESC:
+            initval = 100 * a.len;   // hope it'll ne owerwelhm int
+            double     dec_value = 10.0;          // for now!!! It'll be changed
+            for (int i = 0; i < a.len; i++)
+                a.v[i] = initval -= rnddbl(dec_value);
+        break;
+        case ARRAY_ACS:
+            initval = a.len / 10;
+            double     asc_value = 10.0;          // for now!!! It'll be changed
+            for (int i = 0; i < a.len; i++)
+                a.v[i] = initval += rnddbl(asc_value);
+        break;
+        case ARRAY_RND:
+        case ARRAY_ZERO:
+            for (int i = 0; i < a.len; i++){ // iter??? TODO:
+                switch (typ){
+                    case ARRAY_RND:
+                        a.v[i] = rnddbl(10 * a.len);
+                    break;
+                    case ARRAY_ZERO:
+                        a.v[i] = 0;
+                    break;
+                    default:
+                    break;
+                }
+            }
+        break;
+        case ARRAY_NONE:
+            // just do nothing
+        break;
+        default:
+            logsimple("Unsupported type %d", typ);
+        break;
+    }
+}
+
+// CREATE  and fill with method
+// increase and shrink are reuiqred too
+DArray                  DArray_create(int cnt, ArrayFillType typ){
+    logenter("cnt %d, typ %s", cnt, ArrayFillTypeName(typ));
+    DArray      res = DArray_init();
+
+    res.sz    = round_up_2(cnt);   // 2^(x + 1)
+    res.len   = cnt;
+    res.v   = malloc(res.sz * sizeof(int));
+    if (!res.v){
+        fprintf(stderr, "Unable to allocate %d\n", res.sz);
+        res.sz = INT_MIN;   // userraisesig hehe TODO:
+    }
+    DArray_fill(res, typ);
+    return logret(res, "sz = %d", res.sz);
+}
+
+void                    DArray_free(DArray *val){
+    if (val && val->v){
+        free(val->v);
+        val->v = 0;
+    }
+}
+
+// -------------------------- (API) printers -----------------------
+
+int                     DArray_fprint(FILE *f, DArray val, int limit){
+    int     cnt = 0, i;
+    limit = (limit == 0)? val.len : (limit < val.len) ? limit : val.len;
+
+    for (i = 0; i < limit; i++){
+        cnt += fprintf(f, "%.8g\t", val.v[i]);
+        if ( ( (i + 1) % g_array_rec_line) == 0){
+            cnt += fprintf(f, "\n");
+        }
+    }
+    if (i < val.len)
+        cnt += fprintf(f, "and more (%d) ...\n", val.len - i);
+    return cnt;
+}
 // -------------------------------Testing --------------------------
 
 #ifdef ARRAYTESTING
