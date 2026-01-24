@@ -60,12 +60,18 @@ int                     lexic_getop(char *s, int sz){
     return LEXIC_NUMBER;
 }
 
+void                    lexic_clear(void){
+    bufp = 0;
+}
+
 // -------------------------- (API) printers -----------------------
 
 int                     lexic_fprint(FILE *f){
     int cnt = 0;
-    fprintf(f, "LEXIC: \n");
-    // noting for now
+    cnt += fprintf(f, "LEXIC: pos %d buffer[:", bufp);
+    for (int i = 0; i < bufp; i++)
+        fputc(buf[i], f), cnt++;
+    cnt += fprintf(f, "]\n");
     return cnt;
 }
 
@@ -73,16 +79,92 @@ int                     lexic_fprint(FILE *f){
 
 #ifdef GETOPTESTING
 
-#include "testing.h"
+#include "test.h"
 #include <signal.h>
+#include <strings.h>
 
 // ------------------------- TEST 1 ---------------------------------
 
+static TestStatus
+tf1(void)
+{
+    logenter("Simple lexic test (w/o getchar, via buffer)");
+
+    int     subnum = 0;  // TODO: check if in VIRT_BOOK maked better!
+    char    buf[1000], c;
+    char    dnum[] = "12345.6789";
+
+    // subtest 1
+    test_sub("subtest %d", ++subnum);
+    for (int i = sizeof(dnum) - 1; i >= 0; i--)
+        ungetch(dnum[i]);
+
+    if ( (c = lexic_getop(buf, sizeof(buf) ) ) != LEXIC_NUMBER)
+        return logerr(TEST_FAILED, "Shoud be numeric [%c] but not [%c]", LEXIC_NUMBER, c);
+    if (strcmp(buf,  dnum) != 0)
+        return logerr(TEST_FAILED, "getop returns [%s] but should be [%s]", buf, dnum);
+
+    // subtest 2
+    test_sub("subtest %d", ++subnum);
+    lexic_clear();
+    if (bufp != 0){
+        lexic_fprint(logfile);
+        return logerr(TEST_FAILED, "Buffer point must be 0 but not %d", bufp);
+    }
+
+    // subtest 3
+    test_sub("subtest %d", ++subnum);
+    char    op   = '+';
+    ungetch(op);
+    if ( (c = lexic_getop(buf, sizeof(buf) ) ) != op)
+        return logerr(TEST_FAILED, "Shoud be oper [%c] but not [%c]", op, c);
+
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
+
 // ------------------------- TEST 2 ---------------------------------
 
+static TestStatus
+tf2(void)
+{
+    logenter("Complex letic test (w/o getchar, via buffer)");
+
+    int     subnum = 0;  // TODO: check if in VIRT_BOOK maked better!
+    char    buf[1000], op, c;
+    char    str[] = "1.5 6 * 17.7 +\n";
+
+    // subtest 1
+    test_sub("subtest %d", ++subnum);
+    for (int i = sizeof(str) - 1; i >= 0; i--)
+        ungetch(str[i]);
+
+    op = LEXIC_NUMBER;
+    if ( (c = lexic_getop(buf, sizeof(buf) ) ) != op)
+        return logerr(TEST_FAILED, "Shoud be numeric [%c] but not [%c]", op, c);
+    if (strcmp(buf, "1.5") != 0)
+        return logerr(TEST_FAILED, "Getop returns [%s] but should be [%s]", buf, "1.5");
+    op = LEXIC_NUMBER;
+    if ( (c = lexic_getop(buf, sizeof(buf) ) ) != op)
+        return logerr(TEST_FAILED, "Shoud be numeric [%c] but not [%c]", op, c);
+    if (strcmp(buf, "6") != 0)
+        return logerr(TEST_FAILED, "Getop returns [%s] but should be [%s]", buf, "6");
+    op = '*';
+    if ( (c = lexic_getop(buf, sizeof(buf) ) ) != op)
+        return logerr(TEST_FAILED, "Shoud be numeric [%c] but not [%c]", op, c);
+    op = LEXIC_NUMBER;
+    if ( (c = lexic_getop(buf, sizeof(buf) ) ) != op)
+        return logerr(TEST_FAILED, "Shoud be numeric [%c] but not [%c]", op, c);
+    if (strcmp(buf, "17.7") != 0)
+        return logerr(TEST_FAILED, "Getop returns [%s] but should be [%s]", buf, "17.7");
+    op = '+';
+    if ( (c = lexic_getop(buf, sizeof(buf) ) ) != op)
+        return logerr(TEST_FAILED, "Shoud be numeric [%c] but not [%c]", op, c);
+
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
 // -------------------------------------------------------------------
 
-// TODO:!!!!!!!!
 int
 main(int argc, char *argv[])
 {
@@ -94,13 +176,11 @@ main(int argc, char *argv[])
     loginit(logfilename, false, 0, "Starting");
 
     testenginestd(
-        testnew(.f2 = tf1, .num = 1, .name = "Simple invariant text"       , .desc = "", .mandatory=true)
-      , testnew(.f2 = tf2, .num = 2, .name = "Complex invariant test"      , .desc = "", .mandatory=true)
-      //, testnew(.f2 = f3, .num = 3, .name = "Interrupt raising test"        , .desc = "Exception test."                                                             , .mandatory=true)
-      //, testnew(.f2 = f4, .num = 4, .name = "System error test."            , .desc = "System error raising test (w/o exception)."  , .mandatory=true)
+        testnew(.f2 = tf1, .num = 1, .name = "Simple lexic test (w/o getchar)"       , .desc = "", .mandatory=true)
+      , testnew(.f2 = tf2, .num = 2, .name = "Complex letic test (w/o getchar)"      , .desc = "", .mandatory=true)
     );
 
-        logclose("end...");
+    logclose("end...");
     return 0;
 }
 

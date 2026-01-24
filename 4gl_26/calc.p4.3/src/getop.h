@@ -17,11 +17,12 @@ static const        char LEXIC_NUMBER = '0';  // tp be removed
 
 // -------------- ACCESS AND MODIFICATION ----------
 
-int                     lexic_getop(char *s, int sz);
+extern int              lexic_getop(char *s, int sz);
+extern void             lexic_clear(void);
 
 // ----------------- PRINTERS ----------------------
 
-int                     lexic_fprint(FILE *f);
+extern int              lexic_fprint(FILE *f);
 
 static inline int       lexic_print(void){
     return lexic_fprint(stdout);
