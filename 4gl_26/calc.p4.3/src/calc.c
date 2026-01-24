@@ -38,6 +38,7 @@ static void             launch(void){
     const   int MAXOP = 1000;
     char    buf[MAXOP];     // TODO: replace to faststring  fs
 
+    printf("> ");
     while ( (type = lexic_getop(buf, MAXOP) ) != EOF){
         switch (type){
             case LEXIC_NUMBER:
@@ -65,7 +66,7 @@ static void             launch(void){
                     stack_push(stack_pop() / op2);
             break;
             case '\n':
-                printf("\t%.8g\n", stack_pop());
+                printf("\t%.8g (%d)\n> ", stack_pop(), stack_count());
             break;
             default:
                 fprintf(stderr, "Unknown command [%c]\n", type);
