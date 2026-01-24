@@ -4,14 +4,14 @@ CFLAGS= -I../../utils -Isrc/ -Wall -Wextra -std=gnu11 -g -O0 -Wno-gnu-folding-co
 LDFLAGS=
 LDLIBS=
 
-calc: src/calc.c lib/log.o lib/common.o lib/checker.o stack.o getop.o
+calc: src/calc.c lib/log.o lib/common.o lib/checker.o lib/stack.o lib/getop.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 stack.o: src/stack.c
 	$(CC) $(CFLAGS)  $^ -c
 	@mv $@ lib/
 
-stack: src/stack.c lib/log.o lib/test.o lib/error.o
+stack: src/stack.c lib/log.o lib/test.o lib/error.o lib/array.o
 	$(CC) $(CFLAGS) -DSTACKTESTING $^ -o test/$@_test
 
 getop: src/getop.c lib/log.o lib/test.o lib/error.o

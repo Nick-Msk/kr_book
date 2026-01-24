@@ -34,14 +34,14 @@ int                     main(int argc, const char *argv[]){
 
 static void             launch(void){
     int     type;
-    double  op, op2;
+    double  op2;
     const   int MAXOP = 1000;
     char    buf[MAXOP];     // TODO: replace to faststring  fs
 
-    while ( (type = lexic_getop(buf)) != EOF){
+    while ( (type = lexic_getop(buf, MAXOP) ) != EOF){
         switch (type){
             case LEXIC_NUMBER:
-                if (!stack_push(atof(buf))
+                if (!stack_push(atof(buf) ) )
                     fprintf(stderr, "Stack overflow!\n");
             break;
             case '+':
@@ -65,7 +65,7 @@ static void             launch(void){
                     stack_push(stack_pop() / op2);
             break;
             case '\n':
-                printf("\t%.8g\n", pop());
+                printf("\t%.8g\n", stack_pop());
             break;
             default:
                 fprintf(stderr, "Unknown command [%c]\n", type);
