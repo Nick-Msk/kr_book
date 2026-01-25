@@ -66,7 +66,7 @@ double                  stack_exch(void){
 }
 
 int                     stack_count(void){
-    return sp;
+    return sp - 1;
 }
 
 // -------------------------- (Utility) printers -------------------
@@ -83,7 +83,7 @@ int                     stack_fprint(FILE *f){
         if ( (i + 1) % 10 == 0)
              cnt += fprintf(f, "\n");
     }
-    cnt += fprintf(f, "-------------\n");
+    cnt += fprintf(f, "\n-------------------------------------\n");
     return cnt;
 }
 
