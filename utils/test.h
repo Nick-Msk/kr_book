@@ -7,7 +7,7 @@
 #include "error.h"
 
 static const int 		TEST_MAX_DEP		= 5;		// max count of dependencies
-static const int		TEST_MAX_NAME		= 40;
+static const int		TEST_MAX_NAME		= 64;
 static const int		TEST_MAX_DESC		= 255;
 static const int		TEST_PATTERN_MAX_SZ = 4096;		// maximusm size of pattern for comparator
 
