@@ -33,15 +33,24 @@ int                     main(int argc, const char *argv[]){
     return 0;
 }
 
+static int              print_command(){
+    int     total = 11;
+    printf("Commands: + - * / %% - arithmetic,\n p - print stack, e - exchange top1 and top2"\
+            "c - clear, d - push the same, h - help, q - quit :<x> var (not implemented yes)");
+    return total;   // total
+}
+
 static int              launch(void){
     logenter(" ");
     int     type, total = 0;
     double  op, op2;
     const   int MAXOP = 1000;
     char    buf[MAXOP];     // TODO: replace to faststring  fs
+    bool    quit = false;
 
     printf("> ");
-    while ( (type = lexic_getop(buf, MAXOP) ) != EOF){
+    stack_push(0.0);    // init
+    while (!quit && (type = lexic_getop(buf, MAXOP) ) != EOF){
         switch (type){
             case LEXIC_NUMBER:
                 op = atof(buf);
@@ -80,9 +89,28 @@ static int              launch(void){
                 } else
                     stack_push(fmod(stack_pop(), op2));
             break;
+            case 'd':   // put the same
+                if (!stack_pushsame())
+                    fprintf(stderr, "Stack overflow!\n");
+            break;
+            case 'e':   // exchange
+                stack_exch();
+            break;
+            case 'c':
+                stack_clear();
+            break;
+            case 'p':
+                stack_print();
+            break;
+            case 'h':
+                print_command();
+            break;
+            case 'q':
+                quit = true;
+            break;
             case '\n':
+                printf("\t%.8g\n(%d)> ", stack_get(), stack_count());
                 stack_fprint(logfile);
-                printf("\t%.8g (%d)\n> ", stack_pop(), stack_count());
                 total++;
             break;
             default:
