@@ -7,19 +7,19 @@ LDLIBS=
 calc: src/calc.c lib/log.o lib/common.o lib/checker.o lib/stack.o lib/getop.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-stack.o: src/stack.c
+lib/stack.o: src/stack.c
 	$(CC) $(CFLAGS)  $^ -c
-	@mv $@ lib/
+	@mv stack.o lib/
 
 stack: src/stack.c lib/log.o lib/test.o lib/error.o lib/array.o
 	$(CC) $(CFLAGS) -DSTACKTESTING $^ -o test/$@_test
 
-getop: src/getop.c lib/log.o lib/test.o lib/error.o
+getop: src/getop.c lib/log.o lib/test.o lib/error.o lib/checker.o
 	$(CC) $(CFLAGS) -DGETOPTESTING $^ -o test/$@_test
 
-getop.o: src/getop.c
+lib/getop.o: src/getop.c
 	$(CC) $(CFLAGS)  $^ -c
-	@mv $@ lib/
+	@mv getop.o lib/
 
 UTIL_PATH = ../../utils
 

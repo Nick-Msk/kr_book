@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <strings.h>
 #include <ctype.h>
+#include <math.h>
 
 #include "log.h"
 #include "common.h"
@@ -11,7 +12,7 @@
 
 const char *usage_str = "Usage: %s (interactive)\n";
 
-static void             launch(void);
+static int              launch(void);
 
 int                     main(int argc, const char *argv[]){
 
@@ -26,15 +27,16 @@ int                     main(int argc, const char *argv[]){
         }
     }
 
-    launch();
+    printf("Total expressions: %d\n", launch() );
 
     logclose("...");
     return 0;
 }
 
-static void             launch(void){
-    int     type;
-    double  op2;
+static int              launch(void){
+    logenter(" ");
+    int     type, total = 0;
+    double  op, op2;
     const   int MAXOP = 1000;
     char    buf[MAXOP];     // TODO: replace to faststring  fs
 
@@ -42,16 +44,22 @@ static void             launch(void){
     while ( (type = lexic_getop(buf, MAXOP) ) != EOF){
         switch (type){
             case LEXIC_NUMBER:
-                if (!stack_push(atof(buf) ) )
+                op = atof(buf);
+                logmsg("Number: %f", op);
+                if (!stack_push(op) )
                     fprintf(stderr, "Stack overflow!\n");
             break;
             case '+':
                 op2 = stack_pop();
-                stack_push(stack_pop() + op2);
+                op = stack_pop();
+                logmsg("PLUC: %f + %f = ", op, op2);
+                stack_push(op + op2);
             break;
             case '-':
                 op2 = stack_pop();
-                stack_push(stack_pop() - op2);
+                op = stack_pop();
+                logmsg("MINUS: %f - %f = ", op, op2);
+                stack_push(op - op2);
             break;
             case '*':
                 op2 = stack_pop();
@@ -64,14 +72,24 @@ static void             launch(void){
                     stack_push(op2);
                 } else
                     stack_push(stack_pop() / op2);
+            case '%':
+                op2 = stack_pop();
+                if (op2 == 0.0){
+                    fprintf(stderr, "Divizion by zero!\n");
+                    stack_push(op2);
+                } else
+                    stack_push(fmod(stack_pop(), op2));
             break;
             case '\n':
+                stack_fprint(logfile);
                 printf("\t%.8g (%d)\n> ", stack_pop(), stack_count());
+                total++;
             break;
             default:
                 fprintf(stderr, "Unknown command [%c]\n", type);
             break;
         }
     }
+    return logret(total, " ");
 }
 
