@@ -58,10 +58,11 @@ int                     stack_fprint(FILE *f){
     int cnt = 0;
     cnt = fprintf(f, "STACK:\n");
     for (int i = 0; i < sp; i++){
-        cnt += fprintf(f, "\t%.8g ", st[i]);
+        cnt += fprintf(f, "%d: \t%.8g ", i, st[i]);
         if ( (i + 1) % 10 == 0)
              cnt += fprintf(f, "\n");
     }
+    cnt += fprintf(f, "-------------\n");
     return cnt;
 }
 
