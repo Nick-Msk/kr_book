@@ -11,7 +11,7 @@ lib/stack.o: src/stack.c
 	$(CC) $(CFLAGS)  $^ -c
 	@mv stack.o lib/
 
-stack: src/stack.c lib/log.o lib/test.o lib/error.o lib/array.o
+stack: src/stack.c lib/log.o lib/test.o lib/error.o lib/array.o lib/checker.o
 	$(CC) $(CFLAGS) -DSTACKTESTING $^ -o test/$@_test
 
 getop: src/getop.c lib/log.o lib/test.o lib/error.o lib/checker.o

@@ -20,9 +20,18 @@ extern void                    stack_clear(void);
 
 extern double                  stack_pop(void);
 
+extern double                  stack_get(void);
+
 extern bool                    stack_push(double val);
 
+extern double                  stack_exch(void);
+
+
 extern int                     stack_count(void);
+
+static inline bool             stack_pushsame(void){
+    return stack_push(stack_get());
+}
 
 // ----------------- PRINTERS ----------------------
 

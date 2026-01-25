@@ -32,6 +32,15 @@ double                  stack_pop(void){
     return val;
 }
 
+double                  stack_get(void){
+    double val = 0.0;
+    if (sp > 0)
+        val = st[sp - 1];
+    else
+        fprintf(stderr, "Error: stack is empty\n");// TODO: userraisesig here!
+    return val;
+}
+
 bool                    stack_push(double val){
     bool ret = true;
 
@@ -42,6 +51,18 @@ bool                    stack_push(double val){
         ret = false;
     }
     return ret;
+}
+
+double                  stack_exch(void){
+    double val2 = 0.0;
+    if (sp > 1){
+        double val1 = stack_pop();
+        val2 = stack_pop();
+        stack_push(val1);
+        stack_push(val2);
+    } else
+        fprintf(stderr, "Only %d elements in the stack\n", sp);
+    return val2;
 }
 
 int                     stack_count(void){
@@ -73,6 +94,7 @@ int                     stack_fprint(FILE *f){
 #include <signal.h>
 #include "test.h"
 #include "array.h"
+#include "checker.h"
 
 //types for testing
 
@@ -82,16 +104,21 @@ static TestStatus
 tf1(void)
 {
     logenter("Simple Push/pop test");
-
-    double some_val = 444.333, res;
-    stack_push(some_val);
-    res = stack_pop();
-    if (res != some_val){
-        return logerr(TEST_FAILED, "Pop return %f but is must be %f", res, some_val);
+    int         subnum = 0;
+    {
+        test_sub("subtest %d", ++subnum);
+        double some_val = 444.333, res;
+        stack_push(some_val);
+        res = stack_pop();
+        if (res != some_val)
+            return logerr(TEST_FAILED, "Pop return %f but is must be %f", res, some_val);
     }
-    stack_clear();
-    if (sp != 0)
-        return logret(TEST_FAILED, "Stack must be empty, but sp = %d", sp);
+    {
+        test_sub("subtest %d", ++subnum);
+        stack_clear();
+        if (sp != 0)
+            return logret(TEST_FAILED, "Stack must be empty, but sp = %d", sp);
+    }
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
@@ -109,10 +136,11 @@ tf2(void)
     for (int i = STACK_MAXVAL - 1; i >=0; i--){
         res = stack_pop();
         if (res != some_vals[i]){
-            return logerr(TEST_FAILED, "i = %d, Pop return %f but is must be %f", 
+            return logacterr(DArray_free(&arr), TEST_FAILED, "i = %d, Pop return %f but is must be %f", 
                     i, res, some_vals[i]);
         }
     }
+    DArray_free(&arr);
     stack_clear();
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
@@ -132,6 +160,85 @@ tf3(void)
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
+// ------------------------- TEST 4 ---------------------------------
+
+static TestStatus
+tf4(void)
+{
+    logenter("Get without pop() test");
+    int     subnum = 0;
+
+    {
+        test_sub("subtest %d", ++subnum);
+        double  val = 1.245678;      // anything
+        stack_push(val);
+        int     pos = sp;               // check stack pointer too
+        double  res = stack_get();
+        if (res != val)
+            return logerr(TEST_FAILED, "Pop return %f but is must be %f", res, val);
+        if (pos != sp)
+             return logerr(TEST_FAILED, "Stack position became %d but is must be %d", sp, pos);
+    }
+    //
+    {
+        test_sub("subtest %d", ++subnum);
+        stack_clear();
+        double  val = 0.0;
+        int     pos = sp;
+        double  res = stack_get();
+        if (res != val)
+            return logerr(TEST_FAILED, "Pop return %f but is must be %f", res, val);
+        if (pos != sp)
+             return logerr(TEST_FAILED, "Stack position became %d but is must be %d", sp, pos);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
+// ------------------------- TEST 5 ---------------------------------
+
+static TestStatus
+tf5(void)
+{
+    logenter("Exch test");
+
+    double      val1 = 1.234567;
+    double      val2 = 6.890123;
+    double      res1, res2;
+    stack_push(val1);
+    stack_push(val2);
+    int         pos1 = sp;
+    stack_exch();
+    int         pos2 = sp;
+    res1 = stack_pop();
+    res2 = stack_pop();
+    if (!inv(val1 == res1 && val2 == res2, "...") )
+        return logerr(TEST_FAILED, "Pop return %f (%f) but is must be %f (%f)", res1, res2, val1, val2);
+    if (!inv(pos1 == pos2, "...")){
+        return logerr(TEST_FAILED, "Stack position became %d but is must be %d", pos2, pos1);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
+// ------------------------- TEST 6 ---------------------------------
+
+static TestStatus
+tf6(void)
+{
+    logenter("Exch test");
+
+    double      val1 = 1.234567;
+    double      res1;
+    stack_push(val1);
+    stack_pushsame();
+    stack_pop(); // no need
+    res1 = stack_pop();
+    if (!inv(val1 == res1, "...") )
+        return logerr(TEST_FAILED, "Pop return %f but is must be %f", res1, val1);
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
+// -------------------------------------------------------------------
+
 int
 main(int argc, char *argv[])
 {
@@ -146,6 +253,9 @@ main(int argc, char *argv[])
         testnew(.f2 = tf1, .num = 1, .name = "Simple Push/pop test"       , .desc = "", .mandatory=true)
       , testnew(.f2 = tf2, .num = 2, .name = "Multiple push/pop test"     , .desc = "", .mandatory=true)
       , testnew(.f2 = tf3, .num = 3, .name = "Empty stack test"           , .desc = "", .mandatory=true)
+      , testnew(.f2 = tf4, .num = 4, .name = "Get without pop() test"     , .desc = "", .mandatory=true)
+      , testnew(.f2 = tf5, .num = 5, .name = "Exch test"                  , .desc = "", .mandatory=true)
+      , testnew(.f2 = tf6, .num = 6, .name = "Pushsame test"              , .desc = "", .mandatory=true)
     );
 
     logclose("end...");
@@ -153,5 +263,5 @@ main(int argc, char *argv[])
 }
 
 
-#endif /* SKELETONTESTING */
+#endif /* STACKNTESTING */
 
