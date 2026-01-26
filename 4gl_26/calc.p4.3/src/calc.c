@@ -98,6 +98,7 @@ static int              launch(void){
             break;
             case 'c':
                 stack_clear();
+                stack_push(0.0);
             break;
             case 'p':
                 stack_print();
@@ -107,6 +108,15 @@ static int              launch(void){
             break;
             case 'q':
                 quit = true;
+            break;
+            case LEXIC_SIN:
+                stack_push(sin(stack_pop()));
+            break;
+            case LEXIC_COS:
+                stack_push(cos(stack_pop()));
+            break;
+            case LEXIC_TAN:
+                stack_push(tan(stack_pop()));
             break;
             case '\n':
                 printf("\t%.8g\n(%d)> ", stack_get(), stack_count());
