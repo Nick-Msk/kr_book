@@ -24,6 +24,8 @@ static int              bufp = 0;
 
 // ------------------------------ Utilities ------------------------
 
+
+// TODO: to beffer.c
 int                     getch(void){
     return bufp > 0 ? buf[--bufp] : getchar();
 }
@@ -34,11 +36,39 @@ void                    ungetch(int c){
         buf[bufp++] = c;
 }
 
+static LexicOper        try_command(char c){
+    logenter("[%c]", c);
+    char    buf[10] = {c, '\0'};      // small one
+    int     i = 0;
+    LexicOper  ret = EOF;
+    // get a command
+    while (i < (int) sizeof(buf) - 1 && isalnum(c = buf[++i] = getch() ) )
+        ;
+    buf[i] = '\0';
+    logmsg("buf [%s], c [%c]", buf, c);
+
+    // currently there are only 3 commands: SIN COS TAN
+    if (strcmp(buf, "sin") == 0)
+        ret = LEXIC_SIN;
+    else if (strcmp(buf, "cos") == 0)
+        ret = LEXIC_COS;
+    else if (strcmp (buf, "tan") == 0)
+        ret = LEXIC_TAN;;
+    // not a commmand, feed back all of that
+    if ((int) ret == EOF){
+        while (i > 0)
+            ungetch(buf[--i]);
+    } else
+        if (c != EOF)
+            ungetch(c);
+    return logret(ret, "[%c - %s]", ret, LexicOperName(ret));
+}
+
 // -------------------------- (Utility) printers -------------------
 
 // --------------------------- API ---------------------------------
 
-int                     lexic_getop(char *s, int sz){
+LexicOper               lexic_getop(char *s, int sz){
     logenter("%d", sz);
     if (!inv(sz >= 10, "Buffer too small (%p)\n", sz) )
         return EOF;
@@ -48,8 +78,14 @@ int                     lexic_getop(char *s, int sz){
     while ( (s[i] = c = getch() ) == ' ' || c == '\t')
         ;
     s[1] = '\0';
-    if (!isdigit(c) && c != '.' && c != '-' && c != '+')
-        return logret(c, "oper1: [%c]", c); // oper
+    if (!isdigit(c) && c != '.' && c != '-' && c != '+'){
+        char    c1 = c;
+        if (isalnum(c1)){
+            if ( (c1 = try_command(c1)) != EOF)
+                return c1;
+        } else
+            return logret(c, "oper1: [%c]", c); // oper
+    }
     if (c == '+'|| c == '-'){
         int prev = c;   // + -  or digit
         if (!isdigit(c = getch() ) && c != '.'){
@@ -65,12 +101,14 @@ int                     lexic_getop(char *s, int sz){
         while (i < sz - 1 && isdigit(s[++i] = c = getch() ) )
             ;
     s[i] = '\0';
-    if (c != EOF)
-        ungetch(c), logmsg("Ungetch [%c]", c);
+    if (c != EOF){
+        ungetch(c); logmsg("Ungetch [%c]", c);  // TODO: remove log
+    }
 
     return logret(LEXIC_NUMBER, "NUmber: [%s]", s);
 }
 
+// TODO: to buffer.c
 void                    lexic_clear(void){
     bufp = 0;
 }
@@ -94,6 +132,22 @@ int                     lexic_fprint(FILE *f){
 #include <strings.h>
 #include "test.h"
 
+// ---------------------- Testing Utilities -------------------------
+
+#define CHECK_OP(op)\
+{\
+    LexicOper c;\
+    typeof(op) op1 = (op);\
+    if ( (c = lexic_getop(buf, sizeof(buf) ) ) != (op1) )\
+        return logerr(TEST_FAILED, "Should be [%c - %s] but not [%c - %s]", (op1), LexicOperName(op1), c, LexicOperName(c));\
+}
+
+#define CHECK_BUF(val){\
+    const char *val1 = (val);\
+    if (strcmp(buf, val1) != 0)\
+        return logerr(TEST_FAILED, "Buf contains [%s] but should be [%s]", buf, val1);\
+}
+
 // ------------------------- TEST 1 ---------------------------------
 
 static TestStatus
@@ -102,35 +156,35 @@ tf1(void)
     logenter("Simple lexic test (w/o getchar, via buffer)");
 
     int     subnum = 0;  // TODO: check if in VIRT_BOOK maked better!
-    char    buf[1000], c;
-    char    dnum[] = "12345.6789";
+    char    buf[1000];
+    char    str[] = "12345.6789";
 
     // subtest 1
-    test_sub("subtest %d", ++subnum);
-    for (int i = sizeof(dnum) - 1; i >= 0; i--)
-        ungetch(dnum[i]);
+    {
+        test_sub("subtest %d", ++subnum);
+        for (int i = sizeof(str) - 1; i >= 0; i--)
+            ungetch(str[i]);
 
-    if ( (c = lexic_getop(buf, sizeof(buf) ) ) != LEXIC_NUMBER)
-        return logerr(TEST_FAILED, "Shoud be numeric [%c] but not [%c]", LEXIC_NUMBER, c);
-    if (strcmp(buf,  dnum) != 0)
-        return logerr(TEST_FAILED, "getop returns [%s] but should be [%s]", buf, dnum);
-
-    // subtest 2
-    test_sub("subtest %d", ++subnum);
-    lexic_clear();
-    if (bufp != 0){
-        lexic_fprint(logfile);
-        return logerr(TEST_FAILED, "Buffer point must be 0 but not %d", bufp);
+        CHECK_OP(LEXIC_NUMBER);
+        CHECK_BUF(str);
     }
-
+    // subtest 2
+    {
+        test_sub("subtest %d", ++subnum);
+        lexic_clear();
+        if (bufp != 0){
+            lexic_fprint(logfile);
+            return logerr(TEST_FAILED, "Buffer point must be 0 but not %d", bufp);
+        }
+    }
     // subtest 3
-    test_sub("subtest %d", ++subnum);
-    char    op   = '+';
-    ungetch('\n');
-    ungetch(op);
-    if ( (c = lexic_getop(buf, sizeof(buf) ) ) != op)
-        return logerr(TEST_FAILED, "Shoud be oper [%c] but not [%c]", op, c);
-
+    {
+        test_sub("subtest %d", ++subnum);
+        LexicOper    op = '+';
+        ungetch('\n');
+        ungetch(op);
+        CHECK_OP(op);
+    }
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
@@ -143,36 +197,28 @@ tf2(void)
     logenter("Complex letic test (w/o getchar, via buffer)");
 
     int     subnum = 0;  // TODO: check if in VIRT_BOOK maked better!
-    char    buf[1000], op, c;
+    char    buf[1000];
     char    str[] = "1.5 6 * 17.7 +\n";
 
     // subtest 1
-    test_sub("subtest %d", ++subnum);
-    for (int i = sizeof(str) - 1; i >= 0; i--)
-        ungetch(str[i]);
+    {
+        test_sub("subtest %d", ++subnum);
+        for (int i = sizeof(str) - 1; i >= 0; i--)
+            ungetch(str[i]);
 
-    op = LEXIC_NUMBER;
-    if ( (c = lexic_getop(buf, sizeof(buf) ) ) != op)
-        return logerr(TEST_FAILED, "Shoud be numeric [%c] but not [%c]", op, c);
-    if (strcmp(buf, "1.5") != 0)
-        return logerr(TEST_FAILED, "Getop returns [%s] but should be [%s]", buf, "1.5");
-    op = LEXIC_NUMBER;
-    if ( (c = lexic_getop(buf, sizeof(buf) ) ) != op)
-        return logerr(TEST_FAILED, "Shoud be numeric [%c] but not [%c]", op, c);
-    if (strcmp(buf, "6") != 0)
-        return logerr(TEST_FAILED, "Getop returns [%s] but should be [%s]", buf, "6");
-    op = '*';
-    if ( (c = lexic_getop(buf, sizeof(buf) ) ) != op)
-        return logerr(TEST_FAILED, "Shoud be numeric [%c] but not [%c]", op, c);
-    op = LEXIC_NUMBER;
-    if ( (c = lexic_getop(buf, sizeof(buf) ) ) != op)
-        return logerr(TEST_FAILED, "Shoud be numeric [%c] but not [%c]", op, c);
-    if (strcmp(buf, "17.7") != 0)
-        return logerr(TEST_FAILED, "Getop returns [%s] but should be [%s]", buf, "17.7");
-    op = '+';
-    if ( (c = lexic_getop(buf, sizeof(buf) ) ) != op)
-        return logerr(TEST_FAILED, "Shoud be numeric [%c] but not [%c]", op, c);
+        CHECK_OP(LEXIC_NUMBER);
+        CHECK_BUF("1.5");
 
+        CHECK_OP(LEXIC_NUMBER);
+        CHECK_BUF("6");
+
+        CHECK_OP(LEXIC_MUL);
+
+        CHECK_OP(LEXIC_NUMBER);
+        CHECK_BUF("17.7");
+
+        CHECK_OP(LEXIC_PLUS);
+    }
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
@@ -183,18 +229,21 @@ tf3(void)
 {
     logenter("Negative numver test (w/o getchar)");
 
-    char    buf[1000], c;
-    char    dnum[] = "-12345.6789";
+    int     subnum = 0;  // TODO: check if in VIRT_BOOK maked better!
+    char    buf[1000];
+    char    str[] = "-12345.6789";
 
-    lexic_clear();
-    for (int i = sizeof(dnum) - 1; i >= 0; i--)
-        ungetch(dnum[i]);
+    // subtest 1
+    {
+        lexic_clear();
+        test_sub("subtest %d", ++subnum);
 
-    if ( (c = lexic_getop(buf, sizeof(buf) ) ) != LEXIC_NUMBER)
-        return logerr(TEST_FAILED, "Shoud be numeric [%c] but not [%c]", LEXIC_NUMBER, c);
-    if (strcmp(buf,  dnum) != 0)
-        return logerr(TEST_FAILED, "getop returns [%s] but should be [%s]", buf, dnum);
+        for (int i = sizeof(str) - 1; i >= 0; i--)  // TODO: refactor to ungetcharr()
+            ungetch(str[i]);
 
+        CHECK_OP(LEXIC_NUMBER);
+        CHECK_BUF(str);
+    }
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
@@ -206,41 +255,65 @@ tf4(void)
     logenter("Complex letic test (w/o getchar, via buffer)");
 
     int     subnum = 0;  // TODO: check if in VIRT_BOOK maked better!
-    char    buf[1000], op, c;
+    char    buf[1000];
     char    str[] = "1.5 -6 * -17.7 +\n";
 
     // subtest 1
-    lexic_clear();
-    test_sub("subtest %d", ++subnum);
-    for (int i = sizeof(str) - 1; i >= 0; i--)
-        ungetch(str[i]);
+    {
+        lexic_clear();
+        test_sub("subtest %d", ++subnum);
+        for (int i = sizeof(str) - 1; i >= 0; i--)  // TODO: refactor to ungetcharr()
+            ungetch(str[i]);
 
-    op = LEXIC_NUMBER;
-    if ( (c = lexic_getop(buf, sizeof(buf) ) ) != op)
-        return logerr(TEST_FAILED, "Shoud be numeric [%c] but not [%c]", op, c);
-    if (strcmp(buf, "1.5") != 0)
-        return logerr(TEST_FAILED, "Getop returns [%s] but should be [%s]", buf, "1.5");
-    op = LEXIC_NUMBER;
-    if ( (c = lexic_getop(buf, sizeof(buf) ) ) != op)
-        return logerr(TEST_FAILED, "Shoud be numeric [%c] but not [%c]", op, c);
-    if (strcmp(buf, "-6") != 0)
-        return logerr(TEST_FAILED, "Getop returns [%s] but should be [%s]", buf, "-6");
-    op = '*';
-    if ( (c = lexic_getop(buf, sizeof(buf) ) ) != op)
-        return logerr(TEST_FAILED, "Shoud be numeric [%c] but not [%c]", op, c);
-    op = LEXIC_NUMBER;
-    if ( (c = lexic_getop(buf, sizeof(buf) ) ) != op)
-        return logerr(TEST_FAILED, "Shoud be numeric [%c] but not [%c]", op, c);
-    if (strcmp(buf, "-17.7") != 0)
-        return logerr(TEST_FAILED, "Getop returns [%s] but should be [%s]", buf, "-17.7");
-    op = '+';
-    if ( (c = lexic_getop(buf, sizeof(buf) ) ) != op)
-        return logerr(TEST_FAILED, "Shoud be numeric [%c] but not [%c]", op, c);
+        CHECK_OP(LEXIC_NUMBER);
+        CHECK_BUF("1.5");
 
+        CHECK_OP(LEXIC_NUMBER);
+        CHECK_BUF("-6");
+
+        CHECK_OP(LEXIC_MUL);
+
+        CHECK_OP(LEXIC_NUMBER);
+        CHECK_BUF("-17.7");
+
+        CHECK_OP(LEXIC_PLUS);
+    }
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
-// -------------------------------------------------------------------
 
+// ------------------------- TEST 5 ---------------------------------
+
+static TestStatus
+tf5(void)
+{
+    logenter("Simple oper (sin/cos) (w/o getchar)");
+
+    char        buf[1000];
+    char        str[] = "11 -12.6789 sin +";
+    int         subnum = 0;  // TODO: check if in VIRT_BOOK maked better!
+
+    // subtest 1
+    {
+        lexic_clear();
+        test_sub("subtest %d", ++subnum);
+
+        for (int i = sizeof(str) - 1; i >= 0; i--)
+            ungetch(str[i]);
+
+        CHECK_OP(LEXIC_NUMBER);
+        CHECK_BUF("11");
+
+        CHECK_OP(LEXIC_NUMBER);
+        CHECK_BUF("-12.6789");
+
+        CHECK_OP(LEXIC_SIN);
+
+        CHECK_OP(LEXIC_PLUS);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
+// -------------------------------------------------------------------
 int
 main(int argc, char *argv[])
 {
@@ -256,6 +329,7 @@ main(int argc, char *argv[])
       , testnew(.f2 = tf2, .num = 2, .name = "Complex letic test (w/o getchar)"      , .desc = "", .mandatory=true)
       , testnew(.f2 = tf3, .num = 3, .name = "Negative numver test (w/o getchar)"    , .desc = "", .mandatory=true)
       , testnew(.f2 = tf4, .num = 4, .name = "Negative complex test (w/o getchar)"   , .desc = "", .mandatory=true)
+      , testnew(.f2 = tf5, .num = 5, .name = "Simple oper (sin/cos) (w/o getchar)"   , .desc = "", .mandatory=true)
     );
 
     logclose("end...");
