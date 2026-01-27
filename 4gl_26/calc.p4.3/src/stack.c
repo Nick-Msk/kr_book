@@ -129,18 +129,18 @@ tf2(const char *name)
 {
     logenter("%s", name);
 
-    DArray arr = DArray_create(STACK_MAXVAL, ARRAY_RND);
-    double res, *some_vals = arr.v;
+    Array arr = DArray_create(STACK_MAXVAL, ARRAY_RND);
+    double res, *some_vals = arr.dv;
     for (int i = 0; i < STACK_MAXVAL; i++)
         stack_push(some_vals[i]);
     for (int i = STACK_MAXVAL - 1; i >=0; i--){
         res = stack_pop();
         if (res != some_vals[i]){
-            return logacterr(DArray_free(&arr), TEST_FAILED, "i = %d, Pop return %f but is must be %f", 
+            return logacterr(Arrayfree(arr), TEST_FAILED, "i = %d, Pop return %f but is must be %f", 
                     i, res, some_vals[i]);
         }
     }
-    DArray_free(&arr);
+    Arrayfree(arr);
     stack_clear();
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
