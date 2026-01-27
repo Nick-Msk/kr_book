@@ -41,7 +41,7 @@ typedef struct TFILE
 } TFILE;
 
 // active
-typedef TestStatus (*t_test2)(void);
+typedef TestStatus (*t_test2)(const char *);
 
 typedef bool (*Tcomp)(const char *restrict, int, const char *restrict);
 

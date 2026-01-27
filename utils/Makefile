@@ -35,7 +35,7 @@ test.o:	src/test.c
 	$(CC) $(CFLAGS) $^ -c
 	@mv $@ lib/
 
-test: src/test.c error.o log.o
+test: src/test.c lib/error.o lib/log.o
 	$(CC) $(CFLAGS) -DTESTTESTING $^ -o test/$@_test
 
 

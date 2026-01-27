@@ -175,7 +175,7 @@ launcher(FILE *out, Utest *t)
 	if (!try())
 	{
 		// perform testing
-		while (cnt-- && is_passed(status = t->f2()))
+		while (cnt-- && is_passed(status = t->f2(t->name)))
 		{
 			test_sub_close(status);     // in case if there were subtests
 			g_prev_subtest = false;		// clear flag for subtest TODO: refactor here
@@ -507,21 +507,21 @@ test_compare_engine(FILE *restrict tf, long from, long to, const char *restrict 
 #include "common.h"
 
 static TestStatus
-f1(void)
+f1(const char *name)
 {
 	print("just simple passed %s\n", __func__);
 	return TEST_PASSED;
 }
 
 static TestStatus
-f2(void)
+f2(const char *name)
 {
 	print("just simple manual %s\n", __func__);
 	return TEST_MANUAL;
 }
 
 static TestStatus
-f3(void)
+f3(const char *name)
 {
 	print("just simple failed %s\n", __func__);
 	return TEST_FAILED;
@@ -529,7 +529,7 @@ f3(void)
 
 // Exception test,
 static TestStatus
-tf20(void)
+tf20(const char *name)
 {
 	print("Exception test %s\n", __func__);
 
@@ -543,25 +543,25 @@ tf20(void)
 // Exception complex test
 
 static void
-tf21_exception(void)
+tf21_exception(const char *name)
 {
 	userraiseint(34, "Something goes wrong from %s", __func__);
 	print("NEVER SHOULD SEE THIS MESSAGE!!!\n");
 }
 
 static TestStatus
-tf21(void)
+tf21(const char *name)
 {
 	print("Exception complex test %s\n", __func__);
 
 	print("exec tf21_exception function\n");
-	tf21_exception();
+	tf21_exception(name);
 
 	return TEST_PASSED;
 }
 
 static TestStatus
-tf22_pub(void)
+tf22_pub(const char *name)
 {
 	print("%s should be passed at the end\n", __func__);
 
@@ -573,7 +573,7 @@ tf22_pub(void)
 }
 
 static TestStatus
-tf23_pub(void)
+tf23_pub(const char *name)
 {
 	print("%s should NOT be passed at the end\n", __func__);
 
@@ -588,7 +588,7 @@ tf23_pub(void)
 }
 
 static TestStatus
-tf24_pub(void)
+tf24_pub(const char *name)
 {
 	print("%s should NOT be passed at the end, exception 'll occur\n", __func__);
 
@@ -601,7 +601,7 @@ tf24_pub(void)
 }
 
 static TestStatus
-tf25_pub(void)
+tf25_pub(const char *name)
 {
 	print("%s: open test file, print data, then close\n", __func__);
 
@@ -637,7 +637,7 @@ tf25_pub(void)
 }
 
 static TestStatus
-tf26_pub(void)
+tf26_pub(const char *name)
 {
     print("%s: test with ignoring spaces\n", __func__);
 
@@ -677,7 +677,7 @@ tf26_pub(void)
 }
 
 static TestStatus
-tf27_pub(void)
+tf27_pub(const char *name)
 {
 	print("%s: test of comparator - like\n", __func__);
 
@@ -707,7 +707,7 @@ tf27_pub(void)
 }
 
 static TestStatus
-tf28_pub(void)
+tf28_pub(const char *name)
 {
 	print("%s: test of comparator - Ulike\n", __func__);
 
