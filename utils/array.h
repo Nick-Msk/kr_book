@@ -1,5 +1,5 @@
-#ifndef ARRAY_H
-#define ARRAY_H
+#ifndef _ARRAY_H
+#define _ARRAY_H
 
 #include <stdio.h>
 
@@ -14,14 +14,19 @@
 
 // array, but not IArray, because common for int and double
 typedef enum ArrayFillType{
-    ARRAY_NONE = 0,
+    ARRAY_NONE      = 0,
     ARRAY_DESC,
     ARRAY_ACS,
     ARRAY_RND,
     ARRAY_ZERO
 } ArrayFillType;
 
-static inline const char        *ArrayFillTypeName(ArrayFillType t){ 
+typedef enum ArrayType{
+    ARRAY_DOUBLE    = 0x1,
+    ARRAY_INT       = 0x2
+} ArrayType;
+
+static inline const char        *ArrayFillTypeName(ArrayFillType t){
     switch (t){
         CASE_RETURN(ARRAY_NONE);
         CASE_RETURN(ARRAY_DESC);
@@ -39,37 +44,66 @@ extern int              g_array_rec_line;
 typedef struct {
     int     len;
     int     sz; // total size, > len + 1
-    int    *v;
-} IArray;
+    int     flags; // ARRAY_DOUBLE || ARRAY_INT
+    union {
+        int    *iv;
+        double *dv;
+    };
+} Array;
 
+/*
 typedef struct {
     int     len;
     int     sz; // total size, > len + 1
     double  *v;
-} DArray;
+} DArray; */
 
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
 // init
-#define                         IArray_init(...) (IArray){.len = 0, .sz = 0, .v = 0}
+#define                         IArray_init(...) (Array){.len = 0, .sz = 0, .iv = 0, .flags = ARRAY_INT, __VA_ARGS__}
+#define                         DArray_init(...) (Array){.len = 0, .sz = 0, .dv = 0, .flags = ARRAY_DOUBLE, __VA_ARGS__}
+#define                         Array_init(...)  (Array){.len = 0, .sz = 0, .iv = 0, .flags = 0, __VA_ARGS__}
+#define                         Arrayfree(x){ Array_free(&(x)); (x).iv = 0; }
 
 // CREATE  and fill with method
-extern IArray                   IArray_create(int cnt, ArrayFillType typ);
+extern Array                    Array_create(int cnt, ArrayFillType filltyp, ArrayType typ);
 
-extern void                     IArray_free(IArray *val);
+extern void                     Array_free(Array *val);
+
+static inline Array             IArray_create(int cnt, ArrayFillType typ){
+    return Array_create(cnt, typ, ARRAY_INT);
+}
+static inline Array             DArray_create(int cnt, ArrayFillType typ){
+    return Array_create(cnt, typ, ARRAY_DOUBLE);
+}
+
 
 // -------------- ACCESS AND MODIFICATION ----------
 
-extern void                     IArray_fill(IArray a, ArrayFillType typ);
+static inline bool              Array_isint(Array a){
+    return a.flags & ARRAY_INT;
+}
+
+static inline bool              Array_isdouble(Array a){
+    return a.flags & ARRAY_DOUBLE;
+}
+
+static inline bool              Array_isvalid(Array a){
+    return ( (a.flags & (ARRAY_INT | ARRAY_DOUBLE) ) > 0) && a.sz > a.len + 1 && a.len >= 0 && a.iv != 0;
+}
+
+extern void                     Array_fill(Array a, ArrayFillType typ);
 
 // ----------------- PRINTERS ----------------------
 
-extern int                      IArray_fprint(FILE *f, IArray val, int limit);
+extern int                      Array_fprint(FILE *f, Array val, int limit);
 
-static inline int               IArray_print(IArray val, int limit){
-    return IArray_fprint(stdout, val, limit);
+static inline int               Array_print(Array val, int limit){
+    return Array_fprint(stdout, val, limit);
 }
 
+/*
 // ----------------- Double -----------------------
 
 // CREATE  and fill with method for double
@@ -88,8 +122,8 @@ extern int                      DArray_fprint(FILE *f, DArray val, int limit);
 
 static inline int               DArray_print(DArray val, int limit){
     return DArray_fprint(stdout, val, limit);
-}
+} */
 // ------------------ ETC. -------------------------
 
-#endif /* !ARRAY_H */
+#endif /* !_ARRAY_H */
 
