@@ -51,6 +51,9 @@ array.o: src/array.c
 	$(CC) $(CFLAGS) $^ -c
 	@mv $@ lib/
 
+array: src/array.c lib/log.o lib/test.o lib/error.o
+	$(CC) $(CFLAGS) -DARRAYTESTING $^ -o test/$@_test
+
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
 	@rm *.o
