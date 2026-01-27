@@ -92,13 +92,16 @@ static int              launch(void){
             case 'd':   // put the same
                 if (!stack_pushsame())
                     fprintf(stderr, "Stack overflow!\n");
+                //printf("\t%.8g\n(%d)> ", stack_get(), stack_count());
             break;
             case 'e':   // exchange
                 stack_exch();
+                //printf("\t%.8g\n(%d)> ", stack_get(), stack_count());
             break;
             case 'c':
                 stack_clear();
                 stack_push(0.0);
+                //printf("\t%.8g\n(%d)> ", stack_get(), stack_count());
             break;
             case 'p':
                 stack_print();
