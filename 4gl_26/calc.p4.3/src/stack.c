@@ -101,9 +101,9 @@ int                     stack_fprint(FILE *f){
 // ------------------------- TEST 1 ---------------------------------
 
 static TestStatus
-tf1(void)
+tf1(const char *name)
 {
-    logenter("Simple Push/pop test");
+    logenter("%s", name);
     int         subnum = 0;
     {
         test_sub("subtest %d", ++subnum);
@@ -125,9 +125,9 @@ tf1(void)
 // ------------------------- TEST 2 ---------------------------------
 
 static TestStatus
-tf2(void)
+tf2(const char *name)
 {
-    logenter("Multiple push/pop test");
+    logenter("%s", name);
 
     DArray arr = DArray_create(STACK_MAXVAL, ARRAY_RND);
     double res, *some_vals = arr.v;
@@ -149,9 +149,9 @@ tf2(void)
 // ------------------------- TEST 3 ---------------------------------
 
 static TestStatus
-tf3(void)
+tf3(const char *name)
 {
-    logenter("Empty stack test");
+    logenter("%s", name);
 
     double res = stack_pop();
     if (res != 0.0){
@@ -163,9 +163,9 @@ tf3(void)
 // ------------------------- TEST 4 ---------------------------------
 
 static TestStatus
-tf4(void)
+tf4(const char *name)
 {
-    logenter("Get without pop() test");
+    logenter("%s", name);
     int     subnum = 0;
 
     {
@@ -197,9 +197,9 @@ tf4(void)
 // ------------------------- TEST 5 ---------------------------------
 
 static TestStatus
-tf5(void)
+tf5(const char *name)
 {
-    logenter("Exch test");
+    logenter("%s", name);
 
     double      val1 = 1.234567;
     double      val2 = 6.890123;
@@ -222,9 +222,9 @@ tf5(void)
 // ------------------------- TEST 6 ---------------------------------
 
 static TestStatus
-tf6(void)
+tf6(const char *name)
 {
-    logenter("Exch test");
+    logenter("%s", name);
 
     double      val1 = 1.234567;
     double      res1;
