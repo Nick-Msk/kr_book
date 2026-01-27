@@ -152,9 +152,9 @@ int                     lexic_fprint(FILE *f){
 // ------------------------- TEST 1 ---------------------------------
 
 static TestStatus
-tf1(void)
+tf1(const char *name)
 {
-    logenter("Simple lexic test (w/o getchar, via buffer)");
+    logenter("%s", name);
 
     int     subnum = 0;  // TODO: check if in VIRT_BOOK maked better!
     char    buf[1000];
@@ -193,9 +193,9 @@ tf1(void)
 // ------------------------- TEST 2 ---------------------------------
 
 static TestStatus
-tf2(void)
+tf2(const char *name)
 {
-    logenter("Complex letic test (w/o getchar, via buffer)");
+    logenter("%s", name);
 
     int     subnum = 0;  // TODO: check if in VIRT_BOOK maked better!
     char    buf[1000];
@@ -226,9 +226,9 @@ tf2(void)
 // ------------------------- TEST 3 ---------------------------------
 
 static TestStatus
-tf3(void)
+tf3(const char *name)
 {
-    logenter("Negative numver test (w/o getchar)");
+    logenter("%s", name);
 
     int     subnum = 0;  // TODO: check if in VIRT_BOOK maked better!
     char    buf[1000];
@@ -251,9 +251,9 @@ tf3(void)
 // ------------------------- TEST 4 ---------------------------------
 
 static TestStatus
-tf4(void)
+tf4(const char *name)
 {
-    logenter("Complex letic test (w/o getchar, via buffer)");
+    logenter("%s", name);
 
     int     subnum = 0;  // TODO: check if in VIRT_BOOK maked better!
     char    buf[1000];
@@ -285,9 +285,9 @@ tf4(void)
 // ------------------------- TEST 5 ---------------------------------
 
 static TestStatus
-tf5(void)
+tf5(const char *name)
 {
-    logenter("Simple oper (sin/cos) (w/o getchar)");
+    logenter("%s", name);
 
     char        buf[1000];
     char        str[] = "11 -12.6789 sin +";
