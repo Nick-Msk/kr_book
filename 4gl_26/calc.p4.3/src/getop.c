@@ -55,12 +55,13 @@ static LexicOper        try_command(char c){
     else if (strcmp (buf, "tan") == 0)
         ret = LEXIC_TAN;;
     // not a commmand, feed back all of that
-    if ((int) ret == EOF){
-        while (i > 0)
+    if ((int) ret == EOF)
+        while (i > 1){
+            logmsg("TO UNGETCH: i=%d, buf[i-1] = [%c])", i, buf[i - 1]);
             ungetch(buf[--i]);
-    } else
-        if (c != EOF)
-            ungetch(c);
+        }
+    if (c != EOF)
+        ungetch(c);
     return logret(ret, "[%c - %s]", ret, LexicOperName(ret));
 }
 
@@ -83,14 +84,14 @@ LexicOper               lexic_getop(char *s, int sz){
         if (isalnum(c1)){
             if ( (c1 = try_command(c1)) != EOF)
                 return c1;
-        } else
-            return logret(c, "oper1: [%c]", c); // oper
+        }
+        return logret(c, "oper1: [%c - %s]", c, LexicOperName(c)); // oper
     }
     if (c == '+'|| c == '-'){
         int prev = c;   // + -  or digit
         if (!isdigit(c = getch() ) && c != '.'){
             ungetch(c);
-            return logret(prev, "oper2: [%c] c = [%c]", prev, c); // oper + or -
+            return logret(prev, "oper2: [%c - %s] c = [%c]", prev, LexicOperName(prev), c); // oper + or -
         }
         s[++i] = c;
     }
