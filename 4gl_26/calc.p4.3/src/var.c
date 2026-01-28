@@ -53,11 +53,14 @@ double                  var_set(char c, double val){
 // -------------------------- (API) printers -----------------------
 
 int                     var_fprint(FILE *f){
-    int cnt = 0;
+    int cnt = 0, j = 0;
     cnt = fprintf(f, "VARS:\n");
     for (int i = 0; i < COUNT(vars); i++){
-        cnt += fprintf(f, "%d: \t%.8g ", i, vars[i]);
-        if ( (i + 1) % 10 == 0)
+        if (vars[i] != 0.0){
+            cnt += fprintf(f, "[%c: \t%.8g]", i == 0 ? '?' : i + 'a' - 1, vars[i]);
+            j++;
+        }
+        if ( (j + 1) % 10 == 0)
              cnt += fprintf(f, "\n");
     }
     cnt += fprintf(f, "\n-------------------------------------\n");
