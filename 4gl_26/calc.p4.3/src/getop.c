@@ -4,16 +4,13 @@
 #include "bool.h"
 #include "log.h"
 #include "checker.h"
+#include "buffer.h"
 
 /********************************************************************
                  STACK MODULE IMPLEMENTATION
 ********************************************************************/
 
 // static globals
-
-static const int        BUFSIZE = 100;
-static char             buf[BUFSIZE];
-static int              bufp = 0;
 
 // internal type
 
@@ -23,18 +20,6 @@ static int              bufp = 0;
 
 
 // ------------------------------ Utilities ------------------------
-
-
-// TODO: to beffer.c
-int                     getch(void){
-    return bufp > 0 ? buf[--bufp] : getchar();
-}
-void                    ungetch(int c){
-    if (bufp >= BUFSIZE)
-        fprintf(stderr, "Unable to ungetch [%c], because of overflow (%d)\n", c, bufp);
-    else
-        buf[bufp++] = c;
-}
 
 static LexicOper        try_command(char c){
     logenter("[%c]", c);
@@ -118,21 +103,7 @@ LexicOper               lexic_getop(char *s, int sz){
     return logret(LEXIC_NUMBER, "NUmber: [%s]", s);
 }
 
-// TODO: to buffer.c
-void                    lexic_clear(void){
-    bufp = 0;
-}
-
 // -------------------------- (API) printers -----------------------
-
-int                     lexic_fprint(FILE *f){
-    int cnt = 0;
-    cnt += fprintf(f, "LEXIC: pos %d buffer[:", bufp);
-    for (int i = 0; i < bufp; i++)
-        fputc(buf[i], f), cnt++;
-    cnt += fprintf(f, "]\n");
-    return cnt;
-}
 
 // -------------------------------Testing --------------------------
 
@@ -179,15 +150,6 @@ tf1(const char *name)
         CHECK_BUF(str);
     }
     // subtest 2
-    {
-        test_sub("subtest %d", ++subnum);
-        lexic_clear();
-        if (bufp != 0){
-            lexic_fprint(logfile);
-            return logerr(TEST_FAILED, "Buffer point must be 0 but not %d", bufp);
-        }
-    }
-    // subtest 3
     {
         test_sub("subtest %d", ++subnum);
         LexicOper    op = '+';
@@ -245,7 +207,7 @@ tf3(const char *name)
 
     // subtest 1
     {
-        lexic_clear();
+        buffer_clear();
         test_sub("subtest %d", ++subnum);
 
         for (int i = sizeof(str) - 1; i >= 0; i--)  // TODO: refactor to ungetcharr()
@@ -270,7 +232,7 @@ tf4(const char *name)
 
     // subtest 1
     {
-        lexic_clear();
+        buffer_clear();
         test_sub("subtest %d", ++subnum);
         for (int i = sizeof(str) - 1; i >= 0; i--)  // TODO: refactor to ungetcharr()
             ungetch(str[i]);
@@ -304,7 +266,7 @@ tf5(const char *name)
 
     // subtest 1
     {
-        lexic_clear();
+        buffer_clear();
         test_sub("subtest %d", ++subnum);
 
         for (int i = sizeof(str) - 1; i >= 0; i--)
@@ -336,7 +298,7 @@ tf6(const char *name)
 
     // subtest 1
     {
-        lexic_clear();
+        buffer_clear();
         test_sub("subtest %d", ++subnum);
 
         for (int i = sizeof(str) - 1; i >= 0; i--)

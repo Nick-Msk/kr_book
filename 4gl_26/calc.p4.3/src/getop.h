@@ -71,11 +71,11 @@ extern void             lexic_clear(void);
 
 // ----------------- PRINTERS ----------------------
 
-extern int              lexic_fprint(FILE *f);
+//extern int              lexic_fprint(FILE *f);
 
-static inline int       lexic_print(void){
-    return lexic_fprint(stdout);
-}
+//static inline int       lexic_print(void){
+//    return lexic_fprint(stdout);
+//}
 
 // ------------------ ETC. -------------------------
 
