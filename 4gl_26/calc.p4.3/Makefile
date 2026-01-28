@@ -21,6 +21,13 @@ lib/getop.o: src/getop.c
 	$(CC) $(CFLAGS)  $^ -c
 	@mv getop.o lib/
 
+var: src/var.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o
+	$(CC) $(CFLAGS) -DVARTESTING $^ -o test/$@_test
+
+lib/var.o: src/var.c
+	$(CC) $(CFLAGS)  $^ -c
+	@mv var.o lib/
+
 UTIL_PATH = ../../utils
 
 # libs from utils
