@@ -9,6 +9,7 @@
 #include "checker.h"
 #include "getop.h"
 #include "stack.h"
+#include "var.h" 
 
 const char *usage_str = "Usage: %s (interactive)\n";
 
@@ -89,19 +90,26 @@ static int              launch(void){
                 } else
                     stack_push(fmod(stack_pop(), op2));
             break;
+            case LEXIC_POW: 
+                op2 = stack_pop();
+                op = stack_pop();
+                stack_push(pow(op, op2));
+            break;
             case 'd':   // put the same
                 if (!stack_pushsame())
                     fprintf(stderr, "Stack overflow!\n");
-                //printf("\t%.8g\n(%d)> ", stack_get(), stack_count());
             break;
             case 'e':   // exchange
                 stack_exch();
-                //printf("\t%.8g\n(%d)> ", stack_get(), stack_count());
             break;
             case 'c':
                 stack_clear();
                 stack_push(0.0);
-                //printf("\t%.8g\n(%d)> ", stack_get(), stack_count());
+            break;
+            case LEXIC_REMOVE:
+                stack_pop();
+                if (stack_count() < 1)
+                    stack_push(0.0);
             break;
             case 'p':
                 stack_print();
@@ -121,9 +129,26 @@ static int              launch(void){
             case LEXIC_TAN:
                 stack_push(tan(stack_pop()));
             break;
+            case LEXIC_VAR:
+                if (strlen(buf) > 1)
+                    fprintf(stderr, "Only 1 char variables are supported, but not (%s)\n", buf);
+                else {
+                    if (*buf == ':')        // print all vars
+                        var_print();
+                    else
+                        if (!stack_push(var_get(*buf) ) )
+                            fprintf(stderr, "Stack overflow!\n");
+                }
+            break;
+            case LEXIC_ASSIGNMENT:
+                if (strlen(buf) > 1)
+                    fprintf(stderr, "Only 1 char variables are supported, but not (%s)\n", buf);
+                else
+                    var_set(*buf, stack_get());
+            break;
             case '\n':
+                var_set('?', stack_get() );
                 printf("\t%.8g\n(%d)> ", stack_get(), stack_count());
-                stack_fprint(logfile);
                 total++;
             break;
             default:
