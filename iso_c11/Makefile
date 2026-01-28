@@ -15,6 +15,9 @@ printf_n: printf_n.c
 round_up2: src/round_up2.c
 	$(CC) $(CFLAGS) $^ -o out/$@_test
 
+power: src/power.c
+	$(CC) $(CFLAGS) $^ -o out/$@_test
+
 t7.8.1: t7.8.1.c
 	$(CC) $(CFLAGS) $^ -o $@_test
 
