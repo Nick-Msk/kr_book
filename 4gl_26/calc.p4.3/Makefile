@@ -14,7 +14,7 @@ lib/stack.o: src/stack.c
 stack: src/stack.c lib/log.o lib/test.o lib/error.o lib/array.o lib/checker.o
 	$(CC) $(CFLAGS) -DSTACKTESTING $^ -o test/$@_test
 
-getop: src/getop.c lib/log.o lib/test.o lib/error.o lib/checker.o
+getop: src/getop.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/buffer.o
 	$(CC) $(CFLAGS) -DGETOPTESTING $^ -o test/$@_test
 
 lib/getop.o: src/getop.c
@@ -27,6 +27,13 @@ var: src/var.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o
 lib/var.o: src/var.c
 	$(CC) $(CFLAGS)  $^ -c
 	@mv var.o lib/
+
+buffer: src/buffer.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o
+	$(CC) $(CFLAGS) -DBUFFERTESTING $^ -o test/$@_test
+
+lib/buffer.o: src/buffer.c
+	$(CC) $(CFLAGS)  $^ -c
+	@mv buffer.o lib/
 
 UTIL_PATH = ../../utils
 
