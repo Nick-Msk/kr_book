@@ -79,13 +79,22 @@ LexicOper               lexic_getop(char *s, int sz){
     while ( (s[i] = c = getch() ) == ' ' || c == '\t')
         ;
     s[1] = '\0';
-    if (!isdigit(c) && c != '.' && c != '-' && c != '+'){
+    if (!isdigit(c) && c != '.' && c != '-' && c != '+' && c != ':' && c != '='){
         char    c1 = c;
         if (isalnum(c1)){
             if ( (c1 = try_command(c1)) != EOF)
                 return c1;
         }
         return logret(c, "oper1: [%c - %s]", c, LexicOperName(c)); // oper
+    }
+    if (c == '=' || c == ':'){  // Variable
+        char c1 = c;
+        while (i < sz - 1 && (isalpha(s[i++] = c = tolower(getch() ) ) || c == ':' || c == '?' ) )     // [i++] to override '=' or ':' in  s[0] 
+            ;
+        s[i - 1] = '\0';
+        if (c != EOF)
+            ungetch(c);
+        return logret(c1 == ':' ? LEXIC_VAR : LEXIC_ASSIGNMENT, "Vartiable %c [%s]", c1, s);
     }
     if (c == '+'|| c == '-'){
         int prev = c;   // + -  or digit
@@ -314,6 +323,44 @@ tf5(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
+// ------------------------- TEST 6 ---------------------------------
+
+static TestStatus
+tf6(const char *name)
+{
+    logenter("%s", name);
+
+    char        buf[1000];
+    char        str[] = "11 :v -12.345 + =z *";
+    int         subnum = 0;  // TODO: check if in VIRT_BOOK maked better!
+
+    // subtest 1
+    {
+        lexic_clear();
+        test_sub("subtest %d", ++subnum);
+
+        for (int i = sizeof(str) - 1; i >= 0; i--)
+            ungetch(str[i]);
+
+        CHECK_OP(LEXIC_NUMBER);
+        CHECK_BUF("11");
+
+        CHECK_OP(LEXIC_VAR);
+        CHECK_BUF("v");
+
+        CHECK_OP(LEXIC_NUMBER);
+        CHECK_BUF("-12.345");
+
+        CHECK_OP(LEXIC_PLUS);
+
+        CHECK_OP(LEXIC_ASSIGNMENT);
+        CHECK_BUF("z");
+
+        CHECK_OP(LEXIC_MUL);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
 // -------------------------------------------------------------------
 int
 main(int argc, char *argv[])
@@ -331,6 +378,7 @@ main(int argc, char *argv[])
       , testnew(.f2 = tf3, .num = 3, .name = "Negative numver test (w/o getchar)"    , .desc = "", .mandatory=true)
       , testnew(.f2 = tf4, .num = 4, .name = "Negative complex test (w/o getchar)"   , .desc = "", .mandatory=true)
       , testnew(.f2 = tf5, .num = 5, .name = "Simple oper (sin/cos) (w/o getchar)"   , .desc = "", .mandatory=true)
+      , testnew(.f2 = tf6, .num = 6, .name = "Variable test (w/o getchar)"   , .desc = "", .mandatory=true)
     );
 
     logclose("end...");

@@ -19,15 +19,19 @@ typedef enum {
     LEXIC_MUL = '*',
     LEXIC_DIV = '/',
     LEXIC_MOD = '%',
+    LEXIC_POW = '^',
     LEXIC_PRINT = 'p',
     LEXIC_HELP = 'h',
     LEXIC_EXCH = 'e',
     LEXIC_PUSHSAME = 'd',
     LEXIC_QUIT = 'q',
+    LEXIC_CLEAR = 'c',
+    LEXIC_REMOVE = 'r',
     LEXIC_SIN = 'z' + 1, // TODO
     LEXIC_COS,
     LEXIC_TAN,
-    LEXIC_VAR = ':'
+    LEXIC_VAR = ':',
+    LEXIC_ASSIGNMENT = '='
 } LexicOper;
 
 static inline const char        *LexicOperName(LexicOper t){
@@ -39,15 +43,19 @@ static inline const char        *LexicOperName(LexicOper t){
         CASE_RETURN(LEXIC_MUL);
         CASE_RETURN(LEXIC_DIV);
         CASE_RETURN(LEXIC_MOD);
+        CASE_RETURN(LEXIC_POW);
         CASE_RETURN(LEXIC_PRINT);
         CASE_RETURN(LEXIC_HELP);
         CASE_RETURN(LEXIC_EXCH);
         CASE_RETURN(LEXIC_PUSHSAME);
         CASE_RETURN(LEXIC_QUIT);
+        CASE_RETURN(LEXIC_CLEAR);
+        CASE_RETURN(LEXIC_REMOVE);
         CASE_RETURN(LEXIC_SIN);
         CASE_RETURN(LEXIC_COS);
         CASE_RETURN(LEXIC_TAN);
         CASE_RETURN(LEXIC_VAR);
+        CASE_RETURN(LEXIC_ASSIGNMENT);
         default: return "";
     }
 }
