@@ -139,12 +139,12 @@ tf1(const char *name)
     int     subnum = 0;  // TODO: check if in VIRT_BOOK maked better!
     char    buf[1000];
     char    str[] = "12345.6789";
+    logmsg("%zu - %zu", sizeof(str), strlen(str));
 
     // subtest 1
     {
         test_sub("subtest %d", ++subnum);
-        for (int i = sizeof(str) - 1; i >= 0; i--)
-            ungetch(str[i]);
+        ungetrevs(str, sizeof(str));
 
         CHECK_OP(LEXIC_NUMBER);
         CHECK_BUF(str);
@@ -175,8 +175,12 @@ tf2(const char *name)
     // subtest 1
     {
         test_sub("subtest %d", ++subnum);
-        for (int i = sizeof(str) - 1; i >= 0; i--)
-            ungetch(str[i]);
+
+        buffer_fprint(logfile);
+        buffer_clear();
+        ungetrevs(str, sizeof(str));
+
+        buffer_fprint(logfile);
 
         CHECK_OP(LEXIC_NUMBER);
         CHECK_BUF("1.5");
@@ -210,8 +214,7 @@ tf3(const char *name)
         buffer_clear();
         test_sub("subtest %d", ++subnum);
 
-        for (int i = sizeof(str) - 1; i >= 0; i--)  // TODO: refactor to ungetcharr()
-            ungetch(str[i]);
+        ungetrevs(str, sizeof(str));
 
         CHECK_OP(LEXIC_NUMBER);
         CHECK_BUF(str);
@@ -234,8 +237,8 @@ tf4(const char *name)
     {
         buffer_clear();
         test_sub("subtest %d", ++subnum);
-        for (int i = sizeof(str) - 1; i >= 0; i--)  // TODO: refactor to ungetcharr()
-            ungetch(str[i]);
+
+        ungetrevs(str, sizeof(str));
 
         CHECK_OP(LEXIC_NUMBER);
         CHECK_BUF("1.5");
@@ -269,8 +272,7 @@ tf5(const char *name)
         buffer_clear();
         test_sub("subtest %d", ++subnum);
 
-        for (int i = sizeof(str) - 1; i >= 0; i--)
-            ungetch(str[i]);
+        ungetrevs(str, sizeof(str));
 
         CHECK_OP(LEXIC_NUMBER);
         CHECK_BUF("11");
@@ -301,8 +303,7 @@ tf6(const char *name)
         buffer_clear();
         test_sub("subtest %d", ++subnum);
 
-        for (int i = sizeof(str) - 1; i >= 0; i--)
-            ungetch(str[i]);
+        ungetrevs(str, sizeof(str));
 
         CHECK_OP(LEXIC_NUMBER);
         CHECK_BUF("11");
@@ -324,6 +325,7 @@ tf6(const char *name)
 }
 
 // -------------------------------------------------------------------
+
 int
 main(int argc, char *argv[])
 {
