@@ -13,19 +13,23 @@
 
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
-extern void                    buffer_clear(void);
+extern void                     buffer_clear(void);
 
 // -------------- ACCESS AND MODIFICATION ----------
 
-extern int                     getch(void);
+extern int                      getch(void);
 
-extern void                    ungetch(int c);
+extern void                     ungetch(int c);
+
+extern int                     ungets(const char *s);
+
+extern int                     ungetrevs(const char *s, int len);
 
 // ----------------- PRINTERS ----------------------
 
-extern int                     buffer_fprint(FILE *f);
+extern int                      buffer_fprint(FILE *f);
 
-static inline int              buffer_print(void){
+static inline int               buffer_print(void){
     return buffer_fprint(stdout);
 }
 

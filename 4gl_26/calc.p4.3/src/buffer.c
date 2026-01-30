@@ -33,6 +33,21 @@ void                    ungetch(int c){
         buf[bufp++] = c;
 }
 
+int                     ungets(const char *s){
+    const char * sp = s;
+    while (*sp && bufp < BUFSIZE)
+        buf[bufp++] = *sp++;
+    return sp - s;  // count of ungetched chars
+}
+
+// TODO: the should be replaced to fs
+int                     ungetrevs(const char *s, int len){
+    int i = len - 1, cnt = 0;
+    while (i >= 0 && bufp < BUFSIZE)
+        buf[bufp++] = s[i--], cnt++;
+    return cnt;  // count of ungetched chars
+}
+
 // -------------------------- (Utility) printers -------------------
 
 // --------------------------- API ---------------------------------
@@ -41,7 +56,7 @@ void                    ungetch(int c){
 
 int                     buffer_fprint(FILE *f){
     int cnt = 0;
-    cnt = fprintf(f, "BUFFER:\n");
+    cnt = fprintf(f, "BUFFER (%d):\n", bufp);
     for (int i = 0; i < bufp; i++){
         cnt += fprintf(f, "[%d] - [%c]\t", i, buf[i]); 
         if ( (i + 1) % 10 == 0)
@@ -56,6 +71,7 @@ int                     buffer_fprint(FILE *f){
 #ifdef BUFFERTESTING
 
 #include <signal.h>
+#include <strings.h>
 #include "test.h"
 
 //types for testing
@@ -91,6 +107,42 @@ tf1(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
+// ------------------------- TEST 2 ---------------------------------
+
+static TestStatus
+tf2(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+    {
+        test_sub("subtest %d", ++subnum);
+
+        const char str[] = "bla simple to ungetch, bla bbla bla";
+        int res, len = strlen(str);
+        if ( (res = ungets(str)) != len)
+            return logerr(TEST_FAILED, "Ungets() returns %d but is must be %d", res, len);
+
+        test_sub("subtest %d", ++subnum);
+
+        char c;
+        while (len > 0 && (c = getch()) != EOF)
+            if (str[--len] != c)
+                return logerr(TEST_FAILED, "Ungets, Pos %d is [%c] but is must be [%c]", len, c, str[len]);
+
+        test_sub("subtest %d", ++subnum);
+
+        len = strlen(str);
+        if ( (res = ungetrevs(str, len)) != len)
+            return logerr(TEST_FAILED, "Ungetrevs() returns %d but is must be %d", res, len);
+
+        test_sub("subtest %d", ++subnum);
+        int i = 0;
+        while (i < len && (c = getch()) != EOF)
+            if (str[i++] != c)
+                return logerr(TEST_FAILED, "Ungetrevs, Pos %d is [%c] but is must be [%c]", i, c, str[i]);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
 // -------------------------------------------------------------------
 
 int
@@ -104,7 +156,8 @@ main(int argc, char *argv[])
     loginit(logfilename, false, 0, "Starting");
 
     testenginestd(
-        testnew(.f2 = tf1, .num = 1, .name = "Simple and mult ungetch/getch test"       , .desc = "", .mandatory=true)
+        testnew(.f2 = tf1, .num = 1, .name = "Simple and mult ungetch/getch test"   , .desc = "", .mandatory=true)
+      , testnew(.f2 = tf2, .num = 2, .name = "Simple ungets/ungetrevs test"         , .desc = "", .mandatory=true)
     );
 
     logclose("end...");
