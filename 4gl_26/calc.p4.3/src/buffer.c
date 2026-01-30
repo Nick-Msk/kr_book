@@ -10,6 +10,7 @@
 static const int            BUFSIZE = 100;
 static char                 buf[BUFSIZE];
 static int                  bufp = 0;
+static int                  eofpos = -1;
 
 // internal type
 
@@ -19,18 +20,26 @@ static int                  bufp = 0;
 
 void                    buffer_clear(void){
     bufp = 0;
+    eofpos = -1;
 }
 
 // ------------------------------ Utilities ------------------------
 
 int                     getch(void){
-    return bufp > 0 ? buf[--bufp] : getchar();
+    if (bufp == eofpos)
+        return EOF;
+    else
+        return bufp > 0 ? buf[--bufp] : getchar();
 }
-void                    ungetch(int c){ 
+void                    ungetch(int c){
     if (bufp >= BUFSIZE)
         fprintf(stderr, "Unable to ungetch [%c], because of overflow (%d)\n", c, bufp);
-    else
-        buf[bufp++] = c;
+    else {
+        if (c != EOF)
+            buf[bufp++] = c;
+        else
+            eofpos = bufp;
+    }
 }
 
 int                     ungets(const char *s){
@@ -104,6 +113,18 @@ tf1(const char *name)
                 return logerr(TEST_FAILED, "Getch returns [%c] but is must be [%c] (i = %d)", res, some_val, i);
         }
     }
+    {
+        test_sub("subtest %d", ++subnum);
+        ungetch(EOF);
+        char some_val = 'x';
+        int res;
+        ungetch(some_val);
+        if ( (res = getch()) != some_val)
+            return logerr(TEST_FAILED, "Getch returns [%c] but is must be [%c]", res, some_val);
+        for (int i = 0; i < 3; i++) // cehck several times
+            if ( (res = getch() ) != EOF)
+                return logerr(TEST_FAILED, "Getch returns [%c - %d] but is must be EOF", res, res);
+    }
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
@@ -117,6 +138,7 @@ tf2(const char *name)
     {
         test_sub("subtest %d", ++subnum);
 
+        buffer_clear();
         const char str[] = "bla simple to ungetch, bla bbla bla";
         int res, len = strlen(str);
         if ( (res = ungets(str)) != len)
