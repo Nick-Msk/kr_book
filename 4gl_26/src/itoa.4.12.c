@@ -28,9 +28,9 @@ int                     main(int argc, const char *argv[]){
         return 2;
     }
     int val = atoi(argv[1]);
-    char buf[100] = {'\0'};
+    char buf[100] = "dtfghjjkhjkhjkjhjghfrtdesersdredsrd";
 
-    itoa_recur(val, buf);
+    *itoa_recur(val, buf) = '\0';
 
     printf("%s\n", buf);
     logclose("...");
@@ -43,11 +43,8 @@ static char *          itoa_recur(int val, char *str){
         *str++ = '-';
         val = -val;
     }
-    if (val / 10){
-        char *s = itoa_recur(val / 10, str);
-        logmsg("off %zu", s - str);
-        str = s;
-    }
+    if (val / 10)
+        str = itoa_recur(val / 10, str);
     *str = itoc(val % 10);
     return logret(str + 1, "[%c]", *str);
 }
