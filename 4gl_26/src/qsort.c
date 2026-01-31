@@ -15,7 +15,7 @@ static void             qsort_rec(Array arr, int left, int right);
 const char *usage_str = "Usage: %s <len:int> <type of gen A:asc D:desc R:random)\n";
 
 int                     main(int argc, const char *argv[]){
-    static const char *logfilename = "log/qsort.log";
+    static const char *logfilename = "log/"__FILE__".log";
     loginit(logfilename, false, 0, "Start");    // TODO: rework that to LOG("logdir") or LOGAPPEND("logdir") or LOGSWITCH("logdir")
 
     if (argc > 1){
