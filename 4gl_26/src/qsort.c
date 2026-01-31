@@ -70,7 +70,7 @@ static void             qsort_rec(Array arr, int left, int right){
     metric_inc(m);
     int_exch(arr.iv + left, arr.iv + (left + right) / 2);
 
-    logmsg("last %d, (left + right) / 2 == %d", last, (left + right) / 2);
+    logmsg("last %d, (%d + %d) / 2 == %d", last, left, right, (left + right) / 2);
     for (i = left + 1; i <= right; i++)
         if (arr.iv[i] < arr.iv[left])
             int_exch(arr.iv + ++last, arr.iv + i), metric_inc(m);
