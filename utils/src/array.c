@@ -128,9 +128,9 @@ int                     Array_fprint(FILE *f, Array val, int limit){
 
     for (i = 0; i < limit; i++){
         if (Array_isint(val) )
-            cnt += fprintf(f, "%6d\t", val.iv[i]);
+            cnt += fprintf(f, "[%d - %6d]\t", i, val.iv[i]);
         else        // isdouble
-            cnt += fprintf(f, "%.8g\t", val.dv[i]);
+            cnt += fprintf(f, "[%d - %.8g]\t", i, val.dv[i]);
         if ( ( (i + 1) % g_array_rec_line) == 0){
             cnt += fprintf(f, "\n");
         }
