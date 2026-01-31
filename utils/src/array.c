@@ -116,6 +116,8 @@ int                     Array_fprint(FILE *f, Array val, int limit){
     }
     if (i < val.len)
         cnt += fprintf(f, "and more (%d) ...\n", val.len - i);
+    else
+        cnt += fprintf(f, "\n");
     return cnt;
 }
 
