@@ -10,12 +10,12 @@
 #include "array.h"
 
 // internal proc
-static void             shell_sort(IArray arr);
+static void             shell_sort(Array arr);
 
 const char *usage_str = "Usage: %s <len:int> <type of gen A:asc D:desc R:random)\n";
 
 int                     main(int argc, const char *argv[]){
-    static const char *logfilename = "log/shellsort.log";
+    static const char *logfilename = "log/"__FILE__".log";
     loginit(logfilename, false, 0, "Start");    // TODO: rework that to LOG("logdir") or LOGAPPEND("logdir") or LOGSWITCH("logdir")
 
     if (argc > 1){
@@ -30,7 +30,7 @@ int                     main(int argc, const char *argv[]){
     }
     int         arr_len = atoi(argv[1]);
     char        gen_type = toupper(*argv[2]);
-    IArray      arr;
+    Array       arr;
     Metric     *m = metric_create("shell_sort");
 
     if (!inv (arr_len > 0 && (gen_type == 'A' || gen_type == 'D' || gen_type == 'R'), "only acsending (A) or descending (D) or random (R)") )
@@ -52,20 +52,20 @@ int                     main(int argc, const char *argv[]){
     g_array_rec_line = 15;
     shell_sort(arr);
     metric_print(m);
-    // setup 
-    IArray_print(arr, 500);
+    //
+    Array_print(arr, 500);
 
     logclose("...");
     return 0;
 }
 
-static void             shell_sort(IArray arr){
+static void             shell_sort(Array arr){
     int     gap, i, j;
     Metric *m = metric_acq("shell_sort");
     for (gap = arr.len / 2; gap > 0; gap /= 2)
         for (i = gap; i < arr.len; i++){
-            for (j = i - gap; j >= 0 && arr.v[j] > arr.v[j + gap]; j-= gap){
-                 int_exch(arr.v + j, arr.v + j + gap);
+            for (j = i - gap; j >= 0 && arr.iv[j] > arr.iv[j + gap]; j-= gap){
+                 int_exch(arr.iv + j, arr.iv + j + gap);
                  metric_inc(m);
             }
             /* IArray_print(arr, 500); // tech print
