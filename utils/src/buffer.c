@@ -1,5 +1,5 @@
-#include "stack.h"
 #include "bool.h"
+#include "buffer.h"
 
 /********************************************************************
                  STACK MODULE IMPLEMENTATION

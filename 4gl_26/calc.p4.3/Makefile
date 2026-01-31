@@ -28,12 +28,8 @@ lib/var.o: src/var.c
 	$(CC) $(CFLAGS)  $^ -c
 	@mv var.o lib/
 
-buffer: src/buffer.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o
-	$(CC) $(CFLAGS) -DBUFFERTESTING $^ -o test/$@_test
-
-lib/buffer.o: src/buffer.c
-	$(CC) $(CFLAGS)  $^ -c
-	@mv buffer.o lib/
+#buffer: src/buffer.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o
+#	$(CC) $(CFLAGS) -DBUFFERTESTING $^ -o test/$@_test
 
 UTIL_PATH = ../../utils
 
@@ -65,6 +61,11 @@ lib/metric.o:
 lib/array.o:
 	cd $(UTIL_PATH) && $(MAKE) array.o
 	@cp $(UTIL_PATH)/lib/array.o lib/
+
+lib/buffer.o:
+	cd $(UTIL_PATH) && $(MAKE) buffer.o
+	@cp $(UTIL_PATH)/lib/buffer.o lib/
+
 
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:

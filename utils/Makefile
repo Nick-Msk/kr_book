@@ -38,7 +38,6 @@ test.o:	src/test.c
 test: src/test.c lib/error.o lib/log.o
 	$(CC) $(CFLAGS) -DTESTTESTING $^ -o test/$@_test
 
-
 metric: src/metric.c log.o test.o
 	$(CC) $(CFLAGS) -DCHECKERTESTING $^ -o test/$@_test
 	@mv log.o test.o lib/
@@ -53,6 +52,13 @@ array.o: src/array.c
 
 array: src/array.c lib/log.o lib/test.o lib/error.o lib/checker.o
 	$(CC) $(CFLAGS) -DARRAYTESTING $^ -o test/$@_test
+
+buffer:	src/buffer.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o
+	$(CC) $(CFLAGS) -DBUFFERTESTING $^ -o test/$@_test
+
+buffer.o: src/buffer.c
+	$(CC) $(CFLAGS)  $^ -c
+	@mv $@ lib/
 
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
