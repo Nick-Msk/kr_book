@@ -74,6 +74,27 @@ void                     Array_fill(Array a, ArrayFillType typ){
     }
 }
 
+Array                           Array_shrink(Array arr, int newsz){
+    logenter("newsz %d", newsz);
+    int sz = newsz;
+    if (Array_isint(arr))
+        sz *= sizeof(int);
+    else // double
+        sz *= sizeof(double);
+    void *p  = realloc(arr.iv, sz);
+    if (p == 0){
+        fprintf(stderr, "Unable to allocate %d", sz);
+        //  userraisesig must be here TODO:
+    } else {
+        arr.iv = p;
+        if (arr.len > newsz)
+            arr.len = newsz;
+        if (arr.sz > newsz)
+            arr.sz = newsz;
+    }
+    return logret(arr, "shrinked to (len %d == sz %d)", arr.len, arr.sz);
+}
+
 // CREATE  and fill with method
 // increase and shrink are reuiqred too
 Array                           Array_create(int cnt, ArrayFillType filltyp, ArrayType typ){
@@ -125,8 +146,9 @@ int                     Array_fprint(FILE *f, Array val, int limit){
 
 #ifdef ARRAYTESTING
 
-#include "test.h"
 #include <signal.h>
+#include "test.h"
+#include "checker.h"
 
 // ------------------------- TEST 1 ---------------------------------
 
@@ -171,13 +193,14 @@ tf2(const char *name){
         Array darr = DArray_create(100, ARRAY_ACS);
         for (int i = 0; i < darr.len - 1; i++)
             if (darr.dv[i] > darr.dv[i + 1])
-                return logret(TEST_FAILED, "Violation for ACS gen: arr[%d] = %f > arr[%d+1] = %f", i, darr.dv[i], i, darr.dv[i + 1]);
+                return logactret(Arrayfree(darr), TEST_FAILED, "Violation for ACS gen: arr[%d] = %f > arr[%d+1] = %f", i, darr.dv[i], i, darr.dv[i + 1]);
 
         test_sub("subtest %d", ++subnum);
         Array_fill(darr, ARRAY_DESC);
         for (int i = 0; i < darr.len - 1; i++)
             if (darr.dv[i] < darr.dv[i + 1])
-                return logret(TEST_FAILED, "Violation for DESC gen: arr[%d] = %f < arr[%d+1] = %f", i, darr.dv[i], i, darr.dv[i + 1]);
+                return logactret(Arrayfree(darr), TEST_FAILED, "Violation for DESC gen: arr[%d] = %f < arr[%d+1] = %f", i, darr.dv[i], i, darr.dv[i + 1]);
+        Arrayfree(darr);
     }
 
     {
@@ -185,17 +208,44 @@ tf2(const char *name){
         Array iarr = IArray_create(100, ARRAY_ACS);
         for (int i = 0; i < iarr.len - 1; i++)
             if (iarr.iv[i] > iarr.iv[i + 1])
-                return logret(TEST_FAILED, "Violation for ACS gen: arr[%d] = %d > arr[%d+1] = %d", i, iarr.iv[i], i, iarr.iv[i + 1]);
+                return logactret(Arrayfree(iarr), TEST_FAILED, "Violation for ACS gen: arr[%d] = %d > arr[%d+1] = %d", i, iarr.iv[i], i, iarr.iv[i + 1]);
 
         test_sub("subtest %d", ++subnum);
         Array_fill(iarr, ARRAY_DESC);
         for (int i = 0; i < iarr.len - 1; i++)
             if (iarr.iv[i] < iarr.iv[i + 1])
-                return logret(TEST_FAILED, "Violation for DESC gen: arr[%d] = %d < arr[%d+1] = %d", i, iarr.iv[i], i, iarr.iv[i + 1]);
+                return logactret(Arrayfree(iarr), TEST_FAILED, "Violation for DESC gen: arr[%d] = %d < arr[%d+1] = %d", i, iarr.iv[i], i, iarr.iv[i + 1]);
+        Arrayfree(iarr);
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
+
+// ------------------------- TEST 3 ---------------------------------
+static TestStatus
+tf3(const char *name){
+    logenter("%s", name);
+
+    int         subnum = 0;
+    {
+        test_sub("subtest %d", ++subnum);
+
+        Array iarr = DArray_create(100, ARRAY_ACS);
+
+        Array_fprint(logfile, iarr, 0);
+
+        iarr = Array_shrink(iarr, 10);
+        if (!Array_isvalid(iarr))
+            return logactret(Arrayfree(iarr), TEST_FAILED, "Validation is failed");
+
+        if (! inv(iarr.len == 10 && iarr.sz == 10 && iarr.iv != 0, "Broken array!") )
+            return logactret(Arrayfree(iarr), TEST_FAILED, "Validatation is failed, len %d - sz %d - v %p", iarr.len, iarr.sz, iarr.iv);
+        Arrayfree(iarr);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
 // -------------------------------------------------------------------
+
 int
 main(int argc, char *argv[])
 {
@@ -209,6 +259,7 @@ main(int argc, char *argv[])
     testenginestd(
         testnew(.f2 = tf1, .num = 1, .name = "Int/double creation/descr test"       , .desc = "", .mandatory=true)
       , testnew(.f2 = tf2, .num = 2, .name = "Int/double filling test"              , .desc = "", .mandatory=true)
+      , testnew(.f2 = tf3, .num = 3, .name = "Shrink test"              , .desc = "", .mandatory=true)
     );
 
     logclose("end...");

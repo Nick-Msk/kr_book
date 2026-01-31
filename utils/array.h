@@ -78,6 +78,7 @@ static inline Array             DArray_create(int cnt, ArrayFillType typ){
     return Array_create(cnt, typ, ARRAY_DOUBLE);
 }
 
+extern Array                    Array_shrink(Array arr, int newsz);
 
 // -------------- ACCESS AND MODIFICATION ----------
 
@@ -90,7 +91,7 @@ static inline bool              Array_isdouble(Array a){
 }
 
 static inline bool              Array_isvalid(Array a){
-    return ( (a.flags & (ARRAY_INT | ARRAY_DOUBLE) ) > 0) && a.sz > a.len + 1 && a.len >= 0 && a.iv != 0;
+    return ( (a.flags & (ARRAY_INT | ARRAY_DOUBLE) ) > 0) && a.sz >= a.len && a.len >= 0 && a.iv != 0;
 }
 
 extern void                     Array_fill(Array a, ArrayFillType typ);
