@@ -6,7 +6,7 @@ LDLIBS=
 
 all:
 
-qsort: src/qsort.c lib/log.o lib/common.o lib/checker.o lib/array.o lib/metric.o
+getint.5.1: src/getint.5.1.c lib/log.o lib/common.o lib/checker.o lib/array.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 UTIL_PATH = ../utils
