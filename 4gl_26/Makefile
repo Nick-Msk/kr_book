@@ -21,6 +21,9 @@ itoa.4.12: src/itoa.4.12.c lib/log.o lib/common.o lib/checker.o
 reverse_rec.4.13: src/reverse_rec.4.13.c lib/log.o lib/common.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+qsort: src/qsort.c lib/log.o lib/common.o lib/checker.o lib/array.o lib/metric.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
