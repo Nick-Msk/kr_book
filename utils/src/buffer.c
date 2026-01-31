@@ -2,7 +2,7 @@
 #include "buffer.h"
 
 /********************************************************************
-                 STACK MODULE IMPLEMENTATION
+                 BUFFER MODULE IMPLEMENTATION
 ********************************************************************/
 
 // static globals
@@ -11,6 +11,7 @@ static const int            BUFSIZE = 100;
 static char                 buf[BUFSIZE];
 static int                  bufp = 0;
 static int                  eofpos = -1;
+static FILE                *input = 0;
 
 // internal type
 
@@ -22,14 +23,18 @@ void                    buffer_clear(void){
     bufp = 0;
     eofpos = -1;
 }
-
+bool                    buffer_set(FILE *in){
+    return (input = in) == 0;
+}
 // ------------------------------ Utilities ------------------------
 
 int                     getch(void){
+    if (input == 0)
+        input = stdin;
     if (bufp == eofpos)
         return EOF;
     else
-        return bufp > 0 ? buf[--bufp] : getchar();
+        return bufp > 0 ? buf[--bufp] : getc(input);
 }
 void                    ungetch(int c){
     if (bufp >= BUFSIZE)

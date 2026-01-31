@@ -17,13 +17,15 @@ extern void                     buffer_clear(void);
 
 // -------------- ACCESS AND MODIFICATION ----------
 
+extern bool                     buffer_set(FILE *in);
+
 extern int                      getch(void);
 
 extern void                     ungetch(int c);
 
-extern int                     ungets(const char *s);
+extern int                      ungets(const char *s);
 
-extern int                     ungetrevs(const char *s, int len);
+extern int                      ungetrevs(const char *s, int len);
 
 // ----------------- PRINTERS ----------------------
 
