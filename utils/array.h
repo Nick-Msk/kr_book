@@ -23,7 +23,8 @@ typedef enum ArrayFillType{
 
 typedef enum ArrayType{
     ARRAY_DOUBLE    = 0x1,
-    ARRAY_INT       = 0x2
+    ARRAY_INT       = 0x2,
+    ARRAY_ERROR     = 0x100
 } ArrayType;
 
 static inline const char        *ArrayFillTypeName(ArrayFillType t){
@@ -90,8 +91,17 @@ static inline bool              Array_isdouble(Array a){
     return a.flags & ARRAY_DOUBLE;
 }
 
+static inline bool              Array_iserror(Array a){
+    return a.flags & ARRAY_ERROR;
+}
+
+static inline Array             Array_seterror(Array a){
+    a.flags |= ARRAY_ERROR;
+    return a;
+}
+
 static inline bool              Array_isvalid(Array a){
-    return ( (a.flags & (ARRAY_INT | ARRAY_DOUBLE) ) > 0) && a.sz >= a.len && a.len >= 0 && a.iv != 0;
+    return ( ( !(a.flags & ARRAY_ERROR) && a.flags & (ARRAY_INT | ARRAY_DOUBLE) ) > 0) && a.sz >= a.len && a.len >= 0 && a.iv != 0;
 }
 
 extern void                     Array_fill(Array a, ArrayFillType typ);
@@ -103,6 +113,10 @@ extern int                      Array_fprint(FILE *f, Array val, int limit);
 static inline int               Array_print(Array val, int limit){
     return Array_fprint(stdout, val, limit);
 }
+
+extern long                     Array_save(Array arr, const char *fname);
+
+extern Array                    Array_load(const char *fname);
 
 /*
 // ----------------- Double -----------------------

@@ -9,6 +9,8 @@
 
 int                      g_array_rec_line        = 20;  // TODO: rework that to normal (in Array structure)
 const char              *g_custom_print_line     = 0;   // TODO: rework that to normal (in Array structure)
+const char              *g_save_format_double    = "%6d      %15.15lg\n";
+const char              *g_save_format_int       = "%6d\t%6d\n";
 
 // internal type
 
@@ -161,11 +163,71 @@ int                     Array_fprint(FILE *f, Array val, int limit){
     return cnt;
 }
 
+long                        Array_save(Array arr, const char *fname){
+    logenter("%s", fname);
+
+    long    res = 0;
+    FILE *f = fopen(fname, "w");
+    if (f == 0){
+        fprintf(stderr, "Unable to open %s for writinf\n", fname);
+        return logerr(-1, "Can't open for write");
+    }
+    // g_save_format_double g_save_format_int
+    const char *typ;
+    if (Array_isint(arr))
+        typ = "INT";
+    else
+        typ = "DBL";
+    res = fprintf(f, "ARRAY: %s : %d\n", typ, arr.len);
+    for (int i = 0; i < arr.len; i++)
+        if (Array_isint(arr))
+            res += fprintf(f, g_save_format_int, i, arr.iv[i]);    // TODO: think if shrink repeatable
+        else if (Array_isdouble(arr))
+            res += fprintf(f, g_save_format_double, i, arr.dv[i]);
+    res = fprintf(f, "ARRAY: DONE");
+    fclose(f);
+    return logret(res, "Done %ld", res);
+}
+
+Array                       Array_load(const char *fname){
+    logenter("%s", fname);
+
+    int    cnt = 0, tmp;
+    FILE *f = fopen(fname, "r");
+    Array arr = Array_init();
+    if (f == 0){
+        fprintf(stderr, "Unable to open %s for writinf\n", fname);
+        Array_seterror(arr);
+        return logerr(arr, "Can't read");
+    }
+
+    char typ[20];
+    fscanf(f, "ARRAY: %s : %d", typ, &cnt);
+    if (strcmp(typ, "INT") == 0)
+        arr = IArray_create(cnt, ARRAY_NONE);
+    else if (strcmp(typ, "DBL") == 0)
+        arr = DArray_create(cnt, ARRAY_NONE);
+    else {
+        fprintf(stderr, "Unsupported format %s\n", typ);
+        return logactret(fclose(f), arr, "failed, wrong format %s...", typ);
+    }
+    for (int i = 0; i < cnt; i++){
+        if (Array_isint(arr))
+            fscanf(f, g_save_format_int, &tmp, arr.iv + i); // tmp isn't used for now
+        else if (Array_isdouble(arr) )
+            fscanf(f, "%d %lg\n", &tmp, arr.dv + i);
+    }
+    // TODO: probably checking for ARRAY: DONE must be here
+    fclose(f);
+    return logret(arr, "Done %d", cnt);
+}
 // -------------------------------Testing --------------------------
 
 #ifdef ARRAYTESTING
 
-#include <signal.h>
+//#include <signal.h>
+#include <float.h>
+#include <math.h>
 #include "test.h"
 #include "checker.h"
 
@@ -263,6 +325,77 @@ tf3(const char *name){
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
+// ------------------------- TEST 4 ---------------------------------
+static TestStatus
+tf4(const char *name){
+    logenter("%s", name);
+
+    int         subnum = 0;
+    {
+        test_sub("subtest %d", ++subnum);
+
+        Array iarr = IArray_create(100, ARRAY_RND);
+
+        Array_save(iarr, "log/arr.sv");
+
+        Array iarr2 = Array_load("log/arr.sv");
+
+        if (!Array_isvalid(iarr2))
+            return logactret(Arrayfree(iarr), TEST_FAILED, "Validation is failed");
+
+        test_sub("subtest %d", ++subnum);
+        if (!inv(iarr.len == iarr2.len && iarr.flags == iarr2.flags, "not equal") )
+            return logactret( (Array_free(&iarr), Array_free(&iarr2) ), TEST_FAILED, "Not equal len %d - %d, flags %d - %d",
+                iarr.len, iarr2.len, iarr.flags, iarr2.flags);
+
+        test_sub("subtest %d", ++subnum);
+        for (int i = 0; i < iarr.len; i++)
+            if (iarr.iv[i] != iarr2.iv[i])
+                return logacterr( (Array_free(&iarr), Array_free(&iarr2) ), TEST_FAILED,
+                                "arr[%d] = %d != arr2[%d] = %d", i, iarr.iv[i], i, iarr2.iv[i]);
+
+        Array_free(&iarr);
+        Array_free(&iarr2);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
+// ------------------------- TEST 5 ---------------------------------
+static TestStatus
+tf5(const char *name){
+    logenter("%s", name);
+
+    int         subnum = 0;
+    {
+        test_sub("subtest %d", ++subnum);
+
+        Array darr = DArray_create(100, ARRAY_RND);
+
+        Array_print(darr, 0);
+        Array_save(darr, "log/darr.sv");
+
+        Array darr2 = Array_load("log/darr.sv");
+
+        if (!Array_isvalid(darr2))
+            return logactret(Arrayfree(darr), TEST_FAILED, "Validation is failed");
+
+        test_sub("subtest %d", ++subnum);
+        if (!inv(darr.len == darr2.len && darr.flags == darr2.flags, "not equal") )
+            return logactret( (Array_free(&darr), Array_free(&darr2) ), TEST_FAILED, "Not equal len %d - %d, flags %d - %d",
+                darr.len, darr2.len, darr.flags, darr2.flags);
+
+        test_sub("subtest %d", ++subnum);
+        for (int i = 0; i < darr.len; i++)
+            if (fabs(darr.dv[i] - darr2.dv[i]) > FLT_EPSILON / 100)
+                return logacterr( (Array_free(&darr), Array_free(&darr2) ), TEST_FAILED,
+                                "arr[%d] = %15.15lf != arr2[%d] = %15.15lf", i, darr.dv[i], i, darr2.dv[i]);
+
+        Array_free(&darr);
+        Array_free(&darr2);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
 // -------------------------------------------------------------------
 
 int
@@ -278,7 +411,9 @@ main(int argc, char *argv[])
     testenginestd(
         testnew(.f2 = tf1, .num = 1, .name = "Int/double creation/descr test"       , .desc = "", .mandatory=true)
       , testnew(.f2 = tf2, .num = 2, .name = "Int/double filling test"              , .desc = "", .mandatory=true)
-      , testnew(.f2 = tf3, .num = 3, .name = "Shrink test"              , .desc = "", .mandatory=true)
+      , testnew(.f2 = tf3, .num = 3, .name = "Shrink test"                          , .desc = "", .mandatory=true)
+      , testnew(.f2 = tf4, .num = 4, .name = "Save/load int test"                   , .desc = "", .mandatory=true)
+      , testnew(.f2 = tf5, .num = 5, .name = "Save/load dbl test"                   , .desc = "", .mandatory=true)
     );
 
     logclose("end...");
