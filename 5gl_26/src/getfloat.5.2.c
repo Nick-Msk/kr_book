@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <time.h>
+#include <math.h>
 
 #include "log.h"
 #include "common.h"
@@ -33,7 +34,7 @@ int                     main(int argc, const char *argv[]){
 
     Array      arr = DArray_create(200, ARRAY_ZERO);
     int cnt = 0, ret;
-    while(cnt < arr.len && (ret = getint(fin, arr.iv + cnt) ) != EOF)
+    while(cnt < arr.len && (ret = getfloat(fin, arr.dv + cnt) ) != EOF)
         if (ret > 0)
             cnt++;
 
@@ -53,7 +54,7 @@ static int                  getfloat(FILE *f, double *pn){
     logenter("...");
 
     int     c, sign = 1, c2;
-    double  res = 0.0;
+    double  res = 0.0, pw = 1.0;
 
     while (isspace(c = getc(f) ) )
         ;
@@ -75,11 +76,31 @@ static int                  getfloat(FILE *f, double *pn){
     do
         res = res * 10 + ctoi(c);
     while ( isdigit(c = getc(f) ) );
-    // TODO: float . here
+    //
+    if (c == '.'){
+        while ( isdigit(c = getc(f) ) ){
+            pw /= 10;
+            res += ctoi(c) * pw;
+        }
+    }
+    if (tolower(c) == 'e'){ // parse exponent
+        pw = 0;
+        int  expsign = 1;
+        c = getc(f);
+        expsign = (c == '-') ? -1: 1;
+        if (c == '+' || c == '-')
+            c = getc(f);
+        while ( isdigit(c) ){
+            pw = pw * 10 + ctoi(c);
+            c = getc(f);
+        }
+        pw = pw * expsign;
+        res *= pow(10, pw);
+    }
     res *= sign;
     if (c != EOF)
         ungetc(c, f);
-    logmsg("res %d, c [%c]", res, c);
+    logmsg("res %f, c [%c]", res, c);
     if (pn)
         *pn = res;
     return logret(c, "%d", c);
