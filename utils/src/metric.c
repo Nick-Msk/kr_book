@@ -73,7 +73,7 @@ int                       metric_fprint(FILE *f, Metric *m){
 #ifdef METRICTESTING
 
 #include "test.h"
-#include <signal.h>
+// #include <signal.h>
 
 // ------------------------- TEST 1 ---------------------------------
 
@@ -149,7 +149,7 @@ main(int argc, char *argv[])
     loginit(logfilename, false, 0, "Starting");
 
     testenginestd(
-        testnew(.f2 = tf1, .num = 1, .name = "Simple Create test"       , .desc = "", .mandatory=true)
+        testnew(.f2 = tf1, .num = 1, .name = "Simple Create test"  , .desc = "", .mandatory=true)
       , testnew(.f2 = tf2, .num = 2, .name = "Inc value test"      , .desc = "", .mandatory=true)
     );
 
