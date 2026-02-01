@@ -5,9 +5,10 @@
                  <SKELETON> MODULE IMPLEMENTATION
 ********************************************************************/
 
-// static globals
+//  globals, can be changed by app
 
-int                      g_array_rec_line = 20;
+int                      g_array_rec_line        = 20;  // TODO: rework that to normal (in Array structure)
+const char              *g_custom_print_line     = 0;   // TODO: rework that to normal (in Array structure)
 
 // internal type
 
@@ -123,16 +124,33 @@ void                    Array_free(Array *val){
 // -------------------------- (API) printers -----------------------
 
 int                     Array_fprint(FILE *f, Array val, int limit){
-    int     cnt = 0, i;
+
+    int         cnt = 0, i;
+    int         array_rec_line = 20;    // default
+    const char *custom_print_line;    // for int or double
+
     limit = (limit == 0)? val.len : (limit < val.len) ? limit : val.len;
+    if (g_array_rec_line)
+        array_rec_line = g_array_rec_line;
 
     cnt += fprintf(f, "Array (%s):\n", Array_isint(val) ? "int" : "dbl");
     for (i = 0; i < limit; i++){
-        if (Array_isint(val) )
-            cnt += fprintf(f, "[%d - %6d]\t", i, val.iv[i]);
-        else        // isdouble
-            cnt += fprintf(f, "[%d - %.8g]\t", i, val.dv[i]);
-        if ( ( (i + 1) % g_array_rec_line) == 0){
+        if (Array_isint(val) ){
+            if (g_custom_print_line)
+                custom_print_line = g_custom_print_line;
+            else  // standard behavior
+                custom_print_line = "[%d - %6d]\t";
+            cnt += fprintf(f, custom_print_line, i, val.iv[i]);
+        }
+        else if (Array_isdouble(val) ){
+            if (g_custom_print_line)
+                custom_print_line = g_custom_print_line;
+            else
+                custom_print_line = "[%d - %.8g]\t";
+            cnt += fprintf(f, custom_print_line, i, val.dv[i]);
+        }
+        // delim
+        if ( ( (i + 1) % array_rec_line) == 0){
             cnt += fprintf(f, "\n");
         }
     }

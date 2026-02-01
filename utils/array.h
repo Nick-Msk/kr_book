@@ -38,7 +38,7 @@ static inline const char        *ArrayFillTypeName(ArrayFillType t){
 }
 
 extern int              g_array_rec_line;
-
+extern const char      *g_custom_print_line;
 // ------------------- TYPES -----------------------
 
 typedef struct {
