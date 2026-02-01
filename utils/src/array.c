@@ -126,6 +126,7 @@ int                     Array_fprint(FILE *f, Array val, int limit){
     int     cnt = 0, i;
     limit = (limit == 0)? val.len : (limit < val.len) ? limit : val.len;
 
+    cnt += fprintf(f, "Array (%s):\n", Array_isint(val) ? "int" : "dbl");
     for (i = 0; i < limit; i++){
         if (Array_isint(val) )
             cnt += fprintf(f, "[%d - %6d]\t", i, val.iv[i]);
