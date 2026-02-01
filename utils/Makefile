@@ -38,9 +38,8 @@ test.o:	src/test.c
 test: src/test.c lib/error.o lib/log.o
 	$(CC) $(CFLAGS) -DTESTTESTING $^ -o test/$@_test
 
-metric: src/metric.c log.o test.o
-	$(CC) $(CFLAGS) -DCHECKERTESTING $^ -o test/$@_test
-	@mv log.o test.o lib/
+metric: src/metric.c lib/log.o lib/test.o lib/error.o
+	$(CC) $(CFLAGS) -DMETRICTESTING $^ -o test/$@_test
 
 metric.o: src/metric.c
 	$(CC) $(CFLAGS) $^ -c

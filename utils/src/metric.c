@@ -72,18 +72,76 @@ int                       metric_fprint(FILE *f, Metric *m){
 // SKIP FOR NOW
 #ifdef METRICTESTING
 
-#include "testing.h"
+#include "test.h"
 #include <signal.h>
 
 // ------------------------- TEST 1 ---------------------------------
 
+static TestStatus
+tf1(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+    {
+        test_sub("subtest %d", ++subnum);
+
+        const char *name = "abc";
+        int         ret;
+        Metric *m1 = metric_create(name);
+        if (!m1)
+            return logret(TEST_FAILED, "Not created");
+
+        test_sub("subtest %d", ++subnum);
+        Metric *m2 = metric_acq(name);
+        if (!m2)
+            return logret(TEST_FAILED, "Unable to acquired %s", name);
+
+        test_sub("subtest %d", ++subnum);
+        if ( (ret = metric_getval(m2) ) != 0)
+            return logret(TEST_FAILED, "Newly created metric must be 0 but not %d", ret);
+
+        test_sub("subtest %d", ++subnum);
+        metric_inc(m2);
+        if ( (ret = metric_getval(m2) ) != 1)
+            return logret(TEST_FAILED, "Metric must ruturn 1 after increment, but not %d", ret);
+
+        test_sub("subtest %d", ++subnum);
+        metric_free();
+        m1 = metric_acq(name);
+        if (m1 != 0)
+            return logret(TEST_FAILED, "It should be impossible to acquire metric after freed");
+
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
 // ------------------------- TEST 2 ---------------------------------
+
+static TestStatus
+tf2(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+    {
+        test_sub("subtest %d", ++subnum);
+
+        const char  *name = "abc";
+        int          ret;
+        Metric      *m = metric_create(name);
+
+        metric_setval(m, 100);
+        metric_inc(m);
+        if ( (ret = metric_getval(m)) != 101)
+            return logret(TEST_FAILED, "Metric must ruturn 101 after increment, but not %d", ret);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
 
 // -------------------------------------------------------------------
 int
 main(int argc, char *argv[])
 {
-    const char *logfilename = "checker.log";
+    const char *logfilename = "log/metric.log";
 
     if (argc > 1)
         logfilename = argv[1];
@@ -91,13 +149,11 @@ main(int argc, char *argv[])
     loginit(logfilename, false, 0, "Starting");
 
     testenginestd(
-        testnew(.f2 = tf1, .num = 1, .name = "Simple invariant text"       , .desc = "", .mandatory=true)
-      , testnew(.f2 = tf2, .num = 2, .name = "Complex invariant test"      , .desc = "", .mandatory=true)
-      //, testnew(.f2 = f3, .num = 3, .name = "Interrupt raising test"        , .desc = "Exception test."                                                             , .mandatory=true)
-      //, testnew(.f2 = f4, .num = 4, .name = "System error test."            , .desc = "System error raising test (w/o exception)."  , .mandatory=true)
+        testnew(.f2 = tf1, .num = 1, .name = "Simple Create test"       , .desc = "", .mandatory=true)
+      , testnew(.f2 = tf2, .num = 2, .name = "Inc value test"      , .desc = "", .mandatory=true)
     );
 
-        logclose("end...");
+    logclose("end...");
     return 0;
 }
 

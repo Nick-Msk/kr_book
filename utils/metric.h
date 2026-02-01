@@ -32,7 +32,7 @@ extern Metric               g_metric_array[MAX_METRIC];
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
 // get or create
-Metric                   *metric_get(const char *name, bool create);
+extern Metric            *metric_get(const char *name, bool create);
 
 static inline Metric     *metric_create(const char *name){
     return metric_get(name, true);
@@ -40,6 +40,10 @@ static inline Metric     *metric_create(const char *name){
 
 static inline Metric     *metric_acq(const char *name){
     return metric_get(name, false);
+}
+
+static inline void       metric_free(void){
+    g_metricfreepos = 0;        // that's all what we need for now, but in future cycle with free() will be required
 }
 
 // -------------- ACCESS AND MODIFICATION ----------
