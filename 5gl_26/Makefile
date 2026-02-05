@@ -12,6 +12,9 @@ getint.5.1: src/getint.5.1.c lib/log.o lib/common.o lib/checker.o lib/array.o
 getfloat.5.2: src/getfloat.5.2.c lib/log.o lib/common.o lib/checker.o lib/array.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+mystrcat.5.3: src/mystrcat.5.3.c lib/log.o lib/common.o lib/checker.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
