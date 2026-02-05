@@ -15,6 +15,9 @@ getfloat.5.2: src/getfloat.5.2.c lib/log.o lib/common.o lib/checker.o lib/array.
 mystrcat.5.3: src/mystrcat.5.3.c lib/log.o lib/common.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+mystrend.5.4: src/mystrend.5.4.c lib/log.o lib/common.o lib/checker.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
