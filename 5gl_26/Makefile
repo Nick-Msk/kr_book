@@ -18,6 +18,9 @@ mystrcat.5.3: src/mystrcat.5.3.c lib/log.o lib/common.o lib/checker.o
 mystrend.5.4: src/mystrend.5.4.c lib/log.o lib/common.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+mystrings.5.5: src/mystrings.5.5.c lib/log.o lib/common.o lib/checker.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
