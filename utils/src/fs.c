@@ -26,15 +26,19 @@ static inline int               calcnewsize(int n){
 
 // only for FS_FLAG_ALLOC
 static fs                       increasesize(fs *s, int newsz, bool incr){
+    logenter("newsz %d, incr %s v %p", newsz, bool_str(incr), s->v);
     if (incr)
         newsz = calcnewsize(newsz);
-    if (newsz < s->sz || !incr){
+    logauto(newsz);
+    if (newsz > s->sz || !incr){
+            logauto(newsz);
             s->v = realloc(s->v, newsz);
             if (!s->v)
                 userraiseint(10, "Unable to allocate %d bytes", newsz);
             s->sz = newsz;
+            logauto(s->sz);
     }
-    return *s;
+    return logret(*s, "increased to %d", s->sz);
 }
 
 // --------------------------- API ---------------------------------
@@ -114,7 +118,7 @@ bool                    fs_validate(FILE *restrict out, const fs *restrict s){
 
 fs                      fsinit(int n){
 
-    fs      res = FSINIT(.len = 0, .sz = 0, .flags = FS_FLAG_ALLOC, .v = 0);
+    fs      res = FSINITALLOC();
     increasesize(&res, n, true);
     *res.v = '\0';
     return logsimpleret(res, "Created empty with sz %d", res.sz);
@@ -122,8 +126,8 @@ fs                      fsinit(int n){
 
 fs                      fsclone(fs s){
     fs tmp = fsinit(s.len + 1);
-    tmp.sz = s.len + 1;
-    memcpy(tmp.v, s.v, tmp.sz);
+    tmp.len = s.len;
+    memcpy(tmp.v, s.v, tmp.len + 1);
     return tmp;
 }
 
@@ -131,6 +135,7 @@ fs                      fsclone(fs s){
 #ifdef FSTESTING
 
 #include "test.h"
+#include "checker.h"
 
 //types for testing
 
@@ -145,13 +150,112 @@ tf1(const char *name)
         test_sub("subtest %d", ++subnum);
 
         fs s = fsempty();
-        
         if (s.len != 0 || s.sz != 0 || s.v != 0)
             return logerr(TEST_FAILED, "Empty fs validation failed");
         if (!fs_alloc(&s))
             return logerr(TEST_FAILED, "fs have no ALLOC");
+        fsfree(s);  // should work normally
+    }
+    {
+        test_sub("subtest %d", ++subnum);
+
+        fs s = fsinit(100);
+        if (!fs_validate(logfile, &s) )
+            return logacterr(fsfree(s), TEST_FAILED, "Validation's failed");
+        if (!inv(s.len == 0 && s.sz >= 100 && s.v != 0 && fs_alloc(&s), "Failed") )
+            return logacterr(fsfree(s), TEST_FAILED, "Condition violated, len [%d], sz [%d], v [%p], is alloc? (%s)",
+                    s.len, s.sz, s.v, bool_str(fs_alloc(&s) ) );
+        fsfree(s);
+    }
+    {
+        test_sub("subtest %d", ++subnum);
+
+        const char *pattern = "1234567890";
+        fs s = fsliteral(pattern);
+        if (!fs_validate(logfile, &s) )
+            return logerr(TEST_FAILED, "Validation's failed");
+        if (!inv(s.len == (int)strlen(pattern) && s.sz == (int)strlen(pattern) + 1 && s.v != 0 && fs_static(&s), "Failed") )
+            return logerr(TEST_FAILED, "Condition violated, len [%d], sz [%d], v [%p], is static? (%s)",
+                    s.len, s.sz, s.v, bool_str(fs_static(&s) ) );
+        fsfree(s);
+    }
+    {
+        test_sub("subtest %d", ++subnum);
+
+        const char *pattern = "1234567890";
+        fs s = fscopy(pattern);
+        if (!fs_validate(logfile, &s) )
+            return logacterr(fsfree(s), TEST_FAILED, "Validation's failed");
+        if (!inv(s.len == (int)strlen(pattern) && s.sz >= (int)strlen(pattern) + 1 && s.v != 0 && fs_alloc(&s), "Failed") )
+            return logacterr(fsfree(s), TEST_FAILED, "Condition violated, len [%d], sz [%d], v [%p], is alloc? (%s)",
+                s.len, s.sz, s.v, bool_str(fs_alloc(&s) ) );
+        if (!inv(strcmp(fsstr(s), pattern) == 0, "Not equal") )
+            return logacterr(fsfree(s), TEST_FAILED, "[%s] != pt [%s]", fsstr(s), pattern);
 
         test_sub("subtest %d", ++subnum);
+
+        fs s2 = fsclone(s);
+        fsfree(s);
+
+        if (!fs_validate(logfile, &s2) )
+            return logacterr( fsfree(s2), TEST_FAILED, "Validation's failed");
+        if (!inv(s2.len == (int)strlen(pattern) && s2.sz >= (int)strlen(pattern) + 1 && s2.v != 0 && fs_alloc(&s2), "Failed") )
+            return logacterr( fsfree(s2), TEST_FAILED, "Condition violated, len [%d], sz [%d], v [%p], is alloc? (%s)",
+                s2.len, s2.sz, s2.v, bool_str(fs_alloc(&s2) ) );
+        if (!inv(strcmp(fsstr(s2), pattern) == 0, "Not equal") )
+            return logacterr(fsfree(s2), TEST_FAILED, "[%s] != pt [%s]", fsstr(s2), pattern);
+
+        fsfree(s2);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
+
+// ------------------------- TEST 2 ---------------------------------
+
+static TestStatus
+tf2(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+    {
+        test_sub("subtest %d", ++subnum);
+
+        const char *pt = "just pattern";
+        fs s = fscopy(pt);
+
+        char c = get(s, 0);
+        if (!inv (c == 'j', "[0] returns [%c], but should be [%c]", c, 'j') )
+            return logacterr( fsfree(s), TEST_FAILED, "[0] returns [%c], but should be [%c]", c, 'j');
+
+        test_sub("subtest %d", ++subnum);
+        get(s, 3) = 'y';
+        if (!inv(strcmp(fsstr(s), "jusy pattern") == 0, "[%s] != pt [%s]", fsstr(s), "jusy pattern") )
+            return logacterr(fsfree(s), TEST_FAILED, "[%s] != pt [%s]", fsstr(s), "jusy pattern");
+
+        // check 3 for 'y'
+        c = get(s, 3);
+        if (!inv (c == 'y', "[0] returns [%c], but should be [%c]", c, 'y') )
+            return logacterr( fsfree(s), TEST_FAILED, "[0] returns [%c], but should be [%c]", c, 'y');
+
+        // reallocation test
+        test_sub("subtest %d", ++subnum);
+
+        elem(s, 100) = 'z';
+        if (!fs_validate(logfile, &s) )
+            return logacterr( fsfree(s), TEST_FAILED, "Validation's failed");
+        c = get(s, 100);
+        if (!inv (c == 'z', "[100] returns [%c], but should be [%c]", c, 'z') )
+            return logacterr( fsfree(s), TEST_FAILED, "[100] returns [%c], but should be [%c]", c, 'z');
+        fs_techfprint(logfile, &s);
+
+        test_sub("subtest %d", ++subnum);
+        fsshrink(s);
+        if (!fs_validate(logfile, &s) )
+            return logacterr( fsfree(s), TEST_FAILED, "Validation's failed");
+        fs_techfprint(logfile, &s);
+
+        fsfree(s);
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
@@ -163,7 +267,8 @@ main(int argc, char *argv[])
     logsimpleinit("Starting");   // it that working?
 
     testenginestd(
-        testnew(.f2 = tf1, .num = 1, .name = "Simple init and validate"      , .desc="Init test."                , .mandatory=true)
+        testnew(.f2 = tf1, .num = 1, .name = "Simple init and validate test" , .desc="Init test."                , .mandatory=true)
+      , testnew(.f2 = tf2, .num = 2, .name = "Access read/write test"        , .desc="Init test."                , .mandatory=true)
     );
 
     logclose("end...");

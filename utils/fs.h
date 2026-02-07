@@ -50,7 +50,7 @@ static inline bool          fs_flag_static(FS_FLAGS fl){
     return fl & FS_FLAG_STATIC;
 }
 
-static inline bool          fs_statis(const fs *s){
+static inline bool          fs_static(const fs *s){
     return fs_flag_static(s->flags);
 }
 
@@ -82,7 +82,9 @@ static inline bool          fs_alloc(const fs*s){
 
 #define FSEMPTY (fs){.sz = 1, .len = 0, .flags = FS_FLAG_STATIC, .v = ""};
 
-#define FSINIT(...)  (fs){.sz = 1, .len = 0, .flags = FS_FLAG_STATIC, .v = "", __VA_ARGS__};
+#define FSINITSTATIC(...)  (fs){.sz = 1, .len = 0, .flags = FS_FLAG_STATIC, .v = "", __VA_ARGS__}
+
+#define FSINITALLOC(...)   (fs){.sz = 0, .len = 0, .flags = FS_FLAG_ALLOC, .v = 0, __VA_ARGS__}
 
 #define fsfree(s) fs_free(&(s))
 
@@ -97,14 +99,16 @@ static inline void          fs_free(fs *s){
 extern fs                   fsinit(int sz);
 
 static inline fs            fsempty(void){
-    return FSINIT(.sz = 0, .v = 0, .flags = FS_FLAG_ALLOC);
+    return FSINITALLOC(.sz = 0, .v = 0, .flags = FS_FLAG_ALLOC);
 }
 
 static inline fs            fscopy(const char *str){
     int        sz  = strlen(str) + 1;
     fs         val = fsinit(sz);
-    if (val.v)
+    if (val.v){
         memcpy(val.v, str, sz);
+        val.len = sz - 1;
+    }
     return val;
 }
 
@@ -121,6 +125,9 @@ static inline fs            fsliteral(const char *lit){
 // TODO: fs_const()
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
+
+#define                     fsstr(s) fs_str(&(s))
+#define                     fsshrink(s) fs_shrink(&(s))
 
 // direct access, NO change len or sz, position MUST be < sz
 static inline char          *fs_get(const fs *s, int pos){
@@ -144,7 +151,7 @@ static inline const char    *fs_strcopy(fs *s){
 }
 
 #define                      get(s, pos) *fs_get(&(s), (pos))
-#define                      v(s) (s.v)
+#define                      getv(s) (s.v)
 #define                      elem(s, pos) *fs_elem(&(s), (pos))
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
