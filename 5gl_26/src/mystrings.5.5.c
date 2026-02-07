@@ -30,6 +30,18 @@ int                             main(int argc, const char *argv[]){
 
     // TODO: rework with fs!
     // example fs:
+    // const char *str = fsstr(s); /
+    // fs s = fsinit(100); // empty
+    // fs s = fsempty();    // empty with 0 alloc
+    // fs s = fscopy(argv[1]); // copy origin!! and malloc here
+    // fs ts = fsclone(s);
+    // fsshrink(s) // srink to length!
+    // fsresize(s, 1000);   // resize to value
+    // fs s = fsliteral("abc"); // read only, no auto-alloc, use fsclone() to create normal fs
+    // char c = get(s)[5]; or  char c = s.v[5]; // no allocation
+    // char c = elem(s, 5) // with auto allocation
+    // elem(s, 6) = 'c'; // with autoalloc
+    // get(s, 14) = 'r' or get(s[14]) = 'x';    // no allocation, just s.v[14] = 'x';
 
     int         n = atoi(argv[4]);
     const char *cmd = argv[1];
@@ -43,7 +55,7 @@ int                             main(int argc, const char *argv[]){
 
 static const char                     *processcopy(const char *restrict par1, const char *restrict par2, int n){
     // par1 is ignored
-    char    *s = malloc(n + 1); 
+    char    *s = malloc(n + 1);
         if (!inv(s != 0, "Unable to allocated %d", n + 1) )
             return 0;
     // exec
