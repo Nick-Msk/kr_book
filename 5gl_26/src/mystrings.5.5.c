@@ -30,7 +30,8 @@ int                             main(int argc, const char *argv[]){
 
     // TODO: rework with fs!
     // example fs:
-    // const char *str = fsstr(s); /
+    // const char *str = fsstr(s); // no copy here!
+    // const char *str = fsstrcopy(s);  // copy amd malloc
     // fs s = fsinit(100); // empty
     // fs s = fsempty();    // empty with 0 alloc
     // fs s = fscopy(argv[1]); // copy origin!! and malloc here
