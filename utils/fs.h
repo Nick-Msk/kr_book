@@ -97,7 +97,7 @@ static inline void          fs_free(fs *s){
 extern fs                   fsinit(int sz);
 
 static inline fs            fsempty(void){
-    return fsinit(0);
+    return FSINIT(.sz = 0, .v = 0, .flags = FS_FLAG_ALLOC);
 }
 
 static inline fs            fscopy(const char *str){
@@ -117,6 +117,8 @@ static inline fs            fsliteral(const char *lit){
     s.sz = s.len + 1;
     return s;
 }
+
+// TODO: fs_const()
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 

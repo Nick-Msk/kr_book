@@ -6,10 +6,10 @@
                     FAST STRING MODULE IMPLEMENTATION
 ********************************************************************/
 
-static const int            FS_BUF_SIZE             = 1024;
+//static const int            FS_BUF_SIZE             = 1024;
 static const int            FS_TECH_PRINT_COUNT     = 10; // symplos to print
-static char                 g_fs_buffer[FS_BUF_SIZE];
-static const int            g_initsize              = 32;   // not sure
+//static char                 g_fs_buffer[FS_BUF_SIZE];
+//static const int            g_initsize              = 32;   // not sure
 
 // ---------- pseudo-header for utility procedures -----------------
 
@@ -102,7 +102,7 @@ bool                    fs_validate(FILE *restrict out, const fs *restrict s){
     }
     {
         int len = strlen(s->v);
-        if (len <= s->len){
+        if (len < s->len){
             fprintf(out, "srtlen [%d] can't be more than len [%d]", len, s->len);
             return logerr(false, "srtlen [%d] can't be more than len [%d]", len, s->len);
         }
@@ -136,14 +136,34 @@ fs                      fsclone(fs s){
 
 // ------------------------- TEST 1 ---------------------------------
 
+static TestStatus
+tf1(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+    {
+        test_sub("subtest %d", ++subnum);
+
+        fs s = fsempty();
+        
+        if (s.len != 0 || s.sz != 0 || s.v != 0)
+            return logerr(TEST_FAILED, "Empty fs validation failed");
+        if (!fs_alloc(&s))
+            return logerr(TEST_FAILED, "fs have no ALLOC");
+
+        test_sub("subtest %d", ++subnum);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
 // ------------------------------------------------------------------
 int
 main(int argc, char *argv[])
 {
-    logsimplenit("Starting");   // it that working?
+    logsimpleinit("Starting");   // it that working?
 
     testenginestd(
-        testnew(.f2 = f1, .num = 1, .name = "Simple init and validate"      , .desc="Init test."                , .mandatory=true)
+        testnew(.f2 = tf1, .num = 1, .name = "Simple init and validate"      , .desc="Init test."                , .mandatory=true)
     );
 
     logclose("end...");
