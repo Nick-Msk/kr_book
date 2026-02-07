@@ -7,6 +7,9 @@
 
 // --------------- Includes -----------------------
 
+#include <stdio.h>
+#include <strings.h>
+//
 #include "bool.h"
 #include "log.h"
 #include "common.h"
@@ -43,51 +46,83 @@ typedef struct fs {
 } fs;
 
 // flag checkers
-static inline bool fs_flag_static(FS_FLAGS fl){
+static inline bool          fs_flag_static(FS_FLAGS fl){
     return fl & FS_FLAG_STATIC;
 }
 
-static inline bool fs_statis(const fs *s){
+static inline bool          fs_statis(const fs *s){
     return fs_flag_static(s->flags);
 }
 
-static inline bool fs_flag_const(FS_FLAGS fl){
+static inline bool          fs_flag_const(FS_FLAGS fl){
     return fl & FS_FLAG_CONST;
 }
 
-static inline bool fs_const(const fs *s){
+static inline bool          fs_const(const fs *s){
     return fs_flag_const(s->flags);
 }
 
-static inline bool fs_flag_local(FS_FLAGS fl){
+static inline bool          fs_flag_local(FS_FLAGS fl){
     return fl & FS_FLAG_LOCAL;
 }
 
-static inline bool fs_local(const fs *s){
+static inline bool          fs_local(const fs *s){
     return fs_flag_local(s->flags);
 }
 
-static inline bool fs_flag_alloc(FS_FLAGS fl){
+static inline bool          fs_flag_alloc(FS_FLAGS fl){
     return fl & FS_FLAG_ALLOC; // heap marker
 }
 
-static inline bool fs_heap(const fs*s){
-    return fs_flag_heap(s->flags);
+static inline bool          fs_alloc(const fs*s){
+    return fs_flag_alloc(s->flags);
 }
 
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
+#define FSEMPTY (fs){.sz = 1, .len = 0, .flags = FS_FLAG_STATIC, .v = ""};
+
+#define FSINIT(...)  (fs){.sz = 1, .len = 0, .flags = FS_FLAG_STATIC, .v = "", __VA_ARGS__};
+
+#define fsfree(s) fs_free(&(s))
+
 // destructor, macro wrapper will be
 static inline void          fs_free(fs *s){
     if (fs_alloc(s))
-        logsimpleact(free(s->s), "freed...");   // WOW, logsimpleact?
+        logsimpleact(free(s->v), "freed...");   // WOW, logsimpleact?
     s->sz = s->len = s->flags = 0;
     s->v = 0;
 }
 
+extern fs                   fsinit(int sz);
+
+static inline fs            fsempty(void){
+    return fsinit(0);
+}
+
+static inline fs            fscopy(const char *str){
+    int        sz  = strlen(str) + 1;
+    fs         val = fsinit(sz);
+    if (val.v)
+        memcpy(val.v, str, sz);
+    return val;
+}
+
+extern fs                   fsclone(fs s);
+
+static inline fs            fsliteral(const char *lit){
+    fs s = FSEMPTY;
+    s.v = (char *)lit;  // TODO: probably use a union
+    s.len = strlen(lit);
+    s.sz = s.len + 1;
+    return s;
+}
+
+// -------------------- ACCESS AND MODIFICATORS ------------------------
+
 // direct access, NO change len or sz, position MUST be < sz
 static inline char          *fs_get(const fs *s, int pos){
-    return logsimpleret(s->v + pos, "Getting %p[%c]", s->s + pos, s->s[pos]);
+    return logsimpleret(s->v + pos, "Getting %p[%c]", s->v + pos, s->v[pos]);
 }
 
 // automatically adjust len (??) and sz (realloc)
@@ -96,17 +131,28 @@ extern char                 *fs_elem(fs *s, int pos);
 // shrink to real len + 1 ( + 1 because '\0' is ASSUMED)
 extern fs                   *fs_shrink(fs *s);
 
-// ----------------- PRINTERS/CHECKERS ----------------------
+extern fs                   *fs_resize(fs *s, int newsz);
 
-int                     fs_techfprint(FILE *restrict out, const fs *restrict s);
-static inline int       fs_techprint(const fs *restrict s){
+static inline const char    *fs_str(fs *s){
+    return s->v;
+}
+
+static inline const char    *fs_strcopy(fs *s){
+    return (const char *) strdup(s->v);
+}
+
+#define                      get(s, pos) *fs_get(&(s), (pos))
+#define                      v(s) (s.v)
+#define                      elem(s, pos) *fs_elem(&(s), (pos))
+
+// ------------------------ PRINTERS/CHECKERS --------------------------
+
+int                          fs_techfprint(FILE *restrict out, const fs *restrict s);
+static inline int            fs_techprint(const fs *s){
     return fs_techfprint(stdout, s);
 }
 
 // --------------------------- ETC. -------------------------
-
-// common initializer
-#define FSEMPTY (fs){.sz = 1, .len = 0, .flags = FS_FLAG_STATIC, .sz = ""};
 
 #endif /* !_FS_H */
 

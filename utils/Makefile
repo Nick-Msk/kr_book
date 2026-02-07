@@ -59,6 +59,13 @@ buffer.o: src/buffer.c
 	$(CC) $(CFLAGS)  $^ -c
 	@mv $@ lib/
 
+fs:	src/fs.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o
+	$(CC) $(CFLAGS) -DFSTESTING $^ -o test/$@_test
+
+fs.o: src/fs.c
+	$(CC) $(CFLAGS)  $^ -c
+	@mv $@ lib/
+
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
 	@rm *.o
