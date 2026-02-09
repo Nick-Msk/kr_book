@@ -47,7 +47,7 @@ static int                       parse_line(const char *restrict argv[], Fulldat
                     dt->year = atoi(str + 1);
                 break;
                 case 'f':
-                    dt->year = atoi(str + 1);
+                    dt->day_of_year = atoi(str + 1);
                 break;
                 default:
                     fprintf(stderr, "Unsupported param [%c]\n", c);
@@ -78,7 +78,7 @@ int                             main(int argc, const char *argv[]){
     Fulldate dt = INITFULLDATE();
     parse_line(argv + 1, &dt);    // ... , 'y', &dt.year, 'm', &dt.month, 'd', &dt.day, 'f', &dt.day_of_year);
 
-    fprint_fulldate(stdout, dt);
+    //fprint_fulldate(stdout, dt);
 
     if (dt.day_of_year == -1){
         if (!calc_day_of_year(&dt) ){
@@ -86,6 +86,12 @@ int                             main(int argc, const char *argv[]){
             fprint_fulldate(stderr, dt);
         } else
             printf("Day of year %d\n", dt.day_of_year);
+    } if (dt.month == -1 || dt.year == -1){
+        if (!calc_month_day(&dt) ){
+            fprintf(stderr, "Incorrect day_of_year/year!\n");
+            fprint_fulldate(stderr, dt);
+        } else
+            printf("Month %d Day %d\n", dt.month, dt.day);
     }
     logclose("...");
     return 0;
@@ -109,6 +115,20 @@ static bool                      calc_day_of_year(Fulldate *dt){
     int     leap = isleap(dt->year);
     for (int i = 1; i < dt->month; i++)
         dt->day_of_year += daytab[leap][i];
+    return true;
+}
+
+static bool                      calc_month_day(Fulldate *dt){
+    if (!dt)
+        return false;
+    if (!inv(dt->year > 0 && dt->day_of_year > 0 && dt->day_of_year <= 366, "Incorrect day_of_year/year") )
+        return false;
+
+    int     leap = isleap(dt->year), i;
+    dt->day = dt->day_of_year;
+    for (i = 1; dt->day > daytab[leap][i]; i++)
+        dt->day -= daytab[leap][i];
+    dt->month = i;
     return true;
 }
 
