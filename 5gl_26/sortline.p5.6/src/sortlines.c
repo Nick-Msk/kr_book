@@ -32,7 +32,7 @@ static const char *logfilename = "log/"__FILE__".log";
         writelines(lineptr, nlines);
         freelines(lineptr, nlines);
     } else {
-        fprintf(stderr, "Unable to real lines\n");
+        fprintf(stderr, "Unable to read lines\n");
         ret = 1;
     }
 
