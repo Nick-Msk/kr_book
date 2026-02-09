@@ -121,6 +121,13 @@ static inline void      int_exch(int *i1, int *i2){
     *i2 = tmp;
 }
 
+// str exch
+static inline void      str_exch(const char **s1, const char **s2){
+    const char *tmp = *s1;
+    *s1 = *s2;
+    *s2 = tmp;
+}
+
 static inline char      ctoi(char c){
     return c - '0';
 }
