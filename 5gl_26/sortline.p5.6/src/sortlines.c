@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <strings.h>
 
-#include "fileoper.h"
+#include "fileopers.h"
 #include "log.h"
 #include "checker.h"
 #include "common.h"
@@ -25,12 +25,12 @@ static const char *logfilename = "log/"__FILE__".log";
 
     int               ret = 0;
     int               nlines = 0;
-    const char       *lineptr[MAXLINES];
+    char             *lineptr[MAXLINES];
 
-    if ((nlines = readlines(lineprt, MAXLINES)) > 0){
+    if ((nlines = readlines(lineptr, MAXLINES)) > 0){
         qsortline(lineptr, 0, nlines - 1);
         writelines(lineptr, nlines);
-        freeines(liteptr, nlines);
+        freelines(lineptr, nlines);
     } else {
         fprintf(stderr, "Unable to real lines\n");
         ret = 1;
@@ -40,4 +40,18 @@ static const char *logfilename = "log/"__FILE__".log";
     return ret;
 }
 
+static void          qsortline(const char *arr[], int left, int right){
+    int     last;
+
+    if (left >= right)
+        return;
+    str_exch(arr + left, arr + (left + right) / 2);
+    last = left;
+    for (int i = left + 1; i <= right; i++)
+        if (strcmp(arr[i], arr[left]) < 0)
+            str_exch(arr + ++last, arr + i);
+    str_exch(arr + left, arr + last);
+    qsortline(arr, left, last - 1);
+    qsortline(arr, last + 1, right);
+}
 

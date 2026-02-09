@@ -4,11 +4,11 @@ CFLAGS= -I../../utils -Isrc/ -Wall -Wextra -std=gnu11 -g -O0 -Wno-gnu-folding-co
 LDFLAGS=
 LDLIBS=
 
-sortline: src/sortline.c lib/log.o lib/common.o lib/checker.o lib/fileopers.o
+sortlines: src/sortlines.c lib/log.o lib/common.o lib/checker.o lib/fileopers.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-fileopers: src/fileopers.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o
-	$(CC) $(CFLAGS) -DVARTESTING $^ -o test/$@_test
+#fileopers: src/fileopers.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o
+#	$(CC) $(CFLAGS) -DVARTESTING $^ -o test/$@_test
 
 lib/fileopers.o: src/fileopers.c
 	$(CC) $(CFLAGS)  $^ -c

@@ -7,7 +7,7 @@ int             readlines(char *ptr[], int maxline);
 
 int             writelines(const char *ptr[], int maxline);
 
-int             freelines(const char *ptr[], int maxline);
+void            freelines(const char *ptr[], int maxline);
 
 #endif /* !_FILEOPERS_H */
 
