@@ -24,7 +24,10 @@ mystrings.5.5: src/mystrings.5.5.c lib/log.o lib/common.o lib/checker.o
 days.5.8: src/days.5.8.c lib/log.o lib/common.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-echo.p5.10: src/echo.p5.10.c lib/log.o lib/common.o lib/checker.o
+echo.p5.10: src/echo.p5.10.c
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
+mygrep.p5.10: src/mygrep.p5.10.c lib/log.o lib/common.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 UTIL_PATH = ../utils
