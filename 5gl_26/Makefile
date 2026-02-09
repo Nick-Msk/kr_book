@@ -21,6 +21,9 @@ mystrend.5.4: src/mystrend.5.4.c lib/log.o lib/common.o lib/checker.o
 mystrings.5.5: src/mystrings.5.5.c lib/log.o lib/common.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+days.5.8: src/days.5.8.c lib/log.o lib/common.o lib/checker.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
