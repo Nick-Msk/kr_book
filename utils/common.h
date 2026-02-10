@@ -193,4 +193,9 @@ static inline int               round_up_2(int val){
 // reverse string
 extern char                     *reverse(char *s, int len);
 
+static inline char              *reversel(char *s){
+    int     len = strlen(s);
+    return reverse(s, len);
+}
+
 #endif /* ! _COMMON_H */
