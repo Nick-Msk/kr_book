@@ -9,26 +9,40 @@
 #include "checker.h"
 #include "getop.h"
 #include "stack.h"
-#include "var.h" 
+#include "var.h"
+#include "buffer.h"
 
-const char *usage_str = "Usage: %s (interactive)\n";
+const char *usage_str = "Usage: %s (interactive) or <command(s):str>\n";
 
-static int              launch(void);
+static int              launch(bool interactive);
 
 int                     main(int argc, const char *argv[]){
 
     static const char *logfilename = "log/calc.log";
     loginit(logfilename, false, 0, "Start");    // TODO: rework that to LOG("logdir") or LOGAPPEND("logdir") or LOGSWITCH("logdir")
 
-    if (argc > 1){
+    if (argc == 2){
         if (strcmp(argv[1], "-v") == 0 || strcmp(argv[1], "--version") == 0){
             printf("%s KR calc p.89\n", __FILE__);
             printf(usage_str, *argv);
             return 0;
         }
     }
-
-    printf("Total expressions: %d\n", launch() );
+    bool interactive = true;
+    if (argc > 1){ 
+        ungetch(EOF);
+        ungetch('\n');
+        // unload input parameter to buffer!
+        while (argc > 1){
+            const char *s = argv[--argc];
+            int len = strlen(s);
+            while (len > 0)
+                ungetch(s[--len]);
+            ungetch(' ');
+        }
+        interactive = false;
+    }
+    printf("Total expressions: %d\n", launch(interactive) );
 
     logclose("...");
     return 0;
@@ -41,7 +55,7 @@ static int              print_command(){
     return total;   // total
 }
 
-static int              launch(void){
+static int              launch(bool interactive){
     logenter(" ");
     int     type, total = 0;
     double  op, op2;
@@ -49,7 +63,8 @@ static int              launch(void){
     char    buf[MAXOP];     // TODO: replace to faststring  fs
     bool    quit = false;
 
-    printf("> ");
+    if (interactive)
+        printf("> ");
     stack_push(0.0);    // init
     while (!quit && (type = lexic_getop(buf, MAXOP) ) != EOF){
         switch (type){
@@ -77,11 +92,13 @@ static int              launch(void){
             break;
             case '/':
                 op2 = stack_pop();
+                logmsg("/ : op2 %f", op2);
                 if (op2 == 0.0){
                     fprintf(stderr, "Divizion by zero!\n");
                     stack_push(op2);
                 } else
                     stack_push(stack_pop() / op2);
+            break;
             case '%':
                 op2 = stack_pop();
                 if (op2 == 0.0){
