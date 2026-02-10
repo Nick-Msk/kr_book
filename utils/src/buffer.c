@@ -7,7 +7,7 @@
 
 // static globals
 
-static const int            BUFSIZE = 100;
+static const int            BUFSIZE = 8192;
 static char                 buf[BUFSIZE];
 static int                  bufp = 0;
 static int                  eofpos = -1;
@@ -70,9 +70,9 @@ int                     ungetrevs(const char *s, int len){
 
 int                     buffer_fprint(FILE *f){
     int cnt = 0;
-    cnt = fprintf(f, "BUFFER (%d):\n", bufp);
+    cnt = fprintf(f, "BUFFER (%d)/(%d):\n", bufp, eofpos);
     for (int i = 0; i < bufp; i++){
-        cnt += fprintf(f, "[%d] - [%c]\t", i, buf[i]); 
+        cnt += fprintf(f, "[%d] - [%c]\t", i, buf[i]);
         if ( (i + 1) % 10 == 0)
              cnt += fprintf(f, "\n");
     }
