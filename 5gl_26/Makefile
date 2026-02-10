@@ -30,6 +30,9 @@ echo.p5.10: src/echo.p5.10.c
 mygrep.p5.10: src/mygrep.p5.10.c lib/log.o lib/common.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+tail.5.13: src/tail.5.13.c lib/log.o lib/common.o lib/checker.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
