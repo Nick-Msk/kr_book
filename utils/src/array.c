@@ -2,7 +2,7 @@
 #include "array.h"
 
 /********************************************************************
-                 <SKELETON> MODULE IMPLEMENTATION
+                 ARRAY MODULE IMPLEMENTATION
 ********************************************************************/
 
 //  globals, can be changed by app
