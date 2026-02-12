@@ -80,11 +80,11 @@ static inline bool          fs_alloc(const fs*s){
 
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
-#define FSEMPTY (fs){.sz = 1, .len = 0, .flags = FS_FLAG_STATIC, .v = ""};
+#define FSEMPTY (fs){.sz = 0, .len = 0, .flags = FS_FLAG_STATIC, .v = ""};
 
 #define FSINITSTATIC(...)  (fs){.sz = 1, .len = 0, .flags = FS_FLAG_STATIC, .v = "", ##__VA_ARGS__}
 
-#define FSINITALLOC(...)   (fs){.sz = 0, .len = 0, .flags = FS_FLAG_ALLOC, .v = 0, ##__VA_ARGS__}
+#define FS(...)   (fs){.sz = 0, .len = 0, .flags = FS_FLAG_ALLOC, .v = 0, ##__VA_ARGS__}
 
 #define fsfree(s) fs_free(&(s))
 
@@ -99,7 +99,7 @@ static inline void          fs_free(fs *s){
 extern fs                   fsinit(int sz);
 
 static inline fs            fsempty(void){
-    return FSINITALLOC(.sz = 0, .v = 0, .flags = FS_FLAG_ALLOC);
+    return FS();
 }
 
 static inline fs            fscopy(const char *str){
@@ -137,10 +137,14 @@ static inline char          *fs_get(const fs *s, int pos){
 // automatically adjust len (??) and sz (realloc)
 extern char                 *fs_elem(fs *s, int pos);
 
-static inline char          *fs_len(fs *s, int poslen){
+static inline int           *fs_setlen(fs *s, int poslen){
     *fs_elem(s, poslen) = '\0';
     s->len = poslen;
-    return s->v + poslen;
+    return &s->len;
+}
+
+static inline int           fslen(fs s){
+    return s.len;
 }
 
 // shrink to real len + 1 ( + 1 because '\0' is ASSUMED)
@@ -159,7 +163,7 @@ static inline const char    *fs_strcopy(fs *s){
 #define                      get(s, pos) *fs_get(&(s), (pos))
 #define                      getv(s) (s.v)
 #define                      elem(s, pos) *fs_elem( &(s), (pos))
-#define                      fslen(s, poslen) *fs_len( (&s), (poslen))
+#define                      fsetlen(s, poslen) *fs_setlen( (&s), (poslen))
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
 int                          fs_techfprint(FILE *restrict out, const fs *restrict s);

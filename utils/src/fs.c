@@ -122,7 +122,7 @@ bool                    fs_validate(FILE *restrict out, const fs *restrict s){
 
 fs                      fsinit(int n){
 
-    fs      res = FSINITALLOC();
+    fs      res = FS();
     increasesize(&res, n, true);
     *res.v = '\0';
     return logsimpleret(res, "Created empty with sz %d", res.sz);
@@ -280,7 +280,7 @@ tf3(const char *name)
 
         for (i = 0; i < (int)sizeof(pt); i++)
             elem(s, i) = pt[i];
-        fslen(s, i);
+        fsetlen(s, i);
 
         if (strcmp(s.v, pt) != 0)
             return logacterr( fsfree(s), TEST_FAILED, "Must be [%s] but not [%s]", pt, s.v);
