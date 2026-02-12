@@ -101,42 +101,42 @@ rnddbl(double dmax)
 }
 
 // simple comparator
-static inline int        char_cmp(const void *s1, const void *s2){
+static inline int               char_cmp(const void *s1, const void *s2){
     const char *c1 = s1;
     const char *c2 = s2;
     return *c1 - *c2;
 }
 
 // simple char exhanger
-static inline void      char_exch(char *s1, char *s2){
+static inline void              char_exch(char *s1, char *s2){
     char c = *s1;
     *s1 = *s2;
     *s2 = c;
 }
 
 // simple int iexchanger
-static inline void      int_exch(int *i1, int *i2){
+static inline void              int_exch(int *i1, int *i2){
     int tmp = *i1;
     *i1 = *i2;
     *i2 = tmp;
 }
 
 // str exch
-static inline void      str_exch(const char **s1, const char **s2){
+static inline void              str_exch(const char **s1, const char **s2){
     const char *tmp = *s1;
     *s1 = *s2;
     *s2 = tmp;
 }
 
-static inline char      ctoi(char c){
+static inline char              ctoi(char c){
     return c - '0';
 }
 
-static inline char      itoc(int c){
+static inline char              itoc(int c){
     return c + '0';
 }
 
-static inline char      itohex(int c){
+static inline char              itohex(int c){
     if (c < 10)
         return c + '0';
     else
@@ -153,17 +153,11 @@ static inline char              *sort_str(char *s, int len){
     return s;
 }
 
-// simpe file reader, must call free(s); after usage!!
-extern char                     *read_from_file(FILE *f, int *p_cnt);
-
 // make s unique by symbols (no odering!!!)
 extern char                     *uniq_str(char *s, int *p_len);
 
 // fill with 0.0 cnt elements
 extern void                     cleaner_double(void *arr, int cnt);
-
-// for now in common.c, then will be moved out
-extern int                      get_line(char *line, int lim);
 
 // print int as bits
 extern int                      fprint_bits(FILE *f, const char *str, unsigned val);
