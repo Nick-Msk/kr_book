@@ -349,6 +349,7 @@ test_sub(const char *msg, ...)
 TFILE
 test_fopen(const char *prefix)
 {
+    logenter("%s", prefix);
 	TFILE	tf = (TFILE){.f = 0, .name = 0};
 
 	char 	name[]      = "XXXXXXXXXXXX.test";
@@ -369,14 +370,14 @@ test_fopen(const char *prefix)
         sysraiseint("Unable to create file %s for 'rw'", tf.name);
         free(tf.name), tf.name = 0;
     }
-    tf.f = fdopen(fd, "rw");
+    tf.f = fdopen(fd, "r+");
     if (!tf.f)
 	{
 		perror("Unable to open file for rw\n");
 		sysraiseint("Unable to open file %s for 'rw'", tf.name);
         free(tf.name), tf.name = 0;
 	}
-	return tf;
+	return logret(tf, "file %p, name [%s] is created (%d)", tfile(tf), tf.name, fd);
 }
 
 // close and remove temporary test file
