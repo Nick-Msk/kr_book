@@ -23,7 +23,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
     int     argc = 1, params = 0;
     if (!ke)
         return logerr(-1, "Zero ke!!! Error!");
-    char    c;
+    char    c, *pos;
     while (*++argv != 0 && **argv == '-'){
         logauto(*argv);
         argc++;
@@ -36,10 +36,9 @@ static int              parse_keys(const char *argv[], Keys *ke){
                     }
                 break;
                 case 'n':
-                    if (!ke->lines){
-                        ke->lines = atoi(argv[0]);
-                        params++;
-                    }
+                    ke->lines = strtol(++argv[0], &pos, 10);
+                    argv[0] = pos - 1; // -1 to break next while()
+                    params++;
                 break;
                 default:    // probaly it's possible to ignore unknows parameters
                     fprintf(stderr, "Illegal option [%c]\n", c);
@@ -58,8 +57,7 @@ int                     main(int argc, const char *argv[]){
     loginit(logfilename, false, 0, "Start");    // TODO: rework that to LOG("logdir") or LOGAPPEND("logdir") or LOGSWITCH("logdir")
 
     Keys ke = Keysinit(.lines = 10);
-    //argc = parse_keys(argv, &ke);
-    logauto(ke.lines);
+    argc = parse_keys(argv, &ke);
 
     if (argc < 0) {
         printf(usage_str, *argv);
@@ -88,15 +86,6 @@ int                     main(int argc, const char *argv[]){
     return 0;
 }
 
-// TODO: move that into common.h
-static inline int       cycleinc(int val, int cycle){
-    if (val >= cycle - 1)
-        val = 0;
-    else
-        val++;
-    return val;
-}
-
 static int              tail(FILE *in, int sz){
     logenter("sz = %d", sz);
     int     pend = 0;   // cycle
@@ -104,7 +93,7 @@ static int              tail(FILE *in, int sz){
     fs      arr[sz];    // heap!
     int     cnt = 0;
 
-    for (int i = 0; i < sz; i++)
+    for (int i = 0; i < sz; i++)  // TODO: that should be simplified
         arr[i] = fsempty();
 
     while ( fgetline_fs(in, arr + pend) > 0){
@@ -121,5 +110,7 @@ static int              tail(FILE *in, int sz){
             i = cycleinc(i, sz);
         } while (i != pend );
     }
+    for (int i = 0; i < sz; i++)    // TODO: that should be simplified
+        fsfree(arr[i]);
     return logret(cnt, "%d", cnt);
 }
