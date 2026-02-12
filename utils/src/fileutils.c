@@ -22,28 +22,28 @@ int                             get_line(char *line, int lim){
 }
 
 // for now in common.c, then will be moved out
-extern fs                       fgetline_fs(FILE *in){
-    fs      s = fsempty();
+extern int                      fgetline_fs(FILE *restrict in, fs *restrict s){
     int     c, i;
     for (i = 0; (c = fgetc(in)) != EOF && c != '\n'; i++){
-        elem(s, i) = c;
+        elem(*s, i) = c;
     }
     if (c == '\n')
-        elem(s, i++) = c;
-    fsetlen(s, i);    // fix length and set '\0'!
-    return s;
+        elem(*s, i++) = c;
+    if (i > 0 || c != EOF)
+        fsetlen(*s, i);    // fix length and set '\0'!
+    return i;
 }
 
 char                           *read_from_file(FILE *f, int *p_cnt){
-    logenter("read from input (%p)", f); 
-    int      sz = 1024, len, pos = 0, cnt = sz; 
+    logenter("read from input (%p)", f);
+    int      sz = 1024, len, pos = 0, cnt = sz;
     char    *s = 0;        // string to store
     s = malloc(sz);
     if (!s){
         fprintf(stderr, "Unable to acclocate %d\n", sz);
         return 0;
     }
-    while ((len = fread(s + pos, 1, cnt - 1, f)) > 0){ 
+    while ((len = fread(s + pos, 1, cnt - 1, f)) > 0){
         pos += len;
         logmsg("pos %d, len %d, sz %d", pos, len, sz);
         // check if next cnt bytes is available
@@ -78,31 +78,39 @@ tf1(const char *name)
 {
     logenter("%s", name);
     TFILE   tf;
-    fs      s;
+    fs      s = fsempty();
     int         subnum = 0;
     {
         test_sub("subtest %d", ++subnum);
 
-        char    pattern[] = "Test pattern ^&*()!@";
+        char    pattern1[] = "Test pattern ^&*()!@\n";
+        char    pattern2[] = "second";
       //  const char fname[] = "common_1.test";       // file contains 3 lines
         tf = test_fopen("/tmp/");
 
         if (tfile(tf) == 0)
             return logerr(TEST_SKIPPED, "Unable to create temporary file");
 
-        if (fprintf(tfile(tf), "%s", pattern) < 0){
+        if (fprintf(tfile(tf), "%s", pattern1) < 0 || fprintf(tfile(tf), "%s", pattern2) < 0){
             perror("Unable to printf...");
             return logacterr( test_fclose(tf), TEST_FAILED, "Unable to printf...");
         }
         fflush(tfile(tf));
         test_freset(tf);
 
-        s = fgetline_fs(tfile(tf) );
-        if (s.len + 1 != sizeof(pattern))
-            return logacterr( (fsfree(s), test_fclose(tf) ), TEST_FAILED, "Fs Len should be %lu but not %d", sizeof(pattern) - 1, s.len);
+        fgetline_fs(tfile(tf), &s);
+        if (s.len + 1 != sizeof(pattern1))
+            return logacterr( (fsfree(s), test_fclose(tf) ), TEST_FAILED, "Fs Len should be %lu but not %d", sizeof(pattern1) - 1, s.len);
 
-        if (strcmp(pattern, s.v) != 0)
-            return logacterr( (fsfree(s), test_fclose(tf) ), TEST_FAILED, "Must be [%s] but not [%s]", pattern, s.v);
+        if (strcmp(pattern1, s.v) != 0)
+            return logacterr( (fsfree(s), test_fclose(tf) ), TEST_FAILED, "Must be [%s] but not [%s]", pattern1, s.v);
+
+        fgetline_fs(tfile(tf), &s);
+        if (s.len + 1 != sizeof(pattern2))
+            return logacterr( (fsfree(s), test_fclose(tf) ), TEST_FAILED, "Fs Len should be %lu but not %d", sizeof(pattern2) - 1, s.len);
+
+        if (strcmp(pattern2, s.v) != 0)
+            return logacterr( (fsfree(s), test_fclose(tf) ), TEST_FAILED, "Must be [%s] but not [%s]", pattern2, s.v);
     }
 
     fsfree(s);

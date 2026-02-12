@@ -16,10 +16,10 @@
 extern int                      get_line(char *line, int lim);
 
 // for now in common.c, then will be moved out
-extern fs                       fgetline_fs(FILE * in);
+extern int                      fgetline_fs(FILE *restrict in, fs *restrict s);
 
-static inline fs                getline_fs(void){
-    return fgetline_fs(stdin);
+static inline int               getline_fs(fs *str){
+    return fgetline_fs(stdin, str);
 }
 
 // simpe file reader, must call free(s); after usage!!
