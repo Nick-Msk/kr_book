@@ -1,5 +1,7 @@
-#include "common.h"
+
 #include "log.h"
+#include "common.h"
+#include "fs.h"
 #include "fileutils.h"
 
 /********************************************************************
@@ -23,11 +25,12 @@ int                             get_line(char *line, int lim){
 extern fs                       fgetline_fs(FILE *in){
     fs      s = fsempty();
     int     c, i;
-    for (i = 0; (c = fgetc(in)) != EOF && c != '\n'; i++)
+    for (i = 0; (c = fgetc(in)) != EOF && c != '\n'; i++){
         elem(s, i) = c;
+    }
     if (c == '\n')
         elem(s, i++) = c;
-    elem(s, i) = '\0';
+    fslen(s, i);    // fix length and set '\0'!
     return s;
 }
 
@@ -39,7 +42,7 @@ char                           *read_from_file(FILE *f, int *p_cnt){
     if (!s){
         fprintf(stderr, "Unable to acclocate %d\n", sz);
         return 0;
-    }   
+    }
     while ((len = fread(s + pos, 1, cnt - 1, f)) > 0){ 
         pos += len;
         logmsg("pos %d, len %d, sz %d", pos, len, sz);
@@ -75,25 +78,34 @@ tf1(const char *name)
 {
     logenter("%s", name);
     TFILE   tf;
+    fs      s;
     int         subnum = 0;
     {
         test_sub("subtest %d", ++subnum);
-        
+
         char    pattern[] = "Test pattern ^&*()!@";
       //  const char fname[] = "common_1.test";       // file contains 3 lines
-        TFILE test_fopen("test/");
+        tf = test_fopen("/tmp/");
 
         if (tfile(tf) == 0)
-            return logret(TEST_SKIPPED. "Unable to create temporary file");
+            return logerr(TEST_SKIPPED, "Unable to create temporary file");
 
-        fprintf("%s", pattern);
-        
+        if (fprintf(tfile(tf), "%s", pattern) < 0){
+            perror("Unable to printf...");
+            return logacterr( test_fclose(tf), TEST_FAILED, "Unable to printf...");
+        }
+        fflush(tfile(tf));
+        test_freset(tf);
 
-        fs s = getline_fs(f);
-        
-        return logactret(test_fclose(tf), TEST_FAILED, "Array is'nt freed");
+        s = fgetline_fs(tfile(tf) );
+        if (s.len + 1 != sizeof(pattern))
+            return logacterr( (fsfree(s), test_fclose(tf) ), TEST_FAILED, "Fs Len should be %lu but not %d", sizeof(pattern) - 1, s.len);
+
+        if (strcmp(pattern, s.v) != 0)
+            return logacterr( (fsfree(s), test_fclose(tf) ), TEST_FAILED, "Must be [%s] but not [%s]", pattern, s.v);
     }
 
+    fsfree(s);
     test_fclose(tf);
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
@@ -103,7 +115,7 @@ tf1(const char *name)
 int
 main(int argc, char *argv[])
 {
-    const char *logfilename = "log/common.log";
+    const char *logfilename = "log/fileutils.log";
 
     if (argc > 1)
         logfilename = argv[1];
