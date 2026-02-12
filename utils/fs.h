@@ -82,9 +82,9 @@ static inline bool          fs_alloc(const fs*s){
 
 #define FSEMPTY (fs){.sz = 1, .len = 0, .flags = FS_FLAG_STATIC, .v = ""};
 
-#define FSINITSTATIC(...)  (fs){.sz = 1, .len = 0, .flags = FS_FLAG_STATIC, .v = "", __VA_ARGS__}
+#define FSINITSTATIC(...)  (fs){.sz = 1, .len = 0, .flags = FS_FLAG_STATIC, .v = "", ##__VA_ARGS__}
 
-#define FSINITALLOC(...)   (fs){.sz = 0, .len = 0, .flags = FS_FLAG_ALLOC, .v = 0, __VA_ARGS__}
+#define FSINITALLOC(...)   (fs){.sz = 0, .len = 0, .flags = FS_FLAG_ALLOC, .v = 0, ##__VA_ARGS__}
 
 #define fsfree(s) fs_free(&(s))
 
