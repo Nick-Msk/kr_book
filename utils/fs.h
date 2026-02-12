@@ -137,6 +137,12 @@ static inline char          *fs_get(const fs *s, int pos){
 // automatically adjust len (??) and sz (realloc)
 extern char                 *fs_elem(fs *s, int pos);
 
+static inline char          *fs_len(fs *s, int poslen){
+    *fs_elem(s, poslen) = '\0';
+    s->len = poslen;
+    return s->v + poslen;
+}
+
 // shrink to real len + 1 ( + 1 because '\0' is ASSUMED)
 extern fs                   *fs_shrink(fs *s);
 
@@ -152,8 +158,8 @@ static inline const char    *fs_strcopy(fs *s){
 
 #define                      get(s, pos) *fs_get(&(s), (pos))
 #define                      getv(s) (s.v)
-#define                      elem(s, pos) *fs_elem(&(s), (pos))
-
+#define                      elem(s, pos) *fs_elem( &(s), (pos))
+#define                      fslen(s, poslen) *fs_len( (&s), (poslen))
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
 int                          fs_techfprint(FILE *restrict out, const fs *restrict s);

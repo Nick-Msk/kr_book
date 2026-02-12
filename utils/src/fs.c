@@ -11,6 +11,8 @@ static const int            FS_TECH_PRINT_COUNT     = 10; // symplos to print
 //static char                 g_fs_buffer[FS_BUF_SIZE];
 //static const int            g_initsize              = 32;   // not sure
 
+static const int            FS_MIN_ACCOC            = 128;
+
 // ---------- pseudo-header for utility procedures -----------------
 
 // -------------------------- (Utility) printers -------------------
@@ -27,16 +29,18 @@ static inline int               calcnewsize(int n){
 // only for FS_FLAG_ALLOC
 static fs                       increasesize(fs *s, int newsz, bool incr){
     logenter("newsz %d, incr %s v %p", newsz, bool_str(incr), s->v);
-    if (incr)
-        newsz = calcnewsize(newsz);
-    logauto(newsz);
-    if (newsz > s->sz || !incr){
-            logauto(newsz);
-            s->v = realloc(s->v, newsz);
-            if (!s->v)
-                userraiseint(10, "Unable to allocate %d bytes", newsz);
-            s->sz = newsz;
+    if (fs_alloc(s) ){
+        if (incr)
+            newsz = calcnewsize(newsz);
+        logauto(newsz);
+        if (newsz > s->sz || !incr){
+                logauto(newsz);
+                s->v = realloc(s->v, newsz);
+                if (!s->v)
+                    userraiseint(10, "Unable to allocate %d bytes", newsz);
+                s->sz = newsz;
             logauto(s->sz);
+         }
     }
     return logret(*s, "increased to %d", s->sz);
 }
@@ -57,7 +61,7 @@ fs                     *fs_shrink(fs *s){
 // can increase sz and len
 char                 *fs_elem(fs *s, int pos){
     if (pos >= s->sz){
-        increasesize(s, pos, true);   // len remains the same here! sz is changed
+        increasesize(s, pos < FS_MIN_ACCOC ? FS_MIN_ACCOC : pos, true);   // len remains the same here! sz is changed
         logsimple("size is adjusted to %d (pos %d)", s->sz, pos);
     }
     return fs_get(s, pos);
@@ -260,6 +264,31 @@ tf2(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
+// ------------------------- TEST 3 ---------------------------------
+
+static TestStatus
+tf3(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+    {
+        test_sub("subtest %d", ++subnum);
+
+        int     i;
+        fs      s = fsempty();  // TODO: think if avoid
+        char    pt[] = "test parretn 1234567";
+
+        for (i = 0; i < (int)sizeof(pt); i++)
+            elem(s, i) = pt[i];
+        fslen(s, i);
+
+        if (strcmp(s.v, pt) != 0)
+            return logacterr( fsfree(s), TEST_FAILED, "Must be [%s] but not [%s]", pt, s.v);
+        fsfree(s);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
 // ------------------------------------------------------------------
 int
 main(int argc, char *argv[])
@@ -269,6 +298,7 @@ main(int argc, char *argv[])
     testenginestd(
         testnew(.f2 = tf1, .num = 1, .name = "Simple init and validate test" , .desc="Init test."                , .mandatory=true)
       , testnew(.f2 = tf2, .num = 2, .name = "Access read/write test"        , .desc="Init test."                , .mandatory=true)
+      , testnew(.f2 = tf3, .num = 3, .name = "Elem() test"                   , .desc="Init test."                , .mandatory=true)
     );
 
     logclose("end...");
