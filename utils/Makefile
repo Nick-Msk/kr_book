@@ -66,6 +66,14 @@ fs.o: src/fs.c
 	$(CC) $(CFLAGS)  $^ -c
 	@mv $@ lib/
 
+fileutils.o: src/fileutils.c
+	$(CC) $(CFLAGS)  $^ -c
+	@mv $@ lib/
+
+fileutils: src/fileutils.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o
+	 $(CC) $(CFLAGS) -DFILEUTILSTESTING $^ -o test/$@_test
+
+
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
 	@rm *.o
