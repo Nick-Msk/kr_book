@@ -30,7 +30,7 @@ extern fs                       fgetline_fs(FILE *in){
     }
     if (c == '\n')
         elem(s, i++) = c;
-    fslen(s, i);    // fix length and set '\0'!
+    fsetlen(s, i);    // fix length and set '\0'!
     return s;
 }
 
