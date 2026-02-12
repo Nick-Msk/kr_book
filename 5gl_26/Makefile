@@ -30,7 +30,7 @@ echo.p5.10: src/echo.p5.10.c
 mygrep.p5.10: src/mygrep.p5.10.c lib/log.o lib/common.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-tail.5.13: src/tail.5.13.c lib/log.o lib/common.o lib/checker.o
+tail.5.13: src/tail.5.13.c lib/log.o lib/common.o lib/checker.o lib/fileutils.o lib/fs.o lib/error.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 UTIL_PATH = ../utils
@@ -48,7 +48,6 @@ lib/error.o:
 	cd $(UTIL_PATH) && $(MAKE) error.o
 	@cp $(UTIL_PATH)/lib/error.o lib/
 
-# TODO: refactor to common:
 lib/common.o:
 	cd $(UTIL_PATH) && $(MAKE) common.o
 	@cp $(UTIL_PATH)/lib/common.o lib/
@@ -64,6 +63,14 @@ lib/metric.o:
 lib/array.o:
 	cd $(UTIL_PATH) && $(MAKE) array.o
 	@cp $(UTIL_PATH)/lib/array.o lib/
+
+lib/fileutils.o:
+	cd $(UTIL_PATH) && $(MAKE) fileutils.o
+	@cp $(UTIL_PATH)/lib/fileutils.o lib/
+
+lib/fs.o:
+	cd $(UTIL_PATH) && $(MAKE) fs.o
+	@cp $(UTIL_PATH)/lib/fs.o lib/
 
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:

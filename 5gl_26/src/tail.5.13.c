@@ -8,14 +8,15 @@
 #include "checker.h"
 #include "bool.h"
 #include "fs.h"
+#include "fileutils.h"
 
 typedef struct Keys {
-    bool    lines;
+    int     lines;
     bool    version;
     // ...
 } Keys;
 
-#define                 Keysinit(...) (Keys){.lines = false, .version = false, __VA_ARGS__}
+#define                 Keysinit(...) (Keys){.version = false, __VA_ARGS__}
 
 static int              parse_keys(const char *argv[], Keys *ke){
     logenter("...");
@@ -36,7 +37,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
                 break;
                 case 'n':
                     if (!ke->lines){
-                        ke->lines = true;
+                        ke->lines = atoi(argv[0]);
                         params++;
                     }
                 break;
@@ -48,7 +49,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
     return logret(argc, "params %d, argc %d", params, argc);
 }
 
-static int              tail(FILE *in);
+static int              tail(FILE *in, int sz);
 
 const char *usage_str = "Usage: %s -n<cnt:int>\n";
 
@@ -57,7 +58,8 @@ int                     main(int argc, const char *argv[]){
     loginit(logfilename, false, 0, "Start");    // TODO: rework that to LOG("logdir") or LOGAPPEND("logdir") or LOGSWITCH("logdir")
 
     Keys ke = Keysinit(.lines = 10);
-    argc = parse_keys(argv, &ke);
+    //argc = parse_keys(argv, &ke);
+    logauto(ke.lines);
 
     if (argc < 0) {
         printf(usage_str, *argv);
@@ -76,15 +78,48 @@ int                     main(int argc, const char *argv[]){
         fprintf(stderr, "Unable to open [%s] for read\n", fname);
         return 2;
     }
-    tail(f, ke.n);
+
+    int cnt = tail(f, ke.lines);
+
     if (f != stdin)
         fclose(f);
-    logclose("...");
+
+    logclose("%d", cnt);
     return 0;
 }
 
+// TODO: move that into common.h
+static inline int       cycleinc(int val, int cycle){
+    if (val >= cycle - 1)
+        val = 0;
+    else
+        val++;
+    return val;
+}
+
 static int              tail(FILE *in, int sz){
-    int     pstart = 0, pend = 0;   // cycle
-    fs arr[sz];
-    
+    logenter("sz = %d", sz);
+    int     pend = 0;   // cycle
+    bool    fill = false;
+    fs      arr[sz];    // heap!
+    int     cnt = 0;
+
+    for (int i = 0; i < sz; i++)
+        arr[i] = fsempty();
+
+    while ( fgetline_fs(in, arr + pend) > 0){
+        if (pend == sz - 1)
+            fill = true;
+        pend = cycleinc(pend, sz);
+    }
+    logmsg("pend = %d, fill = %s", pend, bool_str(fill));
+    // now print the data
+    if (pend != 0 || fill) { // no one line
+        int i = fill ? pend : 0;
+        do {
+            printf("%d:%s", i, arr[i].v);
+            i = cycleinc(i, sz);
+        } while (i != pend );
+    }
+    return logret(cnt, "%d", cnt);
 }
