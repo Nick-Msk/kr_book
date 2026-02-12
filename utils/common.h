@@ -170,6 +170,14 @@ static inline int               print_bits(const char *str, unsigned  val){
     return fprint_bits(stdout, str, val);
 }
 
+// cycle
+static inline int       cycleinc(int val, int cycle){
+    if (val >= cycle - 1)
+        val = 0;
+    else
+        val++;
+    return val;
+}
 // print n chars to f
 extern int                      fprintn(FILE *f, const char *str, int sz);
 
