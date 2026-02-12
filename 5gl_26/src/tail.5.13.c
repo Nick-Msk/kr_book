@@ -7,6 +7,7 @@
 #include "common.h"
 #include "checker.h"
 #include "bool.h"
+#include "fs.h"
 
 typedef struct Keys {
     bool    lines;
@@ -16,7 +17,7 @@ typedef struct Keys {
 
 #define                 Keysinit(...) (Keys){.lines = false, .version = false, __VA_ARGS__}
 
-static                  int parse_keys(const char *argv[], Keys *ke){
+static int              parse_keys(const char *argv[], Keys *ke){
     logenter("...");
     int     argc = 1, params = 0;
     if (!ke)
@@ -34,7 +35,7 @@ static                  int parse_keys(const char *argv[], Keys *ke){
                     }
                 break;
                 case 'n':
-                    if (!ke->line){
+                    if (!ke->lines){
                         ke->lines = true;
                         params++;
                     }
@@ -47,13 +48,15 @@ static                  int parse_keys(const char *argv[], Keys *ke){
     return logret(argc, "params %d, argc %d", params, argc);
 }
 
+static int              tail(FILE *in);
+
 const char *usage_str = "Usage: %s -n<cnt:int>\n";
 
 int                     main(int argc, const char *argv[]){
     static const char *logfilename = "log/"__FILE__".log";
     loginit(logfilename, false, 0, "Start");    // TODO: rework that to LOG("logdir") or LOGAPPEND("logdir") or LOGSWITCH("logdir")
 
-    Keys ke = Keysinit();
+    Keys ke = Keysinit(.lines = 10);
     argc = parse_keys(argv, &ke);
 
     if (argc < 0) {
@@ -66,10 +69,22 @@ int                     main(int argc, const char *argv[]){
         return 0;
     }
 
-    // TODO:
+    FILE        *f = stdin;
+    const char  *fname = argv[argc];;
 
-    logclose("found %d", found);
+    if (fname && (f = fopen(fname, "r") ) == 0){
+        fprintf(stderr, "Unable to open [%s] for read\n", fname);
+        return 2;
+    }
+    tail(f, ke.n);
+    if (f != stdin)
+        fclose(f);
+    logclose("...");
     return 0;
 }
 
-
+static int              tail(FILE *in, int sz){
+    int     pstart = 0, pend = 0;   // cycle
+    fs arr[sz];
+    
+}

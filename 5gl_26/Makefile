@@ -1,5 +1,5 @@
 CC=gcc #clang
-CFLAGS= -I../utils -Wall -Wextra -std=gnu11 -g -O0 -Wno-gnu-folding-constant
+CFLAGS= -I../utils -Wall -Wextra -std=gnu11 -g -O0 -Wno-gnu-folding-constant -Wno-initializer-overrides
 # -Wno-initializer-overrides -Wno-unused-function -Wno-format-zero-length
 LDFLAGS=
 LDLIBS=
