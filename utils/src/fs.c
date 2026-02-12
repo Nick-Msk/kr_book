@@ -291,7 +291,7 @@ tf3(const char *name)
 
 // ------------------------------------------------------------------
 int
-main(int argc, char *argv[])
+main(/* int argc, char *argv[] */)
 {
     logsimpleinit("Starting");   // it that working?
 

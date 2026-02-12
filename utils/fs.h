@@ -22,7 +22,7 @@
 typedef enum  {FS_FLAG_STATIC = 0x1
              , FS_FLAG_CONST  = 0x2     // Not user for now
              , FS_FLAG_LOCAL  = 0x4     // not used in this version
-             , FS_FLAG_ALLOC  = 0x8     // standard allocation
+             , FS_FLAG_ALLOC  = 0x0     // standard allocation
 } FS_FLAGS;
 
 // type-support functions
@@ -71,7 +71,7 @@ static inline bool          fs_local(const fs *s){
 }
 
 static inline bool          fs_flag_alloc(FS_FLAGS fl){
-    return fl & FS_FLAG_ALLOC; // heap marker
+    return fl == FS_FLAG_ALLOC; // heap marker
 }
 
 static inline bool          fs_alloc(const fs*s){
