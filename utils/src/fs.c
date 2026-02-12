@@ -28,7 +28,7 @@ static inline int               calcnewsize(int n){
 
 // only for FS_FLAG_ALLOC
 static fs                       increasesize(fs *s, int newsz, bool incr){
-    logenter("newsz %d, incr %s v %p", newsz, bool_str(incr), s->v);
+    logenter("newsz %d, incr %s v %p, is alloc? %s", newsz, bool_str(incr), s->v, bool_str(fs_alloc(s)) );
     if (fs_alloc(s) ){
         if (incr)
             newsz = calcnewsize(newsz);
