@@ -23,7 +23,7 @@ static const int            FS_MIN_ACCOC            = 128;
 // should depent on increase strategy, simplest return n + 1;
 static inline int               calcnewsize(int n){
     int sz = round_up_2(n);
-    return logsimpleret(sz, "newsz = %d", sz);
+    return sz; //logsimpleret(sz, "newsz = %d", sz);
 }
 
 // only for FS_FLAG_ALLOC
@@ -32,9 +32,7 @@ static fs                       increasesize(fs *s, int newsz, bool incr){
     if (fs_alloc(s) ){
         if (incr)
             newsz = calcnewsize(newsz);
-        logauto(newsz);
         if (newsz > s->sz || !incr){
-                logauto(newsz);
                 s->v = realloc(s->v, newsz);
                 if (!s->v)
                     userraiseint(10, "Unable to allocate %d bytes", newsz);

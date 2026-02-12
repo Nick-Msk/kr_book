@@ -131,7 +131,8 @@ static inline fs            fsliteral(const char *lit){
 
 // direct access, NO change len or sz, position MUST be < sz
 static inline char          *fs_get(const fs *s, int pos){
-    return logsimpleret(s->v + pos, "Getting %p[%c]", s->v + pos, s->v[pos]);
+    //return logsimpleret(s->v + pos, "Getting %p[%c]", s->v + pos, s->v[pos]);
+    return s->v + pos;
 }
 
 // automatically adjust len (??) and sz (realloc)
