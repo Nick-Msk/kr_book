@@ -347,24 +347,34 @@ test_sub(const char *msg, ...)
 
 // open temporary test file
 TFILE
-test_fopen(void)
+test_fopen(const char *prefix)
 {
 	TFILE	tf = (TFILE){.f = 0, .name = 0};
 
-	char 	name[] = "TEST.XXXXXXXX";
-	if ( (tf.name = strdup(mktemp(name))) ==0)
-		sysraiseint("Unable to make a strdup");
+	char 	name[]      = "XXXXXXXXXXXX.test";
+    int     len = strlen(prefix) + sizeof(name) + 1;
+    tf.name = malloc(len + 1);
+    if (!tf.name){
+         perror("Unable to allocate\n");
+         sysraiseint("Unable to allocate %d bytes\n", len + 1);
+    }
 
+    strcpy(tf.name, prefix);    // better strncpy
+    strcat(tf.name, name);       // better strncat
 	print("Temporary file name %s\n", tf.name);
 
-	if ( (tf.f = fopen(tf.name, "w+")) == NULL)
-    // TODO: 
-    // int fd = mkstemp(name);
-    //  tf.f = fdopen(fd, "rw")
-    //
+    int fd = mkstemp(tf.name);
+    if (fd < 0){
+        perror("Unable to create temp file for rw\n");
+        sysraiseint("Unable to create file %s for 'rw'", tf.name);
+        free(tf.name), tf.name = 0;
+    }
+    tf.f = fdopen(fd, "rw");
+    if (!tf.f)
 	{
 		perror("Unable to open file for rw\n");
-		sysraiseint("Unable to open file for 'rw'");
+		sysraiseint("Unable to open file %s for 'rw'", tf.name);
+        free(tf.name), tf.name = 0;
 	}
 	return tf;
 }
@@ -509,21 +519,21 @@ test_compare_engine(FILE *restrict tf, long from, long to, const char *restrict 
 static TestStatus
 f1(const char *name)
 {
-	print("just simple passed %s\n", __func__);
+	print("just simple passed %s [%s]\n", __func__, name);
 	return TEST_PASSED;
 }
 
 static TestStatus
 f2(const char *name)
 {
-	print("just simple manual %s\n", __func__);
+	print("just simple manual %s [%s]\n", __func__, name);
 	return TEST_MANUAL;
 }
 
 static TestStatus
 f3(const char *name)
 {
-	print("just simple failed %s\n", __func__);
+	print("just simple failed %s [%s]\n", __func__, name);
 	return TEST_FAILED;
 }
 
@@ -531,7 +541,7 @@ f3(const char *name)
 static TestStatus
 tf20(const char *name)
 {
-	print("Exception test %s\n", __func__);
+	print("Exception test %s [%s]\n", __func__, name);
 
 	// raise error number 33
 	userraiseint(33, "Something goes wrong");
@@ -545,7 +555,7 @@ tf20(const char *name)
 static void
 tf21_exception(const char *name)
 {
-	userraiseint(34, "Something goes wrong from %s", __func__);
+	userraiseint(34, "Something goes wrong from %s [%s]", __func__, name);
 	print("NEVER SHOULD SEE THIS MESSAGE!!!\n");
 }
 
@@ -568,6 +578,7 @@ tf22_pub(const char *name)
 	test_sub("Bla bla bla sub1");
 	test_sub("Qwerty sub2");
 	test_sub("Asdfghj sub3");
+    test_sub("%s", name);
 
 	return TEST_MANUAL;
 }
@@ -575,7 +586,7 @@ tf22_pub(const char *name)
 static TestStatus
 tf23_pub(const char *name)
 {
-	print("%s should NOT be passed at the end\n", __func__);
+	print("%s should NOT be passed at the end [%s]\n", __func__, name);
 
 	test_sub("Bla bla bla sub1");
 	test_sub("Qwerty sub2, then failed");
@@ -590,7 +601,7 @@ tf23_pub(const char *name)
 static TestStatus
 tf24_pub(const char *name)
 {
-	print("%s should NOT be passed at the end, exception 'll occur\n", __func__);
+	print("%s should NOT be passed at the end, exception 'll occur [%s]\n", __func__, name);
 
 	test_sub("1-st");
 	test_sub("2-nd sub");
@@ -603,10 +614,10 @@ tf24_pub(const char *name)
 static TestStatus
 tf25_pub(const char *name)
 {
-	print("%s: open test file, print data, then close\n", __func__);
+	print("%s: open test file, print data, then close [%s]\n", __func__, name);
 
 	int				res = 0, total = 0;
-	TFILE			f = test_fopen();
+	TFILE			f = test_fopen("test/");
 	const char 	   *msg;
 
 	test_sub("%d", ++total);
@@ -639,10 +650,10 @@ tf25_pub(const char *name)
 static TestStatus
 tf26_pub(const char *name)
 {
-    print("%s: test with ignoring spaces\n", __func__);
+    print("%s: test with ignoring spaces [%s]\n", __func__, name);
 
     int				res = 0, total = 0;
-    TFILE           f = test_fopen();
+    TFILE           f = test_fopen("test/");
     const char     *msg;
 
 	if (!tfile(f)){
@@ -679,10 +690,10 @@ tf26_pub(const char *name)
 static TestStatus
 tf27_pub(const char *name)
 {
-	print("%s: test of comparator - like\n", __func__);
+	print("%s: test of comparator - like [%s]\n", __func__, name);
 
 	int				res = 0, total = 0;
-	TFILE			f = test_fopen();
+	TFILE			f = test_fopen("test/");
 	const char	   *msg;
 
 	if (!tfile(f)){
@@ -709,10 +720,10 @@ tf27_pub(const char *name)
 static TestStatus
 tf28_pub(const char *name)
 {
-	print("%s: test of comparator - Ulike\n", __func__);
+	print("%s: test of comparator - Ulike [%s]\n", __func__, name);
 
 	int             res = 0, total = 0;
-	TFILE           f = test_fopen();
+	TFILE           f = test_fopen("test/");
 	const char     *msg;
 
 	if (!tfile(f)){

@@ -85,11 +85,20 @@ test_sub(const char *msg, ...) __attribute__ ((format (printf, 1, 2)));
 
 // open temporary test file
 extern TFILE
-test_fopen(void);
+test_fopen(const char *pattern);
 
 // close and remove temporary test file
 extern bool
 test_fclose(TFILE tf);
+
+static inline bool
+test_freset(TFILE tf)
+{
+    if (fseek(tf.f, 0L, SEEK_SET) == -1)
+        return logsimpleret(false, "Fail to reset");
+    else
+        return logsimpleret(true, "Reset to begin");
+}
 
 // Compare functions (equal, equal_ne, like, ulike, regexp_like)
 extern bool
@@ -128,6 +137,13 @@ static inline bool
 test_file_ulike(FILE *restrict tf, long from, long to, const char *restrict pt){
 	return test_compare_engine(tf, from, to, pt, test_str_ulike);
 }
+
+// TODO: rework to TFILE tf instead of FILE*
+// test_ftell(TFILE tf){
+// long    res;
+// if ( (res = ftell(tf.f)) == -1)
+//      return sysraiseint("Unable to get position info");
+// return res; }
 
 static inline long
 test_ftell(FILE *tf)
