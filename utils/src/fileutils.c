@@ -42,12 +42,57 @@ fs                              readfs_file(FILE *f){
     fs      str = fsinit(cnt);
     while ( (len = fread(fsstr(str) + pos, 1, cnt - 1, f) ) > 0){
         pos += len;
-        logsimple("pos %ld, len %d sz %d", pos, fslen(str), fssz(str) ); 
+        logsimple("pos %ld, len %d sz %d", pos, fslen(str), fssz(str) );
         fsincrease(str, cnt);
     }
     fsetlen(str, pos);
     return logret(str, "%ld bytes were read", pos);
 }
+
+// read all (if maxline == -1 or maxline) lines separately into fs[]
+int                             readlines(FILE *restrict f, fs *restrict lines, int maxlines){
+    int     nlines = 0, len;
+    fs      lines[maxlines];
+
+    for (int i = 0; i < maxlines; i++)
+        lines[i] = fsempty();   // how to avoid??? fsempty_n(maxline) ?
+
+    while ( (len = fgetline_fs(f, &line) ) > 0){
+        
+
+    }
+
+    return nlines;
+}
+
+// write cnt fs into stream
+int                             writelines(FILE *restrict f, const fs *restrict ptr, int max){
+    int     cnt = 0;
+    while (max -- > 0){
+        const fs *pt = ptr++;
+        cnt += fprintf(f, "%s", pt->v);
+    }
+    return cnt;
+}
+
+/*int             readlines(char *ptr[], int maxline){
+    int     nlines = 0, len;
+    char   *p, line[MAXLEN];
+
+    while ( (len = get_line(line, maxline) ) > 0)
+        if (nlines >= maxline){
+            fprintf(stderr, "maxline (%d) were execced\n", maxline);
+            break;
+        } else if ( (p = malloc(len + 1)) == 0){ 
+            fprintf(stderr, "Unable to allocated %d\n", len + 1); 
+            break;
+        } else {
+            strcpy(p, line);
+            ptr[nlines++] = p;
+        }   
+    return nlines;
+}*/
+
 
 char                           *read_from_file(FILE *f, int *p_cnt){
     logenter("read from input (%p)", f);
@@ -178,6 +223,35 @@ tf2(const char *name)
     return logret(TEST_MANUAL, "Please check output file %s", fname); // TEST_FAILED
 }
 
+// ------------------------- TEST 3 ---------------------------------
+
+static TestStatus
+tf3(const char *name)
+{
+    logenter("%s", name);
+    TFILE   tf;
+    fs      s = fsempty();
+
+    int         subnum = 0;
+    {
+        test_sub("subtest %d", ++subnum);
+
+        fs   pt1 = fsliteral("Test pattern ^&*()!@");
+        fs   pt2 = fsliteral("second");
+
+        tf = test_fopen("/tmp/");
+        // write
+
+        test_freset(tf);
+        // read
+    }
+
+    fsfree(s);
+    test_fclose(tf);
+    printf("Please check output file %s\n", fname);
+    return logret(TEST_MANUAL, "Please check output file %s", fname); // TEST_FAILED
+}
+
 // -------------------------------------------------------------------
 
 int
@@ -193,6 +267,7 @@ main(int argc, char *argv[])
     testenginestd(
         testnew(.f2 = tf1, .num = 1, .name = "Getline_fs() simple test",                .desc = "", .mandatory=true)
       , testnew(.f2 = tf2, .num = 2, .name = "Readfs_file() simple test",               .desc = "", .mandatory=true)
+      , testnew(.f2 = tf3, .num = 3, .name = "Realline/writeline simple test",          .desc = "", .mandatory=true)
     );
 
     logclose("end...");

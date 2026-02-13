@@ -22,7 +22,22 @@ static inline int               getline_fs(fs *str){
     return fgetline_fs(stdin, str);
 }
 
+// read all (if maxline == -1 or maxline) lines separately into fs[]
+extern int                      freadlines(FILE *restrict f, fs *restrict lines);
+
+static inline int               readlines(fs *lines){
+    return freadlines(stdin, lines);
+}
+
+// write cnt fs into stream
+extern int                      fwritelines(FILE *restrict f, const fs *restrict ptr, int cnt);
+
+static inline int               writelines(const fs *prt, int cnt){
+    return writelines(ptr, cnt);
+}
+
 // simpe file reader, must call free(s); after usage!!
 extern char                     *read_from_file(FILE *f, int *p_cnt);
+
 
 #endif /* ! _FILEUTILS_H */
