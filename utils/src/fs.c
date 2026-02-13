@@ -78,16 +78,17 @@ fs                   *fs_resize(fs *s, int newsz){
 int                     fs_techfprint(FILE *restrict out, const fs *restrict s){
     // technical print, statis attributes for now
     int     cnt;
-    if (s){
-        cnt = fprintf(out, "len [%d], sz [%d], flags [%d], s [%p]=[", s->len, s->sz, s->flags, s->v);
+    cnt = fprintf(out, "len [%d], sz [%d], flags [%d], s [%p]=[", s->len, s->sz, s->flags, s->v);
+    if (s->v){
         for (int i = 0; i < FS_TECH_PRINT_COUNT && i < s->len; i++)
-            fputc(s->v[i], out), cnt++;
+             fputc(s->v[i], out), cnt++;
+        logauto(FS_TECH_PRINT_COUNT);
         if (FS_TECH_PRINT_COUNT < s->len)
             cnt += fprintf(out, "...");
         cnt += fprintf(out, "]\n");
     }
     else
-        cnt = fprintf(out, "Zero pointer\n");
+        cnt = fprintf(out, "]\n");
     return cnt;
 }
 
