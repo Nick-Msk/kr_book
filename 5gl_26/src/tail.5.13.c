@@ -88,6 +88,8 @@ int                     main(int argc, const char *argv[]){
 
 static int              tail(FILE *in, int sz){
     logenter("sz = %d", sz);
+    if (sz <= 0)
+        return logret(0, "Nothing to do");
     int     pend = 0;   // cycle
     bool    fill = false;
     fs      arr[sz];    // heap!
@@ -101,7 +103,6 @@ static int              tail(FILE *in, int sz){
             fill = true;
         pend = cycleinc(pend, sz);
     }
-    logmsg("pend = %d, fill = %s", pend, bool_str(fill));
     // now print the data
     if (pend != 0 || fill) { // no one line
         int i = fill ? pend : 0;
