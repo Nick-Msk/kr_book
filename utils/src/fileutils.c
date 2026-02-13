@@ -22,7 +22,7 @@ int                             get_line(char *line, int lim){
 }
 
 // for now in common.c, then will be moved out
-extern int                      fgetline_fs(FILE *restrict in, fs *restrict s){
+int                             fgetline_fs(FILE *restrict in, fs *restrict s){
     int     c, i;
     for (i = 0; (c = fgetc(in)) != EOF && c != '\n'; i++){
         elem(*s, i) = c;
@@ -32,6 +32,21 @@ extern int                      fgetline_fs(FILE *restrict in, fs *restrict s){
     if (i > 0 || c != EOF)
         fsetlen(*s, i);    // fix length and set '\0'!
     return i;
+}
+
+// return fs for WHOLE file!
+fs                              readfs_file(FILE *f){
+    logenter("%p", f);
+    int     len, cnt = 1024;   // just piece of data
+    long    pos = 0L;
+    fs      str = fsinit(cnt);
+    while ( (len = fread(fsstr(str) + pos, 1, cnt - 1, f) ) > 0){
+        pos += len;
+        logsimple("pos %ld, len %d sz %d", pos, fslen(str), fssz(str) ); 
+        fsincrease(str, cnt);
+    }
+    fsetlen(str, pos);
+    return logret(str, "%ld bytes were read", pos);
 }
 
 char                           *read_from_file(FILE *f, int *p_cnt){
@@ -85,7 +100,6 @@ tf1(const char *name)
 
         char    pattern1[] = "Test pattern ^&*()!@\n";
         char    pattern2[] = "second";
-      //  const char fname[] = "common_1.test";       // file contains 3 lines
         tf = test_fopen("/tmp/");
 
         if (tfile(tf) == 0)
@@ -118,6 +132,52 @@ tf1(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
+// ------------------------- TEST 2 ---------------------------------
+
+static TestStatus
+tf2(const char *name)
+{
+    logenter("%s", name);
+    TFILE   tf;
+    fs      s = fsempty();
+    const char *fname = "test/util.out";
+
+    int         subnum = 0;
+    {
+        test_sub("subtest %d", ++subnum);
+
+        char    pattern1[] = "Test pattern ^&*()!@";
+        char    pattern2[] = "second";
+
+        tf = test_fopen("/tmp/");
+
+        for (int i = 0; i < 50; i++){
+            fprintf(tfile(tf), "%d\t: %s\n", i, pattern1);
+            fprintf(tfile(tf), "%d\t: %s\n", i, pattern2);
+        }
+        test_freset(tf);
+        s = readfs_file(tfile(tf));
+        if (!fs_validate(stdout, &s) ){
+            return logacterr( (fsfree(s), test_fclose(tf) ), TEST_FAILED, "Validation failed");
+        }
+        {
+            FILE *f = fopen(fname, "w+");
+            if (!f){
+                return logacterr( (fsfree(s), test_fclose(tf) ), TEST_FAILED,  "Unable to open %s, please check perms", fname);
+            }
+            FS_TECH_PRINT_COUNT = 200;  // for fs_techfprint
+            fs_techfprint(f, &s);
+            fwrite(fsstr(s), 1, s.len, f);
+            fclose(f);
+        }
+    }
+
+    fsfree(s);
+    test_fclose(tf);
+    printf("Please check output file %s\n", fname);
+    return logret(TEST_MANUAL, "Please check output file %s", fname); // TEST_FAILED
+}
+
 // -------------------------------------------------------------------
 
 int
@@ -132,6 +192,7 @@ main(int argc, char *argv[])
 
     testenginestd(
         testnew(.f2 = tf1, .num = 1, .name = "Getline_fs() simple test",                .desc = "", .mandatory=true)
+      , testnew(.f2 = tf2, .num = 2, .name = "Readfs_file() simple test",               .desc = "", .mandatory=true)
     );
 
     logclose("end...");
@@ -139,4 +200,3 @@ main(int argc, char *argv[])
 }
 
 #endif /* FILEUTILSTESTING */
-
