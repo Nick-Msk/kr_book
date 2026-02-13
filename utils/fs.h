@@ -126,9 +126,6 @@ static inline fs            fsliteral(const char *lit){
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
-#define                     fsstr(s) fs_str(&(s))
-#define                     fsshrink(s) fs_shrink(&(s))
-
 // direct access, NO change len or sz, position MUST be < sz
 static inline char          *fs_get(const fs *s, int pos){
     //return logsimpleret(s->v + pos, "Getting %p[%c]", s->v + pos, s->v[pos]);
@@ -148,12 +145,20 @@ static inline int           fslen(fs s){
     return s.len;
 }
 
+static inline int           fssz(fs s){
+    return s.sz;
+}
+
 // shrink to real len + 1 ( + 1 because '\0' is ASSUMED)
 extern fs                   *fs_shrink(fs *s);
 
 extern fs                   *fs_resize(fs *s, int newsz);
 
-static inline const char    *fs_str(fs *s){
+static inline fs            *fs_increase(fs *s, int inc){
+    return fs_resize(s, s->sz + inc);
+}
+
+static inline char          *fs_str(fs *s){
     return s->v;
 }
 
@@ -165,14 +170,23 @@ static inline const char    *fs_strcopy(fs *s){
 #define                      getv(s) (s.v)
 #define                      elem(s, pos) *fs_elem( &(s), (pos))
 #define                      fsetlen(s, poslen) *fs_setlen( (&s), (poslen))
+#define                      fsstr(s) fs_str(&(s) )
+#define                      fsincrease(s, inc) fs_increase( &(s), (inc))
+#define                      fsshrink(s) fs_shrink(&(s))
+
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
-int                          fs_techfprint(FILE *restrict out, const fs *restrict s);
+extern int                   fs_techfprint(FILE *restrict out, const fs *restrict s);
 static inline int            fs_techprint(const fs *s){
     return fs_techfprint(stdout, s);
 }
 
+extern bool                  fs_validate(FILE *restrict out, const fs *restrict s);
+
 // --------------------------- ETC. -------------------------
+
+extern int                   FS_MIN_ACCOC;
+extern int                   FS_TECH_PRINT_COUNT;
 
 #endif /* !_FS_H */
 

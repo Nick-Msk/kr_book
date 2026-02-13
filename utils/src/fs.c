@@ -7,11 +7,12 @@
 ********************************************************************/
 
 //static const int            FS_BUF_SIZE             = 1024;
-static const int            FS_TECH_PRINT_COUNT     = 10; // symplos to print
-//static char                 g_fs_buffer[FS_BUF_SIZE];
+//static fs                 g_fs_buffer[FS_BUF_SIZE];
 //static const int            g_initsize              = 32;   // not sure
 
-static const int            FS_MIN_ACCOC            = 128;
+// external contol
+int                         FS_MIN_ACCOC            = 128;
+int                         FS_TECH_PRINT_COUNT     = 10; // symplos to print
 
 // ---------- pseudo-header for utility procedures -----------------
 
