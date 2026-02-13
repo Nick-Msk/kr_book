@@ -8,7 +8,7 @@
 // --------------- Includes -----------------------
 
 #include <stdio.h>
-#include <strings.h>
+#include <string.h>
 //
 #include "bool.h"
 #include "log.h"
@@ -164,6 +164,16 @@ static inline char          *fs_str(fs *s){
 
 static inline const char    *fs_strcopy(fs *s){
     return (const char *) strdup(s->v);
+}
+
+static inline int            fscmp(fs str1, fs str2){
+    return strcmp(str1.v, str2.v);
+}
+
+static inline void           fs_exch(fs *s1, fs *s2){
+    fs tmp = *s1;
+    *s1 = *s2;
+    *s2 = tmp;
 }
 
 #define                      get(s, pos) *fs_get(&(s), (pos))

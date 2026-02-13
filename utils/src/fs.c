@@ -58,7 +58,7 @@ fs                     *fs_shrink(fs *s){
 }
 
 // can increase sz and len
-char                 *fs_elem(fs *s, int pos){
+char                   *fs_elem(fs *s, int pos){
     if (pos >= s->sz){
         increasesize(s, pos < FS_MIN_ACCOC ? FS_MIN_ACCOC : pos, true);   // len remains the same here! sz is changed
         logsimple("size is adjusted to %d (pos %d)", s->sz, pos);
