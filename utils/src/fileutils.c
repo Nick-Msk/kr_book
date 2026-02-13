@@ -8,6 +8,8 @@
                  FILEUTILS MODULE IMPLEMENTATION
 ********************************************************************/
 
+static const int                FU_LINE_CNT = 100;
+
 // --------------------------- API ---------------------------------
 
 // for now in common.c, then will be moved out
@@ -50,26 +52,37 @@ fs                              readfs_file(FILE *f){
 }
 
 // read all (if maxline == -1 or maxline) lines separately into fs[]
-int                             readlines(FILE *restrict f, fs *restrict lines, int maxlines){
-    int     nlines = 0, len;
-    fs      lines[maxlines];
-
-    for (int i = 0; i < maxlines; i++)
-        lines[i] = fsempty();   // how to avoid??? fsempty_n(maxline) ?
-
-    while ( (len = fgetline_fs(f, &line) ) > 0){
-        
-
+int                             freadlines(FILE *restrict f, fs *restrict ptr){
+    logenter("...");
+    int     nlines = 0, len, maxlines = FU_LINE_CNT;
+    fs      line = fsempty();
+    fs     *lines = malloc(maxlines * sizeof(fs));
+    if (!lines){
+        perror("Unable to allocated");      // sysraisesig? TODO:
+        return logerr(-1, "Unable to allocated %lu", maxlines * sizeof(fs) );
     }
 
-    return nlines;
+    while ( (len = fgetline_fs(f, &line) ) > 0){
+        if (nlines >= maxlines){
+            maxlines += FU_LINE_CNT;
+            fs *tmp = lines;
+            if ( (tmp = realloc(tmp, maxlines * sizeof(fs) ) ) == 0){
+                perror("Unable to allocated");      // sysraisesig? TODO:
+                logret(nlines, "Only %d lines, because unable to allocate more", nlines);
+            } else
+                lines = tmp;
+        }
+        lines[nlines++] = line;   // move to array
+    }
+    // no need to free fs line
+    return logret(nlines, "Total %d", nlines);
 }
 
 // write cnt fs into stream
-int                             writelines(FILE *restrict f, const fs *restrict ptr, int max){
+int                             fwritelines(FILE *restrict f, const fs *restrict lines, int max){
     int     cnt = 0;
-    while (max -- > 0){
-        const fs *pt = ptr++;
+    while (max-- > 0){
+        const fs *pt = lines++;
         cnt += fprintf(f, "%s", pt->v);
     }
     return cnt;

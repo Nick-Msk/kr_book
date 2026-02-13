@@ -32,8 +32,8 @@ static inline int               readlines(fs *lines){
 // write cnt fs into stream
 extern int                      fwritelines(FILE *restrict f, const fs *restrict ptr, int cnt);
 
-static inline int               writelines(const fs *prt, int cnt){
-    return writelines(ptr, cnt);
+static inline int               writelines(const fs *lines, int cnt){
+    return fwritelines(stdout, lines, cnt);
 }
 
 // simpe file reader, must call free(s); after usage!!
