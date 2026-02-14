@@ -13,7 +13,7 @@ checker.o: src/checker.c
 	$(CC) $(CFLAGS) $^ -c
 	@mv $@ lib/
 
-error: src/error.c log.o common.o test.o
+error: src/error.c lib/log.o lib/common.o lib/test.o
 	$(CC) $(CFLAGS) -DERRORTESTING $^ -o test/$@_test
 
 error.o: src/error.c
