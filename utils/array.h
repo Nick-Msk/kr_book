@@ -118,6 +118,9 @@ extern long                     Array_save(Array arr, const char *fname);
 
 extern Array                    Array_load(const char *fname);
 
+// save only values by delimeter
+extern long                     Array_savevalues(Array arr, const char *fname, char delim);
+
 /*
 // ----------------- Double -----------------------
 

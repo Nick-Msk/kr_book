@@ -162,12 +162,31 @@ int                     Array_fprint(FILE *f, Array val, int limit){
         cnt += fprintf(f, "\n");
     return cnt;
 }
+// save only values by delimeter
+long                        Array_savevalues(Array arr, const char *fname, char delim){
+    logenter("%s, [%c]", fname, delim);
+
+    long    res = 0;
+    FILE   *f = fopen(fname, "w");
+    if (f == 0){
+        fprintf(stderr, "Unable to open %s for writinf\n", fname);
+        return logerr(-1, "Can't open for write");
+    }
+    for (int i = 0; i < arr.len; i++)
+        if (Array_isint(arr))
+            res += fprintf(f, "%d%c", arr.iv[i], delim);
+        else if (Array_isdouble(arr))
+            res += fprintf(f, "%12.12f%c", arr.dv[i], delim);
+
+    fclose(f);
+    return logret(res, "Done %ld", res);
+}
 
 long                        Array_save(Array arr, const char *fname){
     logenter("%s", fname);
 
     long    res = 0;
-    FILE *f = fopen(fname, "w");
+    FILE   *f = fopen(fname, "w");
     if (f == 0){
         fprintf(stderr, "Unable to open %s for writinf\n", fname);
         return logerr(-1, "Can't open for write");
