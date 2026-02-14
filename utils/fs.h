@@ -90,10 +90,11 @@ static inline bool          fs_alloc(const fs*s){
 
 // destructor, macro wrapper will be
 static inline void          fs_free(fs *s){
-    if (fs_alloc(s))
+    if (fs_alloc(s)){
         logsimpleact(free(s->v), "freed...");   // WOW, logsimpleact?
-    s->sz = s->len = s->flags = 0;
-    s->v = 0;
+        s->sz = s->len = 0;
+        s->v = 0;
+    }
 }
 
 extern fs                   fsinit(int sz);

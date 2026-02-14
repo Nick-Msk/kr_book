@@ -82,7 +82,6 @@ int                     fs_techfprint(FILE *restrict out, const fs *restrict s){
     if (s->v){
         for (int i = 0; i < FS_TECH_PRINT_COUNT && i < s->len; i++)
              fputc(s->v[i], out), cnt++;
-        logauto(FS_TECH_PRINT_COUNT);
         if (FS_TECH_PRINT_COUNT < s->len)
             cnt += fprintf(out, "...");
         cnt += fprintf(out, "]\n");
