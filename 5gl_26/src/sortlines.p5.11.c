@@ -1,30 +1,31 @@
 #include <stdio.h>
 #include <strings.h>
+#include <ctype.h>
 
-#include "fileopers.h"
 #include "log.h"
 #include "checker.h"
 #include "common.h"
 #include "fileutils.h"
 #include "fs.h"
 
-static void          qsortline(fs arr[], int from, int to);
+static void          qsortfs(fs arr[], int from, int to, bool reverse);
 
 
 typedef struct Keys {
     bool    intsort;
     bool    version;
+    bool    reverse;
     // ...
 } Keys;
 
-#define                 Keysinit(...) (Keys){.version = false, __VA_ARGS__}
+#define                 Keysinit(...) (Keys){.version = false,.reverse = false, __VA_ARGS__}
 
 static int              parse_keys(const char *argv[], Keys *ke){
     logenter("...");
     int     argc = 1, params = 0;
     if (!ke)
         return logerr(-1, "Zero ke!!! Error!");
-    char    c, *pos;
+    char    c;
     while (*++argv != 0 && **argv == '-'){
         logauto(*argv);
         argc++;
@@ -37,9 +38,15 @@ static int              parse_keys(const char *argv[], Keys *ke){
                     }
                 break;
                 case 'n':
-                    if (!ke.intsort){
-                    ke->ke.intsort = =true;
-                    params++;
+                    if (!ke->intsort){
+                        ke->intsort = true;
+                        params++;
+                    }
+                break;
+                case 'r':
+                    if (!ke->reverse){
+                        ke->reverse = true;
+                        params++;
                     }
                 break;
                 default:    // probaly it's possible to ignore unknows parameters
@@ -50,8 +57,6 @@ static int              parse_keys(const char *argv[], Keys *ke){
     return logret(argc, "params %d, argc %d", params, argc);
 }
 
-
-static const int     MAXLINES = 10000;
 static const char   *usage_str = "Usage: %s\n";
 
 int                             main(int argc, const char *argv[]){
@@ -76,8 +81,8 @@ static const char *logfilename = "log/"__FILE__".log";
     }
 
     if ((nlines = readlines(&lineptr)) > 0){
-        qsortfs(lineptr, 0, nlines - 1);
-        writefs(lineptr, nlines);
+        qsortfs(lineptr, 0, nlines - 1, ke.reverse);
+        writelines(lineptr, nlines);
         freelines(lineptr, nlines);
     } else {
         fprintf(stderr, "Unable to read lines\n");
@@ -88,18 +93,19 @@ static const char *logfilename = "log/"__FILE__".log";
     return ret;
 }
 
-static void          qsortline(const char *arr[], int left, int right){
+static void          qsortfs(fs arr[], int left, int right, bool reverse){
     int     last;
 
+    int     rev = reverse ? -1 : 1;
     if (left >= right)
         return;
-    str_exch(arr + left, arr + (left + right) / 2);
+    fs_exch(arr + left, arr + (left + right) / 2);
     last = left;
     for (int i = left + 1; i <= right; i++)
-        if (fscmp(arr[i], arr[left]) < 0)
+        if (fscmp(arr[i], arr[left]) * rev < 0)
             fs_exch(arr + ++last, arr + i);
-    str_exch(arr + left, arr + last);
-    qsortline(arr, left, last - 1);
-    qsortline(arr, last + 1, right);
+    fs_exch(arr + left, arr + last);
+    qsortfs(arr, left, last - 1, reverse);
+    qsortfs(arr, last + 1, right, reverse);
 }
 
