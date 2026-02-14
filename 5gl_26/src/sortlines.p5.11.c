@@ -8,17 +8,17 @@
 #include "fileutils.h"
 #include "fs.h"
 
-static void          qsortfs(fs arr[], int from, int to, bool reverse);
+static void          qsortfs(fs arr[], int from, int to, bool reverse, int (*comparator)(const fs *s1, const fs *s2));
 
 
 typedef struct Keys {
-    bool    intsort;
+    bool    numsort;
     bool    version;
     bool    reverse;
     // ...
 } Keys;
 
-#define                 Keysinit(...) (Keys){.version = false,.reverse = false, __VA_ARGS__}
+#define                 Keysinit(...) (Keys){.version = false,.reverse = false, .numsort = false, __VA_ARGS__}
 
 static int              parse_keys(const char *argv[], Keys *ke){
     logenter("...");
@@ -38,8 +38,8 @@ static int              parse_keys(const char *argv[], Keys *ke){
                     }
                 break;
                 case 'n':
-                    if (!ke->intsort){
-                        ke->intsort = true;
+                    if (!ke->numsort){
+                        ke->numsort = true;
                         params++;
                     }
                 break;
@@ -57,6 +57,16 @@ static int              parse_keys(const char *argv[], Keys *ke){
     return logret(argc, "params %d, argc %d", params, argc);
 }
 
+static int                      fsnumcmp(const fs *n1, const fs *n2){
+    double d1 = atof(n1->v);
+    double d2 = atof(n2->v);
+    return d1 - d2;
+}
+
+static int                      fscmp_wrap(const fs *s1, const fs *s2){
+    return fscmp(*s1, *s2);
+}
+
 static const char   *usage_str = "Usage: %s\n";
 
 int                             main(int argc, const char *argv[]){
@@ -66,9 +76,10 @@ static const char *logfilename = "log/"__FILE__".log";
     int               ret = 0;
     int               nlines = 0;
 
-    Keys    ke = Keysinit(.intsort = false);
+    Keys    ke = Keysinit();
     argc = parse_keys(argv, &ke);
     fs      *lineptr;
+    int (*comp)(const fs *s1, const fs *s2) = fscmp_wrap;
 
     if (argc < 0) {
         printf(usage_str, *argv);
@@ -80,8 +91,11 @@ static const char *logfilename = "log/"__FILE__".log";
         return 0;
     }
 
+    if (ke.numsort)
+        comp = fsnumcmp;
+
     if ((nlines = readlines(&lineptr)) > 0){
-        qsortfs(lineptr, 0, nlines - 1, ke.reverse);
+        qsortfs(lineptr, 0, nlines - 1, ke.reverse, comp);
         writelines(lineptr, nlines);
         freelines(lineptr, nlines);
     } else {
@@ -93,7 +107,7 @@ static const char *logfilename = "log/"__FILE__".log";
     return ret;
 }
 
-static void          qsortfs(fs arr[], int left, int right, bool reverse){
+static void          qsortfs(fs arr[], int left, int right, bool reverse, int (*comparator)(const fs *s1, const fs *s2)){
     int     last;
 
     int     rev = reverse ? -1 : 1;
@@ -102,10 +116,10 @@ static void          qsortfs(fs arr[], int left, int right, bool reverse){
     fs_exch(arr + left, arr + (left + right) / 2);
     last = left;
     for (int i = left + 1; i <= right; i++)
-        if (fscmp(arr[i], arr[left]) * rev < 0)
+        if (/* fscmp(arr[i], arr[left])*/ comparator(arr + i, arr + left) * rev < 0)
             fs_exch(arr + ++last, arr + i);
     fs_exch(arr + left, arr + last);
-    qsortfs(arr, left, last - 1, reverse);
-    qsortfs(arr, last + 1, right, reverse);
+    qsortfs(arr, left, last - 1, reverse, comparator);
+    qsortfs(arr, last + 1, right, reverse, comparator);
 }
 
