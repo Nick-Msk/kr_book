@@ -36,6 +36,9 @@ tail.5.13: src/tail.5.13.c lib/log.o lib/common.o lib/checker.o lib/fileutils.o 
 sortlines.p5.11: src/sortlines.p5.11.c lib/log.o lib/common.o lib/checker.o lib/fileutils.o lib/fs.o lib/error.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+gen_arr: src/gen_arr.c lib/log.o lib/common.o lib/checker.o lib/fileutils.o lib/fs.o lib/error.o lib/array.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
