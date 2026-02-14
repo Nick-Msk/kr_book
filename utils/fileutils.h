@@ -23,9 +23,9 @@ static inline int               getline_fs(fs *str){
 }
 
 // read all (if maxline == -1 or maxline) lines separately into fs[]
-extern int                      freadlines(FILE *restrict f, fs *restrict lines);
+extern int                      freadlines(FILE *restrict f, fs **restrict lines);
 
-static inline int               readlines(fs *lines){
+static inline int               readlines(fs **lines){
     return freadlines(stdin, lines);
 }
 
@@ -35,6 +35,8 @@ extern int                      fwritelines(FILE *restrict f, const fs *restrict
 static inline int               writelines(const fs *lines, int cnt){
     return fwritelines(stdout, lines, cnt);
 }
+
+extern void                     freelines(fs *lineptr, int nlines);
 
 // simpe file reader, must call free(s); after usage!!
 extern char                     *read_from_file(FILE *f, int *p_cnt);

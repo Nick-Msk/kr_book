@@ -52,11 +52,13 @@ fs                              readfs_file(FILE *f){
 }
 
 // read all (if maxline == -1 or maxline) lines separately into fs[]
-int                             freadlines(FILE *restrict f, fs *restrict ptr){
-    logenter("...");
+int                             freadlines(FILE *restrict f, fs **restrict ptr){
+    logenter("... %p", ptr);
+    if (!ptr)
+        return logerr(-1, "Zero ptr");
     int     nlines = 0, len, maxlines = FU_LINE_CNT;
     fs      line = fsempty();
-    fs     *lines = malloc(maxlines * sizeof(fs));
+    fs     *lines = malloc(maxlines * sizeof(fs));  // 
     if (!lines){
         perror("Unable to allocated");      // sysraisesig? TODO:
         return logerr(-1, "Unable to allocated %lu", maxlines * sizeof(fs) );
@@ -68,13 +70,16 @@ int                             freadlines(FILE *restrict f, fs *restrict ptr){
             fs *tmp = lines;
             if ( (tmp = realloc(tmp, maxlines * sizeof(fs) ) ) == 0){
                 perror("Unable to allocated");      // sysraisesig? TODO:
-                logret(nlines, "Only %d lines, because unable to allocate more", nlines);
+                *ptr = lines;
+                return logret(nlines, "Return Only %d lines, because unable to allocate more", nlines);
             } else
                 lines = tmp;
         }
         lines[nlines++] = line;   // move to array
+        line = fsempty();
     }
-    // no need to free fs line
+    // no need to free fs line, it's .v=0 after last cycle (or if no one cycle)
+    *ptr = lines;
     return logret(nlines, "Total %d", nlines);
 }
 
@@ -86,6 +91,11 @@ int                             fwritelines(FILE *restrict f, const fs *restrict
         cnt += fprintf(f, "%s", pt->v);
     }
     return cnt;
+}
+
+void                            freelines(fs *lineptr, int nlines){
+    while (nlines-- > 0)
+        fs_free(lineptr++);
 }
 
 /*int             readlines(char *ptr[], int maxline){
@@ -243,26 +253,42 @@ tf3(const char *name)
 {
     logenter("%s", name);
     TFILE   tf;
-    fs      s = fsempty();
 
     int         subnum = 0;
     {
         test_sub("subtest %d", ++subnum);
 
-        fs   pt1 = fsliteral("Test pattern ^&*()!@");
-        fs   pt2 = fsliteral("second");
+        fs      pt1 = fsliteral("Test pattern ^&*()!@\n");
+        fs      pt2 = fsliteral("second\n");
+        fs      pt3 = fsliteral("thrid...\n");
+        fs      pt4 = fsliteral("4........\n");
+        fs      pts[] = {pt1, pt2, pt3, pt4};
 
         tf = test_fopen("/tmp/");
         // write
-
+        fwritelines(tfile(tf), pts, COUNT(pts) );
         test_freset(tf);
+        freelines(pts, COUNT(pts) );    // that is useless (because of literals) but it must work!
+
         // read
+        fs *pts2;
+        int cnt = freadlines(tfile(tf), &pts2);
+        if (cnt != COUNT(pts))
+            return logacterr( (freelines(pts2, cnt), test_fclose(tf) ), TEST_FAILED,  "Count = %d but it should be %d", cnt, COUNT(pts));
+
+        test_fclose(tf);
+        test_sub("subtest %d", ++subnum);
+        for (int i = 0; i < COUNT(pts); i++){
+            logauto(i);
+            fs_techfprint(logfile, pts + i);
+            fs_techfprint(logfile, pts2 + i);
+            if (fscmp(pts[i], pts2[i]) != 0)
+                return logacterr( (freelines(pts2, cnt), test_fclose(tf) ), TEST_FAILED,  "Line %d = [%s] but it should be [%s]", i, pts2[i].v, pts[i].v);
+        }
+        freelines(pts2, cnt);
     }
 
-    fsfree(s);
-    test_fclose(tf);
-    printf("Please check output file %s\n", fname);
-    return logret(TEST_MANUAL, "Please check output file %s", fname); // TEST_FAILED
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
 // -------------------------------------------------------------------
