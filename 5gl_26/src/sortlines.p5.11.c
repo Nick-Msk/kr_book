@@ -16,10 +16,11 @@ typedef struct Keys {
     bool    version;
     bool    reverse;
     bool    aslower;
+    bool    directory_order;
     // ...
 } Keys;
 
-#define                 Keysinit(...) (Keys){.version = false,.reverse = false, .numsort = false, .aslower = false, __VA_ARGS__}
+#define                 Keysinit(...) (Keys){.version = false,.reverse = false, .numsort = false, .aslower = false, .directory_order = false, __VA_ARGS__}
 
 static int              parse_keys(const char *argv[], Keys *ke){
     logenter("...");
@@ -56,6 +57,12 @@ static int              parse_keys(const char *argv[], Keys *ke){
                         params++;
                     }
                 break;
+                case 'd':
+                    if (!ke->directory_order){
+                        ke->directory_order = true;
+                        params++;
+                    }
+                break;
                 default:    // probaly it's possible to ignore unknows parameters
                     fprintf(stderr, "Illegal option [%c]\n", c);
                     return logerr(-1, "Illegal [%c], params [%d] argc %d", c, params, argc);
@@ -76,6 +83,21 @@ static int                      fscmp_wrap(const fs *s1, const fs *s2){
 
 static int                      fsicmp_wrap(const fs *s1, const fs *s2){
     return fsicmp(*s1, *s2);
+}
+
+static int                      fscmpdir(const fs *fs1, const fs *fs2){
+    const char *s1 = fs1->v;
+    const char *s2 = fs2->v;
+    TODO:
+    return () - ();
+}
+
+// dir + insensitive
+static int                      fsicmpdir(const fs *fs1, const fs *fs2){
+    const char *s1 = fs1->v;
+    const char *s2 = fs2->v;
+    TODO:
+    return () - ();
 }
 
 static const char   *usage_str = "Usage: %s\n";
@@ -102,10 +124,18 @@ static const char *logfilename = "log/"__FILE__".log";
         return 0;
     }
 
-    if (ke.numsort)
-        comp = fsnumcmp;    // ke.aslower doesn't matter here
-    else if (ke.aslower)
-        comp = fsicmp_wrap;
+    if (ke.directory_order){
+        if (ke.aslower)
+            comp = fsicmpdir;       // dir + insensetive
+        else
+            comp = fscmpdir;
+    } else {
+        if (ke.numsort)
+            comp = fsnumcmp;    // ke.aslower doesn't matter here
+        else if (ke.aslower)
+            comp = fsicmp_wrap;
+    }
+
 
     if ((nlines = readlines(&lineptr)) > 0){
         qsortfs(lineptr, 0, nlines - 1, ke.reverse, comp);
