@@ -244,9 +244,9 @@ sugnal_handler1(int	sig)
 
 // Bare err_raise test (w/o wrapper)
 static TestStatus
-tf1(void)
+tf1(const char *name)
 {
-    logenter("%s: Bare err_raise test (w/o wrapper)", __func__);
+    logenter("%s: Bare err_raise test (w/o wrapper)", name);
 
 	err_raise(ERR_USER, 0, 10, "Test err %d", 10);
 
@@ -263,9 +263,9 @@ tf1(void)
 
 // Create several vals test (via macro, with junt retcode)
 static TestStatus
-tf2(void)
+tf2(const char *name)
 {
-    logenter("%s: Create several vals test (via macro, with junt retcode)", __func__);
+    logenter("%s: Create several vals test (via macro, with junt retcode)", name);
 
 	const int 		cnt = 500;
 	// 50 more than 20
@@ -285,9 +285,9 @@ tf2(void)
 // ------------------------- TEST 3 ---------------------------------
 // Interrupt raising test
 static TestStatus
-tf3(void)
+tf3(const char *name)
 {
-	logenter("%s: Interrupt raising test", __func__);
+	logenter("%s: Interrupt raising test", name);
 	sig_t 	prev_action = signal(SIGINT, sugnal_handler1);
 
 	logmsg("prev action = %p, SIG_ERR = %p", prev_action, SIG_ERR);
@@ -310,9 +310,9 @@ tf3(void)
 //System error raising test (w/o exception)
 
 static TestStatus
-tf4(void)
+tf4(const char *name)
 {
-	logenter("%s: System error raising test (w/o exception)", __func__);
+	logenter("%s: System error raising test (w/o exception)", name);
 
 	const char *fname = "aaa.bbb.ccc";
 	// try to open some non-existent file fname
@@ -347,9 +347,9 @@ static void tf5_check_void(void)
 }
 
 static TestStatus
-tf5(void)
+tf5(const char *name)
 {
-	logenter("%s: ACTION return test", __func__);
+	logenter("%s: ACTION return test", name);
 
 	int res, errcode, res_val = 55, res_errcode = 30, errcount;
 
@@ -391,9 +391,9 @@ tf5(void)
 // Default handler test
 
 static TestStatus
-tf6(void)
+tf6(const char *name)
 {
-	logenter("%s: Default handler test", __func__);
+	logenter("%s: Default handler test", name);
 
 	if (!errsethandler())
 		return logerr(TEST_FAILED, "Unable to setup handler");
@@ -410,9 +410,9 @@ tf6(void)
 // ------------------------- TEST 7 ---------------------------------
 // Try + catch  test
 static TestStatus
-tf7(void)
+tf7(const char *name)
 {
-	logenter("%s: Try + catch  test", __func__);
+	logenter("%s: Try + catch  test", name);
 	int		check_if_exception = 0;
 
 	if (!errsethandler())
