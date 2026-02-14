@@ -60,10 +60,10 @@ static const char *logfilename = "log/"__FILE__".log";
 
     int               ret = 0;
     int               nlines = 0;
-    //char             *lineptr[MAXLINES];
 
-    Keys ke = Keysinit(.intsort = false);
+    Keys    ke = Keysinit(.intsort = false);
     argc = parse_keys(argv, &ke);
+    fs      *lineptr;
 
     if (argc < 0) {
         printf(usage_str, *argv);
@@ -75,7 +75,7 @@ static const char *logfilename = "log/"__FILE__".log";
         return 0;
     }
 
-    if ((nlines = readlines(lineptr, MAXLINES)) > 0){
+    if ((nlines = readlines(&lineptr)) > 0){
         qsortfs(lineptr, 0, nlines - 1);
         writefs(lineptr, nlines);
         freelines(lineptr, nlines);
