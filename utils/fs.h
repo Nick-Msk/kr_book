@@ -171,6 +171,10 @@ static inline int            fscmp(fs str1, fs str2){
     return strcmp(str1.v, str2.v);
 }
 
+static inline int            fsicmp(fs str1, fs str2){
+    return strcasecmp(str1.v, str2.v);
+}
+
 static inline void           fs_exch(fs *s1, fs *s2){
     fs tmp = *s1;
     *s1 = *s2;
