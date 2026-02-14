@@ -1,0 +1,138 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                        ke->aslower = true;
+                        ke->numsort = true;
+                        ke->reverse = true;
+                        ke->version = true;
+                        params++;
+                        params++;
+                        params++;
+                        params++;
+                    fprintf(stderr, "Illegal option [%c]\n", c);
+                    if (!ke->aslower){
+                    if (!ke->numsort){
+                    if (!ke->reverse){
+                    if (!ke->version){
+                    return logerr(-1, "Illegal [%c], params [%d] argc %d", c, params, argc);
+                    }
+                    }
+                    }
+                    }
+                break;
+                break;
+                break;
+                break;
+                case 'f':
+                case 'n':
+                case 'r':
+                case 'v':
+                default:    // probaly it's possible to ignore unknows parameters
+            fs_exch(arr + ++last, arr + i);
+            switch (tolower(c)){
+            }
+        argc++;
+        comp = fsicmp_wrap;
+        comp = fsnumcmp;    // ke.aslower doesn't matter here
+        fprintf(stderr, "Unable to read lines\n");
+        freelines(lineptr, nlines);
+        if (/* fscmp(arr[i], arr[left])*/ comparator(arr + i, arr + left) * rev < 0)
+        logauto(*argv);
+        printf("%s KR sortlinetask p5.11\n", __FILE__);
+        printf(usage_str, *argv);
+        printf(usage_str, *argv);
+        qsortfs(lineptr, 0, nlines - 1, ke.reverse, comp);
+        ret = 1;
+        return 0;
+        return 1;
+        return logerr(-1, "Zero ke!!! Error!");
+        return;
+        while ( (c = *++argv[0]) )
+        writelines(lineptr, nlines);
+    // ...
+    argc = parse_keys(argv, &ke);
+    bool    aslower;
+    bool    numsort;
+    bool    reverse;
+    bool    version;
+    char    c;
+    double d1 = atof(n1->v);
+    double d2 = atof(n2->v);
+    else if (ke.aslower)
+    for (int i = left + 1; i <= right; i++)
+    fs      *lineptr;
+    fs_exch(arr + left, arr + (left + right) / 2);
+    fs_exch(arr + left, arr + last);
+    if (!ke)
+    if ((nlines = readlines(&lineptr)) > 0){
+    if (argc < 0) {
+    if (ke.numsort)
+    if (ke.version){
+    if (left >= right)
+    int               nlines = 0;
+    int               ret = 0;
+    int     argc = 1, params = 0;
+    int     last;
+    int     rev = reverse ? -1 : 1;
+    int (*comp)(const fs *s1, const fs *s2) = fscmp_wrap;
+    Keys    ke = Keysinit();
+    last = left;
+    logclose("%d", ret);
+    logenter("...");
+    loginit(logfilename, false, 0, "Start");    // TODO: rework that to LOG("logdir") or LOGAPPEND("logdir") or LOGSWITCH("logdir")
+    qsortfs(arr, last + 1, right, reverse, comparator);
+    qsortfs(arr, left, last - 1, reverse, comparator);
+    return d1 - d2;
+    return fscmp(*s1, *s2);
+    return fsicmp(*s1, *s2);
+    return logret(argc, "params %d, argc %d", params, argc);
+    return ret;
+    while (*++argv != 0 && **argv == '-'){
+    }
+    }
+    }
+    }
+    } else {
+#define                 Keysinit(...) (Keys){.version = false,.reverse = false, .numsort = false, .aslower = false, __VA_ARGS__}
+#include "checker.h"
+#include "common.h"
+#include "fileutils.h"
+#include "fs.h"
+#include "log.h"
+#include <ctype.h>
+#include <stdio.h>
+#include <strings.h>
+int                             main(int argc, const char *argv[]){
+static const char   *usage_str = "Usage: %s\n";
+static const char *logfilename = "log/"__FILE__".log";
+static int                      fscmp_wrap(const fs *s1, const fs *s2){
+static int                      fsicmp_wrap(const fs *s1, const fs *s2){
+static int                      fsnumcmp(const fs *n1, const fs *n2){
+static int              parse_keys(const char *argv[], Keys *ke){
+static void          qsortfs(fs arr[], int from, int to, bool reverse, int (*comparator)(const fs *s1, const fs *s2));
+static void          qsortfs(fs arr[], int left, int right, bool reverse, int (*comparator)(const fs *s1, const fs *s2)){
+typedef struct Keys {
+}
+}
+}
+}
+}
+}
+} Keys;

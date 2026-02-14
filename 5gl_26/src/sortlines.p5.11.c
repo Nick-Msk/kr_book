@@ -15,10 +15,11 @@ typedef struct Keys {
     bool    numsort;
     bool    version;
     bool    reverse;
+    bool    aslower;
     // ...
 } Keys;
 
-#define                 Keysinit(...) (Keys){.version = false,.reverse = false, .numsort = false, __VA_ARGS__}
+#define                 Keysinit(...) (Keys){.version = false,.reverse = false, .numsort = false, .aslower = false, __VA_ARGS__}
 
 static int              parse_keys(const char *argv[], Keys *ke){
     logenter("...");
@@ -49,6 +50,12 @@ static int              parse_keys(const char *argv[], Keys *ke){
                         params++;
                     }
                 break;
+                case 'f':
+                    if (!ke->aslower){
+                        ke->aslower = true;
+                        params++;
+                    }
+                break;
                 default:    // probaly it's possible to ignore unknows parameters
                     fprintf(stderr, "Illegal option [%c]\n", c);
                     return logerr(-1, "Illegal [%c], params [%d] argc %d", c, params, argc);
@@ -65,6 +72,10 @@ static int                      fsnumcmp(const fs *n1, const fs *n2){
 
 static int                      fscmp_wrap(const fs *s1, const fs *s2){
     return fscmp(*s1, *s2);
+}
+
+static int                      fsicmp_wrap(const fs *s1, const fs *s2){
+    return fsicmp(*s1, *s2);
 }
 
 static const char   *usage_str = "Usage: %s\n";
@@ -92,7 +103,9 @@ static const char *logfilename = "log/"__FILE__".log";
     }
 
     if (ke.numsort)
-        comp = fsnumcmp;
+        comp = fsnumcmp;    // ke.aslower doesn't matter here
+    else if (ke.aslower)
+        comp = fsicmp_wrap;
 
     if ((nlines = readlines(&lineptr)) > 0){
         qsortfs(lineptr, 0, nlines - 1, ke.reverse, comp);
