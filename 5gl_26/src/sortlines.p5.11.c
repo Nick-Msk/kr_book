@@ -8,8 +8,9 @@
 #include "fileutils.h"
 #include "fs.h"
 
-static void          qsortfs(fs arr[], int from, int to, bool reverse, int (*comparator)(const fs *s1, const fs *s2));
+static void             qsortfs(fs arr[], int from, int to, bool reverse, int (*comparator)(const fs *s1, const fs *s2));
 
+static int              strcmpasdoc(const char *s1, const char *s2, bool sens);
 
 typedef struct Keys {
     bool    numsort;
@@ -85,19 +86,18 @@ static int                      fsicmp_wrap(const fs *s1, const fs *s2){
     return fsicmp(*s1, *s2);
 }
 
+// dir but senitive
 static int                      fscmpdir(const fs *fs1, const fs *fs2){
     const char *s1 = fs1->v;
     const char *s2 = fs2->v;
-    TODO:
-    return () - ();
+    return strcmpasdoc(s1, s2, true);
 }
 
 // dir + insensitive
 static int                      fsicmpdir(const fs *fs1, const fs *fs2){
     const char *s1 = fs1->v;
     const char *s2 = fs2->v;
-    TODO:
-    return () - ();
+    return strcmpasdoc(s1, s2, false);
 }
 
 static const char   *usage_str = "Usage: %s\n";
@@ -164,5 +164,24 @@ static void          qsortfs(fs arr[], int left, int right, bool reverse, int (*
     fs_exch(arr + left, arr + last);
     qsortfs(arr, left, last - 1, reverse, comparator);
     qsortfs(arr, last + 1, right, reverse, comparator);
+}
+
+static inline bool      isdoc(char c){
+    return c == '\0' || c == ' ' || isalnum(c);
+}
+
+static int              strcmpasdoc(const char *s1, const char *s2, bool sens){
+    char    c1, c2;
+    while ( (c1 = *s1) != '\0' && (c2 = *s2) != '\0' ){
+        while (!isdoc(c1) )
+            c1 = *++s1;
+        while (!isdoc(c2) )
+             c2 = *++s2;
+        if (sens ? c1 == c2: tolower(c1) == tolower(c2) && c1 != '\0')
+            s1++, s2++;
+        else
+            return sens ? c1 - c2 : tolower(c1) - tolower(c2);
+    }
+    return 0;
 }
 
