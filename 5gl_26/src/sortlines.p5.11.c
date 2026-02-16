@@ -75,7 +75,12 @@ static int              parse_keys(const char *argv[], Keys *ke){
 static int                      fsnumcmp(const fs *n1, const fs *n2){
     double d1 = atof(n1->v);
     double d2 = atof(n2->v);
-    return d1 - d2;
+    if (d1 > d2)
+        return 1;
+    else if (d1 < d2)
+        return -1;
+    else
+        return 0;
 }
 
 static int                      fscmp_wrap(const fs *s1, const fs *s2){
