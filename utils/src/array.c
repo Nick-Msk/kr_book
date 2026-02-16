@@ -1,7 +1,10 @@
 #include <limits.h>
 #include <time.h>
+#include <stdlib.h>
+
 #include "array.h"
 #include "error.h"
+#include "common.h"
 
 /********************************************************************
                  ARRAY MODULE IMPLEMENTATION
@@ -135,6 +138,49 @@ void                     Array_shuffle(Array arr){
         else if (Array_isdouble(arr) )
             dbl_exch(arr.dv + i, arr.dv + j);
     }
+}
+
+/* // TEMP
+static int           dcmp(const double *d1, const double *d2){
+    return (int) *(const double *) d1 - *(const double *) d2; 
+}
+static void          qsortdbl(double arr[], int left, int right, bool reverse, int (*comparator)(const double *s1, const double *s2)){
+    int     last;
+
+    int     rev = reverse ? -1 : 1;
+    if (left >= right)
+        return;
+    dbl_exch(arr + left, arr + (left + right) / 2); 
+    last = left;
+    for (int i = left + 1; i <= right; i++)
+        if (comparator(arr + i, arr + left) * rev < 0)
+            dbl_exch(arr + ++last, arr + i); 
+    dbl_exch(arr + left, arr + last);
+    qsortdbl(arr, left, last - 1, reverse, comparator);
+    qsortdbl(arr, last + 1, right, reverse, comparator);
+}*/
+
+void                     Array_qsort(Array arr, ArrayFillType ord){
+    int  sz = 0;
+    int (*cmp)(const void *, const void *) = 0;
+    if (Array_isint(arr) ){
+        sz = sizeof(int);
+        if (ord == ARRAY_ASC)
+            cmp = pint_cmp;
+        else
+            cmp = pint_revcmp;
+    }
+    if (Array_isdouble(arr) ){
+        sz = sizeof(double);
+        if (ord == ARRAY_ASC)
+            cmp = pdbl_cmp;
+        else
+            cmp = pdbl_revcmp;
+        // TEMP
+        //qsortdbl(arr.dv, 0, arr.len - 1, ord == ARRAY_ASC ? false : true, dcmp);
+    }
+    if (sz)
+        qsort(arr.v, arr.len, sz, cmp);
 }
 
 // -------------------------- (API) printers -----------------------
@@ -454,6 +500,53 @@ tf6(const char *name){
     }
     return logret(TEST_MANUAL, "done"); // TEST_FAILED
 }
+
+// ------------------------- TEST 7 ---------------------------------
+static TestStatus
+tf7(const char *name){
+    logenter("%s", name);
+
+    int         subnum = 0;
+    {
+        test_sub("subtest %d", ++subnum);
+
+        Array darr = DArray_create(10000, ARRAY_RND);
+
+        Array_qsort(darr, ARRAY_ASC);
+        Array_print(darr, 50);
+        // check asc
+        for (int i = 1; i < darr.len; i++)
+            if (darr.dv[i - 1] > darr.dv[i])
+                return logactret(Arrayfree(darr), TEST_FAILED, "array[%d] = %f > array[%d] = %f, should be <=", i - 1, darr.dv[i - 1], i, darr.dv[i]);
+
+        test_sub("subtest %d", ++subnum);
+        Array_qsort(darr, ARRAY_DESC);
+        for (int i = 1; i < darr.len; i++)
+            if (darr.dv[i - 1] < darr.dv[i])
+                return logactret(Arrayfree(darr), TEST_FAILED, "array[%d] = %f < array[%d] = %f, should be >=", i - 1, darr.dv[i - 1], i, darr.dv[i]);
+        Arrayfree(darr);
+
+        test_sub("subtest %d", ++subnum);
+
+        Array iarr = IArray_create(10000, ARRAY_RND);
+        Array_qsort(iarr, ARRAY_ASC);
+        // check asc
+        for (int i = 1; i < iarr.len; i++)
+            if (iarr.iv[i - 1] > iarr.iv[i])
+                return logactret(Arrayfree(iarr), TEST_FAILED, "array[%d] = %d > array[%d] = %d, should be <=", i - 1, iarr.iv[i - 1], i, iarr.iv[i]);
+
+        test_sub("subtest %d", ++subnum);
+        Array_qsort(iarr, ARRAY_DESC);
+        // check desc
+        for (int i = 1; i < iarr.len; i++)
+            if (iarr.iv[i - 1] < iarr.iv[i])
+                return logactret(Arrayfree(iarr), TEST_FAILED, "array[%d] = %d < array[%d] = %d, should be >=", i - 1, iarr.iv[i - 1], i, iarr.iv[i]);
+        //Array_print(iarr, 50);
+        Arrayfree(iarr);
+    }
+
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
 // -------------------------------------------------------------------
 
 int
@@ -472,7 +565,8 @@ main(int argc, char *argv[])
       , testnew(.f2 = tf3, .num = 3, .name = "Shrink test"                          , .desc = "", .mandatory=true)
       , testnew(.f2 = tf4, .num = 4, .name = "Save/load int test"                   , .desc = "", .mandatory=true)
       , testnew(.f2 = tf5, .num = 5, .name = "Save/load dbl test"                   , .desc = "", .mandatory=true)
-      , testnew(.f2 = tf6, .num = 6, .name = "Shuddle array simple test"            , .desc = "", .mandatory=true)
+      , testnew(.f2 = tf6, .num = 6, .name = "Shuffle array(dbl/int) simple test"   , .desc = "", .mandatory=true)
+      , testnew(.f2 = tf7, .num = 7, .name = "Sort array(dbl/int) simple test"      , .desc = "", .mandatory=true)
     );
 
     logclose("end...");

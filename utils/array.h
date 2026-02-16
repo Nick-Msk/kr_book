@@ -47,17 +47,11 @@ typedef struct {
     int     sz; // total size, > len + 1
     int     flags; // ARRAY_DOUBLE || ARRAY_INT
     union {
-        int    *iv;
-        double *dv;
+        void    *v;
+        int     *iv;
+        double  *dv;
     };
 } Array;
-
-/*
-typedef struct {
-    int     len;
-    int     sz; // total size, > len + 1
-    double  *v;
-} DArray; */
 
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
@@ -104,9 +98,19 @@ static inline bool              Array_isvalid(Array a){
     return ( ( !(a.flags & ARRAY_ERROR) && a.flags & (ARRAY_INT | ARRAY_DOUBLE) ) > 0) && a.sz >= a.len && a.len >= 0 && a.iv != 0;
 }
 
-extern void                     Array_fill(Array a, ArrayFillType typ);
+static inline int               Arraylen(Array a){
+    return a.len;
+}
 
-extern void                     Array_shuffle(Array a);
+static inline int               Arraysz(Array a){
+    return a.sz;
+}
+
+extern void                     Array_fill(Array arr, ArrayFillType typ);
+
+extern void                     Array_shuffle(Array arr);
+
+extern void                     Array_qsort(Array arr, ArrayFillType ord);
 
 // ----------------- PRINTERS ----------------------
 

@@ -49,7 +49,7 @@ array.o: src/array.c
 	$(CC) $(CFLAGS) $^ -c
 	@mv $@ lib/
 
-array: src/array.c lib/log.o lib/test.o lib/error.o lib/checker.o
+array: src/array.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o
 	$(CC) $(CFLAGS) -DARRAYTESTING $^ -o test/$@_test
 
 buffer:	src/buffer.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o
