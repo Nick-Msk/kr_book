@@ -107,14 +107,17 @@ static inline int               char_cmp(const void *s1, const void *s2){
     return *c1 - *c2;
 }
 
-// simple comparator int
-static inline int               pint_cmp(const int *i1, const int *i2){
-    return *i1 - *i2;
+// simple comparator pointer int
+//extern int                      pint_cmp(const void *i1, const void *i2);
+static inline int                 pint_cmp(const void *i1, const void *i2){
+    return *(const int *) i1 - *(const int *) i2;
 }
 
-// simple comparator int
-static inline double            pdbl_cmp(const double *d1, const double *d2){
-    return *d1 - *d2;
+
+// simple comparator pointer double
+//extern int                      pdbl_cmp(const void *d1, const void *d2);
+static inline int                 pdbl_cmp(const void *d1, const void *d2){
+    return *(const double *) d1 - *(const double *) d2;
 }
 
 // simple char exhanger
@@ -188,7 +191,7 @@ static inline int               print_bits(const char *str, unsigned  val){
 }
 
 // cycle
-static inline int       cycleinc(int val, int cycle){
+static inline int               cycleinc(int val, int cycle){
     if (val >= cycle - 1)
         val = 0;
     else
