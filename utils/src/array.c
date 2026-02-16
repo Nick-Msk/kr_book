@@ -1,5 +1,7 @@
 #include <limits.h>
+#include <time.h>
 #include "array.h"
+#include "error.h"
 
 /********************************************************************
                  ARRAY MODULE IMPLEMENTATION
@@ -37,7 +39,7 @@ void                     Array_fill(Array a, ArrayFillType typ){
                     a.dv[i] = initval -= rnddbl(dec_value);
             }
         break;
-        case ARRAY_ACS:
+        case ARRAY_ASC:
             initval = a.len / 10;
             int     asc_value = 10;          // for now!!! It'll be changed
             for (int i = 0; i < a.len; i++){
@@ -110,7 +112,8 @@ Array                           Array_create(int cnt, ArrayFillType filltyp, Arr
     res.iv          = malloc(sz);   // iv == dv
     if (!res.iv){
         fprintf(stderr, "Unable to allocate %d bytes\n", sz);
-        res.sz = INT_MIN;   // userraisesig hehe TODO:
+        res.sz = INT_MIN;
+        userraiseint(10,  "Unable to allocate %d bytes\n", sz);
     }
     Array_fill(res, filltyp);
     return logret(res, "sz = %d", res.sz);
@@ -120,6 +123,17 @@ void                    Array_free(Array *val){
     if (val && val->iv){
         free(val->iv);
         val->iv = 0;
+    }
+}
+
+void                     Array_shuffle(Array arr){
+    srand(time(NULL) );
+    for (int i = arr.len - 1; i > 0; i--){
+        int j = rndint(i);
+        if (Array_isint(arr) )
+            int_exch(arr.iv + i, arr.iv + j);
+        else if (Array_isdouble(arr) )
+            dbl_exch(arr.dv + i, arr.dv + j);
     }
 }
 
@@ -135,7 +149,7 @@ int                     Array_fprint(FILE *f, Array val, int limit){
     if (g_array_rec_line)
         array_rec_line = g_array_rec_line;
 
-    cnt += fprintf(f, "Array (%s):\n", Array_isint(val) ? "int" : "dbl");
+    cnt += fprintf(f, "Array (%s[%d of total %d]):\n", Array_isint(val) ? "int" : "dbl", limit, val.len);
     for (i = 0; i < limit; i++){
         if (Array_isint(val) ){
             if (g_custom_print_line)
@@ -290,7 +304,7 @@ tf2(const char *name){
     int         subnum = 0;
     {
         test_sub("subtest %d", ++subnum);
-        Array darr = DArray_create(100, ARRAY_ACS);
+        Array darr = DArray_create(100, ARRAY_ASC);
         for (int i = 0; i < darr.len - 1; i++)
             if (darr.dv[i] > darr.dv[i + 1])
                 return logactret(Arrayfree(darr), TEST_FAILED, "Violation for ACS gen: arr[%d] = %f > arr[%d+1] = %f", i, darr.dv[i], i, darr.dv[i + 1]);
@@ -305,7 +319,7 @@ tf2(const char *name){
 
     {
         test_sub("subtest %d", ++subnum);
-        Array iarr = IArray_create(100, ARRAY_ACS);
+        Array iarr = IArray_create(100, ARRAY_ASC);
         for (int i = 0; i < iarr.len - 1; i++)
             if (iarr.iv[i] > iarr.iv[i + 1])
                 return logactret(Arrayfree(iarr), TEST_FAILED, "Violation for ACS gen: arr[%d] = %d > arr[%d+1] = %d", i, iarr.iv[i], i, iarr.iv[i + 1]);
@@ -329,7 +343,7 @@ tf3(const char *name){
     {
         test_sub("subtest %d", ++subnum);
 
-        Array iarr = DArray_create(100, ARRAY_ACS);
+        Array iarr = DArray_create(100, ARRAY_ASC);
 
         Array_fprint(logfile, iarr, 0);
 
@@ -415,6 +429,31 @@ tf5(const char *name){
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
+// ------------------------- TEST 6 ---------------------------------
+static TestStatus
+tf6(const char *name){
+    logenter("%s", name);
+
+    int         subnum = 0;
+    {
+        test_sub("subtest %d", ++subnum);
+
+        Array darr = DArray_create(50, ARRAY_ASC);
+
+        Array_shuffle(darr);
+        g_custom_print_line = 0;
+        Array_print(darr, 0);
+        Arrayfree(darr);
+
+        test_sub("subtest %d", ++subnum);
+
+        Array iarr = IArray_create(50, ARRAY_ASC);
+        Array_shuffle(iarr);
+        Array_print(iarr, 0);
+        Arrayfree(iarr);
+    }
+    return logret(TEST_MANUAL, "done"); // TEST_FAILED
+}
 // -------------------------------------------------------------------
 
 int
@@ -433,6 +472,7 @@ main(int argc, char *argv[])
       , testnew(.f2 = tf3, .num = 3, .name = "Shrink test"                          , .desc = "", .mandatory=true)
       , testnew(.f2 = tf4, .num = 4, .name = "Save/load int test"                   , .desc = "", .mandatory=true)
       , testnew(.f2 = tf5, .num = 5, .name = "Save/load dbl test"                   , .desc = "", .mandatory=true)
+      , testnew(.f2 = tf6, .num = 6, .name = "Shuddle array simple test"            , .desc = "", .mandatory=true)
     );
 
     logclose("end...");

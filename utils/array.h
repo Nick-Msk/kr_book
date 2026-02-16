@@ -16,7 +16,7 @@
 typedef enum ArrayFillType{
     ARRAY_NONE      = 0,
     ARRAY_DESC,
-    ARRAY_ACS,
+    ARRAY_ASC,
     ARRAY_RND,
     ARRAY_ZERO
 } ArrayFillType;
@@ -31,7 +31,7 @@ static inline const char        *ArrayFillTypeName(ArrayFillType t){
     switch (t){
         CASE_RETURN(ARRAY_NONE);
         CASE_RETURN(ARRAY_DESC);
-        CASE_RETURN(ARRAY_ACS);
+        CASE_RETURN(ARRAY_ASC);
         CASE_RETURN(ARRAY_RND);
         CASE_RETURN(ARRAY_ZERO);
         default: return "";
@@ -105,6 +105,8 @@ static inline bool              Array_isvalid(Array a){
 }
 
 extern void                     Array_fill(Array a, ArrayFillType typ);
+
+extern void                     Array_shuffle(Array a);
 
 // ----------------- PRINTERS ----------------------
 
