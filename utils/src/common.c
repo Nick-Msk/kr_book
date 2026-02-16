@@ -68,6 +68,16 @@ int                             fprintn(FILE *f, const char *str, int sz){
     return i;
 }
 
+// simple comparator pointer double
+int                             pdbl_cmp(const void *d1, const void *d2){
+    return (int) *(const double *) d1 - *(const double *) d2;
+}
+
+// simple reverse comparator pointer double
+int                             pdbl_revcmp(const void *d1, const void *d2){
+    return (int) *(const double *) d2 - *(const double *) d1;
+}
+
 // -------------------------------Testing --------------------------
 
 #ifdef COMMONTESTING

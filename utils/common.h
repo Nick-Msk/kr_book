@@ -108,17 +108,20 @@ static inline int               char_cmp(const void *s1, const void *s2){
 }
 
 // simple comparator pointer int
-//extern int                      pint_cmp(const void *i1, const void *i2);
-static inline int                 pint_cmp(const void *i1, const void *i2){
+static inline int               pint_cmp(const void *i1, const void *i2){
     return *(const int *) i1 - *(const int *) i2;
 }
 
+// simple reverse comparator pointer int
+static inline int               pint_revcmp(const void *i1, const void *i2){
+    return *(const int *) i2 - *(const int *) i1;
+}
 
 // simple comparator pointer double
-//extern int                      pdbl_cmp(const void *d1, const void *d2);
-static inline int                 pdbl_cmp(const void *d1, const void *d2){
-    return *(const double *) d1 - *(const double *) d2;
-}
+extern int                      pdbl_cmp(const void *d1, const void *d2);
+
+// simple reverse comparator pointer double
+extern int                      pdbl_revcmp(const void *d1, const void *d2);
 
 // simple char exhanger
 static inline void              char_exch(char *s1, char *s2){
