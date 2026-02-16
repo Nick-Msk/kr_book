@@ -70,12 +70,22 @@ int                             fprintn(FILE *f, const char *str, int sz){
 
 // simple comparator pointer double
 int                             pdbl_cmp(const void *d1, const void *d2){
-    return (int) *(const double *) d1 - *(const double *) d2;
+    if ( *(double *) d1 > *(double *) d2)
+        return 1;
+    else if ( *(double *) d1 < *(double *) d2)
+        return -1;
+    else
+        return 0;
 }
 
 // simple reverse comparator pointer double
 int                             pdbl_revcmp(const void *d1, const void *d2){
-    return (int) *(const double *) d2 - *(const double *) d1;
+    if ( *(double *) d1 < *(double *) d2)
+        return 1;
+    else if ( *(double *) d1 > *(double *) d2)
+        return -1;
+    else
+        return 0;
 }
 
 // -------------------------------Testing --------------------------
