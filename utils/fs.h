@@ -123,6 +123,12 @@ static inline fs            fsliteral(const char *lit){
     return s;
 }
 
+// detach from allocator! Must be freed manually
+extern bool                 fsdetach(fs *s);
+
+// free all allocated
+extern void                 fsfreeall(void);
+
 // TODO: fs_const()
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------

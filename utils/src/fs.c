@@ -1,14 +1,15 @@
 #include "common.h"
 #include "log.h"
 #include "fs.h"
+#include "error.h"
 
 /********************************************************************
                     FAST STRING MODULE IMPLEMENTATION
 ********************************************************************/
 
-//static const int            FS_BUF_SIZE             = 1024;
-//static fs                 g_fs_buffer[FS_BUF_SIZE];
-//static const int            g_initsize              = 32;   // not sure
+static char               **g_fs_ptr                = 0;
+static int                  g_alloc                 = 0;
+static const int            g_initsize              = 32;   // not sure
 
 // external contol
 int                         FS_MIN_ACCOC            = 128;
@@ -38,10 +39,62 @@ static fs                       increasesize(fs *s, int newsz, bool incr){
                 if (!s->v)
                     userraiseint(10, "Unable to allocate %d bytes", newsz);
                 s->sz = newsz;
-            logauto(s->sz);
          }
     }
     return logret(*s, "increased to %d", s->sz);
+}
+
+// ------------------------- ALLOCATOR ------------------------------
+
+// find or increase size, raise if unable
+static int                      findempty(void){
+    // 1-st ver stupid alg
+    int found = -1;
+    for (int i = 0; i < g_alloc; i++)
+        if (!g_fs_ptr[i])
+            return logsimpleret(i, "found empty %d", i);
+    // alloc new
+    int tmpsz = calcnewsize(g_initsize) * sizeof(const char *);
+    char **tmp = realloc(g_fs_ptr, tmpsz);
+    if (!tmp)
+        sysraiseint("Unable to allocate %d", tmpsz);  // return???
+    found = g_alloc;
+    for (; g_alloc < tmpsz; g_alloc++)
+        tmp[g_alloc] = 0;
+    g_alloc = tmpsz;
+    g_fs_ptr = tmp;
+    return logsimpleret(found, "Newly allocated %d", found);
+}
+
+static int                      findstr(const void *v){
+    // now it's a stupid iteration via g_fs_ptr
+    for (int i = 0; i < g_alloc; i++)
+        if (g_fs_ptr[i] == v)
+            return logsimpleret(i, "Found %p on %d", v, i);
+    return logsimpleerr(-1, "Not found");
+}
+
+static bool                     detach(const char *v){
+    int pos = findstr(v);
+    if (pos < 0)
+        return logsimpleret(false, "%p not found in alloc list", v);
+    g_fs_ptr[pos] = 0;
+    return logsimpleret(true, "%p detached", v);
+}
+
+static int                      attach(fs s){
+    int pos = findempty();  // return the value or raise sig
+    g_fs_ptr[pos] = s.v;
+    return logsimpleret(pos, "%p attached to %d", s.v, pos);
+}
+
+// non static, for atexit()
+void                            fsfreeall(void){
+    for (int i = 0; i < g_alloc; i++)
+        if (g_fs_ptr[i]){
+            free(g_fs_ptr[i]);
+            g_fs_ptr[i] = 0;
+        }
 }
 
 // --------------------------- API ---------------------------------
@@ -123,6 +176,9 @@ fs                      fsinit(int n){
 
     fs      res = FS();
     increasesize(&res, n, true);
+#if !defined(FS_NO_ALLOCATOR)
+    attach(res);
+#endif
     *res.v = '\0';
     return logsimpleret(res, "Created empty with sz %d", res.sz);
 }
@@ -132,6 +188,14 @@ fs                      fsclone(fs s){
     tmp.len = s.len;
     memcpy(tmp.v, s.v, tmp.len + 1);
     return tmp;
+}
+
+// detach from allocator! Must be freed manually
+bool                    fsdetach(fs *s){
+    bool        res = false;
+    if (fs_alloc(s))
+        res = detach(s->v);  // find in list and remove!
+    return res;
 }
 
 // -------------------------------Testing --------------------------
