@@ -112,6 +112,7 @@ Array                           Array_create(int cnt, ArrayFillType filltyp, Arr
     res.sz          = round_up_2(cnt);   // 2^(x + 1)
     res.len         = cnt;
     int          sz = typ == ARRAY_INT ? res.sz * sizeof(int) : res.sz * sizeof(double);
+    logmsg("Arr: sz=%d, res.sz=%d", sz, res.sz);
     res.iv          = malloc(sz);   // iv == dv
     if (!res.iv){
         fprintf(stderr, "Unable to allocate %d bytes\n", sz);
@@ -140,26 +141,6 @@ void                     Array_shuffle(Array arr){
     }
 }
 
-/* // TEMP
-static int           dcmp(const double *d1, const double *d2){
-    return (int) *(const double *) d1 - *(const double *) d2; 
-}
-static void          qsortdbl(double arr[], int left, int right, bool reverse, int (*comparator)(const double *s1, const double *s2)){
-    int     last;
-
-    int     rev = reverse ? -1 : 1;
-    if (left >= right)
-        return;
-    dbl_exch(arr + left, arr + (left + right) / 2); 
-    last = left;
-    for (int i = left + 1; i <= right; i++)
-        if (comparator(arr + i, arr + left) * rev < 0)
-            dbl_exch(arr + ++last, arr + i); 
-    dbl_exch(arr + left, arr + last);
-    qsortdbl(arr, left, last - 1, reverse, comparator);
-    qsortdbl(arr, last + 1, right, reverse, comparator);
-}*/
-
 void                     Array_qsort(Array arr, ArrayFillType ord){
     int  sz = 0;
     int (*cmp)(const void *, const void *) = 0;
@@ -169,15 +150,12 @@ void                     Array_qsort(Array arr, ArrayFillType ord){
             cmp = pint_cmp;
         else
             cmp = pint_revcmp;
-    }
-    if (Array_isdouble(arr) ){
+    } else if (Array_isdouble(arr) ){
         sz = sizeof(double);
         if (ord == ARRAY_ASC)
             cmp = pdbl_cmp;
         else
             cmp = pdbl_revcmp;
-        // TEMP
-        //qsortdbl(arr.dv, 0, arr.len - 1, ord == ARRAY_ASC ? false : true, dcmp);
     }
     if (sz)
         qsort(arr.v, arr.len, sz, cmp);
@@ -513,7 +491,7 @@ tf7(const char *name){
         Array darr = DArray_create(10000, ARRAY_RND);
 
         Array_qsort(darr, ARRAY_ASC);
-        Array_print(darr, 50);
+        //Array_print(darr, 50);
         // check asc
         for (int i = 1; i < darr.len; i++)
             if (darr.dv[i - 1] > darr.dv[i])
@@ -528,7 +506,7 @@ tf7(const char *name){
 
         test_sub("subtest %d", ++subnum);
 
-        Array iarr = IArray_create(10000, ARRAY_RND);
+        Array iarr = IArray_create(100000, ARRAY_RND);
         Array_qsort(iarr, ARRAY_ASC);
         // check asc
         for (int i = 1; i < iarr.len; i++)
