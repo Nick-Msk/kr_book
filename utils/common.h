@@ -107,6 +107,16 @@ static inline int               char_cmp(const void *s1, const void *s2){
     return *c1 - *c2;
 }
 
+// simple comparator int
+static inline int               pint_cmp(const int *i1, const int *i2){
+    return *i1 - *i2;
+}
+
+// simple comparator int
+static inline double            pdbl_cmp(const double *d1, const double *d2){
+    return *d1 - *d2;
+}
+
 // simple char exhanger
 static inline void              char_exch(char *s1, char *s2){
     char c = *s1;
@@ -114,11 +124,18 @@ static inline void              char_exch(char *s1, char *s2){
     *s2 = c;
 }
 
-// simple int iexchanger
+// simple int exchanger
 static inline void              int_exch(int *i1, int *i2){
     int tmp = *i1;
     *i1 = *i2;
     *i2 = tmp;
+}
+
+// simple double exchanger  TODO: think about generic exchanger
+static inline void              dbl_exch(double *d1, double *d2){
+    double tmp = *d1;
+    *d1 = *d2;
+    *d2 = tmp;
 }
 
 // str exch
