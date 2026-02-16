@@ -1,0 +1,187 @@
+}
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+}
+
+
+
+}
+}
+}
+
+
+
+}
+}
+}
+
+
+}
+    }
+    }
+    }
+    }
+    }
+    }
+    // ...
+            }
+                    }
+                    }
+                    }
+                    }
+                    }
+                        ke->aslower = true;
+                        ke->directory_order = true;
+                        ke->numsort = true;
+                        ke->reverse = true;
+                        ke->version = true;
+                        params++;
+                        params++;
+                        params++;
+                        params++;
+                        params++;
+                    fprintf(stderr, "Illegal option [%c]\n", c);
+                    if (!ke->aslower){
+                    if (!ke->directory_order){
+                    if (!ke->numsort){
+                    if (!ke->reverse){
+                    if (!ke->version){
+                    return logerr(-1, "Illegal [%c], params [%d] argc %d", c, params, argc);
+                break;
+                break;
+                break;
+                break;
+                break;
+                case 'd':
+                case 'f':
+                case 'n':
+                case 'r':
+                case 'v':
+                default:    // probaly it's possible to ignore unknows parameters
+             c2 = *++s2;
+            c1 = *++s1;
+            comp = fscmpdir;
+            comp = fsicmpdir;       // dir + insensetive
+            comp = fsicmp_wrap;
+            comp = fsnumcmp;    // ke.aslower doesn't matter here
+            fs_exch(arr + ++last, arr + i);
+            return sens ? c1 - c2 : tolower(c1) - tolower(c2);
+            s1++, s2++;
+            switch (tolower(c)){
+        argc++;
+        else
+        else
+        else if (ke.aslower)
+        fprintf(stderr, "Unable to read lines\n");
+        freelines(lineptr, nlines);
+        if (/* fscmp(arr[i], arr[left])*/ comparator(arr + i, arr + left) * rev < 0)
+        if (ke.aslower)
+        if (ke.numsort)
+        if (sens ? c1 == c2: tolower(c1) == tolower(c2) && c1 != '\0')
+        logauto(*argv);
+        printf("%s KR sortlinetask p5.11\n", __FILE__);
+        printf(usage_str, *argv);
+        printf(usage_str, *argv);
+        qsortfs(lineptr, 0, nlines - 1, ke.reverse, comp);
+        ret = 1;
+        return;
+        return 0;
+        return 1;
+        return logerr(-1, "Zero ke!!! Error!");
+        while ( (c = *++argv[0]) )
+        while (!isdoc(c1) )
+        while (!isdoc(c2) )
+        writelines(lineptr, nlines);
+    } else {
+    } else {
+    Keys    ke = Keysinit();
+    argc = parse_keys(argv, &ke);
+    bool    aslower;
+    bool    directory_order;
+    bool    numsort;
+    bool    reverse;
+    bool    version;
+    char    c;
+    char    c1, c2;
+    const char *s1 = fs1->v;
+    const char *s1 = fs1->v;
+    const char *s2 = fs2->v;
+    const char *s2 = fs2->v;
+    double d1 = atof(n1->v);
+    double d2 = atof(n2->v);
+    for (int i = left + 1; i <= right; i++)
+    fs      *lineptr;
+    fs_exch(arr + left, arr + last);
+    fs_exch(arr + left, arr + (left + right) / 2);
+    if (argc < 0) {
+    if (!ke)
+    if (ke.directory_order){
+    if (ke.version){
+    if (left >= right)
+    if ((nlines = readlines(&lineptr)) > 0){
+    int               nlines = 0;
+    int               ret = 0;
+    int     argc = 1, params = 0;
+    int     last;
+    int     rev = reverse ? -1 : 1;
+    int (*comp)(const fs *s1, const fs *s2) = fscmp_wrap;
+    last = left;
+    logclose("%d", ret);
+    logenter("...");
+    loginit(logfilename, false, 0, "Start");    // TODO: rework that to LOG("logdir") or LOGAPPEND("logdir") or LOGSWITCH("logdir")
+    qsortfs(arr, last + 1, right, reverse, comparator);
+    qsortfs(arr, left, last - 1, reverse, comparator);
+    return 0;
+    return c == '\0' || c == ' ' || isalnum(c);
+    return d1 - d2;
+    return fscmp(*s1, *s2);
+    return fsicmp(*s1, *s2);
+    return logret(argc, "params %d, argc %d", params, argc);
+    return ret;
+    return strcmpasdoc(s1, s2, false);
+    return strcmpasdoc(s1, s2, true);
+    while ( (c1 = *s1) != '\0' && (c2 = *s2) != '\0' ){
+    while (*++argv != 0 && **argv == '-'){
+} Keys;
+// dir + insensitive
+// dir but senitive
+#define                 Keysinit(...) (Keys){.version = false,.reverse = false, .numsort = false, .aslower = false, .directory_order = false, __VA_ARGS__}
+#include "checker.h"
+#include "common.h"
+#include <ctype.h>
+#include "fileutils.h"
+#include "fs.h"
+#include "log.h"
+#include <stdio.h>
+#include <strings.h>
+int                             main(int argc, const char *argv[]){
+static const char   *usage_str = "Usage: %s\n";
+static const char *logfilename = "log/"__FILE__".log";
+static inline bool      isdoc(char c){
+static int                      fscmpdir(const fs *fs1, const fs *fs2){
+static int                      fscmp_wrap(const fs *s1, const fs *s2){
+static int                      fsicmpdir(const fs *fs1, const fs *fs2){
+static int                      fsicmp_wrap(const fs *s1, const fs *s2){
+static int                      fsnumcmp(const fs *n1, const fs *n2){
+static int              parse_keys(const char *argv[], Keys *ke){
+static int              strcmpasdoc(const char *s1, const char *s2, bool sens);
+static int              strcmpasdoc(const char *s1, const char *s2, bool sens){
+static void             qsortfs(fs arr[], int from, int to, bool reverse, int (*comparator)(const fs *s1, const fs *s2));
+static void          qsortfs(fs arr[], int left, int right, bool reverse, int (*comparator)(const fs *s1, const fs *s2)){
+typedef struct Keys {
