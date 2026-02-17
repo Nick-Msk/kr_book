@@ -100,7 +100,7 @@ rnddbl(double dmax)
     return (long)rand() * dmax / RAND_MAX; // TODO: check if improve
 }
 
-// simple comparator
+// simple char comparator
 static inline int               char_cmp(const void *s1, const void *s2){
     const char *c1 = s1;
     const char *c2 = s2;
@@ -122,6 +122,11 @@ extern int                      pdbl_cmp(const void *d1, const void *d2);
 
 // simple reverse comparator pointer double
 extern int                      pdbl_revcmp(const void *d1, const void *d2);
+
+// (void *) comparator
+static inline int               pointer_cmp(const void *p1, const void *p2){
+    return *(const void **) p1 - *(const void **) p2;   // (void *) - (void *)!
+}
 
 // simple char exhanger
 static inline void              char_exch(char *s1, char *s2){
