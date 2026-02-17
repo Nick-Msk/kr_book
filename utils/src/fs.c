@@ -7,9 +7,11 @@
                     FAST STRING MODULE IMPLEMENTATION
 ********************************************************************/
 
-static char               **g_fs_ptr                = 0;
-static int                  g_alloc                 = 0;
-static const int            g_initsize              = 32;   // not sure
+#if defined(FS_ALLOCATOR)
+    static char               **g_fs_ptr                = 0;
+    static int                  g_alloc                 = 0;
+    static const int            g_initsize              = 32;   // not sure
+#endif
 
 // external contol
 int                         FS_MIN_ACCOC            = 128;
@@ -20,7 +22,7 @@ int                         FS_TECH_PRINT_COUNT     = 10; // symplos to print
 // -------------------------- (Utility) printers -------------------
 
 
-// ------------------------------ Utilities ------------------------
+// ------------------------------ Utilities -------------- ----------
 
 // should depent on increase strategy, simplest return n + 1;
 static inline int               calcnewsize(int n){
@@ -28,23 +30,17 @@ static inline int               calcnewsize(int n){
     return sz; //logsimpleret(sz, "newsz = %d", sz);
 }
 
-// only for FS_FLAG_ALLOC
-static fs                       increasesize(fs *s, int newsz, bool incr){
-    logenter("newsz %d, incr %s v %p, is alloc? %s", newsz, bool_str(incr), s->v, bool_str(fs_alloc(s)) );
-    if (fs_alloc(s) ){
-        if (incr)
-            newsz = calcnewsize(newsz);
-        if (newsz > s->sz || !incr){
-                s->v = realloc(s->v, newsz);
-                if (!s->v)
-                    userraiseint(10, "Unable to allocate %d bytes", newsz);
-                s->sz = newsz;
-         }
-    }
-    return logret(*s, "increased to %d", s->sz);
-}
-
+#if defined(FS_ALLOCATOR)
 // ------------------------- ALLOCATOR ------------------------------
+
+// non static, for atexit()
+void                            fsfreeall(void){
+    for (int i = 0; i < g_alloc; i++)
+        if (g_fs_ptr[i]){
+            free(g_fs_ptr[i]);
+            g_fs_ptr[i] = 0;
+        }
+}
 
 // find or increase size, raise if unable
 static int                      findempty(void){
@@ -74,28 +70,98 @@ static int                      findstr(const void *v){
     return logsimpleerr(-1, "Not found");
 }
 
-static bool                     detach(const char *v){
-    int pos = findstr(v);
-    if (pos < 0)
-        return logsimpleret(false, "%p not found in alloc list", v);
+static bool                     detach(int pos){
     g_fs_ptr[pos] = 0;
-    return logsimpleret(true, "%p detached", v);
+        return logsimpleret(true, "%d detached", pos);
 }
 
-static int                      attach(fs s){
-    int pos = findempty();  // return the value or raise sig
-    g_fs_ptr[pos] = s.v;
-    return logsimpleret(pos, "%p attached to %d", s.v, pos);
-}
 
-// non static, for atexit()
-void                            fsfreeall(void){
-    for (int i = 0; i < g_alloc; i++)
-        if (g_fs_ptr[i]){
-            free(g_fs_ptr[i]);
-            g_fs_ptr[i] = 0;
+
+static bool                     check_duplicate(void){
+    // TODO:
+    int     totsz = g_alloc * sizeof(const char *);
+    const char **ptr = malloc(totsz);
+    if (!ptr){
+        return logsimpleerr(false, "Unable to allocated sortarea (%d)", totsz);
+    }
+    memcpy(ptr, g_fs_ptr, totsz);
+    qsort(ptr, g_alloc, sizeof(void *), pointer_cmp);
+    for (int i = 1; i < g_alloc; i++)
+        if (ptr[i - 1] == ptr[i] && ptr[i] != 0){
+            fprintf(stderr, "ptr[%d] = ptr[%d] (%p)", i - 1, i, ptr[i]);    // not sure
+            free(ptr);
+            return logsimpleret(false, "ptr[%d] = ptr[%d] (%p)", i - 1, i, ptr[i]);
         }
+    free(ptr);
+    return true;
 }
+
+static bool                     fschecker(void){
+    logenter("check allocation");
+    if (!check_duplicate() ){
+        printf("Duplicate found\n");
+        return logerr(false, "Dupl failed");
+    }
+    printf("Checking is Passed\n");
+    return logret(true, "Ok");
+}
+
+// technical printer
+static int                      ffsprintall(FILE *f, int max){
+    int         cnt = 0;
+    bool        prev = false;
+    static int  count = 0;
+    max = (max > g_alloc || max == 0) ? g_alloc : max ;
+    for (int i = 0; i < max; i++){
+        if (g_fs_ptr[i]){
+            cnt++;
+            if (prev)
+                fprintf(f, " - till [%d]", i - 1);
+            fprintf(f, "alloc[%d] = %p ", i, g_fs_ptr[i]); count++;
+            prev = false;
+        } else if (!prev){
+             fprintf(f, "alloc[%d] = 0x0 ", i); count++;
+             prev = true;
+        }
+        if (count % 15 == 0)
+            putchar('\n');
+    }
+    // count of valuable
+    fprintf(f, "\nTotal: %d\n", cnt);
+    return cnt;
+}
+
+static inline int               fsprintall(int max){
+    return ffsprintall(stdout, max);
+}
+static inline int                      attach(int pos, char *v){
+    if (pos >= 0)   // if not detached!
+        g_fs_ptr[pos] = v;
+    return logsimpleret(pos, "%p attached to %d", v, pos);
+}
+#endif /* FS_ALLOCATOR */
+
+// only for FS_FLAG_ALLOC
+static fs                       increasesize(fs *s, int newsz, bool init){
+    logenter("newsz %d, init %s v %p, is alloc? %s", newsz, bool_str(init), s->v, bool_str(fs_alloc(s)) );
+    if (fs_alloc(s) ){
+        if (init)
+            newsz = calcnewsize(newsz);
+        if (newsz > s->sz || !init){
+                s->v = realloc(s->v, newsz);
+                #if defined(FS_ALLOCATOR)
+                if (init)   // init
+                    s->pos = findempty();   // try to find an place
+                attach(s->pos, s->v);
+                #endif
+                if (!s->v)
+                    userraiseint(10, "Unable to allocate %d bytes", newsz);
+                s->sz = newsz;
+         }
+    }
+    return logret(*s, "increased to %d", s->sz);
+}
+
 
 // --------------------------- API ---------------------------------
 
@@ -176,9 +242,6 @@ fs                      fsinit(int n){
 
     fs      res = FS();
     increasesize(&res, n, true);
-#if !defined(FS_NO_ALLOCATOR)
-    attach(res);
-#endif
     *res.v = '\0';
     return logsimpleret(res, "Created empty with sz %d", res.sz);
 }
@@ -190,13 +253,17 @@ fs                      fsclone(fs s){
     return tmp;
 }
 
+#if defined(FS_ALLOCATOR)
 // detach from allocator! Must be freed manually
 bool                    fsdetach(fs *s){
     bool        res = false;
-    if (fs_alloc(s))
-        res = detach(s->v);  // find in list and remove!
+    if (fs_alloc(s)){
+        res = detach(s->pos);  // find in list and remove!
+        s->pos = 0;
+    }
     return res;
 }
+#endif
 
 // -------------------------------Testing --------------------------
 #ifdef FSTESTING

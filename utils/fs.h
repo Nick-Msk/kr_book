@@ -42,6 +42,9 @@ static inline const char * fs_flag_str(FS_FLAGS flag){
 typedef struct fs {
     int         len, sz; // sz >= len + 1 because of last '\0'
     FS_FLAGS    flags;
+#if defined(FS_ALLOCATOR)
+    int         pos;    //
+#endif
     char       *v;      // with '\0'
 } fs;
 
@@ -123,8 +126,10 @@ static inline fs            fsliteral(const char *lit){
     return s;
 }
 
+#if defined(FS_ALLOCATOR)
 // detach from allocator! Must be freed manually
 extern bool                 fsdetach(fs *s);
+#endif
 
 // free all allocated
 extern void                 fsfreeall(void);
