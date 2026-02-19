@@ -62,9 +62,12 @@ buffer.o: src/buffer.c
 fs:	src/fs.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o
 	$(CC) $(CFLAGS) -DFSTESTING $^ -o test/$@_test
 
-fs.o: src/fs.c
+fs.o: 	src/fs.c
 	$(CC) $(CFLAGS)  $^ -c
 	@mv $@ lib/
+
+fs_iter: src/fs_iter.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fs.o
+	$(CC) $(CFLAGS) -DFSITERTESTING $^ -o test/$@_test
 
 fileutils.o: src/fileutils.c
 	$(CC) $(CFLAGS)  $^ -c
