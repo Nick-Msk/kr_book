@@ -192,13 +192,23 @@ static inline void           fs_exch(fs *s1, fs *s2){
     *s2 = tmp;
 }
 
-#define                      get(s, pos) *fs_get(&(s), (pos))
+static inline fs             fs_reverse(fs str){
+    reverse(str.v, str.len);
+    return str;
+}
+
+#define                      get(s, pos) *fs_get(&(s), (pos) )
 #define                      getv(s) (s.v)
-#define                      elem(s, pos) *fs_elem( &(s), (pos))
-#define                      fsetlen(s, poslen) *fs_setlen( (&s), (poslen))
+#define                      elem(s, pos) *fs_elem( &(s), (pos) )
+
+#define                      fsetlen(s, poslen) *fs_setlen( (&s), (poslen) )
+#define                      fsend(s, poslen) *fs_setlen( (&s), (poslen) )
+
 #define                      fsstr(s) fs_str(&(s) )
-#define                      fsincrease(s, inc) fs_increase( &(s), (inc))
-#define                      fsshrink(s) fs_shrink(&(s))
+
+#define                      fsincrease(s, inc) fs_increase( &(s), (inc) )
+
+#define                      fsshrink(s) fs_shrink(&(s) )
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
