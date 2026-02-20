@@ -58,11 +58,8 @@ tf1(const char *name)
 
         fs      str = fsinit(100);
         int     pos = 0;
-        for (fsiter i = fseach(s); hasnext(i); next(i) ){
-            logmsg("pos %d, curr %c", pos, curr(i) );
+        for (fsiter i = fseach(s); hasnext(i); next(i) )
             elem(str, pos++) = curr(i);
-        }
-        logmsg("last pos %d", pos);
         fsend(str, pos);
 
         fs_techfprint(logfile, &str);    // for manual checking
@@ -128,9 +125,10 @@ tf3(const char *name)
 
         fs      str = fsinit(100);
         const char arr[] = "abc1234567890";
+        logauto(COUNT(arr));
 
         fsnew   it = fsinew(&str);
-        for (int i = 0; i < COUNT(arr); i++)
+        for (int i = 0; i < arr[i] != '\0'; i++)
             elemnext(it) = arr[i];
         elemend(it);
 
