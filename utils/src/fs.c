@@ -15,7 +15,7 @@
 
 // external contol
 int                         FS_MIN_ACCOC            = 128;
-int                         FS_TECH_PRINT_COUNT     = 10; // symplos to print
+int                         FS_TECH_PRINT_COUNT     = 100; // symplos to print
 
 // ---------- pseudo-header for utility procedures -----------------
 

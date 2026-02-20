@@ -147,10 +147,10 @@ static inline char          *fs_get(const fs *s, int pos){
 // automatically adjust len (??) and sz (realloc)
 extern char                 *fs_elem(fs *s, int pos);
 
-static inline int           *fs_setlen(fs *s, int poslen){
-    *fs_elem(s, poslen) = '\0';
+static inline char          *fs_setlen(fs *s, int poslen){
     s->len = poslen;
-    return &s->len;
+    *fs_elem(s, poslen) = '\0';
+    return fs_get(s, poslen);
 }
 
 static inline int           fslen(fs s){
