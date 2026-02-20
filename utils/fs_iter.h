@@ -30,6 +30,11 @@ typedef struct fsiterrev {
     char   *v;
 } fsiterrev;
 
+typedef struct fsnew {
+    int     pos;
+    fs     *s;
+} fsnew;
+
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
 // TODO: make a REV interator as fsreviter{ };
@@ -42,6 +47,12 @@ static inline fsiter        fseach(fs s){
 // foprward iterator
 static inline fsiterrev     fseachrev(fs s){
     return (fsiterrev){.pos = s.len - 1, .from = s.len - 1, .to = 0, .v = s.v};
+}
+
+// new iterator, it's assumed str is initialized as heap!
+static inline fsnew         fsinew(fs *str){
+    // fs_init
+    return (fsnew){.pos = 0, .s = str};
 }
 
 // ++ slice, TODO: rev slice
@@ -67,7 +78,7 @@ static inline char         *fscurr(fsiter *i){
 }
 
 static inline bool          fshasnextrev(fsiterrev *i){
-    return i->pos > i->to;
+    return i->pos >= i->to;
 }
 
 static inline char         *fsnextrev(fsiterrev *i){
@@ -78,15 +89,36 @@ static inline char         *fscurrrev(fsiterrev *i){
     return i->v + i->pos;
 }
 
-#define                     hasnext(i) fshasnext(&(i) )
-#define                     next(i) *(fsnext(&(i) ) )
-#define                     curr(i) *(fscurr(&(i) ) )
+// semi-constructor!
+static inline char         *fselemnext(fsnew *i){
+    return fs_elem(i->s, i->pos++);
+}
+// not sure if really need that
+static inline char         *fselemcurr(fsnew *i){
+    return fs_elem(i->s, i->pos);
+}
+
+// setup len and '\0'
+static inline char         *fselemend(fsnew *i){
+    return fs_setlen(i->s, i->pos);
+}
+
+// forward
+#define                     hasnext(i)   fshasnext(&(i) )
+#define                     next(i)     *(fsnext(&(i) ) )
+#define                     curr(i)     *(fscurr(&(i) ) )
 #define                     fsforeach(s, i) for (fsiter i = fseach(s); hasnext(i); next(i) )
 
+// reverse
 #define                     hasnextrev(i) fshasnextrev(&(i) )
-#define                     nextrev(i) *(fsnextrev(&(i) ) )
-#define                     currrev(i) *(fscurrrev(&(i) ) )
+#define                     nextrev(i)   *(fsnextrev(&(i) ) )
+#define                     currrev(i)   *(fscurrrev(&(i) ) )
 #define                     fsforeachrev(s, i) for (fsiterrev i = fseachrev(s); hasnextrev(i); nextrev(i) )
+
+// fsnew
+#define                     elemnext(i) *fselemnext(&(i) )
+#define                     elemcurr(i) *fselemcurr(&(i) )
+#define                     elemend(i)  *fselemend(&(i) )
 
 // in future
 // #define lyamdba(s, compare) ...
@@ -94,6 +126,8 @@ static inline char         *fscurrrev(fsiterrev *i){
 //
 // foreach(s, i)
 //     get(s, i) = 'u';
+// for (... )
+//    elemnext(is) = arr[i] + '0';
 // for (fsiter i = fsaech(s)/fsslice(s, 2, 11); hasnext(i); next(i))
         // get(i) = 'y';    // or s.v[i.pos] = 't';
 // for (int i = 0; i < s.len; i++)
