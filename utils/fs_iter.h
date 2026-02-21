@@ -132,16 +132,6 @@ static inline char         *fselemend(fsnew *i){
 // in future
 // #define lyamdba(s, compare) ...
 
-//
-// foreach(s, i)
-//     get(s, i) = 'u';
-// for (... )
-//    elemnext(is) = arr[i] + '0';
-// for (fsiter i = fsaech(s)/fsslice(s, 2, 11); hasnext(i); next(i))
-        // get(i) = 'y';    // or s.v[i.pos] = 't';
-// for (int i = 0; i < s.len; i++)
-//  s.v[i] = ...;
-
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
 // --------------------------- ETC. -------------------------
