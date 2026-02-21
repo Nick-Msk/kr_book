@@ -290,7 +290,7 @@ tf1(const char *name)
     logenter("%s", name);
     int         subnum = 0;
     {
-        test_sub("subtest %d", ++subnum);
+        test_sub("subtest %d: fsempty", ++subnum);
 
         fs s = fsempty();
         if (s.len != 0 || s.sz != 0 || s.v != 0)
@@ -300,7 +300,7 @@ tf1(const char *name)
         fsfree(s);  // should work normally
     }
     {
-        test_sub("subtest %d", ++subnum);
+        test_sub("subtest %d: fsinit(100)", ++subnum);
 
         fs s = fsinit(100);
         if (!fs_validate(logfile, &s) )
@@ -311,7 +311,7 @@ tf1(const char *name)
         fsfree(s);
     }
     {
-        test_sub("subtest %d", ++subnum);
+        test_sub("subtest %d: fsliteral", ++subnum);
 
         const char *pattern = "1234567890";
         fs s = fsliteral(pattern);
@@ -323,7 +323,7 @@ tf1(const char *name)
         fsfree(s);
     }
     {
-        test_sub("subtest %d", ++subnum);
+        test_sub("subtest %d: fscopy", ++subnum);
 
         const char *pattern = "1234567890";
         fs s = fscopy(pattern);
@@ -335,7 +335,7 @@ tf1(const char *name)
         if (!inv(strcmp(fsstr(s), pattern) == 0, "Not equal") )
             return logacterr(fsfree(s), TEST_FAILED, "[%s] != pt [%s]", fsstr(s), pattern);
 
-        test_sub("subtest %d", ++subnum);
+        test_sub("subtest %d: fsclone", ++subnum);
 
         fs s2 = fsclone(s);
         fsfree(s);
@@ -362,7 +362,7 @@ tf2(const char *name)
     logenter("%s", name);
     int         subnum = 0;
     {
-        test_sub("subtest %d", ++subnum);
+        test_sub("subtest %d: fscopy", ++subnum);
 
         const char *pt = "just pattern";
         fs s = fscopy(pt);
@@ -371,7 +371,7 @@ tf2(const char *name)
         if (!inv (c == 'j', "[0] returns [%c], but should be [%c]", c, 'j') )
             return logacterr( fsfree(s), TEST_FAILED, "[0] returns [%c], but should be [%c]", c, 'j');
 
-        test_sub("subtest %d", ++subnum);
+        test_sub("subtest %d: get", ++subnum);
         get(s, 3) = 'y';
         if (!inv(strcmp(fsstr(s), "jusy pattern") == 0, "[%s] != pt [%s]", fsstr(s), "jusy pattern") )
             return logacterr(fsfree(s), TEST_FAILED, "[%s] != pt [%s]", fsstr(s), "jusy pattern");
@@ -382,7 +382,7 @@ tf2(const char *name)
             return logacterr( fsfree(s), TEST_FAILED, "[0] returns [%c], but should be [%c]", c, 'y');
 
         // reallocation test
-        test_sub("subtest %d", ++subnum);
+        test_sub("subtest %d: elem with realloc", ++subnum);
 
         elem(s, 100) = 'z';
         if (!fs_validate(logfile, &s) )
@@ -392,7 +392,7 @@ tf2(const char *name)
             return logacterr( fsfree(s), TEST_FAILED, "[100] returns [%c], but should be [%c]", c, 'z');
         fstechfprint(logfile, s);
 
-        test_sub("subtest %d", ++subnum);
+        test_sub("subtest %d: validate", ++subnum);
         fsshrink(s);
         if (!fs_validate(logfile, &s) )
             return logacterr( fsfree(s), TEST_FAILED, "Validation's failed");
@@ -411,13 +411,13 @@ tf3(const char *name)
     logenter("%s", name);
     int         subnum = 0;
     {
-        test_sub("subtest %d", ++subnum);
+        test_sub("subtest %d: elem", ++subnum);
 
         int     i;
         fs      s = fsempty();  // TODO: think if avoid
         char    pt[] = "test parretn 1234567";
 
-        for (i = 0; i < (int)sizeof(pt); i++)
+        for (i = 0; i < (int) sizeof(pt); i++)
             elem(s, i) = pt[i];
         fsetlen(s, i);
 
@@ -436,19 +436,51 @@ tf4(const char *name)
     logenter("%s", name);
     int         subnum = 0;
     {
-        test_sub("subtest %d", ++subnum);
+        test_sub("subtest %d: fscat()", ++subnum);
 
-        
-        fsfree(s);
+        const char  arr1[] = "q123456";
+        const char  arr2[] = "zxcvbnm901";
+        fs          s1 = fscopy(arr1);
+        fs          s2 = fsliteral(arr2);
+
+        fscat(s1, s2);
+        fstechfprint(logfile, s1);   // for manual
+
+        if (s1.len != (int) strlen(arr1) + strlen(arr2) )
+            return logacterr( fsfree(s1), TEST_FAILED, "len = %d must be equal sum of l1 + l2 = %ld", fslen(s1), strlen(arr1) + strlen(arr2) );
+        if (strstr(fsstr(s1), arr1) != fsstr(s1) )
+            return logacterr( fsfree(s1), TEST_FAILED, "[%s] must start from [%s]", fsstr(s1), arr1);
+        if (strstr(fsstr(s1), arr2) != fsstr(s1) + strlen(arr1) )
+            return logacterr( fsfree(s1), TEST_FAILED, "[%s] must have [%s] on position %lu", fsstr(s1), arr2, strlen(arr1) );
+
+        test_sub("subtest %d: fscatstr()", ++subnum);
+
+        const char  arr3[] = "zaq1";
+        int         len1 = fslen(s1);
+        fscatstr(s1, arr3);
+        fstechfprint(logfile, s1);   // for manual
+
+        if (fslen(s1) != len1 + strlen(arr3) )
+            return logacterr( fsfree(s1), TEST_FAILED, "len = %d must be equal sum of l1 + l2 = %lu", fslen(s1), len1 + strlen(arr3) );
+        if (strstr(fsstr(s1), arr3) != fsstr(s1) + len1 )
+            return logacterr( fsfree(s1), TEST_FAILED, "[%s] must have [%s] on position %d", fsstr(s1), arr3, len1 );
+        if (strstr(fsstr(s1), arr1) != fsstr(s1) )  // the same test like in subtest 1
+            return logacterr( fsfree(s1), TEST_FAILED, "[%s] must start from [%s]", fsstr(s1), arr1);
+        fsfree(s1);
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
 // ------------------------------------------------------------------
 int
-main(/* int argc, char *argv[] */)
+main(int argc, const char *argv[])
 {
-    logsimpleinit("Starting");   // it that working?
+    const char *logfilename = "log/fs.log";
+
+    loginit(logfilename, false, 0, "Starting");
+
+    if (argc > 1)
+        logfilename = argv[1];
 
     testenginestd(
         testnew(.f2 = tf1, .num = 1, .name = "Simple init and validate test" , .desc=""                , .mandatory=true)
