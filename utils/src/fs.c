@@ -193,6 +193,15 @@ fs                   *fs_resize(fs *s, int newsz){
     return s;
 }
 
+fs                      fs_cat(fs *target, fs source){
+    int sumlen = target->len + source.len;
+    if (target->sz <= sumlen) // sz must be at least len1 + len2 + 1
+        increasesize(target, sumlen + 1, false);
+    memcpy(target->v + target->len, source.v, source.len + 1);   // with last '\0'
+    target->len = sumlen;
+    return *target;
+}
+
 // -------------------------- (API) printers -----------------------
 int                     fs_techfprint(FILE *restrict out, const fs *restrict s, const char *restrict name){
     // technical print, statis attributes for now
@@ -419,6 +428,22 @@ tf3(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
+// ------------------------- TEST 4 ---------------------------------
+
+static TestStatus
+tf4(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+    {
+        test_sub("subtest %d", ++subnum);
+
+        
+        fsfree(s);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
 // ------------------------------------------------------------------
 int
 main(/* int argc, char *argv[] */)
@@ -426,9 +451,10 @@ main(/* int argc, char *argv[] */)
     logsimpleinit("Starting");   // it that working?
 
     testenginestd(
-        testnew(.f2 = tf1, .num = 1, .name = "Simple init and validate test" , .desc="Init test."                , .mandatory=true)
-      , testnew(.f2 = tf2, .num = 2, .name = "Access read/write test"        , .desc="Init test."                , .mandatory=true)
-      , testnew(.f2 = tf3, .num = 3, .name = "Elem() test"                   , .desc="Init test."                , .mandatory=true)
+        testnew(.f2 = tf1, .num = 1, .name = "Simple init and validate test" , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf2, .num = 2, .name = "Access read/write test"        , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf3, .num = 3, .name = "Elem() test"                   , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf4, .num = 4, .name = "fs_cat/fs_catstr test"         , .desc=""                , .mandatory=true)
     );
 
     logclose("end...");

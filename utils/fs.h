@@ -197,6 +197,12 @@ static inline fs             fs_reverse(fs str){
     return str;
 }
 
+extern fs                    fs_cat(fs *target, fs source);
+static inline fs             fs_catstr(fs *restrict target, const char *restrict source){
+    fs l = fsliteral(source);
+    return fs_cat(target, l);
+}
+
 #define                      get(s, pos) *fs_get(&(s), (pos) )
 #define                      getv(s) (s.v)
 #define                      elem(s, pos) *fs_elem( &(s), (pos) )
@@ -209,6 +215,9 @@ static inline fs             fs_reverse(fs str){
 #define                      fsincrease(s, inc) fs_increase( &(s), (inc) )
 
 #define                      fsshrink(s) fs_shrink(&(s) )
+
+#define                      fscat(t, s) fs_cat(&(t), s)
+#define                      fscatstr(t, s) fs_catstr(&(t), s)
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
