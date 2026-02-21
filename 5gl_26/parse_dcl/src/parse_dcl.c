@@ -8,7 +8,8 @@
 #include "checker.h"
 #include "bool.h"
 #include "fs.h"
-
+#include "dlc.h"
+#include "buffer.h"
 
 typedef struct Keys {
     const char *    filename;
@@ -23,7 +24,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
     int     argc = 1, params = 0;
     if (!ke)
         return logerr(-1, "Zero ke!!! Error!");
-    char    c, *pos;
+    char    c;
     while (*++argv != 0 && **argv == '-'){
         logauto(*argv);
         argc++;
@@ -36,18 +37,35 @@ static int              parse_keys(const char *argv[], Keys *ke){
                     }
                 break;
                 case 'f':
-                    ke->lines = strtol(++argv[0], &pos, 10);
-                    argv[0] = pos - 1; // -1 to break next while()
+                    ke->filename = (char *) argv[0];        // save pointer
+                    argv[0] += strlen(argv[0] - 1);
                     params++;
                 break;
                 default:    // probaly it's possible to ignore unknows parameters
-                    fprintf(stderr, "Illegal option [%c]\n", c); 
+                    fprintf(stderr, "Illegal option [%c]\n", c);
                     return logerr(-1, "Illegal [%c], params [%d] argc %d", c, params, argc);
             }
     }
     return logret(argc, "params %d, argc %d", params, argc);
 }
 
+// parser, f must be opened for read
+static int        parse(FILE *f){
+    Token   t;
+    int     cnt = 0;
+    fs      out = fsinit(100);
+    buffer_set(f);
+
+    fs      datatype = fsinit(100);
+    while (gettoken(&t) != TOKEOF){
+        datatype = fsclone(t.value); // from Token
+        t = dlc(&out, &t);
+        if (t.typ != '\n')
+            fprintf(stderr, "SYntax error\n");
+        printf("%s: %s %s\n",  fsstr(t.value), fsstr(out), fsstr(datatype) );
+    }
+    return cnt; // empty for now
+}
 
 const char *usage_str = "Usage: %s -ffilename\n";
 
@@ -55,7 +73,7 @@ int                     main(int argc, const char *argv[]){
     static const char *logfilename = "log/"__FILE__".log";
     loginit(logfilename, false, 0, "Start");    // TODO: rework that to LOG("logdir") or LOGAPPEND("logdir") or LOGSWITCH("logdir")
 
-    Keys ke = Keysinit(.lines = 10);
+    Keys ke = Keysinit();
     argc = parse_keys(argv, &ke);
 
     if (argc < 0) {
@@ -73,21 +91,12 @@ int                     main(int argc, const char *argv[]){
         f = fopen(ke.filename, "r");
     if (!f){
         perror("Unable to open file");     // TODO: inject perror into sysraise
-        sysraiseint("Unable to open file %s\n", filename);
+        sysraiseint("Unable to open file %s\n", ke.filename);
     }
+    parse(f);
 
-    /*typedef struct Token {
-        toktype  typ;
-        fs       value;
-    } Token; */
-    Token t;
-    fs    datatype = fsinit(100);
-    while (gettoken(f, &t) != EOF){
-        datatype = fscopy(t.value); // from Token
-
-    }
-
-    logclose("%d", cnt);
+    fclose(f);
+    logclose("...");
     return 0;
 }
 

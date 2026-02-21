@@ -7,6 +7,9 @@ LDLIBS=
 parse_dcl: src/parse_dcl.c lib/log.o lib/common.o lib/checker.o lib/dcl.o lib/token.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+parse_dcl.o: src/parse_dcl.c
+	$(CC) $(CFLAGS)  $^ -c
+
 #fileopers: src/fileopers.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o
 #	$(CC) $(CFLAGS) -DVARTESTING $^ -o test/$@_test
 
