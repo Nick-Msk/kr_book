@@ -112,6 +112,9 @@ test_sub_close(TestStatus status)
 	{
 		g_prev_subtest = false;		// no more subtest mode
 		fprint(g_out, "Subtest is\t\t\t%s\n", get_test_result_message(status));
+        // add a logging too
+        logsimple("\n------------------------------------------------------------------\n");
+        logsimple("Subtest is\t\t\t%s\n", get_test_result_message(status));
 		offsetinc(-1);
 	}
 }

@@ -45,7 +45,7 @@ tf1(const char *name)
         const char *arr = "abcdefgh";
         fs s = fsliteral(arr);
 
-        fs_techfprint(logfile, &s);    // for manual checking
+        fstechfprint(logfile, s);    // for manual checking
 
         if (fslen(s) != (int) strlen(arr) )
              return logret(TEST_FAILED, "len = %d != strlen () = %lu", fslen(s), strlen(arr) );
@@ -62,7 +62,7 @@ tf1(const char *name)
             elem(str, pos++) = curr(i);
         fsend(str, pos);
 
-        fs_techfprint(logfile, &str);    // for manual checking
+        fstechfprint(logfile, str);    // for manual checking
 
         if (fslen(str) != fslen(s) )
             return logactret(fsfree(str), TEST_FAILED, "str.len = %d != s.len () = %d", fslen(str), fslen(str) );
@@ -103,7 +103,7 @@ tf2(const char *name)
         fsend(str, pos);
 
         printf("BEFORE REV: %s\n", fsstr(str) );
-        fs_techfprint(logfile, &str);
+        fstechfprint(logfile, str);
         fs_reverse(str);
 
         if (fscmp(str, s) != 0)
@@ -119,12 +119,14 @@ static TestStatus
 tf3(const char *name)
 {
     logenter("%s", name);
-    int         subnum = 0;
-    {
-        test_sub("subtest %d", ++subnum);
 
-        fs      str = fsinit(100);
-        const char arr[] = "abc1234567890";
+    int         subnum = 0;
+    fs      str = fsinit(100);
+    const char arr[] = "abc1234567890";
+
+    test_sub("subtest %d: construct from literal", ++subnum);
+    {
+
         logauto(COUNT(arr));
 
         fsnew   it = fsinew(&str);
@@ -132,15 +134,50 @@ tf3(const char *name)
             elemnext(it) = arr[i];
         elemend(it);
 
-        fs_techfprint(logfile, &str);    // for manual checking
+        fstechfprint(logfile, str);    // for manual checking
         //logmsg("strlen: %lu, len %d", strlen(arr), fslen(str) );
         if (fslen(str) != strlen(arr) )
             return logactret(fsfree(str), TEST_FAILED, "len = %d != strlen () = %lu", fslen(str), strlen(arr) );
 
         if (strcmp(fsstr(str), arr) != 0)
             return logactret(fsfree(str), TEST_FAILED, "str [%s] not equal to origin arr [%s]", fsstr(str), arr );
-        fsfree(str);
     }
+
+    test_sub("subtest %d: construct from another fs", ++subnum);
+    {
+
+        fs l = fsliteral(arr);      // sourcce
+        fs s = fsinit(100);         // target
+        // -------------------------
+        fsnew it2 = fsinew(&s);     // start iter builder
+        //logmsg("lit len = %d", fslen(l) );
+        for (fsiter i = fseach(l); hasnext(i); next(i) )
+            elemnext(it2) = curr(i);
+        elemend(it2);
+        //fstechfprint(logfile, s);
+        if (fslen(s) != fslen(l) || fslen(l) != strlen(arr))
+            return logactret( (fsfree(str), fsfree(s) ), TEST_FAILED, "s.len = %d != l.len () = %d != strlen() = %lu", fslen(s), fslen(l), strlen(arr) );
+        if (fscmp(s, l) != 0)
+            return logactret( (fsfree(str), fsfree(s) ), TEST_FAILED, "str [%s] not equal to origin arr [%s]", fsstr(s), fsstr(l) );
+
+    test_sub("subtest %d: appent iterator test", ++subnum);
+
+        it2 = fsiapp(&str);
+        int     len_before = fslen(str);
+        logmsg("before: str [%s], s[%s]", fsstr(str), fsstr(s) );
+        for (fsiter i = fseach(s); hasnext(i); next(i) )
+            elemnext(it2) = curr(i);
+        elemend(it2);
+
+        fstechfprint(logfile, str); // manual
+        if (!fs_validate(logfile, &str) )
+            return logactret( (fsfree(str), fsfree(s) ), TEST_FAILED, "Validation failed");
+        if (fslen(s) + len_before != fslen(str) )
+            return logactret( (fsfree(str), fsfree(s) ), TEST_FAILED, "str.len = %d != sum of initial lengths %d", fslen(s), fslen(s) + len_before);
+
+        fsfree(s);
+    }
+    fsfree(str);
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 

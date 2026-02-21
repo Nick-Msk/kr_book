@@ -194,10 +194,10 @@ fs                   *fs_resize(fs *s, int newsz){
 }
 
 // -------------------------- (API) printers -----------------------
-int                     fs_techfprint(FILE *restrict out, const fs *restrict s){
+int                     fs_techfprint(FILE *restrict out, const fs *restrict s, const char *restrict name){
     // technical print, statis attributes for now
     int     cnt;
-    cnt = fprintf(out, "len [%d], sz [%d], flags [%d], s [%p]=[", s->len, s->sz, s->flags, s->v);
+    cnt = fprintf(out, "%s: len [%d], sz [%d], flags [%d], s [%p]=[", name, s->len, s->sz, s->flags, s->v);
     if (s->v){
         for (int i = 0; i < FS_TECH_PRINT_COUNT && i < s->len; i++)
              fputc(s->v[i], out), cnt++;
@@ -381,13 +381,13 @@ tf2(const char *name)
         c = get(s, 100);
         if (!inv (c == 'z', "[100] returns [%c], but should be [%c]", c, 'z') )
             return logacterr( fsfree(s), TEST_FAILED, "[100] returns [%c], but should be [%c]", c, 'z');
-        fs_techfprint(logfile, &s);
+        fstechfprint(logfile, s);
 
         test_sub("subtest %d", ++subnum);
         fsshrink(s);
         if (!fs_validate(logfile, &s) )
             return logacterr( fsfree(s), TEST_FAILED, "Validation's failed");
-        fs_techfprint(logfile, &s);
+        fstechfprint(logfile, s);
 
         fsfree(s);
     }

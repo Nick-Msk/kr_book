@@ -212,10 +212,13 @@ static inline fs             fs_reverse(fs str){
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
-extern int                   fs_techfprint(FILE *restrict out, const fs *restrict s);
-static inline int            fs_techprint(const fs *s){
-    return fs_techfprint(stdout, s);
+extern int                   fs_techfprint(FILE *restrict out, const fs *restrict s, const char *name);
+static inline int            fs_techprint(const fs *s, const char *name){
+    return fs_techfprint(stdout, s, name);
 }
+
+#define                      fstechfprint(out, s) fs_techfprint((out), &(s), #s)
+#define                      fstechprint(s) fs_techfprint(&(s), #s)
 
 extern bool                  fs_validate(FILE *restrict out, const fs *restrict s);
 

@@ -52,7 +52,16 @@ static inline fsiterrev     fseachrev(fs s){
 // new iterator, it's assumed str is initialized as heap!
 static inline fsnew         fsinew(fs *str){
     // fs_init
+    if (!fs_alloc(str) )
+        userraiseint(11, "Can't create build iterator to non-heap fs");
     return (fsnew){.pos = 0, .s = str};
+}
+
+// new appent iterator, it's assumed str is initialized as heap!
+static inline fsnew         fsiapp(fs *str){
+    if (!fs_alloc(str) )
+        userraiseint(11, "Can't create build iterator to non-heap fs");
+    return (fsnew){.pos = str->len, .s = str};
 }
 
 // ++ slice, TODO: rev slice
