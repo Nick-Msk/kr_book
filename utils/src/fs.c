@@ -143,7 +143,7 @@ static inline int                      attach(int pos, char *v){
 
 // only for FS_FLAG_ALLOC
 static fs                       increasesize(fs *s, int newsz, bool init){
-    logenter("newsz %d, init %s v %p, is alloc? %s", newsz, bool_str(init), s->v, bool_str(fs_alloc(s)) );
+    logenter("oldsz %d, newsz %d, init %s v %p, is alloc? %s", s->sz, newsz, bool_str(init), s->v, bool_str(fs_alloc(s)) );
     if (fs_alloc(s) ){
         if (init)
             newsz = calcnewsize(newsz);
@@ -483,6 +483,41 @@ tf4(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
+// ------------------------- TEST 5 ---------------------------------
+
+static TestStatus
+tf5(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+    {
+        test_sub("subtest %d: fscpy()", ++subnum);
+
+        const char  arr1[] = "q123456";
+        const char  arr2[] = "zxcvbnm901";
+        fs          s1 = fscopy(arr1);
+        fs          s2 = fsliteral(arr2);
+
+        fscpy(s1, s2);
+        fstechfprint(logfile, s1);
+        if (fslen(s1) != fslen(s2) )
+            return logacterr( fsfree(s1), TEST_FAILED, "len s2 = %d must be equal s1 = %d ", fslen(s2), fslen(s1) );
+        if (fscmp(s1, s2) != 0)
+            return logacterr( fsfree(s1), TEST_FAILED, "%s not equal to %s", fsstr(s1), fsstr(s2) );
+
+        test_sub("subtest %d: fscpy()", ++subnum);
+
+        fscpystr(s1, arr1);
+        if (fslen(s1) != (int)strlen(arr1) )
+            return logacterr( fsfree(s1), TEST_FAILED, "len s2 = %lu must be equal s1 = %d ",strlen(arr1), fslen(s1) );
+        if (strcmp(fsstr(s1), arr1) != 0)
+            return logacterr( fsfree(s1), TEST_FAILED, "%s not equal to %s", fsstr(s1), arr1);
+
+        fsfree(s1);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
 // ------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -499,6 +534,7 @@ main(int argc, const char *argv[])
       , testnew(.f2 = tf2, .num = 2, .name = "Access read/write test"        , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf3, .num = 3, .name = "Elem() test"                   , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf4, .num = 4, .name = "fs_cat/fs_catstr test"         , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf5, .num = 5, .name = "fs_cpy/fs_cpystr test"         , .desc=""                , .mandatory=true)
     );
 
     logclose("end...");

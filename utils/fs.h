@@ -174,7 +174,7 @@ static inline char          *fs_str(fs *s){
     return s->v;
 }
 
-static inline const char    *fs_strcopy(fs *s){
+static inline const char    *fs_strdup(fs *s){
     return (const char *) strdup(s->v);
 }
 
@@ -203,6 +203,16 @@ static inline fs             fs_catstr(fs *restrict target, const char *restrict
     return fs_cat(target, l);
 }
 
+static inline fs             fs_cpy(fs *target, fs source){
+    target->len = 0;
+    return fs_cat(target, source);
+}
+
+static inline fs             fs_cpystr(fs *restrict target, const char *restrict source){
+    fs l = fsliteral(source);
+    return fs_cpy(target, l);
+}
+
 #define                      get(s, pos) *fs_get(&(s), (pos) )
 #define                      getv(s) (s.v)
 #define                      elem(s, pos) *fs_elem( &(s), (pos) )
@@ -218,6 +228,9 @@ static inline fs             fs_catstr(fs *restrict target, const char *restrict
 
 #define                      fscat(t, s) fs_cat(&(t), s)
 #define                      fscatstr(t, s) fs_catstr(&(t), s)
+
+#define                      fscpy(t, s) fs_cpy(&(t), s)
+#define                      fscpystr(t, s) fs_cpystr(&(t), s)
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
