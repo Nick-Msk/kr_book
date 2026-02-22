@@ -466,6 +466,17 @@ tf4(const char *name)
             return logacterr( fsfree(s1), TEST_FAILED, "[%s] must have [%s] on position %d", fsstr(s1), arr3, len1 );
         if (strstr(fsstr(s1), arr1) != fsstr(s1) )  // the same test like in subtest 1
             return logacterr( fsfree(s1), TEST_FAILED, "[%s] must start from [%s]", fsstr(s1), arr1);
+
+        test_sub("subtest %d: fscat() with empty initial test", ++subnum);
+        {
+            fs s3 = fscopy("");
+            fstechfprint(logfile, s3);   // for manual
+            fscat(s3, s2);
+            if (fslen(s3) != fslen(s2) )
+                return logacterr( (fsfree(s1), fsfree(s3) ), TEST_FAILED, "len s3 = %d must be equal s2 = %d ", fslen(s3), fslen(s2) );
+            if (fscmp(s3, s2) != 0)
+                return logacterr( (fsfree(s1), fsfree(s3) ), TEST_FAILED, "%s not equal to %s", fsstr(s3), fsstr(s2) );
+        }
         fsfree(s1);
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED
