@@ -32,7 +32,7 @@ toktype           gettoken(Token *t){
     int   c, p = 0;
     while ( (c = getch()) == ' ' || c == '\t')
         ;
-    logauto(c);
+    logauto((char)c);
     if (c == '(') {
         if ( (c = getch()) == ')'){
             fscatstr(t->value, "()");
@@ -45,7 +45,7 @@ toktype           gettoken(Token *t){
             p = 0;
             for (elem(t->value, p++) = c; (elem(t->value, p++) = getch() ) != ']'; )  // OMG
                 ;
-            fsend(t->value, p); // impossible just to to elemIO = '\0';
+            fsend(t->value, p); // impossible just to to elem() = '\0';
             t->typ = BRACKETS;
     } else if (isalpha(c) ) {
         p = 0;

@@ -37,8 +37,10 @@ static int              parse_keys(const char *argv[], Keys *ke){
                     }
                 break;
                 case 'f':
-                    ke->filename = (char *) argv[0];        // save pointer
-                    argv[0] += strlen(argv[0] - 1);
+                    ke->filename = (char *) argv[0] + 1;        // save pointer
+                    logauto(ke->filename);
+                    logauto(strlen(argv[0]));
+                    argv[0] += strlen(argv[0]) - 1;
                     params++;
                 break;
                 default:    // probaly it's possible to ignore unknows parameters
@@ -51,19 +53,22 @@ static int              parse_keys(const char *argv[], Keys *ke){
 
 // parser, f must be opened for read
 static int        parse(FILE *f){
-    Token   t;
+    Token   t  = {.value = fsinit(100)};
     int     cnt = 0;
     fs      out = fsinit(100);
     buffer_set(f);
 
     fs      datatype = fsinit(100);
     while (gettoken(&t) != TOKEOF){
-        datatype = fsclone(t.value); // from Token
+        fscpy(datatype, t.value);  // just copy from one fs to another
+        //fsclone(t.value); // This is create the new fs!
+        fsend(out, 0);
         dcl(&out, &t);
         if (t.typ != '\n')
             fprintf(stderr, "SYntax error\n");
         printf("%s: %s %s\n",  fsstr(t.value), fsstr(out), fsstr(datatype) );
     }
+    fsfreeall(&datatype, &t.value, &out);
     return cnt; // empty for now
 }
 
@@ -73,7 +78,6 @@ int                     main(int argc, const char *argv[]){
     static const char *logfilename = "log/"__FILE__".log";
     loginit(logfilename, false, 0, "Start");    // TODO: rework that to LOG("logdir") or LOGAPPEND("logdir") or LOGSWITCH("logdir")
 
-    logmsg("...");
     Keys ke = Keysinit();
     argc = parse_keys(argv, &ke);
 
@@ -82,7 +86,7 @@ int                     main(int argc, const char *argv[]){
         return 1;
     }
     if (ke.version){
-        printf("%s KR parse task p5.13\n", __FILE__);
+        printf("%s KR parse task p5.12\n", __FILE__);
         printf(usage_str, *argv);
         return 0;
     }
