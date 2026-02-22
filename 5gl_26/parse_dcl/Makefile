@@ -4,7 +4,7 @@ CFLAGS= -I../../utils -Isrc/ -Wall -Wextra -std=gnu11 -g -O0 -Wno-gnu-folding-co
 LDFLAGS=
 LDLIBS=
 
-parse_dcl: src/parse_dcl.c lib/log.o lib/common.o lib/checker.o lib/dcl.o lib/token.o
+parse_dcl: src/parse_dcl.c lib/log.o lib/common.o lib/checker.o lib/dcl.o lib/token.o lib/fs.o lib/buffer.o lib/error.o 
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 parse_dcl.o: src/parse_dcl.c
@@ -56,6 +56,9 @@ lib/buffer.o:
 	cd $(UTIL_PATH) && $(MAKE) buffer.o
 	@cp $(UTIL_PATH)/lib/buffer.o lib/
 
+lib/fs.o:
+	cd $(UTIL_PATH) && $(MAKE) fs.o
+	@cp $(UTIL_PATH)/lib/fs.o lib/
 
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:

@@ -8,7 +8,7 @@
 #include "checker.h"
 #include "bool.h"
 #include "fs.h"
-#include "dlc.h"
+#include "dcl.h"
 #include "buffer.h"
 
 typedef struct Keys {
@@ -59,7 +59,7 @@ static int        parse(FILE *f){
     fs      datatype = fsinit(100);
     while (gettoken(&t) != TOKEOF){
         datatype = fsclone(t.value); // from Token
-        t = dlc(&out, &t);
+        dcl(&out, &t);
         if (t.typ != '\n')
             fprintf(stderr, "SYntax error\n");
         printf("%s: %s %s\n",  fsstr(t.value), fsstr(out), fsstr(datatype) );
@@ -73,6 +73,7 @@ int                     main(int argc, const char *argv[]){
     static const char *logfilename = "log/"__FILE__".log";
     loginit(logfilename, false, 0, "Start");    // TODO: rework that to LOG("logdir") or LOGAPPEND("logdir") or LOGSWITCH("logdir")
 
+    logmsg("...");
     Keys ke = Keysinit();
     argc = parse_keys(argv, &ke);
 

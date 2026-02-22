@@ -2,19 +2,19 @@
 #include "fs.h"
 
 void            dcl(fs *res, Token *curr){
-    logenter("res [%s]", fsstr(*res) );
+    logenter("res [%s]", fsstr(res) );
     int ns = 0;
     while (gettoken(curr) == (toktype) '*')
         ns++;
     dirdcl(res, curr);
     while (ns-- > 0)
         fs_catstr(res, " pointer to ");
-    logret(0, "res [%s]", fsstr(*res) );
+    logleave("res [%s]", fsstr(res) );
 }
 
 
 void            dirdcl(fs *res, Token *curr){
-    logenter("res [%s], tok [%s]:[%s]", fsstr(*res), toktype_str(curr->typ), fsstr(curr->value) );
+    logenter("res [%s], tok [%s]:[%s]", fsstr(res), toktype_str(curr->typ), fsstr(curr->value) );
     toktype typ;
     if (curr->typ == '('){
         dcl(res, curr);
@@ -33,6 +33,6 @@ void            dirdcl(fs *res, Token *curr){
             fs_cat(res, curr->value);
             fs_catstr(res, " of");
         }
-    logret(0, "res [%s], tok [%s]:[%s]", fsstr(*res), toktype_str(curr->typ), fsstr(curr->value) );
+    logleave("res [%s], tok [%s]:[%s]", fsstr(res), toktype_str(curr->typ), fsstr(curr->value) );
 }
 
