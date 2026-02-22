@@ -196,7 +196,7 @@ fs                   *fs_resize(fs *s, int newsz){
 fs                      fs_cat(fs *target, fs source){
     int sumlen = target->len + source.len;
     if (target->sz <= sumlen) // sz must be at least len1 + len2 + 1
-        increasesize(target, sumlen + 1, false);
+        increasesize(target, sumlen + 1, true);
     memcpy(target->v + target->len, source.v, source.len + 1);   // with last '\0'
     target->len = sumlen;
     return *target;
@@ -472,6 +472,7 @@ tf4(const char *name)
             fs s3 = fscopy("");
             fstechfprint(logfile, s3);   // for manual
             fscat(s3, s2);
+            fstechfprint(logfile, s3);   // for manual
             if (fslen(s3) != fslen(s2) )
                 return logacterr( (fsfree(s1), fsfree(s3) ), TEST_FAILED, "len s3 = %d must be equal s2 = %d ", fslen(s3), fslen(s2) );
             if (fscmp(s3, s2) != 0)
