@@ -52,24 +52,30 @@ static int              parse_keys(const char *argv[], Keys *ke){
 }
 
 // parser, f must be opened for read
-static int        parse(FILE *f){
-    Token   t  = {.value = fsinit(100)};
-    int     cnt = 0;
-    fs      out = fsinit(100);
-    buffer_set(f);
+static void        parse(FILE *f){
 
-    fs      datatype = fsinit(100);
+    buffer_set(f);
+    Token   t           = {.value = fsinit(100)};
+    fs      out         = fsinit(100);
+    fs      name        = fsinit(100);
+    fs      datatype    = fsinit(100);
     while (gettoken(&t) != TOKEOF){
-        fscpy(datatype, t.value);  // just copy from one fs to another
+        if (t.typ == NAME)
+            fscpy(datatype, t.value);  // just copy from one fs to another
+        else {
+            fsfreeall(&datatype, &t.value, &out, &name);
+            fprintf(stderr, "should be datatype! but not %s", toktype_str(t.typ) );
+            userraiseint(101, "should be datatype! but not %s", toktype_str(t.typ) );
+        }
         //fsclone(t.value); // This is create the new fs!
         fsend(out, 0);
-        dcl(&out, &t);
+        dcl(&out, &name, &t);
         if (t.typ != '\n')
             fprintf(stderr, "SYntax error\n");
-        printf("%s: %s %s\n",  fsstr(t.value), fsstr(out), fsstr(datatype) );
+        printf("%s: %s %s\n",  fsstr(name), fsstr(out), fsstr(datatype) );
     }
-    fsfreeall(&datatype, &t.value, &out);
-    return cnt; // empty for now
+    fsfreeall(&datatype, &t.value, &out, &name);
+    return; // empty for now
 }
 
 const char *usage_str = "Usage: %s -ffilename\n";

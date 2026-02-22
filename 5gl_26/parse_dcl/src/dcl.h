@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include "token.h"
 
-void             dcl(fs *res, Token *curr);
-void             dirdcl(fs *res, Token *curr);
+void             dcl(fs *restrict res, fs *restrict name, Token *curr);
+void             dirdcl(fs *restrict res, fs *restrict name, Token *restrict curr);
 
 #endif /* !_DLC_H */

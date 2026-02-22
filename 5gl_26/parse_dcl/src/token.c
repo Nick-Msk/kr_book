@@ -13,7 +13,7 @@ typedef struct Token {
     toktype  typ;
     fs       value;
 } Token; */
-static              char buf[2] = {'\0', '\0'};
+static              char buf[3] = {'\0', '\0', '\0'};
 
 const char       *toktype_str(toktype t){
     switch (t) {
@@ -22,7 +22,10 @@ const char       *toktype_str(toktype t){
         CASE_RETURN(TOKEOF);
         CASE_RETURN(BRACKETS);
         default:
-            buf[0] = (char) t;
+            if ( (char) t != '\n')
+                buf[0] = (char) t, buf[1] = '\0';
+            else
+                buf[0] = '\\', buf[1] = 'n';
             return buf;
     }
 }
