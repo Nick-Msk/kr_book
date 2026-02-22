@@ -518,6 +518,26 @@ tf5(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
+// ------------------------- TEST 6 ---------------------------------
+
+static TestStatus
+tf6(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+    {
+        test_sub("subtest %d: fsfreeall", ++subnum);
+
+        fs i1 = fsinit(100);
+        fs i2 = fsinit(1000);
+        fs i3 = fsinit(10);
+        fsfreeall(&i1, &i2, &i3);
+        if (i1.v || i2.v || i3.v)
+            return logacterr( (fsfree(i1), fsfree(i2), fsfree(i3) ), TEST_FAILED, "Still not null");
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
 // ------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -535,6 +555,7 @@ main(int argc, const char *argv[])
       , testnew(.f2 = tf3, .num = 3, .name = "Elem() test"                   , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf4, .num = 4, .name = "fs_cat/fs_catstr test"         , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf5, .num = 5, .name = "fs_cpy/fs_cpystr test"         , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf6, .num = 6, .name = "fsfreeall test"                , .desc=""                , .mandatory=true)
     );
 
     logclose("end...");

@@ -91,6 +91,8 @@ static inline bool          fs_alloc(const fs*s){
 
 #define fsfree(s) fs_free(&(s))
 
+#define fsfreeall(...) fs_freeall( (fs *[]){__VA_ARGS__, 0} )
+
 // destructor, macro wrapper will be
 static inline void          fs_free(fs *s){
     if (fs_alloc(s)){
@@ -98,6 +100,14 @@ static inline void          fs_free(fs *s){
         s->sz = s->len = 0;
         s->v = 0;
     }
+}
+
+// mass destructor
+static inline void          fs_freeall(fs **arr){
+    fs  *s;
+    while ( (s = *arr++) )
+        if (s->v)
+            fs_free(s);
 }
 
 extern fs                   fsinit(int sz);
@@ -129,10 +139,10 @@ static inline fs            fsliteral(const char *lit){
 #if defined(FS_ALLOCATOR)
 // detach from allocator! Must be freed manually
 extern bool                 fsdetach(fs *s);
-#endif
 
 // free all allocated
 extern void                 fsfreeall(void);
+#endif
 
 // TODO: fs_const()
 
