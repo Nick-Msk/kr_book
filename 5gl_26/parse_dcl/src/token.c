@@ -30,32 +30,61 @@ const char       *toktype_str(toktype t){
     }
 }
 
+static inline char      tgetch(Token *t){
+    int c = getch();
+    if (c != '\n')
+        t->col++; // don't care about tab
+    else {
+        t->laststrsz = t->col;  // for WA
+        t->col = 1;
+        t->str++;
+    }
+    return c;
+}
+
+static inline void      tungetch(Token *t, int c){
+    if (c != '\n'){
+        if (t->col == 1)
+            fprintf(stderr, "Positiion error (col == 1)\n");
+        else
+            t->col--;
+    } else {
+        if (t->str == 1)
+            fprintf(stderr, "Positiion error (str == 1)\n");
+        else {
+            t->col = t->laststrsz;  // this is WA for the case when only 1 char can be returned
+            t->str--;
+        }
+    }
+    ungetch(c);
+}
+
 toktype           gettoken(Token *t){
     logenter("...");
-    int   c, p = 0;
-    while ( (c = getch()) == ' ' || c == '\t')
+    int     c, p = 0;
+    while ( (c = tgetch(t)) == ' ' || c == '\t')
         ;
-    logauto((char)c);
+    //logauto((char)c);
     if (c == '(') {
-        if ( (c = getch()) == ')'){
+        if ( (c = tgetch(t)) == ')'){
             fscatstr(t->value, "()");
             t->typ = PARENS;
         } else {
-            ungetch(c);
+            tungetch(t, c);
             t->typ = '(';
         }
     } else if (c == '['){
             p = 0;
-            for (elem(t->value, p++) = c; (elem(t->value, p++) = getch() ) != ']'; )  // OMG
+            for (elem(t->value, p++) = c; (elem(t->value, p++) = tgetch(t) ) != ']'; )  // OMG
                 ;
             fsend(t->value, p); // impossible just to to elem() = '\0';
             t->typ = BRACKETS;
     } else if (isalpha(c) ) {
         p = 0;
-        for (elem(t->value, p++) = c; isalnum(c = getch() ); )  // OMG
+        for (elem(t->value, p++) = c; isalnum(c = tgetch(t) ); )  // OMG
             elem(t->value, p++) = c;
         fsend(t->value, p); // set '\0' and len
-        ungetch(c);
+        tungetch(t, c);
         t->typ = NAME;
     } else
         t->typ = (char) c;

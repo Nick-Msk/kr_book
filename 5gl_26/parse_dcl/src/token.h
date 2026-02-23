@@ -10,7 +10,13 @@ typedef enum {
 typedef struct Token {
     toktype  typ;
     fs       value;
+    int      str, col, laststrsz;
 } Token;
+
+static inline Token       TokenInit(int sz){
+    Token t = (Token) {.str = 1, .col = 1, .laststrsz = 0, .typ = NAME, .value = fsinit(sz) };
+    return t;
+}
 
 extern toktype            gettoken(Token *t);
 
