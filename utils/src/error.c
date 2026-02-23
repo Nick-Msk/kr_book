@@ -443,7 +443,7 @@ tf7(const char *name)
 int
 main(int argc, char *argv[])
 {
-    LOG(const char *logfilename = "error.log");
+    LOG(const char *logfilename = "log/error.log");
 
     if (argc > 1)
         logfilename = argv[1];
