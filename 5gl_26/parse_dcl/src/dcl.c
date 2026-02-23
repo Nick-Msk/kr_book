@@ -1,37 +1,45 @@
 #include "dcl.h"
 #include "fs.h"
 
-void            dcl(fs *restrict res, fs *restrict name, Token *restrict curr){
-    logenter("res [%s]", fsstr(*res) );
-    int ns = 0;
-    while (gettoken(curr) == (toktype) '*')
-        ns++;
-    dirdcl(res, name, curr);
-    while (ns-- > 0)
-        fs_catstr(res, " pointer to ");
-    logret(0, "res [%s]", fsstr(*res) );
+ParseItem               ParseItemInit(int cnt){
+    ParseItem t = {.curr.value = fsinit(cnt), .name = fsinit(cnt), .res = fsinit(cnt), .datatype = fsinit(cnt) };
+    return t;
 }
 
+void                    ParseItemFree(ParseItem *p){
+    fsfreeall(&p->datatype, &p->curr.value, &p->res, &p->name);
+}
 
-void            dirdcl(fs *restrict res, fs *restrict name, Token *restrict curr){
-    logenter("res [%s], tok [%s]:[%s]", fsstr(*res), toktype_str(curr->typ), fsstr(curr->value) );
-    if (curr->typ == '('){
-        dcl(res, name, curr);
-        if (curr->typ != ')')
+void                    dcl(ParseItem *item){
+    logenter("res [%s]", fsstr(item->res) );
+    int ns = 0;
+    while (gettoken(&item->curr) == (toktype) '*')
+        ns++;
+    dirdcl(item);
+    while (ns-- > 0)
+        fs_catstr(&item->res, " pointer to ");
+    logret(0, "res [%s]", fsstr(item->res) );
+}
+
+void                    dirdcl(ParseItem *item){
+    logenter("res [%s], tok [%s]:[%s]", fsstr(item->res), toktype_str(item->curr.typ), fsstr(item->curr.value) );
+    if (item->curr.typ == '('){
+        dcl(item);
+        if (item->curr.typ != ')')
             fprintf(stderr, "Error: missign ')'\n");
     }
-    else if (curr->typ == NAME)
-        fs_cpy(name, curr->value);
+    else if (item->curr.typ == NAME)
+        fscpy(item->name, item->curr.value);
     else
         fprintf(stderr, "Expected name or dlc()\n");
-    while ( (curr->typ = gettoken(curr) ) == PARENS || curr->typ == BRACKETS)
-        if (curr->typ == PARENS)
-            fs_catstr(res, " function returning");
+    while ( (item->curr.typ = gettoken(&item->curr) ) == PARENS || item->curr.typ == BRACKETS)
+        if (item->curr.typ == PARENS)
+            fscatstr(item->res, " function returning");
         else {
-            fs_catstr(res, " array");
-            fs_cat(res, curr->value);
-            fs_catstr(res, " of");
+            fscatstr(item->res, " array");
+            fscat(item->res, item->curr.value);
+            fscatstr(item->res, " of");
         }
-    logret(0, "res [%s], tok [%s]:[%s]", fsstr(*res), toktype_str(curr->typ), fsstr(curr->value) );
+    logret(0, "res [%s], tok [%s]:[%s]", fsstr(item->res), toktype_str(item->curr.typ), fsstr(item->curr.value) );
 }
 

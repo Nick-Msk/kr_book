@@ -26,7 +26,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
         return logerr(-1, "Zero ke!!! Error!");
     char    c;
     while (*++argv != 0 && **argv == '-'){
-        logauto(*argv);
+        //logauto(*argv);
         argc++;
         while ( (c = *++argv[0]) )
             switch (tolower(c)){
@@ -39,7 +39,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
                 case 'f':
                     ke->filename = (char *) argv[0] + 1;        // save pointer
                     logauto(ke->filename);
-                    logauto(strlen(argv[0]));
+                    // logauto(strlen(argv[0]));
                     argv[0] += strlen(argv[0]) - 1;
                     params++;
                 break;
@@ -55,26 +55,27 @@ static int              parse_keys(const char *argv[], Keys *ke){
 static void        parse(FILE *f){
 
     buffer_set(f);
-    Token   t           = {.value = fsinit(100)};
+    /*Token   t           = {.value = fsinit(100)};
     fs      out         = fsinit(100);
     fs      name        = fsinit(100);
-    fs      datatype    = fsinit(100);
-    while (gettoken(&t) != TOKEOF){
-        if (t.typ == NAME)
-            fscpy(datatype, t.value);  // just copy from one fs to another
+    fs      datatype    = fsinit(100);*/
+    ParseItem item = ParseItemInit(100);
+    while (gettoken(&item.curr) != TOKEOF){
+        if (item.curr.typ == NAME)
+            fscpy(item.datatype, item.curr.value);  // just copy from one fs to another
         else {
-            fsfreeall(&datatype, &t.value, &out, &name);
-            fprintf(stderr, "should be datatype! but not %s", toktype_str(t.typ) );
-            userraiseint(101, "should be datatype! but not %s", toktype_str(t.typ) );
+            fprintf(stderr, "should be datatype! but not %s", toktype_str(item.curr.typ) );
+            ParseItemFree(&item);
+            userraiseint(101, "should be datatype! but not %s", toktype_str(item.curr.typ) );
         }
         //fsclone(t.value); // This is create the new fs!
-        fsend(out, 0);
-        dcl(&out, &name, &t);
-        if (t.typ != '\n')
+        fsend(item.res, 0);
+        dcl(&item);
+        if (item.curr.typ != '\n')
             fprintf(stderr, "SYntax error\n");
-        printf("%s: %s %s\n",  fsstr(name), fsstr(out), fsstr(datatype) );
+        printf("%s: %s %s\n",  fsstr(item.name), fsstr(item.res), fsstr(item.datatype) );
     }
-    fsfreeall(&datatype, &t.value, &out, &name);
+    ParseItemFree(&item);
     return; // empty for now
 }
 

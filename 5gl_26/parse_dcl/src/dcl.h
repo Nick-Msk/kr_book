@@ -4,7 +4,16 @@
 #include <stdio.h>
 #include "token.h"
 
-void             dcl(fs *restrict res, fs *restrict name, Token *curr);
-void             dirdcl(fs *restrict res, fs *restrict name, Token *restrict curr);
+typedef struct {
+    Token   curr;
+    fs      name;
+    fs      res;
+    fs      datatype;
+} ParseItem;
+
+extern void             dcl(ParseItem *item);
+extern void             dirdcl(ParseItem *item);
+extern ParseItem        ParseItemInit(int cnt);
+extern void             ParseItemFree(ParseItem *p);
 
 #endif /* !_DLC_H */
