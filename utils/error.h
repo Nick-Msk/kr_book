@@ -1,5 +1,5 @@
-#ifndef ERROR_H
-#define ERROR_H
+#ifndef _ERROR_H
+#define _ERROR_H
 // ---------------------------------------------------------------------------------
 // --------------------------- Public Error API ------------------------------------
 // ---------------------------------------------------------------------------------
@@ -145,6 +145,8 @@ sig_str_desc(int signal)
 
 #define errsethandler()												err_sethandler(0)
 
+// TODO: #define try try()
+
 // NOT sure aboud 9999, probably better to raise SIGTERM/SIGSTOP
 #define try() ({\
 	int res;\
@@ -206,5 +208,5 @@ sig_str_desc(int signal)
 // system with exception (interrupt)
 #define sysraiseint(msg, ...)										_sysraisesig(0, SIGINT								, msg, ##__VA_ARGS__)
 
-#endif /* !ERROR_H */
+#endif /* !_ERROR_H */
 

@@ -87,7 +87,7 @@ err_increase(void)
 }
 
 // put new error at the top of error stack
-// TODO: refactor here! переделать, без faststring, для помощи fs
+// TODO: refactor here! переделать, с помощью fs
 static void
 err_put(ErrorType tp, int errcode, const char *msg, va_list ap)
 {
@@ -131,15 +131,17 @@ err_default_handler(int sig)
     logsimple("HANDLER %d", sig);
     if (!errenv.init_flag)
     {
-        logsimple(0, "Env buffer is empty");
+        logsimple("Env buffer is empty");
 		if (sig == SIGINT)
-			logsimple(0, "No env buffer - just working as igrone SIGINT");
+			logsimple("No env buffer - just working as igrone SIGINT");
 		else {
 			logsimpleerr(0, "terminating SIGSTOP");
         	raise(SIGSTOP);
 		}
-    } else
+    } else {
+        logsimple("make a longjmp... init flag %s, code %d", bool_str(errenv.init_flag), ERR_DEFHANDLER_JUMP_CODE);
     	longjmp(errenv.env, ERR_DEFHANDLER_JUMP_CODE);
+    }
 }
 
 // -------------------------- (Utility) printers -------------------
@@ -398,10 +400,11 @@ tf6(const char *name)
 	if (!errsethandler())
 		return logerr(TEST_FAILED, "Unable to setup handler");
 
-	// 35 as errcode
-	userraiseint(35, "Raising smth");
-
-	err_printstacktrace();
+    if (!try() ){
+	    // 35 as errcode
+	    userraiseint(35, "Raising smth");
+    } else
+	    err_printstacktrace();
 
 	err_clean(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED
@@ -441,14 +444,10 @@ tf7(const char *name)
 
 // ------------------------------------------------------------------
 int
-main(int argc, char *argv[])
+main( /*int argc, const char *argv[]*/ )
 {
-    LOG(const char *logfilename = "log/error.log");
-
-    if (argc > 1)
-        logfilename = argv[1];
-
-    loginit(logfilename, false,  0, "Starting");
+    LOG("log");
+    //logsimpleinit("Start");
 
         testenginestd(
             testnew(.f2 = tf1, .num = 1, .name = "Bare err_raise test"		, .desc = "Bare err_raise test (w/o wrapper)."				, .mandatory=true)
