@@ -79,8 +79,9 @@ static void        parse(FILE *f){
 const char *usage_str = "Usage: %s -ffilename\n";
 
 int                     main(int argc, const char *argv[]){
-    static const char *logfilename = "log/"__FILE__".log";
-    loginit(logfilename, false, 0, "Start");    // TODO: rework that to LOG("logdir") or LOGAPPEND("logdir") or LOGSWITCH("logdir")
+    //static const char *logfilename = "log/"__FILE__".log";
+    //loginit(logfilename, false, 0, "Start");    // TODO: rework that to LOG("logdir") or LOGAPPEND("logdir") or LOGSWITCH("logdir")
+    logsimpleinit("Start");
 
     Keys ke = Keysinit();
     argc = parse_keys(argv, &ke);
