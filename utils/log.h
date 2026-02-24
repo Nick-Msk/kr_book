@@ -297,10 +297,11 @@ log_numbers(LogAction            act,
     logsimpleinitdir(log, (fmt), ##__VA_ARGS__)
 
 #define LOG(dirname)\
-    loginit(#dirname"/"__FILE__".log", false, 0, "Start logging")
+    loginit(dirname"/"__FILE__".log", false, 0, "Start logging (cut)")
 
+// not working preporly for now
 #define LOGAPPEND(dirname)\
-    loginit(#dirname"/"__FILE__".log", true, 0, "Start logging")
+    loginit(dirname"/"__FILE__".log", true, 0, "Start logging (append)")
 
 #define logclose(fmt, ...) \
 	{ int _LG_INIT = logret(0, (fmt), ##__VA_ARGS__); \
