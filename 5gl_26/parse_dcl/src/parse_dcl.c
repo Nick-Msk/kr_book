@@ -79,8 +79,6 @@ static void        parse(FILE *f){
 const char *usage_str = "Usage: %s -ffilename\n";
 
 int                     main(int argc, const char *argv[]){
-    //static const char *logfilename = "log/"__FILE__".log";
-    //loginit(logfilename, false, 0, "Start");    // TODO: rework that to LOG("logdir") or LOGAPPEND("logdir") or LOGSWITCH("logdir")
     logsimpleinit("Start");
 
     Keys ke = Keysinit();
@@ -103,8 +101,15 @@ int                     main(int argc, const char *argv[]){
         perror("Unable to open file");     // TODO: inject perror into sysraise
         sysraiseint("Unable to open file %s\n", ke.filename);
     }
-    parse(f);
 
+    if (!errsethandler())   // WHAT THAT FOR???? it this is required that should be in try {} block
+         return logerr(2, "Unable to setup handler");
+    if (!try() ){
+        parse(f);
+    } else {
+        logmsg("Error while parsing");
+        err_fprintstacktrace(stderr);
+    }
     fclose(f);
     logclose("...");
     return 0;
