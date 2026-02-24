@@ -290,11 +290,20 @@ log_numbers(LogAction            act,
 	loginits((logname), (append), LOG_FORMAT_ONLY_FUNC, (modules), (fmt), ##__VA_ARGS__)
 
 // simplified init
+#define logsimpleinitdir(dirname, fmt, ...)\
+	loginit(#dirname"/"__FILE__".log", false, 0, (fmt), ##__VA_ARGS__)
+// simplified init
 #define logsimpleinit(fmt, ...)\
-	loginit(__FILE__".log", false, 0, (fmt), ##__VA_ARGS__)
+    logsimpleinitdir(log, (fmt), ##__VA_ARGS__)
+
+#define LOG(dirname)\
+    loginit(#dirname"/"__FILE__".log", false, 0, "Start logging")
+
+#define LOGAPPEND(dirname)\
+    loginit(#dirname"/"__FILE__".log", true, 0, "Start logging")
 
 #define logclose(fmt, ...) \
-	{ int _LG_INIT = logret(0, fmt, ##__VA_ARGS__); \
+	{ int _LG_INIT = logret(0, (fmt), ##__VA_ARGS__); \
       log_close(); \
 	  _LG_INIT; }
 
@@ -306,7 +315,7 @@ log_numbers(LogAction            act,
 #define logon()								log_prog_switch(true)
 
 // can be variable definition and so on
-#define LOG(...)							__VA_ARGS__;
+//#define LOG(...)							__VA_ARGS__;
 // ACTION must be expresstion of simple type (for example: i++ )
 #define LOGAUTO(ACTION)						{ logauto(ACTION); }
 
@@ -320,6 +329,8 @@ log_numbers(LogAction            act,
 
 #define loginit(...)						(false)				// in NOBEBUG mode result is false
 #define logclose(...)						(0)
+#define logsimpleinitdir(...)
+#define logsimpleinit(...)
 //
 #define logmsg(...)	 						(0)
 #define logmsg_ap(...)						({ va_end(ap); 0; })
@@ -361,6 +372,7 @@ log_numbers(LogAction            act,
 #define	logon()								(void) (0)
 
 #define LOG(...)
+#define LOGAPPENT(...)
 #define LOGAUTO(ACTION)
 
 #endif /* !NODEBUG */
