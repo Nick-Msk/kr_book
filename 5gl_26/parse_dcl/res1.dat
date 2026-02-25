@@ -1,3 +1,4 @@
-const char **argv
+char **argv
 int (*daytab)[13]
-int (*comp)()
+int (*comp)(int)
+char (*(*x[3])())[5]

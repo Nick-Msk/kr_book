@@ -16,7 +16,7 @@ int                     ParseItemfprintf(FILE *restrict f, ParseItem *restrict p
     if (p){
         res += fprintf(f, "ParseItem %s: ", name);
         res += Tokenfprint(f, p->curr);
-        //res += fsprints(f, name, res, datatype);   // print array of fs TODO:
+        //res += fsfprints(f, &p->name, &p->res, &p->datatype);   // print array of fs
         res += fsfprint(f, p->name) + fsfprint(f, p->res) + fsfprint(f, p->datatype);
         res += fprintf(f, "\n");
     }
