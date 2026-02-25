@@ -203,10 +203,28 @@ fs                      fs_cat(fs *target, fs source){
 }
 
 // -------------------------- (API) printers -----------------------
+// this is not limit!
+int                     fs_fprint(FILE *restrict out, const fs *restrict s, const char *restrict name){
+    int     cnt = 0;
+    if (s){
+        cnt = fprintf(out, "[%s: %s]", name, s->v);
+    }
+    return cnt;
+}
+
+// with  limit!
+int                     fs_fprintlim(FILE *restrict out, const fs *restrict s, const char *restrict name, int lim){
+    int     cnt = 0;
+    if (s){
+        cnt = fprintf(out, "[%s: %*s]", name, lim, s->v);
+    }
+    return cnt;
+}
+
 int                     fs_techfprint(FILE *restrict out, const fs *restrict s, const char *restrict name){
     // technical print, statis attributes for now
     int     cnt;
-    cnt = fprintf(out, "%s: len [%d], sz [%d], flags [%d], s [%p]=[", name, s->len, s->sz, s->flags, s->v);
+    cnt = fprintf(out, "FS: %s: len [%d], sz [%d], flags [%d], s [%p]=[", name, s->len, s->sz, s->flags, s->v);
     if (s->v){
         for (int i = 0; i < FS_TECH_PRINT_COUNT && i < s->len; i++)
              fputc(s->v[i], out), cnt++;
@@ -538,16 +556,31 @@ tf6(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
+// ------------------------- TEST 6 ---------------------------------
+
+static TestStatus
+tf7(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+    {
+        test_sub("subtest %d: fsprint MANUAL", ++subnum);
+
+        char    arr[] = "Hello, World from fs!\n";
+
+        fs s = fscopy(arr);
+        fsprint(s);
+
+        fsfree(s);
+    }
+    return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED
+}
+
 // ------------------------------------------------------------------
 int
-main(int argc, const char *argv[])
+main( /* int argc, const char *argv[] */)
 {
-    const char *logfilename = "log/fs.log";
-
-    loginit(logfilename, false, 0, "Starting");
-
-    if (argc > 1)
-        logfilename = argv[1];
+    logsimpleinit("Start");
 
     testenginestd(
         testnew(.f2 = tf1, .num = 1, .name = "Simple init and validate test" , .desc=""                , .mandatory=true)
@@ -556,6 +589,7 @@ main(int argc, const char *argv[])
       , testnew(.f2 = tf4, .num = 4, .name = "fs_cat/fs_catstr test"         , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf5, .num = 5, .name = "fs_cpy/fs_cpystr test"         , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf6, .num = 6, .name = "fsfreeall test"                , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf7, .num = 7, .name = "fsprint manualtest"            , .desc="always ok, for the manual check"                , .mandatory=true)
     );
 
     logclose("end...");

@@ -249,8 +249,16 @@ static inline int            fs_techprint(const fs *s, const char *name){
     return fs_techfprint(stdout, s, name);
 }
 
+extern int                   fs_fprint(FILE *restrict out, const fs *restrict s, const char *name);
+static inline int            fs_print(const fs *restrict s, const char *restrict name){
+    return fs_fprint(stdout, s, name);
+}
+
 #define                      fstechfprint(out, s) fs_techfprint((out), &(s), #s)
 #define                      fstechprint(s) fs_techfprint(&(s), #s)
+
+#define                      fsfprint(out, s) fs_fprint((out), &(s), #s)
+#define                      fsprint(s) fs_print(&(s), #s)
 
 extern bool                  fs_validate(FILE *restrict out, const fs *restrict s);
 
