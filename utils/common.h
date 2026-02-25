@@ -8,6 +8,8 @@
 				USEFUL MACRO AND FUNCTIONS
 ***************************************************************/
 
+static const int    G_GLOB_AVERAGE = INT_MAX;
+
 // universale comparator (for simple type cast in qsort)
 typedef int(*Comparator)(const void *, const void *);
 
