@@ -213,27 +213,24 @@ int                     fs_fprint(FILE *restrict out, const fs *restrict s, cons
 }
 
 // with  limit!
-int                     fs_fprintlim(FILE *restrict out, const fs *restrict s, const char *restrict name, int lim){
+int                     fs_fprintlim(FILE *restrict out, const fs *restrict s, int lim, const char *restrict name){
     int     cnt = 0;
     if (s){
-        cnt = fprintf(out, "[%s: %*s]", name, lim, s->v);
+        cnt = fprintf(out, "[%s: %.*s]", name, lim, s->v);
     }
     return cnt;
 }
 
 int                     fs_techfprint(FILE *restrict out, const fs *restrict s, const char *restrict name){
     // technical print, statis attributes for now
-    int     cnt;
-    cnt = fprintf(out, "FS: %s: len [%d], sz [%d], flags [%d], s [%p]=[", name, s->len, s->sz, s->flags, s->v);
-    if (s->v){
-        for (int i = 0; i < FS_TECH_PRINT_COUNT && i < s->len; i++)
-             fputc(s->v[i], out), cnt++;
+    int     cnt = 0;
+    int     len = MIN(FS_TECH_PRINT_COUNT, s->len);
+    if (s){
+        cnt += fprintf(out, "FS: %s: len [%d], sz [%d], flags [%d], s [%.*s", name, s->len, s->sz, s->flags, len, s->v);
         if (FS_TECH_PRINT_COUNT < s->len)
             cnt += fprintf(out, "...");
         cnt += fprintf(out, "]\n");
     }
-    else
-        cnt = fprintf(out, "]\n");
     return cnt;
 }
 
@@ -571,6 +568,10 @@ tf7(const char *name)
         fs s = fscopy(arr);
         fsprint(s);
 
+        int     lim = 3;
+        printf("Limit %d\n", lim);
+        fsprintlim(s, lim);
+
         fsfree(s);
     }
     return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED
@@ -589,7 +590,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf4, .num = 4, .name = "fs_cat/fs_catstr test"         , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf5, .num = 5, .name = "fs_cpy/fs_cpystr test"         , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf6, .num = 6, .name = "fsfreeall test"                , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf7, .num = 7, .name = "fsprint manualtest"            , .desc="always ok, for the manual check"                , .mandatory=true)
+      , testnew(.f2 = tf7, .num = 7, .name = "sprint/printlim manual test"   , .desc="always ok, for the manual check"                , .mandatory=true)
     );
 
     logclose("end...");
