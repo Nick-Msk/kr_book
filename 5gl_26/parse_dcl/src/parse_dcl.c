@@ -68,6 +68,7 @@ static void        parse(FILE *f){
         dcl(&item);
         if (item.curr.typ != '\n'){
             fprintf(stderr, "SYntax error at %d:%d\n", item.curr.str, item.curr.col);
+            ParseItemprint(item);
             userraiseint(101, "SYntax error at %d:%d\n", item.curr.str, item.curr.col);
         }
         printf("%s: %s %s\n",  fsstr(item.name), fsstr(item.res), fsstr(item.datatype) );

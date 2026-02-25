@@ -16,4 +16,14 @@ extern void             dirdcl(ParseItem *item);
 extern ParseItem        ParseItemInit(int cnt);
 extern void             ParseItemFree(ParseItem *p);
 
+// printers
+extern int              ParseItemfprintf(FILE *restrict f, ParseItem *restrict p, const char *restrict name);
+
+static inline int       ParseItemprintf(ParseItem *restrict p, const char *restrict name){
+    return ParseItemfprintf(stdout, p, name);
+}
+
+#define                 ParseItemfprint(out, p) ParseItemfprintf((out), &(p), #p)
+#define                 ParseItemprint(p) ParseItemprintf(&(p), #p)
+
 #endif /* !_DLC_H */

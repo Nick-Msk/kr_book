@@ -11,6 +11,18 @@ void                    ParseItemFree(ParseItem *p){
     fsfreeall(&p->datatype, &p->curr.value, &p->res, &p->name);
 }
 
+int                     ParseItemfprintf(FILE *restrict f, ParseItem *restrict p, const char *restrict name){
+    int     res = 0;
+    if (p){
+        res += fprintf(f, "ParseItem %s: ", name);
+        res += Tokenfprint(f, p->curr);
+        //res += fsprints(f, name, res, datatype);   // print array of fs TODO:
+        res += fsfprint(f, p->name) + fsfprint(f, p->res) + fsfprint(f, p->datatype);
+        res += fprintf(f, "\n");
+    }
+    return res;
+}
+
 void                    dcl(ParseItem *item){
     logenter("res [%s]", fsstr(item->res) );
     int ns = 0;
