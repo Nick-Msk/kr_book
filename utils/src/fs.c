@@ -221,6 +221,16 @@ int                     fs_fprintlim(FILE *restrict out, const fs *restrict s, i
     return cnt;
 }
 
+int                     fs_fprints(FILE *restrict out, const fs *restrict arr[]){
+    int cnt = 0, i = 0;
+    if (arr)
+        for (; arr[i] != 0 && i < G_GLOB_AVERAGE; i++) // G_GLOB_AVERAGE to avoid endless loop
+            cnt += fprintf(out, "[fs_arr_%d: %s]", i, arr[i]->v);
+    if (i == G_GLOB_AVERAGE)
+        logsimple("G_GLOB_AVERAGE's reached!!! %d", G_GLOB_AVERAGE);
+    return cnt;
+}
+
 int                     fs_techfprint(FILE *restrict out, const fs *restrict s, const char *restrict name){
     // technical print, statis attributes for now
     int     cnt = 0;
@@ -553,7 +563,7 @@ tf6(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
-// ------------------------- TEST 6 ---------------------------------
+// ------------------------- TEST 7 ---------------------------------
 
 static TestStatus
 tf7(const char *name)
@@ -577,6 +587,27 @@ tf7(const char *name)
     return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED
 }
 
+// ------------------------- TEST 8 ---------------------------------
+
+static TestStatus
+tf8(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+    {
+        test_sub("subtest %d: fsprints MANUAL", ++subnum);
+
+        fs s1 = fsliteral("123");
+        fs s2 = fsliteral("345");
+        fs s3 = fsliteral("67890");
+
+        fsprints(&s1, &s2, &s3);
+
+        fsfreeall(&s1, &s2, &s3);
+    }
+    return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED
+}
+
 // ------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -590,7 +621,8 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf4, .num = 4, .name = "fs_cat/fs_catstr test"         , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf5, .num = 5, .name = "fs_cpy/fs_cpystr test"         , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf6, .num = 6, .name = "fsfreeall test"                , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf7, .num = 7, .name = "sprint/printlim manual test"   , .desc="always ok, for the manual check"                , .mandatory=true)
+      , testnew(.f2 = tf7, .num = 7, .name = "fsprint/printlim manual test"  , .desc="always ok, for the manual check"                , .mandatory=true)
+      , testnew(.f2 = tf8, .num = 8, .name = "fsprints manual test"          , .desc="always ok, for the manual check"                , .mandatory=true)
     );
 
     logclose("end...");

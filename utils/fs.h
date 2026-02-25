@@ -259,6 +259,11 @@ static inline int            fs_printlim(const fs *restrict s, int lim, const ch
     return fs_fprintlim(stdout, s, lim, name);
 }
 
+extern int                   fs_fprints(FILE *restrict out, const fs *restrict arrs[]);
+static inline int            fs_prints(const fs *restrict arrs[]){
+    return fs_fprints(stdout, arrs);
+}
+
 #define                      fstechfprint(out, s) fs_techfprint( (out), &(s), #s)
 #define                      fstechprint(s) fs_techfprint( &(s), #s)
 
@@ -267,6 +272,9 @@ static inline int            fs_printlim(const fs *restrict s, int lim, const ch
 
 #define                      fsfprintlim(out, s, lim) fs_fprintlim( (out), &(s), (lim), #s)
 #define                      fsprintlim(s, lim) fs_printlim( &(s), lim, #s)
+
+#define                      fsfprints(out, ...) fs_fprints(out, (const fs *[]) { __VA_ARGS__, 0} )
+#define                      fsprints(...) fs_prints( (const fs *[]) { __VA_ARGS__, 0} )
 
 extern bool                  fs_validate(FILE *restrict out, const fs *restrict s);
 
