@@ -1,4 +1,6 @@
 char **argv
+int f()
+int f(long, float, char)
 int (*daytab)[13]
 int (*comp)(int)
 char (*(*x[3])())[5]

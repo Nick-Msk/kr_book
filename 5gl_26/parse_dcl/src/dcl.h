@@ -8,11 +8,10 @@ typedef struct {
     Token   curr;
     fs      name;
     fs      res;
-    fs      datatype;
+    fs      datatype;   // probably with modif
+    fs      listofargs;
 } ParseItem;
 
-extern void             dcl(ParseItem *item);
-extern void             dirdcl(ParseItem *item);
 extern void             parse(void);
 
 extern ParseItem        ParseItemInit(int cnt);

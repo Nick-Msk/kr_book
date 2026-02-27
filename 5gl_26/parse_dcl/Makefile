@@ -4,10 +4,10 @@ CFLAGS= -I../../utils -Isrc/ -Wall -Wextra -std=gnu11 -g -O0 -Wno-gnu-folding-co
 LDFLAGS=
 LDLIBS=
 
-parse_dcl: src/parse_dcl.c lib/log.o lib/common.o lib/checker.o lib/dcl.o lib/token.o lib/fs.o lib/buffer.o lib/error.o 
+parse_dcl: src/parse_dcl.c lib/log.o lib/common.o lib/checker.o lib/dcl.o lib/token.o lib/fs.o lib/buffer.o lib/error.o lib/fileutils.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-parse_dcl2: src/parse_dcl.c lib/log.o lib/common.o lib/checker.o lib/dcl2.o lib/token.o lib/fs.o lib/buffer.o lib/error.o 
+parse_dcl2: src/parse_dcl.c lib/log.o lib/common.o lib/checker.o lib/dcl2.o lib/token.o lib/fs.o lib/buffer.o lib/error.o lib/fileutils.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 parse_dcl.o: src/parse_dcl.c
@@ -51,9 +51,9 @@ lib/checker.o:
 	cd $(UTIL_PATH) && $(MAKE) checker.o
 	@cp $(UTIL_PATH)/lib/checker.o lib/
 
-lib/metric.o:
-	cd $(UTIL_PATH) && $(MAKE) metric.o
-	@cp $(UTIL_PATH)/lib/metric.o lib/
+lib/fileutils.o:
+	cd $(UTIL_PATH) && $(MAKE) fileutils.o
+	@cp $(UTIL_PATH)/lib/fileutils.o lib/
 
 lib/array.o:
 	cd $(UTIL_PATH) && $(MAKE) array.o

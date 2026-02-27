@@ -10,6 +10,7 @@
 #include "fs.h"
 #include "dcl.h"
 #include "buffer.h"
+#include "fileutils.h"
 
 typedef struct Keys {
     const char *    filename;
@@ -50,6 +51,15 @@ static int              parse_keys(const char *argv[], Keys *ke){
     return logret(argc, "params %d, argc %d", params, argc);
 }
 
+// TODO: move to fileutils.c
+int                     print_file(FILE *f){
+    fs s = readfs_file(f);
+    fstechprint(s);
+    int cnt = printf("%s", fsstr(s) );    // TODO: why don't use fs printer?
+    fsfree(s);
+    return cnt;
+}
+
 const char *usage_str = "Usage: %s -ffilename\n";
 
 int                     main(int argc, const char *argv[]){
@@ -82,6 +92,7 @@ int                     main(int argc, const char *argv[]){
 
     if (!try() ){
         parse();
+        print_file(f);
     } else {
         logmsg("Error while parsing");
         err_fprintstacktrace(stderr);

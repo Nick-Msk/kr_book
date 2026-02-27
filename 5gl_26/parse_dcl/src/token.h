@@ -4,7 +4,7 @@
 #include "fs.h"
 
 typedef enum {
-    NAME = 0, PARENS, BRACKETS, TOKEOF = EOF
+    TOK_NAME = 0, TOK_PARENS, TOK_BRACKETS, TOK_EOF = EOF
 } toktype;
 
 typedef struct Token {
@@ -14,7 +14,7 @@ typedef struct Token {
 } Token;
 
 static inline Token       TokenInit(int sz){
-    Token t = (Token) {.str = 1, .col = 1, .laststrsz = 0, .typ = NAME, .value = fsinit(sz) };
+    Token t = (Token) {.str = 1, .col = 1, .laststrsz = 0, .typ = TOK_NAME, .value = fsinit(sz) };
     return t;
 }
 

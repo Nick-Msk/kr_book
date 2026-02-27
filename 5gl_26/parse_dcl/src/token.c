@@ -3,24 +3,14 @@
 #include "fs.h"
 #include <ctype.h>
 
-// #include "fs_iter.h"
-
-/* typedef enum {
-    NAME = 0, PARENS, BRACKETS, TOKEOF = EOF 
-} toktype;
-
-typedef struct Token {
-    toktype  typ;
-    fs       value;
-} Token; */
 static              char buf[3] = {'\0', '\0', '\0'};
 
 const char       *toktype_str(toktype t){
     switch (t) {
-        CASE_RETURN(NAME);
-        CASE_RETURN(PARENS);
-        CASE_RETURN(TOKEOF);
-        CASE_RETURN(BRACKETS);
+        CASE_RETURN(TOK_NAME);
+        CASE_RETURN(TOK_PARENS);
+        CASE_RETURN(TOK_EOF);
+        CASE_RETURN(TOK_BRACKETS);
         default:
             if ( (char) t != '\n')
                 buf[0] = (char) t, buf[1] = '\0';
@@ -68,7 +58,7 @@ toktype           gettoken(Token *t){
     if (c == '(') {
         if ( (c = tgetch(t)) == ')'){
             fscatstr(t->value, "()");
-            t->typ = PARENS;
+            t->typ = TOK_PARENS;
         } else {
             tungetch(t, c);
             t->typ = '(';
@@ -78,14 +68,14 @@ toktype           gettoken(Token *t){
             for (elem(t->value, p++) = c; (elem(t->value, p++) = tgetch(t) ) != ']'; )  // OMG
                 ;
             fsend(t->value, p); // impossible just to to elem() = '\0';
-            t->typ = BRACKETS;
+            t->typ = TOK_BRACKETS;
     } else if (isalpha(c) ) {
         p = 0;
         for (elem(t->value, p++) = c; isalnum(c = tgetch(t) ); )  // OMG
             elem(t->value, p++) = c;
         fsend(t->value, p); // set '\0' and len
         tungetch(t, c);
-        t->typ = NAME;
+        t->typ = TOK_NAME;
     } else
         t->typ = (char) c;
 
