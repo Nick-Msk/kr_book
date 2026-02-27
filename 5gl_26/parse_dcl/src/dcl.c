@@ -97,7 +97,9 @@ int                     ParseItemfprintf(FILE *restrict f, ParseItem *restrict p
 }
 
 void                     parse(void){
-    ParseItem item = ParseItemInit(100);
+
+    int         numline = 0;
+    ParseItem   item = ParseItemInit(100);
     while (gettoken(&item.curr) != TOK_EOF){
         if (item.curr.typ == TOK_NAME)
             fscpy(item.datatype, item.curr.value);  // just copy from one fs to another
@@ -115,7 +117,7 @@ void                     parse(void){
             ParseItemprint(item);
             userraiseint(101, "SYntax error at %d:%d\n", item.curr.str, item.curr.col);
         }
-        printf("%s: ",  fsstr(item.name));
+        printf("%d: %s: ", numline++, fsstr(item.name));
         //if (fslen(item.listofargs) > 0)
           //  printf("(%s) ", fsstr(item.listofargs) );
         printf("%s %s\n", fsstr(item.res), fsstr(item.datatype) );

@@ -53,8 +53,8 @@ static int              parse_keys(const char *argv[], Keys *ke){
 
 // TODO: move to fileutils.c
 int                     print_file(FILE *f){
+    rewind(f);
     fs s = readfs_file(f);
-    fstechprint(s);
     int cnt = printf("%s", fsstr(s) );    // TODO: why don't use fs printer?
     fsfree(s);
     return cnt;
