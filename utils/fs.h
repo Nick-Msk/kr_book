@@ -265,7 +265,7 @@ static inline int            fs_prints(const fs *restrict arrs[]){
 }
 
 #define                      fstechfprint(out, s) fs_techfprint( (out), &(s), #s)
-#define                      fstechprint(s) fs_techfprint( &(s), #s)
+#define                      fstechprint(s) fs_techprint( &(s), #s)
 
 #define                      fsfprint(out, s) fs_fprint( (out), &(s), #s)
 #define                      fsprint(s) fs_print( &(s), #s)
