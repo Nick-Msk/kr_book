@@ -7,6 +7,9 @@ LDLIBS=
 parse_dcl: src/parse_dcl.c lib/log.o lib/common.o lib/checker.o lib/dcl.o lib/token.o lib/fs.o lib/buffer.o lib/error.o 
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+parse_dcl2: src/parse_dcl.c lib/log.o lib/common.o lib/checker.o lib/dcl2.o lib/token.o lib/fs.o lib/buffer.o lib/error.o 
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 parse_dcl.o: src/parse_dcl.c
 	$(CC) $(CFLAGS)  $^ -c
 
@@ -16,6 +19,10 @@ parse_dcl.o: src/parse_dcl.c
 lib/dcl.o: src/dcl.c
 	$(CC) $(CFLAGS)  $^ -c
 	@mv dcl.o lib/
+
+lib/dcl2.o: src/dcl2.c
+	$(CC) $(CFLAGS)  $^ -c
+	@mv dcl2.o lib/
 
 lib/token.o: src/token.c
 	$(CC) $(CFLAGS)  $^ -c

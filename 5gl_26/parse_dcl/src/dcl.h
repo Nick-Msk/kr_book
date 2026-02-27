@@ -13,6 +13,8 @@ typedef struct {
 
 extern void             dcl(ParseItem *item);
 extern void             dirdcl(ParseItem *item);
+extern void             parse(void);
+
 extern ParseItem        ParseItemInit(int cnt);
 extern void             ParseItemFree(ParseItem *p);
 
