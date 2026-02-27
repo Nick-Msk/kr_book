@@ -21,7 +21,7 @@ static inline int               getline_fs(fs *str){
 
 extern fs                       readfs_file(FILE *f);
 
-// read all (if maxline == -1 or maxline) lines separately into fs[]
+// read all lines separately into fs[]
 extern int                      freadlines(FILE *restrict f, fs **restrict lines);
 
 static inline int               readlines(fs **lines){
