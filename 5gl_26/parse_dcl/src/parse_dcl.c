@@ -51,25 +51,6 @@ static int              parse_keys(const char *argv[], Keys *ke){
     return logret(argc, "params %d, argc %d", params, argc);
 }
 
-// TODO: move to fileutils.c
-int                     print_file(FILE *f){
-    rewind(f);
-
-    int     cnt = 0, i = 0;
-    fs     *strs;   // no need to init!
-    if (freadlines(f, &strs) <= 0)
-        return logsimpleerr(-1, "Unable to read source");
-
-    cnt += printf("Origin:\n");
-    while (strs[i].v != 0){
-        cnt += printf("%s", fsstr(strs[i]) );
-        fs_free(&strs[i++]);
-    }
-    //fs_freeall(&strs);   // last fs containts v==0x0
-
-    return logsimpleret(cnt, "Read %d", cnt);
-}
-
 const char *usage_str = "Usage: %s -ffilename\n";
 
 int                     main(int argc, const char *argv[]){
@@ -102,7 +83,8 @@ int                     main(int argc, const char *argv[]){
 
     if (!try() ){
         parse();
-        print_file(f);
+        rewind(f);
+        fprint_file(f);
     } else {
         logmsg("Error while parsing");
         err_fprintstacktrace(stderr);
