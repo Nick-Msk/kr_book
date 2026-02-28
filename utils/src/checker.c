@@ -49,7 +49,7 @@ int                     inv_fprintf_int(FILE *restrict out, const char *restrict
 // -------------------------------Testing --------------------------
 #ifdef CHECKERTESTING
 
-#include "testing.h"
+#include "test.h"
 #include <signal.h>
 
 //types for testing
@@ -67,12 +67,12 @@ sugnal_handler_simple_print(int sig)
 // ------------------------- TEST 1 ---------------------------------
 // Simple invariant text
 
-static int
-tf1(void *restrict data)
+static TestStatus
+tf1(const char *name)
 {
-	int     get_sig_prev = g_get_sig;
-    logenter("%p", data);
+    logenter("%s", name);
 
+	int     get_sig_prev = g_get_sig;
 	inv(2 + 2 == 4, "Simple 2+2 test");
 
 	logmsg("Set up interrupt for SIGINT");
@@ -91,12 +91,12 @@ tf1(void *restrict data)
 // ------------------------- TEST 2 ---------------------------------
 // Complex invariant test
 
-static int
-tf2(void *restrict data)
+static TestStatus
+tf2(const char *name)
 {
-	int		get_sig_prev = g_get_sig;
-	logenter("%p", data);
+	logenter("%s", name);
 
+	int		get_sig_prev = g_get_sig;
 	inv2(2 + 7, 9, "Inv 1 (2+7==9)");
 
 	if (signal(SIGINT, sugnal_handler_simple_print) == SIG_ERR)
