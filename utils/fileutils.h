@@ -39,6 +39,8 @@ static inline int               writelines(const fs *lines, int cnt){
 
 extern void                     freelines(fs *lineptr, int nlines);
 
+extern int                      fprint_file(FILE *f);
+
 // simpe file reader, must call free(s); after usage!!
 extern char                     *read_from_file(FILE *f, int *p_cnt);
 

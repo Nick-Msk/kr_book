@@ -102,6 +102,22 @@ void                            freelines(fs *lineptr, int nlines){
         fs_free(lineptr++);
 }
 
+int                             fprint_file(FILE *f){
+
+    int     cnt = 0, i = 0;
+    fs     *strs;   // no need to init!
+    if (freadlines(f, &strs) <= 0)     // TODO: use fs_array instread
+        return logsimpleerr(-1, "Unable to read source");
+
+    cnt += printf("Origin:\n");
+    while (strs[i].v != 0){
+        cnt += printf("%s", fsstr(strs[i]) );
+        fs_free(&strs[i++]);
+    }
+
+    return logsimpleret(cnt, "Read %d", cnt);
+}
+
 char                           *read_from_file(FILE *f, int *p_cnt){
     logenter("read from input (%p)", f);
     int      sz = 1024, len, pos = 0, cnt = sz;
@@ -276,6 +292,21 @@ tf3(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
+// ------------------------- TEST 4 ---------------------------------
+
+static TestStatus
+tf4(const char *name)
+{
+    logenter("%s", name);
+    TFILE   tf;
+
+    int         subnum = 0;
+    {
+        // TODO:
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED TEST_MANUAL ???
+}
+
 // -------------------------------------------------------------------
 
 int
@@ -292,6 +323,7 @@ main( /*int argc, const char *argv[] */ )
         testnew(.f2 = tf1, .num = 1, .name = "Getline_fs() simple test",                .desc = "", .mandatory=true)
       , testnew(.f2 = tf2, .num = 2, .name = "Readfs_file() simple test",               .desc = "", .mandatory=true)
       , testnew(.f2 = tf3, .num = 3, .name = "Realline/writeline simple test",          .desc = "", .mandatory=true)
+      , testnew(.f2 = tf4, .num = 4, .name = "Fprint_file test",                        .desc = "", .mandatory=true)
     );
 
     logclose("end...");
