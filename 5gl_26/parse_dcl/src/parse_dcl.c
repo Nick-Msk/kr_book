@@ -54,10 +54,20 @@ static int              parse_keys(const char *argv[], Keys *ke){
 // TODO: move to fileutils.c
 int                     print_file(FILE *f){
     rewind(f);
-    fs s = readfs_file(f);
-    int cnt = printf("%s", fsstr(s) );    // TODO: why don't use fs printer?
-    fsfree(s);
-    return cnt;
+
+    int     cnt = 0, i = 0;
+    fs     *strs;   // no need to init!
+    if (freadlines(f, &strs) <= 0)
+        return logsimpleerr(-1, "Unable to read source");
+
+    cnt += printf("Origin:\n");
+    while (strs[i].v != 0){
+        cnt += printf("%s", fsstr(strs[i]) );
+        fs_free(&strs[i++]);
+    }
+    //fs_freeall(&strs);   // last fs containts v==0x0
+
+    return logsimpleret(cnt, "Read %d", cnt);
 }
 
 const char *usage_str = "Usage: %s -ffilename\n";
