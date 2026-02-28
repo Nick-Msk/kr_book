@@ -6,7 +6,7 @@ LDLIBS=
 
 all:
 
-checker: src/checker.c log.o test.o error.o
+checker: src/checker.c lib/log.o lib/test.o lib/error.o
 	$(CC) $(CFLAGS) -DCHECKERTESTING $^ -o test/$@_test
 
 checker.o: src/checker.c
