@@ -3,6 +3,7 @@
 #include "common.h"
 #include "fs.h"
 #include "fileutils.h"
+#include "checker.h"
 
 /********************************************************************
                  FILEUTILS MODULE IMPLEMENTATION
@@ -53,10 +54,10 @@ fs                              readfs_file(FILE *f){
 
 // read all (if maxline == -1 or maxline) lines separately into fs[]
 int                             freadlines(FILE *restrict f, fs **restrict ptr){
+    invraise(f && ptr, "file and fs pointer must exists"); // raise if result false
+
     logenter("file: %p, fs **: %p", ptr, ptr);
-    
-    if (!ptr)
-        return logerr(-1, "Zero ptr");
+
     int     nlines = 0, len, maxlines = FU_LINE_CNT;
     fs      line = fsempty();
     fs     *lines = malloc(maxlines * sizeof(fs));  // 
@@ -66,7 +67,7 @@ int                             freadlines(FILE *restrict f, fs **restrict ptr){
     }
 
     while ( (len = fgetline_fs(f, &line) ) > 0){
-        if (nlines >= maxlines){
+        if (nlines >= maxlines - 1){    // is for the last empry fs
             maxlines += FU_LINE_CNT;
             fs *tmp = lines;
             if ( (tmp = realloc(tmp, maxlines * sizeof(fs) ) ) == 0){
@@ -79,6 +80,8 @@ int                             freadlines(FILE *restrict f, fs **restrict ptr){
         lines[nlines++] = line;   // move to array
         line = fsempty();
     }
+    // setup end of array as empty fs
+    lines[nlines] = fsempty();
     // no need to free fs line, it's .v=0 after last cycle (or if no one cycle)
     *ptr = lines;
     return logret(nlines, "Total %d", nlines);
@@ -98,25 +101,6 @@ void                            freelines(fs *lineptr, int nlines){
     while (nlines-- > 0)
         fs_free(lineptr++);
 }
-
-/*int             readlines(char *ptr[], int maxline){
-    int     nlines = 0, len;
-    char   *p, line[MAXLEN];
-
-    while ( (len = get_line(line, maxline) ) > 0)
-        if (nlines >= maxline){
-            fprintf(stderr, "maxline (%d) were execced\n", maxline);
-            break;
-        } else if ( (p = malloc(len + 1)) == 0){ 
-            fprintf(stderr, "Unable to allocated %d\n", len + 1); 
-            break;
-        } else {
-            strcpy(p, line);
-            ptr[nlines++] = p;
-        }   
-    return nlines;
-}*/
-
 
 char                           *read_from_file(FILE *f, int *p_cnt){
     logenter("read from input (%p)", f);
