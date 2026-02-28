@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include "error.h"
 #include "common.h"
+#include "log.h"
 
 // ----------- CONSTANTS AND GLOBALS ---------------
 
@@ -27,29 +28,46 @@ int						inv_fprintf_int(FILE *restrict out, const char *restrict expr, int res,
 
 #ifndef NOINVARIANT
 
-// TODO: add ACTION here
+// TODO: add ACTION here ???
 // basic invariant checker, raise SIGINT, but returns true/false
-// userraisig is temporary disabled TODO:
-#define	inv(expr, msg, ...)\
+// internal
+#define	_invraise(raise, expr, msg, ...)\
 	({ 	bool _INV_RES = (expr);\
 	   	if (! _INV_RES){\
 			inv_fprintf_int(stderr, #expr, 0, 0, msg, ##__VA_ARGS__);\
-			userraiseint(ERRNUM_INVARIANT_VIOLATION, msg, ##__VA_ARGS__);\
+            logsimple("Invariant violation: %s", #expr);\
+            logsimple(msg, ##__VA_ARGS__);\
+            if (raise)\
+			    userraiseint(ERRNUM_INVARIANT_VIOLATION, msg, ##__VA_ARGS__);\
 	   	}\
 	   	_INV_RES;\
 	})
 
-// should be generic, now onl int or unsigned???
-// userraisig is temporary disabled TODO:
-#define	inv2(expr, val, msg, ...)\
+// SIGINT
+#define	invraise(expr, msg, ...) _invraise(true, (expr), (msg), ##__VA_ARGS__)
+
+// just return value
+#define	inv(expr, msg, ...) _invraise(false, (expr), (msg), ##__VA_ARGS__)
+
+// internal
+#define	_inv2raise(raise, expr, val, msg, ...)\
 	({	typeof(val)  _RES, _VAL = (val);\
 		_RES = (expr);\
 		if (_VAL != _RES){\
 			inv_fprintf_int(stderr, #expr, _RES, _VAL, msg, ##__VA_ARGS__);\
-			userraiseint(ERRNUM_INVARIANT_VIOLATION, msg, ##__VA_ARGS__);\
+            logsimple("Invariant(2) violation: %s", #expr);\
+            logsimple(msg, ##__VA_ARGS__);\
+			if (raise)\
+                userraiseint(ERRNUM_INVARIANT_VIOLATION, msg, ##__VA_ARGS__);\
 		}\
 		_RES == _VAL;\
 	})
+
+// SIGINT
+#define inv2raise(expr, val, msg, ...) _inv2raise(true, (expr), (val), (msg), ##__VA_ARGS__)
+
+// return value
+#define inv2(expr, val, msg, ...) _inv2raise(false, (expr), (val), (msg), ##__VA_ARGS__)
 
 #else /* NOINVARIANT */
 
