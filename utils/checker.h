@@ -34,7 +34,7 @@ int						inv_fprintf_int(FILE *restrict out, const char *restrict expr, int res,
 	({ 	bool _INV_RES = (expr);\
 	   	if (! _INV_RES){\
 			inv_fprintf_int(stderr, #expr, 0, 0, msg, ##__VA_ARGS__);\
-			/*userraiseint(0, ERRNUM_INVARIANT_VIOLATION, msg, ##__VA_ARGS__);*/\
+			userraiseint(ERRNUM_INVARIANT_VIOLATION, msg, ##__VA_ARGS__);\
 	   	}\
 	   	_INV_RES;\
 	})
@@ -46,7 +46,7 @@ int						inv_fprintf_int(FILE *restrict out, const char *restrict expr, int res,
 		_RES = (expr);\
 		if (_VAL != _RES){\
 			inv_fprintf_int(stderr, #expr, _RES, _VAL, msg, ##__VA_ARGS__);\
-			/*userraiseint(0, ERRNUM_INVARIANT_VIOLATION, msg, ##__VA_ARGS__);*/\
+			userraiseint(ERRNUM_INVARIANT_VIOLATION, msg, ##__VA_ARGS__);\
 		}\
 		_RES == _VAL;\
 	})
