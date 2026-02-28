@@ -53,7 +53,8 @@ fs                              readfs_file(FILE *f){
 
 // read all (if maxline == -1 or maxline) lines separately into fs[]
 int                             freadlines(FILE *restrict f, fs **restrict ptr){
-    logenter("... %p", ptr);
+    logenter("file: %p, fs **: %p", ptr, ptr);
+    
     if (!ptr)
         return logerr(-1, "Zero ptr");
     int     nlines = 0, len, maxlines = FU_LINE_CNT;
@@ -234,7 +235,7 @@ tf2(const char *name)
                 return logacterr( (fsfree(s), test_fclose(tf) ), TEST_FAILED,  "Unable to open %s, please check perms", fname);
             }
             FS_TECH_PRINT_COUNT = 200;  // for fs_techfprint
-            fs_techfprint(f, &s);
+            fstechfprint(f, s);
             fwrite(fsstr(s), 1, s.len, f);
             fclose(f);
         }
@@ -280,8 +281,8 @@ tf3(const char *name)
         test_sub("subtest %d", ++subnum);
         for (int i = 0; i < COUNT(pts); i++){
             logauto(i);
-            fs_techfprint(logfile, pts + i);
-            fs_techfprint(logfile, pts2 + i);
+            fstechfprint(logfile, pts[i]);
+            fstechfprint(logfile, pts2[i]);
             if (fscmp(pts[i], pts2[i]) != 0)
                 return logacterr( (freelines(pts2, cnt), test_fclose(tf) ), TEST_FAILED,  "Line %d = [%s] but it should be [%s]", i, pts2[i].v, pts[i].v);
         }
@@ -294,14 +295,14 @@ tf3(const char *name)
 // -------------------------------------------------------------------
 
 int
-main(int argc, char *argv[])
+main( /*int argc, const char *argv[] */ )
 {
-    const char *logfilename = "log/fileutils.log";
+    logsimpleinit("Start");
 
+    /* const char *logfilename = "log/fileutils.log";
     if (argc > 1)
         logfilename = argv[1];
-
-    loginit(logfilename, false, 0, "Starting");
+    loginit(logfilename, false, 0, "Starting"); */
 
     testenginestd(
         testnew(.f2 = tf1, .num = 1, .name = "Getline_fs() simple test",                .desc = "", .mandatory=true)
