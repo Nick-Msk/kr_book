@@ -280,8 +280,8 @@ extern bool                  fs_validate(FILE *restrict out, const fs *restrict 
 
 // --------------------------- ETC. -------------------------
 
-extern int                   FS_MIN_ACCOC;
-extern int                   FS_TECH_PRINT_COUNT;
+extern int                   FS_MIN_ACCOC;          // to config.c (via sqlite)
+extern int                   FS_TECH_PRINT_COUNT;   // to cobfig.c TODO:
 
 #endif /* !_FS_H */
 
