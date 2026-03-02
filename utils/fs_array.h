@@ -14,21 +14,52 @@
 #include "log.h"
 #include "common.h"
 #include "error.h"
+#include "fs.h"
 
 // ------------------- CONSTANTS AND GLOBALS ---------------------------
 
 // --------------------------------- TYPES -----------------------------
 
+typedef struct {
+    fs          s;
+//#ifdef FSNAMED
+    const char  *name;          // only STATIC pointer here!!!
+//#endif
+} namedfs;
+
+typedef struct fsarray {
+    int         sz; // total fs * allocated
+    int         cnt;    // not sure if needed
+    namedfs    *ar;
+} fsarray;
+
 // type-support functions
 
 // ------------------------ CONSTRUCTOTS/DESTRUCTORS -------------------
 
-// returns count of freed
-int            fsarr_free(fsrr *arr);
+//if fs_array.h is included then
+//fist fsinit create the fsarray *_FS_ARRAY;  // for current function!
+// not sure how to do that for now
 
+// returns count of freed
+extern int              fsarr_free(fsarray *arr);
+
+extern fsarray          fsarr_init(int cnt);
+
+#define FSARRAY         (fsarray) {.sz = 0, .cnt = 0, .ar = 0, ##__VA_ARGS__};
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
+extern fs*              fsarr_attach(fsarray *arr, fs *s);
+extern fs*              fsarr_detach(fsarray *arr, fs *s);  // not sure, because how to find s?
+extern fsarray          fsarr_shrink(fsarray *arr);
+
 // ------------------------ PRINTERS/CHECKERS --------------------------
+
+int                     fsarray_techfprint(FILE *f, fsarray arr);
+static inline int       fsarray_techprint(fsarray arr){
+    return fsarray_techfprint(stdout, arr);
+}
+
 
 // ------------------------------ ETC. ---------------------------------
 
