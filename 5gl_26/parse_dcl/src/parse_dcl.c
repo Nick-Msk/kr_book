@@ -24,7 +24,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
     logenter("...");
     int     argc = 1, params = 0;
     if (!ke)
-        return logerr(-1, "Zero ke!!! Error!");
+        return userraiseint(-1, "Zero ke!!! Error!");
     char    c;
     while (*++argv != 0 && **argv == '-'){
         //logauto(*argv);
