@@ -46,7 +46,7 @@ extern int              fsarr_free(fsarray *arr);
 
 extern fsarray          fsarr_init(int cnt);
 
-#define FSARRAY         (fsarray) {.sz = 0, .cnt = 0, .ar = 0, ##__VA_ARGS__};
+#define FSARRAY(...)    (fsarray) {.sz = 0, .cnt = 0, .ar = 0, ##__VA_ARGS__};
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
 extern fs*              fsarr_attach(fsarray *arr, fs *s);
@@ -55,9 +55,9 @@ extern fsarray          fsarr_shrink(fsarray *arr);
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
-int                     fsarray_techfprint(FILE *f, fsarray arr);
-static inline int       fsarray_techprint(fsarray arr){
-    return fsarray_techfprint(stdout, arr);
+int                     fsarr_techfprint(FILE *f, fsarray arr);
+static inline int       fsarr_techprint(fsarray arr){
+    return fsarr_techfprint(stdout, arr);
 }
 
 
