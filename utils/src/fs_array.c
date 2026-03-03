@@ -215,6 +215,16 @@ tf2(const char *name)
         int sz = 100;
         fsarray fa = fsarr_init(sz);
 
+        // try to use array but it UNUSUAL way, just as array
+        for (int i = 0; i < sz; i++){
+            //fs s = fscopy("str1");
+            fs s = fsinit(100);
+            // introdured fssprintf(s, format, ...);
+            fssprintf(s, "str - %d", i);
+            // NOW just a stupid iteration, WITHOUT fsarr_attach()
+            fa.cnt++;
+            
+        }
         fsarr_techfprint(stdout, fa);
         if (!fsarr_validate(stderr, fa) )
             return logerr(TEST_FAILED, "Validation failed");
@@ -232,6 +242,7 @@ tf2(const char *name)
     }
     return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED
 }
+
 // ------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
