@@ -28,19 +28,19 @@ static inline int               readlines(fs **lines){
     return freadlines(stdin, lines);
 }
 
-// OLD char * API
-extern int                      get_line(char *line, int lim);
 // write cnt fs into stream
 extern int                      fwritelines(FILE *restrict f, const fs *restrict ptr, int cnt);
 
 static inline int               writelines(const fs *lines, int cnt){
     return fwritelines(stdout, lines, cnt);
 }
-
+// TODO: remove that after migration to fsarray
 extern void                     freelines(fs *lineptr, int nlines);
 
 extern int                      fprint_file(FILE *f);
 
+// OLD char * API
+extern int                      get_line(char *line, int lim);
 // simpe file reader, must call free(s); after usage!!
 extern char                     *read_from_file(FILE *f, int *p_cnt);
 
