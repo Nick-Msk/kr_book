@@ -223,6 +223,8 @@ static inline fs             fs_cpystr(fs *restrict target, const char *restrict
     return fs_cpy(target, l);
 }
 
+extern int                   fs_sprintf(fs *restrict s, const char *restrict fmt, ...) __attribute__ (( format (printf, 2, 3) ) );
+
 #define                      get(s, pos) *fs_get(&(s), (pos) )
 #define                      getv(s) (s.v)
 #define                      elem(s, pos) *fs_elem( &(s), (pos) )
@@ -241,6 +243,8 @@ static inline fs             fs_cpystr(fs *restrict target, const char *restrict
 
 #define                      fscpy(t, s) fs_cpy(&(t), s)
 #define                      fscpystr(t, s) fs_cpystr(&(t), s)
+
+#define                      fssprintf(s, fmt, ...) fs_sprintf(&(s), (fmt), ##__VA_ARGS__)
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
 

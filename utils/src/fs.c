@@ -1,3 +1,5 @@
+#include <stdarg.h>
+
 #include "common.h"
 #include "log.h"
 #include "fs.h"
@@ -8,10 +10,12 @@
 ********************************************************************/
 
 #if defined(FS_ALLOCATOR)
-    static char               **g_fs_ptr                = 0;
-    static int                  g_alloc                 = 0;
-    static const int            g_initsize              = 32;   // not sure
+    static char               **g_fs_ptr             = 0;
+    static int                  g_alloc              = 0;
+    static const int            g_initsize           = 32;   // not sure
 #endif
+
+static const int            FS_SPRINTF_SZ           = 8192;
 
 // external contol
 int                         FS_MIN_ACCOC            = 128;
@@ -185,7 +189,24 @@ char                   *fs_elem(fs *s, int pos){
     return fs_get(s, pos);
 }
 
-fs                   *fs_resize(fs *s, int newsz){
+// TODO:
+//int                     fs_sprintfend(fs *restrict s, const char *restrict fmt, ...){
+//}
+
+// snprint()
+int                     fs_sprintf(fs *restrict s, const char *restrict fmt, ...){
+    static char buf[FS_SPRINTF_SZ]; // NO thread-safe this is
+
+    va_list argp;
+    va_start(argp, fmt);
+    vsnprintf(buf, FS_SPRINTF_SZ - 1, fmt, argp);
+    va_end(argp);
+    //cnt = MIN(cnt, FS_SPRINTF_SZ - 1);
+    fs_cpystr(s, buf);  // TODO: think about fs_cpynstr(fs, s, n);
+    return s->len;
+}
+
+fs                     *fs_resize(fs *s, int newsz){
     if (newsz > s->sz){
         increasesize(s, newsz, false);
         logsimple("size is adjusted to %d (pos %d)", s->sz, newsz);
@@ -608,6 +629,39 @@ tf8(const char *name)
     return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED
 }
 
+// ------------------------- TEST 9 ---------------------------------
+
+static TestStatus
+tf9(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+    {
+        test_sub("subtest %d: fs_printf with more than enough (1000 char)", ++subnum);
+        {
+            fs s1 = fsinit(1000);
+            char buf[1000], fmt[] = "%d, %f, %s\n";
+
+            snprintf(buf, sizeof(buf) - 1, fmt, 1223, 1.445, "Blablabla");
+            fs_sprintf(&s1, fmt, 1223, 1.445, "Blablabla");
+            fstechprint(s1);  // for manual checking
+
+            if ( (int)strlen(buf) != s1.len)
+                return logacterr( fsfree(s1), TEST_FAILED, "len buf = %lu must be equal s1 = %d ", strlen(buf), fslen(s1) );
+            // compary strings TODO:
+            if (strcmp(buf, fsstr(s1) ) != 0)
+                return logacterr( fsfree(s1), TEST_FAILED, "buf [%s] must be equal s1 [%s]", buf, fsstr(s1) );
+            fsfree(s1);
+        }
+        test_sub("subtest %d: fs_printf with small init size (2 char)", ++subnum);
+        {
+            fs s1 = fsinit(1);
+            //TODO:
+            fsfree(s1);
+        }
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
 // ------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -623,6 +677,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf6, .num = 6, .name = "fsfreeall test"                , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf7, .num = 7, .name = "fsprint/printlim manual test"  , .desc="always ok, for the manual check"                , .mandatory=true)
       , testnew(.f2 = tf8, .num = 8, .name = "fsprints manual test"          , .desc="always ok, for the manual check"                , .mandatory=true)
+      , testnew(.f2 = tf9, .num = 9, .name = "fs_sprintf formatted test"     , .desc="always ok, for the manual check"                , .mandatory=true)
     );
 
     logclose("end...");
