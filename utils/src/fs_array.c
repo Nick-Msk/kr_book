@@ -25,8 +25,8 @@ int                             fsarr_techfprint(FILE *f, fsarray arr){
                         , arr.ar[i].name   // directly name!
     //#endif
                 );
-                cnt++;
-                fputc('\n', f);
+                //cnt++;
+                //fputc('\n', f);
             }
         }
     return cnt;
@@ -186,13 +186,13 @@ tf1(const char *name)
 
         fsarr_techfprint(stdout, fa);
         if (!fsarr_validate(stderr, fa) )
-            return logerr(TEST_FAILED, "Validation failed");
+            return logacterr(fsarr_free(&fa), TEST_FAILED, "Validation failed");
 
         if (fa.sz < sz)
-            return logerr(TEST_FAILED, "sz (%d) must be >= initial sz %d", fa.sz, sz);
+            return logacterr(fsarr_free(&fa), TEST_FAILED, "sz (%d) must be >= initial sz %d", fa.sz, sz);
 
         if (fa.cnt != 0)
-            return logerr(TEST_FAILED, "Cnt = %d but must be 0, because not any objects after init", fa.sz);
+            return logacterr(fsarr_free(&fa), TEST_FAILED, "Cnt = %d but must be 0, because not any objects after init", fa.sz);
 
         test_sub("subtest %d: freeall", ++subnum);
 
@@ -210,10 +210,16 @@ tf2(const char *name)
     logenter("%s", name);
     int         subnum = 0;
     {
-        test_sub("subtest %d: init", ++subnum);
+        test_sub("subtest %d: init + validation", ++subnum);
 
-        int sz = 100;
+        int sz = 50;
         fsarray fa = fsarr_init(sz);
+
+        if (fa.sz < sz)
+            return logacterr(fsarr_free(&fa), TEST_FAILED, "sz (%d) must be >= initial sz %d", fa.sz, sz);
+
+        if (fa.cnt != 0)
+            return logacterr(fsarr_free(&fa), TEST_FAILED, "Cnt = %d but must be 0, because not any objects after init", fa.sz);
 
         // try to use array but it UNUSUAL way, just as array
         for (int i = 0; i < sz; i++){
@@ -222,22 +228,27 @@ tf2(const char *name)
             // introdured fssprintf(s, format, ...);
             fssprintf(s, "str - %d", i);
             // NOW just a stupid iteration, WITHOUT fsarr_attach()
-            fa.cnt++;
-            
+            namedfs nf = {s, ""};
+            fa.ar[fa.cnt++] = nf;
         }
         fsarr_techfprint(stdout, fa);
         if (!fsarr_validate(stderr, fa) )
-            return logerr(TEST_FAILED, "Validation failed");
+            return logacterr(fsarr_free(&fa),TEST_FAILED, "Validation failed");
 
-        if (fa.sz < sz)
-            return logerr(TEST_FAILED, "sz (%d) must be >= initial sz %d", fa.sz, sz);
+    test_sub("subtest %d: check lines", ++subnum);
 
-        if (fa.cnt != 0)
-            return logerr(TEST_FAILED, "Cnt = %d but must be 0, because not any objects after init", fa.sz);
+        char buf[100];
+        // check the lines
+        for (int i = 0; i < sz; i++){
+            sprintf(buf, "str - %d", i);        // ok in this case
+            if (strcmp(fsstr(fa.ar[i].s), buf) != 0)
+                return logacterr(fsarr_free(&fa), TEST_FAILED, "fsarr[%d]: '%s' != origin '%s'", 
+                    i, fsstr(fa.ar[i].s), buf);
+        }
 
-        test_sub("subtest %d: freeall", ++subnum);
+    test_sub("subtest %d: freeall", ++subnum);
 
-        fsarr_free(&fa);
+        fsarrfree(fa); // via macro
         fsarr_techfprint(stdout, fa);
     }
     return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED

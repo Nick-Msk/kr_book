@@ -30,6 +30,7 @@ typedef struct {
 typedef struct fsarray {
     int         sz; // total fs * allocated
     int         cnt;    // not sure if needed
+    int         per;    // pointer for attach
     namedfs    *ar;
 } fsarray;
 
@@ -46,6 +47,7 @@ extern int              fsarr_free(fsarray *arr);
 
 extern fsarray          fsarr_init(int cnt);
 
+#define fsarrfree(s)    fsarr_free(&(s))
 #define FSARRAY(...)    (fsarray) {.sz = 0, .cnt = 0, .ar = 0, ##__VA_ARGS__};
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
@@ -62,5 +64,12 @@ static inline int       fsarr_techprint(fsarray arr){
 
 
 // ------------------------------ ETC. ---------------------------------
+
+// TODO:
+extern int              fsarr_save(const char *fname);
+extern int              fsarr_savef(FILE *f);
+
+extern fsarray          fsarr_load(const char *fname);
+extern fsarray          fsarr_loadf(FILE *f);
 
 #endif /* !_FS_ARRAY_H */
