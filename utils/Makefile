@@ -77,7 +77,7 @@ fs_array: src/fs_array.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/comm
 	$(CC) $(CFLAGS) -DFSARRAYTESTING $^ -o test/$@_test
 
 fs_array.o: src/fs_array.c
-	$(CC) $(CFLAGS)  $^ -c
+	$(CC) $(CFLAGS) $^ -c
 	@mv $@ lib/
 
 fileutils.o: src/fileutils.c

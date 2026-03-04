@@ -14,22 +14,22 @@
 
 // -------------------------- (Utility) printers --------------------
 
-int                             fsarr_techfprint(FILE *f, fsarray arr){
-    int cnt = fprintf(f, "FSARRAY: sz %d, filled %d, namedfs ptr %p:\n", arr.sz, arr.cnt, arr.ar);
+int                             fsarr_techfprintlim(FILE *f, fsarray arr, int lim){
+    int cnt = fprintf(f, "FSARRAY: sz %d, cnt %d, ptr %d namedfs ptr %p:\n", arr.sz, arr.cnt, arr.ptr, arr.ar);
 
     if (arr.ar)
-        for (int i = 0; i < arr.sz; i++){
+        for (int i = 0; i < MIN(arr.sz, lim); i++){
             if (fsstr(arr.ar[i].s) ){
-                fs_techfprint(f, &arr.ar[i].s
-    //#ifdef FSNAMED
-                        , arr.ar[i].name   // directly name!
-    //#endif
-                );
-                //cnt++;
-                //fputc('\n', f);
+                cnt += fs_techfprint(f, &arr.ar[i].s, arr.ar[i].name);   // directly name!
             }
         }
+    if (lim < arr.sz)
+        cnt += fprintf(f, "and more...\n");
     return cnt;
+}
+
+int                             fsarr_techfprint(FILE *f, fsarray arr){
+    return fsarr_techfprintlim(f, arr, arr.sz);
 }
 
 // ------------------------------ Utilities -------------------------
@@ -80,11 +80,17 @@ static fsarray                  sortfs(const fsarray *origin){
 // never raise exception! just return true/false and put messages into f (if != 0)
 bool                fsarr_validate(FILE *f, fsarray arr){
     logenter("%p", f);
-
+    // check 1
     if (arr.sz < 0 || arr.cnt < 0){
         fprintf(f, "%s: sz and cnt must be positive", __func__);
         return logerr(false, "sz and cnt must be positive");
     }
+    // check 2
+    if (arr.sz < arr.cnt){
+        fprintf(f, "sz %d must be >= cnt %d", arr.sz, arr.cnt);
+        return logerr(false, "sz %d must be > cnt %d", arr.sz, arr.cnt);
+    }
+    // check 3
     // now check total valid fs via cnt
     int     cnt = 0;
     for (int i = 0; i < arr.sz; i++)
@@ -95,21 +101,36 @@ bool                fsarr_validate(FILE *f, fsarray arr){
         fprintf(f, "Total valid fs = %d but cnt = %d", cnt, arr.cnt);
         return logerr(false, "Total valid fs = %d but cnt = %d", cnt, arr.cnt);
     }
-
-    fsarray   tmp = sortfs(&arr);   // make a sorting by arr.ar.s.v, tmp is shrinked and NOT valid, all fs are pointer to fs of arr
-    int     duplcount = 0;
-    for (int i = 1; i < tmp.sz; i++)
-        if (tmp.ar[i - 1].s.v == tmp.ar[i].s.v){
-            fprintf(f, "elem [%d] == elem [%d] == %p:[%s]", i - 1, i, tmp.ar[i].s.v, tmp.ar[i].s.v);
-            duplcount++;
+    if (arr.sz > 0){
+        // check 4
+        fsarray   tmp = sortfs(&arr);   // make a sorting by arr.ar.s.v, tmp is shrinked and NOT valid, all fs are pointer to fs of arr
+        int     duplcount = 0;
+        for (int i = 1; i < tmp.sz; i++)
+            if (tmp.ar[i - 1].s.v == tmp.ar[i].s.v){
+                fprintf(f, "elem [%d] == elem [%d] == %p:[%s]", i - 1, i, tmp.ar[i].s.v, tmp.ar[i].s.v);
+                duplcount++;
+            }
+        free(tmp.ar);       // free temporary, no need to free ar[].s
+        if (duplcount > 0){
+            fprintf(f, "Total duplicates %d", duplcount);
+            return logerr(false, "Total duplicates %d", duplcount);
         }
-    free(tmp.ar);       // free temporary, no need to free ar[].s
-    if (duplcount > 0){
-        fprintf(f, "Total duplicates %d", duplcount);
-        return logerr(false, "Total duplicates %d", duplcount);
     }
     // all tests for now...
     return logret(true, "Ok");
+}
+
+// -------------------- ACCESS AND MODIFICATORS ------------------------
+
+fsl                 fsarr_attach(fsarray *arr, fs s){
+    // cnt is'nt used for now, just ++
+    if (arr->ptr >= arr->sz)
+        increasesize(arr, arr->sz * 2, false);
+    // TODO: refactor to some king of iter
+    arr->ar[arr->ptr].s = s;    //  for now just a copy! actually for gc() it's reuiqred only fs->v
+    fsl fl = FSL(.s = s, .pos = arr->ptr++);
+    arr->cnt++; // just for recoding
+    return fl;
 }
 
 // -------------------------- (API) printers -----------------------
@@ -149,7 +170,7 @@ int                 fsarr_free(fsarray *arr){
             }
         }
         free(arr->ar);
-        arr->cnt = arr->sz = 0;
+        arr->cnt = arr->sz = arr->ptr = 0;
         arr->ar = 0;
     } else
         logsimple("Null pointer");
@@ -228,10 +249,10 @@ tf2(const char *name)
             // introdured fssprintf(s, format, ...);
             fssprintf(s, "str - %d", i);
             // NOW just a stupid iteration, WITHOUT fsarr_attach()
-            namedfs nf = {s, ""};
+            namedfs nf = {.s = s, .name = ""};
             fa.ar[fa.cnt++] = nf;
         }
-        fsarr_techfprint(stdout, fa);
+        fsarr_techfprint(logfile, fa);
         if (!fsarr_validate(stderr, fa) )
             return logacterr(fsarr_free(&fa),TEST_FAILED, "Validation failed");
 
@@ -249,9 +270,46 @@ tf2(const char *name)
     test_sub("subtest %d: freeall", ++subnum);
 
         fsarrfree(fa); // via macro
-        fsarr_techfprint(stdout, fa);
+        fsarr_techfprint(logfile, fa);
+        if (!fsarr_validate(stderr, fa) )
+            return logerr(TEST_FAILED, "Validation failed after free");
     }
-    return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED
+}
+
+// ------------------------- TEST 2 ---------------------------------
+
+static TestStatus
+tf3(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+    {
+        test_sub("subtest %d: cycle attach + validation", ++subnum);
+
+        int sz = 10;
+        fsarray fa = fsarr_init(sz);
+
+        for (int i = 0; i < sz * 50; i++){
+            fs s1 = FS();
+            fssprintf(s1, "value bla bla %d", i);
+            fsl fl = fsarr_attach(&fa, s1);  // probably to check result instead of raise? not sure
+            if (i % 100 == 0)
+                fsl_techfprint(logfile, fl);
+        }
+        fsarr_techfprintlim(logfile, fa, 3);
+
+        if (!fsarr_validate(stderr, fa) )
+            return logacterr(fsarrfree(fa),TEST_FAILED, "Validation failed");
+
+        test_sub("subtest %d: freeall", ++subnum);
+
+        fsarrfree(fa); // via macro
+        fsarr_techfprintlim(logfile, fa, 3);
+        if (!fsarr_validate(stderr, fa) )
+            return logerr(TEST_FAILED, "Validation failed after free");
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED
 }
 
 // ------------------------------------------------------------------
@@ -262,7 +320,8 @@ main( /* int argc, const char *argv[] */)
 
     testenginestd(
         testnew(.f2 = tf1, .num = 1, .name = "Simple init free test"                        , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf2, .num = 2, .name = "Intt free test with valid fs (random)"        , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf2, .num = 2, .name = "Init/free test with valid fs (random)"        , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf3, .num = 3, .name = "fsarr_attach test"                            , .desc=""                , .mandatory=true)
     );
 
     logclose("end...");

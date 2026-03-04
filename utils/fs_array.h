@@ -21,7 +21,10 @@
 // --------------------------------- TYPES -----------------------------
 
 typedef struct {
-    fs          s;
+    union {
+        fs          s;
+        struct      fs;
+    };
 //#ifdef FSNAMED
     const char  *name;          // only STATIC pointer here!!!
 //#endif
@@ -30,9 +33,18 @@ typedef struct {
 typedef struct fsarray {
     int         sz; // total fs * allocated
     int         cnt;    // not sure if needed
-    int         per;    // pointer for attach
+    int         ptr;    // pointer for attach
     namedfs    *ar;
 } fsarray;
+
+// linked faststring!
+typedef struct fsl {
+    union {
+        struct fs;
+        fs      s;
+    };
+    int     pos;        // position in fsarray
+} fsl;
 
 // type-support functions
 
@@ -48,20 +60,34 @@ extern int              fsarr_free(fsarray *arr);
 extern fsarray          fsarr_init(int cnt);
 
 #define fsarrfree(s)    fsarr_free(&(s))
-#define FSARRAY(...)    (fsarray) {.sz = 0, .cnt = 0, .ar = 0, ##__VA_ARGS__};
+#define FSL(...)        (fsl) { .s = FS(), .pos = 0, ##__VA_ARGS__}
+#define FSARRAY(...)    (fsarray) {.sz = 0, .cnt = 0, .ptr = 0, .ar = 0, ##__VA_ARGS__};
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
-extern fs*              fsarr_attach(fsarray *arr, fs *s);
-extern fs*              fsarr_detach(fsarray *arr, fs *s);  // not sure, because how to find s?
-extern fsarray          fsarr_shrink(fsarray *arr);
+extern fsl              fsarr_attach(fsarray *arr, fs s);
+extern fs*              fsarr_detach(fsarray *arr, fsl s);  // not sure, because how to find s?
+extern fsarray          fsarr_shrink(fsarray *arr);         // CAN't be implemented!! REMOVE
 
+#define                 fsarrattach(arr, s) fsarr_attach(&(arr), s)
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
-int                     fsarr_techfprint(FILE *f, fsarray arr);
+extern int              fsarr_techfprint(FILE *f, fsarray arr);
 static inline int       fsarr_techprint(fsarray arr){
     return fsarr_techfprint(stdout, arr);
 }
 
+extern int              fsarr_techfprintlim(FILE *f, fsarray arr, int lim);
+static inline int       fsarr_techprintlim(fsarray arr, int lim){
+    return fsarr_techfprintlim(stdout, arr, lim);
+}
+
+static inline int       fsl_techfprint(FILE *f, fsl fl){
+    return fprintf(f, "FSL: sz %d, len %d, pos %d v %p\n", fl.s.sz, fl.s.len, fl.pos, fl.s.v);
+}
+
+static inline int       fsl_techprint(fsl fl){
+    return fsl_techfprint(stdout, fl);
+}
 
 // ------------------------------ ETC. ---------------------------------
 
