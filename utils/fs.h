@@ -96,7 +96,7 @@ static inline bool          fs_alloc(const fs*s){
 // destructor, macro wrapper will be
 static inline void          fs_free(fs *s){
     if (fs_alloc(s)){
-        logsimpleact(free(s->v), "freed...");   // WOW, logsimpleact?
+        logsimpleact(free(s->v), "freed... %p", s->v);   // WOW, logsimpleact?
         s->sz = s->len = 0;
         s->v = 0;
     }
