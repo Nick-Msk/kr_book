@@ -635,12 +635,14 @@ static TestStatus
 tf9(const char *name)
 {
     logenter("%s", name);
+
     int         subnum = 0;
+    char buf[1000], fmt[] = "%d, %f, %s\n";
+
     {
         test_sub("subtest %d: fs_printf with more than enough (1000 char)", ++subnum);
         {
             fs s1 = fsinit(1000);
-            char buf[1000], fmt[] = "%d, %f, %s\n";
 
             snprintf(buf, sizeof(buf) - 1, fmt, 1223, 1.445, "Blablabla");
             fs_sprintf(&s1, fmt, 1223, 1.445, "Blablabla");
@@ -655,9 +657,18 @@ tf9(const char *name)
         }
         test_sub("subtest %d: fs_printf with small init size (2 char)", ++subnum);
         {
-            fs s1 = fsinit(1);
-            //TODO:
-            fsfree(s1);
+            fs s2 = fsinit(1);
+            // the same test, but for very small fs 
+            snprintf(buf, sizeof(buf) - 1, fmt, 12345, 9.8765, "XXXYYYYZZZZZZZZZRRRRR");
+            fs_sprintf(&s2, fmt, 12345, 9.8765, "XXXYYYYZZZZZZZZZRRRRR");
+            fstechprint(s2);  // for manual checking
+
+            if ( (int)strlen(buf) != s2.len)
+                return logacterr( fsfree(s2), TEST_FAILED, "len buf = %lu must be equal s1 = %d ", strlen(buf), fslen(s2) );
+            // compary strings TODO:
+            if (strcmp(buf, fsstr(s2) ) != 0)
+                return logacterr( fsfree(s2), TEST_FAILED, "buf [%s] must be equal s1 [%s]", buf, fsstr(s2) );
+            fsfree(s2);
         }
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
