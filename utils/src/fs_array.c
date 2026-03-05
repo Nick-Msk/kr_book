@@ -19,8 +19,8 @@ int                             fsarr_techfprintlim(FILE *f, fsarray arr, int li
 
     if (arr.ar)
         for (int i = 0; i < MIN(arr.sz, lim); i++){
-            if (fsstr(arr.ar[i].s) ){
-                cnt += fs_techfprint(f, &arr.ar[i].s, arr.ar[i].name);   // directly name!
+            if (fsstr(*arr.ar[i].ps) ){
+                cnt += fstechfprint(f, *arr.ar[i].ps);   // directly name!
             }
         }
     if (lim < arr.sz)
@@ -55,8 +55,9 @@ static int                      increasesize(fsarray *fa, int newsz, bool init){
     return logret(newsz, "Increased to %d elements", newsz);
 }
 
+// compare as pointer
 static int                      namedfscmp(const void *ns1, const void *ns2){
-    return ((namedfs *) ns1)->s.v - ((namedfs *) ns2)->s.v; // OMG
+    return ((namedfs *) ns1)->ps->v - ((namedfs *) ns2)->ps->v; // OMG
 }
 
 // sorting via qsort()
@@ -66,7 +67,7 @@ static fsarray                  sortfs(const fsarray *origin){
     increasesize(&tmp, origin->cnt, false);  // exactly count of origin
     int     j = 0;
     for (int i = 0; i < origin->sz; i++)
-        if (fsstr(origin->ar[i].s) ) {
+        if (fsstr(*origin->ar[i].ps) ) {
             tmp.ar[j++] = origin->ar[i];    // all namedfs, not reeally need actually
         }
     // sort
@@ -94,7 +95,7 @@ bool                fsarr_validate(FILE *f, fsarray arr){
     // now check total valid fs via cnt
     int     cnt = 0;
     for (int i = 0; i < arr.sz; i++)
-        if (fsstr(arr.ar[i].s) )
+        if (fsstr(*arr.ar[i].ps) )
             cnt++;  // found a vliad fs
 
     if (cnt != arr.cnt){
@@ -106,8 +107,8 @@ bool                fsarr_validate(FILE *f, fsarray arr){
         fsarray   tmp = sortfs(&arr);   // make a sorting by arr.ar.s.v, tmp is shrinked and NOT valid, all fs are pointer to fs of arr
         int     duplcount = 0;
         for (int i = 1; i < tmp.sz; i++)
-            if (tmp.ar[i - 1].s.v == tmp.ar[i].s.v){
-                fprintf(f, "elem [%d] == elem [%d] == %p:[%s]", i - 1, i, tmp.ar[i].s.v, tmp.ar[i].s.v);
+            if (tmp.ar[i - 1].ps->v == tmp.ar[i].ps->v){
+                fprintf(f, "elem [%d] == elem [%d] == %p:[%s]", i - 1, i, tmp.ar[i].ps->v, tmp.ar[i].ps->v);
                 duplcount++;
             }
         free(tmp.ar);       // free temporary, no need to free ar[].s
@@ -122,16 +123,25 @@ bool                fsarr_validate(FILE *f, fsarray arr){
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
-fsl                 fsarr_attach(fsarray *arr, fs s){
+// low level attach
+int                  fsarr_attach(fsarray *restrict arr, fs *restrict s){
     // cnt is'nt used for now, just ++
+    int ptr = arr->ptr;
     if (arr->ptr >= arr->sz)
         increasesize(arr, arr->sz * 2, false);
-    // TODO: refactor to some king of iter
-    arr->ar[arr->ptr].s = s;    //  for now just a copy! actually for gc() it's reuiqred only fs->v
-    fsl fl = FSL(.s = s, .pos = arr->ptr++);
+    arr->ar[arr->ptr++].ps = s;    //  for now just a copy! actually for gc() it's reuiqred only fs->v
     arr->cnt++; // just for recoding
-    return fl;
+    return ptr;
 }
+
+/* inline
+fs*                 fsarr_detach(fsarray *arr, fsl s){
+    logsimple("pos %d, v %p", s.pos, fsstr(s.s));
+    if (fsstr(arr->ar[pos].s) != 0){
+        
+    } else
+        userraisesig(101, "Emply position %d  or not equal %p", s.pos, fsstr(arr->ar[pos].s));
+} */
 
 // -------------------------- (API) printers -----------------------
 
@@ -139,13 +149,8 @@ fsl                 fsarr_attach(fsarray *arr, fs s){
 int                 fsarr_fprint(FILE *f, fsarray arr){
     int  cnt = 0;
     for (int i = 0; i < arr.sz; i++){
-        if (fsstr(arr.ar[i].s) ) {
-            fs_fprint(f, &arr.ar[i].s
-//#ifdef FSNAMED
-                    , arr.ar[i].name   // directly name!
-//#else
-//#endif
-            );
+        if (arr.ar[i].ps->v) {
+            fsfprint(f, *arr.ar[i].ps);   // directly name!
             cnt++;
             fputc('\n', f);
         }
@@ -161,12 +166,10 @@ int                 fsarr_free(fsarray *arr){
     int     cnt = 0;
     if (arr && arr->ar){
         for (int i = 0; i < arr->sz; i++){ // not cnt!! cnt is just a sum of attached fs
-            if (fsstr(arr->ar[i].s) ) {
-                fsfree(arr->ar[i].s);
+            if (fsstr(*arr->ar[i].ps) ) {
+                fs_free(arr->ar[i].ps);
                 cnt++;
-//#ifdef FSNAMED
-                arr->ar[i].name = 0; // it's ok because name is STATIC
-//#endif
+                //arr->ar[i].name = 0; // it's ok because name is STATIC
             }
         }
         free(arr->ar);
@@ -262,9 +265,9 @@ tf2(const char *name)
         // check the lines
         for (int i = 0; i < sz; i++){
             sprintf(buf, "str - %d", i);        // ok in this case
-            if (strcmp(fsstr(fa.ar[i].s), buf) != 0)
+            if (strcmp(fa.ar[i].ps-v, buf) != 0)
                 return logacterr(fsarr_free(&fa), TEST_FAILED, "fsarr[%d]: '%s' != origin '%s'", 
-                    i, fsstr(fa.ar[i].s), buf);
+                    i, fa.ar[i].ps->v, buf);
         }
 
     test_sub("subtest %d: freeall", ++subnum);
@@ -293,7 +296,7 @@ tf3(const char *name)
         for (int i = 0; i < sz * 50; i++){
             fs s1 = FS();
             fssprintf(s1, "value bla bla %d", i);
-            fsl fl = fsarr_attach(&fa, s1);  // probably to check result instead of raise? not sure
+            fsl fl = fsarr_attach(&fa, &s1);  // probably to check result instead of raise? not sure
             if (i % 100 == 0)
                 fsl_techfprint(logfile, fl);
         }

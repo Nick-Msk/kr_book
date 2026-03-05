@@ -20,18 +20,16 @@
 
 // --------------------------------- TYPES -----------------------------
 
+
 typedef struct {
-    union {
-        fs          s;
-        struct      fs;
-    };
+    fs          *ps;
 //#ifdef FSNAMED
-    const char  *name;          // only STATIC pointer here!!!
+//    const char  *name;          // only STATIC pointer here!!!  NOT USED FOR NOW
 //#endif
 } namedfs;
 
 typedef struct fsarray {
-    int         sz; // total fs * allocated
+    int         sz;     // total fs * allocated
     int         cnt;    // not sure if needed
     int         ptr;    // pointer for attach
     namedfs    *ar;
@@ -64,9 +62,17 @@ extern fsarray          fsarr_init(int cnt);
 #define FSARRAY(...)    (fsarray) {.sz = 0, .cnt = 0, .ptr = 0, .ar = 0, ##__VA_ARGS__};
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
-extern fsl              fsarr_attach(fsarray *arr, fs s);
-extern fs*              fsarr_detach(fsarray *arr, fsl s);  // not sure, because how to find s?
-extern fsarray          fsarr_shrink(fsarray *arr);         // CAN't be implemented!! REMOVE
+// low level
+extern int              fsarr_attach(fsarray *restrict arr, fs *restrict s);
+
+// low level deatch
+extern fs*              fsarr_detach(fsarray *arr, int pos){
+    fs *s = arr->ar[pos].ps;
+    arr->ar[pos].ps = 0;
+    arr->cnt--;     // just for logging now
+    return s;       // probably it's possible to not return noting
+}
+//extern fsarray          fsarr_shrink(fsarray *arr);         // CAN't be implemented!! REMOVE
 
 #define                 fsarrattach(arr, s) fsarr_attach(&(arr), s)
 // ------------------------ PRINTERS/CHECKERS --------------------------
