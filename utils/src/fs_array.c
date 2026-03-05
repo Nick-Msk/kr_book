@@ -252,7 +252,7 @@ tf2(const char *name)
             // introdured fssprintf(s, format, ...);
             fssprintf(s, "str - %d", i);
             // NOW just a stupid iteration, WITHOUT fsarr_attach()
-            namedfs nf = {.s = s, .name = ""};
+            namedfs nf = {.ps = &s /*, .name = ""*/};
             fa.ar[fa.cnt++] = nf;
         }
         fsarr_techfprint(logfile, fa);
@@ -265,7 +265,7 @@ tf2(const char *name)
         // check the lines
         for (int i = 0; i < sz; i++){
             sprintf(buf, "str - %d", i);        // ok in this case
-            if (strcmp(fa.ar[i].ps-v, buf) != 0)
+            if (strcmp(fa.ar[i].ps->v, buf) != 0)
                 return logacterr(fsarr_free(&fa), TEST_FAILED, "fsarr[%d]: '%s' != origin '%s'", 
                     i, fa.ar[i].ps->v, buf);
         }
@@ -296,9 +296,9 @@ tf3(const char *name)
         for (int i = 0; i < sz * 50; i++){
             fs s1 = FS();
             fssprintf(s1, "value bla bla %d", i);
-            fsl fl = fsarr_attach(&fa, &s1);  // probably to check result instead of raise? not sure
+            int pos /* instread of fsl */ = fsarr_attach(&fa, &s1);  // probably to check result instead of raise? not sure
             if (i % 100 == 0)
-                fsl_techfprint(logfile, fl);
+                fs_techfprint(logfile, fa.ar[i].ps, "");
         }
         fsarr_techfprintlim(logfile, fa, 3);
 
