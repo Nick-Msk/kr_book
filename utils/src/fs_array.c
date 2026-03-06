@@ -66,8 +66,8 @@ static fsarray                  sortfs(const fsarray *origin){
     fsarray tmp = FSARRAY();
     increasesize(&tmp, origin->cnt, false);  // exactly count of origin
     int     j = 0;
-    for (int i = 0; i < origin->sz; i++)
-        if (fsstr(*origin->ar[i].ps) ) {
+    for (int i = 0; i < origin->sz && j < origin->cnt; i++)
+        if (origin->ar[i].ps ) {
             tmp.ar[j++] = origin->ar[i];    // all namedfs, not reeally need actually
         }
     // sort
@@ -112,7 +112,7 @@ bool                fsarr_validate(FILE *out, fsarray arr){
             fprintf(out, "Total invalid fs = %d", invcnt);
         return logerr(false, "Total invalid fs = %d", invcnt);
     }
-    if (arr.sz > 0){
+    if (arr.cnt > 0){
         logmsg("sz > 0, check 4");
         fsarray   tmp = sortfs(&arr);   // make a sorting by arr.ar.s.v, tmp is shrinked and NOT valid, all fs are pointer to fs of arr
         int     duplcount = 0;
@@ -178,7 +178,7 @@ int                 fsarr_free(fsarray *arr){
     int     cnt = 0;
     if (arr && arr->ar){
         for (int i = 0; i < arr->sz; i++){ // not cnt!! cnt is just a sum of attached fs
-            if (fsstr(*arr->ar[i].ps) ) {
+            if (arr->ar[i].ps) {
                 fs_free(arr->ar[i].ps);
                 cnt++;
                 //arr->ar[i].name = 0; // it's ok because name is STATIC
@@ -232,6 +232,7 @@ tf1(const char *name)
 
         test_sub("subtest %d: freeall", ++subnum);
 
+        fsarr_techfprint(stdout, fa);
         fsarr_free(&fa);
         fsarr_techfprint(stdout, fa);
     }
@@ -248,7 +249,7 @@ tf2(const char *name)
     {
         test_sub("subtest %d: init + validation", ++subnum);
 
-        int sz = 50;
+        int sz = 30;
         fsarray fa = fsarr_init(sz);
 
         if (fa.sz < sz)
@@ -257,16 +258,18 @@ tf2(const char *name)
         if (fa.cnt != 0)
             return logacterr(fsarr_free(&fa), TEST_FAILED, "Cnt = %d but must be 0, because not any objects after init", fa.sz);
 
+        fs ars[sz];
         // try to use array but it UNUSUAL way, just as array
         for (int i = 0; i < sz; i++){
-            //fs s = fscopy("str1");
-            fs s = fsinit(100);
+            // actually almost useless test
+            ars[i] = fsinit(100);
             // introdured fssprintf(s, format, ...);
-            fssprintf(s, "str - %d", i);
+            fssprintf(ars[i], "str - %d", i);
             // NOW just a stupid iteration, WITHOUT fsarr_attach()
-            namedfs nf = {.ps = &s /*, .name = ""*/};
+            namedfs nf = {.ps = ars + i};       // NOT possible to attach this way
             fa.ar[fa.cnt++] = nf;
         }
+        // ptr == 0 here, it' ok because didn't use attach
         fsarr_techfprint(logfile, fa);
         if (!fsarr_validate(stderr, fa) )
             return logacterr(fsarr_free(&fa),TEST_FAILED, "Validation failed");
@@ -302,13 +305,16 @@ tf3(const char *name)
     {
         test_sub("subtest %d: cycle attach + validation", ++subnum);
 
-        int sz = 10;
+        int sz = 50;
         fsarray fa = fsarr_init(sz);
 
-        for (int i = 0; i < sz * 50; i++){
-            fs s1 = FS();
-            fssprintf(s1, "value bla bla %d", i);
-            int pos /* instread of fsl */ = fsarr_attach(&fa, &s1);  // probably to check result instead of raise? not sure
+        // this test became a bit stupoid...
+        fs s1[sz * 7];
+
+        for (int i = 0; i < sz * 7; i++){
+            s1[i] = FS();
+            fssprintf(s1[i], "value bla bla %d", i);
+            int pos /* instread of fsl */ = fsarr_attach(&fa, s1 + i);  // probably to check result instead of raise? not sure
             if (i % 100 == 0)
                 fs_techfprint(logfile, fa.ar[i].ps, "");
         }
