@@ -265,26 +265,31 @@ int                     fs_techfprint(FILE *restrict out, const fs *restrict s, 
     return cnt;
 }
 
+// out == 0 is OK fow now
 bool                    fs_validate(FILE *restrict out, const fs *restrict s){
     logenter("%p - %p", s, s ? s->v: 0);
 
     if (!s){    // TODO: think about string creation via faststring here!!
-        fprintf(out, "null pointer");
+        if (out)
+            fprintf(out, "null pointer");
         return logerr(false, "null pointer");
     }
     if (!s->v){
-        fprintf(out, "nullable string");
+        if (out)
+            fprintf(out, "nullable string");
         return logerr(false, "nullable string");
     }
     // depents on which iterator engine is active
     if (s->len >= s->sz){
-        fprintf(out, "len [%d] must be < sz [%d]", s->len, s->sz);
+        if (out)
+            fprintf(out, "len [%d] must be < sz [%d]", s->len, s->sz);
         return logerr(false, "len [%d] must be < sz [%d]", s->len, s->sz);
     }
     {
         int len = strlen(s->v);
         if (len < s->len){
-            fprintf(out, "srtlen [%d] can't be more than len [%d]", len, s->len);
+            if (out)
+                fprintf(out, "srtlen [%d] can't be more than len [%d]", len, s->len);
             return logerr(false, "srtlen [%d] can't be more than len [%d]", len, s->len);
         }
     }
