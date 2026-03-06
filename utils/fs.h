@@ -167,6 +167,10 @@ static inline int           fslen(fs s){
     return s.len;
 }
 
+static inline bool          fsisempty(fs s){
+    return fslen(s) == 0;
+}
+
 static inline int           fssz(fs s){
     return s.sz;
 }
