@@ -50,6 +50,54 @@ static int              parse_keys(const char *argv[], Keys *ke){
 
 static const char   *usage_str = "Usage: %s -v -i\n";
 
+typedef struct {
+    const char      *word;
+    int              count;
+} tkeys;
+
+static tkeys             keytab[] = {
+    {"auto"      , 0},
+    {"break"     , 0},
+    {"case"      , 0},
+    {"char"      , 0},
+    {"const"     , 0},
+    {"continue"  , 0},
+    {"default"   , 0},
+    {"do"        , 0},
+    {"double"    , 0},
+    {"else"      , 0},
+    {"enum"      , 0},
+    {"extern"    , 0},
+    {"float"     , 0},
+    {"for"       , 0},
+    {"goto"      , 0},
+    {"if"        , 0},
+    {"int"       , 0},
+    {"long"      , 0},
+    {"register"  , 0},
+    {"return"    , 0},
+    {"short"     , 0},
+    {"signed"    , 0},
+    {"sizeof"    , 0},
+    {"static"    , 0},
+    {"struct"    , 0},
+    {"switch"    , 0},
+    {"typedef"   , 0},
+    {"union"     , 0},
+    {"unsigned"  , 0},
+    {"void"      , 0},
+    {"volatile"  , 0},
+    {"while"     , 0},
+    {0x0         , 0}
+};
+
+static int               tkeys_print(const tkeys *arr);
+
+static int               tkey_binsearch(fs word, tkeys *tab, int n);
+
+// probably it's better from fileutils
+static fs                getword(fs str);
+
 int                      main(int argc, const char *argv[]){
     logsimpleinit("Start");
 
@@ -66,6 +114,43 @@ int                      main(int argc, const char *argv[]){
         return 0;
     }
 
+    int     n;
+    fs      s = FS();    // init with alloc
+    while (fsisempty(s = getword(s) ) ) {
+        if (isalpha(s.v[0] ) )
+            if ( (n = tkey_binsearch(s, keytab, COUNT(keytab) - 1) ) >= 0)
+                keytab[n].count++;
+    }
+    fsfree(s);
+    printf("Total: %d\n", tkeys_print(keytab) );
+
     return logret(0, "end...");  // as replace of logclose()
+}
+
+static int               tkey_binsearch(fs word, tkeys *tab, int n){
+    int cond, low = 0, high = n - 1,  mid;
+    const char *s = fsstr(word);
+    while (low <= high){
+        mid = (low + high) / 2;
+        if ( (cond = strcmp(s, tab[mid].word ) ) < 0)
+            high = mid - 1;
+        else if (cond > 0)
+            low = mid + 1;
+        else
+            return mid;
+    }
+    return -1;
+}
+
+static int               tkeys_print(const tkeys *arr){
+    int     total = 0;
+    while (arr->word){
+        if (arr->count > 0){
+            printf("%4d: %s", arr->count, arr->word);
+            total += arr->count;
+        }
+        arr++;
+    }
+    return total;
 }
 
