@@ -19,12 +19,12 @@ int                             fsarr_techfprintlim(FILE *f, fsarray arr, int li
 
     if (arr.ar)
         for (int i = 0; i < MIN(arr.sz, lim); i++){
-            if (fsstr(*arr.ar[i].ps) ){
+            if (arr.ar[i].ps) {
                 cnt += fstechfprint(f, *arr.ar[i].ps);   // directly name!
             }
         }
     if (lim < arr.sz)
-        cnt += fprintf(f, "and more...\n");
+        cnt += fprintf(f, "and more... (%d)\n", arr.sz - lim);
     return cnt;
 }
 
@@ -79,45 +79,57 @@ static fsarray                  sortfs(const fsarray *origin){
 // ------------------ General functions ----------------------------
 
 // never raise exception! just return true/false and put messages into f (if != 0)
-bool                fsarr_validate(FILE *f, fsarray arr){
-    logenter("%p", f);
-    // check 1
+bool                fsarr_validate(FILE *out, fsarray arr){
+    logenter("%p", out);
+    logmsg("check 1");
     if (arr.sz < 0 || arr.cnt < 0){
-        fprintf(f, "%s: sz and cnt must be positive", __func__);
+        if (out)
+            fprintf(out, "%s: sz and cnt must be positive", __func__);
         return logerr(false, "sz and cnt must be positive");
     }
-    // check 2
+    logmsg("check 2");
     if (arr.sz < arr.cnt){
-        fprintf(f, "sz %d must be >= cnt %d", arr.sz, arr.cnt);
+        if (out)
+            fprintf(out, "sz %d must be >= cnt %d", arr.sz, arr.cnt);
         return logerr(false, "sz %d must be > cnt %d", arr.sz, arr.cnt);
     }
-    // check 3
+    logmsg("check 3");
     // now check total valid fs via cnt
-    int     cnt = 0;
+    int     cnt = 0, invcnt = 0;
     for (int i = 0; i < arr.sz; i++)
-        if (fsstr(*arr.ar[i].ps) )
-            cnt++;  // found a vliad fs
-
+        if (arr.ar[i].ps){
+            cnt++;  // found a fs pointer
+            if (!fs_validate(out, arr.ar[i].ps) )
+                invcnt++;
+        }
     if (cnt != arr.cnt){
-        fprintf(f, "Total valid fs = %d but cnt = %d", cnt, arr.cnt);
-        return logerr(false, "Total valid fs = %d but cnt = %d", cnt, arr.cnt);
+        if (out)
+            fprintf(out, "Total fs pointer allocated = %d but cnt = %d", cnt, arr.cnt);
+        return logerr(false, "Total fs pointer allocated = %d but cnt = %d", cnt, arr.cnt);
+    }
+    if (invcnt > 0){
+        if (out)
+            fprintf(out, "Total invalid fs = %d", invcnt);
+        return logerr(false, "Total invalid fs = %d", invcnt);
     }
     if (arr.sz > 0){
-        // check 4
+        logmsg("sz > 0, check 4");
         fsarray   tmp = sortfs(&arr);   // make a sorting by arr.ar.s.v, tmp is shrinked and NOT valid, all fs are pointer to fs of arr
         int     duplcount = 0;
         for (int i = 1; i < tmp.sz; i++)
             if (tmp.ar[i - 1].ps->v == tmp.ar[i].ps->v){
-                fprintf(f, "elem [%d] == elem [%d] == %p:[%s]", i - 1, i, tmp.ar[i].ps->v, tmp.ar[i].ps->v);
+                if (out)
+                    fprintf(out, "elem [%d] == elem [%d] == %p:[%s]", i - 1, i, tmp.ar[i].ps->v, tmp.ar[i].ps->v);
                 duplcount++;
             }
         free(tmp.ar);       // free temporary, no need to free ar[].s
         if (duplcount > 0){
-            fprintf(f, "Total duplicates %d", duplcount);
+            if (out)
+                fprintf(out, "Total duplicates %d", duplcount);
             return logerr(false, "Total duplicates %d", duplcount);
         }
     }
-    // all tests for now...
+    logmsg("all tests for now...");
     return logret(true, "Ok");
 }
 

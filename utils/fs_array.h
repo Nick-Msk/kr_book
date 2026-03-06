@@ -38,7 +38,7 @@ typedef struct fsarray {
 // linked faststring!
 typedef struct fsl {
     union {
-        struct fs;
+        //struct fs;
         fs      s;
     };
     int     pos;        // position in fsarray
