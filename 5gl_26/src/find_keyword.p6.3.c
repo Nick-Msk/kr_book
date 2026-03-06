@@ -96,7 +96,7 @@ static int               tkeys_print(const tkeys *arr);
 static int               tkey_binsearch(fs word, tkeys *tab, int n);
 
 // probably it's better from fileutils
-static fs                getword(fs str);
+static fs                getword(FILE *f, fs str);
 
 int                      main(int argc, const char *argv[]){
     logsimpleinit("Start");
@@ -114,9 +114,10 @@ int                      main(int argc, const char *argv[]){
         return 0;
     }
 
+    FILE   *f = stdin;  // -f?
     int     n;
     fs      s = FS();    // init with alloc
-    while (fsisempty(s = getword(s) ) ) {
+    while (fsisempty(s = getword(f, s) ) ) {
         if (isalpha(s.v[0] ) )
             if ( (n = tkey_binsearch(s, keytab, COUNT(keytab) - 1) ) >= 0)
                 keytab[n].count++;
@@ -154,3 +155,9 @@ static int               tkeys_print(const tkeys *arr){
     return total;
 }
 
+// str must have heap alloc
+static fs                getword(FILE *f, fs str){
+    if (f == 0)
+        f = stdin;
+    
+}
