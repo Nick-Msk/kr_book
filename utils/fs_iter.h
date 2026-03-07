@@ -104,12 +104,23 @@ static inline char         *fselemnext(fsnew *i){
 }
 // not sure if really need that
 static inline char         *fselemcurr(fsnew *i){
-    return fs_elem(i->s, i->pos);
+    return fs_elem(i->s, i->pos);   // TODO: fs_curr() ???
 }
 
 // setup len and '\0'
 static inline char         *fselemend(fsnew *i){
     return fs_setlen(i->s, i->pos);
+}
+
+static inline int           fsnew_techfprint(FILE *restrict f, fsnew *restrict i, const char *restrict name){
+    int cnt = 0;
+    if (f)
+        cnt = fprintf(f, "FSNEW iter %s: pos %d, len %d, sz %d\n", name, i->pos, i->s ? i->s->len: -1, i->s ? i->s->sz: -1);
+    return cnt;
+}
+
+static inline int           fsnew_techprint(fsnew *restrict i, const char *restrict name){
+    return fsnew_techfprint(stdout, i, name);
 }
 
 // forward
@@ -133,6 +144,9 @@ static inline char         *fselemend(fsnew *i){
 // #define lyamdba(s, compare) ...
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
+
+#define                     fsnewtechfprint(f, i)     fsnew_techfprint((f), &i, #i)
+#define                     fsnewtechprint(i)     fsnew_techfprint(&i, #i)
 
 // --------------------------- ETC. -------------------------
 
