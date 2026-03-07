@@ -112,6 +112,11 @@ static inline char         *fselemend(fsnew *i){
     return fs_setlen(i->s, i->pos);
 }
 
+// clear to 0 len and pos
+static inline char         *fselemclear(fsnew *i){
+    return fs_setlen(i->s, i-> pos = 0);
+}
+
 static inline int           fsnew_techfprint(FILE *restrict f, fsnew *restrict i, const char *restrict name){
     int cnt = 0;
     if (f)
@@ -124,30 +129,30 @@ static inline int           fsnew_techprint(fsnew *restrict i, const char *restr
 }
 
 // forward
-#define                     hasnext(i)   fshasnext(&(i) )
-#define                     next(i)     *(fsnext(&(i) ) )
-#define                     curr(i)     *(fscurr(&(i) ) )
-#define                     fsforeach(s, i) for (fsiter i = fseach(s); hasnext(i); next(i) )
+#define                     hasnext(i)          fshasnext(&(i) )
+#define                     next(i)            *(fsnext(&(i) ) )
+#define                     curr(i)            *(fscurr(&(i) ) )
+#define                     fsforeach(s, i)     for (fsiter i = fseach(s); hasnext(i); next(i) )
 
 // reverse
-#define                     hasnextrev(i) fshasnextrev(&(i) )
-#define                     nextrev(i)   *(fsnextrev(&(i) ) )
-#define                     currrev(i)   *(fscurrrev(&(i) ) )
+#define                     hasnextrev(i)       fshasnextrev(&(i) )
+#define                     nextrev(i)         *(fsnextrev(&(i) ) )
+#define                     currrev(i)         *(fscurrrev(&(i) ) )
 #define                     fsforeachrev(s, i) for (fsiterrev i = fseachrev(s); hasnextrev(i); nextrev(i) )
 
 // fsnew
-#define                     elemnext(i) *fselemnext(&(i) )
-#define                     elemcurr(i) *fselemcurr(&(i) )
-#define                     elemend(i)  *fselemend(&(i) )
+#define                     elemnext(i)        *fselemnext(&(i) )
+#define                     elemcurr(i)        *fselemcurr(&(i) )
+#define                     elemend(i)         *fselemend(&(i) )
+#define                     elemclear(i)       *fselemclear(&(i) )
 
 // in future
 // #define lyamdba(s, compare) ...
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
-#define                     fsnewtechfprint(f, i)     fsnew_techfprint((f), &i, #i)
-#define                     fsnewtechprint(i)     fsnew_techfprint(&i, #i)
-
+#define                     fsnewtechfprint(f, i)       fsnew_techfprint((f), &i, #i)
+#define                     fsnewtechprint(i)           fsnew_techfprint(&i, #i)
 // --------------------------- ETC. -------------------------
 
 #endif /* !_FS_ITER_H */
