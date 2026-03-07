@@ -39,7 +39,7 @@ sortlines.p5.11: src/sortlines.p5.11.c lib/log.o lib/common.o lib/checker.o lib/
 gen_arr: src/gen_arr.c lib/log.o lib/common.o lib/checker.o lib/fileutils.o lib/fs.o lib/error.o lib/array.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-find_keyword.p6.3: src/find_keyword.p6.3.c lib/log.o lib/common.o lib/checker.o lib/fileutils.o lib/fs.o lib/error.o lib/fs_array.o
+find_keyword.p6.3: src/find_keyword.p6.3.c lib/log.o lib/common.o lib/buffer.o lib/fs.o lib/error.o lib/fs_array.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 UTIL_PATH = ../utils
@@ -84,6 +84,10 @@ lib/fs.o:
 lib/fs_array.o:
 	cd $(UTIL_PATH) && $(MAKE) fs.o
 	@cp $(UTIL_PATH)/lib/fs_array.o lib/
+
+lib/buffer.o:
+	cd $(UTIL_PATH) && $(MAKE) buffer.o
+	@cp $(UTIL_PATH)/lib/buffer.o lib/
 
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:

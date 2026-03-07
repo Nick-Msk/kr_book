@@ -3,11 +3,13 @@
 #include <ctype.h>
 
 #include "log.h"
-#include "checker.h"
+//#include "checker.h"
 #include "common.h"
-#include "fileutils.h"
+//#include "fileutils.h"
 #include "fs.h"
+#include "fs_iter.h"
 #include "error.h"
+#include "buffer.h"
 
 typedef struct Keys {
     bool    version;
@@ -96,7 +98,7 @@ static int               tkeys_print(const tkeys *arr);
 static int               tkey_binsearch(fs word, tkeys *tab, int n);
 
 // probably it's better from fileutils
-static fs                getword(FILE *f, fs str);
+static fs                getword(fs str, bool sens);
 
 int                      main(int argc, const char *argv[]){
     logsimpleinit("Start");
@@ -115,12 +117,13 @@ int                      main(int argc, const char *argv[]){
     }
 
     FILE   *f = stdin;  // -f?
+    buffer_set(f);
     int     n;
     fs      s = FS();    // init with alloc
-    while (fsisempty(s = getword(f, s) ) ) {
-        if (isalpha(s.v[0] ) )
+    while ( !fsisempty(s = getword(s, ke.sens) ) ) {
             if ( (n = tkey_binsearch(s, keytab, COUNT(keytab) - 1) ) >= 0)
                 keytab[n].count++;
+            //logmsg("s - %s", fsstr(s) ); 
     }
     fsfree(s);
     printf("Total: %d\n", tkeys_print(keytab) );
@@ -147,7 +150,7 @@ static int               tkeys_print(const tkeys *arr){
     int     total = 0;
     while (arr->word){
         if (arr->count > 0){
-            printf("%4d: %s", arr->count, arr->word);
+            printf("%4d: %s\n", arr->count, arr->word);
             total += arr->count;
         }
         arr++;
@@ -155,9 +158,43 @@ static int               tkeys_print(const tkeys *arr){
     return total;
 }
 
-// str must have heap alloc
-static fs                getword(FILE *f, fs str){
-    if (f == 0)
-        f = stdin;
-    
+static inline int conv(int c, bool sens){
+    return sens ? c: tolower(c);
 }
+
+// str must have heap alloc
+static fs                getword(fs str, bool sens){
+    logenter("sens %s", bool_str(sens) );
+    int     c;
+static int                                              cnt = 0; // remove after TODO:
+    if (cnt % 100 == 0)
+        fstechfprint(logfile, str);
+    while (isspace( c = getch() ) )
+        ;
+    fsnew iter = fsinew(&str);
+    if (cnt % 100 == 0)
+        fsnewtechfprint(logfile, iter);    // REMOVE
+    if (c != EOF)
+        elemnext(iter) = conv(c, sens);
+    else
+        elemclear(iter);
+    if (!isalpha(c) ){
+        elemend(iter);
+        return str;
+    }
+    while ( (c = getch()) != EOF){
+        if (!isalnum(c) ){
+            ungetch(c);
+            break;
+        } else
+            elemnext(iter) = conv(c, sens);
+    }
+if (cnt % 100 == 0)
+        fsnewtechfprint(logfile, iter);    // REMOVE
+
+    elemend(iter);
+    if (cnt % 100 == 0)
+        fstechfprint(logfile, str); // TODO: remove ater checking
+    return logret(str, "%d", str.len); // that is probably new str
+}
+
