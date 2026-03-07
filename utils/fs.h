@@ -19,10 +19,12 @@
 
 // ------------------- TYPES -----------------------
 
-typedef enum  {FS_FLAG_STATIC = 0x1
+typedef enum  {
+               FS_FLAG_ALLOC  = 0x0     // standard allocation
+             , FS_FLAG_STATIC = 0x1
              , FS_FLAG_CONST  = 0x2     // Not user for now
              , FS_FLAG_LOCAL  = 0x4     // not used in this version
-             , FS_FLAG_ALLOC  = 0x0     // standard allocation
+             , FS_FLAG_MOVED  = 0x8     // for fsarr_move()
 } FS_FLAGS;
 
 // type-support functions
@@ -34,6 +36,7 @@ static inline const char * fs_flag_str(FS_FLAGS flag){
         CASE_RETURN(FS_FLAG_CONST);
         CASE_RETURN(FS_FLAG_LOCAL);
         CASE_RETURN(FS_FLAG_ALLOC);
+        CASE_RETURN(FS_FLAG_MOVED);
         default:         return "Unknown action";
     }
 }
@@ -77,8 +80,16 @@ static inline bool          fs_flag_alloc(FS_FLAGS fl){
     return fl == FS_FLAG_ALLOC; // heap marker
 }
 
-static inline bool          fs_alloc(const fs*s){
+static inline bool          fs_alloc(const fs *s){
     return fs_flag_alloc(s->flags);
+}
+
+static inline bool          fs_flag_moved(FS_FLAGS fl){
+    return fl == FS_FLAG_MOVED;
+}
+
+static inline bool          fs_moved(const fs *s){
+    return fs_flag_moved(s->flags);
 }
 
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
@@ -95,11 +106,13 @@ static inline bool          fs_alloc(const fs*s){
 
 // destructor, macro wrapper will be
 static inline void          fs_free(fs *s){
-    if (fs_alloc(s)){
+    if (fs_alloc(s) || fs_moved(s)){    // actualy alloc must be a flag, but not statememnt TODO:
         logsimpleact(free(s->v), "freed... %p", s->v);   // WOW, logsimpleact?
         s->sz = s->len = 0;
         s->v = 0;
     }
+    if (fs_moved(s))
+        free(s);    // because in that case fs in heap too
 }
 
 // mass destructor
@@ -128,9 +141,10 @@ static inline fs            fscopy(const char *str){
 
 extern fs                   fsclone(fs s);
 
+// lit MUST BE static!
 static inline fs            fsliteral(const char *lit){
     fs s = FSEMPTY;
-    s.v = (char *)lit;  // TODO: probably use a union
+    s.v = (char *) lit;  // TODO: probably use a union
     s.len = strlen(lit);
     s.sz = s.len + 1;
     return s;
