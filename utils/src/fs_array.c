@@ -170,6 +170,39 @@ int                 fsarr_fprint(FILE *f, fsarray arr){
     return cnt;     // total printed items
 }
 
+// -------------------------- (API) Serialization  -----------------------
+int              fsarr_save(const char *restrict fname, const fsarray *restrict arr){
+    FILE    *out = fopen(fname, "w");
+    if (!out)
+        return logsimpleret(-1, "Unable to open %s for write", fname);
+    int     cnt = fsarr_savef(out, arr);
+    fclose(out);
+    return cnt;
+}
+
+// f is open for write
+int              fsarr_savef(FILE *restrict f, const fsarray *restrict arr){
+    // TODO:
+    // signature
+    int cnt = 0;
+    fprintf(f, "FSARRAY: sz %d cnt %d ptr %d:[\n", arr->sz, arr->cnt, arr->ptr);
+    if (!arr->ar)
+        //return logsimpleret(-1, "Nullable ar, can't serialize");    // userraise?
+        return userraise(102, -1, "Nullable ar, can't serialize"); 
+    for (int i = 0; i < arr->sz; i++){
+        fprintf(f, "%4d:", i);
+        if (arr->ar[i].ps)
+            fs_fprint(f, arr->ar[i].ps, ""), cnt++;
+        else
+            fprintf(f, "null\n");
+    }
+    fprintf(f, "]");
+    return logsimpleret(cnt, "Total printed %d of %d", cnt, arr->sz);
+}
+
+fsarray          fsarr_load(const char *restrict fname, const fsarray *restrict arr);
+fsarray          fsarr_loadf(FILE *restrict f, const fsarray *restrict arr);
+
 // ------------------ API Constructs/Destrucor  ----------------------------
 
 
