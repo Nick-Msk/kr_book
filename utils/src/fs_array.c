@@ -194,7 +194,8 @@ int              fsarr_savef(FILE *restrict f, const fsarray *restrict arr){
         if (arr->ar[i].ps)
             fs_fprint(f, arr->ar[i].ps, ""), cnt++;
         else
-            fprintf(f, "null\n");
+            fprintf(f, "null");
+        fputc('\n', f);
     }
     fprintf(f, "]");
     return logsimpleret(cnt, "Total printed %d of %d", cnt, arr->sz);
@@ -328,7 +329,7 @@ tf2(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED
 }
 
-// ------------------------- TEST 2 ---------------------------------
+// ------------------------- TEST 3 ---------------------------------
 
 static TestStatus
 tf3(const char *name)
@@ -366,6 +367,32 @@ tf3(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED
 }
 
+// ------------------------- TEST 4 ---------------------------------
+
+static TestStatus
+tf4(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+    {
+        test_sub("subtest %d: fsarr_save", ++subnum);
+
+        int     sz = 10;
+        fsarray fa = fsarr_init(sz);
+        fs      s1[sz]; //temporary
+        for (int i = 0; i < sz; i++){
+            s1[i] = FS();
+            fssprintf(s1[i], "Just test string %d", i);
+            fsarr_attach(&fa, s1 + i);
+        }
+        int     res;
+        if ( (res = fsarr_save("res/fsarr.sv", &fa) ) != sz)
+            return logacterr(fsarrfree(fa), TEST_FAILED, "fsarr_save have to return %d but not %d", res, sz);
+        fsarrfree(fa); // via macro
+    }
+    return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED
+}
+
 // ------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -376,6 +403,7 @@ main( /* int argc, const char *argv[] */)
         testnew(.f2 = tf1, .num = 1, .name = "Simple init free test"                        , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf2, .num = 2, .name = "Init/free test with valid fs (random)"        , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf3, .num = 3, .name = "fsarr_attach test"                            , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf4, .num = 4, .name = "fsarr_save test"                              , .desc=""                , .mandatory=true)
     );
 
     logclose("end...");
