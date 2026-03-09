@@ -18,6 +18,8 @@
 
 // ------------------- CONSTANTS AND GLOBALS ---------------------------
 
+static const int                G_FSARRAY_DEFAULT_INIT = 10;
+
 // --------------------------------- TYPES -----------------------------
 
 
@@ -56,6 +58,10 @@ typedef struct fsl {
 extern int              fsarr_free(fsarray *arr);
 
 extern fsarray          fsarr_init(int cnt);
+
+static inline fsarray  fsarr_empty(){
+    return fsarr_init(G_FSARRAY_DEFAULT_INIT);
+}
 
 #define fsarrfree(s)    fsarr_free(&(s))
 #define FSL(...)        (fsl) { .s = FS(), .pos = 0, ##__VA_ARGS__}

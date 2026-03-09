@@ -182,7 +182,6 @@ int              fsarr_save(const char *restrict fname, const fsarray *restrict 
 
 // f is open for write
 int              fsarr_savef(FILE *restrict f, const fsarray *restrict arr){
-    // TODO:
     // signature
     int cnt = 0;
     fprintf(f, "FSARRAY: sz %d cnt %d ptr %d:[\n", arr->sz, arr->cnt, arr->ptr);
@@ -201,8 +200,20 @@ int              fsarr_savef(FILE *restrict f, const fsarray *restrict arr){
     return logsimpleret(cnt, "Total printed %d of %d", cnt, arr->sz);
 }
 
-fsarray          fsarr_load(const char *restrict fname, const fsarray *restrict arr);
-fsarray          fsarr_loadf(FILE *restrict f, const fsarray *restrict arr);
+fsarray          fsarr_load(const char *restrict fname, const fsarray *restrict arr){
+    FILE    *out = fopen(fname, "r");
+    if (!out)
+        return logsimpleret(-1, "Unable to open %s for read", fname);
+    int     cnt = fsarr_loadf(out, arr);
+    fclose(out);
+    return cnt;
+}
+
+fsarray          fsarr_loadf(FILE *restrict f, const fsarray *restrict arr){
+    fsarray     ar = fsarr_empty(); 
+    // TODO:
+    
+}
 
 // ------------------ API Constructs/Destrucor  ----------------------------
 
@@ -248,8 +259,9 @@ tf1(const char *name)
 {
     logenter("%s", name);
     int         subnum = 0;
+
+    test_sub("subtest %d: init", ++subnum);
     {
-        test_sub("subtest %d: init", ++subnum);
 
         int sz = 100;
         fsarray fa = fsarr_init(sz);
@@ -280,8 +292,9 @@ tf2(const char *name)
 {
     logenter("%s", name);
     int         subnum = 0;
+
+    test_sub("subtest %d: init + validation", ++subnum);
     {
-        test_sub("subtest %d: init + validation", ++subnum);
 
         int sz = 30;
         fsarray fa = fsarr_init(sz);
@@ -336,8 +349,9 @@ tf3(const char *name)
 {
     logenter("%s", name);
     int         subnum = 0;
+
+    test_sub("subtest %d: cycle attach + validation", ++subnum);
     {
-        test_sub("subtest %d: cycle attach + validation", ++subnum);
 
         int sz = 50;
         fsarray fa = fsarr_init(sz);
@@ -390,8 +404,52 @@ tf4(const char *name)
             return logacterr(fsarrfree(fa), TEST_FAILED, "fsarr_save have to return %d but not %d", res, sz);
         fsarrfree(fa); // via macro
     }
+    {
+
+    }
     return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED
 }
+
+// ------------------------- TEST 5 ---------------------------------
+
+static TestStatus
+tf5(const char *name)
+{
+    logenter("%s", name);
+    int             subnum = 0;
+    const char     *fname = "res/fsarr_save_load.sv";
+
+    test_sub("subtest %d: fsarr_save", ++subnum);
+    {
+
+        int     sz = 10;
+        fsarray fa = fsarr_init(sz);
+        fs      s1[sz]; //temporary
+        for (int i = 0; i < sz; i++){
+            s1[i] = FS();
+            fssprintf(s1[i], "Just test string %d", i);
+            fsarr_attach(&fa, s1 + i);
+        }
+        int     res;
+        if ( (res = fsarr_save(fname, &fa) ) != sz)
+            return logacterr(fsarrfree(fa), TEST_FAILED, "fsarr_save have to return %d but not %d", res, sz);
+    }
+    test_sub("subtest %d: fsarr_load", ++subnum)
+    {
+        fsarray fa = fsarray_load(fname);
+
+         // TODO: compare with initial fa
+        if (fa1.cnt != fa.ctnt)
+            return logacterr((fsarrfree(fa1), fsarrfree(fa)), TEST_FAILED, "Loaded cnt = %d must be equal to ogiginal cnt %d", fa1.cnt, fa.cnt);
+
+        for (int i = 0; i < fa1.cnt; i++)
+            if ()...
+        fsarrfree(fa1);
+        fsarrfree(fa);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED
+}
+
 
 // ------------------------------------------------------------------
 int
@@ -404,10 +462,10 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf2, .num = 2, .name = "Init/free test with valid fs (random)"        , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf3, .num = 3, .name = "fsarr_attach test"                            , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf4, .num = 4, .name = "fsarr_save test"                              , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf5, .num = 5, .name = "fsarr_save/load test"                         , .desc=""                , .mandatory=true)
     );
 
-    logclose("end...");
-    return 0;
+    return logcloseret(0, "end...");
 }
 
 #endif /* FSARRAYTESTING */
