@@ -146,19 +146,10 @@ int                  fsarr_attach(fsarray *restrict arr, fs *restrict s){
     return ptr;
 }
 
-/* inline
-fs*                 fsarr_detach(fsarray *arr, fsl s){
-    logsimple("pos %d, v %p", s.pos, fsstr(s.s));
-    if (fsstr(arr->ar[pos].s) != 0){
-        
-    } else
-        userraisesig(101, "Emply position %d  or not equal %p", s.pos, fsstr(arr->ar[pos].s));
-} */
-
 // -------------------------- (API) printers -----------------------
 
 // this is normal printer
-int                 fsarr_fprint(FILE *f, fsarray arr){
+int                         fsarr_fprint(FILE *f, fsarray arr){
     int  cnt = 0;
     for (int i = 0; i < arr.sz; i++){
         if (arr.ar[i].ps->v) {
@@ -171,23 +162,23 @@ int                 fsarr_fprint(FILE *f, fsarray arr){
 }
 
 // -------------------------- (API) Serialization  -----------------------
-int              fsarr_save(const char *restrict fname, const fsarray *restrict arr){
+int                         fsarr_save(const char *restrict fname, const fsarray *restrict arr){
     FILE    *out = fopen(fname, "w");
     if (!out)
-        return logsimpleret(-1, "Unable to open %s for write", fname);
+        return userraise(ERR_UNABLE_OPEN_FILE_READ, -1, "Unable to open %s for write", fname);
     int     cnt = fsarr_savef(out, arr);
     fclose(out);
     return cnt;
 }
 
 // f is open for write
-int              fsarr_savef(FILE *restrict f, const fsarray *restrict arr){
+int                         fsarr_savef(FILE *restrict f, const fsarray *restrict arr){
     // signature
     int cnt = 0;
     fprintf(f, "FSARRAY: sz %d cnt %d ptr %d:[\n", arr->sz, arr->cnt, arr->ptr);
     if (!arr->ar)
         //return logsimpleret(-1, "Nullable ar, can't serialize");    // userraise?
-        return userraise(102, -1, "Nullable ar, can't serialize"); 
+        return userraise(ERR_NULLABLE_PTR, -1, "Nullable ar, can't serialize"); 
     for (int i = 0; i < arr->sz; i++){
         fprintf(f, "%4d:", i);
         if (arr->ar[i].ps)
@@ -200,19 +191,20 @@ int              fsarr_savef(FILE *restrict f, const fsarray *restrict arr){
     return logsimpleret(cnt, "Total printed %d of %d", cnt, arr->sz);
 }
 
-fsarray          fsarr_load(const char *restrict fname, const fsarray *restrict arr){
+fsarray                     fsarr_load(const char *fname){
     FILE    *out = fopen(fname, "r");
     if (!out)
-        return logsimpleret(-1, "Unable to open %s for read", fname);
-    int     cnt = fsarr_loadf(out, arr);
+        userraiseint(ERR_UNABLE_OPEN_FILE_READ, "Unable to open %s for read", fname);
+    fsarray fa = fsarr_loadf(out);
     fclose(out);
-    return cnt;
+    return fa;
 }
 
-fsarray          fsarr_loadf(FILE *restrict f, const fsarray *restrict arr){
+fsarray                     fsarr_loadf(FILE *restrict f){
     fsarray     ar = fsarr_empty(); 
     // TODO:
     
+    return ar;
 }
 
 // ------------------ API Constructs/Destrucor  ----------------------------
@@ -433,24 +425,25 @@ tf5(const char *name)
         int     res;
         if ( (res = fsarr_save(fname, &fa) ) != sz)
             return logacterr(fsarrfree(fa), TEST_FAILED, "fsarr_save have to return %d but not %d", res, sz);
-    }
-    test_sub("subtest %d: fsarr_load", ++subnum)
-    {
-        fsarray fa = fsarray_load(fname);
+
+    test_sub("subtest %d: fsarr_load", ++subnum);
+
+        fsarray fa1 = fsarr_load(fname);
 
          // TODO: compare with initial fa
         if (fa1.cnt != fa.cnt)
             return logacterr((fsarrfree(fa1), fsarrfree(fa)), TEST_FAILED, "Loaded cnt = %d must be equal to ogiginal cnt %d", fa1.cnt, fa.cnt);
 
-        for (int i = 0, int j = 0; i < fa.sz && j < fa1.sz; i++, j++){
-            while (i < fa.sz && !fsarr_ex(fa, i))   // if exists a faststring
+        int i, j;
+        for (i = 0, j = 0; i < fa.sz && j < fa1.sz; i++, j++){
+            while (i < fa.sz && !fsarr_ex(&fa, i))   // if exists a faststring
                 i++;
-            while (j < fa1.sz && !fsarr_ex(j))
+            while (j < fa1.sz && !fsarr_ex(&fa1, j))
                 j++;
-            if (i < fa.sz && i < fa.sz1)    // fsarr_get() is introduced!
-                if (fs_cmp(fsarr_get(fa, i), fsarr_get(fa1, j) ) != 0)
+            if (i < fa.sz && j < fa1.sz)    // fsarr_get() is introduced!
+                if (fs_cmp(fsarr_get(&fa, i), fsarr_get(&fa1, j) ) != 0)
                     return logacterr((fsarrfree(fa1), fsarrfree(fa)), TEST_FAILED,
-                        "Loaded string %d [%s] != string %d [%s]", i, fs_str(fsarr_get(fa, i)), j, fs_str(fsarr_get(fa1, j)) );
+                        "Loaded string %d [%s] != string %d [%s]", i, fs_str(fsarr_get(&fa, i)), j, fs_str(fsarr_get(&fa1, j)) );
         }
         fsarrfree(fa1);
         fsarrfree(fa);

@@ -81,7 +81,7 @@ static inline fs*       fsarr_detach(fsarray *arr, int pos){
 
 // check if position exists
 static inline bool      fsarr_ex(const fsarray *arr, int pos){
-    return arr->ar[pos].fs != 0;
+    return arr->ar[pos].ps != 0;
 }
 
 // return a fs
@@ -116,7 +116,7 @@ static inline int       fsl_techprint(fsl fl){
 extern int              fsarr_save(const char *restrict fname, const fsarray *restrict arr);
 extern int              fsarr_savef(FILE *restrict f, const fsarray *restrict arr);
 
-extern fsarray          fsarr_load(const char *fname, const fsarray *restrict arr);
-extern fsarray          fsarr_loadf(FILE *restrict f, const fsarray *restrict arr);
+extern fsarray          fsarr_load(const char *fname);
+extern fsarray          fsarr_loadf(FILE *f);
 
 #endif /* !_FS_ARRAY_H */
