@@ -72,13 +72,22 @@ static inline fsarray  fsarr_empty(){
 extern int              fsarr_attach(fsarray *restrict arr, fs *restrict s);
 
 // low level deatch
-extern fs*              fsarr_detach(fsarray *arr, int pos){
+static inline fs*       fsarr_detach(fsarray *arr, int pos){
     fs *s = arr->ar[pos].ps;
     arr->ar[pos].ps = 0;
-    arr->cnt--;     // just for logging now
+    arr->cnt--;     // just for logging now, but arr->pos remains the same!
     return s;       // probably it's possible to not return noting
 }
-//extern fsarray          fsarr_shrink(fsarray *arr);         // CAN't be implemented!! REMOVE
+
+// check if position exists
+static inline bool      fsarr_ex(const fsarray *arr, int pos){
+    return arr->ar[pos].fs != 0;
+}
+
+// return a fs
+static inline fs       *fsarr_get(const fsarray *arr, int pos){
+    return arr->ar[pos].ps;
+}
 
 #define                 fsarrattach(arr, s) fsarr_attach(&(arr), s)
 // ------------------------ PRINTERS/CHECKERS --------------------------

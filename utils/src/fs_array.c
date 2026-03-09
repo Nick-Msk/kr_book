@@ -439,11 +439,19 @@ tf5(const char *name)
         fsarray fa = fsarray_load(fname);
 
          // TODO: compare with initial fa
-        if (fa1.cnt != fa.ctnt)
+        if (fa1.cnt != fa.cnt)
             return logacterr((fsarrfree(fa1), fsarrfree(fa)), TEST_FAILED, "Loaded cnt = %d must be equal to ogiginal cnt %d", fa1.cnt, fa.cnt);
 
-        for (int i = 0; i < fa1.cnt; i++)
-            if ()...
+        for (int i = 0, int j = 0; i < fa.sz && j < fa1.sz; i++, j++){
+            while (i < fa.sz && !fsarr_ex(fa, i))   // if exists a faststring
+                i++;
+            while (j < fa1.sz && !fsarr_ex(j))
+                j++;
+            if (i < fa.sz && i < fa.sz1)    // fsarr_get() is introduced!
+                if (fs_cmp(fsarr_get(fa, i), fsarr_get(fa1, j) ) != 0)
+                    return logacterr((fsarrfree(fa1), fsarrfree(fa)), TEST_FAILED,
+                        "Loaded string %d [%s] != string %d [%s]", i, fs_str(fsarr_get(fa, i)), j, fs_str(fsarr_get(fa1, j)) );
+        }
         fsarrfree(fa1);
         fsarrfree(fa);
     }
