@@ -206,6 +206,12 @@ static inline const char    *fs_strdup(fs *s){
     return (const char *) strdup(s->v);
 }
 
+// pointer version
+static inline int            fs_cmp(fs *restrict str1, fs *restrict str2){
+    return strcmp(str1->v, str2->v);
+}
+
+// local version
 static inline int            fscmp(fs str1, fs str2){
     return strcmp(str1.v, str2.v);
 }
