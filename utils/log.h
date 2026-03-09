@@ -303,10 +303,14 @@ log_numbers(LogAction            act,
 #define LOGAPPEND(dirname)\
     loginit(dirname"/"__FILE__".log", true, 0, "Start logging (append)")
 
-#define logclose(fmt, ...) \
-	{ int _LG_INIT = logret(0, (fmt), ##__VA_ARGS__); \
+
+#define logcloseret(ret, fmt, ...) \
+	{ int _LG_INIT = logret( (ret), (fmt), ##__VA_ARGS__); \
       log_close(); \
 	  _LG_INIT; }
+
+#define logclose(fmt, ...) \
+    logcloseret(0, (fmt), ##__VA_ARGS__);
 
 #define	logfile								(log_file())			// wrapper for log_file()
 #define logoffset							(log_offset())		// wrapper for log_offset()
@@ -330,6 +334,8 @@ log_numbers(LogAction            act,
 
 #define loginit(...)						(false)				// in NOBEBUG mode result is false
 #define logclose(...)						(0)
+#define logcloseret(ret, ...)               (ret)
+
 #define logsimpleinitdir(...)
 #define logsimpleinit(...)
 //
