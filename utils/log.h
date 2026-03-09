@@ -304,10 +304,10 @@ log_numbers(LogAction            act,
     loginit(dirname"/"__FILE__".log", true, 0, "Start logging (append)")
 
 
-#define logcloseret(ret, fmt, ...) \
-	{ int _LG_INIT = logret( (ret), (fmt), ##__VA_ARGS__); \
+#define logcloseret(retcode, fmt, ...) \
+	({logret( (retcode), (fmt), ##__VA_ARGS__); \
       log_close(); \
-	  _LG_INIT; }
+	  (retcode); })
 
 #define logclose(fmt, ...) \
     logcloseret(0, (fmt), ##__VA_ARGS__);
