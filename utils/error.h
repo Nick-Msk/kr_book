@@ -11,7 +11,14 @@
 
 // ----------- CONSTANTS AND GLOBALS ---------------
 
-static const int                        ERROR_MESSAGE_MAX_LENGTH = 256;
+static const int                        ERROR_MESSAGE_MAX_LENGTH    = 512;
+
+// ERRORS HERE
+static const int                        ERR_NULLABLE_PTR            = 10;
+
+static const int                        ERR_UNABLE_OPEN_FILE        = 50;
+static const int                        ERR_UNABLE_OPEN_FILE_READ   = 51;
+static const int                        ERR_UNABLE_OPEN_FILE_WRITE  = 52;
 
 // ------------------- TYPES -----------------------
 
