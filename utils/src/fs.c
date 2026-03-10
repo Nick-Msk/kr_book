@@ -242,7 +242,7 @@ int                     fs_fprintlim(FILE *restrict out, const fs *restrict s, i
     return cnt;
 }
 
-int                     fs_fprints(FILE *restrict out, const fs *restrict arr[]){
+int                     fs_fprint_arr(FILE *restrict out, const fs *restrict arr[]){
     int cnt = 0, i = 0;
     if (arr)
         for (; arr[i] != 0 && i < G_GLOB_AVERAGE; i++) // G_GLOB_AVERAGE to avoid endless loop
@@ -621,13 +621,13 @@ tf8(const char *name)
     logenter("%s", name);
     int         subnum = 0;
     {
-        test_sub("subtest %d: fsprints MANUAL", ++subnum);
+        test_sub("subtest %d: fsprint_arr MANUAL", ++subnum);
 
         fs s1 = fsliteral("123");
         fs s2 = fsliteral("345");
         fs s3 = fsliteral("67890");
 
-        fsprints(&s1, &s2, &s3);
+        fsprint_arr(&s1, &s2, &s3);
 
         fsfreeall(&s1, &s2, &s3);
     }
@@ -692,7 +692,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf5, .num = 5, .name = "fs_cpy/fs_cpystr test"         , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf6, .num = 6, .name = "fsfreeall test"                , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf7, .num = 7, .name = "fsprint/printlim manual test"  , .desc="always ok, for the manual check"                , .mandatory=true)
-      , testnew(.f2 = tf8, .num = 8, .name = "fsprints manual test"          , .desc="always ok, for the manual check"                , .mandatory=true)
+      , testnew(.f2 = tf8, .num = 8, .name = "fsprint_arr manual test"          , .desc="always ok, for the manual check"                , .mandatory=true)
       , testnew(.f2 = tf9, .num = 9, .name = "fs_sprintf formatted test"     , .desc="always ok, for the manual check"                , .mandatory=true)
     );
 

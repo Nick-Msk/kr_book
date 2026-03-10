@@ -287,9 +287,20 @@ static inline int            fs_printlim(const fs *restrict s, int lim, const ch
     return fs_fprintlim(stdout, s, lim, name);
 }
 
-extern int                   fs_fprints(FILE *restrict out, const fs *restrict arrs[]);
-static inline int            fs_prints(const fs *restrict arrs[]){
-    return fs_fprints(stdout, arrs);
+// TODO: rename to fs_fprint_arr()
+extern int                   fs_fprint_arr(FILE *restrict out, const fs *restrict arrs[]);
+static inline int            fs_print_arr(const fs *restrict arrs[]){
+    return fs_fprint_arr(stdout, arrs);
+}
+
+// seqialization (strictly FULL save into the steam with only FS and .len info), out must be opened for write
+static inline int            fs_fsave(FILE *restrict out, const fs *restrict str){
+    
+}
+
+// fs must be 
+static inline int            fs_fsave_arr(FILE *restrict out, const fs *restrict str){
+
 }
 
 #define                      fstechfprint(out, s) fs_techfprint( (out), &(s), #s)
@@ -301,8 +312,8 @@ static inline int            fs_prints(const fs *restrict arrs[]){
 #define                      fsfprintlim(out, s, lim) fs_fprintlim( (out), &(s), (lim), #s)
 #define                      fsprintlim(s, lim) fs_printlim( &(s), lim, #s)
 
-#define                      fsfprints(out, ...) fs_fprints(out, (const fs *[]) { __VA_ARGS__, 0} )
-#define                      fsprints(...) fs_prints( (const fs *[]) { __VA_ARGS__, 0} )
+#define                      fsfprint_arr(out, ...) fs_fprint_arr(out, (const fs *[]) { __VA_ARGS__, 0} )
+#define                      fsprint_arr(...) fs_print_arr( (const fs *[]) { __VA_ARGS__, 0} )
 
 extern bool                  fs_validate(FILE *restrict out, const fs *restrict s);
 
