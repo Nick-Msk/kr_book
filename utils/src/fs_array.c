@@ -172,7 +172,7 @@ int                         fsarr_save(const char *restrict fname, const fsarray
 }
 
 // f is open for write
-int                         fsarr_savef(FILE *restrict f, const fsarray *restrict arr){
+int                         fsarr_fsave(FILE *restrict f, const fsarray *restrict arr){
     // signature
     int cnt = 0;
     fprintf(f, "FSARRAY: sz %d cnt %d ptr %d:[\n", arr->sz, arr->cnt, arr->ptr);
@@ -181,8 +181,9 @@ int                         fsarr_savef(FILE *restrict f, const fsarray *restric
         return userraise(ERR_NULLABLE_PTR, -1, "Nullable ar, can't serialize"); 
     for (int i = 0; i < arr->sz; i++){
         fprintf(f, "%4d:", i);
-        if (arr->ar[i].ps)
-            fs_fprint(f, arr->ar[i].ps, ""), cnt++;
+        if (arr->ar[i].ps)  // fsarr_get() use here TODO:
+            //fs_fprint(f, arr->ar[i].ps, ""), cnt++;
+            fs_fsave(f, fsarr_get(arr, i) ), cnt++;
         else
             fprintf(f, "null");
         fputc('\n', f);
@@ -200,7 +201,7 @@ fsarray                     fsarr_load(const char *fname){
     return fa;
 }
 
-fsarray                     fsarr_loadf(FILE *restrict f){
+fsarray                     fsarr_fload(FILE *restrict f){
     fsarray     ar = fsarr_empty(); 
     // TODO:
     
