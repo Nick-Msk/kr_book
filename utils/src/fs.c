@@ -296,6 +296,58 @@ bool                    fs_validate(FILE *restrict out, const fs *restrict s){
     return logret(true, "true");
 }
 
+// --------------------------------- SERIALIZATION -----------------------------------------
+
+// seqialization (strictly FULL save into the steam with only FS and .len info), out must be opened for write
+int                          fs_fsave(FILE *restrict out, const fs *restrict str){
+    int cnt = 0;
+    if (str){
+        fprintf(out, "FS (%d):[%s]\n", str->len, str->v);
+    }
+    return cnt;
+}
+
+int                          fs_save(const char *restrict fname, const fs *restrict str){ 
+    FILE *out = fopen(fname, "w");
+    if (!out)
+        userraiseint(ERR_UNABLE_OPEN_FILE_WRITE, -1, "Unable to open %s for write", fname);
+    int cnt = fs_save(out, str);
+    return cnt;
+}
+
+//  arr must be a pointer to NULL terminated array!
+int                          fs_fsave_arr(FILE *restrict out, const fs *restrict arr){
+    int cnt = 0;
+    while (arr)
+        cnt += fs_fsave(arr, arr++);
+    return cnt;
+}
+
+// note: arr can be nullable, this mean 0 length array
+int                          fs_save_arr(const char *restrict fname, const fs *restrict arr){
+    FILE *out = fopen(fname, "w");
+    if (!out)
+        userraiseint(ERR_UNABLE_OPEN_FILE_WRITE, -1, "Unable to open %s for write", fname);
+    int cnt = fs_fsave_arr(out, arr);
+    fclose(out);
+    return cnt;
+}
+
+fs                           fs_fload(FILE *in){
+    // TODO:
+    // HOW to avoid parsing?
+    
+}
+
+fs                           fs_load(const char *fname){
+    FILE *in = fopen(fname, "r");
+    if (!in)
+        userraiseint(ERR_UNABLE_OPEN_FILE_READ, -1, "Unable to open %s for read", fname);
+    s = fs_load(in);
+    fclose(in);
+    return s;
+}
+
 // ------------------ API Constructs/Destrucor  ----------------------------
 
 fs                      fsinit(int n){

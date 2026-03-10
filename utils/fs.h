@@ -293,15 +293,6 @@ static inline int            fs_print_arr(const fs *restrict arrs[]){
     return fs_fprint_arr(stdout, arrs);
 }
 
-// seqialization (strictly FULL save into the steam with only FS and .len info), out must be opened for write
-static inline int            fs_fsave(FILE *restrict out, const fs *restrict str){
-    
-}
-
-// fs must be 
-static inline int            fs_fsave_arr(FILE *restrict out, const fs *restrict str){
-
-}
 
 #define                      fstechfprint(out, s) fs_techfprint( (out), &(s), #s)
 #define                      fstechprint(s) fs_techprint( &(s), #s)
@@ -317,7 +308,21 @@ static inline int            fs_fsave_arr(FILE *restrict out, const fs *restrict
 
 extern bool                  fs_validate(FILE *restrict out, const fs *restrict s);
 
-// --------------------------- ETC. -------------------------
+// --------------------------------- SERIALIZATION -----------------------------------------
+
+// seqialization (strictly FULL save into the steam with only FS and .len info), out must be opened for write
+extern int                   fs_fsave(FILE *restrict out, const fs *restrict str);
+extern int                   fs_save(const char *restrict fname, const fs *restrict str);
+
+//  arr must be a pointer to NULL terminated array!
+extern int                   fs_fsave_arr(FILE *restrict out, const fs *restrict arr);
+extern int                   fs_save_arr(const char *restrict fname, const fs *restrict arr);
+
+extern fs                    fs_fload(FILE *in);
+extern fs                    fs_load(const char *fname);
+// NOTE: load_arr is part of fsarr functionnality
+
+// ------------------------------------ ETC. ------------------------------------------------
 
 extern int                   FS_MIN_ACCOC;          // to config.c (via sqlite)
 extern int                   FS_TECH_PRINT_COUNT;   // to cobfig.c TODO:
