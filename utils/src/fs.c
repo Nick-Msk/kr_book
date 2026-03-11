@@ -303,6 +303,7 @@ int                          fs_fsave(FILE *restrict out, const fs *restrict str
     int cnt = 0;
     if (str){
         fprintf(out, "FS(%d):[%s]\n", str->len, str->v);
+        cnt++;
     }
     return cnt;
 }
@@ -333,14 +334,37 @@ int                          fs_save_arr(const char *restrict fname, const fs *r
     return cnt;
 }
 
+// raise int in case of wrong format
 fs                           fs_fload(FILE *in){
-    // TODO:
     // HOW to avoid parsing?
-    
+    // FORMAT: FS(%d):[%s]\n
+    unsigned     len = 0;
+    int          tmp = 0;
+    char         pt1[] = "FS(", pt2[] = "):[", pt3[] = "]\n";
+
+    // macro from fileutils.h
+    // #define freadpattern(in, p) fread_pattern(in, (p), sizeof(p) )
+    if (!freadpattern(in, pt1) )
+        userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read pattern '%s'", pt1);
+    if (fscanf(in, "%u", &len) < 1)
+        userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read fs length");
+    if (!freadpattern(in, pt2) )
+        userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read pattern '%s'", pt2);
+
+    fs      s = fsinit(len + 1);
+    // just read len bytes from current position
+    if (fread(fsstr(s), len, 1, in) < len)
+        userraiseint(ERR_NOT_ENOGH_VALUE, "Unable to read %d bytes from stream", len);
+
+    if (!freadpattern(in, pt3) )
+        userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read pattern '%s'", pt3);
+
+    return s;
 }
 
 fs                           fs_load(const char *fname){
     FILE *in = fopen(fname, "r");
+    logsimple("%p", in);
     if (!in)
         userraiseint(ERR_UNABLE_OPEN_FILE_READ, "Unable to open %s for read", fname);
     fs s = fs_fload(in);
@@ -765,6 +789,32 @@ tf10(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
+// ------------------------- TEST 11 ---------------------------------
+
+static TestStatus
+tf11(const char *name)
+{
+    logenter("%s", name);
+
+    int         subnum = 0;
+
+    test_sub("subtest %d: fssave/load 1 fs", ++subnum);
+    {
+        const char fname[] = "res/fs_test_save_load.dat";
+        fs s = fscopy("Tra la la 1234567890");
+        if (fssave(fname, s) != 1)
+            return logacterr(fsfree(s), TEST_FAILED, "Fssave returns != 1 value");
+        fs s2 = fsload(fname);
+        if (s.len != s2.len || fscmp(s, s2) != 0)
+            return logacterr(fsfreeall(&s, &s2), TEST_FAILED, "Strings not equal (%d - %d)[%s] - [%s]", s.len, s2.len, fsstr(s), fsstr(s2) );
+        fsfreeall(&s, &s2);
+
+    test_sub("subtest %d: fssave/load multiples fs", ++subnum);
+        // TODO:
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -782,6 +832,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf8,  .num =  8, .name = "fsprint_arr manual test"       , .desc="always ok, for the manual check"                , .mandatory=true)
       , testnew(.f2 = tf9,  .num =  9, .name = "fs_sprintf formatted test"     , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf10, .num = 10, .name = "fslocal simple test"           , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf11, .num = 11, .name = "fs_save/load test"             , .desc=""                , .mandatory=true)
     );
 
     logclose("end...");

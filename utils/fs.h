@@ -23,7 +23,7 @@ typedef enum  {
                FS_FLAG_ALLOC  = 0x0     // standard allocation
              , FS_FLAG_STATIC = 0x1
              , FS_FLAG_CONST  = 0x2     // Not user for now
-             , FS_FLAG_LOCAL  = 0x4     // not used in this version
+             , FS_FLAG_LOCAL  = 0x4
              , FS_FLAG_MOVED  = 0x8     // for fsarr_move()
 } FS_FLAGS;
 
@@ -106,8 +106,8 @@ static inline bool          fs_moved(const fs *s){
 
 // TODO : check that solution
 #define             CONCATENATE(prefix, name) prefix ## _ ## name
-#define           fslocal(name, leng) char CONCATENATE(_FS_TMP_, name)[(leng) + 1];\
-                  fs name = (fs) {.len = (leng), .sz = (leng) + 1, .flags = FS_FLAG_LOCAL, .v = CONCATENATE(_FS_TMP_, name) }
+#define             fslocal(name, leng) char CONCATENATE(_FS_TMP_, name)[(leng) + 1];\
+ fs name = (fs) {.len = (leng), .sz = (leng) + 1, .flags = FS_FLAG_LOCAL, .v = CONCATENATE(_FS_TMP_, name) }
 
 // destructor, macro wrapper will be
 static inline void          fs_free(fs *s){
@@ -326,6 +326,15 @@ extern int                   fs_save_arr(const char *restrict fname, const fs *r
 extern fs                    fs_fload(FILE *in);
 extern fs                    fs_load(const char *fname);
 // NOTE: load_arr is part of fsarr functionnality
+
+#define                      fsfsave(f, str) fs_fsave((f), &(str))
+#define                      fssave(fname, str) fs_save((fname), &(str))
+
+#define                      fsfsave_arr(out, ...) fs_fsave_arr( (out), (const fs *[]) { __VA_ARGS__, 0} )
+#define                      fssave_arr(fname, ...) fs_save_arr( (fname), (const fs *[]) { __VA_ARGS__, 0} )
+
+#define                      fsfload(f) fs_fload(f)
+#define                      fsload(fname) fs_load(fname)
 
 // ------------------------------------ ETC. ------------------------------------------------
 
