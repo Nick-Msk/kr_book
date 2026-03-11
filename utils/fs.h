@@ -94,20 +94,20 @@ static inline bool          fs_moved(const fs *s){
 
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
-#define FSEMPTY (fs){.sz = 0, .len = 0, .flags = FS_FLAG_STATIC, .v = ""};
+#define             FSEMPTY (fs){.sz = 0, .len = 0, .flags = FS_FLAG_STATIC, .v = ""};
 
-#define FSINITSTATIC(...)  (fs){.sz = 1, .len = 0, .flags = FS_FLAG_STATIC, .v = "", ##__VA_ARGS__}
+#define             FSINITSTATIC(...)  (fs){.sz = 1, .len = 0, .flags = FS_FLAG_STATIC, .v = "", ##__VA_ARGS__}
 
-#define FS(...)   (fs){.sz = 0, .len = 0, .flags = FS_FLAG_ALLOC, .v = 0, ##__VA_ARGS__}
+#define             FS(...)   (fs){.sz = 0, .len = 0, .flags = FS_FLAG_ALLOC, .v = 0, ##__VA_ARGS__}
 
-#define fsfree(s) fs_free(&(s))
+#define             fsfree(s) fs_free(&(s))
 
-#define fsfreeall(...) fs_freeall( (fs *[]){__VA_ARGS__, 0} )
+#define             fsfreeall(...) fs_freeall( (fs *[]){__VA_ARGS__, 0} )
 
 // TODO : check that solution
-#define CONCATENATE(prefix, name) prefix ## _ ## name
-#define fslocal(name, len) char CONCATENATE(_FS_TMP_, name)[(len) + 1];\
-             fs name = FS(.len = (len), .sz = (len) + 1, .flags = FS_FLAG_LOCAL, .v = CONCATENATE(_FS_TMP_, name) )
+#define             CONCATENATE(prefix, name) prefix ## _ ## name
+#define           fslocal(name, leng) char CONCATENATE(_FS_TMP_, name)[(leng) + 1];\
+                  fs name = (fs) {.len = (leng), .sz = (leng) + 1, .flags = FS_FLAG_LOCAL, .v = CONCATENATE(_FS_TMP_, name) }
 
 // destructor, macro wrapper will be
 static inline void          fs_free(fs *s){

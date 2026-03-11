@@ -302,7 +302,7 @@ bool                    fs_validate(FILE *restrict out, const fs *restrict s){
 int                          fs_fsave(FILE *restrict out, const fs *restrict str){
     int cnt = 0;
     if (str){
-        fprintf(out, "FS (%d):[%s]\n", str->len, str->v);
+        fprintf(out, "FS(%d):[%s]\n", str->len, str->v);
     }
     return cnt;
 }
@@ -310,8 +310,8 @@ int                          fs_fsave(FILE *restrict out, const fs *restrict str
 int                          fs_save(const char *restrict fname, const fs *restrict str){ 
     FILE *out = fopen(fname, "w");
     if (!out)
-        userraiseint(ERR_UNABLE_OPEN_FILE_WRITE, -1, "Unable to open %s for write", fname);
-    int cnt = fs_save(out, str);
+        userraiseint(ERR_UNABLE_OPEN_FILE_WRITE, "Unable to open %s for write", fname);
+    int cnt = fs_fsave(out, str);
     return cnt;
 }
 
@@ -319,7 +319,7 @@ int                          fs_save(const char *restrict fname, const fs *restr
 int                          fs_fsave_arr(FILE *restrict out, const fs *restrict arr){
     int cnt = 0;
     while (arr)
-        cnt += fs_fsave(arr, arr++);
+        cnt += fs_fsave(out, arr++);
     return cnt;
 }
 
@@ -327,7 +327,7 @@ int                          fs_fsave_arr(FILE *restrict out, const fs *restrict
 int                          fs_save_arr(const char *restrict fname, const fs *restrict arr){
     FILE *out = fopen(fname, "w");
     if (!out)
-        userraiseint(ERR_UNABLE_OPEN_FILE_WRITE, -1, "Unable to open %s for write", fname);
+        userraiseint(ERR_UNABLE_OPEN_FILE_WRITE, "Unable to open %s for write", fname);
     int cnt = fs_fsave_arr(out, arr);
     fclose(out);
     return cnt;
@@ -342,8 +342,8 @@ fs                           fs_fload(FILE *in){
 fs                           fs_load(const char *fname){
     FILE *in = fopen(fname, "r");
     if (!in)
-        userraiseint(ERR_UNABLE_OPEN_FILE_READ, -1, "Unable to open %s for read", fname);
-    s = fs_load(in);
+        userraiseint(ERR_UNABLE_OPEN_FILE_READ, "Unable to open %s for read", fname);
+    fs s = fs_fload(in);
     fclose(in);
     return s;
 }
@@ -392,8 +392,9 @@ tf1(const char *name)
 {
     logenter("%s", name);
     int         subnum = 0;
+
+    test_sub("subtest %d: fsempty", ++subnum);
     {
-        test_sub("subtest %d: fsempty", ++subnum);
 
         fs s = fsempty();
         if (s.len != 0 || s.sz != 0 || s.v != 0)
@@ -402,9 +403,8 @@ tf1(const char *name)
             return logerr(TEST_FAILED, "fs have no ALLOC");
         fsfree(s);  // should work normally
     }
+    test_sub("subtest %d: fsinit(100)", ++subnum);
     {
-        test_sub("subtest %d: fsinit(100)", ++subnum);
-
         fs s = fsinit(100);
         if (!fs_validate(logfile, &s) )
             return logacterr(fsfree(s), TEST_FAILED, "Validation's failed");
@@ -413,9 +413,8 @@ tf1(const char *name)
                     s.len, s.sz, s.v, bool_str(fs_alloc(&s) ) );
         fsfree(s);
     }
+    test_sub("subtest %d: fsliteral", ++subnum);
     {
-        test_sub("subtest %d: fsliteral", ++subnum);
-
         const char *pattern = "1234567890";
         fs s = fsliteral(pattern);
         if (!fs_validate(logfile, &s) )
@@ -425,8 +424,8 @@ tf1(const char *name)
                     s.len, s.sz, s.v, bool_str(fs_static(&s) ) );
         fsfree(s);
     }
+    test_sub("subtest %d: fscopy", ++subnum);
     {
-        test_sub("subtest %d: fscopy", ++subnum);
 
         const char *pattern = "1234567890";
         fs s = fscopy(pattern);
@@ -438,7 +437,7 @@ tf1(const char *name)
         if (!inv(strcmp(fsstr(s), pattern) == 0, "Not equal") )
             return logacterr(fsfree(s), TEST_FAILED, "[%s] != pt [%s]", fsstr(s), pattern);
 
-        test_sub("subtest %d: fsclone", ++subnum);
+    test_sub("subtest %d: fsclone", ++subnum);
 
         fs s2 = fsclone(s);
         fsfree(s);
@@ -464,9 +463,9 @@ tf2(const char *name)
 {
     logenter("%s", name);
     int         subnum = 0;
-    {
-        test_sub("subtest %d: fscopy", ++subnum);
 
+    test_sub("subtest %d: fscopy", ++subnum);
+    {
         const char *pt = "just pattern";
         fs s = fscopy(pt);
 
@@ -485,7 +484,7 @@ tf2(const char *name)
             return logacterr( fsfree(s), TEST_FAILED, "[0] returns [%c], but should be [%c]", c, 'y');
 
         // reallocation test
-        test_sub("subtest %d: elem with realloc", ++subnum);
+    test_sub("subtest %d: elem with realloc", ++subnum);
 
         elem(s, 100) = 'z';
         if (!fs_validate(logfile, &s) )
@@ -513,9 +512,9 @@ tf3(const char *name)
 {
     logenter("%s", name);
     int         subnum = 0;
-    {
-        test_sub("subtest %d: elem", ++subnum);
 
+    test_sub("subtest %d: elem", ++subnum);
+    {
         int     i;
         fs      s = fsempty();  // TODO: think if avoid
         char    pt[] = "test parretn 1234567";
@@ -538,9 +537,9 @@ tf4(const char *name)
 {
     logenter("%s", name);
     int         subnum = 0;
-    {
-        test_sub("subtest %d: fscat()", ++subnum);
 
+    test_sub("subtest %d: fscat()", ++subnum);
+    {
         const char  arr1[] = "q123456";
         const char  arr2[] = "zxcvbnm901";
         fs          s1 = fscopy(arr1);
@@ -556,7 +555,7 @@ tf4(const char *name)
         if (strstr(fsstr(s1), arr2) != fsstr(s1) + strlen(arr1) )
             return logacterr( fsfree(s1), TEST_FAILED, "[%s] must have [%s] on position %lu", fsstr(s1), arr2, strlen(arr1) );
 
-        test_sub("subtest %d: fscatstr()", ++subnum);
+    test_sub("subtest %d: fscatstr()", ++subnum);
 
         const char  arr3[] = "zaq1";
         int         len1 = fslen(s1);
@@ -570,7 +569,7 @@ tf4(const char *name)
         if (strstr(fsstr(s1), arr1) != fsstr(s1) )  // the same test like in subtest 1
             return logacterr( fsfree(s1), TEST_FAILED, "[%s] must start from [%s]", fsstr(s1), arr1);
 
-        test_sub("subtest %d: fscat() with empty initial test", ++subnum);
+    test_sub("subtest %d: fscat() with empty initial test", ++subnum);
         {
             fs s3 = fscopy("");
             fstechfprint(logfile, s3);   // for manual
@@ -593,8 +592,9 @@ tf5(const char *name)
 {
     logenter("%s", name);
     int         subnum = 0;
+
+    test_sub("subtest %d: fscpy()", ++subnum);
     {
-        test_sub("subtest %d: fscpy()", ++subnum);
 
         const char  arr1[] = "q123456";
         const char  arr2[] = "zxcvbnm901";
@@ -628,8 +628,9 @@ tf6(const char *name)
 {
     logenter("%s", name);
     int         subnum = 0;
+
+    test_sub("subtest %d: fsfreeall", ++subnum);
     {
-        test_sub("subtest %d: fsfreeall", ++subnum);
 
         fs i1 = fsinit(100);
         fs i2 = fsinit(1000);
@@ -648,8 +649,9 @@ tf7(const char *name)
 {
     logenter("%s", name);
     int         subnum = 0;
+
+    test_sub("subtest %d: fsprint MANUAL", ++subnum);
     {
-        test_sub("subtest %d: fsprint MANUAL", ++subnum);
 
         char    arr[] = "Hello, World from fs!\n";
 
@@ -672,14 +674,15 @@ tf8(const char *name)
 {
     logenter("%s", name);
     int         subnum = 0;
+
+    test_sub("subtest %d: fsprint_arr MANUAL", ++subnum);
     {
-        test_sub("subtest %d: fsprint_arr MANUAL", ++subnum);
 
         fs s1 = fsliteral("123");
         fs s2 = fsliteral("345");
         fs s3 = fsliteral("67890");
 
-        fsprint_arr(&s1, &s2, &s3);
+        fsfprint_arr(logfile, &s1, &s2, &s3);
 
         fsfreeall(&s1, &s2, &s3);
     }
@@ -696,14 +699,14 @@ tf9(const char *name)
     int         subnum = 0;
     char buf[1000], fmt[] = "%d, %f, %s\n";
 
+    test_sub("subtest %d: fs_printf with more than enough (1000 char)", ++subnum);
     {
-        test_sub("subtest %d: fs_printf with more than enough (1000 char)", ++subnum);
         {
             fs s1 = fsinit(1000);
 
             snprintf(buf, sizeof(buf) - 1, fmt, 1223, 1.445, "Blablabla");
             fs_sprintf(&s1, fmt, 1223, 1.445, "Blablabla");
-            fstechprint(s1);  // for manual checking
+            fstechfprint(logfile, s1);  // for manual checking
 
             if ( (int)strlen(buf) != s1.len)
                 return logacterr( fsfree(s1), TEST_FAILED, "len buf = %lu must be equal s1 = %d ", strlen(buf), fslen(s1) );
@@ -712,13 +715,13 @@ tf9(const char *name)
                 return logacterr( fsfree(s1), TEST_FAILED, "buf [%s] must be equal s1 [%s]", buf, fsstr(s1) );
             fsfree(s1);
         }
-        test_sub("subtest %d: fs_printf with small init size (2 char)", ++subnum);
+    test_sub("subtest %d: fs_printf with small init size (2 char)", ++subnum);
         {
             fs s2 = fsinit(1);
-            // the same test, but for very small fs 
+            // the same test, but for very small fs
             snprintf(buf, sizeof(buf) - 1, fmt, 12345, 9.8765, "XXXYYYYZZZZZZZZZRRRRR");
             fs_sprintf(&s2, fmt, 12345, 9.8765, "XXXYYYYZZZZZZZZZRRRRR");
-            fstechprint(s2);  // for manual checking
+            fstechfprint(logfile, s2);  // for manual checking
 
             if ( (int)strlen(buf) != s2.len)
                 return logacterr( fsfree(s2), TEST_FAILED, "len buf = %lu must be equal s1 = %d ", strlen(buf), fslen(s2) );
@@ -730,22 +733,55 @@ tf9(const char *name)
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
-// ------------------------------------------------------------------
+
+// ------------------------- TEST 10 ---------------------------------
+
+static TestStatus
+tf10(const char *name)
+{
+    logenter("%s", name);
+
+    int         subnum = 0;
+
+    test_sub("subtest %d: fslocal", ++subnum);
+    {
+        fslocal(s1, 15);
+        elem(s1, 0) = 't';
+        get(s1, 1) = 'z';
+        fsend(s1, 2);
+        char c = get(s1, 0), c1 = get(s1, 1);
+        if (c != 't' || c1 != 'z')
+            return logerr(TEST_FAILED, "s1[0] must be = 't' but not '%c', OR s1[1] must be 'z' but not '%c'", c, c1);
+
+    test_sub("subtest %d: test with pattern", ++subnum);
+
+        const char *pt = "qwe1234567890";
+
+        strcpy(fsstr(s1), pt);
+        // .len is still 2
+        if (strcmp(fsstr(s1), pt) != 0)
+            return logerr(TEST_FAILED, "fs [%s] != [%s]", fsstr(s1), pt);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
+// ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
 {
     logsimpleinit("Start");
 
     testenginestd(
-        testnew(.f2 = tf1, .num = 1, .name = "Simple init and validate test" , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf2, .num = 2, .name = "Access read/write test"        , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf3, .num = 3, .name = "Elem() test"                   , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf4, .num = 4, .name = "fs_cat/fs_catstr test"         , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf5, .num = 5, .name = "fs_cpy/fs_cpystr test"         , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf6, .num = 6, .name = "fsfreeall test"                , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf7, .num = 7, .name = "fsprint/printlim manual test"  , .desc="always ok, for the manual check"                , .mandatory=true)
-      , testnew(.f2 = tf8, .num = 8, .name = "fsprint_arr manual test"          , .desc="always ok, for the manual check"                , .mandatory=true)
-      , testnew(.f2 = tf9, .num = 9, .name = "fs_sprintf formatted test"     , .desc="always ok, for the manual check"                , .mandatory=true)
+        testnew(.f2 = tf1,  .num =  1, .name = "Simple init and validate test" , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf2,  .num =  2, .name = "Access read/write test"        , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf3,  .num =  3, .name = "Elem() test"                   , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf4,  .num =  4, .name = "fs_cat/fs_catstr test"         , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf5,  .num =  5, .name = "fs_cpy/fs_cpystr test"         , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf6,  .num =  6, .name = "fsfreeall test"                , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf7,  .num =  7, .name = "fsprint/printlim manual test"  , .desc="always ok, for the manual check"                , .mandatory=true)
+      , testnew(.f2 = tf8,  .num =  8, .name = "fsprint_arr manual test"       , .desc="always ok, for the manual check"                , .mandatory=true)
+      , testnew(.f2 = tf9,  .num =  9, .name = "fs_sprintf formatted test"     , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf10, .num = 10, .name = "fslocal simple test"           , .desc=""                , .mandatory=true)
     );
 
     logclose("end...");
