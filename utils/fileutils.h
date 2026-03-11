@@ -44,5 +44,8 @@ extern int                      get_line(char *line, int lim);
 // simpe file reader, must call free(s); after usage!!
 extern char                     *read_from_file(FILE *f, int *p_cnt);
 
+extern bool                     fread_pattern(FILE *restrict f, const char *restrict, int sz);
+#define                         freadpattern(in, p) fread_pattern(in, (p), sizeof(p) )
+
 
 #endif /* ! _FILEUTILS_H */

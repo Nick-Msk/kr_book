@@ -147,6 +147,14 @@ char                           *read_from_file(FILE *f, int *p_cnt){
     return logret(s, "%d bytes were read", pos);
 }
 
+bool                     fread_pattern(FILE *restrict f, const char *restrict pattern, int sz){
+    char    buf[sz + 1];
+    if (fread(buf, sz, 1, f) != (unsigned) sz)
+        //return logsimpleerr(false, "Unable to read %d bytes from stream", sz);
+        return userraise(false, ERR_NOT_ENOGH_VALUE, "Unable to read %d bytes from stream", sz);
+    return memcmp(buf, pattern, sz);
+}
+
 // -------------------------------Testing --------------------------
 
 #ifdef FILEUTILSTESTING
@@ -302,10 +310,26 @@ tf4(const char *name)
 
     int         subnum = 0;
     {
-        // TODO:
+        // TODO: WTF???? 
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED TEST_MANUAL ???
 }
+
+// ------------------------- TEST 5 ---------------------------------
+
+static TestStatus
+tf5(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: fread_pattern from test file", ++subnum);
+    {
+        // TODO:
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
 
 // -------------------------------------------------------------------
 
@@ -324,6 +348,7 @@ main( /*int argc, const char *argv[] */ )
       , testnew(.f2 = tf2, .num = 2, .name = "Readfs_file() simple test",               .desc = "", .mandatory=true)
       , testnew(.f2 = tf3, .num = 3, .name = "Realline/writeline simple test",          .desc = "", .mandatory=true)
       , testnew(.f2 = tf4, .num = 4, .name = "Fprint_file test",                        .desc = "", .mandatory=true)
+      , testnew(.f2 = tf5, .num = 5, .name = "fread_pattern test",                      .desc = "", .mandatory=true)
     );
 
     logclose("end...");
