@@ -4,6 +4,7 @@
 #include "log.h"
 #include "fs.h"
 #include "error.h"
+#include "fileutils.h"
 
 /********************************************************************
                     FAST STRING MODULE IMPLEMENTATION
@@ -313,6 +314,7 @@ int                          fs_save(const char *restrict fname, const fs *restr
     if (!out)
         userraiseint(ERR_UNABLE_OPEN_FILE_WRITE, "Unable to open %s for write", fname);
     int cnt = fs_fsave(out, str);
+    fclose(out);
     return cnt;
 }
 
@@ -336,25 +338,25 @@ int                          fs_save_arr(const char *restrict fname, const fs *r
 
 // raise int in case of wrong format
 fs                           fs_fload(FILE *in){
-    // HOW to avoid parsing?
     // FORMAT: FS(%d):[%s]\n
     unsigned     len = 0;
-    int          tmp = 0;
     char         pt1[] = "FS(", pt2[] = "):[", pt3[] = "]\n";
 
-    // macro from fileutils.h
-    // #define freadpattern(in, p) fread_pattern(in, (p), sizeof(p) )
     if (!freadpattern(in, pt1) )
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read pattern '%s'", pt1);
+
     if (fscanf(in, "%u", &len) < 1)
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read fs length");
+
     if (!freadpattern(in, pt2) )
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read pattern '%s'", pt2);
 
     fs      s = fsinit(len + 1);
     // just read len bytes from current position
-    if (fread(fsstr(s), len, 1, in) < len)
+    if (fread(fsstr(s), 1, len, in) < len)
         userraiseint(ERR_NOT_ENOGH_VALUE, "Unable to read %d bytes from stream", len);
+
+    fsend(s, len);  // fix the fs
 
     if (!freadpattern(in, pt3) )
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read pattern '%s'", pt3);
