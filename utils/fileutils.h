@@ -37,7 +37,11 @@ static inline int               writelines(const fs *lines, int cnt){
 // TODO: remove that after migration to fsarray
 extern void                     freelines(fs *lineptr, int nlines);
 
-extern int                      fprint_file(FILE *f);
+extern int                      fprint_file(FILE *restrict out, FILE *restrict f);
+
+int                             print_file(FILE *restrict f){
+    return fprint_file(stdout, f);
+}
 
 // OLD char * API
 extern int                      get_line(char *line, int lim);
