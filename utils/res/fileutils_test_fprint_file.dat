@@ -151,9 +151,9 @@ char                           *read_from_file(FILE *f, int *p_cnt){
 bool                     fread_pattern(FILE *restrict f, const char *restrict pattern, int sz){
     char    buf[sz + 1];
     buf[sz] = '\0';
-    if (fread(buf, 1, sz, f) != (unsigned) sz){
-        perror("1");
-        //return logsimpleerr(false, "Unable to read %d bytes from stream", sz);
+    if ( fread(buf, 1, sz, f) != (unsigned) sz){
+        // perror("1");
+        // logsimple("Unable to read %d bytes from stream (%d)", sz, cnt);
         return userraise(false, ERR_NOT_ENOGH_VALUE, "Unable to read %d bytes from stream (%s)", sz, buf);
     }
     return memcmp(buf, pattern, sz) == 0;
