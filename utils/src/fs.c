@@ -342,7 +342,7 @@ fs                           fs_fload(FILE *restrict in, fs *restrict s){
     unsigned     len = 0;
     char         pt1[] = "FS(", pt2[] = "):[", pt3[] = "]\n";
 
-    // TODO: FUSKIPFORMAT() macro
+    // TODO: FUSKIPFORMAT(in, pt) macro
     if (!freadpattern(in, pt1) )
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read pattern '%s'", pt1);
 
