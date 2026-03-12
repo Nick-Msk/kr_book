@@ -337,41 +337,49 @@ int                          fs_save_arr(const char *restrict fname, const fs *r
 }
 
 // raise int in case of wrong format
-fs                           fs_fload(FILE *in){
+fs                           fs_fload(FILE *restrict in, fs *restrict s){
     // FORMAT: FS(%d):[%s]\n
     unsigned     len = 0;
     char         pt1[] = "FS(", pt2[] = "):[", pt3[] = "]\n";
 
+    // TODO: FUSKIPFORMAT() macro
     if (!freadpattern(in, pt1) )
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read pattern '%s'", pt1);
 
+    // TODO: FUGETVALUE() // int, char *, double are supported via _generic()
     if (fscanf(in, "%u", &len) < 1)
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read fs length");
 
     if (!freadpattern(in, pt2) )
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read pattern '%s'", pt2);
 
-    fs      s = fsinit(len + 1);
+    fs          res = FS();
+    // TODO: think is create a someting like: fs init_or_use(fs *origin)
+    if (s)
+        fs_resize(s, len + 1);
+    else {
+        res = fsinit(len + 1);
+        s = &res;
+    }
     // just read len bytes from current position
-    if (fread(fsstr(s), 1, len, in) < len)
+    if (fread(s->v, 1, len, in) < len)
         userraiseint(ERR_NOT_ENOGH_VALUES, "Unable to read %d bytes from stream", len);
 
-    fsend(s, len);  // fix the fs
-
+    fsend(*s, len);  // fix the fs
+    logsimple("%d[%s]", len, s->v);
     if (!freadpattern(in, pt3) )
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read pattern '%s'", pt3);
 
-    return s;
+    return *s;
 }
 
-fs                           fs_load(const char *fname){
+fs                           fs_load(const char *restrict fname, fs *restrict s){
     FILE *in = fopen(fname, "r");
-    logsimple("%p", in);
     if (!in)
         userraiseint(ERR_UNABLE_OPEN_FILE_READ, "Unable to open %s for read", fname);
-    fs s = fs_fload(in);
+    fs str = fs_fload(in, s);
     fclose(in);
-    return s;
+    return str;
 }
 
 // ------------------ API Constructs/Destrucor  ----------------------------
@@ -806,13 +814,35 @@ tf11(const char *name)
         fs s = fscopy("Tra la la 1234567890");
         if (fssave(fname, s) != 1)
             return logacterr(fsfree(s), TEST_FAILED, "Fssave returns != 1 value");
-        fs s2 = fsload(fname);
+        fs s2 = fs_load(fname, 0); // w/o macro
+        fstechfprint(logfile, s2);
         if (s.len != s2.len || fscmp(s, s2) != 0)
             return logacterr(fsfreeall(&s, &s2), TEST_FAILED, "Strings not equal (%d - %d)[%s] - [%s]", s.len, s2.len, fsstr(s), fsstr(s2) );
-        fsfreeall(&s, &s2);
 
-    test_sub("subtest %d: fssave/load multiples fs", ++subnum);
-        // TODO:
+    test_sub("subtest %d: fs_save multiples fs", ++subnum);
+
+        const char   fname2[] = "res/fs_test_save_load_mass.dat";
+        FILE        *f = fopen(fname2, "w+");
+        if (!f)
+            return logacterr(fsfreeall(&s, &s2), TEST_FAILED, "Unable to open %s for w+", fname2);
+        for (int i = 0; i < 15; i++){
+            fssprintf(s, "Check val %d", i);
+            if (fsfsave(f, s) != 1)
+                return logacterr(fsfreeall(&s, &s2), TEST_FAILED, "Fssave returns != 1 value");
+        }
+        // try to load
+    test_sub("subtest %d: fs_load multiples fs", ++subnum);
+
+        rewind(f);  // from the start
+        char        buf[100];
+        for (int i = 0; i < 15; i++){
+            s2 = fsfload(f, s2);
+            sprintf(buf, "Check val %d", i);    // make a pattern
+            if (strcmp(buf, fsstr(s2) ) != 0)
+                return logacterr( (fclose(f), fsfreeall(&s, &s2) ), TEST_FAILED, "Strings not equal, loaded %s != pattern %s", fsstr(s2), buf);
+        }
+        fclose(f);
+        fsfreeall(&s, &s2);
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }

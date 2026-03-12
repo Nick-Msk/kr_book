@@ -45,9 +45,6 @@ static inline const char * fs_flag_str(FS_FLAGS flag){
 typedef struct fs {
     int         len, sz; // sz >= len + 1 because of last '\0'
     FS_FLAGS    flags;
-#if defined(FS_ALLOCATOR)
-    int         pos;    //
-#endif
     char       *v;      // with '\0'
 } fs;
 
@@ -292,7 +289,6 @@ static inline int            fs_printlim(const fs *restrict s, int lim, const ch
     return fs_fprintlim(stdout, s, lim, name);
 }
 
-// TODO: rename to fs_fprint_arr()
 extern int                   fs_fprint_arr(FILE *restrict out, const fs *restrict arrs[]);
 static inline int            fs_print_arr(const fs *restrict arrs[]){
     return fs_fprint_arr(stdout, arrs);
@@ -323,23 +319,23 @@ extern int                   fs_save(const char *restrict fname, const fs *restr
 extern int                   fs_fsave_arr(FILE *restrict out, const fs *restrict arr);
 extern int                   fs_save_arr(const char *restrict fname, const fs *restrict arr);
 
-extern fs                    fs_fload(FILE *in);
-extern fs                    fs_load(const char *fname);
+extern fs                    fs_fload(FILE *restrict in, fs *restrict s);
+extern fs                    fs_load(const char *restrict fname, fs *restrict s);
 // NOTE: load_arr is part of fsarr functionnality
 
-#define                      fsfsave(f, str) fs_fsave((f), &(str))
-#define                      fssave(fname, str) fs_save((fname), &(str))
+#define                      fsfsave(f, str)        fs_fsave((f), &(str))
+#define                      fssave(fname, str)     fs_save((fname), &(str))
 
-#define                      fsfsave_arr(out, ...) fs_fsave_arr( (out), (const fs *[]) { __VA_ARGS__, 0} )
+#define                      fsfsave_arr(out, ...)  fs_fsave_arr( (out), (const fs *[]) { __VA_ARGS__, 0} )
 #define                      fssave_arr(fname, ...) fs_save_arr( (fname), (const fs *[]) { __VA_ARGS__, 0} )
 
-#define                      fsfload(f) fs_fload(f)
-#define                      fsload(fname) fs_load(fname)
+#define                      fsfload(f, s)          fs_fload(f, (&s) )
+#define                      fsload(fname, s)       fs_load(fname, &(s) )
 
 // ------------------------------------ ETC. ------------------------------------------------
 
 extern int                   FS_MIN_ACCOC;          // to config.c (via sqlite)
-extern int                   FS_TECH_PRINT_COUNT;   // to cobfig.c TODO:
+extern int                   FS_TECH_PRINT_COUNT;   // to config.c TODO:
 
 #endif /* !_FS_H */
 
