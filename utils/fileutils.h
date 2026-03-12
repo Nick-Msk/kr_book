@@ -51,5 +51,11 @@ extern char                     *read_from_file(FILE *f, int *p_cnt);
 extern bool                     fread_pattern(FILE *restrict f, const char *restrict, int sz);
 #define                         freadpattern(in, p) fread_pattern(in, (p), sizeof(p) - 1)
 
+#define                         FUSKIPFORMAT(in, pt) if (!freadpattern(in, (pt)) )\
+                         userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read pattern '%s'", (pt));
+
+// particular for unsigned
+#define                         FUGETUNSIGNED(in) ({unsigned _tmp; if (fscanf(in, "%u", &_tmp) < 1)\
+                 userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read unsigned"); _tmp;})
 
 #endif /* ! _FILEUTILS_H */
