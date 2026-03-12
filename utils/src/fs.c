@@ -354,7 +354,7 @@ fs                           fs_fload(FILE *in){
     fs      s = fsinit(len + 1);
     // just read len bytes from current position
     if (fread(fsstr(s), 1, len, in) < len)
-        userraiseint(ERR_NOT_ENOGH_VALUE, "Unable to read %d bytes from stream", len);
+        userraiseint(ERR_NOT_ENOGH_VALUES, "Unable to read %d bytes from stream", len);
 
     fsend(s, len);  // fix the fs
 
