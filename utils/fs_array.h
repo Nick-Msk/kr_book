@@ -59,7 +59,7 @@ extern int              fsarr_free(fsarray *arr);
 
 extern fsarray          fsarr_init(int cnt);
 
-static inline fsarray  fsarr_empty(){
+static inline fsarray   fsarr_empty(){
     return fsarr_init(G_FSARRAY_DEFAULT_INIT);
 }
 

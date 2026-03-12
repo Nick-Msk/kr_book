@@ -175,7 +175,7 @@ int                         fsarr_save(const char *restrict fname, const fsarray
 int                         fsarr_fsave(FILE *restrict f, const fsarray *restrict arr){
     // signature
     int cnt = 0;
-    fprintf(f, "FSARRAY: sz %d cnt %d ptr %d:[\n", arr->sz, arr->cnt, arr->ptr);
+    fprintf(f, "FSARRAY(%d):[\n", arr->cnt);
     if (!arr->ar)
         //return logsimpleret(-1, "Nullable ar, can't serialize");    // userraise?
         return userraise(ERR_NULLABLE_PTR, -1, "Nullable ar, can't serialize"); 
@@ -202,9 +202,19 @@ fsarray                     fsarr_load(const char *fname){
 }
 
 fsarray                     fsarr_fload(FILE *restrict f){
-    fsarray     ar = fsarr_empty(); 
-    // TODO:
-    
+    // format: "FSARRAY: sz %d cnt %d ptr %d:[\n"
+    FUSKIPFORMAT(f, "FSARRAY(");
+    int cnt = FUGETUNSIGNED(f);
+
+    FUSKIPFORMAT(f, "):[\n");
+    fsarray     ar = fsarr_init(cnt);
+    // cycle for fs
+    for (int i = 0; i < cnt; i++){
+        fs tmp = fs_fload(f, 0);
+        //  NEED fs_move!!!!!
+
+    }
+    FUSKIPFORMAT(f, "]");
     return ar;
 }
 
