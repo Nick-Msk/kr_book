@@ -149,14 +149,16 @@ char                           *read_from_file(FILE *f, int *p_cnt){
 }
 
 bool                     fread_pattern(FILE *restrict f, const char *restrict pattern, int sz){
+    logenter("pt [%s], sz %d", pattern, sz);
     char    buf[sz + 1];
     buf[sz] = '\0';
     if ( fread(buf, 1, sz, f) != (unsigned) sz){
         // perror("1");
         // logsimple("Unable to read %d bytes from stream (%d)", sz, cnt);
-        return userraise(false, ERR_NOT_ENOGH_VALUE, "Unable to read %d bytes from stream (%s)", sz, buf);
+        return userraise(false, ERR_NOT_ENOGH_VALUES, "Unable to read %d bytes from stream (%s)", sz, buf);
     }
-    return memcmp(buf, pattern, sz) == 0;
+    bool res = memcmp(buf, pattern, sz) == 0;
+    return logret(res, "%s", bool_str(res) );
 }
 
 // -------------------------------Testing --------------------------
@@ -346,7 +348,7 @@ tf5(const char *name)
         if (!f)
             return logerr(TEST_FAILED, "Unable to open %s for write", fname);
         for (int i = 0; i < 3; i++)
-            fwrite(pattern, sizeof(pattern), 1, f);  // 3 times
+            fwrite(pattern, strlen(pattern), 1, f);  // 3 times
         // try to read
         rewind(f);
         for (int i = 0; i < 3; i++)
