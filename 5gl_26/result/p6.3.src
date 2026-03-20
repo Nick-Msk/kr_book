@@ -16,17 +16,14 @@ typedef struct Keys {
     bool    sens;
     // ...
 } Keys;
-#define                 Keysinit(...) (Keys){ .version = false, .sens = true, __VA_ARGS__}
 
-typedef struct {
-    bool    firstrun;
-    bool    comm1;  //  comment //
-    bool    comm2;  // comment /* */
-    bool    instr;  // string " "
-    bool    inchar; // string ' '
-    fs      val;    // not user for now
-} Context;
-#define                 Cotextinit(...) (Context) {.firstrun = true, .comm1 = false, .comm2 = false, .instr = false, .inchar = false, .val = FS() }
+// test switch with _
+/* switch with comment type 1 */
+_switch
+_switch
+_switch
+
+#define                 Keysinit(...) (Keys){ .version = false, .sens = true, __VA_ARGS__}
 
 static int              parse_keys(const char *argv[], Keys *ke){
     logenter("...");
@@ -173,37 +170,19 @@ static inline int conv(int c, bool sens){
 
 // str must have heap alloc
 static fs                getword(fs str, bool sens){
-
+    // TODO as per task
     logenter("sens %s", bool_str(sens) );
-
-    static Context   ctx = Contextinit();
-    fsclear(str);   // reset
-    int              c, c1;
-
+    int     c;
 static int                                              cnt = 0; // remove after TODO:
     if (cnt % 100 == 0)
         fstechfprint(logfile, str);
     while (isspace( c = getch() ) )
         ;
     fsnew iter = fsinew(&str);
-
-    // HERE NORMAL TEXT
-    if (c != EOF){
-        if ( !ctx.comm1 && !ctx.comm2 && !ctx.instr && !ctx.inchar && c == '/'){        // try comm1 or 
-        if (c == '/'){
-            if ( (c1 = getch() ) == '/'){  // start comment type 1
-                while ( (c2 = getch ()) != EOF && c2 != '\n')
-                    ;
-                return str; // empty line
-            } else if (c1 == '*'){  // comment type 2
-                do{
-                    while ( (c2 = getch ()) != EOF && c2 != '*'')
-                        ;
-                while (c2 != '/');  // end of /* */
-            }
-        }
+    if (cnt % 100 == 0)
+        fsnewtechfprint(logfile, iter);    // REMOVE
+    if (c != EOF)
         elemnext(iter) = conv(c, sens);
-    }
     else
         elemclear(iter);
     if (!isalpha(c) ){
@@ -221,9 +200,8 @@ if (cnt % 100 == 0)
         fsnewtechfprint(logfile, iter);    // REMOVE
 
     elemend(iter);
-if (cnt % 100 == 0)
-    fstechfprint(logfile, str); // TODO: remove ater checking
-
+    if (cnt % 100 == 0)
+        fstechfprint(logfile, str); // TODO: remove ater checking
     return logret(str, "%d", str.len); // that is probably new str
 }
 
