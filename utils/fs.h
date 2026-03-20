@@ -257,6 +257,7 @@ extern int                   fs_sprintf(fs *restrict s, const char *restrict fmt
 
 #define                      fsetlen(s, poslen) *fs_setlen( (&s), (poslen) )
 #define                      fsend(s, poslen) *fs_setlen( (&s), (poslen) )
+#define                      fsclear(s) *fs_setlen( (&s), 0)
 
 #define                      fsstr(s) fs_str(&(s) )
 
