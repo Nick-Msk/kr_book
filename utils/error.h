@@ -176,7 +176,9 @@ sig_str_desc(int signal)
 // TODO: this if it is possible to avoid typeof (unspec)
 // TODO: why ACTION in log module
 #define	_generalraiseactsig(retcode, TYPE, ACTION, sig, errcode, msg, ...)	({ 	typeof(retcode) _RETCODE = retcode;\
-																				logsimpleactret(ACTION, _RETCODE, msg, ##__VA_ARGS__);\
+                                                                                if (TYPE == ERR_SYS)\
+                                                                                    logsimpleerr(_RETCODE, "%s", strerror())\
+																				logsimpleacterr(ACTION, _RETCODE, msg, ##__VA_ARGS__);\
 																				err_raise(ERR_USER, sig, errcode, msg, ##__VA_ARGS__);\
 																				_RETCODE;\
 																			})
