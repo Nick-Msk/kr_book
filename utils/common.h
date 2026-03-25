@@ -241,4 +241,12 @@ static inline bool              isalnum_u(int c){
     return isalnum(c) || c == '_';
 }
 
+static inline int clower(int c, bool sens){
+    return sens ? c: tolower(c);
+}
+
+static inline int cupper(int c, bool sens){
+    return sens ? c: toupper(c);
+}
+
 #endif /* ! _COMMON_H */
