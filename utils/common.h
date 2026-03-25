@@ -231,4 +231,14 @@ static inline char              *reversel(char *s){
     return reverse(s, len);
 }
 
+// isalpha or '_'
+static inline bool              isalpha_u(int c){
+    return isalpha(c) || c == '_';
+}
+
+// isalnum or '_'
+static inline bool              isalnum_u(int c){
+    return isalnum(c) || c == '_';
+}
+
 #endif /* ! _COMMON_H */
