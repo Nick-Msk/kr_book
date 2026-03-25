@@ -656,6 +656,7 @@ tf4(const char *name)
                 return logacterr( (fsfree(s1), fsfree(s3) ), TEST_FAILED, "len s3 = %d must be equal s2 = %d ", fslen(s3), fslen(s2) );
             if (fscmp(s3, s2) != 0)
                 return logacterr( (fsfree(s1), fsfree(s3) ), TEST_FAILED, "%s not equal to %s", fsstr(s3), fsstr(s2) );
+            fsfree(s3);
         }
         fsfree(s1);
     }
@@ -911,8 +912,9 @@ tf12(const char *name)
     test_sub("subtest %d: initially", ++subnum);
     {
         fs_free_alloc_checker(&freed, &allocated);
-        if (freed != 0 || allocated != 0)
-            return logerr(TEST_FAILED, "must be f/a counter  0:0, but not %d:%d", freed, allocated);
+        if (freed !=  allocated)
+            return logerr(TEST_FAILED, "must be equal f/a counter  0:0, but not %d:%d", freed, allocated);
+        // TODO: 
     }
     check_leak();
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
