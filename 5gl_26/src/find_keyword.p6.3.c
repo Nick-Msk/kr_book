@@ -18,16 +18,6 @@ typedef struct Keys {
 } Keys;
 #define                 Keysinit(...) (Keys){ .version = false, .sens = true, __VA_ARGS__}
 
-typedef struct {
-    bool    firstrun;
-    bool    comm1;  //  comment //
-    bool    comm2;  // comment /* */
-    bool    instr;  // string " "
-    bool    inchar; // string ' '
-    fs      val;    // not user for now
-} Context;
-#define                 Cotextinit(...) (Context) {.firstrun = true, .comm1 = false, .comm2 = false, .instr = false, .inchar = false, .val = FS() }
-
 static int              parse_keys(const char *argv[], Keys *ke){
     logenter("...");
     int     argc = 1, params = 0;
@@ -68,6 +58,7 @@ typedef struct {
 
 static tkeys             keytab[] = {
     {"auto"      , 0},
+    {"bool"      , 0},
     {"break"     , 0},
     {"case"      , 0},
     {"char"      , 0},
@@ -176,42 +167,64 @@ static fs                getword(fs str, bool sens){
 
     logenter("sens %s", bool_str(sens) );
 
-    static Context   ctx = Contextinit();
     fsclear(str);   // reset
     int              c, c1;
+    bool             comment_and_lines = true;
 
 static int                                              cnt = 0; // remove after TODO:
-    if (cnt % 100 == 0)
+    if (++cnt % 100 == 0)
         fstechfprint(logfile, str);
-    while (isspace( c = getch() ) )
-        ;
+
     fsnew iter = fsinew(&str);
 
-    // HERE NORMAL TEXT
-    if (c != EOF){
-        if ( !ctx.comm1 && !ctx.comm2 && !ctx.instr && !ctx.inchar && c == '/'){        // try comm1 or 
+    while (comment_and_lines){
+        while (isspace( c = getch() ) )
+            ;
+        // SKIP comment or literals
+        comment_and_lines = false;
         if (c == '/'){
             if ( (c1 = getch() ) == '/'){  // start comment type 1
-                while ( (c2 = getch ()) != EOF && c2 != '\n')
+                logmsg("%c", c1);
+                comment_and_lines = true;
+                while ( (c1 = getch()) != EOF && c1 != '\n')
                     ;
-                return str; // empty line
             } else if (c1 == '*'){  // comment type 2
-                do{
-                    while ( (c2 = getch ()) != EOF && c2 != '*'')
+                logmsg("%c", c1);
+                comment_and_lines = true;
+                do {
+                    while ( (c1 = getch()) != EOF && c1 != '*')
                         ;
-                while (c2 != '/');  // end of /* */
-            }
+                    logmsg("DO: %c", c1);
+                } while ( (c1 = getch() ) != '/' && c1 != EOF);  // end of /* */
+            } else  // not a comment! comment_and_lines remains false
+                c = c1; // just like ungetch
+        } else if (c == '"') {
+            comment_and_lines = true;   // line, so setup flag
+            logmsg("%c", c);
+            while ( (c = getch()) != EOF && c != '"')
+                ;
+        } else if (c == '\'') {
+            logmsg("%c", c);
+            comment_and_lines = true;   // anyway!
+            while ( (c = getch()) != EOF && c != '\'')
+                ;
         }
+        logmsg("comment_and_lines %s", bool_str(comment_and_lines));
+    }
+    // HERE NORMAL TEXT
+    logauto( (char) c ); // TODO: remove
+    if (c != EOF){
         elemnext(iter) = conv(c, sens);
     }
     else
-        elemclear(iter);
-    if (!isalpha(c) ){
+        elemclear(iter);    // end flag
+
+    if (!isalpha_u(c) ){
         elemend(iter);
-        return str;
+        return logret(str, "%d - [%s]", str.len, str.v);
     }
     while ( (c = getch()) != EOF){
-        if (!isalnum(c) ){
+        if (!isalnum_u(c) ){
             ungetch(c);
             break;
         } else
@@ -224,6 +237,6 @@ if (cnt % 100 == 0)
 if (cnt % 100 == 0)
     fstechfprint(logfile, str); // TODO: remove ater checking
 
-    return logret(str, "%d", str.len); // that is probably new str
+    return logret(str, "%d - [%s]", str.len, str.v); // that is probably new str
 }
 

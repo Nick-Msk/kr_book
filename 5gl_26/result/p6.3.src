@@ -17,11 +17,12 @@ typedef struct Keys {
     // ...
 } Keys;
 
-// test switch with _
-/* switch with comment type 1 */
+// test switch with _ switch
+/* switch with comment type *** * * */*** 1 */
 _switch
 _switch
 _switch
+_int
 
 #define                 Keysinit(...) (Keys){ .version = false, .sens = true, __VA_ARGS__}
 
