@@ -162,20 +162,10 @@ static inline int conv(int c, bool sens){
     return sens ? c: tolower(c);
 }
 
-// str must have heap alloc
-static fs                getword(fs str, bool sens){
-
-    logenter("sens %s", bool_str(sens) );
-
-    fsclear(str);   // reset
-    int              c, c1;
-    bool             comment_and_lines = true;
-
-static int                                              cnt = 0; // remove after TODO:
-    if (++cnt % 100 == 0)
-        fstechfprint(logfile, str);
-
-    fsnew iter = fsinew(&str);
+static int               skip_cl(void){
+    int             cnt = 0;        // total count of comments
+    int             c, c1;
+    bool            comment_and_lines = true;
 
     while (comment_and_lines){
         while (isspace( c = getch() ) )
@@ -184,44 +174,51 @@ static int                                              cnt = 0; // remove after
         comment_and_lines = false;
         if (c == '/'){
             if ( (c1 = getch() ) == '/'){  // start comment type 1
-                logmsg("%c", c1);
+                cnt++;
                 comment_and_lines = true;
                 while ( (c1 = getch()) != EOF && c1 != '\n')
                     ;
             } else if (c1 == '*'){  // comment type 2
-                logmsg("%c", c1);
+                cnt++;
                 comment_and_lines = true;
                 do {
                     while ( (c1 = getch()) != EOF && c1 != '*')
                         ;
-                    logmsg("DO: %c", c1);
                 } while ( (c1 = getch() ) != '/' && c1 != EOF);  // end of /* */
             } else  // not a comment! comment_and_lines remains false
                 c = c1; // just like ungetch
         } else if (c == '"') {
             comment_and_lines = true;   // line, so setup flag
-            logmsg("%c", c);
             while ( (c = getch()) != EOF && c != '"')
                 ;
         } else if (c == '\'') {
-            logmsg("%c", c);
             comment_and_lines = true;   // anyway!
             while ( (c = getch()) != EOF && c != '\'')
                 ;
         }
-        logmsg("comment_and_lines %s", bool_str(comment_and_lines));
+        logsimple("comment_and_lines %s", bool_str(comment_and_lines));
     }
+    return logsimpleret(c, "[%c], comments %d", c, cnt);
+}
+
+// str must have heap alloc
+static fs                getword(fs str, bool sens){
+
+    logenter("sens %s", bool_str(sens) );
+
+    fsclear(str);   // reset
+    int              c;
+    fsnew            iter = fsinew(&str);
+    c = skip_cl();
     // HERE NORMAL TEXT
-    logauto( (char) c ); // TODO: remove
     if (c != EOF){
         elemnext(iter) = conv(c, sens);
     }
-    else
-        elemclear(iter);    // end flag
+    //else        elemclear(iter);    // end flag
 
     if (!isalpha_u(c) ){
         elemend(iter);
-        return logret(str, "%d - [%s]", str.len, str.v);
+        return logret(str, "%c:%d - [%s]", c, str.len, str.v);
     }
     while ( (c = getch()) != EOF){
         if (!isalnum_u(c) ){
@@ -230,12 +227,7 @@ static int                                              cnt = 0; // remove after
         } else
             elemnext(iter) = conv(c, sens);
     }
-if (cnt % 100 == 0)
-        fsnewtechfprint(logfile, iter);    // REMOVE
-
     elemend(iter);
-if (cnt % 100 == 0)
-    fstechfprint(logfile, str); // TODO: remove ater checking
 
     return logret(str, "%d - [%s]", str.len, str.v); // that is probably new str
 }
