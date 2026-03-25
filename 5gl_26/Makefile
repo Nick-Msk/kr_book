@@ -45,6 +45,9 @@ find_keyword.p6.3: src/find_keyword.p6.3.c lib/log.o lib/common.o lib/buffer.o l
 find_keyword_ptr.p6.4: src/find_keyword_ptr.p6.4.c lib/log.o lib/common.o lib/buffer.o lib/fs.o lib/error.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+keywords_tree.p6.5: src/keywords_tree.p6.5.c lib/log.o lib/common.o lib/buffer.o lib/fs.o lib/error.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
