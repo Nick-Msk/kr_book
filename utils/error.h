@@ -18,6 +18,7 @@ static const int                        ERROR_MESSAGE_MAX_LENGTH    = 512;
 // ERRORS HERE
 static const int                        ERR_NULLABLE_PTR            = 10;
 
+static const int                        ERR_UNABLE_ALLOCATE         = 15;
 
 static const int                        ERR_WRONG_INPUT_FORMAT      = 20;
 static const int                        ERR_NOT_ENOGH_VALUES        = 21;
