@@ -27,6 +27,7 @@ static const int                        ERR_UNABLE_OPEN_FILE        = 50;
 static const int                        ERR_UNABLE_OPEN_FILE_READ   = 51;
 static const int                        ERR_UNABLE_OPEN_FILE_WRITE  = 52;
 
+static const int                        WARN_MEM_LEAK_DETECTED      = 1001;
 
 // ------------------- TYPES -----------------------
 
