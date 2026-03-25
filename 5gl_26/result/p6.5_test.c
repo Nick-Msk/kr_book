@@ -31,6 +31,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
         return userraiseint(-1, "Zero ke!!! Error!");   // raise here
     char    c;
     while (*++argv != 0 && **argv == '-'){
+        logauto(*argv);
         argc++;
         while ( (c = *++argv[0]) )
             switch (tolower(c)){
@@ -41,7 +42,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
                     }
                 break;
                 case 'i':
-                    if (ke->sens){
+                    if (!ke->sens){
                         ke->sens = false;
                         params++;
                     }
@@ -95,6 +96,10 @@ int                      main(int argc, const char *argv[]){
     fsfree(word);   // in case if treeadd will not user fs_move()
 
     return logret(0, "end...");  // as replace of logclose()
+}
+
+static inline int cupper(int c, bool sens){
+    return sens ? c: tolower(c);
 }
 
 static inline int       skip_spaces(void){
@@ -156,7 +161,7 @@ static fs                getword(fs str, bool sens){
 
     c = skip_spaces();       // comment and so on are allowed! TODO: probably use flag -c
     if (c != EOF){
-        elemnext(iter) = clower(c, sens);
+        elemnext(iter) = cupper(c, sens);
     } else
         elemclear(iter);    // end flag
 
@@ -169,7 +174,7 @@ static fs                getword(fs str, bool sens){
             ungetch(c);
             break;
         } else
-            elemnext(iter) = clower(c, sens);
+            elemnext(iter) = cupper(c, sens);
     }
     elemend(iter);
 
