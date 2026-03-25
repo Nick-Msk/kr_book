@@ -85,9 +85,10 @@ check_duplicate_num(Utest *tests, int cnt, int *num)
 	for (int i = 0; i < cnt - 1; i++)
 		if (tests[i].num != 0 && tests[i].num == tests[i + 1].num)		// multiple 0 is allowed
 		{
-			if (num)
+			if (num){
 				*num = tests[i].num;
 				return false;
+            }
 		}
 	return true;
 }
@@ -130,7 +131,7 @@ check_dependencies(FILE *out, Utest *tests, int testnum, int cnt)
     fprint(out, "Start cheking dependency for test %d (%d)\n", t->num, testnum);
 
 	offsetinc(1);
-    for (j = 0; j < TEST_MAX_DEP; j++)
+    for (j = 0; j < TEST_MAX_DEP; j++){
         if ((dep = t->dep_list[j]))
         {
             Utest key_test = testnew(.num = dep);
@@ -144,6 +145,7 @@ check_dependencies(FILE *out, Utest *tests, int testnum, int cnt)
                     break;
                 }
         }
+    }
 
 	offsetinc(-1);
     if (j == TEST_MAX_DEP)
@@ -338,14 +340,21 @@ test_sub(const char *msg, ...)
 {
 	test_sub_close(TEST_PASSED);	// pass ok to close subtest if any
 	fprint(g_out, "-------------------------------------------\n");
-	g_prev_subtest = true;		// mark starting of subtest
+    if (logfile)
+        fprintf(logfile, "-------------------------------------------\n");
+
+    g_prev_subtest = true;		// mark starting of subtest
 	offsetinc(1);
 
 	va_list ap;
 	va_start(ap, msg);
 	vfprint(g_out, msg, ap);
+    if (logfile)
+        vfprintf(logfile, msg, ap); // log too
 	va_end(ap);
 	fputc('\n', g_out);
+    if (logfile)
+        fputc('\n', logfile);
 }
 
 // open temporary test file
