@@ -11,16 +11,20 @@
 ********************************************************************/
 
 #if defined(FS_ALLOCATOR)
-    static char               **g_fs_ptr             = 0;
-    static int                  g_alloc              = 0;
-    static const int            g_initsize           = 32;   // not sure
+    static char               **g_fs_ptr                = 0;
+    static int                  g_alloc                 = 0;
+    static const int            g_initsize              = 32;   // not sure
 #endif
 
-static const int            FS_SPRINTF_SZ           = 8192;
+static const int                FS_SPRINTF_SZ           = 8192;
 
 // external contol
-int                         FS_MIN_ACCOC            = 128;
-int                         FS_TECH_PRINT_COUNT     = 100; // symplos to print
+int                             FS_MIN_ACCOC            = 128;
+int                             FS_TECH_PRINT_COUNT     = 100; // symplos to print
+
+// mem leak checking
+static int                      g_alloc_cnt             = 0;
+static int                      g_free_cnt              = 0;
 
 // ---------- pseudo-header for utility procedures -----------------
 
@@ -136,10 +140,10 @@ static int                      ffsprintall(FILE *f, int max){
     return cnt;
 }
 
-static inline int               fsprintall(int max){
+static inline int                       fsprintall(int max){
     return ffsprintall(stdout, max);
 }
-static inline int                      attach(int pos, char *v){
+static inline int                       attach(int pos, char *v){
     if (pos >= 0)   // if not detached!
         g_fs_ptr[pos] = v;
     return logsimpleret(pos, "%p attached to %d", v, pos);
@@ -147,20 +151,24 @@ static inline int                      attach(int pos, char *v){
 #endif /* FS_ALLOCATOR */
 
 // only for FS_FLAG_ALLOC
-static fs                       increasesize(fs *s, int newsz, bool init){
+static fs                               increasesize(fs *s, int newsz, bool init){
     logenter("oldsz %d, newsz %d, init %s v %p, is alloc? %s", s->sz, newsz, bool_str(init), s->v, bool_str(fs_alloc(s)) );
     if (fs_alloc(s) ){
         if (init)
             newsz = calcnewsize(newsz);
         if (newsz > s->sz || !init){
-                s->v = realloc(s->v, newsz);
+                char *v = realloc(s->v, newsz);
                 #if defined(FS_ALLOCATOR)
                 if (init)   // init
                     s->pos = findempty();   // try to find an place
                 attach(s->pos, s->v);
                 #endif
-                if (!s->v)
+                if (!v)
                     userraiseint(10, "Unable to allocate %d bytes", newsz);
+                // now it's ok
+                if (s->v == 0)      // only in case of REALLY new allocation
+                    logauto(++g_alloc_cnt);
+                s->v = v;
                 s->sz = newsz;
          }
     }
@@ -172,7 +180,7 @@ static fs                       increasesize(fs *s, int newsz, bool init){
 
 // ------------------ General functions ----------------------------
 
-fs                     *fs_shrink(fs *s){
+fs                                      *fs_shrink(fs *s){
     if (fs_alloc(s)){
         int     newsz = s->len + 1; // final '\0' is assumed!
         increasesize(s, newsz, false);
@@ -182,7 +190,7 @@ fs                     *fs_shrink(fs *s){
 }
 
 // can increase sz and len
-char                   *fs_elem(fs *s, int pos){
+char                                    *fs_elem(fs *s, int pos){
     if (pos >= s->sz){
         increasesize(s, pos < FS_MIN_ACCOC ? FS_MIN_ACCOC : pos, true);   // len remains the same here! sz is changed
         logsimple("size is adjusted to %d (pos %d)", s->sz, pos);
@@ -195,7 +203,7 @@ char                   *fs_elem(fs *s, int pos){
 //}
 
 // snprint()
-int                     fs_sprintf(fs *restrict s, const char *restrict fmt, ...){
+int                                     fs_sprintf(fs *restrict s, const char *restrict fmt, ...){
     static char buf[FS_SPRINTF_SZ]; // NO thread-safe this is
 
     va_list argp;
@@ -207,7 +215,7 @@ int                     fs_sprintf(fs *restrict s, const char *restrict fmt, ...
     return s->len;
 }
 
-fs                     *fs_resize(fs *s, int newsz){
+fs                                      *fs_resize(fs *s, int newsz){
     if (newsz > s->sz){
         increasesize(s, newsz, false);
         logsimple("size is adjusted to %d (pos %d)", s->sz, newsz);
@@ -215,7 +223,7 @@ fs                     *fs_resize(fs *s, int newsz){
     return s;
 }
 
-fs                      fs_cat(fs *target, fs source){
+fs                                      fs_cat(fs *target, fs source){
     int sumlen = target->len + source.len;
     if (target->sz <= sumlen) // sz must be at least len1 + len2 + 1
         increasesize(target, sumlen + 1, true);
@@ -226,7 +234,7 @@ fs                      fs_cat(fs *target, fs source){
 
 // -------------------------- (API) printers -----------------------
 // this is not limit!
-int                     fs_fprint(FILE *restrict out, const fs *restrict s, const char *restrict name){
+int                                     fs_fprint(FILE *restrict out, const fs *restrict s, const char *restrict name){
     int     cnt = 0;
     if (s){
         cnt = fprintf(out, "[%s: %s]", name, s->v);
@@ -235,7 +243,7 @@ int                     fs_fprint(FILE *restrict out, const fs *restrict s, cons
 }
 
 // with  limit!
-int                     fs_fprintlim(FILE *restrict out, const fs *restrict s, int lim, const char *restrict name){
+int                                     fs_fprintlim(FILE *restrict out, const fs *restrict s, int lim, const char *restrict name){
     int     cnt = 0;
     if (s){
         cnt = fprintf(out, "[%s: %.*s]", name, lim, s->v);
@@ -243,7 +251,7 @@ int                     fs_fprintlim(FILE *restrict out, const fs *restrict s, i
     return cnt;
 }
 
-int                     fs_fprint_arr(FILE *restrict out, const fs *restrict arr[]){
+int                                     fs_fprint_arr(FILE *restrict out, const fs *restrict arr[]){
     int cnt = 0, i = 0;
     if (arr)
         for (; arr[i] != 0 && i < G_GLOB_AVERAGE; i++) // G_GLOB_AVERAGE to avoid endless loop
@@ -253,7 +261,7 @@ int                     fs_fprint_arr(FILE *restrict out, const fs *restrict arr
     return cnt;
 }
 
-int                     fs_techfprint(FILE *restrict out, const fs *restrict s, const char *restrict name){
+int                                     fs_techfprint(FILE *restrict out, const fs *restrict s, const char *restrict name){
     // technical print, statis attributes for now
     int     cnt = 0;
     int     len = MIN(FS_TECH_PRINT_COUNT, s->len);
@@ -267,7 +275,7 @@ int                     fs_techfprint(FILE *restrict out, const fs *restrict s, 
 }
 
 // out == 0 is OK fow now
-bool                    fs_validate(FILE *restrict out, const fs *restrict s){
+bool                                    fs_validate(FILE *restrict out, const fs *restrict s){
     logenter("%p - %p", s, s ? s->v: 0);
 
     if (!s){    // TODO: think about string creation via faststring here!!
@@ -297,10 +305,18 @@ bool                    fs_validate(FILE *restrict out, const fs *restrict s){
     return logret(true, "true");
 }
 
+extern bool                             fs_free_alloc_checker(int *freecnt, int *alloccnt){
+    if (freecnt)
+        *freecnt = g_free_cnt;
+    if (alloccnt)
+        *alloccnt= g_alloc_cnt;
+    return logsimpleret(freecnt == alloccnt, "allocated %d, freed %d", g_alloc_cnt, g_free_cnt);
+}
+
 // --------------------------------- SERIALIZATION -----------------------------------------
 
 // seqialization (strictly FULL save into the steam with only FS and .len info), out must be opened for write
-int                          fs_fsave(FILE *restrict out, const fs *restrict str){
+int                                     fs_fsave(FILE *restrict out, const fs *restrict str){
     int cnt = 0;
     if (str){
         fprintf(out, "FS(%d):[%s]\n", str->len, str->v);
@@ -309,7 +325,7 @@ int                          fs_fsave(FILE *restrict out, const fs *restrict str
     return cnt;
 }
 
-int                          fs_save(const char *restrict fname, const fs *restrict str){ 
+int                                     fs_save(const char *restrict fname, const fs *restrict str){ 
     FILE *out = fopen(fname, "w");
     if (!out)
         userraiseint(ERR_UNABLE_OPEN_FILE_WRITE, "Unable to open %s for write", fname);
@@ -319,7 +335,7 @@ int                          fs_save(const char *restrict fname, const fs *restr
 }
 
 //  arr must be a pointer to NULL terminated array!
-int                          fs_fsave_arr(FILE *restrict out, const fs *restrict arr){
+int                                     fs_fsave_arr(FILE *restrict out, const fs *restrict arr){
     int cnt = 0;
     while (arr)
         cnt += fs_fsave(out, arr++);
@@ -327,7 +343,7 @@ int                          fs_fsave_arr(FILE *restrict out, const fs *restrict
 }
 
 // note: arr can be nullable, this mean 0 length array
-int                          fs_save_arr(const char *restrict fname, const fs *restrict arr){
+int                                     fs_save_arr(const char *restrict fname, const fs *restrict arr){
     FILE *out = fopen(fname, "w");
     if (!out)
         userraiseint(ERR_UNABLE_OPEN_FILE_WRITE, "Unable to open %s for write", fname);
@@ -337,11 +353,12 @@ int                          fs_save_arr(const char *restrict fname, const fs *r
 }
 
 // raise int in case of wrong format
-fs                           fs_fload(FILE *restrict in, fs *restrict s){
+fs                                      fs_fload(FILE *restrict in, fs *restrict s){
     // FORMAT: FS(%d):[%s]\n
     unsigned     len = 0;
     char         pt1[] = "FS(", pt2[] = "):[", pt3[] = "]\n";
 
+    // TODO: refactor that
     // TODO: FUSKIPFORMAT(in, pt) macro
     if (!freadpattern(in, pt1) )
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read pattern '%s'", pt1);
@@ -373,7 +390,7 @@ fs                           fs_fload(FILE *restrict in, fs *restrict s){
     return *s;
 }
 
-fs                           fs_load(const char *restrict fname, fs *restrict s){
+fs                                      fs_load(const char *restrict fname, fs *restrict s){
     FILE *in = fopen(fname, "r");
     if (!in)
         userraiseint(ERR_UNABLE_OPEN_FILE_READ, "Unable to open %s for read", fname);
@@ -384,19 +401,31 @@ fs                           fs_load(const char *restrict fname, fs *restrict s)
 
 // ------------------ API Constructs/Destrucor  ----------------------------
 
-fs                      fsinit(int n){
-
-    fs      res = FS();
+fs                                      fsinit(int n){
+    fs      res = FS();     // fsalloc flag
     increasesize(&res, n, true);
     *res.v = '\0';
     return logsimpleret(res, "Created empty with sz %d", res.sz);
 }
 
-fs                      fsclone(fs s){
+fs                                      fsclone(fs s){
     fs tmp = fsinit(s.len + 1);
     tmp.len = s.len;
     memcpy(tmp.v, s.v, tmp.len + 1);
     return tmp;
+}
+
+// destructor, macro wrapper will be
+void                                    fs_free(fs *s){
+    if (fs_alloc(s) || fs_moved(s)){    // actualy alloc must be a flag, but not statememnt TODO:
+        logsimpleact(free(s->v), "freed... %p", s->v);   // WOW, logsimpleact?
+        if (s->v)
+            logauto(++g_free_cnt);   // calculate only  if really free memory
+        s->sz = s->len = 0;
+        s->v = 0;
+    }
+    if (fs_moved(s))
+        free(s);    // because in that case fs in heap too
 }
 
 #if defined(FS_ALLOCATOR)
@@ -419,6 +448,14 @@ bool                    fsdetach(fs *s){
 
 //types for testing
 
+static void
+check_leak(void){
+    int     f, a;
+    fs_free_alloc_checker(&f, &a);
+    if (f != a)
+        userraiseint(WARN_MEM_LEAK_DETECTED, "allocaed %d, freed %d", a, f);
+}
+
 // ------------------------- TEST 1 ---------------------------------
 
 static TestStatus
@@ -437,6 +474,7 @@ tf1(const char *name)
             return logerr(TEST_FAILED, "fs have no ALLOC");
         fsfree(s);  // should work normally
     }
+    check_leak();
     test_sub("subtest %d: fsinit(100)", ++subnum);
     {
         fs s = fsinit(100);
@@ -447,6 +485,7 @@ tf1(const char *name)
                     s.len, s.sz, s.v, bool_str(fs_alloc(&s) ) );
         fsfree(s);
     }
+    check_leak();
     test_sub("subtest %d: fsliteral", ++subnum);
     {
         const char *pattern = "1234567890";
@@ -458,6 +497,7 @@ tf1(const char *name)
                     s.len, s.sz, s.v, bool_str(fs_static(&s) ) );
         fsfree(s);
     }
+    check_leak();
     test_sub("subtest %d: fscopy", ++subnum);
     {
 
@@ -486,6 +526,7 @@ tf1(const char *name)
 
         fsfree(s2);
     }
+    check_leak();
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
@@ -536,6 +577,7 @@ tf2(const char *name)
 
         fsfree(s);
     }
+    check_leak();
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
@@ -561,6 +603,7 @@ tf3(const char *name)
             return logacterr( fsfree(s), TEST_FAILED, "Must be [%s] but not [%s]", pt, s.v);
         fsfree(s);
     }
+    check_leak();
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
@@ -616,6 +659,7 @@ tf4(const char *name)
         }
         fsfree(s1);
     }
+    check_leak();
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
@@ -652,6 +696,7 @@ tf5(const char *name)
 
         fsfree(s1);
     }
+    check_leak();
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
@@ -673,6 +718,7 @@ tf6(const char *name)
         if (i1.v || i2.v || i3.v)
             return logacterr( (fsfree(i1), fsfree(i2), fsfree(i3) ), TEST_FAILED, "Still not null");
     }
+    check_leak();
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
@@ -698,6 +744,7 @@ tf7(const char *name)
 
         fsfree(s);
     }
+    check_leak();
     return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED
 }
 
@@ -720,6 +767,7 @@ tf8(const char *name)
 
         fsfreeall(&s1, &s2, &s3);
     }
+    check_leak();
     return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED
 }
 
@@ -765,6 +813,7 @@ tf9(const char *name)
             fsfree(s2);
         }
     }
+    check_leak();
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
@@ -796,6 +845,7 @@ tf10(const char *name)
         if (strcmp(fsstr(s1), pt) != 0)
             return logerr(TEST_FAILED, "fs [%s] != [%s]", fsstr(s1), pt);
     }
+    check_leak();
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
@@ -844,6 +894,27 @@ tf11(const char *name)
         fclose(f);
         fsfreeall(&s, &s2);
     }
+    check_leak();
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
+// ------------------------- TEST 12 ---------------------------------
+
+static TestStatus
+tf12(const char *name)
+{
+    logenter("%s", name);
+
+    int         subnum = 0;
+    int         freed, allocated;
+
+    test_sub("subtest %d: initially", ++subnum);
+    {
+        fs_free_alloc_checker(&freed, &allocated);
+        if (freed != 0 || allocated != 0)
+            return logerr(TEST_FAILED, "must be f/a counter  0:0, but not %d:%d", freed, allocated);
+    }
+    check_leak();
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
@@ -865,6 +936,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf9,  .num =  9, .name = "fs_sprintf formatted test"     , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf10, .num = 10, .name = "fslocal simple test"           , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf11, .num = 11, .name = "fs_save/load test"             , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf12, .num = 12, .name = "fs_free_alloc_checker test"    , .desc=""                , .mandatory=true)
     );
 
     logclose("end...");

@@ -101,21 +101,12 @@ static inline bool          fs_moved(const fs *s){
 
 #define             fsfreeall(...) fs_freeall( (fs *[]){__VA_ARGS__, 0} )
 
-// TODO : check that solution
 #define             CONCATENATE(prefix, name) prefix ## _ ## name
 #define             fslocal(name, leng) char CONCATENATE(_FS_TMP_, name)[(leng) + 1];\
  fs name = (fs) {.len = (leng), .sz = (leng) + 1, .flags = FS_FLAG_LOCAL, .v = CONCATENATE(_FS_TMP_, name) }
 
 // destructor, macro wrapper will be
-static inline void          fs_free(fs *s){
-    if (fs_alloc(s) || fs_moved(s)){    // actualy alloc must be a flag, but not statememnt TODO:
-        logsimpleact(free(s->v), "freed... %p", s->v);   // WOW, logsimpleact?
-        s->sz = s->len = 0;
-        s->v = 0;
-    }
-    if (fs_moved(s))
-        free(s);    // because in that case fs in heap too
-}
+extern void                 fs_free(fs *s);
 
 // mass destructor
 static inline void          fs_freeall(fs **arr){
@@ -309,6 +300,8 @@ static inline int            fs_print_arr(const fs *restrict arrs[]){
 #define                      fsprint_arr(...) fs_print_arr( (const fs *[]) { __VA_ARGS__, 0} )
 
 extern bool                  fs_validate(FILE *restrict out, const fs *restrict s);
+
+extern bool                  fs_free_alloc_checker(int *freecnt, int *alloccnt);
 
 // --------------------------------- SERIALIZATION -----------------------------------------
 
