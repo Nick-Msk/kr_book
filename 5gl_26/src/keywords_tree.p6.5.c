@@ -192,6 +192,10 @@ static void              treefreenode(tnode *node){
     free(node);
 }
 
+static inline tnode     *treealloc(void){
+    return (tnode *) malloc(sizeof(tnode));
+}
+
 // tree API
 static int               treeprint(const tnode* node){
     int         cnt = 0;
@@ -205,7 +209,20 @@ static int               treeprint(const tnode* node){
 
 static tnode            *treeadd(tnode *root, fs  *str){   // fs * because have to destroy original fs
     // TODO:
-    
+    int     cond;
+    if (!root){
+        if (! (root = treealloc() ) )
+            userraiseint(ERR_UNABLE_ALLOCATE, "%zu bytes", sizeof(tnode) );
+        // root->word = fs_move(str); TEST THAT, but simple copy for now
+        root->word = fsclone(*str);
+        root->cnt = 1;
+        root->left = root->right = 0;
+    } else if ( (cond = fscmp(*str, root->word) ) == 0) // find + attach
+        root->cnt++;
+    else if (cond < 0)
+        root->left = treeadd(root->left, str);
+    else    // cond > 0
+        root->right = treeadd(root->right, str);
     return root;
 }
 
