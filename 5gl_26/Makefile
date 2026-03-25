@@ -39,7 +39,10 @@ sortlines.p5.11: src/sortlines.p5.11.c lib/log.o lib/common.o lib/checker.o lib/
 gen_arr: src/gen_arr.c lib/log.o lib/common.o lib/checker.o lib/fileutils.o lib/fs.o lib/error.o lib/array.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-find_keyword.p6.3: src/find_keyword.p6.3.c lib/log.o lib/common.o lib/buffer.o lib/fs.o lib/error.o lib/fs_array.o
+find_keyword.p6.3: src/find_keyword.p6.3.c lib/log.o lib/common.o lib/buffer.o lib/fs.o lib/error.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
+find_keyword_ptr.p6.4: src/find_keyword_ptr.p6.4.c lib/log.o lib/common.o lib/buffer.o lib/fs.o lib/error.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 UTIL_PATH = ../utils
