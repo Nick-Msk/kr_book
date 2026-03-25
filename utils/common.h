@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <ctype.h>
+
+#include "bool.h"
 
 /***************************************************************
 				USEFUL MACRO AND FUNCTIONS
