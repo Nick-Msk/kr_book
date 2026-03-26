@@ -9,6 +9,7 @@
 #include "fs_iter.h"
 #include "error.h"
 #include "buffer.h"
+#include "tree_p6.5.h"
 
 typedef struct Keys {
     bool    version;
@@ -16,13 +17,6 @@ typedef struct Keys {
     // ...
 } Keys;
 #define                 Keysinit(...) (Keys){ .version = false, .sens = true, __VA_ARGS__}
-
-typedef struct tnode {
-    fs                 word;
-    int                cnt;
-    struct tnode      *left;
-    struct tnode      *right;
-} tnode;
 
 static int              parse_keys(const char *argv[], Keys *ke){
     logenter("...");
@@ -56,10 +50,6 @@ static int              parse_keys(const char *argv[], Keys *ke){
 }
 
 static fs                getword(fs str, bool sens);
-// tree API
-static int               treeprint(const tnode* root);
-static tnode            *treeadd(tnode *restrict root, fs *restrict str);   // fs * because have to destroy original fs
-static void              treefree(tnode *t);
 
 static const char   *usage_str = "Usage: %s -v -i\n";
 
@@ -174,67 +164,5 @@ static fs                getword(fs str, bool sens){
     elemend(iter);
 
     return logret(str, "%d - [%s]", str.len, str.v); // that is probably new str
-}
-
-// simple printer
-static inline int       treeprintnode(const tnode* str){
-    const char *s = 0;
-    int cnt = 0;
-    if (str)
-        s = str->word.v, cnt = str->cnt;
-    return printf("%4d:[%s]\n", cnt, s );
-}
-
-// simple free
-static void              treefreenode(tnode *node){
-    fsfree(node->word);
-    free(node);
-}
-
-static inline tnode     *treealloc(void){
-    return (tnode *) malloc(sizeof(tnode));
-}
-
-// tree API
-static int               treeprint(const tnode* node){
-    int         cnt = 0;
-    if (node){
-        cnt += treeprint(node->left);
-        treeprintnode(node), cnt++;
-        cnt += treeprint(node->right);
-    }
-    return cnt;
-}
-
-static tnode            *treecreatenode(fs *str){
-    tnode *root;
-    if (! (root = treealloc() ) )
-        userraiseint(ERR_UNABLE_ALLOCATE, "%zu bytes", sizeof(tnode) );
-    // root->word = fs_move(str); TEST THAT, but simple copy for now
-    root->word = fsclone(*str);
-    root->cnt = 1;
-    root->left = root->right = 0;
-    return root;
-}
-
-static tnode            *treeadd(tnode *restrict root, fs *restrict str){   // fs * because have to destroy original fs
-    int     cond;
-    if (!root)
-        root = treecreatenode(str);
-    else if ( (cond = fscmp(*str, root->word) ) == 0) // find + attach
-        root->cnt++;
-    else if (cond < 0)
-        root->left = treeadd(root->left, str);
-    else    // cond > 0
-        root->right = treeadd(root->right, str);
-    return root;
-}
-
-static void              treefree(tnode *node){
-    if (node){
-        treefree(node->left);
-        treefree(node->right);
-        treefreenode(node);
-    }
 }
 
