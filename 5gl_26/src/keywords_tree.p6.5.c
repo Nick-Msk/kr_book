@@ -81,8 +81,16 @@ int                      main(int argc, const char *argv[]){
     }
 
     printf("%d\n", treeprint(root) );
+
+    // create a count based tree (non unique)
+    //treeforeach(treecnt_add, true);
+    //counttree *newtree = 0;
+    //treeforeach(root, counttree_add() );
+
     treefree(root);
     fsfree(word);   // in case if treeadd will not user fs_move()
+    if (!fs_alloc_check(false))
+        logmsg("Warning: incorrect allocation of fs's");
 
     return logret(0, "end...");  // as replace of logclose()
 }
