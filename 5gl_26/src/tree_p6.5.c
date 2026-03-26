@@ -127,17 +127,16 @@ void                                intttreefree(inttree_linkedfs *root){
         inttreefreenode(root);
     }
 }
-inttree_linkedfs                   *inttreeadd(inttree_linkedfs *restrict root, const fs *restrict str){
+inttree_linkedfs                   *inttreeadd(inttree_linkedfs *restrict root, const fs *restrict str, int value){
     int     cond;
-    int     value = str->len;
     if (!root)
         root = inttreecreatenode(value, str);
     else if ( (cond = (value - root->value) ) == 0) // find + attach
         root->cnt++;
     else if (cond < 0)
-        root->left = inttreeadd(root->left, str);
+        root->left = inttreeadd(root->left, str, value);
     else    // cond > 0
-        root->right = inttreeadd(root->right, str);
+        root->right = inttreeadd(root->right, str, value);
     return root;
 }
 
@@ -150,4 +149,3 @@ int                                 intttreeprint(const inttree_linkedfs* node){
     }
     return cnt;
 }
-

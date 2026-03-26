@@ -28,7 +28,7 @@ typedef struct inttree_linkedfs {
 } inttree_linkedfs;
 
 extern void                 intttreefree(inttree_linkedfs *root);
-extern inttree_linkedfs    *inttreeadd(inttree_linkedfs *restrict root, const fs *restrict str);
+extern inttree_linkedfs    *inttreeadd(inttree_linkedfs *restrict root, const fs *restrict str, int value);
 extern int                  intttreeprint(const inttree_linkedfs* root);
 
 #endif /* !_TREE_P6_5_H */
