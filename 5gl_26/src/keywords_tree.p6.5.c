@@ -57,8 +57,8 @@ static int              parse_keys(const char *argv[], Keys *ke){
 
 static fs                getword(fs str, bool sens);
 // tree API
-static int               treeprint(const tnode* str);
-static tnode            *treeadd(tnode *t, fs  *str);   // fs * because have to destroy original fs
+static int               treeprint(const tnode* root);
+static tnode            *treeadd(tnode *restrict root, fs *restrict str);   // fs * because have to destroy original fs
 static void              treefree(tnode *t);
 
 static const char   *usage_str = "Usage: %s -v -i\n";
@@ -176,9 +176,13 @@ static fs                getword(fs str, bool sens){
     return logret(str, "%d - [%s]", str.len, str.v); // that is probably new str
 }
 
-// simple printer, str MUST be != 0
+// simple printer
 static inline int       treeprintnode(const tnode* str){
-    return printf("%4d:[%s]\n", str->cnt, str->word.v );
+    const char *s = 0;
+    int cnt = 0;
+    if (str)
+        s = str->word.v, cnt = str->cnt;
+    return printf("%4d:[%s]\n", cnt, s );
 }
 
 // simple free
@@ -202,17 +206,22 @@ static int               treeprint(const tnode* node){
     return cnt;
 }
 
-static tnode            *treeadd(tnode *root, fs  *str){   // fs * because have to destroy original fs
-    // TODO:
+static tnode            *treecreatenode(fs *str){
+    tnode *root;
+    if (! (root = treealloc() ) )
+        userraiseint(ERR_UNABLE_ALLOCATE, "%zu bytes", sizeof(tnode) );
+    // root->word = fs_move(str); TEST THAT, but simple copy for now
+    root->word = fsclone(*str);
+    root->cnt = 1;
+    root->left = root->right = 0;
+    return root;
+}
+
+static tnode            *treeadd(tnode *restrict root, fs *restrict str){   // fs * because have to destroy original fs
     int     cond;
-    if (!root){
-        if (! (root = treealloc() ) )
-            userraiseint(ERR_UNABLE_ALLOCATE, "%zu bytes", sizeof(tnode) );
-        // root->word = fs_move(str); TEST THAT, but simple copy for now
-        root->word = fsclone(*str);
-        root->cnt = 1;
-        root->left = root->right = 0;
-    } else if ( (cond = fscmp(*str, root->word) ) == 0) // find + attach
+    if (!root)
+        root = treecreatenode(str);
+    else if ( (cond = fscmp(*str, root->word) ) == 0) // find + attach
         root->cnt++;
     else if (cond < 0)
         root->left = treeadd(root->left, str);
