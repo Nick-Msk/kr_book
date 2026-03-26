@@ -53,6 +53,16 @@ static fs                getword(fs str, bool sens);
 
 static const char   *usage_str = "Usage: %s -v -i\n";
 
+// should be creared via macros
+static inttree_linkedfs              *inttree_iterall(tnode *root, inttree_linkedfs *cntroot){
+    if (root){
+        cntroot = inttree_iterall(root->left, cntroot);
+        cntroot = inttreeadd(cntroot, &root->word, root->cnt);
+        cntroot = inttree_iterall(root->right, cntroot);
+    }
+    return cntroot;
+}
+
 int                      main(int argc, const char *argv[]){
     logsimpleinit("Start");
 
@@ -82,12 +92,13 @@ int                      main(int argc, const char *argv[]){
 
     printf("%d\n", treeprint(root) );
 
-    // create a count based tree (non unique)
-    //treeforeach(treecnt_add, true);
-    //counttree *newtree = 0;
-    //treeforeach(root, counttree_add() );
+    inttree_linkedfs *cntr = inttree_iterall(root, 0);   // convert
 
     treefree(root);
+
+    intttreeprint(cntr);    // print as counter
+    intttreefree(cntr);
+
     fsfree(word);   // in case if treeadd will not user fs_move()
     if (!fs_alloc_check(false))
         logmsg("Warning: incorrect allocation of fs's");

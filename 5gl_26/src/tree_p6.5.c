@@ -105,7 +105,7 @@ static inttree_linkedfs            *inttreecreatenode(int value, const fs *str){
     root->words = malloc(sizeof(fs) );
     if (!root->words)
         userraiseint(ERR_UNABLE_ALLOCATE, "%zu bytes", sizeof(fs) );
-    *root->words = fsclone(*str); // should be list of fs here
+    *root->words = fs_clone(str); // should be list of fs here
     return root;
 }
 
