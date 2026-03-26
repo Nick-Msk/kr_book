@@ -302,6 +302,7 @@ static inline int            fs_print_arr(const fs *restrict arrs[]){
 extern bool                  fs_validate(FILE *restrict out, const fs *restrict s);
 
 extern bool                  fs_free_alloc_checker(int *freecnt, int *alloccnt);
+extern bool                  fs_alloc_check(bool raise);
 
 // --------------------------------- SERIALIZATION -----------------------------------------
 

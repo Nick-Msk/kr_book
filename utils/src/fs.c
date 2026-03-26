@@ -313,6 +313,24 @@ extern bool                             fs_free_alloc_checker(int *freecnt, int 
     return logsimpleret(freecnt == alloccnt, "allocated %d, freed %d", g_alloc_cnt, g_free_cnt);
 }
 
+// internal, for testing
+static bool                             check_leak(bool raise){
+    int     f, a;
+    fs_free_alloc_checker(&f, &a);
+    if (f != a){
+        if (raise)
+            userraiseint(WARN_MEM_LEAK_DETECTED, "allocaed %d, freed %d", a, f);
+        else
+            userraise(false, WARN_MEM_LEAK_DETECTED, "WARNING: allocaed %d, freed %d", a, f);
+    }
+    return f == a;
+}
+
+// just a wrapper for check_leak
+extern bool                             fs_alloc_check(bool raise){
+    return check_leak(raise);
+}
+
 // --------------------------------- SERIALIZATION -----------------------------------------
 
 // seqialization (strictly FULL save into the steam with only FS and .len info), out must be opened for write
@@ -448,18 +466,6 @@ bool                    fsdetach(fs *s){
 
 //types for testing
 
-static bool
-check_leak(bool raise){
-    int     f, a;
-    fs_free_alloc_checker(&f, &a);
-    if (f != a){
-        if (raise)
-            userraiseint(WARN_MEM_LEAK_DETECTED, "allocaed %d, freed %d", a, f);
-        else
-            userraise(false, WARN_MEM_LEAK_DETECTED, "WARNING: allocaed %d, freed %d", a, f);
-    }
-    return f == a;
-}
 
 // ------------------------- TEST 1 ---------------------------------
 
