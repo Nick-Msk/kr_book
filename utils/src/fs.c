@@ -448,12 +448,17 @@ bool                    fsdetach(fs *s){
 
 //types for testing
 
-static void
-check_leak(void){
+static bool
+check_leak(bool raise){
     int     f, a;
     fs_free_alloc_checker(&f, &a);
-    if (f != a)
-        userraiseint(WARN_MEM_LEAK_DETECTED, "allocaed %d, freed %d", a, f);
+    if (f != a){
+        if (raise)
+            userraiseint(WARN_MEM_LEAK_DETECTED, "allocaed %d, freed %d", a, f);
+        else
+            userraise(false, WARN_MEM_LEAK_DETECTED, "WARNING: allocaed %d, freed %d", a, f);
+    }
+    return f == a;
 }
 
 // ------------------------- TEST 1 ---------------------------------
@@ -474,7 +479,7 @@ tf1(const char *name)
             return logerr(TEST_FAILED, "fs have no ALLOC");
         fsfree(s);  // should work normally
     }
-    check_leak();
+    check_leak(true);
     test_sub("subtest %d: fsinit(100)", ++subnum);
     {
         fs s = fsinit(100);
@@ -485,7 +490,7 @@ tf1(const char *name)
                     s.len, s.sz, s.v, bool_str(fs_alloc(&s) ) );
         fsfree(s);
     }
-    check_leak();
+    check_leak(true);
     test_sub("subtest %d: fsliteral", ++subnum);
     {
         const char *pattern = "1234567890";
@@ -497,7 +502,7 @@ tf1(const char *name)
                     s.len, s.sz, s.v, bool_str(fs_static(&s) ) );
         fsfree(s);
     }
-    check_leak();
+    check_leak(true);
     test_sub("subtest %d: fscopy", ++subnum);
     {
 
@@ -526,7 +531,7 @@ tf1(const char *name)
 
         fsfree(s2);
     }
-    check_leak();
+    check_leak(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
@@ -577,7 +582,7 @@ tf2(const char *name)
 
         fsfree(s);
     }
-    check_leak();
+    check_leak(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
@@ -603,7 +608,7 @@ tf3(const char *name)
             return logacterr( fsfree(s), TEST_FAILED, "Must be [%s] but not [%s]", pt, s.v);
         fsfree(s);
     }
-    check_leak();
+    check_leak(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
@@ -660,7 +665,7 @@ tf4(const char *name)
         }
         fsfree(s1);
     }
-    check_leak();
+    check_leak(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
@@ -697,7 +702,7 @@ tf5(const char *name)
 
         fsfree(s1);
     }
-    check_leak();
+    check_leak(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
@@ -719,7 +724,7 @@ tf6(const char *name)
         if (i1.v || i2.v || i3.v)
             return logacterr( (fsfree(i1), fsfree(i2), fsfree(i3) ), TEST_FAILED, "Still not null");
     }
-    check_leak();
+    check_leak(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
@@ -745,7 +750,7 @@ tf7(const char *name)
 
         fsfree(s);
     }
-    check_leak();
+    check_leak(true);
     return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED
 }
 
@@ -768,7 +773,7 @@ tf8(const char *name)
 
         fsfreeall(&s1, &s2, &s3);
     }
-    check_leak();
+    check_leak(true);
     return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED
 }
 
@@ -814,7 +819,7 @@ tf9(const char *name)
             fsfree(s2);
         }
     }
-    check_leak();
+    check_leak(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
@@ -846,7 +851,7 @@ tf10(const char *name)
         if (strcmp(fsstr(s1), pt) != 0)
             return logerr(TEST_FAILED, "fs [%s] != [%s]", fsstr(s1), pt);
     }
-    check_leak();
+    check_leak(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
@@ -895,7 +900,7 @@ tf11(const char *name)
         fclose(f);
         fsfreeall(&s, &s2);
     }
-    check_leak();
+    check_leak(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
@@ -909,14 +914,35 @@ tf12(const char *name)
     int         subnum = 0;
     int         freed, allocated;
 
-    test_sub("subtest %d: initially", ++subnum);
+    test_sub("subtest %d: simple init", ++subnum);
     {
+        fs s1 = fsinit(100);
+        fsfree(s1);
+
         fs_free_alloc_checker(&freed, &allocated);
         if (freed !=  allocated)
             return logerr(TEST_FAILED, "must be equal f/a counter  0:0, but not %d:%d", freed, allocated);
-        // TODO: 
     }
-    check_leak();
+    test_sub("subtest %d: via elem()", ++subnum);
+    {
+        fs s1 = FS();   // empty, alloc
+        for (int i = 0; i < 1000000; i++)
+            elem(s1, i) = 'a';
+        fsfree(s1);
+        fs_free_alloc_checker(&freed, &allocated);
+        if (freed !=  allocated)
+            return logerr(TEST_FAILED, "must be equal f/a counter  0:0, but not %d:%d", freed, allocated);
+    }
+    test_sub("subtest %d: via clone()", ++subnum);
+    {
+        fs s1 = fsliteral("12345");
+        fs s2 = fsclone(s1);
+        elem(s2, 10000) = 'c';
+        fsfree(s2);
+        fs_free_alloc_checker(&freed, &allocated);
+        if (freed !=  allocated)
+            return logerr(TEST_FAILED, "must be equal f/a counter  0:0, but not %d:%d", freed, allocated);
+    }
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
