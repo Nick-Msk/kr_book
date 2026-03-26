@@ -426,11 +426,18 @@ fs                                      fsinit(int n){
     return logsimpleret(res, "Created empty with sz %d", res.sz);
 }
 
-fs                                      fsclone(fs s){
-    fs tmp = fsinit(s.len + 1);
-    tmp.len = s.len;
-    memcpy(tmp.v, s.v, tmp.len + 1);
+fs                                      fs_clone(const fs *s){
+    fs tmp = FS();
+    if (s){
+        tmp = fsinit(s->len + 1);
+        tmp.len = s->len;
+        memcpy(tmp.v, s->v, tmp.len + 1);
+    }
     return tmp;
+}
+
+fs                                      fsclone(fs s){
+    return fs_clone(&s);
 }
 
 // destructor, macro wrapper will be

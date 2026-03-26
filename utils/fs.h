@@ -133,6 +133,7 @@ static inline fs            fscopy(const char *str){
 }
 
 extern fs                   fsclone(fs s);
+extern fs                   fs_clone(const fs *s);
 
 // lit MUST BE static!
 static inline fs            fsliteral(const char *lit){
