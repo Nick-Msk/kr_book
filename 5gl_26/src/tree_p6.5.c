@@ -6,7 +6,7 @@
 #include "tree_p6.5.h"
 
 // simple printer
-static inline int       treeprintnode(const tnode* str){
+static inline int       tree_printnode(const tnode* str){
     const char *s = 0;
     int cnt = 0;
     if (str)
@@ -15,19 +15,19 @@ static inline int       treeprintnode(const tnode* str){
 }
 
 // simple free
-static void              treefreenode(tnode *node){
+static void              tree_freenode(tnode *node){
     fsfree(node->word);
     free(node);
 }
 
-static inline tnode     *treealloc(void){
+static inline tnode     *tree_alloc(void){
     return (tnode *) malloc(sizeof(tnode));
 }
 
 
-static tnode            *treecreatenode(fs *str){
+static tnode            *tree_createnode(fs *str){
     tnode *root;
-    if (! (root = treealloc() ) )
+    if (! (root = tree_alloc() ) )
         userraiseint(ERR_UNABLE_ALLOCATE, "%zu bytes", sizeof(tnode) );
     // root->word = fs_move(str); TEST THAT, but simple copy for now
     root->word = fsclone(*str);
@@ -36,34 +36,34 @@ static tnode            *treecreatenode(fs *str){
     return root;
 }
 
-tnode                  *treeadd(tnode *restrict root, fs *restrict str){   // fs * because have to destroy original fs (probably after using fs_move() )
+tnode                  *tree_add(tnode *restrict root, fs *restrict str){   // fs * because have to destroy original fs (probably after using fs_move() )
     int     cond;
     if (!root)
-        root = treecreatenode(str);
+        root = tree_createnode(str);
     else if ( (cond = fscmp(*str, root->word) ) == 0) // find + attach
         root->cnt++;
     else if (cond < 0)
-        root->left = treeadd(root->left, str);
+        root->left = tree_add(root->left, str);
     else    // cond > 0
-        root->right = treeadd(root->right, str);
+        root->right = tree_add(root->right, str);
     return root;
 }
 
-void                    treefree(tnode *node){
+void                    tree_free(tnode *node){
     if (node){
-        treefree(node->left);
-        treefree(node->right);
-        treefreenode(node);
+        tree_free(node->left);
+        tree_free(node->right);
+        tree_freenode(node);
     }
 }
 
 // tree API
-int                     treeprint(const tnode* node){
+int                     tree_print(const tnode* node){
     int         cnt = 0;
     if (node){
-        cnt += treeprint(node->left);
-        treeprintnode(node), cnt++;
-        cnt += treeprint(node->right);
+        cnt += tree_print(node->left);
+        tree_printnode(node), cnt++;
+        cnt += tree_print(node->right);
     }
     return cnt;
 }
@@ -84,19 +84,19 @@ static void                         freefslist(fs *str){
 }
 
 // free only current node
-static void                         inttreefreenode(inttree_linkedfs *root){
+static void                         inttree_freenode(inttree_linkedfs *root){
     if (root->words)
         freefslist(root->words);
     free(root);
 }
 
 
-static inline inttree_linkedfs     *inttreealloc(void){
+static inline inttree_linkedfs     *inttree_alloc(void){
     return (inttree_linkedfs *) malloc(sizeof(inttree_linkedfs));
 }
 
-static inttree_linkedfs            *inttreecreatenode(int value, const fs *str){
-    inttree_linkedfs *root = inttreealloc();
+static inttree_linkedfs            *inttree_createnode(int value, const fs *str){
+    inttree_linkedfs *root = inttree_alloc();
     if (! root)
         userraiseint(ERR_UNABLE_ALLOCATE, "%zu bytes", sizeof(inttree_linkedfs) );
     root->value = value;
@@ -111,7 +111,7 @@ static inttree_linkedfs            *inttreecreatenode(int value, const fs *str){
 
 // -------------------- Public API initree -----------------------------------
 
-int                                 intttreeprintnode(const inttree_linkedfs* node){
+int                                 intttree_printnode(const inttree_linkedfs* node){
     int cnt = 0;
     if (node){
         cnt += printf("%3d:%3d, example: ", node->value, node->cnt);
@@ -120,32 +120,32 @@ int                                 intttreeprintnode(const inttree_linkedfs* no
     return cnt;
 }
 
-void                                intttreefree(inttree_linkedfs *root){
+void                                intttree_free(inttree_linkedfs *root){
     if (root){
-        intttreefree(root->left);
-        intttreefree(root->right);
-        inttreefreenode(root);
+        intttree_free(root->left);
+        intttree_free(root->right);
+        inttree_freenode(root);
     }
 }
-inttree_linkedfs                   *inttreeadd(inttree_linkedfs *restrict root, const fs *restrict str, int value){
+inttree_linkedfs                   *inttree_add(inttree_linkedfs *restrict root, const fs *restrict str, int value){
     int     cond;
     if (!root)
-        root = inttreecreatenode(value, str);
+        root = inttree_createnode(value, str);
     else if ( (cond = (value - root->value) ) == 0) // find + attach
         root->cnt++;
     else if (cond < 0)
-        root->left = inttreeadd(root->left, str, value);
+        root->left = inttree_add(root->left, str, value);
     else    // cond > 0
-        root->right = inttreeadd(root->right, str, value);
+        root->right = inttree_add(root->right, str, value);
     return root;
 }
 
-int                                 intttreeprint(const inttree_linkedfs* node){
+int                                 intttree_print(const inttree_linkedfs* node){
     int     cnt = 0;
     if (node){
-        cnt += intttreeprint(node->left);
-        intttreeprintnode(node), cnt++;
-        cnt += intttreeprint(node->right);
+        cnt += intttree_print(node->left);
+        intttree_printnode(node), cnt++;
+        cnt += intttree_print(node->right);
     }
     return cnt;
 }

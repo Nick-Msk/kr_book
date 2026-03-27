@@ -57,7 +57,7 @@ static const char   *usage_str = "Usage: %s -v -i\n";
 static inttree_linkedfs              *inttree_iterall(tnode *root, inttree_linkedfs *cntroot){
     if (root){
         cntroot = inttree_iterall(root->left, cntroot);
-        cntroot = inttreeadd(cntroot, &root->word, root->cnt);
+        cntroot = inttree_add(cntroot, &root->word, root->cnt);
         cntroot = inttree_iterall(root->right, cntroot);
     }
     return cntroot;
@@ -86,17 +86,17 @@ int                      main(int argc, const char *argv[]){
 
     while ( !fsisempty(word = getword(word, ke.sens) ) ) {
         if (isalpha_u(*fsstr(word) ) )
-            root = treeadd(root, &word);
+            root = tree_add(root, &word);
     }
 
-    printf("Total: %d\n", treeprint(root) );
+    printf("Total: %d\n", tree_print(root) );
 
     inttree_linkedfs *cntr = inttree_iterall(root, 0);   // convert
 
-    treefree(root);
+    tree_free(root);
 
-    printf("Total: %d\n", intttreeprint(cntr) );    // print as counter
-    intttreefree(cntr);
+    printf("Total: %d\n", intttree_print(cntr) );    // print as counter
+    intttree_free(cntr);
 
     fsfree(word);   // in case if treeadd will not user fs_move()
     if (!fs_alloc_check(false))
