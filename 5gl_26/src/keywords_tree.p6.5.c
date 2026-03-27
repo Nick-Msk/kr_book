@@ -85,18 +85,17 @@ int                      main(int argc, const char *argv[]){
     fs           word = FS();   // init empty with fsalloc
 
     while ( !fsisempty(word = getword(word, ke.sens) ) ) {
-        logauto(fsstr(word));
         if (isalpha_u(*fsstr(word) ) )
             root = treeadd(root, &word);
     }
 
-    printf("%d\n", treeprint(root) );
+    printf("Total: %d\n", treeprint(root) );
 
     inttree_linkedfs *cntr = inttree_iterall(root, 0);   // convert
 
     treefree(root);
 
-    intttreeprint(cntr);    // print as counter
+    printf("Total: %d\n", intttreeprint(cntr) );    // print as counter
     intttreefree(cntr);
 
     fsfree(word);   // in case if treeadd will not user fs_move()

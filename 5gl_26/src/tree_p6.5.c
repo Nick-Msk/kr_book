@@ -114,7 +114,7 @@ static inttree_linkedfs            *inttreecreatenode(int value, const fs *str){
 int                                 intttreeprintnode(const inttree_linkedfs* node){
     int cnt = 0;
     if (node){
-        cnt += printf("Value %d, sz %d, first of string: ", node->value, node->cnt);
+        cnt += printf("%3d:%3d, example: ", node->value, node->cnt);
         cnt += printfslist(node->words);
     }
     return cnt;
