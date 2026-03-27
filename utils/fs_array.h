@@ -18,7 +18,7 @@
 
 // ------------------- CONSTANTS AND GLOBALS ---------------------------
 
-static const int                G_FSARRAY_DEFAULT_INIT = 10; 
+static const int                G_FSARRAY_DEFAULT_INIT = 10;
 
 // --------------------------------- TYPES -----------------------------
 
@@ -43,9 +43,8 @@ static inline fsarray   fsarr_empty(){
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
 // low level deatch
-static inline fs*       fsarr_detach(fsarray *arr, int pos){
-    fs *s = arr->ar[pos].ps;
-    arr->ar[pos].ps = 0;
+static inline fs        fsarr_detach(fsarray *arr, int pos){
+    fs s = fsmove(arr->ar[pos]);    // move via macro, fs_move undelaying
     arr->cnt--;     // just for logging now, but arr->pos remains the same!
     return s;       // probably it's possible to not return noting
 }
@@ -57,7 +56,7 @@ static inline bool      fsarr_exists(const fsarray *arr, int pos){
 
 // return a fs
 static inline fs       *fsarr_get(const fsarray *arr, int pos){
-    return arr->ar[pos];
+    return arr->ar[pos];        // even if fsnull
 }
 
 

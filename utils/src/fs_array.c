@@ -35,7 +35,7 @@ int                             fsarr_techfprint(FILE *f, fsarray arr){
 // ------------------------------ Utilities -------------------------
 
 // should depent on increase strategy, simplest return n + 1;
-static inline int               calcnewsize(int n){ 
+static inline int               calcnewsize(int n){
     int sz = round_up_2(n);
     return sz; //logsimpleret(sz, "newsz = %d", sz);
 }
@@ -43,7 +43,7 @@ static inline int               calcnewsize(int n){
 static int                      increasesize(fsarray *fa, int newsz, bool init){
     logenter("oldsz %d, newsz %d init %s", fa->sz, newsz, bool_str(init));
     if (init)   // from fsarr_init
-        newsz = calcnewsize(newsz);
+        newsz = calcnewsize(SIZE_POWER2, newsz);
     if (newsz > fa->sz || !init) {   // if exec from faarr_increate() then resize anyway
         namedfs *tmp = realloc(fa->ar, newsz * sizeof (namedfs) );
         if (!tmp) {
