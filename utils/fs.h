@@ -179,6 +179,11 @@ static inline bool          fsisempty(fs s){
     return fslen(s) == 0;
 }
 
+// just and FS() or after freed
+static inline bool          fsisnull(fs s){
+    return s.sz == 0 && s.v == 0;
+}
+
 static inline int           fssz(fs s){
     return s.sz;
 }
