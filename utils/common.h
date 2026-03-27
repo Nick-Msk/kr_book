@@ -7,6 +7,7 @@
 #include <ctype.h>
 
 #include "bool.h"
+#include "log.h"
 
 /***************************************************************
 				USEFUL MACRO AND FUNCTIONS
@@ -250,6 +251,29 @@ static inline int clower(int c, bool sens){
 
 static inline int cupper(int c, bool sens){
     return sens ? c: toupper(c);
+}
+
+typedef enum {SIZE_NONE = 0, SIZE_POWER2, SIZE_MIN10 } Tincrease; 
+
+// should depent on increase strategy, simplest return n + 1;
+static inline int               calcnewsize(Tincrease t, int n){ 
+    int sz = n;
+    switch (t){
+        case SIZE_NONE:
+            // do, nothing
+        break;
+        case SIZE_MIN10:
+            if (sz < 10)
+                sz = 10;
+        break;
+        case SIZE_POWER2:
+            sz = round_up_2(sz);
+        break;
+        default:
+            logsimple("Unknow size grouth type %d", t);
+        break;
+    }
+    return sz; //logsimpleret(sz, "newsz = %d", sz);
 }
 
 #endif /* ! _COMMON_H */
