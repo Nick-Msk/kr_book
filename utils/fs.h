@@ -24,7 +24,7 @@ typedef enum  {
              , FS_FLAG_STATIC = 0x1
              , FS_FLAG_CONST  = 0x2     // Not user for now
              , FS_FLAG_LOCAL  = 0x4
-             , FS_FLAG_MOVED  = 0x8     // for fsarr_move()
+             //, FS_FLAG_MOVED  = 0x8     // for fsarr_move()
 } FS_FLAGS;
 
 // type-support functions
@@ -36,7 +36,7 @@ static inline const char * fs_flag_str(FS_FLAGS flag){
         CASE_RETURN(FS_FLAG_CONST);
         CASE_RETURN(FS_FLAG_LOCAL);
         CASE_RETURN(FS_FLAG_ALLOC);
-        CASE_RETURN(FS_FLAG_MOVED);
+        //CASE_RETURN(FS_FLAG_MOVED);
         default:         return "Unknown action";
     }
 }
@@ -81,13 +81,13 @@ static inline bool          fs_alloc(const fs *s){
     return fs_flag_alloc(s->flags);
 }
 
-static inline bool          fs_flag_moved(FS_FLAGS fl){
+/*static inline bool          fs_flag_moved(FS_FLAGS fl){
     return fl == FS_FLAG_MOVED;
 }
 
 static inline bool          fs_moved(const fs *s){
     return fs_flag_moved(s->flags);
-}
+}*/
 
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
@@ -132,6 +132,14 @@ static inline fs            fscopy(const char *str){
     return val;
 }
 
+static inline fs            fs_move(fs *orig){
+    if (!fs_alloc(orig) )
+        userraiseint(ERR_FS_NOT_ALLOC_FLAG, "Unable to move not allocated fs (type %s)", fs_flag_str(orig->flags) );    // 10001 interrupt
+    fs tmp = *orig;
+    *orig = FS();
+    return logsimpleret(tmp, "fs moved %d: %p", tmp.sz, tmp.v);
+}
+
 extern fs                   fsclone(fs s);
 extern fs                   fs_clone(const fs *s);
 
@@ -153,6 +161,8 @@ extern void                 fsfreeall(void);
 #endif
 
 // TODO: fs_const()
+
+#define                     fsmove(s) fs_move(&(s) )
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 

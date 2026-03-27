@@ -436,15 +436,15 @@ fs                                      fsclone(fs s){
 
 // destructor, macro wrapper will be
 void                                    fs_free(fs *s){
-    if (fs_alloc(s) || fs_moved(s)){    // actualy alloc must be a flag, but not statememnt TODO:
+    if (fs_alloc(s) /* || fs_moved(s) */ ){    // actualy alloc must be a flag, but not statememnt TODO:
         logsimpleact(free(s->v), "freed... %p", s->v);   // WOW, logsimpleact?
         if (s->v)
             logauto(++g_free_cnt);   // calculate only  if really free memory
         s->sz = s->len = 0;
         s->v = 0;
     }
-    if (fs_moved(s))
-        free(s);    // because in that case fs in heap too
+    /*if (fs_moved(s))  TEMPORARY DISABLE BECAUSE OF CHANGING SEMANTIC OF MOVE
+        free(s);    // because in that case fs in heap too */
 }
 
 #if defined(FS_ALLOCATOR)
@@ -953,6 +953,32 @@ tf12(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
+// ------------------------- TEST 13 ---------------------------------
+
+static TestStatus
+tf13(const char *name)
+{
+    logenter("%s", name);
+
+    int         subnum = 0;
+
+    test_sub("subtest %d: simple fs_move", ++subnum);
+    {
+        const char pt[] = "qwertyuiop1234567890";
+        fs s1 = fscopy(pt);
+        fs s2 = fsmove(s1);
+        if (!fsisnull(s1) )
+            return logacterr( fsfree(s2), TEST_FAILED, "s1 must becaume nullable after moving, but not (%d:%d:%p)", s1.len, s1.sz, s1.v);
+        if (s2.len != (int) strlen(pt) )
+            return logacterr( fsfree(s2), TEST_FAILED, "Len of origin pattern %lu must be equal of len move fs %d", strlen(pt), s2.len);
+        if (strcmp(fsstr(s2), pt) != 0)
+            return logacterr( fsfree(s2), TEST_FAILED, "origin [%s] must be equal move fs [%s]", pt, fsstr(s2) );
+        fsfree(s2);
+    }
+    check_leak(true);
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -972,6 +998,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf10, .num = 10, .name = "fslocal simple test"           , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf11, .num = 11, .name = "fs_save/load test"             , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf12, .num = 12, .name = "fs_free_alloc_checker test"    , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf13, .num = 13, .name = "fs_move simple test"           , .desc=""                , .mandatory=true)
     );
 
     logclose("end...");
