@@ -27,7 +27,11 @@ static const int                        ERR_UNABLE_OPEN_FILE        = 50;
 static const int                        ERR_UNABLE_OPEN_FILE_READ   = 51;
 static const int                        ERR_UNABLE_OPEN_FILE_WRITE  = 52;
 
+// WARNINGS HEHE
 static const int                        WARN_MEM_LEAK_DETECTED      = 1001;
+
+// CUSTOM ERROR 10000+
+static const int                        ERR_FS_NOT_ALLOC_FLAG       = 10001;
 
 // ------------------- TYPES -----------------------
 
