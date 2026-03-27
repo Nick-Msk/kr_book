@@ -33,12 +33,6 @@ static int                      g_free_cnt              = 0;
 
 // ------------------------------ Utilities -------------- ----------
 
-// should depent on increase strategy, simplest return n + 1;
-static inline int               calcnewsize(int n){
-    int sz = round_up_2(n);
-    return sz; //logsimpleret(sz, "newsz = %d", sz);
-}
-
 #if defined(FS_ALLOCATOR)
 // ------------------------- ALLOCATOR ------------------------------
 
@@ -59,7 +53,7 @@ static int                      findempty(void){
         if (!g_fs_ptr[i])
             return logsimpleret(i, "found empty %d", i);
     // alloc new
-    int tmpsz = calcnewsize(g_initsize) * sizeof(const char *);
+    int tmpsz = calcnewsize(SIZE_POWER2, g_initsize) * sizeof(const char *);
     char **tmp = realloc(g_fs_ptr, tmpsz);
     if (!tmp)
         sysraiseint("Unable to allocate %d", tmpsz);  // return???
@@ -155,7 +149,7 @@ static fs                               increasesize(fs *s, int newsz, bool init
     logenter("oldsz %d, newsz %d, init %s v %p, is alloc? %s", s->sz, newsz, bool_str(init), s->v, bool_str(fs_alloc(s)) );
     if (fs_alloc(s) ){
         if (init)
-            newsz = calcnewsize(newsz);
+            newsz = calcnewsize(SIZE_POWER2, newsz);    // with increase type
         if (newsz > s->sz || !init){
                 char *v = realloc(s->v, newsz);
                 #if defined(FS_ALLOCATOR)
