@@ -56,18 +56,18 @@ static inline bool          fsarr_attach(fsarray *arr, int pos, fs *s){
 }
 
 // check if position exists
-static inline bool      fsarr_exists(const fsarray *arr, int pos){
+static inline bool          fsarr_exists(const fsarray *arr, int pos){
     return fsisnull(arr->ar[pos]);
 }
 
 // return a fs
-static inline fs       *fsarr_get(const fsarray *arr, int pos){
+static inline fs           *fsarr_get(const fsarray *arr, int pos){
     return arr->ar + pos;        // even if fsnull
 }
 
-extern int              fsarr_increase(fsarray *arr, int newsize);
+extern int                  fsarr_increase(fsarray *arr, int newsize);
 
-extern int              fsarr_shrink(fsarray *arr, int newsize);
+extern int                  fsarr_shrink(fsarray *arr, int newsize);
 
 
 // FSL API HEHE: TODO:
@@ -76,30 +76,30 @@ extern int              fsarr_shrink(fsarray *arr, int newsize);
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
-extern int              fsarr_fprint(FILE *restrict f, const fsarray *restrict arr);
-static inline int       fsarr_print(const fsarray* arr){
+extern int                  fsarr_fprint(FILE *restrict f, const fsarray *restrict arr);
+static inline int           fsarr_print(const fsarray* arr){
     return fsarr_fprint(stdout, arr);
 }
 
-extern int              fsarr_techfprint(FILE *restrict f, const fsarray *restrict arr);
-static inline int       fsarr_techprint(const fsarray *arr){
+extern int                  fsarr_techfprint(FILE *restrict f, const fsarray *restrict arr);
+static inline int           fsarr_techprint(const fsarray *arr){
     return fsarr_techfprint(stdout, arr);
 }
 
-extern int              fsarr_techfprintlim(FILE *restrict f, const fsarray *restrict arr, int lim);
-static inline int       fsarr_techprintlim(const fsarray *arr, int lim){
+extern int                  fsarr_techfprintlim(FILE *restrict f, const fsarray *restrict arr, int lim);
+static inline int           fsarr_techprintlim(const fsarray *arr, int lim){
     return fsarr_techfprintlim(stdout, arr, lim);
 }
 
-bool                    fsarr_validate(FILE *restrict out, const fsarray *restrict arr);
+bool                        fsarr_validate(FILE *restrict out, const fsarray *restrict arr);
 
 // ------------------------------ ETC. ---------------------------------
 
-extern int              fsarr_save(const char *restrict fname, const fsarray *restrict arr);
-extern int              fsarr_fsave(FILE *restrict f, const fsarray *restrict arr);
+extern int                  fsarr_save(const char *restrict fname, const fsarray *restrict arr);
+extern int                  fsarr_fsave(FILE *restrict f, const fsarray *restrict arr);
 
-extern fsarray          fsarr_load(const char *fname);
-extern fsarray          fsarr_fload(FILE *f);
+extern fsarray              fsarr_load(const char *fname);
+extern fsarray              fsarr_fload(FILE *f);
 
 #endif /* !_FS_ARRAY_H */
 

@@ -245,7 +245,7 @@ tf1(const char *name)
     test_sub("subtest %d: init", ++subnum);
     {
 
-        int sz = 100;
+        int sz = 50;
         fsarray fa = fsarr_init(sz);
 
         fsarr_techfprint(logfile, &fa);
@@ -264,8 +264,60 @@ tf1(const char *name)
         fsarr_free(&fa);
         fsarr_techfprint(logfile, &fa);
     }
+    fs_alloc_check(true);
     return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED
 }
+
+// ------------------------- TEST 2 ---------------------------------
+
+static TestStatus
+tf2(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: init + validation", ++subnum);
+    {
+
+        int sz = 30;
+        fsarray fa = fsarr_init(sz);
+
+        if (fa.sz < sz)
+            return logacterr(fsarr_free(&fa), TEST_FAILED, "sz (%d) must be >= initial sz %d", fa.sz, sz);
+
+        for (int i = 0; i < sz; i++){
+            if (i < sz / 2)     // fs_attach to be here?
+                fa.ar[i] = fsinit(100);        // 50 with init, 50 - automatic
+            // introdured fssprintf(s, format, ...);
+            fssprintf(fa.ar[i], "str - %d", i);
+        }
+        fsarr_techfprint(logfile, &fa);
+        if (!fsarr_validate(stderr, &fa) )
+            return logacterr(fsarr_free(&fa),TEST_FAILED, "Validation failed");
+
+    test_sub("subtest %d: check lines", ++subnum);
+
+        char buf[100];
+        // check the lines
+        for (int i = 0; i < sz; i++){
+            sprintf(buf, "str - %d", i);        // ok in this case
+            if (strcmp(fa.ar[i].v, buf) != 0)
+                return logacterr(fsarr_free(&fa), TEST_FAILED, "fsarr[%d]: '%s' != origin '%s'", 
+                    i, fa.ar[i].v, buf);
+        }
+
+    test_sub("subtest %d: freeall", ++subnum);
+
+        fsarrfree(fa); // via macro
+        fsarr_techfprint(logfile, &fa);
+        if (!fsarr_validate(stderr, &fa) )
+            return logerr(TEST_FAILED, "Validation failed after free");
+    }
+    fs_alloc_check(true);
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED
+}
+
+
 
 // ------------------------------------------------------------------
 int
@@ -275,8 +327,8 @@ main( /* int argc, const char *argv[] */)
 
     testenginestd(
         testnew(.f2 = tf1, .num = 1, .name = "Simple init free test"                        , .desc=""                , .mandatory=true)
-     /* , testnew(.f2 = tf2, .num = 2, .name = "Init/free test with valid fs (random)"        , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf3, .num = 3, .name = "fsarr_attach test"                            , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf2, .num = 2, .name = "Init/free test with valid fs (random)"        , .desc=""                , .mandatory=true)
+     /* , testnew(.f2 = tf3, .num = 3, .name = "fsarr_attach test"                            , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf4, .num = 4, .name = "fsarr_save test"                              , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf5, .num = 5, .name = "fsarr_save/load test"                         , .desc=""                , .mandatory=true) */
     );
