@@ -96,10 +96,10 @@ bool                    fsarr_validate(FILE *restrict out, const fsarray *restri
 // ------------------------------ ETC. ---------------------------------
 
 extern int              fsarr_save(const char *restrict fname, const fsarray *restrict arr);
-extern int              fsarr_savef(FILE *restrict f, const fsarray *restrict arr);
+extern int              fsarr_fsave(FILE *restrict f, const fsarray *restrict arr);
 
 extern fsarray          fsarr_load(const char *fname);
-extern fsarray          fsarr_loadf(FILE *f);
+extern fsarray          fsarr_fload(FILE *f);
 
 #endif /* !_FS_ARRAY_H */
 

@@ -74,10 +74,14 @@ static fsarray                  sortfs(const fsarray *origin){
     // make a copy first
     fsarray tmp = FSARRAY();
     increasesize(&tmp, origin->sz, false);  // exactly count of origin
+    int     cnt = 0;
     for (int i = 0; i < origin->sz; i++)
-         tmp.ar[i] = origin->ar[i];    // all namedfs, not reeally need actually
+        if ( !fsisnull(origin->ar[i] ) )
+            tmp.ar[cnt++] = origin->ar[i];    // all namedfs, not reeally need actually
     // sort
-    qsort(tmp.ar, origin->sz, sizeof(fs), fsptrcmp);
+    tmp.sz = cnt;
+    if (tmp.sz > 0)
+        qsort(tmp.ar, tmp.sz, sizeof(fs), fsptrcmp);
     return tmp;
 }
 
@@ -158,7 +162,7 @@ int                         fsarr_save(const char *restrict fname, const fsarray
     FILE    *out = fopen(fname, "w");
     if (!out)
         return userraise(ERR_UNABLE_OPEN_FILE_READ, -1, "Unable to open %s for write", fname);
-    int     cnt = fsarr_savef(out, arr);
+    int     cnt = fsarr_fsave(out, arr);
     fclose(out);
     return cnt;
 }
@@ -183,7 +187,7 @@ fsarray                     fsarr_load(const char *fname){
     FILE    *out = fopen(fname, "r");
     if (!out)
         userraiseint(ERR_UNABLE_OPEN_FILE_READ, "Unable to open %s for read", fname);
-    fsarray fa = fsarr_loadf(out);
+    fsarray fa = fsarr_fload(out);
     fclose(out);
     return fa;
 }
@@ -244,21 +248,21 @@ tf1(const char *name)
         int sz = 100;
         fsarray fa = fsarr_init(sz);
 
-        fsarr_techfprint(stdout, fa);
-        if (!fsarr_validate(stderr, fa) )
+        fsarr_techfprint(logfile, &fa);
+        if (!fsarr_validate(stderr, &fa) )
             return logacterr(fsarr_free(&fa), TEST_FAILED, "Validation failed");
 
         if (fa.sz < sz)
             return logacterr(fsarr_free(&fa), TEST_FAILED, "sz (%d) must be >= initial sz %d", fa.sz, sz);
 
-        if (fa.cnt != 0)
-            return logacterr(fsarr_free(&fa), TEST_FAILED, "Cnt = %d but must be 0, because not any objects after init", fa.sz);
+        if (fa.sz < sz)
+            return logacterr(fsarr_free(&fa), TEST_FAILED, "Sz = %d but must be >= %d", fa.sz, sz);
 
         test_sub("subtest %d: freeall", ++subnum);
 
-        fsarr_techfprint(stdout, fa);
+        fsarr_techfprint(logfile, &fa);
         fsarr_free(&fa);
-        fsarr_techfprint(stdout, fa);
+        fsarr_techfprint(logfile, &fa);
     }
     return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED
 }

@@ -73,7 +73,7 @@ fs_iter.o: src/fs_iter.c
 	$(CC) $(CFLAGS)  $^ -c
 	@mv $@ lib/
 
-fs_array: src/fs_array.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fs.o
+fs_array: src/fs_array.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fs.o lib/fileutils.o
 	$(CC) $(CFLAGS) -DFSARRAYTESTING $^ -o test/$@_test
 
 fs_array.o: src/fs_array.c
