@@ -72,7 +72,7 @@ extern int                  fsarr_shrink(fsarray *arr, int newsize);
 
 // FSL API HEHE: TODO:
 
-#define                 fsarrattach(arr, s) fsarr_attach(&(arr), s)
+#define                 fsarrattach(arr, pos, s) fsarr_attach(&(arr), (pos), &(s) )
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
 

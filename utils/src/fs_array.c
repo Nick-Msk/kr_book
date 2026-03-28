@@ -317,6 +317,49 @@ tf2(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED
 }
 
+// ------------------------- TEST 3 ---------------------------------
+
+static TestStatus
+tf3(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: cycle attach + validation", ++subnum);
+    {
+
+        int sz = 50;
+        fsarray fa = fsarr_init(sz);
+        fs      s;
+
+        for (int i = 0; i < sz; i++){
+            s = FS();
+            fssprintf(s, "value bla bla %d", i); 
+            fsarrattach(fa, i, s);
+        }
+        fsarr_techfprintlim(logfile, &fa, 3); 
+
+        if (!fsarr_validate(stderr, &fa) )
+            return logacterr(fsarrfree(fa),TEST_FAILED, "Validation failed");
+
+    test_sub("subtest %d: check array", ++subnum);
+
+        for (int i = 0; i < sz; i++){
+            char buf[100];
+            snprintf(buf, sizeof(buf) - 1, "value bla bla %d", i);
+            if (strcmp(buf, fsstr( *fsarr_get(&fa, i) ) ) != 0)
+                return logacterr(fsarrfree(fa),TEST_FAILED, "[%s] must  be equal fs[%d] [%s]", buf, i, fsstr( *fsarr_get(&fa, i) ) );
+        }
+
+    test_sub("subtest %d: freeall", ++subnum);
+
+        fsarrfree(fa); // via macro
+        fsarr_techfprintlim(logfile, &fa, 3);
+        if (!fsarr_validate(stderr, &fa) )
+            return logerr(TEST_FAILED, "Validation failed after free");
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED
+}
 
 
 // ------------------------------------------------------------------
@@ -328,8 +371,8 @@ main( /* int argc, const char *argv[] */)
     testenginestd(
         testnew(.f2 = tf1, .num = 1, .name = "Simple init free test"                        , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf2, .num = 2, .name = "Init/free test with valid fs (random)"        , .desc=""                , .mandatory=true)
-     /* , testnew(.f2 = tf3, .num = 3, .name = "fsarr_attach test"                            , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf4, .num = 4, .name = "fsarr_save test"                              , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf3, .num = 3, .name = "fsarr_attach test"                            , .desc=""                , .mandatory=true)
+     /* , testnew(.f2 = tf4, .num = 4, .name = "fsarr_save test"                              , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf5, .num = 5, .name = "fsarr_save/load test"                         , .desc=""                , .mandatory=true) */
     );
 
