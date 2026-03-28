@@ -64,8 +64,57 @@ static int                      increasesize(fsarray *fa, int newsz, bool init){
     return logret(newsz, "Increased to %d elements", newsz);
 }
 
+// compare as pointer
+static int                      fsptrcmp(const void *ns1, const void *ns2){
+    return ((fs *) ns1)->v - ((fs *) ns2)->v; // OMG
+}
+
+// sorting via qsort()
+static fsarray                  sortfs(const fsarray *origin){
+    // make a copy first
+    fsarray tmp = FSARRAY();
+    increasesize(&tmp, origin->sz, false);  // exactly count of origin
+    for (int i = 0; i < origin->sz; i++)
+         tmp.ar[i] = origin->ar[i];    // all namedfs, not reeally need actually
+    // sort
+    qsort(tmp.ar, origin->sz, sizeof(fs), fsptrcmp);
+    return tmp;
+}
+
+
 // --------------------------- API ---------------------------------
 // ------------------ General functions ----------------------------
+
+// never raise exception! just return true/false and put messages into f (if != 0)
+bool                fsarr_validate(FILE *restrict out, const fsarray *restrict arr){
+    logenter("%p", out);
+    logmsg("check 1");
+    if (arr->sz < 0){
+        if (out)
+            fprintf(out, "%s: sz must be positive", __func__);
+        return logerr(false, "sz must be positive");
+    }
+    if (arr->sz > 0){
+        logmsg("sz > 0, check 2");
+        fsarray   tmp = sortfs(arr);   // make a sorting by arr.ar.s.v, tmp is shrinked and NOT valid, all fs are pointer to fs of arr
+        int     duplcount = 0;
+        for (int i = 1; i < tmp.sz; i++)
+            if (tmp.ar[i - 1].v == tmp.ar[i].v){
+                if (out)
+                    fprintf(out, "elem [%d] == elem [%d] == %p:[%s]", i - 1, i, tmp.ar[i].v, tmp.ar[i].v);
+                duplcount++;
+            }
+        free(tmp.ar);       // free temporary array (not fs!)
+        if (duplcount > 0){
+            if (out)
+                fprintf(out, "Total duplicates %d", duplcount);
+            return logerr(false, "Total duplicates %d", duplcount);
+        }
+    }
+    logmsg("all tests for now...");
+    return logret(true, "Ok");
+}
+
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
@@ -182,6 +231,37 @@ fsarray             fsarr_init(int sz){
 //types for testing
 
 // ------------------------- TEST 1 ---------------------------------
+
+static TestStatus
+tf1(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: init", ++subnum);
+    {
+
+        int sz = 100;
+        fsarray fa = fsarr_init(sz);
+
+        fsarr_techfprint(stdout, fa);
+        if (!fsarr_validate(stderr, fa) )
+            return logacterr(fsarr_free(&fa), TEST_FAILED, "Validation failed");
+
+        if (fa.sz < sz)
+            return logacterr(fsarr_free(&fa), TEST_FAILED, "sz (%d) must be >= initial sz %d", fa.sz, sz);
+
+        if (fa.cnt != 0)
+            return logacterr(fsarr_free(&fa), TEST_FAILED, "Cnt = %d but must be 0, because not any objects after init", fa.sz);
+
+        test_sub("subtest %d: freeall", ++subnum);
+
+        fsarr_techfprint(stdout, fa);
+        fsarr_free(&fa);
+        fsarr_techfprint(stdout, fa);
+    }
+    return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED
+}
 
 // ------------------------------------------------------------------
 int

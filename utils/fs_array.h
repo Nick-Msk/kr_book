@@ -91,6 +91,8 @@ static inline int       fsarr_techprintlim(const fsarray *arr, int lim){
     return fsarr_techfprintlim(stdout, arr, lim);
 }
 
+bool                    fsarr_validate(FILE *restrict out, const fsarray *restrict arr);
+
 // ------------------------------ ETC. ---------------------------------
 
 extern int              fsarr_save(const char *restrict fname, const fsarray *restrict arr);
