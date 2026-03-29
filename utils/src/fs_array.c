@@ -174,7 +174,7 @@ int                         fsarr_save(const char *restrict fname, const fsarray
 // f is open for write
 int                         fsarr_fsave(FILE *restrict f, const fsarray *restrict arr){
     // signature
-    fprintf(f, "FSARRAY(%d):[\n", arr->sz);
+    fprintf(f, "FSARRAY(%d):[\n", arr->cnt);
     if (!arr->ar)
         return userraise(ERR_NULLABLE_PTR, -1, "Nullable ar, can't serialize"); 
     for (int i = 0; i < arr->cnt; i++){
@@ -200,10 +200,12 @@ fsarray                     fsarr_fload(FILE *restrict f){
     FUSKIPFORMAT(f, "FSARRAY(");
     int cnt = FUGETUNSIGNED(f);
 
+    logauto(cnt);
     FUSKIPFORMAT(f, "):[\n");
     fsarray     a = fsarr_init(cnt);
     // cycle for fs
     for (int i = 0; i < cnt; i++){
+        FUSKIPFORMATPRINTF(f, "%4d:", i); 
         a.ar[i] = fs_fload(f, 0);       // TODO: probably to usr fsarr_get()?
     }
     FUSKIPFORMAT(f, "]");
@@ -255,8 +257,9 @@ tf1(const char *name)
         fsarray fa = fsarr_init(cnt);
 
         fsarr_techfprint(logfile, &fa);
-        if (!fsarr_validate(stderr, &fa) )
-            return logacterr(fsarr_free(&fa), TEST_FAILED, "Validation failed");
+        test_validatefree(fsarr_validate(stderr, &fa), fsarr_free(&fa), "Validation failed");
+        //if (!fsarr_validate(stderr, &fa) )
+        //    return logacterr(fsarr_free(&fa), TEST_FAILED, "Validation failed");
 
         if (fa.sz < cnt)
             return logacterr(fsarr_free(&fa), TEST_FAILED, "sz(%d) must be >= initial cnt(%d)", fa.sz, cnt);
@@ -288,8 +291,7 @@ tf2(const char *name)
         int cnt = 30;
         fsarray fa = fsarr_init(cnt);
 
-        if (fa.sz < cnt || fa.cnt != cnt)
-            return logacterr(fsarr_free(&fa), TEST_FAILED, "sz(%d) must be >= initial cnt(%d) and cnt(%d) must be equal to initial", fa.sz, fa.cnt, cnt);
+        test_validatefree(fa.sz >= cnt && fa.cnt == cnt, fsarr_free(&fa), "sz(%d) must be >= initial cnt(%d) and cnt(%d) must be equal to initial", fa.sz, fa.cnt, cnt);
 
         for (int i = 0; i < cnt; i++){
             if (i < cnt / 2)     // fs_attach to be here?
@@ -298,26 +300,23 @@ tf2(const char *name)
             fssprintf(fa.ar[i], "str - %d", i);
         }
         fsarr_techfprint(logfile, &fa);
-        if (!fsarr_validate(stderr, &fa) )
-            return logacterr(fsarr_free(&fa),TEST_FAILED, "Validation failed");
+        test_validate(fsarr_validate(stderr, &fa), "Validation failed");
 
     test_sub("subtest %d: check lines", ++subnum);
 
         char buf[100];
         // check the lines
         for (int i = 0; i < cnt; i++){
-            sprintf(buf, "str - %d", i);        // ok in this case
-            if (strcmp(fa.ar[i].v, buf) != 0)
-                return logacterr(fsarr_free(&fa), TEST_FAILED, "fsarr[%d]: '%s' != origin '%s'", 
-                    i, fa.ar[i].v, buf);
+            snprintf(buf, sizeof(buf) - 1, "str - %d", i);        // ok in this case
+            test_validatefree(strcmp(fa.ar[i].v, buf) == 0, fsarr_free(&fa), 
+                "fsarr[%d]: '%s' != origin '%s'", i, fa.ar[i].v, buf);
         }
 
     test_sub("subtest %d: freeall", ++subnum);
 
         fsarrfree(fa); // via macro
         fsarr_techfprint(logfile, &fa);
-        if (!fsarr_validate(stderr, &fa) )
-            return logerr(TEST_FAILED, "Validation failed after free");
+        test_validate(fsarr_validate(stderr, &fa), "Validation failed after free");
     }
     fs_alloc_check(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED
@@ -340,30 +339,28 @@ tf3(const char *name)
 
         for (int i = 0; i < cnt; i++){
             s = FS();
-            fssprintf(s, "value bla bla %d", i); 
+            fssprintf(s, "value bla bla %d", i);
             fsarrattach(fa, i, s);
         }
-        fsarr_techfprintlim(logfile, &fa, 3); 
+        fsarr_techfprintlim(logfile, &fa, 3);
 
-        if (!fsarr_validate(stderr, &fa) )
-            return logacterr(fsarrfree(fa),TEST_FAILED, "Validation failed");
+        test_validate(fsarr_validate(stderr, &fa), "Validation failed");
 
     test_sub("subtest %d: check array", ++subnum);
 
         for (int i = 0; i < cnt; i++){
             char buf[100];
             snprintf(buf, sizeof(buf) - 1, "value bla bla %d", i);
-            if (strcmp(buf, fsstr( *fsarr_get(&fa, i) ) ) != 0)
-                return logacterr(fsarrfree(fa),TEST_FAILED, "[%s] must  be equal fs[%d] [%s]", buf, i, fsstr( *fsarr_get(&fa, i) ) );
+            test_validatefree(strcmp(buf, fa.ar[i].v) == 0, fsarrfree(fa), "[%s] must  be equal fs[%d] [%s]", buf, i, fa.ar[i].v );
         }
 
     test_sub("subtest %d: freeall", ++subnum);
 
         fsarrfree(fa); // via macro
         fsarr_techfprintlim(logfile, &fa, 3);
-        if (!fsarr_validate(stderr, &fa) )
-            return logerr(TEST_FAILED, "Validation failed after free");
+        test_validate(fsarr_validate(stderr, &fa), "Validation failed after free");
     }
+    fs_alloc_check(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED
 }
 
@@ -383,17 +380,55 @@ tf4(const char *name)
         for (int i = 0; i < cnt; i++){
             fssprintf(fsarrget(fa, i), "Just test string %d", i);
         }
-        int     res;
-        if ( (res = fsarr_save("res/fsarr2.sv", &fa) ) != cnt)
-            return logacterr(fsarrfree(fa), TEST_FAILED, "fsarr_save have to return %d but not %d", cnt, res);
+        int     res = fsarr_save("res/fsarr2.sv", &fa);
+        test_validatefree(res == cnt, fsarrfree(fa), "fsarr_save have to return %d but not %d", cnt, res);
         fsarrfree(fa); // via macro
     }
-    {
-
-    }
+    fs_alloc_check(true);
     return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED
 }
 
+// ------------------------- TEST 5 ---------------------------------
+
+static TestStatus
+tf5(const char *name)
+{
+    logenter("%s", name);
+    int             subnum = 0;
+    const char     *fname = "res/fsarr_save_load2.sv";
+
+    test_sub("subtest %d: fsarr_save", ++subnum);
+    {
+
+        int     cnt = 10;
+        fsarray fa = fsarr_init(cnt);
+        //fs      s1[sz]; //temporary
+        for (int i = 0; i < cnt; i++){
+            fssprintf(fa.ar[i], "Just test string %d", i);
+        }
+        int     res = fsarr_save(fname, &fa);
+        test_validatefree(res == cnt, fsarrfree(fa), "fsarr_save have to return %d but not %d", cnt, res);
+
+    test_sub("subtest %d: fsarr_load", ++subnum);
+
+        fsarray fa1 = fsarr_load(fname);
+
+        test_validatefree(fa1.cnt == fa.cnt, (fsarrfree(fa1), fsarrfree(fa) ), "Loaded cnt = %d must be equal to ogiginal cnt %d", fa1.cnt, fa.cnt);
+
+        for (int i = 0; i < fa.cnt; i++) {
+            test_validatefree(fslen(fa.ar[i] ) == fslen(fa.ar[i] ), (fsarrfree(fa1), fsarrfree(fa) ),
+                    "Length of fs %d of origin(%d) and loaded(%d) array must be euqal", i, fslen(fa.ar[i] ), fslen(fa.ar[i] ) );
+            if (fs_cmp(fsarr_get(&fa, i), fsarr_get(&fa1, i) ) != 0)
+                    test_validatefree(fs_cmp(fsarr_get(&fa, i), fsarr_get(&fa1, i) ) == 0,
+                                        (fsarrfree(fa1), fsarrfree(fa) ),
+                                         "%d Loaded string [%s] != origin string [%s]", i, fs_str(fsarr_get(&fa, i)), fs_str(fsarr_get(&fa1, i) ) );
+        }
+        fsarrfree(fa1);
+        fsarrfree(fa);
+    }
+    fs_alloc_check(true);
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED
+}
 
 // ------------------------------------------------------------------
 int
@@ -406,7 +441,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf2, .num = 2, .name = "Init/free test with valid fs (random)"        , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf3, .num = 3, .name = "fsarr_attach test"                            , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf4, .num = 4, .name = "fsarr_save test"                              , .desc=""                , .mandatory=true)
-     /* , testnew(.f2 = tf5, .num = 5, .name = "fsarr_save/load test"                         , .desc=""                , .mandatory=true) */
+      , testnew(.f2 = tf5, .num = 5, .name = "fsarr_save/load test"                         , .desc=""                , .mandatory=true)
     );
 
     return logcloseret(0, "end...");
