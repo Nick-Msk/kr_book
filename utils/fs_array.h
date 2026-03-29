@@ -21,7 +21,8 @@ static const int                G_FSARRAY_DEFAULT_INIT = 10;
 // --------------------------------- TYPES -----------------------------
 
 typedef struct fsarray {
-    int         sz;     // total fs * allocated
+    int         sz;     // total fs  allocated
+    int         cnt;
     fs         *ar;
 } fsarray;
 
@@ -36,7 +37,7 @@ static inline fsarray       fsarr_empty(){
 }
 
 #define fsarrfree(s)    fsarr_free(&(s))
-#define FSARRAY(...)    (fsarray) {.sz = 0, .ar = 0, ##__VA_ARGS__};
+#define FSARRAY(...)    (fsarray) {.sz = 0, .ar = 0, .cnt = 0, ##__VA_ARGS__};
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
@@ -72,6 +73,7 @@ extern int                  fsarr_shrink(fsarray *arr, int newsize);
 
 // FSL API HEHE: TODO:
 
+#define                 fsarrget(arr, pos) *fsarr_get(&(arr), (pos) )
 #define                 fsarrattach(arr, pos, s) fsarr_attach(&(arr), (pos), &(s) )
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
