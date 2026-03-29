@@ -430,6 +430,43 @@ tf5(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED
 }
 
+// ------------------------- TEST 6 ---------------------------------
+
+static TestStatus
+tf6(const char *name)
+{
+    logenter("%s", name);
+    int             subnum = 0;
+
+    test_sub("subtest %d: fsarr_shrink", ++subnum);
+    {
+        fsarray     fa = fsarr_init(50);
+        int         shrinkcnt = 20;
+
+        // fill several vals over shrinkcnt
+        elem(fa.ar[shrinkcnt + 5], 100) = 'c';      // real allocation around 128b!
+        fsarr_shrink(&fa, shrinkcnt);
+
+        test_validate(fsarr_validate(stderr, &fa), "Validation failed after shrink");
+        test_validatefree(fa.cnt == shrinkcnt, fsarrfree(fa), "Cnt = %d afrer shrinking, but not %d", fa.cnt, shrinkcnt);
+        test_validatefree(fa.sz == shrinkcnt, fsarrfree(fa), "Cnt = %d afrer shrinking, but not %d", fa.sz, shrinkcnt);
+
+    test_sub("subtest %d: fsarr_increase", ++subnum);
+
+        int         increasecnt = 200;
+        fsarr_increase(&fa, 200);
+
+        test_validatefree(fa.cnt == increasecnt, fsarrfree(fa), "Cnt = %d afrer increasing, but not %d", fa.cnt, increasecnt);
+        // accect to last elem
+        elem(fa.ar[increasecnt - 1], 1000) = 'd';
+
+        fsarrfree(fa);
+    }
+    fs_alloc_check(true);
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED
+}
+
+
 // ------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -441,7 +478,8 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf2, .num = 2, .name = "Init/free test with valid fs (random)"        , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf3, .num = 3, .name = "fsarr_attach test"                            , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf4, .num = 4, .name = "fsarr_save test"                              , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf5, .num = 5, .name = "fsarr_save/load test"                         , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf5, .num = 5, .name = "fsarr_shrink/increase test"                   , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf6, .num = 6, .name = "fsarr_save/load test"                         , .desc=""                , .mandatory=true)
     );
 
     return logcloseret(0, "end...");
