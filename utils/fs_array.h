@@ -13,6 +13,7 @@
 #include "bool.h"
 #include "fs.h"
 #include "log.h"
+#include "checker.h"
 
 // ------------------- CONSTANTS AND GLOBALS ---------------------------
 
@@ -43,13 +44,15 @@ static inline fsarray       fsarr_empty(){
 
 // low level deatch
 static inline fs            fsarr_detach(fsarray *arr, int pos){
+    if (pos > arr->cnt || pos < 0)
+        userraiseint(ERR_OUT_OF_RANGE, "Invalid pos(%d) while array cnt(%d)", pos, arr->cnt);
     fs s = fsmove(arr->ar[pos]);    // move via macro, fs_move undelaying
     return s;       // probably it's possible to not return noting
 }
 
 static inline bool          fsarr_attach(fsarray *arr, int pos, fs *s){
-    if (pos > arr->sz || pos < 0)
-        return logsimpleerr(false, "Invalid pos %d (sz %d)", pos, arr->sz);
+    if (pos > arr->cnt || pos < 0)
+        return logsimpleerr(false, "Invalid pos(%d) while array cnt(%d)", pos, arr->cnt);
     if ( !fsisnull(arr->ar[pos] ) )
         return logsimpleerr(false, "Can't move to not nullable fs");
     arr->ar[pos] = fs_move(s);
