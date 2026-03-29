@@ -1,3 +1,5 @@
+#include <sys/errno.h>
+#include <stdarg.h>
 
 #include "log.h"
 #include "common.h"
@@ -9,7 +11,8 @@
                  FILEUTILS MODULE IMPLEMENTATION
 ********************************************************************/
 
-static const int                FU_LINE_CNT = 100;
+static const int                FU_LINE_CNT     = 100;
+static const int                FU_PRINT_CNT    = 256;
 
 // --------------------------- API ---------------------------------
 
@@ -147,17 +150,27 @@ char                           *read_from_file(FILE *f, int *p_cnt){
     return logret(s, "%d bytes were read", pos);
 }
 
-bool                     fread_pattern(FILE *restrict f, const char *restrict pattern, int sz){
+// read simple pattern
+bool                            fread_pattern(FILE *restrict f, const char *restrict pattern, int sz){
     logenter("pt [%s], sz %d", pattern, sz);
     char    buf[sz + 1];
     buf[sz] = '\0';
-    if ( fread(buf, 1, sz, f) != (unsigned) sz){
-        // perror("1");
-        // logsimple("Unable to read %d bytes from stream (%d)", sz, cnt);
+    if ( fread(buf, 1, sz, f) != (unsigned) sz)
         return userraise(false, ERR_NOT_ENOGH_VALUES, "Unable to read %d bytes from stream (%s)", sz, buf);
-    }
+
     bool res = memcmp(buf, pattern, sz) == 0;
     return logret(res, "%s", bool_str(res) );
+}
+
+// format vai printf then read pattern
+bool                            fread_pattern_printf(FILE *restrict f, const char *restrict fmt, ...){
+    char buf[FU_PRINT_CNT];
+    va_list     ap;
+    va_start(ap, fmt);
+    vsnprintf(buf, FU_PRINT_CNT - 1, fmt, ap);
+    logsimple("processed pattern [%s]", buf);
+    va_end(ap);
+    return fread_pattern(f, buf, strlen(buf) );
 }
 
 // -------------------------------Testing --------------------------
