@@ -13,10 +13,12 @@
 
 // ----------- CONSTANTS AND GLOBALS ---------------
 
+// TODO: make a enum from that
 static const int                        ERROR_MESSAGE_MAX_LENGTH    = 512;
 
 // ERRORS HERE
 static const int                        ERR_NULLABLE_PTR            = 10;
+static const int                        ERR_OUT_OF_RANGE            = 11;
 
 static const int                        ERR_UNABLE_ALLOCATE         = 15;
 
@@ -26,6 +28,8 @@ static const int                        ERR_NOT_ENOGH_VALUES        = 21;
 static const int                        ERR_UNABLE_OPEN_FILE        = 50;
 static const int                        ERR_UNABLE_OPEN_FILE_READ   = 51;
 static const int                        ERR_UNABLE_OPEN_FILE_WRITE  = 52;
+
+
 
 // WARNINGS HEHE
 static const int                        WARN_MEM_LEAK_DETECTED      = 1001;
