@@ -27,6 +27,11 @@ typedef struct fsarray {
     fs         *ar;
 } fsarray;
 
+typedef struct fsl {
+    fsarray     *a;
+    int         pos;
+} fsl;
+
 // ------------------ API Constructs/Destrucor  ----------------------------
 // returns count of freed
 extern int                  fsarr_free(fsarray *arr);
@@ -73,9 +78,31 @@ extern int                  fsarr_increase(fsarray *arr, int newsize);
 
 extern int                  fsarr_shrink(fsarray *arr, int newsize);
 
-
 // FSL API HEHE: TODO:
+// TODO: via fsl ( struct fsl { int loc; };
+// fsl f1 = getfsl(fs_array a);
+// f1.elem() = ...
+// f1.get() = ...
 
+static inline fsl           fsarr_getfsl(fsarray *arr, int pos){
+    return (fsl){.a = arr, .pos = pos};
+}
+
+static inline fs           *fsl_fs(fsl l){
+    return l.a->ar + l.pos; // pointer, it's impossible to copy fs!
+}
+
+// port to fs get()
+static inline char         *fsl_get(fsl l, int p){
+    return fs_get(fsl_fs(l), p);
+}
+// port to fs elem()
+static inline char         *fsl_elem(fsl l, int p){
+    return fs_elem(fsl_fs(l), p);
+}
+
+#define                 flselem(l, pos) *fsl_elem( (l), (pos) )
+#define                 flsget(l, pos) *fsl_get( (l), (pos) )
 #define                 fsarrget(arr, pos) *fsarr_get(&(arr), (pos) )
 #define                 fsarrattach(arr, pos, s) fsarr_attach(&(arr), (pos), &(s) )
 
