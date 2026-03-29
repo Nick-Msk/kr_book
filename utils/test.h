@@ -194,5 +194,15 @@ test_ulike(FILE *restrict tf, const char *restrict pt)
 
 #define test_act_ulike(ACTION, tf, pt)		test_act_basic(ulike	, ACTION, tf, pt)
 
+#define             test_validatefree(expr, action, msg, ...)\
+                            if (!(expr) ) {\
+                                logmsg("Violated: %s", #expr);\
+                                return logactret((action), TEST_FAILED, (msg), ##__VA_ARGS__); }
+
+#define             test_validate(expr, msg, ...)\
+                            if (!(expr) ) {\
+                                logmsg("Violated: %s", #expr);\
+                                return logret(TEST_FAILED, (msg), ##__VA_ARGS__); }
+
 #endif /* !_TESTING_H */
 
