@@ -105,6 +105,7 @@ static inline char         *fsl_elem(fsl l, int p){
 #define                 flsget(l, pos) *fsl_get( (l), (pos) )
 #define                 fsarrget(arr, pos) *fsarr_get(&(arr), (pos) )
 #define                 fsarrattach(arr, pos, s) fsarr_attach(&(arr), (pos), &(s) )
+#define                 fsarrdetach(arr, pos) fsarr_detach(&(arr), (pos) )
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
 

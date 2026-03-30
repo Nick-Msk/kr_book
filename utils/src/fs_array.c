@@ -466,6 +466,47 @@ tf6(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED
 }
 
+// ------------------------- TEST 7 ---------------------------------
+
+static TestStatus
+tf7(const char *name)
+{
+    logenter("%s", name);
+    int             subnum = 0;
+
+    test_sub("subtest %d: fsarr_attach/detach", ++subnum);
+    {
+        const char pt[] = "A test message!";
+
+        fsarray     fa = fsarr_init(10);
+        int         pos = 5; // < 10
+
+        fs          s = fscopy(pt);
+        if (!fsarrattach(fa, pos, s) )
+            return logacterr((fsarrfree(fa), fsfree(s) ), TEST_FAILED, "Unable to attach!");
+
+        test_validatefree( fsisnull(s), (fsarrfree(fa), fsfree(s) ),
+            "%d fs in the array must be null after attaching", pos);
+        test_validatefree( strlen(pt) == fa.ar[pos].len, (fsarrfree(fa), fsfree(s) ),
+            "Length of original pattern (%lu) must be equat to the lengths of fs in the array (%d)", strlen(pt), fa.ar[pos].len);
+        test_validatefree( strcmp(pt, fa.ar[pos].v) == 0, (fsarrfree(fa), fsfree(s) ),
+            "Original pattern [%s] must be equal to the fs [%s]", pt, fa.ar[pos].v);
+
+        fs          s2 = fsarrdetach(fa, pos);
+        test_validatefree( fsisnull(fa.ar[pos]), (fsarrfree(fa), fsfree(s2) ), 
+            "%d fs in the array must be null after detaching", pos);
+        test_validatefree( strlen(pt) == s2.len, (fsarrfree(fa), fsfree(s) ),
+            "Length of original pattern (%lu) must be equat to the lengths of fs (%d)", strlen(pt), s2.len);
+        test_validatefree( strcmp(pt, s2.v) == 0, (fsarrfree(fa), fsfree(s) ),
+            "Original pattern [%s] must be equal to the fs [%s]", pt, s2.v);
+ 
+        // no need to free s!
+        fsfree(s2);
+        fsarrfree(fa);
+    }
+    fs_alloc_check(true);
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED
+}
 
 // ------------------------------------------------------------------
 int
@@ -480,6 +521,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf4, .num = 4, .name = "fsarr_save test"                              , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf5, .num = 5, .name = "fsarr_save/load test"                         , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf6, .num = 6, .name = "fsarr_shrink/increase test"                   , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf7, .num = 7, .name = "fsarr_detach/attach test"                     , .desc=""                , .mandatory=true)
     );
 
     return logcloseret(0, "end...");
