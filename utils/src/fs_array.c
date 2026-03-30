@@ -478,8 +478,8 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf2, .num = 2, .name = "Init/free test with valid fs (random)"        , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf3, .num = 3, .name = "fsarr_attach test"                            , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf4, .num = 4, .name = "fsarr_save test"                              , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf5, .num = 5, .name = "fsarr_shrink/increase test"                   , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf6, .num = 6, .name = "fsarr_save/load test"                         , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf5, .num = 5, .name = "fsarr_save/load test"                         , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf6, .num = 6, .name = "fsarr_shrink/increase test"                   , .desc=""                , .mandatory=true)
     );
 
     return logcloseret(0, "end...");
