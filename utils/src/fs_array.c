@@ -50,7 +50,7 @@ static int                      fsarr_mass_free(fsarray *arr, int min, int  max)
     return cnt;
 }
 
-static int                      increasesize(fsarray *fa, int newsz, bool init){
+static int                      fsarr_increasesize(fsarray *fa, int newsz, bool init){
     logenter("oldsz %d, newsz %d init %s", fa->sz, newsz, bool_str(init));
     if (init)   // from fsarr_init
         newsz = calcnewsize(SIZE_POWER2, newsz);
@@ -74,7 +74,7 @@ static int                      fsptrcmp(const void *ns1, const void *ns2){
 static fsarray                  sortfs(const fsarray *origin){
     // make a copy first
     fsarray tmp = FSARRAY();
-    increasesize(&tmp, origin->cnt, false);  // exactly count of origin
+    fsarr_increasesize(&tmp, origin->cnt, false);  // exactly count of origin
     int     cnt = 0;
     for (int i = 0; i < origin->cnt; i++)
         if ( !fsisnull(origin->ar[i] ) )
@@ -131,7 +131,7 @@ bool                fsarr_validate(FILE *restrict out, const fsarray *restrict a
 int                         fsarr_increase(fsarray *arr, int newsize){
     logenter("newsize %d", newsize);
     if (newsize > arr->sz)
-        increasesize(arr, newsize, true);
+        fsarr_increasesize(arr, newsize, true);
     fsarr_mass_init(arr, arr->cnt, newsize);
     arr->cnt = newsize;
     return logret(arr->sz, "New sz %d, cnt %d", arr->sz, arr->cnt);
@@ -141,7 +141,7 @@ int                         fsarr_shrink(fsarray *arr, int newsize){
     if (newsize < arr->sz && newsize >= 0){
         if (newsize < arr->cnt)
             fsarr_mass_free(arr, newsize, arr->cnt), arr->cnt = newsize; // from from newsize to current cnt
-        increasesize(arr, newsize, false);
+        fsarr_increasesize(arr, newsize, false);
     }
     return logsimpleret(arr->sz, "Shrinked to %d, new cnt %d", arr->sz, arr->cnt);
 }
@@ -229,7 +229,7 @@ int                 fsarr_free(fsarray *arr){
 // initialize
 fsarray             fsarr_init(int cnt){
     fsarray ar = FSARRAY();
-    increasesize(&ar, cnt, true);
+    fsarr_increasesize(&ar, cnt, true);
     fsarr_mass_init(&ar, 0, ar.cnt = cnt);
     return logsimpleret(ar, "Created with sz %d, cnt %d", ar.sz, ar.cnt);
 }
