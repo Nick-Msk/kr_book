@@ -78,8 +78,8 @@ extern int                  fsarr_increase(fsarray *arr, int newsize);
 
 extern int                  fsarr_shrink(fsarray *arr, int newsize);
 
-// FSL API HEHE: TODO:
-// TODO: via fsl ( struct fsl { int loc; };
+// -------------------------------------  FSL API ------------------------------------------------
+// TODO: move to separate module
 // fsl f1 = getfsl(fs_array a);
 // f1.elem() = ...
 // f1.get() = ...
@@ -101,8 +101,17 @@ static inline char         *fsl_elem(fsl l, int p){
     return fs_elem(fsl_fs(l), p);
 }
 
-#define                 flselem(l, pos) *fsl_elem( (l), (pos) )
-#define                 flsget(l, pos) *fsl_get( (l), (pos) )
+static inline int           fsl_len(fsl l){
+    return fs_len(fsl_fs(l));
+}
+
+static inline fsl           fsl_cpystr(fsl l, const char *str){
+    fs_cpystr(fsl_fs(l), str);
+    return l;
+}
+
+#define                 fslelem(l, pos) *fsl_elem( (l), (pos) )
+#define                 fslget(l, pos) *fsl_get( (l), (pos) )
 #define                 fsarrget(arr, pos) *fsarr_get(&(arr), (pos) )
 #define                 fsarrattach(arr, pos, s) fsarr_attach(&(arr), (pos), &(s) )
 #define                 fsarrdetach(arr, pos) fsarr_detach(&(arr), (pos) )
