@@ -76,6 +76,10 @@ static inline fs           *fsarr_get(const fsarray *arr, int pos){
 
 extern int                  fsarr_increase(fsarray *arr, int newsize);
 
+static inline int           fsarr_increaseby(fsarray *arr, int add){
+    return fsarr_increase(arr, arr->cnt + add);
+}
+
 extern int                  fsarr_shrink(fsarray *arr, int newsize);
 
 // -------------------------------------  FSL API ------------------------------------------------
