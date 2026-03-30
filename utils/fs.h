@@ -176,6 +176,10 @@ static inline char          *fs_setlen(fs *s, int poslen){
     return fs_get(s, poslen);
 }
 
+static inline int           fs_len(const fs *s){
+    return s->len;
+}
+
 static inline int           fslen(fs s){
     return s.len;
 }
