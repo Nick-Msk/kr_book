@@ -2,6 +2,7 @@
 #define _TREE_P6_5_H
 
 #include "fs.h"
+#include "fs_array.h"
 
 // ---------------------------------------------------------------------------------
 // --------------------------- Public Tree API -------------------------------------
@@ -21,8 +22,7 @@ extern void                 tree_free(tnode *t);
 // tree based on counts with a list of values TODO: now only COUNT of fs with 1-st fs
 typedef struct inttree_linkedfs {
     int                         value;
-    int                         cnt; // count of list
-    fs                         *words;  // now ONLY 1 fs
+    fsarray                     words;
     struct inttree_linkedfs    *left;
     struct inttree_linkedfs    *right;
 } inttree_linkedfs;

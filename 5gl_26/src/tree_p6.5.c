@@ -71,22 +71,26 @@ int                     tree_print(const tnode* node){
 // -------------------------------------- Int tree linked fs ----------------------------------------------------
 
 // now only 1 element
-static int                          printfslist(const fs *str){
-    int cnt = 0;
-    if (str)    // iteration must be here
-        cnt += printf("[%s]\n", str->v );
+static int                          printfslist(fsarray words){
+    int cnt = 0, i;
+    for (i = 0; i < words.cnt; i++){    // probably iterator is required TODO:
+        cnt += printf("[%s], ", fsstr(words.ar[i]) ); // fsarr_get(words, i)->v); //fsstr(words->ar[i]) );
+        if ( i % 10 == 9)
+            cnt += printf("\n");
+    if (! (i % 10) )
+        cnt += printf("\n");
+    }
     return cnt;
 }
 
 // now only 1 fs
-static void                         freefslist(fs *str){
-    fs_free(str);   // only alloc will be freed
+static void                         freefslist(fsarray *arr){
+    fsarr_free(arr);
 }
 
 // free only current node
 static void                         inttree_freenode(inttree_linkedfs *root){
-    if (root->words)
-        freefslist(root->words);
+    freefslist(&root->words);
     free(root);
 }
 
@@ -100,12 +104,8 @@ static inttree_linkedfs            *inttree_createnode(int value, const fs *str)
     if (! root)
         userraiseint(ERR_UNABLE_ALLOCATE, "%zu bytes", sizeof(inttree_linkedfs) );
     root->value = value;
-    root->cnt = 1;
-    // TODO: ref here!!!!!
-    root->words = malloc(sizeof(fs) );
-    if (!root->words)
-        userraiseint(ERR_UNABLE_ALLOCATE, "%zu bytes", sizeof(fs) );
-    *root->words = fs_clone(str); // should be list of fs here
+    root->words = fsarr_init(10);
+    root->words.ar[root->words.cnt++] = fs_clone(str);
     return root;
 }
 
@@ -114,7 +114,7 @@ static inttree_linkedfs            *inttree_createnode(int value, const fs *str)
 int                                 intttree_printnode(const inttree_linkedfs* node){
     int cnt = 0;
     if (node){
-        cnt += printf("%3d:%3d, example: ", node->value, node->cnt);
+        cnt += printf("%3d/%3d: ", node->value, node->words.cnt);
         cnt += printfslist(node->words);
     }
     return cnt;
@@ -131,9 +131,10 @@ inttree_linkedfs                   *inttree_add(inttree_linkedfs *restrict root,
     int     cond;
     if (!root)
         root = inttree_createnode(value, str);
-    else if ( (cond = (value - root->value) ) == 0) // find + attach
-        root->cnt++;
-    else if (cond < 0)
+    else if ( (cond = (value - root->value) ) == 0){ // find + attach
+        fsarr_increaseby(&root->words, 1);
+        root->words.ar[root->words.cnt++] = fs_clone(str);  // new!!! fs
+    } else if (cond < 0)
         root->left = inttree_add(root->left, str, value);
     else    // cond > 0
         root->right = inttree_add(root->right, str, value);
@@ -149,3 +150,4 @@ int                                 intttree_print(const inttree_linkedfs* node)
     }
     return cnt;
 }
+
