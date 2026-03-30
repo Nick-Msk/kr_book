@@ -115,31 +115,7 @@ static inline void          fs_freeall(fs **arr){
         if (s->v)
             fs_free(s);
 }
-
-extern fs                   fsinit(int sz);
-
-static inline fs            fsempty(void){
-    return FS();
-}
-
-static inline fs            fscopy(const char *str){
-    int        sz  = strlen(str) + 1;
-    fs         val = fsinit(sz);
-    if (val.v){
-        memcpy(val.v, str, sz);
-        val.len = sz - 1;
-    }
-    return val;
-}
-
-static inline fs            fs_move(fs *orig){
-    if (!fs_alloc(orig) )
-        userraiseint(ERR_FS_NOT_ALLOC_FLAG, "Unable to move not allocated fs (type %s)", fs_flag_str(orig->flags) );    // 10001 interrupt
-    fs tmp = *orig;
-    *orig = FS();
-    return logsimpleret(tmp, "fs moved %d: %p", tmp.sz, tmp.v);
-}
-
+// --------------------------------------------------------------------------
 extern fs                   fsclone(fs s);
 extern fs                   fs_clone(const fs *s);
 
@@ -151,6 +127,17 @@ static inline fs            fsliteral(const char *lit){
     s.sz = s.len + 1;
     return s;
 }
+extern fs                   fsinit(int sz);
+
+static inline fs            fsempty(void){
+    return FS();
+}
+
+static inline fs            fscopy(const char *str){
+    fs         tmp = fsliteral(str);
+    return  fs_clone(&tmp);
+}
+
 
 #if defined(FS_ALLOCATOR)
 // detach from allocator! Must be freed manually
@@ -165,6 +152,14 @@ extern void                 fsfreeall(void);
 #define                     fsmove(s) fs_move(&(s) )
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
+
+static inline fs            fs_move(fs *orig){
+    if (!fs_alloc(orig) )
+        userraiseint(ERR_FS_NOT_ALLOC_FLAG, "Unable to move not allocated fs (type %s)", fs_flag_str(orig->flags) );    // 10001 interrupt
+    fs tmp = *orig;
+    *orig = FS();
+    return logsimpleret(tmp, "fs moved %d: %p", tmp.sz, tmp.v);
+}
 
 // direct access, NO change len or sz, position MUST be < sz
 static inline char          *fs_get(const fs *s, int pos){
