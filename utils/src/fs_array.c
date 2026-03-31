@@ -244,7 +244,7 @@ int                 fsarr_free(fsarray *arr){
     int   cnt = 0;
     if (arr){
         cnt = fsarr_mass_free(arr, 0, arr->cnt);
-        logauto(--g_fsarr_free_cnt);
+        logauto(++g_fsarr_free_cnt);
     }
     free(arr->ar);
     arr->ar = 0;
