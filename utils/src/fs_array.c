@@ -152,12 +152,12 @@ bool                                    fsarr_alloc_check(bool raise){
 // f1.elem() = ... 
 // f1.get() = ...
 
-int                         fsarr_increase(fsarray *arr, int newsize){
-    logenter("newsize %d", newsize);
-    if (newsize > arr->sz)
-        fsarr_increasesize(arr, newsize, true);
-    fsarr_mass_init(arr, arr->cnt, newsize);
-    arr->cnt = newsize;
+int                         fsarr_increase(fsarray *arr, int newcnt){
+    logenter("newsize %d", newcnt);
+    if (newcnt > arr->sz)
+        fsarr_increasesize(arr, newcnt, true);
+    fsarr_mass_init(arr, arr->cnt, newcnt);
+    arr->cnt = newcnt;
     return logret(arr->sz, "New sz %d, cnt %d", arr->sz, arr->cnt);
 }
 
