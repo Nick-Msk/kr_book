@@ -321,7 +321,7 @@ static bool                             check_leak(bool raise){
 }
 
 // just a wrapper for check_leak
-extern bool                             fs_alloc_check(bool raise){
+bool                                    fs_alloc_check(bool raise){
     return check_leak(raise);
 }
 
