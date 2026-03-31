@@ -11,6 +11,10 @@
                     FAST STRING ARRAY MODULE IMPLEMENTATION
 ********************************************************************/
 
+// mem leak checking
+static int                      g_fsarr_alloc_cnt             = 0;
+static int                      g_fsarr_free_cnt              = 0;
+
 // ---------- pseudo-header for utility procedures -----------------
 
 // -------------------------- (Utility) printers --------------------
@@ -39,7 +43,7 @@ static int                      fsarr_mass_init(fsarray *arr, int min, int max){
     int cnt = 0;
     for (int i = min; i < max; i++)
         arr->ar[i] = FS(), cnt++;  // with alloc flag
-    return cnt;
+    return logsimpleret(cnt, "Initialixed %d", cnt);
 }
 
 static int                      fsarr_mass_free(fsarray *arr, int min, int  max){
@@ -47,7 +51,7 @@ static int                      fsarr_mass_free(fsarray *arr, int min, int  max)
     for (int i = max - 1; i >= min; i--)
         if (!fsisnull(arr->ar[i]) )
             fsfree(arr->ar[i]), cnt++;
-    return cnt;
+    return logsimpleret(cnt, "Freed %d", cnt);
 }
 
 static int                      fsarr_increasesize(fsarray *fa, int newsz, bool init){
@@ -59,6 +63,8 @@ static int                      fsarr_increasesize(fsarray *fa, int newsz, bool 
         if (!tmp) {
             return userraise(-1, 10, "Unable to allocate %lu bytes", newsz * sizeof (fs) );  // what about LG_LV here??/ TODO:
         }
+        if (fa->ar == 0)
+            logauto(++g_fsarr_alloc_cnt);
         fa->sz = newsz;
         fa->ar = tmp;
     }
@@ -119,6 +125,24 @@ bool                fsarr_validate(FILE *restrict out, const fsarray *restrict a
     logmsg("all tests for now...");
     return logret(true, "Ok");
 }
+
+// internal, for testing
+static bool                             fsarr_check_leak(bool raise){
+    int     f = g_fsarr_free_cnt, a = g_fsarr_alloc_cnt;
+    if (f != a){
+        if (raise)
+            userraiseint(WARN_MEM_LEAK_DETECTED, "allocaed %d, freed %d", a, f);
+        else
+            userraise(false, WARN_MEM_LEAK_DETECTED, "WARNING: allocaed %d, freed %d", a, f);
+    }
+    return f == a;
+}
+
+// just a wrapper for check_leak
+bool                                    fsarr_alloc_check(bool raise){
+    return fsarr_check_leak(raise);
+}
+
 
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
@@ -218,8 +242,10 @@ int                 fsarr_free(fsarray *arr){
 
     logenter("%p: %p, cnt %d", arr, arr ? arr->ar : 0, arr ? arr->cnt : 0);
     int   cnt = 0;
-    if (arr)
+    if (arr){
         cnt = fsarr_mass_free(arr, 0, arr->cnt);
+        logauto(--g_fsarr_free_cnt);
+    }
     free(arr->ar);
     arr->ar = 0;
     arr->sz = arr->cnt = 0;

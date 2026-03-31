@@ -74,13 +74,13 @@ static inline fs           *fsarr_get(const fsarray *arr, int pos){
     return arr->ar + pos;        // even if fsnull
 }
 
-extern int                  fsarr_increase(fsarray *arr, int newsize);
+extern int                  fsarr_increase(fsarray *arr, int newcnt);
 
 static inline int           fsarr_increaseby(fsarray *arr, int add){
     return fsarr_increase(arr, arr->cnt + add);
 }
 
-extern int                  fsarr_shrink(fsarray *arr, int newsize);
+extern int                  fsarr_shrink(fsarray *arr, int newcnt);
 
 // -------------------------------------  FSL API ------------------------------------------------
 // TODO: move to separate module
@@ -137,8 +137,8 @@ static inline int           fsarr_techprintlim(const fsarray *arr, int lim){
     return fsarr_techfprintlim(stdout, arr, lim);
 }
 
-bool                        fsarr_validate(FILE *restrict out, const fsarray *restrict arr);
-
+extern bool                 fsarr_validate(FILE *restrict out, const fsarray *restrict arr);
+extern bool                 fsarr_alloc_check(bool raise);
 // ------------------------------ ETC. ---------------------------------
 
 extern int                  fsarr_save(const char *restrict fname, const fsarray *restrict arr);
