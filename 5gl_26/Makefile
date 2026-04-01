@@ -48,6 +48,10 @@ find_keyword_ptr.p6.4: src/find_keyword_ptr.p6.4.c lib/log.o lib/common.o lib/bu
 keywords_tree.p6.5: src/keywords_tree.p6.5.c lib/tree_p6.5.o lib/log.o lib/common.o lib/buffer.o lib/fs.o lib/error.o lib/fileutils.o lib/checker.o lib/fs_array.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+var_group.6.5: src/var_group.6.5.c lib/tree_p6.5.o lib/log.o lib/common.o lib/buffer.o lib/fs.o lib/error.o lib/fileutils.o lib/checker.o lib/fs_array.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
+
 UTIL_PATH = ../utils
 
 # libs from utils
@@ -98,6 +102,10 @@ lib/buffer.o:
 lib/tree_p6.5.o: src/tree_p6.5.c
 	$(CC) $(CFLAGS) -I./src  $^ -c
 	@mv tree_p6.5.o lib/
+
+lib/getword.o: src/getword.c
+	$(CC) $(CFLAGS) -I./src  $^ -c
+	@mv getword.o lib/
 
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
