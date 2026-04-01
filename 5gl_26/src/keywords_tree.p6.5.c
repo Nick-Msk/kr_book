@@ -53,7 +53,10 @@ static fs                getword(fs str, bool sens);
 
 static const char   *usage_str = "Usage: %s -v -i\n";
 
-#define      common_tree_iterall(origin, action, value) TODO:
+#define      tree_iter_create(type, origin, action, value) TODO:
+#define      tree_iter_create_rev(type, origin, action, value) TODO:
+#define      tree_iter(type, origin, action)
+#define      tree_iter_rev(type, origin, action)
 
 // should be creared via macros
 static inttree_linkedfs              *inttree_iterall(tnode *root, inttree_linkedfs *cntroot){
