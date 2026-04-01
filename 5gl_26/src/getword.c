@@ -10,7 +10,6 @@ static inline int       skip_spaces(void){
     return c;
 }
 
-/*
 static int               skip_cl(void){
     int             cnt = 0;        // total count of comments
     int             c, c1;
@@ -48,12 +47,12 @@ static int               skip_cl(void){
         logsimple("comment_and_lines %s", bool_str(comment_and_lines));
     }
     return logsimpleret(c, "[%c], comments %d", c, cnt);
-}*/
+}
 
 
 
 // str must have heap alloc
-fs                      getword(fs str, bool sens){
+fs                      getword(fs str, bool sens, bool comments){
 
     logenter("sens %s", bool_str(sens) );
 
@@ -61,7 +60,7 @@ fs                      getword(fs str, bool sens){
     int              c;
     fsnew            iter = fsinew(&str);
 
-    c = skip_spaces();       // comment and so on are allowed! TODO: probably use flag -c
+    c = comments ?  skip_spaces() : skip_cl();       // comment and so on are allowed! TODO: probably use flag -c
     if (c != EOF){
         elemnext(iter) = clower(c, sens);
     } else
@@ -82,5 +81,4 @@ fs                      getword(fs str, bool sens){
 
     return logret(str, "%d - [%s]", str.len, str.v); // that is probably new str
 }
-
 
