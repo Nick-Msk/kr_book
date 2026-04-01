@@ -74,8 +74,14 @@ int						inv_fprintf_int(FILE *restrict out, const char *restrict expr, int res,
 #define inv(expr, msg, ...)\
 	(expr)
 
+#define invraise(expr, msg, ...)\
+    (expr)
+
 #define inv2(expr, val, msg, ...)\
 	(expr) == (val)
+
+#define inv2raise(expr, val, msg, ...)\
+    (expr) == (val)
 
 #endif /* NOINVARIANT */
 
