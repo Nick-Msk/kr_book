@@ -5,6 +5,7 @@
 #include "fs.h"
 #include "error.h"
 #include "fileutils.h"
+#include "checker.h"
 
 /********************************************************************
                     FAST STRING MODULE IMPLEMENTATION
@@ -169,6 +170,12 @@ static fs                               increasesize(fs *s, int newsz, bool init
     return logret(*s, "increased to %d", s->sz);
 }
 
+// low level copy, NOT check anything
+static inline fs                       *strcopy(fs *restrict target, const fs *restrict source){
+    memcpy(target->v + target->len, source->v, source->len + 1);   // with last '\0'
+    target->len = target->len + source->len;
+    return target;
+}
 
 // --------------------------- API ---------------------------------
 
@@ -218,12 +225,22 @@ fs                                      *fs_resize(fs *s, int newsz){
 }
 
 fs                                      fs_cat(fs *target, fs source){
-    int sumlen = target->len + source.len;
-    if (target->sz <= sumlen) // sz must be at least len1 + len2 + 1
+    //int sumlen = target->len + source.len;
+    if (target->sz <= ) // sz must be at least len1 + len2 + 1
         increasesize(target, sumlen + 1, true);
-    memcpy(target->v + target->len, source.v, source.len + 1);   // with last '\0'
-    target->len = sumlen;
-    return *target;
+    //memcpy(target->v + target->len, source.v, source.len + 1);   // with last '\0'
+    //target->len = sumlen;
+    return *strcopy(target, &source);
+}
+
+fs                                      fs_newsubstr(const fs *s, int from, int to){
+    //if (!inv(from >= 0 && to >= from) )
+      //  userraisesig(ERR_OUT_OF_RANGE, "from %d, to %d", from, to); 
+    invraise(from >= 0 && to >= from);     // asssertion if NOINVARIANT is NOT defined
+    int sz = to - from + 1;
+    fs tmp = fsinit(sz);  // not possible to use fs_cpy or fs_cat here!
+    memcpy(tmp.v, s->v + from, sz - 1);
+    return tmp;
 }
 
 // -------------------------- (API) printers -----------------------
@@ -424,14 +441,11 @@ fs                                      fs_clone(const fs *s){
     fs tmp = FS();
     if (s){
         tmp = fsinit(s->len + 1);
-        tmp.len = s->len;
-        memcpy(tmp.v, s->v, tmp.len + 1);
+        strcopy(&tmp, s);
+        //tmp.len = s->len;
+        //memcpy(tmp.v, s->v, tmp.len + 1);
     }
     return tmp;
-}
-
-fs                                      fsclone(fs s){
-    return fs_clone(&s);
 }
 
 // destructor, macro wrapper will be

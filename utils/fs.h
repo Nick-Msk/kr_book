@@ -116,8 +116,11 @@ static inline void          fs_freeall(fs **arr){
             fs_free(s);
 }
 // --------------------------------------------------------------------------
-extern fs                   fsclone(fs s);
 extern fs                   fs_clone(const fs *s);
+
+static inline fs            fsclone(fs s){
+    return fs_cline(&s);
+}
 
 // lit MUST BE static!
 static inline fs            fsliteral(const char *lit){
@@ -256,6 +259,25 @@ static inline fs             fs_cpystr(fs *restrict target, const char *restrict
 }
 
 extern int                   fs_sprintf(fs *restrict s, const char *restrict fmt, ...) __attribute__ (( format (printf, 2, 3) ) );
+
+// fast in-place left substring
+static inline fs             fs_left(fs *s, int cnt){
+    if (cnt < 0)
+        cnt = 0;
+    if (cnt > s->len)
+        cnt = s->len;
+    fs_setlen(s, cnt);
+    return s;
+}
+// fast in-place!
+static inline fs             fs_substr(fs *s, int from, int to){
+    invraise(from >= 0 && to >= from);     // asssertion if NOINVARIANT is NOT defined
+    s->len = to - from;
+    memmove(s->v, s->v + from, s->len);
+    return *s;
+}
+
+extern fs                    fs_newsubstr(const fs *s, int from, int to);
 
 #define                      get(s, pos) *fs_get(&(s), (pos) )
 #define                      getv(s) (s.v)
