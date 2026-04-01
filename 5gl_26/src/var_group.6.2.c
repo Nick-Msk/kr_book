@@ -6,21 +6,23 @@
 #include "getword.h"
 #include "log.h"
 #include "fs.h"
-#include "tree_p6.5.h"
+#include "tree_6.2.h"
 
 typedef struct Keys {
-    bool    version;
-    bool    sens;
+    bool        version;
+    bool        sens;
+    char       *filename;
+    int         length;
     // ...
 } Keys;
-#define                 Keysinit(...) (Keys){ .version = false, .tolower = false, __VA_ARGS__}
+#define                 Keysinit(...) (Keys){ .version = false, .tolower = false, .filename = 0, .length = 6, __VA_ARGS__}
 
 static int              parse_keys(const char *argv[], Keys *ke){
     logenter("...");
     int     argc = 1, params = 0;
     if (!ke)
         return userraiseint(-1, "Zero ke!!! Error!");   // raise here
-    char    c;  
+    char    c;
     while (*++argv != 0 && **argv == '-'){
         argc++;
         while ( (c = *++argv[0]) )
@@ -37,7 +39,14 @@ static int              parse_keys(const char *argv[], Keys *ke){
                         params++;
                     }
                 case 'f':
-                     TODO:
+                    ke->filename = (char *) argv[0];        // save pointer
+                    argv[0] += strlen(argv[0] - 1); 
+                    params++;
+                break;
+                case 'c':
+                    ke->length = strtol(++argv[0], &pos, 10);
+                    argv[0] = pos - 1; // -1 to break next while()
+                    params++;
                 break;
                 default:    // probaly it's possible to ignore unknows parameters
                     fprintf(stderr, "Illegal option [%c]\n", c);
@@ -48,7 +57,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
 
 }
 
-static const char   *usage_str = "Usage: %s -v -f -i\n";
+static const char   *usage_str = "Usage: %s -v -f -i -c\n";
 
 int                      main(int argc, const char *argv[]){
     logsimpleinit("Start");
@@ -61,19 +70,24 @@ int                      main(int argc, const char *argv[]){
         return 1;
     }
     if (ke.version){
-        printf("%s KR find any keywords p6.5\n", __FILE__);
+        printf("%s KR var grouping 6.2\n", __FILE__);
         printf(usage_str, *argv);
         return 0;
     }
 
-    buffer_set(stdin);
+    FILE       *in = stdin;
+    if (filename){
+        if ( (in = fopen(filename, "r")) == 0)
+            userraiseint(ERR_UNABLE_OPEN_FILE, "Unable to open file %s", filename);
+    }
+    buffer_set(in);         // file or stdin
 
     tnode       *root = 0;
     fs           word = FS();   // init empty with fsalloc
 
-    while ( !fsisempty(word = getword(word, ke.sens) ) ) {
+    while ( !fsisempty(word = getword(word, ke.sens, false) ) ) {       // false means without comment, line and so on
         if (isalpha_u(*fsstr(word) ) )
-            root = tree_add(root, &word);
+            root = tree_add(root, &word, ke.length);        // grouping by length
     }
 
     if (!fs_alloc_check(false))

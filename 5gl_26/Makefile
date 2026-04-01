@@ -103,6 +103,10 @@ lib/tree_p6.5.o: src/tree_p6.5.c
 	$(CC) $(CFLAGS) -I./src  $^ -c
 	@mv tree_p6.5.o lib/
 
+lib/tree_6.2.o: src/tree_6.2.c
+	$(CC) $(CFLAGS) -I./src  $^ -c
+	@mv tree_6.2.o lib/
+
 lib/getword.o: src/getword.c
 	$(CC) $(CFLAGS) -I./src  $^ -c
 	@mv getword.o lib/
