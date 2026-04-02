@@ -190,7 +190,7 @@ sig_str_desc(int signal)
 #define	_generalraiseactsig(retcode, TYPE, ACTION, sig, errcode, msg, ...)	({ 	typeof(retcode) _RETCODE = (retcode);\
                                                                                 if (TYPE == ERR_SYS){\
                                                                                     logsimple("%s", strerror(errno) );\
-                                                                                    fprintf(stderr, "%s", strerror(errno) ); }\
+                                                                                    fprintf(stderr, "%s:\t", strerror(errno) ); }\
 																				logsimpleacterr(ACTION, _RETCODE, msg, ##__VA_ARGS__);\
                                                                                 fprintf(stderr, msg, ##__VA_ARGS__);\
 																				err_raise(ERR_USER, sig, errcode, msg, ##__VA_ARGS__);\
