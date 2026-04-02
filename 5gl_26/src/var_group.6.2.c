@@ -99,6 +99,7 @@ int                      main(int argc, const char *argv[]){
     tree_print(root);
 
     tree_free(root);
+    fsfree(word);
 
     if (!fs_alloc_check(false))
         logmsg("Warning: incorrect allocation of fs's");
