@@ -222,14 +222,33 @@ static inline const char    *fs_strdup(fs *s){
 static inline int            fs_cmp(fs *restrict str1, fs *restrict str2){
     return strcmp(str1->v, str2->v);
 }
-
+// pointer version, limited
+static inline int            fs_ncmp(fs *restrict str1, fs *restrict str2, int len){
+    return strncmp(str1->v, str2->v, len);
+}
 // local version
 static inline int            fscmp(fs str1, fs str2){
     return strcmp(str1.v, str2.v);
 }
-
+// local version, limited
+static inline int            fsncmp(fs str1, fs str2, int len){
+    return strncmp(str1.v, str2.v, len);
+}
+// pointer version, insensitive
+static inline int            fs_icmp(const fs* restrict str1, const fs* restrict str2){
+    return strcasecmp(str1->v, str2->v);
+}
+// pointer version, insensitive, limited
+static inline int            fs_nicmp(const fs* restrict str1, const fs* restrict str2, int len){
+    return strncasecmp(str1->v, str2->v, len);
+}
+// local version, insensitive
 static inline int            fsicmp(fs str1, fs str2){
     return strcasecmp(str1.v, str2.v);
+}
+// local version, insensitive, limited
+static inline int            fsnicmp(fs str1, fs str2, int len){
+    return strncasecmp(str1.v, str2.v, len);
 }
 
 static inline void           fs_exch(fs *s1, fs *s2){
