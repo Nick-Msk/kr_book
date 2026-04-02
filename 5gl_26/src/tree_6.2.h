@@ -9,6 +9,7 @@
 // ---------------------------------------------------------------------------------------
 
 typedef struct tnode {
+    fs                      groupword;      // substr(str, 1, 6);
     fsarray                 words;
     int                     cnt;
     struct tnode           *left;

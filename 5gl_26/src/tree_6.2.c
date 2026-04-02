@@ -5,20 +5,35 @@
 #include "fs.h"
 #include "tree_6.2.h"
 
-static const int        G_FSARR_INITCAP = 10;
+static const int        G_TREE_FSARR_INITCAP = 10;
+
+static int              printfslist(fsarray words, int cntr){
+    int cnt = 0, i;
+    for (i = 0; i < cntr && !fsisnull(words.ar[i]); i++){    // probably iterator is required TODO:
+        cnt += printf("[%s] ", fsstr(words.ar[i]) ); // fsarr_get(words, i)->v); //fsstr(words->ar[i]) );
+        if ( i % 10 == 9)
+            cnt += printf("\n");
+    }
+    if (! (i % 10 == 0) || i == 0)
+        cnt += printf("\n");
+    return cnt;
+}
+
 
 // simple printer
-static inline int       tree_printnode(const tnode* str){
-    const char *s = 0;
+static inline int       tree_printnode(const tnode* node){
     int cnt = 0;
-    if (str)
-        s = str->word.v, cnt = str->cnt;
-    return printf("%4d:[%s]\n", cnt, s );
+    if (node){
+        cnt = printf("Group [%s]:%d", node->groupword.v, node->cnt);
+        cnt += printfslist(node->words, node->cnt);
+    }
+    return cnt;
 }
 
 // simple free
 static void              tree_freenode(tnode *node){
-    fsfree(node->word);
+    fsarrfree(node->words);
+    fsfree(node->groupword);
     free(node);
 }
 
@@ -27,14 +42,15 @@ static inline tnode     *tree_alloc(void){
 }
 
 
-static tnode            *tree_createnode(fs *str){
+static tnode            *tree_createnode(const fs *restrict str, int length){
     tnode *root;
     if (! (root = tree_alloc() ) )
         userraiseint(ERR_UNABLE_ALLOCATE, "%zu bytes", sizeof(tnode) );
-    // root->word = fs_move(str); TEST THAT, but simple copy for now
-    root->words
-    root->words[root->cnt++] = fs_clone(str);
-    root->cnt = 1;
+
+    root->groupword = fs_newsubstr(str, 1, length); // 1 copy per group!
+    root->cnt = 0;
+    root->words = fsarr_init(G_TREE_FSARR_INITCAP);   // will raise if not allocated
+    root->words.ar[root->cnt++] = fs_clone(str);
     root->left = root->right = 0;
     return root;
 }
@@ -42,16 +58,16 @@ static tnode            *tree_createnode(fs *str){
 tnode                  *tree_add(tnode *restrict root, fs *restrict str, int length){   // fs * because have to destroy original fs (probably after using fs_move() )
     int     cond;
     if (!root)
-        root = tree_createnode(str);
-    else {
-        fs_substr(str, 1, length)           // TODO: think if fsclone() is required
-        if ( (cond = fscmp(*str, root->word) ) == 0) // find + attach
-            root->cnt++;
-        else if (cond < 0)
-            root->left = tree_add(root->left, str);
-        else    // cond > 0
-            root->right = tree_add(root->right, str);
-    }
+        root = tree_createnode(str, length);
+    else if ( (cond = fs_ncmp(str, &root->groupword, length) ) == 0) { // find + attach
+            if (root->cnt == root->words.cnt)
+               fsarr_increaseby(&root->words, G_TREE_FSARR_INITCAP);
+            root->words.ar[root->cnt++] = fs_clone(str);  // new!!! fs
+         }
+    else if (cond < 0)
+        root->left = tree_add(root->left, str, length);
+    else    // cond > 0
+        root->right = tree_add(root->right, str, length);
     return root;
 }
 
