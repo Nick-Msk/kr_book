@@ -7,10 +7,11 @@
 #include "log.h"
 #include "fs.h"
 #include "tree_6.2.h"
+#include "buffer.h"
 
 typedef struct Keys {
     bool        version;
-    bool        sens;
+    bool        tolower;
     char       *filename;
     int         length;
     // ...
@@ -22,7 +23,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
     int     argc = 1, params = 0;
     if (!ke)
         return userraiseint(-1, "Zero ke!!! Error!");   // raise here
-    char    c;
+    char    c, *pos;;
     while (*++argv != 0 && **argv == '-'){
         argc++;
         while ( (c = *++argv[0]) )
@@ -35,7 +36,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
                 break;
                 case 'i':
                     if (!ke->tolower){
-                        ke->tolowr = true;
+                        ke->tolower = true;
                         params++;
                     }
                 case 'f':
@@ -76,19 +77,23 @@ int                      main(int argc, const char *argv[]){
     }
 
     FILE       *in = stdin;
-    if (filename){
-        if ( (in = fopen(filename, "r")) == 0)
-            userraiseint(ERR_UNABLE_OPEN_FILE, "Unable to open file %s", filename);
+    if (ke.filename){
+        if ( (in = fopen(ke.filename, "r")) == 0)
+            userraiseint(ERR_UNABLE_OPEN_FILE, "Unable to open file %s", ke.filename);
     }
     buffer_set(in);         // file or stdin
 
     tnode       *root = 0;
     fs           word = FS();   // init empty with fsalloc
 
-    while ( !fsisempty(word = getword(word, ke.sens, false) ) ) {       // false means without comment, line and so on
+    while ( !fsisempty(word = getword(word, ke.tolower, false) ) ) {       // false means without comment, line and so on
         if (isalpha_u(*fsstr(word) ) )
             root = tree_add(root, &word, ke.length);        // grouping by length
     }
+    if (in != stdin)
+        fclose(in);
+
+    tree_print(root);
 
     if (!fs_alloc_check(false))
         logmsg("Warning: incorrect allocation of fs's");
