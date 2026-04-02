@@ -14,6 +14,7 @@
 #include "log.h"
 #include "common.h"
 #include "error.h"
+#include "checker.h"
 
 // ----------- CONSTANTS AND GLOBALS ---------------
 
@@ -119,7 +120,7 @@ static inline void          fs_freeall(fs **arr){
 extern fs                   fs_clone(const fs *s);
 
 static inline fs            fsclone(fs s){
-    return fs_cline(&s);
+    return fs_clone(&s);
 }
 
 // lit MUST BE static!
@@ -267,11 +268,11 @@ static inline fs             fs_left(fs *s, int cnt){
     if (cnt > s->len)
         cnt = s->len;
     fs_setlen(s, cnt);
-    return s;
+    return *s;
 }
 // fast in-place!
 static inline fs             fs_substr(fs *s, int from, int to){
-    invraise(from >= 0 && to >= from);     // asssertion if NOINVARIANT is NOT defined
+    invraise(s != 0 && from >= 0 && to >= 0, "Input violation %p, from %d to %d", s, from, to);     // asssertion if NOINVARIANT is NOT defined
     s->len = to - from;
     memmove(s->v, s->v + from, s->len);
     return *s;
@@ -300,6 +301,9 @@ extern fs                    fs_newsubstr(const fs *s, int from, int to);
 #define                      fscpystr(t, s) fs_cpystr(&(t), s)
 
 #define                      fssprintf(s, fmt, ...) fs_sprintf(&(s), (fmt), ##__VA_ARGS__)
+
+#define                      fssubstr(s, from, to) fs_substr( &(s), from, to)
+#define                      fsnewsubstr(s, from, to) fs_newsubstr( &(s), from, to)
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
 

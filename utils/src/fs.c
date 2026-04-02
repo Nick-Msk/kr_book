@@ -225,8 +225,8 @@ fs                                      *fs_resize(fs *s, int newsz){
 }
 
 fs                                      fs_cat(fs *target, fs source){
-    //int sumlen = target->len + source.len;
-    if (target->sz <= ) // sz must be at least len1 + len2 + 1
+    int sumlen = target->len + source.len;
+    if (target->sz <= sumlen) // sz must be at least len1 + len2 + 1
         increasesize(target, sumlen + 1, true);
     //memcpy(target->v + target->len, source.v, source.len + 1);   // with last '\0'
     //target->len = sumlen;
@@ -235,8 +235,8 @@ fs                                      fs_cat(fs *target, fs source){
 
 fs                                      fs_newsubstr(const fs *s, int from, int to){
     //if (!inv(from >= 0 && to >= from) )
-      //  userraisesig(ERR_OUT_OF_RANGE, "from %d, to %d", from, to); 
-    invraise(from >= 0 && to >= from);     // asssertion if NOINVARIANT is NOT defined
+      //  userraisesig(ERR_OUT_OF_RANGE, "from %d, to %d", from, to);
+    invraise(s != 0 && from >= 0 && to >= 0, "%p from %d, to %d", s, from, to);     // asssertion if NOINVARIANT is NOT defined
     int sz = to - from + 1;
     fs tmp = fsinit(sz);  // not possible to use fs_cpy or fs_cat here!
     memcpy(tmp.v, s->v + from, sz - 1);
@@ -993,6 +993,43 @@ tf13(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
+// ------------------------- TEST 14 ---------------------------------
+
+static TestStatus
+tf14(const char *name)
+{
+    logenter("%s", name);
+
+    int         subnum = 0;
+
+    test_sub("subtest %d: fssubstr", ++subnum);
+    {
+        const char  pt[] = "qwertyuiop1234567890";
+        int         len = 3;
+        fs          s1 = fscopy(pt);
+
+        fssubstr(s1, 10, len);
+        test_validatefree(fslen(s1) == len, fsfree(s1), "Len of substr %d must be equal to %d", fslen(s1), len);
+        test_validatefree(strcmp(fsstr(s1), "123") == 0, fsfree(s1), "substr [%s] must be equal of %s", fsstr(s1), "123");
+
+        fsfree(s1);
+    }
+    test_sub("subtest %d: fssubstr", ++subnum);
+    {
+        const char  pt[] = "qwertyuiop1234567890";
+        int         len = 5;
+        fs          s1 = fscopy(pt);
+        fs          s2 = fsnewsubstr(s1, 10, len);
+
+        test_validatefree(fslen(s2) == len, (fsfree(s1), fsfree(s2) ), "Len of substr %d must be equal to %d", fslen(s2), len);
+        test_validatefree(strcmp(fsstr(s2), "12345") == 0, (fsfree(s1), fsfree(s2) ), "substr [%s] must be equal of %s", fsstr(s2), "12345");
+
+        fsfreeall(&s1, &s2);
+    }
+    check_leak(true);
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -1000,19 +1037,20 @@ main( /* int argc, const char *argv[] */)
     logsimpleinit("Start");
 
     testenginestd(
-        testnew(.f2 = tf1,  .num =  1, .name = "Simple init and validate test" , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf2,  .num =  2, .name = "Access read/write test"        , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf3,  .num =  3, .name = "Elem() test"                   , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf4,  .num =  4, .name = "fs_cat/fs_catstr test"         , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf5,  .num =  5, .name = "fs_cpy/fs_cpystr test"         , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf6,  .num =  6, .name = "fsfreeall test"                , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf7,  .num =  7, .name = "fsprint/printlim manual test"  , .desc="always ok, for the manual check"                , .mandatory=true)
-      , testnew(.f2 = tf8,  .num =  8, .name = "fsprint_arr manual test"       , .desc="always ok, for the manual check"                , .mandatory=true)
-      , testnew(.f2 = tf9,  .num =  9, .name = "fs_sprintf formatted test"     , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf10, .num = 10, .name = "fslocal simple test"           , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf11, .num = 11, .name = "fs_save/load test"             , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf12, .num = 12, .name = "fs_free_alloc_checker test"    , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf13, .num = 13, .name = "fs_move simple test"           , .desc=""                , .mandatory=true)
+        testnew(.f2 = tf1,  .num =  1, .name = "Simple init and validate test"      , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf2,  .num =  2, .name = "Access read/write test"             , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf3,  .num =  3, .name = "Elem() test"                        , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf4,  .num =  4, .name = "fs_cat/fs_catstr test"              , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf5,  .num =  5, .name = "fs_cpy/fs_cpystr test"              , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf6,  .num =  6, .name = "fsfreeall test"                     , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf7,  .num =  7, .name = "fsprint/printlim manual test"       , .desc="always ok, for the manual check"                , .mandatory=true)
+      , testnew(.f2 = tf8,  .num =  8, .name = "fsprint_arr manual test"            , .desc="always ok, for the manual check"                , .mandatory=true)
+      , testnew(.f2 = tf9,  .num =  9, .name = "fs_sprintf formatted test"          , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf10, .num = 10, .name = "fslocal simple test"                , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf11, .num = 11, .name = "fs_save/load test"                  , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf12, .num = 12, .name = "fs_free_alloc_checker test"         , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf13, .num = 13, .name = "fs_move simple test"                , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf14, .num = 14, .name = "fs_substr/newsubstr simple test"    , .desc=""                , .mandatory=true)
     );
 
     logclose("end...");
