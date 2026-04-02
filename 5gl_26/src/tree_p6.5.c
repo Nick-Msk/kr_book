@@ -72,7 +72,6 @@ int                     tree_print(const tnode* node){
 
 // -------------------------------------- Int tree linked fs ----------------------------------------------------
 
-// now only 1 element
 static int                          printfslist(fsarray words, int cntr){
     int cnt = 0, i;
     for (i = 0; i < cntr && !fsisnull(words.ar[i]); i++){    // probably iterator is required TODO:
@@ -109,8 +108,8 @@ static inttree_linkedfs            *inttree_createnode(int value, const fs *str)
     root->words = fsarr_init(G_FSARR_INITCAP);   // will raise if not allocated
     root->cnt = 0;
     logsimple("after init cnt = %d, sz = %d, str = %s, VALUE %d", root->words.cnt, root->words.sz, str->v, value);
-    // TODO: iterator over words should be here
     root->words.ar[root->cnt++] = fs_clone(str);
+    root->left = root->right = 0;
     return root;
 }
 
