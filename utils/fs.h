@@ -270,14 +270,11 @@ static inline fs             fs_left(fs *s, int cnt){
     fs_setlen(s, cnt);
     return *s;
 }
-// fast in-place!
-static inline fs             fs_substr(fs *s, int from, int to){
-    invraise(s != 0 && from >= 0 && to >= 0, "Input violation %p, from %d to %d", s, from, to);     // asssertion if NOINVARIANT is NOT defined
-    s->len = to - from;
-    memmove(s->v, s->v + from, s->len);
-    return *s;
-}
 
+// fast in-place!
+extern fs                    fs_substr(fs *s, int from, int to);
+
+// constructor version
 extern fs                    fs_newsubstr(const fs *s, int from, int to);
 
 #define                      get(s, pos) *fs_get(&(s), (pos) )
@@ -285,6 +282,7 @@ extern fs                    fs_newsubstr(const fs *s, int from, int to);
 #define                      elem(s, pos) *fs_elem( &(s), (pos) )
 
 #define                      fsetlen(s, poslen) *fs_setlen( (&s), (poslen) )
+// NOT sure if need fsend()
 #define                      fsend(s, poslen) *fs_setlen( (&s), (poslen) )
 #define                      fsclear(s) *fs_setlen( (&s), 0)
 

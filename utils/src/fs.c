@@ -233,13 +233,24 @@ fs                                      fs_cat(fs *target, fs source){
     return *strcopy(target, &source);
 }
 
+// fast in-place!
+fs                                      fs_substr(fs *s, int from, int to){
+    invraise(s != 0 && from >= 0 && to >= 0, "Input violation %p, from %d to %d", s, from, to);     // asssertion if NOINVARIANT is NOT defined
+    to = MIN(to, s->len - from);
+    memmove(s->v, s->v + from, to);     // TODO: probably to use strcopy?
+    fs_setlen(s, to);
+    return logsimpleret(*s, "[%s]", s->v);
+}
+
+// constructor version
 fs                                      fs_newsubstr(const fs *s, int from, int to){
     //if (!inv(from >= 0 && to >= from) )
       //  userraisesig(ERR_OUT_OF_RANGE, "from %d, to %d", from, to);
     invraise(s != 0 && from >= 0 && to >= 0, "%p from %d, to %d", s, from, to);     // asssertion if NOINVARIANT is NOT defined
-    int sz = to - from + 1;
-    fs tmp = fsinit(sz);  // not possible to use fs_cpy or fs_cat here!
-    memcpy(tmp.v, s->v + from, sz - 1);
+    to = MIN(to, s->len - from);
+    fs tmp = fsinit(to + 1);  // not possible to use fs_cpy or fs_cat here!
+    memmove(tmp.v, s->v + from, to);
+    fsetlen(tmp, to);
     return tmp;
 }
 
@@ -463,7 +474,7 @@ void                                    fs_free(fs *s){
 
 #if defined(FS_ALLOCATOR)
 // detach from allocator! Must be freed manually
-bool                    fsdetach(fs *s){
+bool                                    fsdetach(fs *s){
     bool        res = false;
     if (fs_alloc(s)){
         res = detach(s->pos);  // find in list and remove!
@@ -999,7 +1010,6 @@ static TestStatus
 tf14(const char *name)
 {
     logenter("%s", name);
-
     int         subnum = 0;
 
     test_sub("subtest %d: fssubstr", ++subnum);
@@ -1009,8 +1019,10 @@ tf14(const char *name)
         fs          s1 = fscopy(pt);
 
         fssubstr(s1, 10, len);
-        test_validatefree(fslen(s1) == len, fsfree(s1), "Len of substr %d must be equal to %d", fslen(s1), len);
-        test_validatefree(strcmp(fsstr(s1), "123") == 0, fsfree(s1), "substr [%s] must be equal of %s", fsstr(s1), "123");
+        test_validatefree(fslen(s1) == len, fsfree(s1),
+                "Len of substr %d must be equal to %d", fslen(s1), len);
+        test_validatefree(strcmp(fsstr(s1), "123") == 0, fsfree(s1),
+                "substr [%s] must be equal of %s", fsstr(s1), "123");
 
         fsfree(s1);
     }
@@ -1021,10 +1033,21 @@ tf14(const char *name)
         fs          s1 = fscopy(pt);
         fs          s2 = fsnewsubstr(s1, 10, len);
 
-        test_validatefree(fslen(s2) == len, (fsfree(s1), fsfree(s2) ), "Len of substr %d must be equal to %d", fslen(s2), len);
-        test_validatefree(strcmp(fsstr(s2), "12345") == 0, (fsfree(s1), fsfree(s2) ), "substr [%s] must be equal of %s", fsstr(s2), "12345");
+        test_validatefree(fslen(s2) == len, fsfreeall(&s1, &s2),
+                "Len of substr %d must be equal to %d", fslen(s2), len);
+        test_validatefree(strcmp(fsstr(s2), "12345") == 0, fsfreeall(&s1, &s2),
+                "substr [%s] must be equal of %s", fsstr(s2), "12345");
 
-        fsfreeall(&s1, &s2);
+    test_sub("subtest %d: right part of a string", ++subnum);
+
+        int         offset = 1;
+        fs          s3 = fsnewsubstr(s1, offset, 100);
+        test_validatefree(fslen(s3) == strlen(pt) - offset, fsfreeall(&s1, &s2, &s3),
+                "Len of substr %d must be equal to %lu - %d", fslen(s3), strlen(pt), offset);
+        test_validatefree(strcmp(fsstr(s3), pt + offset) == 0, fsfreeall(&s1, &s2, &s3),
+                "substr [%s] must be equal of %s", fsstr(s3), pt + offset);
+
+        fsfreeall(&s1, &s2, &s3);
     }
     check_leak(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
