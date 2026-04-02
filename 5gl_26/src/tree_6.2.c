@@ -47,7 +47,7 @@ static tnode            *tree_createnode(const fs *restrict str, int length){
     if (! (root = tree_alloc() ) )
         userraiseint(ERR_UNABLE_ALLOCATE, "%zu bytes", sizeof(tnode) );
 
-    root->groupword = fs_newsubstr(str, 1, length); // 1 copy per group!
+    root->groupword = fs_newsubstr(str, 0, length); // 1 copy per group!
     root->cnt = 0;
     root->words = fsarr_init(G_TREE_FSARR_INITCAP);   // will raise if not allocated
     root->words.ar[root->cnt++] = fs_clone(str);

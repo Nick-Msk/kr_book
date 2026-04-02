@@ -25,6 +25,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
         return userraiseint(-1, "Zero ke!!! Error!");   // raise here
     char    c, *pos;;
     while (*++argv != 0 && **argv == '-'){
+        logauto(*argv);
         argc++;
         while ( (c = *++argv[0]) )
             switch (tolower(c)){
@@ -40,12 +41,14 @@ static int              parse_keys(const char *argv[], Keys *ke){
                         params++;
                     }
                 case 'f':
-                    ke->filename = (char *) argv[0];        // save pointer
-                    argv[0] += strlen(argv[0] - 1); 
+                    ke->filename = (char *) argv[0] + 1;        // save pointer
+                    logauto(ke->filename);
+                    argv[0] += strlen(argv[0]) - 1;
                     params++;
                 break;
-                case 'c':
+                case 'l':
                     ke->length = strtol(++argv[0], &pos, 10);
+                    logauto(ke->length);
                     argv[0] = pos - 1; // -1 to break next while()
                     params++;
                 break;
@@ -58,7 +61,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
 
 }
 
-static const char   *usage_str = "Usage: %s -v -f -i -c\n";
+static const char   *usage_str = "Usage: %s -v -f -i -l\n";
 
 int                      main(int argc, const char *argv[]){
     logsimpleinit("Start");
@@ -94,6 +97,8 @@ int                      main(int argc, const char *argv[]){
         fclose(in);
 
     tree_print(root);
+
+    tree_free(root);
 
     if (!fs_alloc_check(false))
         logmsg("Warning: incorrect allocation of fs's");

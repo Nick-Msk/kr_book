@@ -48,7 +48,7 @@ find_keyword_ptr.p6.4: src/find_keyword_ptr.p6.4.c lib/log.o lib/common.o lib/bu
 keywords_tree.p6.5: src/keywords_tree.p6.5.c lib/tree_p6.5.o lib/log.o lib/common.o lib/buffer.o lib/fs.o lib/error.o lib/fileutils.o lib/checker.o lib/fs_array.o lib/getword.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-var_group.6.2: src/var_group.6.2.c lib/tree_p6.5.o lib/log.o lib/common.o lib/buffer.o lib/fs.o lib/error.o lib/fileutils.o lib/checker.o lib/fs_array.o lib/getword.o
+var_group.6.2: src/var_group.6.2.c lib/tree_6.2.o lib/log.o lib/common.o lib/buffer.o lib/fs.o lib/error.o lib/fileutils.o lib/checker.o lib/fs_array.o lib/getword.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 
