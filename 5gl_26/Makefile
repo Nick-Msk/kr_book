@@ -51,6 +51,8 @@ keywords_tree.p6.5: src/keywords_tree.p6.5.c lib/tree_p6.5.o lib/log.o lib/commo
 var_group.6.2: src/var_group.6.2.c lib/tree_6.2.o lib/log.o lib/common.o lib/buffer.o lib/fs.o lib/error.o lib/fileutils.o lib/checker.o lib/fs_array.o lib/getword.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+cross_link.6.3: src/cross_link.6.3.c lib/tree_6.3.o lib/log.o lib/common.o lib/buffer.o lib/fs.o lib/error.o lib/fileutils.o lib/checker.o lib/fs_array.o lib/getword.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
 
 UTIL_PATH = ../utils
 
@@ -106,6 +108,10 @@ lib/tree_p6.5.o: src/tree_p6.5.c
 lib/tree_6.2.o: src/tree_6.2.c
 	$(CC) $(CFLAGS) -I./src  $^ -c
 	@mv tree_6.2.o lib/
+
+lib/tree_6.3.o: src/tree_6.3.c
+	$(CC) $(CFLAGS) -I./src  $^ -c
+	@mv tree_6.3.o lib/
 
 lib/getword.o: src/getword.c
 	$(CC) $(CFLAGS) -I./src  $^ -c
