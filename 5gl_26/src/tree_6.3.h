@@ -10,14 +10,14 @@
 
 typedef struct tnode {
     fs                      groupword;
-    TODO:
+    Array                   pageslist;
     int                     cnt;
     struct tnode           *left;
     struct tnode           *right;
 } tnode;
 
 extern int                  tree_print(const tnode* root);
-extern tnode               *tree_add(tnode *restrict root, fs *restrict str, int length);   // fs * because have to destroy original fs
+extern tnode               *tree_add(tnode *restrict root, fs *restrict str, int pagenum);   // fs * because have to destroy original fs
 extern void                 tree_free(tnode *t);
 
 #endif /* !_TREE_6_3_H */

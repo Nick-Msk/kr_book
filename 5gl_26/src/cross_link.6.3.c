@@ -21,7 +21,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
     int     argc = 1, params = 0;
     if (!ke)
         return userraiseint(-1, "Zero ke!!! Error!");   // raise here
-    char    c, *pos;;
+    char    c;
     while (*++argv != 0 && **argv == '-'){
         argc++;
         while ( (c = *++argv[0]) )
@@ -78,7 +78,7 @@ int                      main(int argc, const char *argv[]){
     tnode       *root = 0;
     fs           word = FS();   // init empty with fsalloc
 
-    TODO:
+    
 
     if (in != stdin)
         fclose(in);
