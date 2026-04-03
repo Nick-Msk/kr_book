@@ -568,14 +568,34 @@ tf8(const char *name){
 
     int         subnum = 0;
     {
-        test_sub("subtest %d increate int array", ++subnum);
+        test_sub("subtest %d increase int array", ++subnum);
 
         int initsz = 25;
-        Array iarr = IArray_create(initsz, ARRAY_RND);
+        Array arr = IArray_create(initsz, ARRAY_RND);
 
-        // TODO:!!!
+        arr = Array_increase(arr, initsz * 3);
 
-        Arrayfree(iarr);
+        test_validatefree(Arraylen(arr) == initsz * 3, Arrayfree(arr), "Array length %d must be %d", Arraylen(arr), initsz * 3);
+        for (int i = initsz; i < Arraylen(arr); i++){
+            test_validatefree(arr.iv[i] == 0, Arrayfree(arr), "arr[%d] must be zero,  but not %d", i, arr.iv[i]);
+        }
+
+        Arrayfree(arr);
+    }
+    test_sub("subtest %d increas double array", ++subnum);
+    {
+
+        int initsz = 25;
+        Array arr = DArray_create(initsz, ARRAY_RND);
+
+        arr = Array_increase(arr, initsz * 3);
+
+        test_validatefree(Arraylen(arr) == initsz * 3, Arrayfree(arr), "Array length %d must be %d", Arraylen(arr), initsz * 3);
+        for (int i = initsz; i < Arraylen(arr); i++){
+            test_validatefree(arr.dv[i] == 0.0, Arrayfree(arr), "arr[%d] must be zero,  but not %f", i, arr.dv[i]);
+        }
+
+        Arrayfree(arr);
     }
 
     return logret(TEST_PASSED, "done"); // TEST_FAILED
@@ -583,14 +603,9 @@ tf8(const char *name){
 
 // -------------------------------------------------------------------
 int
-main(int argc, char *argv[])
+main( /*int argc, char *argv[] */ )
 {
-    const char *logfilename = "log/array.log";
-
-    if (argc > 1)
-        logfilename = argv[1];
-
-    loginit(logfilename, false, 0, "Starting");
+    logsimpleinit("Start");
 
     testenginestd(
         testnew(.f2 = tf1, .num = 1, .name = "Int/double creation/descr test"       , .desc = "", .mandatory=true)
@@ -603,8 +618,7 @@ main(int argc, char *argv[])
       , testnew(.f2 = tf8, .num = 8, .name = "Array_increase simple test"           , .desc = "", .mandatory=true)
     );
 
-    logclose("end...");
-    return 0;
+    return logret(0, "end...");  // as replace of logclose()
 }
 
 

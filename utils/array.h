@@ -59,7 +59,7 @@ typedef struct {
 #define                         IArray_init(...) (Array){.len = 0, .sz = 0, .iv = 0, .flags = ARRAY_INT, __VA_ARGS__}
 #define                         DArray_init(...) (Array){.len = 0, .sz = 0, .dv = 0, .flags = ARRAY_DOUBLE, __VA_ARGS__}
 #define                         Array_init(...)  (Array){.len = 0, .sz = 0, .iv = 0, .flags = 0, __VA_ARGS__}
-#define                         Arrayfree(x){ Array_free(&(x)); (x).iv = 0; }
+#define                         Arrayfree(x)({ Array_free(&(x)); (x).iv = 0; })
 
 // --------------- CREATE  and fill --------------------
 extern Array                    Array_create(int cnt, ArrayFillType filltyp, ArrayType typ);
