@@ -53,7 +53,7 @@ typedef struct {
     };
 } Array;
 
-// ------------- CONSTRUCTOTS/DESTRUCTORS ----------
+// ------------- CONSTRUCTOTS/DESTRUCTORS --------------
 
 // init
 #define                         IArray_init(...) (Array){.len = 0, .sz = 0, .iv = 0, .flags = ARRAY_INT, __VA_ARGS__}
@@ -61,7 +61,7 @@ typedef struct {
 #define                         Array_init(...)  (Array){.len = 0, .sz = 0, .iv = 0, .flags = 0, __VA_ARGS__}
 #define                         Arrayfree(x){ Array_free(&(x)); (x).iv = 0; }
 
-// CREATE  and fill with method
+// --------------- CREATE  and fill --------------------
 extern Array                    Array_create(int cnt, ArrayFillType filltyp, ArrayType typ);
 
 extern void                     Array_free(Array *val);
@@ -73,9 +73,8 @@ static inline Array             DArray_create(int cnt, ArrayFillType typ){
     return Array_create(cnt, typ, ARRAY_DOUBLE);
 }
 
-extern Array                    Array_shrink(Array arr, int newsz);
 
-// -------------- ACCESS AND MODIFICATION ----------
+// -------------- ACCESS AND MODIFICATION --------------
 
 static inline bool              Array_isint(Array a){
     return a.flags & ARRAY_INT;
@@ -106,10 +105,12 @@ static inline int               Arraysz(Array a){
     return a.sz;
 }
 
-extern void                     Array_fill(Array arr, ArrayFillType typ);
+extern int                      Array_fill(Array arr, ArrayFillType typ);
+extern int                      Array_fillrange(Array a, ArrayFillType typ, int from, int to);
+extern Array                    Array_shrink(Array arr, int newsz);
+extern Array                    Array_increase(Array arr, int newcnt);
 
 extern void                     Array_shuffle(Array arr);
-
 extern void                     Array_qsort(Array arr, ArrayFillType ord);
 
 // ----------------- PRINTERS ----------------------

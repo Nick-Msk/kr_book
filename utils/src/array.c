@@ -23,14 +23,74 @@ const char              *g_save_format_int       = "%6d\t%6d\n";
 
 // ------------------------------ Utilities ------------------------
 
+static int                      increase(Array *arr, int newsz){
+    logenter("newsz %d", newsz);
+    if (newsz == arr->sz)
+        return logret(arr->sz, "No change sz %d", arr->sz);
+    if (newsz > arr->sz)
+        newsz = round_up_2(newsz);
+
+    int bytes = newsz;
+    if (Array_isint(*arr))
+        bytes *= sizeof(int);
+    else if (Array_isdouble(*arr))
+        bytes *= sizeof(double);
+    else
+        bytes = 0;
+    void *p  = realloc(arr->iv, bytes);
+    if (p == 0)
+        userraiseint(ERR_UNABLE_ALLOCATE, "Unable to allocate %d", bytes);
+    else {
+        arr->v = p; // iv/dv is the same
+        if (arr->len > newsz)   // shrink case
+            arr->len = newsz;
+        arr->sz = newsz;
+    }
+    return logret(arr->sz, "New sz %d", arr->sz);
+}
+
 // -------------------------- (Utility) printers -------------------
 
 // --------------------------- API ---------------------------------
 
+// ------------- CONSTRUCTOTS/DESTRUCTORS --------------
 
-void                     Array_fill(Array a, ArrayFillType typ){
+// CREATE  and fill with method
+Array                           Array_create(int cnt, ArrayFillType filltyp, ArrayType typ){
+    logenter("cnt %d, typ %s", cnt, ArrayFillTypeName(filltyp));
+    Array       res = Array_init();
+    res.flags      |= typ;
+    res.sz          = round_up_2(cnt);   // 2^(x + 1)
+    res.len         = cnt;
+    int          sz = typ == ARRAY_INT ? res.sz * sizeof(int) : res.sz * sizeof(double);
+    logmsg("Arr: sz=%d, res.sz=%d", sz, res.sz);
+    res.iv          = malloc(sz);   // iv == dv
+    if (!res.iv){
+        res.sz = INT_MIN;
+        userraiseint(10,  "Unable to allocate %d bytes\n", sz);
+    }
+    Array_fill(res, filltyp);
+    return logret(res, "sz = %d", res.sz);
+}
+
+void                    Array_free(Array *val){
+    if (val && val->iv){
+        free(val->iv);
+        val->iv = 0;
+    }
+}
+
+int                      Array_fill(Array a, ArrayFillType typ){
+    return Array_fillrange(a, typ, 0, a.len);
+}
+
+int                      Array_fillrange(Array a, ArrayFillType typ, int from, int to){
     int     initval;
     // fill
+    if (from < 0)
+        from = 0;
+    if (to > a.len)
+        to = a.len;
     switch (typ){
         case ARRAY_DESC:
             initval = 100 * a.len;   // hope it'll ne owerwelhm int
@@ -78,57 +138,32 @@ void                     Array_fill(Array a, ArrayFillType typ){
         break;
         default:
             logsimple("Unsupported type %d", typ);
+            to = from - 1;  // return -1
         break;
     }
+    return logsimpleret(to - from, "Filled %d by %s", to - from, ArrayFillTypeName(typ) );
+}
+
+// -------------- ACCESS AND MODIFICATION --------------
+
+Array                           Array_increase(Array arr, int newcnt){
+    if (newcnt > Arraysz(arr) )
+        increase(&arr, newcnt);
+    Array_fillrange(arr, ARRAY_ZERO, arr.len, newcnt);
+    arr.len = newcnt;
+    return arr;
 }
 
 Array                           Array_shrink(Array arr, int newsz){
     logenter("newsz %d", newsz);
-    int sz = newsz;
-    if (Array_isint(arr))
-        sz *= sizeof(int);
-    else // double
-        sz *= sizeof(double);
-    void *p  = realloc(arr.iv, sz);
-    if (p == 0){
-        fprintf(stderr, "Unable to allocate %d", sz);
-        //  userraisesig must be here TODO:
-    } else {
-        arr.iv = p;
-        if (arr.len > newsz)
-            arr.len = newsz;
-        if (arr.sz > newsz)
-            arr.sz = newsz;
-    }
+    if (newsz < 0)
+        newsz = 0;
+    if (newsz > arr.sz)
+        newsz = arr.sz;
+    increase(&arr, newsz);
     return logret(arr, "shrinked to (len %d == sz %d)", arr.len, arr.sz);
 }
 
-// CREATE  and fill with method
-// increase and shrink are reuiqred too
-Array                           Array_create(int cnt, ArrayFillType filltyp, ArrayType typ){
-    logenter("cnt %d, typ %s", cnt, ArrayFillTypeName(filltyp));
-    Array       res = Array_init();
-    res.flags      |= typ;
-    res.sz          = round_up_2(cnt);   // 2^(x + 1)
-    res.len         = cnt;
-    int          sz = typ == ARRAY_INT ? res.sz * sizeof(int) : res.sz * sizeof(double);
-    logmsg("Arr: sz=%d, res.sz=%d", sz, res.sz);
-    res.iv          = malloc(sz);   // iv == dv
-    if (!res.iv){
-        fprintf(stderr, "Unable to allocate %d bytes\n", sz);
-        res.sz = INT_MIN;
-        userraiseint(10,  "Unable to allocate %d bytes\n", sz);
-    }
-    Array_fill(res, filltyp);
-    return logret(res, "sz = %d", res.sz);
-}
-
-void                    Array_free(Array *val){
-    if (val && val->iv){
-        free(val->iv);
-        val->iv = 0;
-    }
-}
 
 void                     Array_shuffle(Array arr){
     srand(time(NULL) );
@@ -525,8 +560,28 @@ tf7(const char *name){
 
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
-// -------------------------------------------------------------------
 
+// ------------------------- TEST 8 ---------------------------------
+static TestStatus
+tf8(const char *name){
+    logenter("%s", name);
+
+    int         subnum = 0;
+    {
+        test_sub("subtest %d increate int array", ++subnum);
+
+        int initsz = 25;
+        Array iarr = IArray_create(initsz, ARRAY_RND);
+
+        // TODO:!!!
+
+        Arrayfree(iarr);
+    }
+
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
+// -------------------------------------------------------------------
 int
 main(int argc, char *argv[])
 {
@@ -545,6 +600,7 @@ main(int argc, char *argv[])
       , testnew(.f2 = tf5, .num = 5, .name = "Save/load dbl test"                   , .desc = "", .mandatory=true)
       , testnew(.f2 = tf6, .num = 6, .name = "Shuffle array(dbl/int) simple test"   , .desc = "", .mandatory=true)
       , testnew(.f2 = tf7, .num = 7, .name = "Sort array(dbl/int) simple test"      , .desc = "", .mandatory=true)
+      , testnew(.f2 = tf8, .num = 8, .name = "Array_increase simple test"           , .desc = "", .mandatory=true)
     );
 
     logclose("end...");
