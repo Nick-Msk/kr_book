@@ -1076,8 +1076,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf14, .num = 14, .name = "fs_substr/newsubstr simple test"    , .desc=""                , .mandatory=true)
     );
 
-    logclose("end...");
-    return 0;
+    return logret(0, "end...");  // as replace of logclose()
 }
 
 #endif /* FSTESTING */
