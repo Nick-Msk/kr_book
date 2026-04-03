@@ -12,8 +12,6 @@
 
 // ----------- CONSTANTS AND GLOBALS ---------------
 
-static const int						ERRNUM_INVARIANT_VIOLATION = 100;		// Error code for error.h
-
 // ------------------- TYPES -----------------------
 
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
