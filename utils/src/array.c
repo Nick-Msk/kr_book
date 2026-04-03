@@ -37,6 +37,7 @@ static int                      increase(Array *arr, int newsz){
         bytes *= sizeof(double);
     else
         bytes = 0;
+    logmsg("Arr: bytes=%d, sz=%d", bytes, newsz);
     void *p  = realloc(arr->iv, bytes);
     if (p == 0)
         userraiseint(ERR_UNABLE_ALLOCATE, "Unable to allocate %d", bytes);
@@ -58,17 +59,10 @@ static int                      increase(Array *arr, int newsz){
 // CREATE  and fill with method
 Array                           Array_create(int cnt, ArrayFillType filltyp, ArrayType typ){
     logenter("cnt %d, typ %s", cnt, ArrayFillTypeName(filltyp));
-    Array       res = Array_init();
-    res.flags      |= typ;
-    res.sz          = round_up_2(cnt);   // 2^(x + 1)
+    // TODO: refactor via Array_increase
+    Array       res = Array_init(.flags = typ);
+    increase(&res, cnt);
     res.len         = cnt;
-    int          sz = typ == ARRAY_INT ? res.sz * sizeof(int) : res.sz * sizeof(double);
-    logmsg("Arr: sz=%d, res.sz=%d", sz, res.sz);
-    res.iv          = malloc(sz);   // iv == dv
-    if (!res.iv){
-        res.sz = INT_MIN;
-        userraiseint(10,  "Unable to allocate %d bytes\n", sz);
-    }
     Array_fill(res, filltyp);
     return logret(res, "sz = %d", res.sz);
 }
