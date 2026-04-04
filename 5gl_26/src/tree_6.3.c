@@ -24,15 +24,15 @@ static int              printfslist(Array a, int tot){
 static inline int       tree_printnode(const tnode* node){
     int cnt = 0;
     if (node){
-        cnt = printf("[%s]\tpages:\t", node->groupword.v );
-        cnt += printfslist(node->pageslist, node->cnt);
+        cnt = printf("[%s]\tline:\t", node->groupword.v );
+        cnt += printfslist(node->lineslist, node->cnt);
     }
     return cnt;
 }
 
 // simple free
 static void              tree_freenode(tnode *node){
-    Arrayfree(node->pageslist);
+    Arrayfree(node->lineslist);
     fsfree(node->groupword);
     free(node);
 }
@@ -41,16 +41,16 @@ static inline tnode     *tree_alloc(void){
     return (tnode *) malloc(sizeof(tnode));
 }
 
-static tnode            *tree_createnode(const fs *restrict str, int pagenum){
+static tnode            *tree_createnode(const fs *restrict str, int linenum){
     tnode *root;
     if (! (root = tree_alloc() ) )
         userraiseint(ERR_UNABLE_ALLOCATE, "%zu bytes", sizeof(tnode) );
 
     root->groupword = fs_clone(str); // 1 copy per group!
-    root->pageslist = IArray_create(G_TREE_FSARR_INITCAP, ARRAY_ZERO);  // will raise if unable to allocate
+    root->lineslist = IArray_create(G_TREE_FSARR_INITCAP, ARRAY_ZERO);  // will raise if unable to allocate
     root->cnt = 0;
-    root->pageslist.iv[2 * root->cnt] = pagenum;
-    root->pageslist.iv[2 * root->cnt + 1] = 1;    // 1 - init
+    root->lineslist.iv[2 * root->cnt] = linenum;
+    root->lineslist.iv[2 * root->cnt + 1] = 1;    // 1 - init
     root->left = root->right = 0;
     return root;
 }
@@ -58,23 +58,23 @@ static tnode            *tree_createnode(const fs *restrict str, int pagenum){
 
 // API
 
-tnode                  *tree_add(tnode *restrict root, fs *restrict str, int pagenum){   // fs * because have to destroy original fs (probably after using fs_move() )
+tnode                  *tree_add(tnode *restrict root, fs *restrict str, int linenum){   // fs * because have to destroy original fs (probably after using fs_move() )
     int     cond;
     if (!root)
-        root = tree_createnode(str, pagenum);
+        root = tree_createnode(str, linenum);
     else if ( (cond = fs_cmp(str, &root->groupword) ) == 0) {
-            if (pagenum > root->pageslist.iv[2 * root->cnt] ){  // if next pagenum
-                if (2 * root->cnt >= Arraylen(root->pageslist) )
-                        root->pageslist = Array_increase(root->pageslist, 2 * root->cnt);   // exception can be here
-                logsimple("%s: root->cnt = %d, pagenum = %d", fsstr(root->groupword), root->cnt, pagenum);
-                root->pageslist.iv[2 * ++root->cnt] = pagenum;   // setup next pagenum and shift cnt
+            if (linenum > root->lineslist.iv[2 * root->cnt] ){  // if next pagenum
+                if (2 * root->cnt >= Arraylen(root->lineslist) )
+                        root->lineslist = Array_increase(root->lineslist, 2 * root->cnt);   // exception can be here
+                logsimple("%s: root->cnt = %d, pagenum = %d", fsstr(root->groupword), root->cnt, linenum);
+                root->lineslist.iv[2 * ++root->cnt] = linenum;   // setup next pagenum and shift cnt
             }
-            root->pageslist.iv[2 * root->cnt + 1]++;      // count of this word in this pagenum!
+            root->lineslist.iv[2 * root->cnt + 1]++;      // count of this word in this pagenum!
          }
     else if (cond < 0)
-        root->left = tree_add(root->left, str, pagenum);
+        root->left = tree_add(root->left, str, linenum);
     else    // cond > 0
-        root->right = tree_add(root->right, str, pagenum);
+        root->right = tree_add(root->right, str, linenum);
     return root;
 }
 
@@ -96,3 +96,4 @@ int                     tree_print(const tnode* node){
     }
     return cnt;
 }
+

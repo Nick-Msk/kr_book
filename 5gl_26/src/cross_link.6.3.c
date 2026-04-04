@@ -76,15 +76,16 @@ int                      main(int argc, const char *argv[]){
     buffer_set(in);         // file or stdin
 
     tnode       *root = 0;
-    int          pagenum = 1;
+    int          linenum = 1;
     fs           word = FS();   // init empty with fsalloc
 
     while ( !fsisempty(word = getword(word, ke.tolower, true, true) ) ) {       // false means without comment, line and so on
         char c = *fsstr(word);
         if (c == '\n')
-            logauto(pagenum++);
+            linenum++;
         if (isalpha_u(c) )
-            root = tree_add(root, &word, pagenum);        // grouping by length
+            if (fs_ifnotin(word, "in", "the", "a", "to", "as", "r", "s", "so", "v") )
+                root = tree_add(root, &word, linenum);        // grouping by length
     }
 
     if (in != stdin)
