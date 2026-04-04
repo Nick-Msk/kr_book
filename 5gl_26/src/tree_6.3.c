@@ -9,7 +9,7 @@ static const int        G_TREE_FSARR_INITCAP = 40;
 
 static int              printfslist(Array a, int tot){
     int cnt = 0;
-    for (int i = 0; i < tot / 2; i ++){
+    for (int i = 0; i <= tot; i++){
         cnt += printf("%4d", a.iv[2 * i]);
         if (a.iv[2 * i + 1] > 0)
             cnt += printf("/%2d",  a.iv[2 * i + 1]);
@@ -24,7 +24,7 @@ static int              printfslist(Array a, int tot){
 static inline int       tree_printnode(const tnode* node){
     int cnt = 0;
     if (node){
-        cnt = printf("[%s] pages: ", node->groupword.v );
+        cnt = printf("[%s]\tpages:\t", node->groupword.v );
         cnt += printfslist(node->pageslist, node->cnt);
     }
     return cnt;
@@ -48,9 +48,9 @@ static tnode            *tree_createnode(const fs *restrict str, int pagenum){
 
     root->groupword = fs_clone(str); // 1 copy per group!
     root->pageslist = IArray_create(G_TREE_FSARR_INITCAP, ARRAY_ZERO);  // will raise if unable to allocate
-    root->pageslist.iv[0] = pagenum;
-    root->cnt = 2;
-    root->pageslist.iv[root->cnt - 1] = 1;    // 1 - init
+    root->cnt = 0;
+    root->pageslist.iv[2 * root->cnt] = pagenum;
+    root->pageslist.iv[2 * root->cnt + 1] = 1;    // 1 - init
     root->left = root->right = 0;
     return root;
 }
@@ -63,14 +63,13 @@ tnode                  *tree_add(tnode *restrict root, fs *restrict str, int pag
     if (!root)
         root = tree_createnode(str, pagenum);
     else if ( (cond = fs_cmp(str, &root->groupword) ) == 0) {
-            if (pagenum > root->pageslist.iv[root->cnt - 2] ){  // if next pagenum
-                if (root->cnt >= Arraylen(root->pageslist) )
-                        root->pageslist = Array_increase(root->pageslist, root->cnt);   // exception can be here
+            if (pagenum > root->pageslist.iv[2 * root->cnt] ){  // if next pagenum
+                if (2 * root->cnt >= Arraylen(root->pageslist) )
+                        root->pageslist = Array_increase(root->pageslist, 2 * root->cnt);   // exception can be here
                 logsimple("%s: root->cnt = %d, pagenum = %d", fsstr(root->groupword), root->cnt, pagenum);
-                root->pageslist.iv[root->cnt] = pagenum;   // setup next pagenum and shift cnt
-                root->cnt += 2;
+                root->pageslist.iv[2 * ++root->cnt] = pagenum;   // setup next pagenum and shift cnt
             }
-            root->pageslist.iv[root->cnt - 1]++;      // count of this word in this pagenum!
+            root->pageslist.iv[2 * root->cnt + 1]++;      // count of this word in this pagenum!
          }
     else if (cond < 0)
         root->left = tree_add(root->left, str, pagenum);
