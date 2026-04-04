@@ -88,7 +88,7 @@ int                      main(int argc, const char *argv[]){
     tnode       *root = 0;
     fs           word = FS();   // init empty with fsalloc
 
-    while ( !fsisempty(word = getword(word, ke.sens) ) ) {
+    while ( !fsisempty(word = getword(word, ke.sens, false, false) ) ) { // refactored to apply new parameters of getword()
         if (isalpha_u(*fsstr(word) ) )
             root = tree_add(root, &word);
     }
