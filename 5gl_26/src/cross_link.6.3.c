@@ -38,8 +38,8 @@ static int              parse_keys(const char *argv[], Keys *ke){
                         params++;
                     }
                 case 'f':
-                    ke->filename = (char *) argv[0] + 1;        // save pointer
-                    argv[0] += strlen(argv[0]) - 1;
+                    ke->filename = (char *) argv[1];        // save pointer
+                    argv[0] ++; // next argv is filename
                     params++;
                 break;
                 default:    // probaly it's possible to ignore unknows parameters
@@ -76,9 +76,16 @@ int                      main(int argc, const char *argv[]){
     buffer_set(in);         // file or stdin
 
     tnode       *root = 0;
+    int          pagenum = 1;
     fs           word = FS();   // init empty with fsalloc
 
-    
+    while ( !fsisempty(word = getword(word, ke.tolower, true, true) ) ) {       // false means without comment, line and so on
+        char c = *fsstr(word);
+        if (c == '\n')
+            logauto(pagenum++);
+        if (isalpha_u(c) )
+            root = tree_add(root, &word, pagenum);        // grouping by length
+    }
 
     if (in != stdin)
         fclose(in);
