@@ -1061,24 +1061,40 @@ tf15(const char *name)
     logenter("%s", name);
     int         subnum = 0;
 
-    test_sub("subtest %d: fs_ifnotin", ++subnum);
+    test_sub("subtest %d: fs_ifnotin", ++subnum);   // sensitive, negative
     {
         const char  pt[] = "qwe1";
         fs          s = fscopy(pt);
 
         if (!fs_ifnotin(s, "a", "in", "z", "bbbbm", "qqqqq") )
-            return logacterr( fsfree(s), TEST_FAILED, "not in return false, but it must be true");
+            return logacterr( fsfree(s), TEST_FAILED, "NOT IN return false, but it must be true");
 
         if (fs_ifnotin(s, "a", "in", "z", "bbbbm", "qqqqq", pt) )
-            return logacterr( fsfree(s), TEST_FAILED, "not in return true, but it must be false");
+            return logacterr( fsfree(s), TEST_FAILED, "NOT IN return true, but it must be false");
 
-    test_sub("subtest %d: fs_ifinotin", ++subnum);
+    test_sub("subtest %d: fs_ifinotin", ++subnum);  // insensetive, netagive
 
         if (!fs_ifinotin(s, "a", "in", "z", "bbbbm", "QQQQQ") )
-            return logacterr( fsfree(s), TEST_FAILED, "not in return false, but it must be true");
+            return logacterr( fsfree(s), TEST_FAILED, "NOT IN return false, but it must be true");
 
         if (fs_ifinotin(s, "a", "in", "z", "VVBDFDFFDS", "qqqqq", "QWE1", "sds") )
-            return logacterr( fsfree(s), TEST_FAILED, "not in return true, but it must be false");
+            return logacterr( fsfree(s), TEST_FAILED, "NOT IN return true, but it must be false");
+
+    test_sub("subtest %d: fs_ifin", ++subnum);  // sensetive, positive
+
+        if (fs_ifin(s, "a", "in", "z", "bbbbm", "qqqqq") )
+            return logacterr( fsfree(s), TEST_FAILED, "IN return true, but it must be false");
+
+        if (!fs_ifin(s, "a", "in", "z", "bbbbm", "qqqqq", pt) )
+            return logacterr( fsfree(s), TEST_FAILED, "IN return false, but it must be true");
+
+    test_sub("subtest %d: fs_ifiin", ++subnum);  // insensetive, positive
+
+        if (fs_ifiin(s, "a", "in", "z", "bbbbm", "qqqqq") )
+            return logacterr( fsfree(s), TEST_FAILED, "IN return true, but it must be false");
+
+        if (!fs_ifiin(s, "a", "in", "z", "bbbbm", "qqqqq", "QWE1", "sds") )
+            return logacterr( fsfree(s), TEST_FAILED, "IN return false, but it must be true");
 
         fsfree(s);
     }

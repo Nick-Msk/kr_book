@@ -299,7 +299,6 @@ extern fs                    fs_newsubstr(const fs *s, int from, int to);
 // full scan version
 static inline bool           fs_notin(fs s, const char *strs[]){
     while (*strs){
-        logauto(*strs);
         if (strcmp(s.v, *strs) == 0)
             return false;
         else
@@ -311,13 +310,34 @@ static inline bool           fs_notin(fs s, const char *strs[]){
 // full scan version, insensitive
 static inline bool           fs_inotin(fs s, const char *strs[]){
     while (*strs){
-        logauto(*strs);
         if (strcasecmp(s.v, *strs) == 0)
             return false;
         else
             strs++;
     }
     return true;
+}
+
+// full scan version
+static inline bool           fs_in(fs s, const char *strs[]){
+    while (*strs){
+        if (strcmp(s.v, *strs) == 0)
+            return true;
+        else
+            strs++;
+    }
+    return false;
+}
+
+// full scan version, insensitive
+static inline bool           fs_iin(fs s, const char *strs[]){
+    while (*strs){
+        if (strcasecmp(s.v, *strs) == 0)
+            return true;
+        else
+            strs++;
+    }
+    return false;
 }
 
 // TODO: ordered version, via binsearch
@@ -350,6 +370,8 @@ static inline bool           fs_inotin(fs s, const char *strs[]){
 
 #define                      fs_ifnotin(s, ...)  fs_notin ( (s), (const char *[]) { __VA_ARGS__, 0 } )
 #define                      fs_ifinotin(s, ...) fs_inotin( (s), (const char *[]) { __VA_ARGS__, 0 } )
+#define                      fs_ifin(s, ...)  fs_in ( (s), (const char *[]) { __VA_ARGS__, 0 } )
+#define                      fs_ifiin(s, ...) fs_iin( (s), (const char *[]) { __VA_ARGS__, 0 } )
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
