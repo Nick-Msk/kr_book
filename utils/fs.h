@@ -296,6 +296,32 @@ extern fs                    fs_substr(fs *s, int from, int to);
 // constructor version
 extern fs                    fs_newsubstr(const fs *s, int from, int to);
 
+// full scan version
+static inline bool           fs_notin(fs s, const char *strs[]){
+    while (*strs){
+        logauto(*strs);
+        if (strcmp(s.v, *strs) == 0)
+            return false;
+        else
+            strs++;
+    }
+    return true;
+}
+
+// full scan version, insensitive
+static inline bool           fs_inotin(fs s, const char *strs[]){
+    while (*strs){
+        logauto(*strs);
+        if (strcasecmp(s.v, *strs) == 0)
+            return false;
+        else
+            strs++;
+    }
+    return true;
+}
+
+// TODO: ordered version, via binsearch
+
 #define                      get(s, pos) *fs_get(&(s), (pos) )
 #define                      getv(s) (s.v)
 #define                      elem(s, pos) *fs_elem( &(s), (pos) )
@@ -322,6 +348,9 @@ extern fs                    fs_newsubstr(const fs *s, int from, int to);
 #define                      fssubstr(s, from, to) fs_substr( &(s), from, to)
 #define                      fsnewsubstr(s, from, to) fs_newsubstr( &(s), from, to)
 
+#define                      fs_ifnotin(s, ...)  fs_notin ( (s), (const char *[]) { __VA_ARGS__, 0 } )
+#define                      fs_ifinotin(s, ...) fs_inotin( (s), (const char *[]) { __VA_ARGS__, 0 } )
+
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
 extern int                   fs_techfprint(FILE *restrict out, const fs *restrict s, const char *name);
@@ -346,16 +375,16 @@ static inline int            fs_print_arr(const fs *restrict arrs[]){
 
 
 #define                      fstechfprint(out, s) fs_techfprint( (out), &(s), #s)
-#define                      fstechprint(s) fs_techprint( &(s), #s)
+#define                      fstechprint(s)       fs_techprint( &(s), #s)
 
 #define                      fsfprint(out, s) fs_fprint( (out), &(s), #s)
-#define                      fsprint(s) fs_print( &(s), #s)
+#define                      fsprint(s)       fs_print( &(s), #s)
 
 #define                      fsfprintlim(out, s, lim) fs_fprintlim( (out), &(s), (lim), #s)
-#define                      fsprintlim(s, lim) fs_printlim( &(s), lim, #s)
+#define                      fsprintlim(s, lim)       fs_printlim( &(s), lim, #s)
 
 #define                      fsfprint_arr(out, ...) fs_fprint_arr(out, (const fs *[]) { __VA_ARGS__, 0} )
-#define                      fsprint_arr(...) fs_print_arr( (const fs *[]) { __VA_ARGS__, 0} )
+#define                      fsprint_arr(...)       fs_print_arr( (const fs *[]) { __VA_ARGS__, 0} )
 
 extern bool                  fs_validate(FILE *restrict out, const fs *restrict s);
 

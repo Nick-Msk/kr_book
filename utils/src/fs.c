@@ -1053,6 +1053,39 @@ tf14(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
+// ------------------------- TEST 15 ---------------------------------
+
+static TestStatus
+tf15(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: fs_ifnotin", ++subnum);
+    {
+        const char  pt[] = "qwe1";
+        fs          s = fscopy(pt);
+
+        if (!fs_ifnotin(s, "a", "in", "z", "bbbbm", "qqqqq") )
+            return logacterr( fsfree(s), TEST_FAILED, "not in return false, but it must be true");
+
+        if (fs_ifnotin(s, "a", "in", "z", "bbbbm", "qqqqq", pt) )
+            return logacterr( fsfree(s), TEST_FAILED, "not in return true, but it must be false");
+
+    test_sub("subtest %d: fs_ifinotin", ++subnum);
+
+        if (!fs_ifinotin(s, "a", "in", "z", "bbbbm", "QQQQQ") )
+            return logacterr( fsfree(s), TEST_FAILED, "not in return false, but it must be true");
+
+        if (fs_ifinotin(s, "a", "in", "z", "VVBDFDFFDS", "qqqqq", "QWE1", "sds") )
+            return logacterr( fsfree(s), TEST_FAILED, "not in return true, but it must be false");
+
+        fsfree(s);
+    }
+    check_leak(true);
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -1074,6 +1107,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf12, .num = 12, .name = "fs_free_alloc_checker test"         , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf13, .num = 13, .name = "fs_move simple test"                , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf14, .num = 14, .name = "fs_substr/newsubstr simple test"    , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf15, .num = 15, .name = "fs_ifnotin/fs_ifinotin simple test" , .desc=""                , .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
