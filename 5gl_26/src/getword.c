@@ -7,8 +7,8 @@
 static inline int       skip_spaces(bool get_newline){
     int c;
     while (isspace( c = getch() ) )
-            if (get_newline && c != '\n')
-                break;
+        if (get_newline && c == '\n')
+            break;
     return c;
 }
 
@@ -64,6 +64,7 @@ fs                      getword(fs str, bool tolower, bool comments, bool get_ne
 
     c = comments ? skip_spaces(get_newline) : skip_cl();       // comment and so on are allowed! TODO: probably use flag -c
     if (c != EOF){
+        logauto((char) c);
         elemnext(iter) = clower(c, !tolower);
     } else
         elemclear(iter);    // end flag
