@@ -3,9 +3,10 @@
 #include "fs_iter.h"
 #include "buffer.h"
 
-static inline int       skip_spaces(void){
+// probably some configuration is required to  gather tolower, comments, skip_newline
+static inline int       skip_spaces(bool get_newline){
     int c;
-    while (isspace( c = getch() ) )
+    while (isspace( c = getch() ) || (get_newline && c != '\n' ) )
         ;
     return c;
 }
@@ -17,7 +18,7 @@ static int               skip_cl(void){
 
     while (comment_and_lines){
 
-        c = skip_spaces();
+        c = skip_spaces(false);
         // SKIP comment or literals
         comment_and_lines = false;
         if (c == '/'){
@@ -52,7 +53,7 @@ static int               skip_cl(void){
 
 
 // str must have heap alloc
-fs                      getword(fs str, bool tolower, bool comments){
+fs                      getword(fs str, bool tolower, bool comments, bool get_newline){
 
     logenter("sens %s", bool_str(tolower) );
 
@@ -60,7 +61,7 @@ fs                      getword(fs str, bool tolower, bool comments){
     int              c;
     fsnew            iter = fsinew(&str);
 
-    c = comments ?  skip_spaces() : skip_cl();       // comment and so on are allowed! TODO: probably use flag -c
+    c = comments ? skip_spaces(get_newline) : skip_cl();       // comment and so on are allowed! TODO: probably use flag -c
     if (c != EOF){
         elemnext(iter) = clower(c, !tolower);
     } else
