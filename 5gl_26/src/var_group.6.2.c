@@ -89,7 +89,7 @@ int                      main(int argc, const char *argv[]){
     tnode       *root = 0;
     fs           word = FS();   // init empty with fsalloc
 
-    while ( !fsisempty(word = getword(word, ke.tolower, false) ) ) {       // false means without comment, line and so on
+    while ( !fsisempty(word = getword(word, ke.tolower, false, false) ) ) {       // false means without comment, line and so on
         if (isalpha_u(*fsstr(word) ) )
             root = tree_add(root, &word, ke.length);        // grouping by length
     }
