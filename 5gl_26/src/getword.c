@@ -6,8 +6,9 @@
 // probably some configuration is required to  gather tolower, comments, skip_newline
 static inline int       skip_spaces(bool get_newline){
     int c;
-    while (isspace( c = getch() ) || (get_newline && c != '\n' ) )
-        ;
+    while (isspace( c = getch() ) )
+            if (get_newline && c != '\n')
+                break;
     return c;
 }
 
@@ -55,7 +56,7 @@ static int               skip_cl(void){
 // str must have heap alloc
 fs                      getword(fs str, bool tolower, bool comments, bool get_newline){
 
-    logenter("sens %s", bool_str(tolower) );
+    logenter("sens %s, get_newline %s", bool_str(tolower), bool_str(get_newline) );
 
     fsclear(str);   // reset
     int              c;
