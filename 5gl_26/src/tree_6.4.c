@@ -5,7 +5,8 @@
 #include "fs_array.h"
 #include "tree_6.4.h"
 
-static const int                G_FSARR_INITCAP = 10;
+static const int                G_COUNT_NODE_INITCAP    = 10;
+static const int                G_FSARRAY_PRINT_NEWLINE = 10;
 
 // ----------------------------------- Utility ----------------------------------------------
 static void                     cnode_tree_freenode(count_node *node){
@@ -14,12 +15,24 @@ static void                     cnode_tree_freenode(count_node *node){
 }
 
 static int                      printfsarray(fsarray lst, int tot){
-    TODO:
+    int cnt = 0, i;
+    // TODO: not a good silution, probably better to let fsarray to print there own itself!
+    // but what about FORMAT?
+    for (i = 0; i < tot; i++){
+        cnt += printf("[%s]", fsstr(lst.ar[i]) );
+        if (i < tot - 1)
+            cnt += printf(", ");
+        if (i % G_FSARRAY_PRINT_NEWLINE == G_FSARRAY_PRINT_NEWLINE - 1)
+            cnt += printf("\n");
+    }
+    if (i > 0 && i % G_FSARRAY_PRINT_NEWLINE != 0)
+        cnt += printf("\n");
+    return cnt;
 }
 
 // node != 0
 static int                      cnode_tree_prinwordcntnode(const count_node* node){
-    int cnt = printf("%d:", node->value);
+    int cnt = printf("%4d:", node->value);
     cnt += printfsarray(node->strs, node->cnt);
     return cnt;
 }
@@ -33,7 +46,7 @@ static count_node              *cnode_tree_createnode(int value, const fs *str){
     if (!node)
         userraiseint(ERR_UNABLE_ALLOCATE, "%zu bytes", sizeof(count_node) );
     node->value = value;
-    node->strs = fsarr_init(G_FSARR_INITCAP);   // will raise if not allocated
+    node->strs = fsarr_init(G_COUNT_NODE_INITCAP);   // will raise if not allocated
     node->cnt = 0;      // iterator
     node->strs.ar[node->cnt++] = fs_clone(str);
     node->left = node->right = 0;
@@ -53,10 +66,11 @@ count_node                     *cnode_tree_add(count_node *restrict node, int va
     int     cond;
     if (!node)
         node = cnode_tree_createnode(value, str);
-    else if ( (cond = (value == node->value) ) ){ // find + attach
+    else if ( ( cond = (value - node->value) ) == 0){ // find + attach
         if (node->cnt >= node->strs.cnt)
-            fsarr_increaseby(&node->strs, G_FSARR_INITCAP);    // increase
-        node->strs.ar[node->cnt++] = fs_clone(str);;
+            fsarr_increaseby(&node->strs, G_COUNT_NODE_INITCAP);    // increase
+        //logsimple("for %d:%s cnt = %d", value, str->v, node->cnt);
+        node->strs.ar[node->cnt++] = fs_clone(str);
     }
     else if (cond < 0)
         node->left = cnode_tree_add(node->left, value, str);

@@ -11,11 +11,12 @@
 typedef struct Keys {
     bool        version;
     bool        tolower;
+    bool        reverse;
     char       *filename;
     // ...
 } Keys;
 
-#define                 Keysinit(...) (Keys){ .version = false, .tolower = false, .filename = 0, __VA_ARGS__}
+#define                 Keysinit(...) (Keys){ .version = false, .tolower = false, .filename = 0, .reverse = false, __VA_ARGS__}
 
 static int              parse_keys(const char *argv[], Keys *ke){
     logenter("...");
@@ -39,6 +40,12 @@ static int              parse_keys(const char *argv[], Keys *ke){
                         params++;
                     }
                 break;
+                case 'r':
+                    if (!ke->reverse){
+                        ke->reverse = true;
+                        params++;
+                    }
+                break;
                 case 'f':
                     ke->filename = (char *) argv[1];        // save pointer
                     argv++; // next argv is filename
@@ -53,7 +60,9 @@ static int              parse_keys(const char *argv[], Keys *ke){
     return logret(argc, "params %d, argc %d", params, argc);
 }
 
-static const char   *usage_str = "Usage: %s -v -f -i\n";
+static const char   *usage_str = "Usage: %s -v -f -i -r\n";
+
+static count_node       *cnode_tree_iterall(const wordcntnode *restrict root, count_node *restrict orig);
 
 int                      main(int argc, const char *argv[]){
     logsimpleinit("Start");
@@ -88,12 +97,12 @@ int                      main(int argc, const char *argv[]){
 
     printf("Total: %d\n", wcnt_tree_print(root) );
 
-    //tnode_p64 *cntr = tnode_p64_iterall(root, 0);   // convert
+    count_node      *cntr = cnode_tree_iterall(root, 0);   // convert
 
     wcnt_tree_free(root);
 
-    //printf("Total: %d\n", intttree_print(cntr) );    // print as counter
-    //intttree_free(cntr);
+    printf("Total: %d\n", cnode_tree_print(cntr, ke.reverse) );    // print as counter
+    cnode_tree_free(cntr);
 
     if (in != stdin)
         fclose(in);
@@ -104,5 +113,15 @@ int                      main(int argc, const char *argv[]){
         logmsg("Warning: incorrect allocation of fs's");
 
     return logret(0, "end...");  // as replace of logclose()
+}
+
+// should be creared via macros
+static count_node       *cnode_tree_iterall(const wordcntnode *restrict orig, count_node *restrict root){
+    if (orig){
+        root = cnode_tree_iterall(orig->left, root);
+        root = cnode_tree_add(root, orig->cnt, &orig->word); /* ACTION HERE */
+        root = cnode_tree_iterall(orig->right, root);
+    }
+    return root;
 }
 
