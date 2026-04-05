@@ -25,7 +25,6 @@ static int              parse_keys(const char *argv[], Keys *ke){
         return userraiseint(-1, "Zero ke!!! Error!");   // raise here
     char    c, *pos;;
     while (*++argv != 0 && **argv == '-'){
-        logauto(*argv);
         argc++;
         while ( (c = *++argv[0]) )
             switch (tolower(c)){
@@ -42,13 +41,11 @@ static int              parse_keys(const char *argv[], Keys *ke){
                     }
                 case 'f':
                     ke->filename = (char *) argv[0] + 1;        // save pointer
-                    logauto(ke->filename);
                     argv[0] += strlen(argv[0]) - 1;
                     params++;
                 break;
                 case 'l':
                     ke->length = strtol(++argv[0], &pos, 10);
-                    logauto(ke->length);
                     argv[0] = pos - 1; // -1 to break next while()
                     params++;
                 break;
