@@ -39,7 +39,8 @@ static int              parse_keys(const char *argv[], Keys *ke){
                     }
                 case 'f':
                     ke->filename = (char *) argv[1];        // save pointer
-                    argv[0] ++; // next argv is filename
+                    argv++; // next argv is filename
+                    argv[0] += strlen(argv[0]) - 1; // shift
                     params++;
                 break;
                 default:    // probaly it's possible to ignore unknows parameters
