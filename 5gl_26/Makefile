@@ -54,6 +54,9 @@ var_group.6.2: src/var_group.6.2.c lib/tree_6.2.o lib/log.o lib/common.o lib/buf
 cross_link.6.3: src/cross_link.6.3.c lib/tree_6.3.o lib/log.o lib/common.o lib/buffer.o lib/fs.o lib/error.o lib/fileutils.o lib/checker.o lib/getword.o lib/array.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+calc_count.6.4: src/calc_count.6.4.c lib/tree_6.4.o lib/word_tree.o lib/log.o lib/common.o lib/buffer.o lib/fs.o lib/error.o lib/fileutils.o lib/checker.o lib/getword.o lib/array.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
@@ -112,6 +115,15 @@ lib/tree_6.2.o: src/tree_6.2.c
 lib/tree_6.3.o: src/tree_6.3.c
 	$(CC) $(CFLAGS) -I./src  $^ -c
 	@mv tree_6.3.o lib/
+
+lib/tree_6.4.o: src/tree_6.4.c
+	$(CC) $(CFLAGS) -I./src  $^ -c
+	@mv tree_6.4.o lib/
+
+# just a regular word + count tree
+lib/word_tree.o: src/word_tree.c
+	$(CC) $(CFLAGS) -I./src  $^ -c
+	@mv word_tree.o lib/
 
 lib/getword.o: src/getword.c
 	$(CC) $(CFLAGS) -I./src  $^ -c
