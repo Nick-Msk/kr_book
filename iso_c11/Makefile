@@ -64,11 +64,8 @@ timespec_get_test: timespec_get_test.c
 test-cmp-doc: test-cmp-doc.c
 	$(CC) $(CFLAGS) $^ -o $@_test
 
-# WO error fow now, for simplify
-#error: error.o error.h log.c common.c	# can depends on log, not sure
-#	$(CC) $(FLAGS) $^ -o $@_test
-
-#error.o: error.c
+test-next-prime: src/test-next-prime.c
+	$(CC) $(CFLAGS) $^ -o out/$@_test
 
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
