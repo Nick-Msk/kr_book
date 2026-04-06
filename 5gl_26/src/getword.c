@@ -54,9 +54,9 @@ static int               skip_cl(void){
 
 
 // str must have heap alloc
-fs                      getword(fs str, bool tolower, bool comments, bool get_newline){
+fs                      getword(fs str, bool lower, bool comments, bool get_newline){
 
-    logenter("sens %s, get_newline %s", bool_str(tolower), bool_str(get_newline) );
+    logenter("tolower %s, get_newline %s", bool_str(lower), bool_str(get_newline) );
 
     fsclear(str);   // reset
     int              c;
@@ -64,7 +64,7 @@ fs                      getword(fs str, bool tolower, bool comments, bool get_ne
 
     c = comments ? skip_spaces(get_newline) : skip_cl();       // comment and so on are allowed! TODO: probably use flag -c
     if (c != EOF){
-        elemnext(iter) = clower(c, !tolower);
+        elemnext(iter) = clower(c, lower);
     } else
         elemclear(iter);    // end flag
 
@@ -77,7 +77,7 @@ fs                      getword(fs str, bool tolower, bool comments, bool get_ne
             ungetch(c);
             break;
         } else
-            elemnext(iter) = clower(c, !tolower);
+            elemnext(iter) = clower(c, lower);
     }
     elemend(iter);
 

@@ -36,7 +36,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
                 break;
                 case 'i':
                     if (!ke->tolower){
-                        ke->tolower = true;
+                        logauto(ke->tolower = true);
                         params++;
                     }
                 break;
@@ -90,7 +90,7 @@ int                      main(int argc, const char *argv[]){
     wordcntnode *root = 0;
     fs           word = FS();   // init empty with fsalloc
 
-    while ( !fsisempty(word = getword(word, !ke.tolower, false, false) ) ) { // refactored to apply new parameters of getword()
+    while ( !fsisempty(word = getword(word, ke.tolower, false, false) ) ) { // refactored to apply new parameters of getword()
         if (isalpha_u(*fsstr(word) ) )
             root = wcnt_tree_add(root, &word);
     }
