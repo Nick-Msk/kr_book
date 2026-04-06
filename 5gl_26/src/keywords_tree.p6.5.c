@@ -14,10 +14,10 @@
 
 typedef struct Keys {
     bool    version;
-    bool    sens;
+    bool    lower;
     // ...
 } Keys;
-#define                 Keysinit(...) (Keys){ .version = false, .sens = true, __VA_ARGS__}
+#define                 Keysinit(...) (Keys){ .version = false, .lower = false, __VA_ARGS__}
 
 static int              parse_keys(const char *argv[], Keys *ke){
     logenter("...");
@@ -35,9 +35,9 @@ static int              parse_keys(const char *argv[], Keys *ke){
                         params++;
                     }
                 break;
-                case 'i':
-                    if (ke->sens){
-                        ke->sens = false;
+                case 'l':
+                    if (!ke->lower){
+                        ke->lower = false;
                         params++;
                     }
                 break;
@@ -88,7 +88,7 @@ int                      main(int argc, const char *argv[]){
     tnode       *root = 0;
     fs           word = FS();   // init empty with fsalloc
 
-    while ( !fsisempty(word = getword(word, ke.sens, false, false) ) ) { // refactored to apply new parameters of getword()
+    while ( !fsisempty(word = getword(word, ke.lower, false, false) ) ) { // refactored to apply new parameters of getword()
         if (isalpha_u(*fsstr(word) ) )
             root = tree_add(root, &word);
     }
