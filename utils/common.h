@@ -245,12 +245,12 @@ static inline bool              isalnum_u(int c){
     return isalnum(c) || c == '_';
 }
 
-static inline int clower(int c, bool sens){
-    return sens ? c: tolower(c);
+static inline int clower(int c, bool lower){
+    return lower ? tolower(c) : c;
 }
 
-static inline int cupper(int c, bool sens){
-    return sens ? c: toupper(c);
+static inline int cupper(int c, bool upper){
+    return upper ? toupper(c) : c;
 }
 
 typedef enum {SIZE_NONE = 0, SIZE_POWER2, SIZE_MIN10 } Tincrease; 
