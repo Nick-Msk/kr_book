@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "log.h"
 #include "fs.h"
@@ -11,11 +12,12 @@
 typedef struct Keys {
     bool        version;    // bool example
     bool        string;
+    int         size;
     char       *filename;
     // ...
 } Keys;
 
-#define                 Keysinit(...) (Keys){ .version = false, .string = 0, __VA_ARGS__}
+#define                 Keysinit(...) (Keys){ .version = false, .string = 0, .size = 15, __VA_ARGS__}
 
 static int              parse_keys(const char *argv[], Keys *ke){
     logenter("...");
@@ -39,6 +41,12 @@ static int              parse_keys(const char *argv[], Keys *ke){
                     argv[0] += strlen(argv[0]) - 1; // shift
                     params++;
                 break;
+                case 's':
+                    ke->size = atoi(argv[1]);        // save value
+                    argv++;
+                    argv[0] += strlen(argv[0]) - 1; // shift
+                    params++;
+                break;
                 default:    // probaly it's possible to ignore unknows parameters
                     fprintf(stderr, "Illegal option [%c]\n", c);
                     return logerr(-1, "Illegal [%c], params [%d] argc %d", c, params, argc);
@@ -47,9 +55,10 @@ static int              parse_keys(const char *argv[], Keys *ke){
     return logret(argc, "params %d, argc %d", params, argc);
 }
 
-const char *usage_str = "Usage: %s <val1:TYPE1> <val2:TYPE2>\n";
+const char *usage_str = "Usage: %s -v -s\n";
 
-static int              proc_defines(void);
+static int              proc_defines(int size);
+static int              do_test_juns(int count);
 
 int                     main(int argc, const char *argv[]){
     logsimpleinit("Start");
@@ -67,7 +76,7 @@ int                     main(int argc, const char *argv[]){
         return 0;
     }
 
-    int cnt = proc_defines();
+    int cnt = proc_defines(ke.size);
     if (cnt < 0)
         fprintf(stderr, "Procedding failed\n");
     else
@@ -79,14 +88,14 @@ int                     main(int argc, const char *argv[]){
     return logret(0, "end...");  // as replace of logclose()
 }
 
-static int              proc_defines(void){
+static int              proc_defines(int size){
 
-    stringhash      h = strhash_create(200, HASH_SIMPLE);    // 200 not sure
+    stringhash      h = strhash_create(size, HASH_SIMPLE);    // 200 not sure
 
     // do some tests here
     int     cnt = 0;
     fs      str = FS(), val = FS();
-    bool    def_flag = false, undef_flag = false, print_flag = false;
+    bool    def_flag = false, undef_flag = false, print_flag = false, test_flag = false;;
     char   *name, *value;
 
     printf(">");
@@ -107,14 +116,20 @@ static int              proc_defines(void){
             undef_flag = false;
             name = fsstr(str);
             if (strhash_undef(&h, name) )
-                printf("Undefined [%s]\n", fsstr(str) );
+                printf("Removed [%s]\n", fsstr(str) );
             else
                 printf("Not found [%s]\n", fsstr(str) );
-        }  else {
+        }  else if (test_flag){
+            test_flag = false;
+            int count = atoi(fsstr(str) );
+            do_test_juns(count);
+        } else {
             if (strncmp(str.v, "define", 3) == 0)
                 def_flag = true;
             else if (strncmp(str.v, "undef", 3) == 0)
                 undef_flag = true;
+            else if (strncmp(str.v, "test", 3) == 0)
+                test_flag = true;
             else if (strncmp(str.v, "printall", 3) == 0)
                 strhash_print(&h);
             else if (strncmp(str.v, "quit", 1) == 0)
@@ -130,3 +145,7 @@ static int              proc_defines(void){
     return cnt;
 }
 
+static int              do_test_juns(int count){
+    // DO SMTH: TODO
+    printf("NOT YET IMPLEMENTED\n");
+}

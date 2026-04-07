@@ -125,15 +125,15 @@ stringlist                 *strhash_install(stringhash *restrict hashtab, const 
 
 bool                        strhash_undef(stringhash *restrict hashtab, const char *restrict name){
     logenter("%s", name);
-    bool        ret = false;
-    stringlist *np, *nprev = 0;
-    for (np = hashtab->tab[strhash(hashtab, name)]; np != 0; nprev = np, np = np->next){
-        logauto( (void *)np);
-        logauto(np->name);
+    bool            ret = false;
+    stringlist     *np, *nprev = 0;
+    int             pos;
+    for (np = hashtab->tab[pos = strhash(hashtab, name)]; np != 0; nprev = np, np = np->next){
         if (strcmp(np->name, name) == 0){
-            logmsg("nprev->next = %p, np->next %p", nprev->next, np->next);
-            
-            nprev->next = np->next;
+            if (nprev == 0) // first iteration
+                hashtab->tab[pos] = np->next;
+            else
+                nprev->next = np->next;
             freeelement(np);
             return logret(true, "Unmapped");
         }
