@@ -7,18 +7,18 @@
 
 // TODO: think about fs instead of char *
 typedef struct stringlist {
-    struct fslist          *next;
+    struct stringlist      *next;
     char                   *name;
     char                   *defn;
 } stringlist;
 
 typedef enum StringHashType { HASH_SIMPLE = 0 } StringHashType;
 
-typedef stringhash {
+typedef struct stringhash {
     int             sz;
     StringHashType  typ;
-    stringlist     *tab;
-}
+    stringlist    **tab;
+} stringhash;
 
 
 // num will be upscaled to simple number
@@ -33,6 +33,11 @@ extern stringlist         *strhash_lookup(const stringhash *restrict hashtab, co
 extern stringlist         *strhash_install(stringhash *restrict hashtab,  const char *restrict str, const char *restrict val);
 
 extern bool                strhash_undef(stringhash *restrict hashtab, const char *restrict str);
+
+extern int                 strhash_fprint(FILE *restrict out, const stringhash *restrict hashtab);
+static inline int          strhash_print(const stringhash *hashtab){
+    return strhash_fprint(stdout, hashtab);
+}
 
 #endif /* !_STRING_HASH_H */
 

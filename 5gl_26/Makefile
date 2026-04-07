@@ -57,7 +57,7 @@ cross_link.6.3: src/cross_link.6.3.c lib/tree_6.3.o lib/log.o lib/common.o lib/b
 calc_count.6.4: src/calc_count.6.4.c lib/tree_6.4.o lib/word_tree.o lib/log.o lib/common.o lib/buffer.o lib/fs.o lib/error.o lib/fileutils.o lib/checker.o lib/getword.o lib/array.o lib/fs_array.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-hash_table.6.5: src/hash_table.6.5.c lib/log.o lib/common.o lib/fs.o lib/error.o
+hash_table.6.5: src/hash_table.6.5.c lib/string_hash.o lib/log.o lib/common.o lib/fs.o lib/error.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 UTIL_PATH = ../utils
@@ -131,6 +131,10 @@ lib/word_tree.o: src/word_tree.c
 lib/getword.o: src/getword.c
 	$(CC) $(CFLAGS) -I./src  $^ -c
 	@mv getword.o lib/
+
+lib/string_hash.o: src/string_hash.c
+	$(CC) $(CFLAGS) -I./src  $^ -c
+	@mv string_hash.o lib/
 
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:

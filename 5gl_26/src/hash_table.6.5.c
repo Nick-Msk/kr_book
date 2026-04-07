@@ -65,6 +65,14 @@ int                     main(int argc, const char *argv[]){
     }
 
     // TODO: code from here!
+    stringhash      h = strhash_create(200);    // 200 not sure
+    if (!h){
+        fprintf(stderr, "unable to create hash 200\n");
+        return 2;
+    }
+
+    // do some tests here
+    
 
     if (!fs_alloc_check(false))
         logmsg("Warning: incorrect allocation of fs's");
