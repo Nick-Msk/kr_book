@@ -5,6 +5,11 @@
 #include "bool.h"
 
 extern fs                getword(fs str, bool sens, bool comments, bool get_newline);
+// STR MUST BE init with alloc flag
+static bool              getsimpleword(fs *str){
+    *str = getword(*str, false, false, false);
+    return !fsisnull(*str);
+}
 
 #endif /* ! _GETWORD_H */
 
