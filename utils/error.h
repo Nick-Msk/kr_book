@@ -25,6 +25,7 @@ static const int                        ERR_UNABLE_ALLOCATE         = 15;
 
 static const int                        ERR_WRONG_INPUT_FORMAT      = 20;
 static const int                        ERR_NOT_ENOGH_VALUES        = 21;
+static const int                        ERR_WRONG_PARAMETER         = 22;
 
 static const int                        ERR_UNABLE_OPEN_FILE        = 50;
 static const int                        ERR_UNABLE_OPEN_FILE_READ   = 51;
