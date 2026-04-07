@@ -44,11 +44,18 @@ static int                 fprintstrlist(FILE *restrict out, const stringlist *r
         cnt += fprintf(out, "[%s:%s] ", lst->name, lst->defn);
         if (i % G_STRINGLIST_NEWLINE == G_STRINGLIST_NEWLINE - 1)
             cnt += fprintf(out, "\n");
+        lst = lst->next;
     }
     if (i > 0 && i % G_STRINGLIST_NEWLINE != 0)
         cnt += fprintf(out, "\n");
     return cnt;
 };
+// np != 0
+static void                 freeelement(stringlist *np){
+    free(np->name);
+    free(np->defn);
+    free(np);
+}
 
 // ----------------------------------------- API --------------------------------------
 // num will be upscaled to simple number
@@ -116,9 +123,12 @@ stringlist                 *strhash_install(stringhash *restrict hashtab, const 
 
 bool                        strhash_undef(stringhash *restrict hashtab, const char *restrict name){
     bool        ret = false;
-    stringlist *np;
-    if ( (np = strhash_lookup(hashtab, name) ) ){
-        // TODO:
+    stringlist *np, *nprev = 0;
+    for (np = hashtab->tab[strhash(hashtab, name)]; np != 0; nprev = np, np = np->next){
+        if (strcmp(np->name, name) == 0){
+            nprev->next = np->next;
+            freeelement(np);
+        }
     }
     return ret; 
 }

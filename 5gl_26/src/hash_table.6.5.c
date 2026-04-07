@@ -88,30 +88,39 @@ static int              proc_defines(void){
     fs      str = FS(), val = FS();
     bool    def_flag = false, undef_flag = false, print_flag = false;
     char   *name, *value;
+
+    printf(">");
     while (getsimpleword(&str) ){
         if (def_flag){
+            def_flag = false;
             name = fsstr(str);
             if (getsimpleword(&val) )
                 value = fsstr(val);
+            else
+                continue;
             if (!strhash_install(&h, name, value) )
                 fprintf(stderr, "Unable to install [%s:%s]\n", name, value);
             else
                 printf("Installed! (%d)\n", ++cnt);
         }
         else if (undef_flag){
+            undef_flag = false;
             name = fsstr(str);
             if (strhash_undef(&h, name) )
                 printf("Undefined [%s]\n", fsstr(str) );
             else
                 printf("Not found [%s]\n", fsstr(str) );
         }  else {
-            if (strcmp(str.v, "#define") )
+            if (strcmp(str.v, "define") == 0)
                 def_flag = true;
-            else if (strcmp(str.v, "#define") )
+            else if (strcmp(str.v, "undef") == 0)
                 undef_flag = true;
-            else if (strcmp(str.v, "printall") )
+            else if (strcmp(str.v, "printall") == 0)
                 strhash_print(&h);
+            else if (strcmp(str.v, "quit") == 0)
+                break;
         }
+        printf("\n>");
     }
     strhashfree(h);
     fsfree(str);
