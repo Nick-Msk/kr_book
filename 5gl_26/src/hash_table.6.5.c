@@ -111,14 +111,16 @@ static int              proc_defines(void){
             else
                 printf("Not found [%s]\n", fsstr(str) );
         }  else {
-            if (strcmp(str.v, "define") == 0)
+            if (strncmp(str.v, "define", 3) == 0)
                 def_flag = true;
-            else if (strcmp(str.v, "undef") == 0)
+            else if (strncmp(str.v, "undef", 3) == 0)
                 undef_flag = true;
-            else if (strcmp(str.v, "printall") == 0)
+            else if (strncmp(str.v, "printall", 3) == 0)
                 strhash_print(&h);
-            else if (strcmp(str.v, "quit") == 0)
+            else if (strncmp(str.v, "quit", 1) == 0)
                 break;
+            else
+                printf("Unknown command [%s]", str.v);
         }
         printf("\n>");
     }

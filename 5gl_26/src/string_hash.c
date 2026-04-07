@@ -31,9 +31,10 @@ static inline stringlist  *alloclist(void){
 }
 
 static unsigned            hash_simple(const char *str, unsigned max){
+    const char *s = str;
     unsigned long hashval = 0L;
-    for (; *str != '\0'; str++)
-        hashval = *str + 31 * hashval;
+    for (; *s != '\0'; s++)
+        hashval = *s + 31 * hashval;
     hashval %= max;
     return logsimpleret( (unsigned) hashval, "Generated %u for [%s]", (unsigned) hashval, str);
 }
@@ -77,7 +78,8 @@ stringhash                 strhash_create(int num, StringHashType typ){
 
 void                       strhash_free(stringhash *hash){
     for (int i = 0; i < hash->sz; i++)
-        freelist(hash->tab[i]);
+        if (hash->tab[i])
+            freelist(hash->tab[i]);
     hash->sz = 0;
     hash->tab = 0;
 }
@@ -122,23 +124,31 @@ stringlist                 *strhash_install(stringhash *restrict hashtab, const 
 }
 
 bool                        strhash_undef(stringhash *restrict hashtab, const char *restrict name){
+    logenter("%s", name);
     bool        ret = false;
     stringlist *np, *nprev = 0;
     for (np = hashtab->tab[strhash(hashtab, name)]; np != 0; nprev = np, np = np->next){
+        logauto( (void *)np);
+        logauto(np->name);
         if (strcmp(np->name, name) == 0){
+            logmsg("nprev->next = %p, np->next %p", nprev->next, np->next);
+            
             nprev->next = np->next;
             freeelement(np);
+            return logret(true, "Unmapped");
         }
     }
-    return ret; 
+    return ret;
 }
 
 int                         strhash_fprint(FILE *restrict out, const stringhash *restrict hashtab){
     int     cnt = 0;
     if (out && hashtab){
         for (int i = 0; i < hashtab->sz; i++)
-            if (hashtab->tab[i])
+            if (hashtab->tab[i]){
+                printf("%4d: ", i);
                 cnt += fprintstrlist(out, hashtab->tab[i]);
+            }
     }
     return cnt;
 }
