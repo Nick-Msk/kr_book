@@ -24,7 +24,7 @@ typedef struct stringhash {
 // num will be upscaled to simple number
 extern stringhash          strhash_create(int num, StringHashType typ);
 
-extern void                strhash_free(stringhash hashtab);
+extern void                strhash_free(stringhash *hashtab);
 
 extern unsigned            strhash(const stringhash *restrict hashtab, const char *restrict str);
 
@@ -38,6 +38,8 @@ extern int                 strhash_fprint(FILE *restrict out, const stringhash *
 static inline int          strhash_print(const stringhash *hashtab){
     return strhash_fprint(stdout, hashtab);
 }
+
+#define                    strhashfree(h) strhash_free(&(h) )
 
 #endif /* !_STRING_HASH_H */
 

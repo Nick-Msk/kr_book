@@ -6,6 +6,7 @@
 #include "common.h"
 #include "error.h"
 #include "string_hash.h"
+#include "getword.h"
 
 typedef struct Keys {
     bool        version;    // bool example
@@ -48,6 +49,8 @@ static int              parse_keys(const char *argv[], Keys *ke){
 
 const char *usage_str = "Usage: %s <val1:TYPE1> <val2:TYPE2>\n";
 
+static int              proc_defines(void);
+
 int                     main(int argc, const char *argv[]){
     logsimpleinit("Start");
 
@@ -64,19 +67,55 @@ int                     main(int argc, const char *argv[]){
         return 0;
     }
 
-    // TODO: code from here!
-    stringhash      h = strhash_create(200);    // 200 not sure
-    if (!h){
-        fprintf(stderr, "unable to create hash 200\n");
-        return 2;
-    }
-
-    // do some tests here
-    
+    int cnt = proc_defines();
+    if (cnt < 0)
+        fprintf(stderr, "Procedding failed\n");
+    else
+        printf("Processed %d\n", cnt);
 
     if (!fs_alloc_check(false))
         logmsg("Warning: incorrect allocation of fs's");
 
     return logret(0, "end...");  // as replace of logclose()
+}
+
+static int              proc_defines(void){
+
+    stringhash      h = strhash_create(200, HASH_SIMPLE);    // 200 not sure
+
+    // do some tests here
+    int     cnt = 0;
+    fs      str = FS(), val = FS();
+    bool    def_flag = false, undef_flag = false, print_flag = false;
+    char   *name, *value;
+    while (getsimpleword(&str) ){
+        if (def_flag){
+            name = fsstr(str);
+            if (getsimpleword(&val) )
+                value = fsstr(val);
+            if (!strhash_install(&h, name, value) )
+                fprintf(stderr, "Unable to install [%s:%s]\n", name, value);
+            else
+                printf("Installed! (%d)\n", ++cnt);
+        }
+        else if (undef_flag){
+            name = fsstr(str);
+            if (strhash_undef(&h, name) )
+                printf("Undefined [%s]\n", fsstr(str) );
+            else
+                printf("Not found [%s]\n", fsstr(str) );
+        }  else {
+            if (strcmp(str.v, "#define") )
+                def_flag = true;
+            else if (strcmp(str.v, "#define") )
+                undef_flag = true;
+            else if (strcmp(str.v, "printall") )
+                strhash_print(&h);
+        }
+    }
+    strhashfree(h);
+    fsfree(str);
+    fsfree(val);
+    return cnt;
 }
 

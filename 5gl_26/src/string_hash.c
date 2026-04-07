@@ -7,6 +7,8 @@
 #include "error.h"
 #include "common.h"
 
+static const int                        G_STRINGLIST_NEWLINE = 10;
+
 // --------------------------------------- Utility ------------------------------------
 
 // list != 0
@@ -35,6 +37,18 @@ static unsigned            hash_simple(const char *str, unsigned max){
     hashval %= max;
     return logsimpleret( (unsigned) hashval, "Generated %u for [%s]", (unsigned) hashval, str);
 }
+// parameter aren't null
+static int                 fprintstrlist(FILE *restrict out, const stringlist *restrict lst){
+    int     cnt = 0, i = 0;
+    while(lst){
+        cnt += fprintf(out, "[%s:%s] ", lst->name, lst->defn);
+        if (i % G_STRINGLIST_NEWLINE == G_STRINGLIST_NEWLINE - 1)
+            cnt += fprintf(out, "\n");
+    }
+    if (i > 0 && i % G_STRINGLIST_NEWLINE != 0)
+        cnt += fprintf(out, "\n");
+    return cnt;
+};
 
 // ----------------------------------------- API --------------------------------------
 // num will be upscaled to simple number
@@ -54,9 +68,11 @@ stringhash                 strhash_create(int num, StringHashType typ){
     return tmp;
 }
 
-void                       strhash_free(stringhash hash){
-    for (int i = 0; i < hash.sz; i++)
-        freelist(hash.tab[i]);
+void                       strhash_free(stringhash *hash){
+    for (int i = 0; i < hash->sz; i++)
+        freelist(hash->tab[i]);
+    hash->sz = 0;
+    hash->tab = 0;
 }
 
 unsigned                    strhash(const stringhash *restrict hashtab, const char *restrict str){
@@ -108,6 +124,12 @@ bool                        strhash_undef(stringhash *restrict hashtab, const ch
 }
 
 int                         strhash_fprint(FILE *restrict out, const stringhash *restrict hashtab){
-    //TODO:
+    int     cnt = 0;
+    if (out && hashtab){
+        for (int i = 0; i < hashtab->sz; i++)
+            if (hashtab->tab[i])
+                cnt += fprintstrlist(out, hashtab->tab[i]);
+    }
+    return cnt;
 }
 
