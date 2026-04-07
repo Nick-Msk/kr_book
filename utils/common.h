@@ -276,4 +276,23 @@ static inline int               calcnewsize(Tincrease t, int n){
     return sz; //logsimpleret(sz, "newsz = %d", sz);
 }
 
+// int comparators
+static inline bool              int_not_in(int val, const int *arr){
+    while(*arr != INT_MIN)
+        if (val == *arr)
+            return false;
+    return true;
+}
+
+static inline bool              int__in(int val, const int *arr){
+    while(*arr != INT_MIN)
+        if (val == *arr)
+            return true;
+    return false;
+}
+
+// TODO: think about typeof
+#define                         int_notin(val, ...) int_not_in( (val),  (const int []) { __VA_ARGS__, INT_MIN} )
+#define                         int_in(val, ...)    int__in( (val),     (const int []) { __VA_ARGS__, INT_MIN} )
+
 #endif /* ! _COMMON_H */
