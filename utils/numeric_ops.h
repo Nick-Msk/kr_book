@@ -1,6 +1,8 @@
 #ifndef _NUMERIC_OPS_H
 #define _NUMERIC_OPS_H
 
+#include <math.h>
+
 /***************************************************************
                     USEFUL NUMERIC MACRO AND FUNCTIONS
 ***************************************************************/
