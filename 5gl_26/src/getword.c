@@ -1,7 +1,7 @@
-#include "getword.h"
 #include "log.h"
 #include "fs_iter.h"
 #include "buffer.h"
+#include "getword.h"
 
 // probably some configuration is required to  gather tolower, comments, skip_newline
 static inline int       skip_spaces(bool get_newline){
@@ -46,7 +46,7 @@ static int               skip_cl(void){
             while ( (c = getch()) != EOF && c != '\'')
                 ;
         }
-        logsimple("comment_and_lines %s", bool_str(comment_and_lines));
+        //logsimple("comment_and_lines %s", bool_str(comment_and_lines));
     }
     return logsimpleret(c, "[%c], comments %d", c, cnt);
 }
@@ -82,5 +82,42 @@ fs                      getword(fs str, bool lower, bool comments, bool get_newl
     elemend(iter);
 
     return logret(str, "%d - [%s]", str.len, str.v); // that is probably new str
+}
+
+bool                    getlexem(Lexem *lex, bool ign_comments){
+    int     c;
+    fsnew   iterstr;    // iterator-constructor
+
+    c = ign_comments ? skip_cl() : skip_spaces(false);
+    if (c != EOF){
+        fsclear(lex->str);  // only if any valuable input
+        iterstr = fsinew(&lex->str);
+    } else
+        return logsimpleret(false, "EOF detected");
+    lex->typ = LEXEM_UNK;  // init state
+    elemnext(iterstr) = c; // put into fs
+    // check the numbers
+    if (isdigit_signed(c) ){
+        if (c == '+' || c == '-')
+            c = getch();
+        //
+        if (!isdigit(c) ){   // not a number actually
+            lex->typ = LEXEM_SYM;
+        } else {
+            while ( (c = getch()) != EOF && isdigit(c) )
+                elemnext(iterstr) = c;
+            lex->typ = LEXEM_INT;
+        }
+    } else if (isalnum_u(c) ){      // just identifier or so on
+        while ( (c = getch()) != EOF && isalnum_u(c) )
+            elemnext(iterstr) = c;
+        lex->typ = LEXEM_WORD;
+    } else {
+        elemend(iterstr);
+        return logsimpleret(true, "Unknown symbol [%c]", c);
+    }
+    elemend(iterstr);
+    ungetch(c);
+    return logsimpleret(true, "Parsed %s", Lexemtype_str(lex->typ) );
 }
 

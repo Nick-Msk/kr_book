@@ -11,5 +11,26 @@ static bool              getsimpleword(fs *str){
     return !fsisnull(*str);
 }
 
+typedef enum { LEXEM_UNK = -1, LEXEM_WORD, LEXEM_INT, LEXEM_FLOAT, LEXEM_SYM } Lexemtype;
+
+static inline const char *Lexemtype_str(Lexemtype typ){
+    switch (typ){
+        CASE_RETURN(LEXEM_UNK);
+        CASE_RETURN(LEXEM_WORD);
+        CASE_RETURN(LEXEM_INT);
+        CASE_RETURN(LEXEM_FLOAT);
+        CASE_RETURN(LEXEM_SYM);
+        default: return "";
+    }
+}
+
+typedef struct Lexem {
+    fs          str;
+    Lexemtype   typ;
+} Lexem;
+
+// any lexem, word or number
+extern bool              getlexem(Lexem *lex, bool ign_comments);
+
 #endif /* ! _GETWORD_H */
 
