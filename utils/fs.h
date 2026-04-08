@@ -180,6 +180,10 @@ static inline char          *fs_setlen(fs *s, int poslen){
     return fs_get(s, poslen);
 }
 
+static inline char          *fs_clear(fs *s){
+    return fs_setlen(s, 0);
+}
+
 static inline int           fs_len(const fs *s){
     return s->len;
 }
@@ -349,7 +353,7 @@ static inline bool           fs_iin(fs s, const char *strs[]){
 #define                      fsetlen(s, poslen) *fs_setlen( (&s), (poslen) )
 // NOT sure if need fsend()
 #define                      fsend(s, poslen) *fs_setlen( (&s), (poslen) )
-#define                      fsclear(s) *fs_setlen( (&s), 0)
+#define                      fsclear(s) *fs_clear(&s)
 
 #define                      fsstr(s) fs_str(&(s) )
 
