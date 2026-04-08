@@ -235,6 +235,7 @@ static inline char              *reversel(char *s){
     return reverse(s, len);
 }
 
+// ----------------------------------- CHAR ----------------------------------------
 // isalpha or '_'
 static inline bool              isalpha_u(int c){
     return isalpha(c) || c == '_';
@@ -243,6 +244,10 @@ static inline bool              isalpha_u(int c){
 // isalnum or '_'
 static inline bool              isalnum_u(int c){
     return isalnum(c) || c == '_';
+}
+
+static inline bool              isdigit_signed(int c){
+    return isdigit(c) || c == '+' || c == '-';
 }
 
 static inline int clower(int c, bool lower){
