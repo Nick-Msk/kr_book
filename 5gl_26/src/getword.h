@@ -30,7 +30,7 @@ typedef struct Lexem {
     Lexemtype   typ;
 } Lexem;
 
-static inline const char *  Lexem_str(Lexem l){
+static inline const char *  Lexemstr(Lexem l){
     return fsstr(l.str);
 }
 

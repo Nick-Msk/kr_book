@@ -58,7 +58,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
 const char *usage_str = "Usage: %s -v -s\n";
 
 static int              proc_defines(int size);
-static int              do_test_juns(int count);
+static int              do_test_juns(stringhash *ph, int count);
 
 int                     main(int argc, const char *argv[]){
     logsimpleinit("Start");
@@ -94,58 +94,79 @@ static int              proc_defines(int size){
 
     // do some tests here
     int     cnt = 0;
-    fs      str = FS(), val = FS();
+    fs      name = FS();
+    Lexem   lex = LexemInit();
     bool    def_flag = false, undef_flag = false, print_flag = false, test_flag = false;;
-    char   *name, *value;
 
     printf(">");
-    while (getsimpleword(&str) ){
+    while (getlexem(&lex, false) ){
         if (def_flag){
             def_flag = false;
-            name = fsstr(str);
-            if (getsimpleword(&val) )
-                value = fsstr(val);
-            else
+            fscpy(name, lex.str);
+            if (!getlexem(&lex, false) )  // EOF?
                 continue;
-            if (!strhash_install(&h, name, value) )
-                fprintf(stderr, "Unable to install [%s:%s]\n", name, value);
+            if (!strhash_install(&h, fsstr(name), fsstr(lex.str) ) )
+                fprintf(stderr, "Unable to install [%s:%s]\n", fsstr(name), fsstr(lex.str) );
             else
                 printf("Installed! (%d)\n", ++cnt);
         }
         else if (undef_flag){
             undef_flag = false;
-            name = fsstr(str);
-            if (strhash_undef(&h, name) )
-                printf("Removed [%s]\n", fsstr(str) );
+            if (strhash_undef(&h, Lexemstr(lex) ) )
+                printf("Removed [%s]\n", Lexemstr(lex) );
             else
-                printf("Not found [%s]\n", fsstr(str) );
+                printf("Not found [%s]\n", Lexemstr(lex) );
         }  else if (test_flag){
             test_flag = false;
-            int count = atoi(fsstr(str) );
-            do_test_juns(count);
+            int count = atoi(Lexemstr(lex) );
+            printf("Start test suite with %d\n", count);
+            if (do_test_juns(&h, count) < 0)
+                fprintf(stderr, "Failed\n");
         } else {
-            if (strncmp(str.v, "define", 3) == 0)
+            const char *name = Lexemstr(lex);
+            // TODO: refactor that to normat search command API
+            if (strncmp(name, "define", 3) == 0)
                 def_flag = true;
-            else if (strncmp(str.v, "undef", 3) == 0)
+            else if (strncmp(name, "undef", 3) == 0)
                 undef_flag = true;
-            else if (strncmp(str.v, "test", 3) == 0)
+            else if (strncmp(name, "test", 3) == 0)
                 test_flag = true;
-            else if (strncmp(str.v, "printall", 3) == 0)
+            else if (strncmp(name, "clear", 3) == 0)
+                strhash_clear(&h);
+            else if (strncmp(name, "printall", 3) == 0)
                 strhash_print(&h);
-            else if (strncmp(str.v, "quit", 1) == 0)
+            else if (strncmp(name, "quit", 1) == 0)
                 break;
             else
-                printf("Unknown command [%s]", str.v);
+                printf("Unknown command [%s]", name);
         }
         printf("\n>");
     }
     strhashfree(h);
-    fsfree(str);
-    fsfree(val);
+    fsfree(name);
     return cnt;
 }
 
-static int              do_test_juns(int count){
+static int              do_test_juns(stringhash *ph, int count){
     // DO SMTH: TODO
-    printf("NOT YET IMPLEMENTED\n");
+    fs      name = FS(),
+            value = FS();
+    int     i, rem_cnt = 0;;
+    for (i = 0; i < count; i++){
+        fssprintf(name, "Name_%4d", i);
+        fssprintf(value, "%4d", i + 1);
+        if (!strhash_fsinstall(ph, &name, &value) )
+            return logsimpleactret( (fsfree(name), fsfree(value) ), -1, "Failed on %d", i);
+    }
+    strhash_print(ph);
+    for (i = 0; i < count; i += rndint(10) ){
+        fssprintf(name, "Name_%4d", i);
+        strhash_fsundef(ph, &name);
+        rem_cnt++;
+    }
+    printf("Removed %d, remained %d\n", rem_cnt, strhash_cnt(ph) );
+    strhash_print(ph);
+    fsfree(name), fsfree(value);
+    return count;
 }
+
