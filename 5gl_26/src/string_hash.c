@@ -76,12 +76,18 @@ stringhash                 strhash_create(int num, StringHashType typ){
     return tmp;
 }
 
-void                       strhash_free(stringhash *hash){
+void                       strhash_clear(stringhash *hash){
     for (int i = 0; i < hash->sz; i++)
         if (hash->tab[i])
             freelist(hash->tab[i]);
+}
+
+void                       strhash_free(stringhash *hash){
+    strhash_clear(hash);
     hash->sz = 0;
+    free(hash->tab);
     hash->tab = 0;
+    // hash NOT freed here! It's not allocated
 }
 
 unsigned                    strhash(const stringhash *restrict hashtab, const char *restrict str){

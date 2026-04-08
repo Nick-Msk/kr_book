@@ -28,6 +28,8 @@ extern stringhash          strhash_create(int num, StringHashType typ);
 
 extern void                strhash_free(stringhash *hashtab);
 
+extern void                strhash_clear(stringhash *hashtab);
+
 extern unsigned            strhash(const stringhash *restrict hashtab, const char *restrict str);
 
 extern stringlist         *strhash_lookup(const stringhash *restrict hashtab, const char *restrict str);
