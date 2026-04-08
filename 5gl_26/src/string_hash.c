@@ -45,8 +45,9 @@ static int                 fprintstrlist(FILE *restrict out, const stringlist *r
         cnt += fprintf(out, "[%s:%s] ", lst->name, lst->defn);
         if (i % G_STRINGLIST_NEWLINE == G_STRINGLIST_NEWLINE - 1)
             cnt += fprintf(out, "\n");
-        lst = lst->next;
+        lst = lst->next, i++;
     }
+    logsimple("i %d, i mod G_STRINGLIST_NEWLINE %d", i, i % G_STRINGLIST_NEWLINE);
     if (i > 0 && i % G_STRINGLIST_NEWLINE != 0)
         cnt += fprintf(out, "\n");
     return cnt;
@@ -161,9 +162,10 @@ int                         strhash_fprint(FILE *restrict out, const stringhash 
 
 int                         strhash_cnt(const stringhash *restrict hashtab){
     int cnt = 0;
+    stringlist *np;
     for (int i = 0; i < hashtab->sz; i++)
-        if (hashtab->tab[i])
-            cnt++;
+            while ( (np = np->next) != 0)
+                cnt++;
     return cnt;
 }
 
