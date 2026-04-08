@@ -152,10 +152,18 @@ int                         strhash_fprint(FILE *restrict out, const stringhash 
     if (out && hashtab){
         for (int i = 0; i < hashtab->sz; i++)
             if (hashtab->tab[i]){
-                printf("%4d: ", i);
+                printf("%4d => ", i);
                 cnt += fprintstrlist(out, hashtab->tab[i]);
             }
     }
+    return cnt;
+}
+
+int                         strhash_cnt(const stringhash *restrict hashtab){
+    int cnt = 0;
+    for (int i = 0; i < hashtab->sz; i++)
+        if (hashtab->tab[i])
+            cnt++;
     return cnt;
 }
 

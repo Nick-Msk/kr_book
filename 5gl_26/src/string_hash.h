@@ -27,6 +27,7 @@ typedef struct stringhash {
 extern stringhash          strhash_create(int num, StringHashType typ);
 
 extern void                strhash_free(stringhash *hashtab);
+#define                    strhashfree(h) strhash_free(&(h) )
 
 extern void                strhash_clear(stringhash *hashtab);
 
@@ -55,7 +56,7 @@ static inline int          strhash_print(const stringhash *hashtab){
     return strhash_fprint(stdout, hashtab);
 }
 
-#define                    strhashfree(h) strhash_free(&(h) )
+extern int                 strhash_cnt(const stringhash *restrict hashtab);
 
 #endif /* !_STRING_HASH_H */
 
