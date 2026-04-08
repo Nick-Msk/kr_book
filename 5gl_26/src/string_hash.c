@@ -11,14 +11,17 @@ static const int                        G_STRINGLIST_NEWLINE = 10;
 
 // --------------------------------------- Utility ------------------------------------
 
+// np != 0
+static void                 freeelement(stringlist *np){
+    free(np->name);
+    free(np->defn);
+    free(np);
+}
 // list != 0
 static void                freelist(stringlist *list){
-    while (list->next){
+    if (list->next)
         freelist(list->next);
-        free(list->name);
-        free(list->defn);
-        free(list);
-    }
+    freeelement(list);
 }
 
 
@@ -47,17 +50,10 @@ static int                 fprintstrlist(FILE *restrict out, const stringlist *r
             cnt += fprintf(out, "\n");
         lst = lst->next, i++;
     }
-    logsimple("i %d, i mod G_STRINGLIST_NEWLINE %d", i, i % G_STRINGLIST_NEWLINE);
     if (i > 0 && i % G_STRINGLIST_NEWLINE != 0)
         cnt += fprintf(out, "\n");
     return cnt;
 };
-// np != 0
-static void                 freeelement(stringlist *np){
-    free(np->name);
-    free(np->defn);
-    free(np);
-}
 
 // ----------------------------------------- API --------------------------------------
 // num will be upscaled to simple number
@@ -79,8 +75,10 @@ stringhash                 strhash_create(int num, StringHashType typ){
 
 void                       strhash_clear(stringhash *hash){
     for (int i = 0; i < hash->sz; i++)
-        if (hash->tab[i])
+        if (hash->tab[i]){
             freelist(hash->tab[i]);
+            hash->tab[i] = 0;
+        }
 }
 
 void                       strhash_free(stringhash *hash){
@@ -145,10 +143,11 @@ bool                        strhash_undef(stringhash *restrict hashtab, const ch
             return logret(true, "Unmapped");
         }
     }
-    return ret;
+    return logret(ret, "Not found");
 }
 
 int                         strhash_fprint(FILE *restrict out, const stringhash *restrict hashtab){
+    logsimple("......");
     int     cnt = 0;
     if (out && hashtab){
         for (int i = 0; i < hashtab->sz; i++)
@@ -163,9 +162,11 @@ int                         strhash_fprint(FILE *restrict out, const stringhash 
 int                         strhash_cnt(const stringhash *restrict hashtab){
     int cnt = 0;
     stringlist *np;
-    for (int i = 0; i < hashtab->sz; i++)
-            while ( (np = np->next) != 0)
-                cnt++;
+    for (int i = 0; i < hashtab->sz; i++){
+        np = hashtab->tab[i];
+        while (np)
+            np = np->next, cnt++;
+    }
     return cnt;
 }
 

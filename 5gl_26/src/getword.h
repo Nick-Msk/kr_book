@@ -34,7 +34,13 @@ static inline const char *  Lexemstr(Lexem l){
     return fsstr(l.str);
 }
 
-#define                     LexemInit(...) {.str = FS(), .typ = LEXEM_UNK }
+static void                 Lexem_free(Lexem *l){
+    fsfree(l->str);
+    l->typ = LEXEM_UNK;
+}
+
+#define                     Lexeminit(...) {.str = FS(), .typ = LEXEM_UNK }
+#define                     Lexemfree(l) Lexem_free( &(l) )
 
 // any lexem, word or number
 extern bool                 getlexem(Lexem *lex, bool ign_comments);

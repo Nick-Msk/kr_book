@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "log.h"
 #include "fs.h"
@@ -95,10 +96,10 @@ static int              proc_defines(int size){
     // do some tests here
     int     cnt = 0;
     fs      name = FS();
-    Lexem   lex = LexemInit();
+    Lexem   lex = Lexeminit();
     bool    def_flag = false, undef_flag = false, print_flag = false, test_flag = false;;
 
-    printf(">");
+    printf("Start with %d>", h.sz);
     while (getlexem(&lex, false) ){
         if (def_flag){
             def_flag = false;
@@ -133,6 +134,8 @@ static int              proc_defines(int size){
                 test_flag = true;
             else if (strncmp(name, "clear", 3) == 0)
                 strhash_clear(&h);
+            else if (strncmp(name, "count", 3) == 0)
+                printf("%d\n", strhash_cnt(&h) );
             else if (strncmp(name, "printall", 3) == 0)
                 strhash_print(&h);
             else if (strncmp(name, "quit", 1) == 0)
@@ -144,24 +147,27 @@ static int              proc_defines(int size){
     }
     strhashfree(h);
     fsfree(name);
+    Lexemfree(lex);
     return cnt;
 }
 
 static int              do_test_juns(stringhash *ph, int count){
-    // DO SMTH: TODO
+    logauto(count);
     fs      name = FS(),
             value = FS();
-    int     i, rem_cnt = 0;;
-    for (i = 0; i < count; i++){
-        fssprintf(name, "Name_%4d", i);
-        fssprintf(value, "%4d", i + 1);
+    int     rem_cnt = 0;
+    srand(time(NULL));
+
+    for (int i = 0; i < count; i++){
+        fssprintf(name, "Name_%d", i);
+        fssprintf(value, "%d", i + 1);
         if (!strhash_fsinstall(ph, &name, &value) )
             return logsimpleactret( (fsfree(name), fsfree(value) ), -1, "Failed on %d", i);
     }
     strhash_print(ph);
-    for (i = 0; i < count; i += rndint(10) ){
-        fssprintf(name, "Name_%4d", i);
-        strhash_fsundef(ph, &name);
+    for (int i = 0; i < count; i += rndint(3) + 1 ){
+        fssprintf(name, "Name_%d", i);
+        strhash_undef(ph, name.v);
         rem_cnt++;
     }
     printf("Removed %d, remained %d\n", rem_cnt, strhash_cnt(ph) );
