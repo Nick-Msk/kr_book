@@ -41,11 +41,19 @@ static unsigned            hash_simple(const char *str, unsigned max){
     hashval %= max;
     return logsimpleret( (unsigned) hashval, "Generated %u for [%s]", (unsigned) hashval, str);
 }
+
+// print ONE item of the list
+static int                fprintitem(FILE *restrict out, const stringlist *restrict lst){
+    int     cnt = 0;
+    cnt += fprintf(out, "[%s:%s] ", lst->name, lst->defn); // NO checking lst here, internal call
+    return cnt;
+}
+
 // parameter aren't null
 static int                 fprintstrlist(FILE *restrict out, const stringlist *restrict lst){
     int     cnt = 0, i = 0;
     while(lst){
-        cnt += fprintf(out, "[%s:%s] ", lst->name, lst->defn);
+        fprintitem(out, lst);
         if (i % G_STRINGLIST_NEWLINE == G_STRINGLIST_NEWLINE - 1)
             cnt += fprintf(out, "\n");
         lst = lst->next, i++;
@@ -146,8 +154,15 @@ bool                        strhash_undef(stringhash *restrict hashtab, const ch
     return logret(ret, "Not found");
 }
 
+int                         strhash_fprint(FILE *restrict out, const stringhash *restrict hashtab, const char *restrict name){
+    int     cnt = 0;
+    stringlist *np = strhash_lookup(hashtab, name);
+    if (np)
+        cnt += fprintitem(out, np);
+    return cnt;
+}
+
 int                         strhash_fprintall(FILE *restrict out, const stringhash *restrict hashtab){
-    logsimple("......");
     int     cnt = 0;
     if (out && hashtab){
         for (int i = 0; i < hashtab->sz; i++)

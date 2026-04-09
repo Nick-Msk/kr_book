@@ -56,6 +56,18 @@ static inline int          strhash_printall(const stringhash *hashtab){
     return strhash_fprintall(stdout, hashtab);
 }
 
+extern int                 strhash_fprint(FILE *restrict out, const stringhash *restrict hashtab, const char *restrict str);
+static inline int          strhash_print(const stringhash *hashtab, const char *restrict str){
+    return strhash_fprint(stdout, hashtab, str);
+}
+// fs port
+static inline int          strhash_fsfprint(FILE *restrict out, const stringhash *restrict hashtab, const fs *restrict str){
+    return strhash_fprint(out, hashtab, str->v);
+}
+static inline int          strhash_fsprint(const stringhash *restrict hashtab, const fs *restrict str){
+    return strhash_fsfprint(stdout, hashtab, str);
+}
+
 extern int                 strhash_cnt(const stringhash *restrict hashtab);
 
 #endif /* !_STRING_HASH_H */
