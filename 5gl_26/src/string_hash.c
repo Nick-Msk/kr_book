@@ -146,7 +146,7 @@ bool                        strhash_undef(stringhash *restrict hashtab, const ch
     return logret(ret, "Not found");
 }
 
-int                         strhash_fprint(FILE *restrict out, const stringhash *restrict hashtab){
+int                         strhash_fprintall(FILE *restrict out, const stringhash *restrict hashtab){
     logsimple("......");
     int     cnt = 0;
     if (out && hashtab){

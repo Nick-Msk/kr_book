@@ -51,9 +51,9 @@ static inline bool         strhash_fsundef(stringhash *restrict hashtab, const f
     return strhash_undef(hashtab, str->v);
 }
 
-extern int                 strhash_fprint(FILE *restrict out, const stringhash *restrict hashtab);
-static inline int          strhash_print(const stringhash *hashtab){
-    return strhash_fprint(stdout, hashtab);
+extern int                 strhash_fprintall(FILE *restrict out, const stringhash *restrict hashtab);
+static inline int          strhash_printall(const stringhash *hashtab){
+    return strhash_fprintall(stdout, hashtab);
 }
 
 extern int                 strhash_cnt(const stringhash *restrict hashtab);
