@@ -58,7 +58,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
 
 const char *usage_str = "Usage: %s -v -s\n";
 
-static int              proc_defines(int size);
+static int              parse_input(int size);
 static int              do_test_runs(stringhash *ph, int count);
 
 int                     main(int argc, const char *argv[]){
@@ -77,7 +77,7 @@ int                     main(int argc, const char *argv[]){
         return 0;
     }
 
-    int cnt = proc_defines(ke.size);
+    int cnt = parse_input(ke.size);
     if (cnt < 0)
         fprintf(stderr, "Procedding failed\n");
     else
@@ -89,7 +89,77 @@ int                     main(int argc, const char *argv[]){
     return logret(0, "end...");  // as replace of logclose()
 }
 
-static int              proc_defines(int size){
+
+static int              process_define(stringhash * restrict h, Lexem *restrict lex);
+static int              process_undef(stringhash * restrict h, Lexem *restrict lex);
+static int              process_eq(stringhash * restrict h, Lexem *restrict lex);
+static int              process_test(stringhash * restrict h, Lexem *restrict lex);
+static int              process_clear(stringhash * restrict h, Lexem *restrict lex);
+static int              process_printall(stringhash * restrict h, Lexem *restrict lex);
+static int              process_print(stringhash * restrict h, Lexem *restrict lex);
+static int              process_count(stringhash * restrict h, Lexem *restrict lex);
+
+static int              parse_input(int size){
+
+    stringhash      h = strhash_create(size, HASH_SIMPLE);    // 200 not sure
+
+    // do some tests here
+    int     cnt = 0;
+    Lexem   lex = lexeminit();
+    printf("Start with (%d)>", h.sz);
+    // TODO: try to catch ctrl+C here!
+    while (getlexem(&lex, false) ){
+        if (lex.typ == LEXEM_CMD){
+            // TODO: refactor that to normat search command API
+            if (lexem_eq(&lex, "define", 3) )
+                process_define(&h, &lex);
+            else if (lexem_eq(&lex, "undef", 3) )
+                process_undef(&h, &lex);
+            else if (lexem_eq(&lex, "test", 3) )
+                process_test(&h, &lex);
+            else if (lexem_eq(&lex, "clear", 3) )
+                process_clear(&h, &lex);
+            else if (lexem_eq(&lex, "count", 3) )
+                process_count(&h, &lex);
+            else if (lexem_eq(&lex, "printall", 3) )
+                process_printall(&h, &lex);
+            else if (lexem_eq(&lex, "p", 1) )
+                process_print(&h, &lex);
+            else if (lexem_eq(&lex, "quit", 1) == 0)
+                break;
+            else
+                printf("Unknown command [%s]", lexemstr(lex));
+        } else
+            fprintf(stderr, "Incorrent lexem type %d:%s", lex.typ, lexemstr(lex) );
+        printf("\n(%d)>", h.sz);
+    }
+    strhashfree(h);
+    lexemfree(lex);
+    return cnt;
+}
+
+static int              process_define(stringhash * restrict ph, Lexem *restrict plex){
+
+    static int cnt = 0;
+
+    int     ret = 0;
+    fs name = FS();
+    fscpy(name, plex->str);
+    if (!getlexem(plex, false) )  // EOF?
+        return logsimpleactret(fsfree(name), -1, "Unable to parse next lexem");
+    if (plex->typ == LEXEM_WORD || plex->typ == LEXEM_INT || plex->typ == LEXEM_FLOAT){
+        if (!strhash_fsinstall(ph, &name, &plex->str) )
+            fprintf(stderr, "Unable to install [%s:%s]\n", fsstr(name), fsstr(plex->str) );
+        else
+            printf("Installed! (%d)\n", ++cnt), ret = 1;
+    } else
+        fprintf(stderr, "Incorrent lexem type %d:%s", plex->typ, lexem_str(plex) );
+    fsfree(name);
+    return logsimpleret(ret, "Installed %d", ret);
+}
+
+/*
+static int              parse_input(int size){
 
     stringhash      h = strhash_create(size, HASH_SIMPLE);    // 200 not sure
 
@@ -170,6 +240,12 @@ static int              proc_defines(int size){
     fsfree(name);
     Lexemfree(lex);
     return cnt;
+}
+*/
+
+static int              process_test(stringhash *restrict ph, Lexem *restrict lex){
+    int cnt = atoi(lexem_str(lex) );
+    return do_test_runs(ph, cnt);
 }
 
 static int              do_test_runs(stringhash *ph, int count){
