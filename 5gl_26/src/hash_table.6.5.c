@@ -99,49 +99,70 @@ static int              proc_defines(int size){
     Lexem   lex = Lexeminit();
     bool    def_flag = false, undef_flag = false, print_flag = false, test_flag = false;;
 
-    printf("Start with %d>", h.sz);
+    printf("Start with (%d)>", h.sz);
     while (getlexem(&lex, false) ){
+        // TODO: refactor to normal, without flags
         if (def_flag){
             def_flag = false;
             fscpy(name, lex.str);
             if (!getlexem(&lex, false) )  // EOF?
                 continue;
-            if (!strhash_install(&h, fsstr(name), fsstr(lex.str) ) )
-                fprintf(stderr, "Unable to install [%s:%s]\n", fsstr(name), fsstr(lex.str) );
-            else
-                printf("Installed! (%d)\n", ++cnt);
+            if (lex.typ == LEXEM_WORD || lex.typ == LEXEM_INT || lex.typ == LEXEM_FLOAT){
+                if (!strhash_install(&h, fsstr(name), fsstr(lex.str) ) )
+                    fprintf(stderr, "Unable to install [%s:%s]\n", fsstr(name), fsstr(lex.str) );
+                else
+                    printf("Installed! (%d)\n", ++cnt);
+            } else
+                fprintf(stderr, "Incorrent lexem type %d:%s", lex.typ, Lexemstr(lex) );
         }
         else if (undef_flag){
             undef_flag = false;
-            if (strhash_undef(&h, Lexemstr(lex) ) )
-                printf("Removed [%s]\n", Lexemstr(lex) );
-            else
-                printf("Not found [%s]\n", Lexemstr(lex) );
+            if (lex.typ == LEXEM_WORD){
+                if (strhash_undef(&h, Lexemstr(lex) ) )
+                    printf("Removed [%s]\n", Lexemstr(lex) );
+                else
+                    printf("Not found [%s]\n", Lexemstr(lex) );
+            } else
+                fprintf(stderr, "Incorrent lexem type %d:%s", lex.typ, Lexemstr(lex) );
         }  else if (test_flag){
             test_flag = false;
-            int count = atoi(Lexemstr(lex) );
-            printf("Start test suite with %d\n", count);
-            if (do_test_runs(&h, count) < 0)
-                fprintf(stderr, "Failed\n");
+            if (lex.typ == LEXEM_INT){
+                int count = atoi(Lexemstr(lex) );
+                printf("Start test suite with %d\n", count);
+                if (do_test_runs(&h, count) < 0)
+                    fprintf(stderr, "Failed\n");
+            } else
+                fprintf(stderr, "Incorrent lexem type %d:%s", lex.typ, Lexemstr(lex) );
+        } else if (print_flag){
+            print_flag = false;
+            if (lex.typ == LEXEM_WORD){
+                strhash_print(&h, Lexemstr(lex) );
+            } else
+                fprintf(stderr, "Incorrent lexem type %d:%s", lex.typ, Lexemstr(lex) );
         } else {
-            const char *name = Lexemstr(lex);
-            // TODO: refactor that to normat search command API
-            if (strncmp(name, "define", 3) == 0)
-                def_flag = true;
-            else if (strncmp(name, "undef", 3) == 0)
-                undef_flag = true;
-            else if (strncmp(name, "test", 3) == 0)
-                test_flag = true;
-            else if (strncmp(name, "clear", 3) == 0)
-                strhash_clear(&h);
-            else if (strncmp(name, "count", 3) == 0)
-                printf("%d\n", strhash_cnt(&h) );
-            else if (strncmp(name, "printall", 3) == 0)
-                strhash_print(&h);
-            else if (strncmp(name, "quit", 1) == 0)
-                break;
-            else
-                printf("Unknown command [%s]", name);
+            if (lex.typ == LEXEM_WORD){
+                const char *name = Lexemstr(lex);
+                // TODO: refactor that to normat search command API
+                if (strncmp(name, "define", 3) == 0)
+                    def_flag = true;
+                else if (strncmp(name, "undef", 3) == 0)
+                    undef_flag = true;
+                else if (strncmp(name, "test", 3) == 0)
+                    test_flag = true;
+                else if (strncmp(name, "clear", 3) == 0)
+                    strhash_clear(&h);
+                else if (strncmp(name, "count", 3) == 0)
+                    printf("%d\n", strhash_cnt(&h) );
+                else if (strncmp(name, "printall", 3) == 0)
+                    strhash_printall(&h);
+                else if (strncmp(name, "p", 1) == 0)
+                    print_flag = true;
+                else if (strncmp(name, "quit", 1) == 0)
+                    break;
+                else
+                    printf("Unknown command [%s]", name);
+            } else
+                fprintf(stderr, "Incorrent lexem type %d:%s", lex.typ, Lexemstr(lex) );
         }
         printf("\n>");
     }
@@ -164,14 +185,14 @@ static int              do_test_runs(stringhash *ph, int count){
         if (!strhash_fsinstall(ph, &name, &value) )
             return logsimpleactret( (fsfree(name), fsfree(value) ), -1, "Failed on %d", i);
     }
-    strhash_print(ph);
+    strhash_printall(ph);
     for (int i = 0; i < count; i += rndint(3) + 1 ){
         fssprintf(name, "Name_%d", i);
         strhash_undef(ph, name.v);
         rem_cnt++;
     }
     printf("Removed %d, remained %d\n", rem_cnt, strhash_cnt(ph) );
-    strhash_print(ph);
+    strhash_printall(ph);
     fsfree(name), fsfree(value);
     return count;
 }
