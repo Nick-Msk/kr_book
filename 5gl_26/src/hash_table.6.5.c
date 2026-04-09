@@ -59,7 +59,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
 const char *usage_str = "Usage: %s -v -s\n";
 
 static int              proc_defines(int size);
-static int              do_test_juns(stringhash *ph, int count);
+static int              do_test_runs(stringhash *ph, int count);
 
 int                     main(int argc, const char *argv[]){
     logsimpleinit("Start");
@@ -121,7 +121,7 @@ static int              proc_defines(int size){
             test_flag = false;
             int count = atoi(Lexemstr(lex) );
             printf("Start test suite with %d\n", count);
-            if (do_test_juns(&h, count) < 0)
+            if (do_test_runs(&h, count) < 0)
                 fprintf(stderr, "Failed\n");
         } else {
             const char *name = Lexemstr(lex);
@@ -151,7 +151,7 @@ static int              proc_defines(int size){
     return cnt;
 }
 
-static int              do_test_juns(stringhash *ph, int count){
+static int              do_test_runs(stringhash *ph, int count){
     logauto(count);
     fs      name = FS(),
             value = FS();
