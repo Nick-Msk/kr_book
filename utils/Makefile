@@ -87,6 +87,9 @@ fileutils.o: src/fileutils.c
 fileutils: src/fileutils.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fs.o
 	 $(CC) $(CFLAGS) -DFILEUTILSTESTING $^ -o test/$@_test
 
+getword.o: src/getword.c
+	$(CC) $(CFLAGS)  $^ -c
+	@mv $@ lib/
 
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
