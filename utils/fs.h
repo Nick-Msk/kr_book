@@ -223,11 +223,11 @@ static inline const char    *fs_strdup(fs *s){
 }
 
 // pointer version
-static inline int            fs_cmp(fs *restrict str1, fs *restrict str2){
+static inline int            fs_cmp(const fs *restrict str1, const fs *restrict str2){
     return strcmp(str1->v, str2->v);
 }
 // pointer version, limited
-static inline int            fs_ncmp(fs *restrict str1, fs *restrict str2, int len){
+static inline int            fs_ncmp(const fs *restrict str1, const fs *restrict str2, int len){
     return strncmp(str1->v, str2->v, len);
 }
 // local version
