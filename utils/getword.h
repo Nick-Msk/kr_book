@@ -32,18 +32,23 @@ typedef struct Lexem {
     Lexemtype   typ;
 } Lexem;
 
-static inline const char *  Lexemstr(Lexem l){
+static inline const char   *lexemstr(Lexem l){
     return fsstr(l.str);
 }
+// pointer version
+static inline const char   *lexem_str(const Lexem *l){
+    invraise(l != 0, "Wrong input");
+    return l->str.v;
+}
 
-static inline void                 Lexem_free(Lexem *l){
+static inline void          lexem_free(Lexem *l){
     invraise(l != 0, "Wrong input");
     fsfree(l->str);
     l->typ = LEXEM_UNK;
 }
 
-#define                     Lexeminit(...) {.str = FS(), .typ = LEXEM_UNK }
-#define                     Lexemfree(l) Lexem_free( &(l) )
+#define                     lexeminit(...) {.str = FS(), .typ = LEXEM_UNK }
+#define                     lexemfree(l) lexem_free( &(l) )
 
 // any lexem, word or number
 extern bool                 getlexem(Lexem *lex, bool ign_comments);
