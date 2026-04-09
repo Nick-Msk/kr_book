@@ -128,13 +128,17 @@ lib/word_tree.o: src/word_tree.c
 	$(CC) $(CFLAGS) -I./src  $^ -c
 	@mv word_tree.o lib/
 
-lib/getword.o: src/getword.c
-	$(CC) $(CFLAGS) -I./src  $^ -c
-	@mv getword.o lib/
+#lib/getword.o: src/getword.c
+#	$(CC) $(CFLAGS) -I./src  $^ -c
+#	@mv getword.o lib/
 
 lib/string_hash.o: src/string_hash.c
 	$(CC) $(CFLAGS) -I./src  $^ -c
 	@mv string_hash.o lib/
+
+lib/getword.o:
+	cd $(UTIL_PATH) && $(MAKE) getword.o
+	@cp $(UTIL_PATH)/lib/getword.o lib/
 
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
