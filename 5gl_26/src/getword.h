@@ -21,6 +21,7 @@ static inline const char   *Lexemtype_str(Lexemtype typ){
         CASE_RETURN(LEXEM_INT);
         CASE_RETURN(LEXEM_FLOAT);
         CASE_RETURN(LEXEM_SYM);
+        CASE_RETURN(LEXEM_CMD);
         default: return "";
     }
 }

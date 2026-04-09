@@ -108,10 +108,15 @@ bool                    getlexem(Lexem *lex, bool ign_comments){
                 elemnext(iterstr) = c;
             lex->typ = LEXEM_INT;
         }
-    } else if (isalnum_u(c) ){      // just identifier or so on
+    } else if (isalnum_u(c) || c == '\\' ){      // just identifier or so on
+        if (c == '\\'){
+            lex->typ = LEXEM_CMD;
+            iterstr.pos--;  // remove command sign
+        } else
+            lex->typ = LEXEM_WORD;
+        // process the identifier
         while ( (c = getch()) != EOF && isalnum_u(c) )
             elemnext(iterstr) = c;
-        lex->typ = LEXEM_WORD;
     } else {
         elemend(iterstr);
         return logsimpleret(true, "Unknown symbol [%c]", c);
