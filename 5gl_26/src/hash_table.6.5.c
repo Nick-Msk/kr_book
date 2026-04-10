@@ -90,14 +90,13 @@ int                     main(int argc, const char *argv[]){
 }
 
 
-static int              process_define(stringhash * restrict h, Lexem *restrict lex);
-static int              process_undef(stringhash * restrict h, Lexem *restrict lex);
-static int              process_eq(stringhash * restrict h, Lexem *restrict lex);
-static int              process_test(stringhash * restrict h, Lexem *restrict lex);
-static int              process_clear(stringhash * restrict h, Lexem *restrict lex);
-static int              process_printall(stringhash * restrict h, Lexem *restrict lex);
-static int              process_print(stringhash * restrict h, Lexem *restrict lex);
-static int              process_count(stringhash * restrict h, Lexem *restrict lex);
+static int              process_define(stringhash * restrict h);
+static int              process_undef(stringhash * restrict h);
+static int              process_test(stringhash * restrict h);
+static int              process_clear(stringhash * restrict h);
+static int              process_printall(stringhash * restrict h);
+static int              process_print(stringhash * restrict h);
+static int              process_count(stringhash * restrict h);
 
 static int              parse_input(int size){
 
@@ -112,25 +111,25 @@ static int              parse_input(int size){
         if (lex.typ == LEXEM_CMD){
             // TODO: refactor that to normat search command API
             if (lexem_eq(&lex, "define", 3) )
-                process_define(&h, &lex);
+                process_define(&h);
             else if (lexem_eq(&lex, "undef", 3) )
-                process_undef(&h, &lex);
+                process_undef(&h);
             else if (lexem_eq(&lex, "test", 3) )
-                process_test(&h, &lex);
+                process_test(&h);
             else if (lexem_eq(&lex, "clear", 3) )
-                process_clear(&h, &lex);
+                process_clear(&h);
             else if (lexem_eq(&lex, "count", 3) )
-                process_count(&h, &lex);
+                process_count(&h);
             else if (lexem_eq(&lex, "printall", 3) )
-                process_printall(&h, &lex);
+                process_printall(&h);
             else if (lexem_eq(&lex, "p", 1) )
-                process_print(&h, &lex);
+                process_print(&h);
             else if (lexem_eq(&lex, "quit", 1) == 0)
                 break;
             else
                 printf("Unknown command [%s]", lexemstr(lex));
         } else
-            fprintf(stderr, "Incorrent lexem type %d:%s", lex.typ, lexemstr(lex) );
+            fprintf(stderr, "Incorrent lexem type %d:%s", lex.typ, Lexemtype_str(lex.typ) );
         printf("\n(%d)>", h.sz);
     }
     strhashfree(h);
@@ -138,15 +137,19 @@ static int              parse_input(int size){
     return cnt;
 }
 
-static int              process_define(stringhash * restrict ph, Lexem *restrict plex){
+static int              process_define(stringhash * restrict ph){
 
     static int cnt = 0;
 
     int     ret = 0;
+
+    Lexem   lex = lexeminit(), *plex = &lex;
+    if (!getlexem(plex, false) )  // EOF?
+        return logsimpleret(-1, "Unable to parse next lexem (name)");
     fs name = FS();
     fscpy(name, plex->str);
     if (!getlexem(plex, false) )  // EOF?
-        return logsimpleactret(fsfree(name), -1, "Unable to parse next lexem");
+        return logsimpleactret(fsfree(name), -1, "Unable to parse next lexem (value)");
     if (plex->typ == LEXEM_WORD || plex->typ == LEXEM_INT || plex->typ == LEXEM_FLOAT){
         if (!strhash_fsinstall(ph, &name, &plex->str) )
             fprintf(stderr, "Unable to install [%s:%s]\n", fsstr(name), fsstr(plex->str) );
@@ -155,7 +158,54 @@ static int              process_define(stringhash * restrict ph, Lexem *restrict
     } else
         fprintf(stderr, "Incorrent lexem type %d:%s", plex->typ, lexem_str(plex) );
     fsfree(name);
-    return logsimpleret(ret, "Installed %d", ret);
+    return logsimpleret(ret, "Installed %d %d", ret, cnt);
+}
+
+static int              process_undef(stringhash * restrict ph){
+
+    static int cnt = 0;
+
+    int ret = 0;
+    Lexem   lex = lexeminit(), *plex = &lex;
+    if (!getlexem(plex, false) )  // EOF?
+        return logsimpleret(-1, "Unable to parse next lexem (name)");
+    if (plex->typ == LEXEM_WORD){
+        if (strhash_undef(ph, lexem_str(plex) ) )
+            printf("Removed [%s]\n", lexem_str(plex) ), ret = 1;
+        else
+            printf("Not found [%s]\n", lexem_str(plex) );
+    } else
+        fprintf(stderr, "Incorrent lexem type %d:%s", plex->typ, lexem_str(plex) );
+    return logsimpleret(ret, "Removed current %d, total %d", ret, ++cnt);
+}
+
+static int              process_clear(stringhash *restrict ph){
+    strhash_clear(ph);
+    return 1;
+}
+
+static int              process_printall(stringhash *restrict ph){
+    return strhash_printall(ph);
+}
+
+static int              process_print(stringhash *restrict ph){
+
+    Lexem   lex = lexeminit(), *plex = &lex;
+    if (!getlexem(plex, false) )  // EOF?
+        return logsimpleret(-1, "Unable to parse next lexem (name)");
+    if (plex->typ == LEXEM_WORD){
+        if (strhash_undef(ph, lexem_str(plex) ) )
+            printf("Removed [%s]\n", lexem_str(plex) );
+        else
+            printf("Not found [%s]\n", lexem_str(plex) );
+    } else
+        fprintf(stderr, "Incorrent lexem type %d:%s", plex->typ, lexem_str(plex) );
+    return 1;
+}
+
+static int              process_count(stringhash * restrict ph){
+    printf("%d\n", strhash_cnt(ph) );
+    return 1;
 }
 
 /*
@@ -243,13 +293,22 @@ static int              parse_input(int size){
 }
 */
 
-static int              process_test(stringhash *restrict ph, Lexem *restrict lex){
-    int cnt = atoi(lexem_str(lex) );
-    return do_test_runs(ph, cnt);
+static int              process_test(stringhash *restrict ph){
+
+    int ret = 0;
+    Lexem   lex = lexeminit(), *plex = &lex;
+    if (!getlexem(plex, false) )  // EOF?
+        return logsimpleret(-1, "Unable to parse next lexem (cpunt of test)");
+    if (plex->typ == LEXEM_INT){
+        int cnt = atoi(lexem_str(plex) );
+        ret = do_test_runs(ph, cnt);
+    } else
+        fprintf(stderr, "Incorrent lexem type %d:%s", plex->typ, lexem_str(plex) );
+    return ret;
 }
 
 static int              do_test_runs(stringhash *ph, int count){
-    logauto(count);
+
     fs      name = FS(),
             value = FS();
     int     rem_cnt = 0;
