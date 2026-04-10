@@ -124,8 +124,10 @@ static int              parse_input(int size){
                 process_printall(&h);
             else if (lexem_eq(&lex, "p", 1) )
                 process_print(&h);
-            else if (lexem_eq(&lex, "quit", 1) == 0)
+            else if (lexem_eq(&lex, "quit", 1) ){
+                printf("Done\n");
                 break;
+            }
             else
                 printf("Unknown command [%s]", lexemstr(lex));
         } else
@@ -145,11 +147,11 @@ static int              process_define(stringhash * restrict ph){
 
     Lexem   lex = lexeminit(), *plex = &lex;
     if (!getlexem(plex, false) )  // EOF?
-        return logsimpleret(-1, "Unable to parse next lexem (name)");
+        return logsimpleactret(lexemfree(lex), -1, "Unable to parse next lexem (name)");
     fs name = FS();
     fscpy(name, plex->str);
     if (!getlexem(plex, false) )  // EOF?
-        return logsimpleactret(fsfree(name), -1, "Unable to parse next lexem (value)");
+        return logsimpleactret((lexemfree(lex), fsfree(name) ), -1, "Unable to parse next lexem (value)");
     if (plex->typ == LEXEM_WORD || plex->typ == LEXEM_INT || plex->typ == LEXEM_FLOAT){
         if (!strhash_fsinstall(ph, &name, &plex->str) )
             fprintf(stderr, "Unable to install [%s:%s]\n", fsstr(name), fsstr(plex->str) );
@@ -158,6 +160,7 @@ static int              process_define(stringhash * restrict ph){
     } else
         fprintf(stderr, "Incorrent lexem type %d:%s", plex->typ, lexem_str(plex) );
     fsfree(name);
+    lexemfree(lex);
     return logsimpleret(ret, "Installed %d %d", ret, cnt);
 }
 
@@ -168,7 +171,7 @@ static int              process_undef(stringhash * restrict ph){
     int ret = 0;
     Lexem   lex = lexeminit(), *plex = &lex;
     if (!getlexem(plex, false) )  // EOF?
-        return logsimpleret(-1, "Unable to parse next lexem (name)");
+        return logsimpleactret(lexemfree(lex), -1, "Unable to parse next lexem (name)");
     if (plex->typ == LEXEM_WORD){
         if (strhash_undef(ph, lexem_str(plex) ) )
             printf("Removed [%s]\n", lexem_str(plex) ), ret = 1;
@@ -176,6 +179,7 @@ static int              process_undef(stringhash * restrict ph){
             printf("Not found [%s]\n", lexem_str(plex) );
     } else
         fprintf(stderr, "Incorrent lexem type %d:%s", plex->typ, lexem_str(plex) );
+    lexemfree(lex);
     return logsimpleret(ret, "Removed current %d, total %d", ret, ++cnt);
 }
 
@@ -192,14 +196,12 @@ static int              process_print(stringhash *restrict ph){
 
     Lexem   lex = lexeminit(), *plex = &lex;
     if (!getlexem(plex, false) )  // EOF?
-        return logsimpleret(-1, "Unable to parse next lexem (name)");
+        return logsimpleactret(lexemfree(lex), -1, "Unable to parse next lexem (name)");
     if (plex->typ == LEXEM_WORD){
-        if (strhash_undef(ph, lexem_str(plex) ) )
-            printf("Removed [%s]\n", lexem_str(plex) );
-        else
-            printf("Not found [%s]\n", lexem_str(plex) );
+        strhash_print(ph, lexem_str(plex) );
     } else
         fprintf(stderr, "Incorrent lexem type %d:%s", plex->typ, lexem_str(plex) );
+    lexemfree(lex);
     return 1;
 }
 
@@ -208,102 +210,18 @@ static int              process_count(stringhash * restrict ph){
     return 1;
 }
 
-/*
-static int              parse_input(int size){
-
-    stringhash      h = strhash_create(size, HASH_SIMPLE);    // 200 not sure
-
-    // do some tests here
-    int     cnt = 0;
-    fs      name = FS();
-    Lexem   lex = Lexeminit();
-    bool    def_flag = false, undef_flag = false, print_flag = false, test_flag = false;;
-
-    printf("Start with (%d)>", h.sz);
-    while (getlexem(&lex, false) ){
-        // TODO: refactor to normal, without flags
-        if (def_flag){
-            def_flag = false;
-            fscpy(name, lex.str);
-            if (!getlexem(&lex, false) )  // EOF?
-                continue;
-            if (lex.typ == LEXEM_WORD || lex.typ == LEXEM_INT || lex.typ == LEXEM_FLOAT){
-                if (!strhash_install(&h, fsstr(name), fsstr(lex.str) ) )
-                    fprintf(stderr, "Unable to install [%s:%s]\n", fsstr(name), fsstr(lex.str) );
-                else
-                    printf("Installed! (%d)\n", ++cnt);
-            } else
-                fprintf(stderr, "Incorrent lexem type %d:%s", lex.typ, Lexemstr(lex) );
-        }
-        else if (undef_flag){
-            undef_flag = false;
-            if (lex.typ == LEXEM_WORD){
-                if (strhash_undef(&h, Lexemstr(lex) ) )
-                    printf("Removed [%s]\n", Lexemstr(lex) );
-                else
-                    printf("Not found [%s]\n", Lexemstr(lex) );
-            } else
-                fprintf(stderr, "Incorrent lexem type %d:%s", lex.typ, Lexemstr(lex) );
-        }  else if (test_flag){
-            test_flag = false;
-            if (lex.typ == LEXEM_INT){
-                int count = atoi(Lexemstr(lex) );
-                printf("Start test suite with %d\n", count);
-                if (do_test_runs(&h, count) < 0)
-                    fprintf(stderr, "Failed\n");
-            } else
-                fprintf(stderr, "Incorrent lexem type %d:%s", lex.typ, Lexemstr(lex) );
-        } else if (print_flag){
-            print_flag = false;
-            if (lex.typ == LEXEM_WORD){
-                strhash_print(&h, Lexemstr(lex) );
-            } else
-                fprintf(stderr, "Incorrent lexem type %d:%s", lex.typ, Lexemstr(lex) );
-        } else {
-            if (lex.typ == LEXEM_WORD){
-                const char *name = Lexemstr(lex);
-                // TODO: refactor that to normat search command API
-                if (strncmp(name, "define", 3) == 0)
-                    def_flag = true;
-                else if (strncmp(name, "undef", 3) == 0)
-                    undef_flag = true;
-                else if (strncmp(name, "test", 3) == 0)
-                    test_flag = true;
-                else if (strncmp(name, "clear", 3) == 0)
-                    strhash_clear(&h);
-                else if (strncmp(name, "count", 3) == 0)
-                    printf("%d\n", strhash_cnt(&h) );
-                else if (strncmp(name, "printall", 3) == 0)
-                    strhash_printall(&h);
-                else if (strncmp(name, "p", 1) == 0)
-                    print_flag = true;
-                else if (strncmp(name, "quit", 1) == 0)
-                    break;
-                else
-                    printf("Unknown command [%s]", name);
-            } else
-                fprintf(stderr, "Incorrent lexem type %d:%s", lex.typ, Lexemstr(lex) );
-        }
-        printf("\n>");
-    }
-    strhashfree(h);
-    fsfree(name);
-    Lexemfree(lex);
-    return cnt;
-}
-*/
-
 static int              process_test(stringhash *restrict ph){
 
     int ret = 0;
     Lexem   lex = lexeminit(), *plex = &lex;
     if (!getlexem(plex, false) )  // EOF?
-        return logsimpleret(-1, "Unable to parse next lexem (cpunt of test)");
+        return logsimpleactret(lexemfree(lex), -1, "Unable to parse next lexem (cpunt of test)");
     if (plex->typ == LEXEM_INT){
         int cnt = atoi(lexem_str(plex) );
         ret = do_test_runs(ph, cnt);
     } else
         fprintf(stderr, "Incorrent lexem type %d:%s", plex->typ, lexem_str(plex) );
+    lexemfree(lex);
     return ret;
 }
 
