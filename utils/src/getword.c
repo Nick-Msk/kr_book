@@ -123,6 +123,6 @@ bool                    getlexem(Lexem *lex, bool ign_comments){
     }
     elemend(iterstr);
     ungetch(c);
-    return logsimpleret(true, "Parsed %s", Lexemtype_str(lex->typ) );
+    return logsimpleret(true, "Parsed %s:%s", Lexemtype_str(lex->typ), lex->str.v );
 }
 

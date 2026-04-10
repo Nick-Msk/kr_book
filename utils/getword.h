@@ -56,12 +56,12 @@ extern bool                 getlexem(Lexem *lex, bool ign_comments);
 // invariant: lex != 0 && str != 0
 static inline bool          lexem_eq(const Lexem *restrict lex, const char *restrict str, int len){
     invraise(lex != 0 && str != 0, "Wrong input");
-    return strncmp(lex->str.v, str, len);
+    return strncmp(lex->str.v, str, len) == 0;
 }
 // fs port
 static inline bool          lexem_fseq(const Lexem *restrict lex, const fs *restrict str, int len){
     invraise(lex != 0 && str != 0, "Wrong input");
-    return fs_ncmp(&lex->str, str, len);
+    return fs_ncmp(&lex->str, str, len) == 0;
 }
 
 #endif /* ! _GETWORD_H */
