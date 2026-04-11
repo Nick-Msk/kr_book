@@ -9,6 +9,9 @@ all:
 malloc_test: src/malloc_test.c
 	$(CC) $(CFLAGS) $^ -o out/$@_test
 
+print_format_test: src/print_format_test.c
+	$(CC) $(CFLAGS) $^ -o out/$@_test
+
 anon_struct: src/anon_struct.c
 	$(CC) $(CFLAGS) $^ -o out/$@_test
 
