@@ -10,10 +10,11 @@ typedef struct Keys {
     bool        version;    // bool example
     bool        string;
     char       *filename;
+    int         maxline;
     // ...
 } Keys;
 
-#define                 Keysinit(...) (Keys){ .version = false, .string = 0, __VA_ARGS__}
+#define                 Keysinit(...) (Keys){ .version = false, .string = 0, maxline = 0, __VA_ARGS__}
 
 static int              parse_keys(const char *argv[], Keys *ke){
     logenter("...");
@@ -32,8 +33,31 @@ static int              parse_keys(const char *argv[], Keys *ke){
                     }
                 break;
                 case 'f':
-                    ke->string = (char *) argv[1];        // save pointer
-                    argv++;
+                    // TODO: refactor that to make more pretty
+                    if (argv[0][1] == '\0') {
+                        if (argv[1]){
+                            ptr = argv[1];
+                            argv++;
+                        } else
+                             return userraise(-1, ERR_WRONG_PARAMETER, "-l option without value (must be integer followed), ex '-l123' or '-l 123'");
+                    } else  // argv[1] + 1 is pointer to value
+                        ptr = argv[0] + 1;
+                    ke->string = ptr;        // save pointer
+                    argv[0] += strlen(argv[0]) - 1; // shift
+                    params++;
+                break;
+                case 'l':
+                    // TODO: refactor that to make more pretty
+                    if (argv[0][1] == '\0') {
+                        if (argv[1]){
+                            ptr = argv[1];
+                            argv++;
+                        } else
+                             return userraise(-1, ERR_WRONG_PARAMETER, "-l option without value (must be integer followed), ex '-l123' or '-l 123'");
+                    } else  // argv[1] + 1 is pointer to value
+                        ptr = argv[0] + 1;
+                    ke->maxline = atoi(ptr);        // save pointer
+                    logauto(ptr);
                     argv[0] += strlen(argv[0]) - 1; // shift
                     params++;
                 break;
