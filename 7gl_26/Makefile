@@ -15,6 +15,9 @@ upper_lower.7.1: src/upper_lower.7.1.c
 formatter.7.2: src/formatter.7.2.c lib/log.o lib/error.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+miniprint.7.3: src/miniprint.7.3.c lib/log.o lib/error.o lib/checker.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
