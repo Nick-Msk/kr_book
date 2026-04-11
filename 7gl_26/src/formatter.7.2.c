@@ -44,12 +44,13 @@ static int              parse_keys(const char *argv[], Keys *ke){
                     }
                 break;
                 case 'l':
+                    // TODO: refactor that to make more pretty
                     if (argv[0][1] == '\0') {
                         if (argv[1]){
                             ptr = argv[1];
                             argv++;
                         } else
-                             logerr(-1, "-l option without value (must be integer followed)");
+                             return userraise(-1, ERR_WRONG_PARAMETER, "-l option without value (must be integer followed), ex '-l123' or '-l 123'");
                     } else  // argv[1] + 1 is pointer to value
                         ptr = argv[0] + 1;
                     ke->maxline = atoi(ptr);        // save pointer
@@ -58,8 +59,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
                     params++;
                 break;
                 default:    // probaly it's possible to ignore unknows parameters
-                    fprintf(stderr, "Illegal option [%c]\n", c);
-                    return logerr(-1, "Illegal [%c], params [%d] argc %d", c, params, argc);
+                    return userraise(-1, ERR_WRONG_PARAMETER,  "Illegal [%c], params [%d] argc %d", c, params, argc);
             }
     }
     return logret(argc, "params %d, argc %d", params, argc);
