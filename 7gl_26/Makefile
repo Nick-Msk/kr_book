@@ -12,6 +12,9 @@ hash_table.6.5: src/hash_table.6.5.c lib/string_hash.o lib/getword.o lib/log.o l
 upper_lower.7.1: src/upper_lower.7.1.c
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+formatter.7.2: src/formatter.7.2.c lib/log.o lib/error.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
