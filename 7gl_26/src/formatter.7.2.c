@@ -21,7 +21,9 @@ typedef struct Keys {
 
 static int              parse_keys(const char *argv[], Keys *ke){
     logenter("...");
-    int     argc = 1, params = 0;
+    int         argc = 1, params = 0;
+    const char *ptr;
+
     if (!ke)
         return userraiseint(ERR_WRONG_INPUT_PARAMETERS, "Zero ke!!! Error!");   // raise here
     char    c;
@@ -42,8 +44,16 @@ static int              parse_keys(const char *argv[], Keys *ke){
                     }
                 break;
                 case 'l':
-                    ke->maxline = atoi(argv[1]);        // save pointer
-                    argv++;
+                    if (argv[0][1] == '\0') {
+                        if (argv[1]){
+                            ptr = argv[1];
+                            argv++;
+                        } else
+                             logerr(-1, "-l option without value (must be integer followed)");
+                    } else  // argv[1] + 1 is pointer to value
+                        ptr = argv[0] + 1;
+                    ke->maxline = atoi(ptr);        // save pointer
+                    logauto(ptr);
                     argv[0] += strlen(argv[0]) - 1; // shift
                     params++;
                 break;
@@ -61,7 +71,7 @@ static inline void      print_octal(unsigned c){
 }
 // \x1F
 static inline void      print_hex(unsigned c){
-    printf("\\x%c%c", itoc(c / 16), itoc(c % 16) );
+    printf("\\x%c%c", itohex(c / 16), itohex(c % 16) );
 }
 
 int                     main(int argc, const char *argv[]){
