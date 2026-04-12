@@ -14,7 +14,7 @@ typedef struct Keys {
     // ...
 } Keys;
 
-#define                 Keysinit(...) (Keys){ .version = false, .string = 0, maxline = 0, __VA_ARGS__}
+#define                 Keysinit(...) (Keys){ .version = false, .string = 0, .maxline = 0, __VA_ARGS__}
 
 static int              parse_keys(const char *argv[], Keys *ke){
     logenter("...");
