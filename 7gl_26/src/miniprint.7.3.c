@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
+#include <stdlib.h>
 
 #include "log.h"
 #include "common.h"
@@ -13,7 +15,7 @@ typedef struct Keys {
     // ...
 } Keys;
 
-#define                 Keysinit(...) (Keys){ .version = false, .string = 0, maxline = 0, __VA_ARGS__}
+#define                 Keysinit(...) (Keys){ .version = false, .string = 0, .maxline = 0, __VA_ARGS__}
 
 static int              parse_keys(const char *argv[], Keys *ke){
     logenter("...");
@@ -25,6 +27,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
         argc++;
         while ( (c = *++argv[0]) )
             switch (tolower(c)){
+                const char *ptr;
                 case 'v':
                     if (!ke->version){
                         ke->version = true;
@@ -70,8 +73,8 @@ static int              parse_keys(const char *argv[], Keys *ke){
 
 const char *usage_str = "Usage: %s\n";
 
-static int              miniprint(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
- 
+static int              miniprint(const char *fmt, ...);  __attribute__ ((format (printf, 1, 2)));
+
 int                     main(int argc, const char *argv[]){
     logsimpleinit("Start");
 
@@ -90,11 +93,72 @@ int                     main(int argc, const char *argv[]){
 
     double d = 1.6; int i = 9; long l = 18L;
     const char *str = "Abcde1234";
-    miniprint("Test string %s %d %f %ld\n", str, i, d, l);
+    printf("Total: %d\n", miniprint("Test string %s %d %f %ld\n", str, i, d, l) );
 
     return logret(0, "end...");  // as replace of logclose()
 }
 
-static int              miniprint(const char *fmt, ...) __attribute__ ((format (printf, 1, 2))){
-    
+static int              miniprint(const char *fmt, ...) {
+    double          d;
+    int             i, cnt = 0;
+    long            l;
+    const char     *s;
+    char            c;
+    unsigned        u;
+    unsigned long   lu;
+    //
+    va_list         ap;
+    va_start(ap, fmt);
+
+    for (const char *p = fmt; *p;  p++){
+        if (*p != '%'){
+            putchar(*p);
+            continue;
+        }
+        switch (*++p){
+            case 'd':
+                i = va_arg(ap, int);
+                printf("%d", i);
+                cnt++;
+            break;
+            case 'l':
+                if (p[1] == 'd'){
+                    l = va_arg(ap, long);
+                    printf("%ld", l);
+                    p++, cnt++;
+                } else if (p[1] == 'u'){
+                    lu = va_arg(ap, unsigned long);
+                    printf("%lu", lu);
+                    p++, cnt++;
+                } else
+                    putchar(*p);    // 'l'
+            break;
+            case 's':
+                for (s = va_arg(ap, const char *); *s; s++)
+                    putchar(*s);
+                cnt++;
+            break;
+            case 'u':
+                u = va_arg(ap, unsigned);
+                printf("%u", u);
+                cnt++;
+            break;
+            case 'c':
+                c = (char) va_arg(ap, unsigned int);
+                putchar(c);
+                cnt++;
+            break;
+            case 'f':
+                d = va_arg(ap, double);
+                printf("%f", d);
+                cnt++;
+            break;
+            default:
+                putchar(*s);
+            break;
+        }
+    }
+    va_end(ap);
+    return cnt;
 }
+
