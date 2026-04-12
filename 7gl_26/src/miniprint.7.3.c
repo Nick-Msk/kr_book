@@ -95,17 +95,24 @@ int                     main(int argc, const char *argv[]){
     const char *str = "Abcde1234";
     printf("Total: %d\n", miniprint("Test string %s %d %f %ld\n", str, i, d, l) );
 
+    void *pt = (void *) main;
+    short sh = 45;
+    printf("Total: %d\n", miniprint("Test string %p %hd\n", pt, sh) );
+
     return logret(0, "end...");  // as replace of logclose()
 }
 
 static int              miniprint(const char *fmt, ...) {
     double          d;
     int             i, cnt = 0;
+    short           sh;
     long            l;
     const char     *s;
+    const void     *pt;
     char            c;
     unsigned        u;
     unsigned long   lu;
+    unsigned short  su;
     //
     va_list         ap;
     va_start(ap, fmt);
@@ -133,9 +140,26 @@ static int              miniprint(const char *fmt, ...) {
                 } else
                     putchar(*p);    // 'l'
             break;
+            case 'h':
+                if (p[1] == 'd'){
+                    sh = va_arg(ap, int);
+                    printf("%hd", sh);
+                    p++, cnt++;
+                } else if (p[1] == 'u'){
+                    su = va_arg(ap, unsigned);
+                    printf("%hu", su);
+                    p++, cnt++;
+                } else
+                    putchar(*p);    // 'l'
+            break;
             case 's':
                 for (s = va_arg(ap, const char *); *s; s++)
                     putchar(*s);
+                cnt++;
+            break;
+            case 'p':
+                pt = va_arg(ap, const void *);
+                printf("%p", pt);
                 cnt++;
             break;
             case 'u':
