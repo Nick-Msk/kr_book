@@ -1,0 +1,184 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdarg.h>
+#include <stdlib.h>
+
+#include "log.h"
+#include "common.h"
+#include "error.h"
+
+typedef struct Keys {
+    bool        version;    // bool example
+    bool        string;
+    char       *filename;
+    int         maxline;
+    // ...
+} Keys;
+
+#define                 Keysinit(...) (Keys){ .version = false, .string = 0, .maxline = 0, __VA_ARGS__}
+
+static int              parse_keys(const char *argv[], Keys *ke){
+    logenter("...");
+    int     argc = 1, params = 0;
+    if (!ke)
+        return userraiseint(ERR_WRONG_INPUT_PARAMETERS, "Zero ke!!! Error!");   // raise here
+    char    c;
+    while (*++argv != 0 && **argv == '-'){
+        argc++;
+        while ( (c = *++argv[0]) )
+            switch (tolower(c)){
+                const char *ptr;
+                case 'v':
+                    if (!ke->version){
+                        ke->version = true;
+                        params++;
+                    }
+                break;
+                case 'f':
+                    // TODO: refactor that to make more pretty
+                    if (argv[0][1] == '\0') {
+                        if (argv[1]){
+                            ptr = argv[1];
+                            argv++;
+                        } else
+                             return userraise(-1, ERR_WRONG_PARAMETER, "-l option without value (must be integer followed), ex '-l123' or '-l 123'");
+                    } else  // argv[1] + 1 is pointer to value
+                        ptr = argv[0] + 1;
+                    ke->string = ptr;        // save pointer
+                    argv[0] += strlen(argv[0]) - 1; // shift
+                    params++;
+                break;
+                case 'l':
+                    // TODO: refactor that to make more pretty
+                    if (argv[0][1] == '\0') {
+                        if (argv[1]){
+                            ptr = argv[1];
+                            argv++;
+                        } else
+                             return userraise(-1, ERR_WRONG_PARAMETER, "-l option without value (must be integer followed), ex '-l123' or '-l 123'");
+                    } else  // argv[1] + 1 is pointer to value
+                        ptr = argv[0] + 1;
+                    ke->maxline = atoi(ptr);        // save pointer
+                    logauto(ptr);
+                    argv[0] += strlen(argv[0]) - 1; // shift
+                    params++;
+                break;
+                default:    // probaly it's possible to ignore unknows parameters
+                    fprintf(stderr, "Illegal option [%c]\n", c);
+                    return logerr(-1, "Illegal [%c], params [%d] argc %d", c, params, argc);
+            }
+    }
+    return logret(argc, "params %d, argc %d", params, argc);
+}
+
+const char *usage_str = "Usage: %s\n";
+
+static int              miniscanf(const char *fmt, ...);  __attribute__ ((format (printf, 1, 2)));
+
+int                     main(int argc, const char *argv[]){
+    logsimpleinit("Start");
+
+    Keys    ke = Keysinit();
+    argc = parse_keys(argv, &ke);
+
+    if (argc < 0) {
+        printf(usage_str, *argv);
+        return 1;
+    }
+    if (ke.version){
+        printf("%s miniscanf 7.4\n", __FILE__);
+        printf(usage_str, *argv);
+        return 0;
+    }
+
+    double d = 1.6; int i = 9; long l = 18L;
+    const char *str = "Abcde1234";
+    printf("Total: %d\n", miniprint("Test string %s %d %f %ld\n", str, i, d, l) );
+
+    return logret(0, "end...");  // as replace of logclose()
+}
+
+static int              miniscanf(const char *fmt, ...) {
+    double          *d;
+    int             *i, *cnt = 0;
+    short           *sh;
+    long            *l;
+    const char      *s;
+    const void      *pt;
+    char            *c;
+    unsigned        *u;
+    unsigned long   *lu;
+    unsigned short  *su;
+    //
+    va_list         ap;
+    va_start(ap, fmt);
+
+    for (const char *p = fmt; *p;  p++){
+        if (*p != '%'){
+            putchar(*p);
+            continue;
+        }
+        switch (*++p){
+            case 'd':
+                i = va_arg(ap, int *);
+                printf("%d", i);
+                cnt++;
+            break;
+            case 'l':
+                if (p[1] == 'd'){
+                    l = va_arg(ap, long);
+                    printf("%ld", l);
+                    p++, cnt++;
+                } else if (p[1] == 'u'){
+                    lu = va_arg(ap, unsigned long);
+                    printf("%lu", lu);
+                    p++, cnt++;
+                } else
+                    putchar(*p);    // 'l'
+            break;
+            case 'h':
+                if (p[1] == 'd'){
+                    sh = va_arg(ap, int);
+                    printf("%hd", sh);
+                    p++, cnt++;
+                } else if (p[1] == 'u'){
+                    su = va_arg(ap, unsigned);
+                    printf("%hu", su);
+                    p++, cnt++;
+                } else
+                    putchar(*p);    // 'l'
+            break;
+            case 's':
+                for (s = va_arg(ap, const char *); *s; s++)
+                    putchar(*s);
+                cnt++;
+            break;
+            case 'p':
+                pt = va_arg(ap, const void *);
+                printf("%p", pt);
+                cnt++;
+            break;
+            case 'u':
+                u = va_arg(ap, unsigned);
+                printf("%u", u);
+                cnt++;
+            break;
+            case 'c':
+                c = (char) va_arg(ap, unsigned int);
+                putchar(c);
+                cnt++;
+            break;
+            case 'f':
+                d = va_arg(ap, double);
+                printf("%f", d);
+                cnt++;
+            break;
+            default:
+                putchar(*s);
+            break;
+        }
+    }
+    va_end(ap);
+    return cnt;
+}
+

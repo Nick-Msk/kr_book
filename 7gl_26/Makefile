@@ -18,6 +18,9 @@ formatter.7.2: src/formatter.7.2.c lib/log.o lib/error.o
 miniprint.7.3: src/miniprint.7.3.c lib/log.o lib/error.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+miniscanf.7.4: src/miniscanf.7.4.c lib/log.o lib/error.o lib/checker.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
