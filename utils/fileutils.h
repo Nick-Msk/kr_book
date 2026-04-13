@@ -66,4 +66,10 @@ extern bool                     fread_pattern_printf(FILE *restrict f, const cha
 #define                         FUGETUNSIGNED(in) ({unsigned _tmp; if (fscanf(in, "%u", &_tmp) < 1)\
                  userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read unsigned"); _tmp;})
 
+// universal strict scanf, current versio for int, double, long, char *.
+extern int                      fstrict_scanf(FILE * restrict f, const char *restrict fmt, ...) __attribute__ ( (format (printf, 2, 3) ) );
+static inline int               strict_scanf(const char *fmt, ...) __attribute__ ( (format (printf, 1, 2) ) ){
+    return fstrict_scanf(stdin, fmt, ##__VA_ARGS__);
+}
+
 #endif /* ! _FILEUTILS_H */

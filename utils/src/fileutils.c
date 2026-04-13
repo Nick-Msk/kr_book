@@ -173,6 +173,14 @@ bool                            fread_pattern_printf(FILE *restrict f, const cha
     return fread_pattern(f, buf, strlen(buf) );
 }
 
+// universal strict scanf, current versio for int, double, long, char *.
+int                             fstrict_scanf(FILE * restrict f, const char *restrict fmt, ...){
+    logenter("fmt %s", fmt);
+    int cnt = 0;
+    // TODO:
+    return cnt;
+}
+
 // -------------------------------Testing --------------------------
 
 #ifdef FILEUTILSTESTING
