@@ -62,8 +62,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
                     params++;
                 break;
                 default:    // probaly it's possible to ignore unknows parameters
-                    fprintf(stderr, "Illegal option [%c]\n", c);
-                    return logerr(-1, "Illegal [%c], params [%d] argc %d", c, params, argc);
+                    return userraise(-1, ERR_WRONG_PARAMETER, "Illegal [%c], params [%d] argc %d", c, params, argc);
             }
     }
     return logret(argc, "params %d, argc %d", params, argc);
