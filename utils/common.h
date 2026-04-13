@@ -220,7 +220,8 @@ static inline int               printn(const char *str, int sz){
     return fprintn(stdout, str, sz);
 }
 
-static inline int               round_up_2(int val){
+// stdc_bit_ceil_ TODO: check
+static inline unsigned          round_up_2(unsigned val){
     int prev = 0;
     while (val)
         val &= ( (prev = val) - 1);
