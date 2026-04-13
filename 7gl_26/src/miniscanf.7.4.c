@@ -9,13 +9,20 @@
 
 typedef struct Keys {
     bool        version;    // bool example
-    bool        string;
-    char       *filename;
-    int         maxline;
+    bool        get_double;
+    bool        get_float;
+    bool        get_int;
+    bool        get_unsigned;
+    bool        get_long;
+    bool        get_unsigned_long;
+    bool        get_string;
+    bool        get_pointer;
     // ...
 } Keys;
 
-#define                 Keysinit(...) (Keys){ .version = false, .string = 0, .maxline = 0, __VA_ARGS__}
+#define                 Keysinit(...) (Keys){\
+    .version = false, .get_double = false, .get_float = false, .get_int = false, .get_unsigned = false, .get_long = false, .get_unsigned_long = false,\
+    .get_string = false, .get_pointer = false, __VA_ARGS__}
 
 static int              parse_keys(const char *argv[], Keys *ke){
     logenter("...");
@@ -27,7 +34,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
         argc++;
         while ( (c = *++argv[0]) )
             switch (tolower(c)){
-                const char *ptr;
+                char        c1;
                 case 'v':
                     if (!ke->version){
                         ke->version = true;
@@ -35,45 +42,54 @@ static int              parse_keys(const char *argv[], Keys *ke){
                     }
                 break;
                 case 'f':
-                    // TODO: refactor that to make more pretty
-                    if (argv[0][1] == '\0') {
-                        if (argv[1]){
-                            ptr = argv[1];
-                            argv++;
-                        } else
-                             return userraise(-1, ERR_WRONG_PARAMETER, "-l option without value (must be integer followed), ex '-l123' or '-l 123'");
-                    } else  // argv[1] + 1 is pointer to value
-                        ptr = argv[0] + 1;
-                    ke->string = ptr;        // save pointer
-                    argv[0] += strlen(argv[0]) - 1; // shift
+                    ke->get_float = true;
+                    params++;
+                break;
+                case 'd':
+                    ke->get_int = true;
                     params++;
                 break;
                 case 'l':
-                    // TODO: refactor that to make more pretty
-                    if (argv[0][1] == '\0') {
-                        if (argv[1]){
-                            ptr = argv[1];
-                            argv++;
-                        } else
-                             return userraise(-1, ERR_WRONG_PARAMETER, "-l option without value (must be integer followed), ex '-l123' or '-l 123'");
-                    } else  // argv[1] + 1 is pointer to value
-                        ptr = argv[0] + 1;
-                    ke->maxline = atoi(ptr);        // save pointer
-                    logauto(ptr);
-                    argv[0] += strlen(argv[0]) - 1; // shift
+                    c1 = *++argv[0];
+                    switch (c1){
+                        case 'd':
+                            ke->get_long = true;
+                        break;
+                        case 'u':
+                            ke->get_unsigned_long = true;
+                        break;
+                        case 'f':
+                            ke->get_double = true;
+                        break;
+                        default:
+                            return userraise(-1, ERR_WRONG_PARAMETER, "Illegal [%c %c], params [%d] argc %d", c, c1, params, argc);
+                    }
+                    params++;
+                break;
+                case 'u':
+                    ke->get_unsigned = true;
+                    params++;
+                break;
+                case 's':
+                    ke->get_string = true;
+                    params++;
+                break;
+                case 'p':
+                    ke->get_pointer = true;
                     params++;
                 break;
                 default:    // probaly it's possible to ignore unknows parameters
-                    fprintf(stderr, "Illegal option [%c]\n", c);
-                    return logerr(-1, "Illegal [%c], params [%d] argc %d", c, params, argc);
+                    return userraise(-1, ERR_WRONG_PARAMETER, "Illegal [%c], params [%d] argc %d", c, params, argc);
             }
     }
     return logret(argc, "params %d, argc %d", params, argc);
 }
 
-const char *usage_str = "Usage: %s\n";
+const char *usage_str = "Usage: -d -u -f -ld -lu -lf -s -p%s\n";
 
 static int              miniscanf(const char *fmt, ...);  __attribute__ ((format (printf, 1, 2)));
+static int              check_int(const Keys *ke);
+static int              check_unsigned(const Keys *ke);
 
 int                     main(int argc, const char *argv[]){
     logsimpleinit("Start");
@@ -91,90 +107,160 @@ int                     main(int argc, const char *argv[]){
         return 0;
     }
 
-    double d = 1.6; int i = 9; long l = 18L;
-    const char *str = "Abcde1234";
-    printf("Total: %d\n", miniprint("Test string %s %d %f %ld\n", str, i, d, l) );
+    double          d;
+    float           f;
+    int             i;
+    long            l;
+    char            str[256];    // omg
 
+    printf("Type a int, then double, then long, then float: ");
+    printf("Total get: %d\n", miniscanf("%d %lf %ld %f", &i, &d, &l, &f) );
+
+    printf("String: ");
+    miniscanf("%s", str);
+
+    printf("Result: double %lf, int %d, long %ld,  float %f, string %s\n", d, i, l, f, str);
+
+    check_int(&ke);
+    check_unsigned(&ke);
+    
     return logret(0, "end...");  // as replace of logclose()
 }
 
+#define                 check_type(type, fmt)\
+static type              check_##type(void)\
+    type     var;\
+    if (ke->get_##type){\
+        printf("Type a " #type ": ");\
+        miniscanf(fmt, &var);\
+        printf("Check res " fmt, var);\
+    }\
+}
+
+static int              check_int(const Keys *ke){
+    int     i;
+    if (ke->get_int){
+        printf("Type a int: ");
+        miniscanf("%d", &i);
+        printf("Check res [%d]", i);
+        return 1;
+    } else
+        return 0;
+}
+
+static int              check_unsigned(const Keys *ke){
+    int     i;
+    if (ke->get_unsigned){
+        printf("Type a unsigned: ");
+        miniscanf("%u", &i);
+        printf("Check res [%u]", i);
+        return 1;
+    } else
+        return 0;
+}
 static int              miniscanf(const char *fmt, ...) {
+
     double          *d;
-    int             *i, *cnt = 0;
+    float           *f;
+    int             *i;
     short           *sh;
     long            *l;
-    const char      *s;
-    const void      *pt;
+    char            *s; // not array, but just the pointer
+    void          **pt;
     char            *c;
     unsigned        *u;
     unsigned long   *lu;
     unsigned short  *su;
     //
+    char            sym;    // for iter
+    int             cnt = 0;
     va_list         ap;
+    bool            breakflag = false;
+
     va_start(ap, fmt);
 
-    for (const char *p = fmt; *p;  p++){
-        if (*p != '%'){
-            putchar(*p);
+    for (const char *p = fmt; !breakflag && *p;  p++){
+        sym = *p;
+        if (isspace(sym) )
             continue;
+        if (sym != '%'){
+            char tmp;
+            while ( (tmp = getchar() ) != EOF && isspace(tmp) )
+                 ;
+            if (tmp != sym)
+                break;
         }
-        switch (*++p){
+        switch ( *++p){
             case 'd':
                 i = va_arg(ap, int *);
-                printf("%d", i);
+                scanf("%d", i);
                 cnt++;
             break;
             case 'l':
                 if (p[1] == 'd'){
-                    l = va_arg(ap, long);
-                    printf("%ld", l);
+                    l = va_arg(ap, long *);
+                    scanf("%ld", l);
                     p++, cnt++;
                 } else if (p[1] == 'u'){
-                    lu = va_arg(ap, unsigned long);
-                    printf("%lu", lu);
+                    lu = va_arg(ap, unsigned long *);
+                    scanf("%lu", lu);
                     p++, cnt++;
-                } else
-                    putchar(*p);    // 'l'
+                } else if (p[1] == 'f'){
+                    d = va_arg(ap, double *);
+                    scanf("%lf", d);
+                    p++, cnt++;
+                }
+                 else {
+                    logsimple("Incorrent format %c%c%c", '%', p[0], p[1]);
+                    breakflag = true;
+                }
             break;
             case 'h':
                 if (p[1] == 'd'){
-                    sh = va_arg(ap, int);
-                    printf("%hd", sh);
+                    sh = va_arg(ap, short *);
+                    scanf("%hd", sh);
                     p++, cnt++;
                 } else if (p[1] == 'u'){
-                    su = va_arg(ap, unsigned);
-                    printf("%hu", su);
+                    su = va_arg(ap, unsigned short *);
+                    scanf("%hu", su);
                     p++, cnt++;
-                } else
-                    putchar(*p);    // 'l'
+                } else {
+                    logsimple("Incorrent format %c%c%c", '%', p[0], p[1]);
+                    breakflag = true;
+                }
             break;
             case 's':
-                for (s = va_arg(ap, const char *); *s; s++)
-                    putchar(*s);
+                // 256 limit must be cheked
+                logsimple("get a string!");
+                s = va_arg(ap, char *);
+                scanf("%s", s);
+                //while ( (sym = getchar() ) != EOF && sym != '\n')
+                  //  *s++ = sym;
+                //*s = '\0';
                 cnt++;
             break;
             case 'p':
-                pt = va_arg(ap, const void *);
-                printf("%p", pt);
+                pt = va_arg(ap, void **);
+                scanf("%p", pt);
                 cnt++;
             break;
             case 'u':
-                u = va_arg(ap, unsigned);
-                printf("%u", u);
+                u = va_arg(ap, unsigned *);
+                scanf("%u", u);
                 cnt++;
             break;
             case 'c':
-                c = (char) va_arg(ap, unsigned int);
-                putchar(c);
+                c = va_arg(ap, char *);
+                scanf("%c", c);
                 cnt++;
             break;
             case 'f':
-                d = va_arg(ap, double);
-                printf("%f", d);
+                f = va_arg(ap, float *);
+                scanf("%f", f);
                 cnt++;
             break;
             default:
-                putchar(*s);
+                breakflag = true;
             break;
         }
     }
