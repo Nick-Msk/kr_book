@@ -9,6 +9,7 @@
 
 typedef struct Keys {
     bool        version;    // bool example
+    bool        simple_test;
     bool        get_double;
     bool        get_float;
     bool        get_int;
@@ -21,7 +22,7 @@ typedef struct Keys {
 } Keys;
 
 #define                 Keysinit(...) (Keys){\
-    .version = false, .get_double = false, .get_float = false, .get_int = false, .get_unsigned = false, .get_long = false, .get_unsigned_long = false,\
+    .version = false, .get_double = false, .simple_test = false, .get_float = false, .get_int = false, .get_unsigned = false, .get_long = false, .get_unsigned_long = false,\
     .get_string = false, .get_pointer = false, __VA_ARGS__}
 
 static int              parse_keys(const char *argv[], Keys *ke){
@@ -36,10 +37,12 @@ static int              parse_keys(const char *argv[], Keys *ke){
             switch (tolower(c)){
                 char        c1;
                 case 'v':
-                    if (!ke->version){
-                        ke->version = true;
-                        params++;
-                    }
+                    ke->version = true;
+                    params++;
+                break;
+                case '1':
+                    ke->simple_test = true;
+                    params++;
                 break;
                 case 'f':
                     ke->get_float = true;
@@ -85,11 +88,37 @@ static int              parse_keys(const char *argv[], Keys *ke){
     return logret(argc, "params %d, argc %d", params, argc);
 }
 
-const char *usage_str = "Usage: -d -u -f -ld -lu -lf -s -p%s\n";
+const char *usage_str = "Usage: -1 or -d -u -f -ld -lu -lf -s -p%s\n";
 
 static int              miniscanf(const char *fmt, ...);  __attribute__ ((format (printf, 1, 2)));
-static int              check_int(const Keys *ke);
-static int              check_unsigned(const Keys *ke);
+
+//static int              check_int(const Keys *ke);
+//static int              check_unsigned(const Keys *ke);
+
+#define                 check_type(type, fmt)\
+static int              check_##type(const Keys *ke){\
+    type     var;\
+    if (ke->get_##type){\
+        printf("Type a " #type ": ");\
+        miniscanf(fmt, &var);\
+        printf("Check res " fmt "\n", var);\
+        return 1;\
+    } else\
+        return 0;\
+}
+
+// create a functions
+check_type(int, "%d")
+check_type(unsigned, "%u")
+check_type(float, "%f")
+check_type(double, "%lf")
+check_type(long, "%ld")
+typedef unsigned long unsigned_long;
+check_type(unsigned_long, "%lu")
+typedef char string[256];
+check_type(string, "%s")
+typedef void * pointer;
+check_type(pointer, "%p")
 
 int                     main(int argc, const char *argv[]){
     logsimpleinit("Start");
@@ -107,42 +136,39 @@ int                     main(int argc, const char *argv[]){
         return 0;
     }
 
-    double          d;
-    float           f;
-    int             i;
-    long            l;
-    char            str[256];    // omg
+    if (ke.simple_test){        // just set of vars
+        double          d;
+        float           f;
+        int             i;
+        long            l;
+        char            str[256];    // omg
 
-    printf("Type a int, then double, then long, then float: ");
-    printf("Total get: %d\n", miniscanf("%d %lf %ld %f", &i, &d, &l, &f) );
+        printf("Type a int, then double, then long, then float: ");
+        printf("Total get: %d\n", miniscanf("%d %lf %ld %f", &i, &d, &l, &f) );
 
-    printf("String: ");
-    miniscanf("%s", str);
-
-    printf("Result: double %lf, int %d, long %ld,  float %f, string %s\n", d, i, l, f, str);
-
-    check_int(&ke);
-    check_unsigned(&ke);
-    
+        printf("String: ");
+        miniscanf("%s", str);
+        printf("Result: double %lf, int %d, long %ld,  float %f, string %s\n", d, i, l, f, str);
+    } else {
+        check_int(&ke);
+        check_unsigned(&ke);
+        check_float(&ke);
+        check_double(&ke);
+        check_long(&ke);
+        check_unsigned_long(&ke);
+        check_string(&ke);
+        check_pointer(&ke);
+    }
     return logret(0, "end...");  // as replace of logclose()
 }
 
-#define                 check_type(type, fmt)\
-static type              check_##type(void)\
-    type     var;\
-    if (ke->get_##type){\
-        printf("Type a " #type ": ");\
-        miniscanf(fmt, &var);\
-        printf("Check res " fmt, var);\
-    }\
-}
-
+/*
 static int              check_int(const Keys *ke){
     int     i;
     if (ke->get_int){
         printf("Type a int: ");
         miniscanf("%d", &i);
-        printf("Check res [%d]", i);
+        printf("Check res [%d]\n", i);
         return 1;
     } else
         return 0;
@@ -153,11 +179,12 @@ static int              check_unsigned(const Keys *ke){
     if (ke->get_unsigned){
         printf("Type a unsigned: ");
         miniscanf("%u", &i);
-        printf("Check res [%u]", i);
+        printf("Check res [%u]\n", i);
         return 1;
     } else
         return 0;
-}
+} */
+
 static int              miniscanf(const char *fmt, ...) {
 
     double          *d;
