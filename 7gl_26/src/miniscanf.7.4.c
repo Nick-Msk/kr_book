@@ -162,29 +162,6 @@ int                     main(int argc, const char *argv[]){
     return logret(0, "end...");  // as replace of logclose()
 }
 
-/*
-static int              check_int(const Keys *ke){
-    int     i;
-    if (ke->get_int){
-        printf("Type a int: ");
-        miniscanf("%d", &i);
-        printf("Check res [%d]\n", i);
-        return 1;
-    } else
-        return 0;
-}
-
-static int              check_unsigned(const Keys *ke){
-    int     i;
-    if (ke->get_unsigned){
-        printf("Type a unsigned: ");
-        miniscanf("%u", &i);
-        printf("Check res [%u]\n", i);
-        return 1;
-    } else
-        return 0;
-} */
-
 static int              miniscanf(const char *fmt, ...) {
 
     double          *d;
