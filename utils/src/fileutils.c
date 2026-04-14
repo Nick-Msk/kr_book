@@ -173,12 +173,118 @@ bool                            fread_pattern_printf(FILE *restrict f, const cha
     return fread_pattern(f, buf, strlen(buf) );
 }
 
+// utility
+static inline bool              get_int(FILE *restrict f, int *restrict res){
+    return fscanf(f, "%d", res) == 1;
+}
+static inline bool              get_uint(FILE *restrict f, unsigned *restrict res){
+    return fscanf(f, "%u", res) == 1;
+}
+static inline bool              get_long(FILE *restrict f, long *restrict res){
+    return fscanf(f, "%ld", res) == 1;
+}
+static inline bool              get_ulong(FILE *restrict f, unsigned long *restrict res){
+    return fscanf(f, "%lu", res) == 1;
+}
+static inline bool              get_double(FILE *restrict f, double *restrict res){
+    return fscanf(f, "%lf", res) == 1;
+}
+static inline bool              get_float(FILE *restrict f, float *restrict res){
+    return fscanf(f, "%f", res) == 1;
+}
+static inline bool              get_str(FILE *restrict f, char *restrict str, int len, bool lastzero){
+    int     c, cnt = 0;
+    while (--len > 0 && (c = getc(f) ) != EOF && c != '\n')
+        *str++ = c, cnt++;
+    if (lastzero && cnt > 0)
+        *str = '\0';
+    return cnt > 0;
+}
+
 // universal strict scanf, current versio for int, double, long, char *.
-int                             fstrict_scanf(FILE * restrict f, const char *restrict fmt, ...){
+int                             fstrict_scanf(FILE * restrict in, const char *restrict fmt, ...){
     logenter("fmt %s", fmt);
-    int cnt = 0;
-    // TODO:
-    return cnt;
+    int         cnt = 0;
+    bool        breakflag = false;
+
+    va_list     ap;
+    va_start(ap, fmt);
+
+    for (const char *p = fmt; !breakflag && *p != '\0'; p++){
+        char            c, sym = *p;
+        int            *i;
+        unsigned       *ui;
+        long           *l;
+        unsigned long  *ul;
+        double         *d;
+        float          *f;
+        char           *s;
+        int             len = 0; // now only!!! for %s, eg: %100s
+
+        if (sym != '%'){
+            if ( (c = getc(in)) != sym)  // then strict follow the pattern
+                return logerr(cnt, "Pattern mismatch [%c] while expected [%c]", c, sym);
+            else
+                continue;
+        } // %
+        while ( isdigit(sym = *++p) )
+            len = len * 10 + ctoi(sym);
+        logauto(len);
+        switch (sym) {
+            case 'd':   // TODO: npw we'll use regular scanf, probably it's better to parse manually
+                i = va_arg(ap, int *);
+                if (!get_int(in, i) )
+                    return logret(cnt, "Unalble to parse next int");
+            break;
+            case 's':
+                s = va_arg(ap, char *);
+                if (!get_str(in, s, len, true) )
+                    return logret(cnt, "Unalble to parse next char *");
+            break;
+            case 'c':
+                s = va_arg(ap, char *);
+                if (!get_str(in, s, 2, false) )
+                    return logret(cnt, "Unalble to parse next char *");
+            break;
+            case 'l':
+                switch (p[1]){
+                    case 'f':
+                        d = va_arg(ap, double *);
+                        if (!get_double(in, d) )
+                            return logret(cnt, "Unalble to parse next double");
+                    break;
+                    case 'd':
+                        l = va_arg(ap, long *);
+                        if (!get_long(in, l) )
+                            return logret(cnt, "Unalble to parse next long");
+                    break;
+                    case 'u':
+                        ul = va_arg(ap, unsigned long *);
+                        if (!get_ulong(in, ul) )
+                             return logret(cnt, "Unalble to parse next unsigned long");
+                    break;
+                    default:
+                        return logerr(cnt, "Incorrect pattern %%%c%c", sym, p[1]);
+                }
+            break;
+            case 'f':
+                f = va_arg(ap, float *);
+                if (!get_float(in, f) )
+                    return logret(cnt, "Unalble to parse next double");
+            break;
+            case 'u':
+                ui = va_arg(ap, unsigned *);
+                if (!get_uint(in, ui) )
+                    return logret(cnt, "Unalble to parse next double");
+            break;
+            default:
+                breakflag = true;
+                logmsg("Unsupported parameted [%c]", sym);
+            break;
+        }
+    }
+    va_end(ap);
+    return logret(cnt, "Parsed %d", cnt);
 }
 
 // -------------------------------Testing --------------------------
@@ -380,6 +486,26 @@ tf5(const char *name)
 }
 
 
+// ------------------------- TEST 5 ---------------------------------
+
+static TestStatus
+tf5(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: fread_pattern from test file", ++subnum);
+    {
+        const char fname[] = "res/strict_scanf1.dat";
+        const char pattern[] = "qwertyu12345";
+        FILE *f = fopen(fname, "w+");
+
+        if (!f)
+            return logerr(TEST_FAILED, "Unable to open %s for write", fname);
+        fclose(f);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
 // -------------------------------------------------------------------
 
 int
@@ -398,6 +524,7 @@ main( /*int argc, const char *argv[] */ )
       , testnew(.f2 = tf3, .num = 3, .name = "Realline/writeline simple test",          .desc = "", .mandatory=true)
       , testnew(.f2 = tf4, .num = 4, .name = "Fprint_file test",                        .desc = "", .mandatory=true)
       , testnew(.f2 = tf5, .num = 5, .name = "fread_pattern test",                      .desc = "", .mandatory=true)
+      , testnew(.f2 = tf6, .num = 6, .name = "strict_scanf() test",                     .desc = "", .mandatory=true)
     );
 
     logclose("end...");

@@ -68,8 +68,6 @@ extern bool                     fread_pattern_printf(FILE *restrict f, const cha
 
 // universal strict scanf, current versio for int, double, long, char *.
 extern int                      fstrict_scanf(FILE * restrict f, const char *restrict fmt, ...) __attribute__ ( (format (printf, 2, 3) ) );
-static inline int               strict_scanf(const char *fmt, ...) __attribute__ ( (format (printf, 1, 2) ) ){
-    return fstrict_scanf(stdin, fmt, ##__VA_ARGS__);
-}
+#define                         strict_scanf(fmt, ...) fstrict_scanf(stdin, (fmt), ##__VA_ARGS__);
 
 #endif /* ! _FILEUTILS_H */
