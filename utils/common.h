@@ -163,8 +163,15 @@ static inline void              str_exch(const char **s1, const char **s2){
     *s2 = tmp;
 }
 
-static inline char              ctoi(char c){
+static inline int               ctoi(char c){
     return c - '0';
+}
+
+static inline int               ctoihex(char c){
+    if (isdigit(c) )
+        return c - '0';
+    else
+        return tolower(c) - 'a';        // a - f
 }
 
 static inline char              itoc(int c){
