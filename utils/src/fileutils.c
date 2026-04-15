@@ -14,6 +14,37 @@
 static const int                FU_LINE_CNT     = 100;
 static const int                FU_PRINT_CNT    = 256;
 
+// ------------------------ Utilities ------------------------------
+
+static inline bool              get_int(FILE *restrict f, int *restrict res){
+    return fscanf(f, "%d", res) == 1;
+}
+static inline bool              get_uint(FILE *restrict f, unsigned *restrict res){
+    return fscanf(f, "%u", res) == 1;
+}
+static inline bool              get_long(FILE *restrict f, long *restrict res){
+    return fscanf(f, "%ld", res) == 1;
+}
+static inline bool              get_ulong(FILE *restrict f, unsigned long *restrict res){
+    return fscanf(f, "%lu", res) == 1;
+}
+static inline bool              get_double(FILE *restrict f, double *restrict res){
+    return fscanf(f, "%lf", res) == 1;
+}
+static inline bool              get_float(FILE *restrict f, float *restrict res){
+    return fscanf(f, "%f", res) == 1;
+}
+static inline bool              get_str(FILE *restrict f, char *restrict str, int len, bool lastzero){
+    int     c, cnt = 0;
+    while (--len > 0 && (c = getc(f) ) != EOF && c != '\n')
+        *str++ = c, cnt++;
+    if (lastzero && cnt > 0)
+        *str = '\0';
+    if (c != EOF)
+        ungetc(c, f);
+    return cnt > 0;
+}
+
 // --------------------------- API ---------------------------------
 
 // for now in common.c, then will be moved out
@@ -173,34 +204,6 @@ bool                            fread_pattern_printf(FILE *restrict f, const cha
     return fread_pattern(f, buf, strlen(buf) );
 }
 
-// utility
-static inline bool              get_int(FILE *restrict f, int *restrict res){
-    return fscanf(f, "%d", res) == 1;
-}
-static inline bool              get_uint(FILE *restrict f, unsigned *restrict res){
-    return fscanf(f, "%u", res) == 1;
-}
-static inline bool              get_long(FILE *restrict f, long *restrict res){
-    return fscanf(f, "%ld", res) == 1;
-}
-static inline bool              get_ulong(FILE *restrict f, unsigned long *restrict res){
-    return fscanf(f, "%lu", res) == 1;
-}
-static inline bool              get_double(FILE *restrict f, double *restrict res){
-    return fscanf(f, "%lf", res) == 1;
-}
-static inline bool              get_float(FILE *restrict f, float *restrict res){
-    return fscanf(f, "%f", res) == 1;
-}
-static inline bool              get_str(FILE *restrict f, char *restrict str, int len, bool lastzero){
-    int     c, cnt = 0;
-    while (--len > 0 && (c = getc(f) ) != EOF && c != '\n')
-        *str++ = c, cnt++;
-    if (lastzero && cnt > 0)
-        *str = '\0';
-    return cnt > 0;
-}
-
 // universal strict scanf, current versio for int, double, long, char *.
 int                             fstrict_scanf(FILE * restrict in, const char *restrict fmt, ...){
     logenter("fmt %s", fmt);
@@ -243,7 +246,7 @@ int                             fstrict_scanf(FILE * restrict in, const char *re
             break;
             case 's':
                 s = va_arg(ap, char *);
-                if (!get_str(in, s, len, true) )
+                if (!get_str(in, s, len ? len : INT_MAX, true) )
                     return logret(cnt, "Unalble to parse next char *");
                 else
                     cnt++;
@@ -251,7 +254,7 @@ int                             fstrict_scanf(FILE * restrict in, const char *re
             case 'c':
                 s = va_arg(ap, char *);
                 if (!get_str(in, s, 2, false) )
-                    return logret(cnt, "Unalble to parse next char *");
+                    return logret(cnt, "Unalble to parse next one char *");
                 else
                     cnt++;
             break;
@@ -311,7 +314,9 @@ int                             fstrict_scanf(FILE * restrict in, const char *re
 
 #ifdef FILEUTILSTESTING
 
-//#include <signal.h>
+#include <float.h>
+#include <math.h>
+
 #include "test.h"
 #include "checker.h"
 
@@ -522,14 +527,15 @@ tf6(const char *name)
         unsigned long   orig_ul = 11111111111111;
         float           orig_f  = 23.456789;
         double          orig_d  = 1111.0123456789;
+        char            orig_c  = 'a';
 
-        const char      fmt[] = "QWERTY[%d][%ld][%u][%lu][%f]---[%.10lf]";
+        const char      fmt[] = "QWERTY[%d][%ld][%u][%lu][%f]---[%.10lf][%c]";
         FILE           *in = fopen(fname, "w+");
         if (!in)
             return logerr(TEST_FAILED, "Unable to open %s for write", fname);
 
         fs              s = FS();
-        fssprintf(s, fmt, orig_i, orig_l, orig_u, orig_ul, orig_f, orig_d);
+        fssprintf(s, fmt, orig_i, orig_l, orig_u, orig_ul, orig_f, orig_d, orig_c);
         fwrite(fsstr(s), fslen(s), 1, in);
         fsfree(s);
 
@@ -542,23 +548,116 @@ tf6(const char *name)
             unsigned long   ul;
             float           f;
             double          d;
+            char            c;
             int             retval;
-            test_validatefree( (retval = fstrict_scanf(in, "QWERTY[%d][%ld][%u][%lu][%f]---[%lf]", &i, &l, &ui, &ul, &f, &d) ) == 6,
+            test_validatefree( (retval = fstrict_scanf(in, "QWERTY[%d][%ld][%u][%lu][%f]---[%lf][%c]", &i, &l, &ui, &ul, &f, &d, &c) ) == 7,
                                         fclose(in),
                                         "Must return 6 but not %d",  retval);
             test_validatefree(i == orig_i && l == orig_l && ui == orig_u && ul == orig_ul && f == orig_f && d == orig_d,
-                                fclose(in), "Violation: %d - %d, %ld - %ld, %u - %u, %lu - %lu, %f - %f, %lf - %lf",
-                                           i, orig_i, l, orig_l, ui, orig_u, ul, orig_ul, f, orig_f, d, orig_d);
+                                fclose(in), "Violation: %d - %d, %ld - %ld, %u - %u, %lu - %lu, %f - %f, %lf - %lf, %c - %c",
+                                           i, orig_i, l, orig_l, ui, orig_u, ul, orig_ul, f, orig_f, d, orig_d, c, orig_c);
         }
         fclose(in);
     }
     test_sub("subtest %d: multiple line read", ++subnum);
     {
-        
+        const char fname[] = "res/strict_scanf2.dat";
+        long            orig_l  = 1;
+        double          orig_d  = 1.01234;
+        int             cnt = 500;
 
+        const char      fmt[] = "QWERTY num %ld %lf\n";
+        FILE           *in = fopen(fname, "w+");
+        if (!in)
+            return logerr(TEST_FAILED, "Unable to open %s for write", fname);
+
+        fs              s = FS();
+        for (int i = 0; i < cnt; i++){
+            fssprintf(s, fmt, orig_l + i, orig_d + i);
+            fwrite(fsstr(s), fslen(s), 1, in);
+        }
+        fsfree(s);
+        rewind(in);
+
+        {
+            long        l;
+            double      d;
+            int         retval;
+
+            for (int i = 0; i < cnt; i++){
+                test_validatefree( (retval = fstrict_scanf(in, fmt, &l, &d) ) == 2,
+                                    fclose(in), "Must return 2 but not %d",  retval);
+                test_validatefree(l == orig_l + i && (fabs(orig_d + i - d) < DBL_EPSILON * 100),
+                                    fclose(in), "Violation (%d): %ld - %ld, %lf - %lf, (fasb = %le)",
+                                i, l, orig_l + i, d, orig_d + i, fabs(orig_d + i - d) * 100);
+            }
+        }
+    }
+    test_sub("subtest %d: multiple string line read", ++subnum);
+    {
+        const char fname[] = "res/strict_scanf3.dat";
+
+        const char      fmt[] = "QWERTY num %s-%d\n";
+        FILE           *in = fopen(fname, "w+");
+        int             cnt = 5;
+        const char     *value = "test string";
+
+        if (!in)
+            return logerr(TEST_FAILED, "Unable to open %s for write", fname);
+
+        fs              s = FS();
+        for (int i = 0; i < cnt; i++){
+            fssprintf(s, fmt, value, i);
+            fwrite(fsstr(s), fslen(s), 1, in);
+        }
+        rewind(in);
+
+        {
+            int     retval;
+            char    buf[1024];  // more that enough
+            for (int i = 0; i < cnt; i++){
+                fssprintf(s, "%s-%d", value, i);    // create the same line
+                test_validatefree( (retval = fstrict_scanf(in, "QWERTY num %s\n", buf) ) == 1,
+                                    (fclose(in), fsfree(s) ), "Must return 1 but not %d",  retval);
+                test_validatefree(strcmp(buf, fsstr(s)) == 0, (fclose(in), fsfree(s) ),  "Violation (%d): [%s] - [%s]", i, buf, fsstr(s) );
+            }
+        }
+        fsfree(s);
+        fclose(in);
+    }
+    test_sub("subtest %d: multiple LIMIT string line read", ++subnum);
+    {
+        const char fname[] = "res/strict_scanf3.dat";
+
+        const char      fmt[] = "QWERTY num %s-%d\n";
+        FILE           *in = fopen(fname, "w+");
+        int             cnt = 5;
+        const char     *value = "test string";
+
+        if (!in)
+            return logerr(TEST_FAILED, "Unable to open %s for write", fname);
+
+        fs              s = FS();
+        for (int i = 0; i < cnt; i++){
+            fssprintf(s, fmt, value, i);
+            fwrite(fsstr(s), fslen(s), 1, in);
+        }
+        rewind(in);
+
+        {
+            int     retval;
+            int     lim = 5;        // LIMIT!
+            char    buf[lim];
+            for (int i = 0; i < cnt; i++){
+                // TODO!!!!
+            }
+        }
+        fsfree(s);
+        fclose(in);
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
+
 // -------------------------------------------------------------------
 
 int
