@@ -36,9 +36,11 @@ static inline bool              get_float(FILE *restrict f, float *restrict res)
 }
 static inline bool              get_str(FILE *restrict f, char *restrict str, int len, bool lastzero){
     int     c, cnt = 0;
-    while (--len > 0 && (c = getc(f) ) != EOF && c != '\n')
-        *str++ = c, cnt++;
-    if (lastzero && cnt > 0)
+    while ( (c = getc(f) ) != EOF && c != '\n')
+        if (--len > 0)
+            *str++ = c, cnt++;
+
+    if (lastzero && cnt > 0)        // for %s lastzero is true
         *str = '\0';
     if (c != EOF)
         ungetc(c, f);
@@ -235,7 +237,7 @@ int                             fstrict_scanf(FILE * restrict in, const char *re
             len = len * 10 + ctoi(sym);
         }
         sym = *p;
-        logauto(len);
+        //logauto(len);
         switch (sym) {
             case 'd':   // TODO: npw we'll use regular scanf, probably it's better to parse manually
                 i = va_arg(ap, int *);
@@ -627,9 +629,9 @@ tf6(const char *name)
     }
     test_sub("subtest %d: multiple LIMIT string line read", ++subnum);
     {
-        const char fname[] = "res/strict_scanf3.dat";
+        const char fname[] = "res/strict_scanf4.dat";
 
-        const char      fmt[] = "QWERTY num %s-%d\n";
+        const char      fmt[] = "QWERTY num %d-%s\n";
         FILE           *in = fopen(fname, "w+");
         int             cnt = 5;
         const char     *value = "test string";
@@ -639,17 +641,21 @@ tf6(const char *name)
 
         fs              s = FS();
         for (int i = 0; i < cnt; i++){
-            fssprintf(s, fmt, value, i);
+            fssprintf(s, fmt, i, value);
             fwrite(fsstr(s), fslen(s), 1, in);
         }
         rewind(in);
 
         {
             int     retval;
-            int     lim = 5;        // LIMIT!
+            int     lim = 6;        // LIMIT!
             char    buf[lim];
             for (int i = 0; i < cnt; i++){
                 // TODO!!!!
+                fssprintf(s, "%d-%s", i, value);    // create the same line
+                test_validatefree( (retval = fstrict_scanf(in, "QWERTY num %6s\n", buf) ) == 1,
+                                (fclose(in), fsfree(s) ), "Must return 1 but not %d",  retval);
+                test_validatefree(strncmp(buf, fsstr(s), lim - 1) == 0, (fclose(in), fsfree(s) ),  "Violation (%d): [%s] - [%s]", i, buf, fsstr(s) );
             }
         }
         fsfree(s);
