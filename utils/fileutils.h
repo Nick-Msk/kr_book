@@ -67,7 +67,7 @@ extern bool                     fread_pattern_printf(FILE *restrict f, const cha
                  userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read unsigned"); _tmp;})
 
 // universal strict scanf, current versio for int, double, long, char *.
-extern int                      fstrict_scanf(FILE * restrict f, const char *restrict fmt, ...) __attribute__ ( (format (printf, 2, 3) ) );
+extern int                      fstrict_scanf(FILE * restrict f, const char *restrict fmt, ...) __attribute__ ( (format (scanf, 2, 3) ) );
 #define                         strict_scanf(fmt, ...) fstrict_scanf(stdin, (fmt), ##__VA_ARGS__);
 
 #endif /* ! _FILEUTILS_H */

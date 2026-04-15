@@ -227,55 +227,75 @@ int                             fstrict_scanf(FILE * restrict in, const char *re
             else
                 continue;
         } // %
-        while ( isdigit(sym = *++p) )
+        while (isdigit(*++p) ) {
+            sym = *p;
             len = len * 10 + ctoi(sym);
+        }
+        sym = *p;
         logauto(len);
         switch (sym) {
             case 'd':   // TODO: npw we'll use regular scanf, probably it's better to parse manually
                 i = va_arg(ap, int *);
                 if (!get_int(in, i) )
                     return logret(cnt, "Unalble to parse next int");
+                else
+                    cnt++;
             break;
             case 's':
                 s = va_arg(ap, char *);
                 if (!get_str(in, s, len, true) )
                     return logret(cnt, "Unalble to parse next char *");
+                else
+                    cnt++;
             break;
             case 'c':
                 s = va_arg(ap, char *);
                 if (!get_str(in, s, 2, false) )
                     return logret(cnt, "Unalble to parse next char *");
+                else
+                    cnt++;
             break;
             case 'l':
-                switch (p[1]){
+                p++;
+                switch (*p){
                     case 'f':
                         d = va_arg(ap, double *);
                         if (!get_double(in, d) )
                             return logret(cnt, "Unalble to parse next double");
+                        else
+                            cnt++;
                     break;
                     case 'd':
                         l = va_arg(ap, long *);
                         if (!get_long(in, l) )
                             return logret(cnt, "Unalble to parse next long");
+                        else
+                            cnt++;
                     break;
                     case 'u':
                         ul = va_arg(ap, unsigned long *);
                         if (!get_ulong(in, ul) )
                              return logret(cnt, "Unalble to parse next unsigned long");
+                        else
+                            cnt++;
                     break;
                     default:
-                        return logerr(cnt, "Incorrect pattern %%%c%c", sym, p[1]);
+                        return logerr(cnt, "Incorrect pattern %%%c%c", sym, *p);
                 }
             break;
             case 'f':
                 f = va_arg(ap, float *);
                 if (!get_float(in, f) )
                     return logret(cnt, "Unalble to parse next double");
+                else
+                    cnt++;
             break;
             case 'u':
                 ui = va_arg(ap, unsigned *);
                 if (!get_uint(in, ui) )
                     return logret(cnt, "Unalble to parse next double");
+                else
+                    cnt++;
             break;
             default:
                 breakflag = true;
@@ -420,7 +440,6 @@ tf3(const char *name)
         test_fclose(tf);
         test_sub("subtest %d", ++subnum);
         for (int i = 0; i < COUNT(pts); i++){
-            logauto(i);
             fstechfprint(logfile, pts[i]);
             fstechfprint(logfile, pts2[i]);
             if (fscmp(pts[i], pts2[i]) != 0)
@@ -486,23 +505,57 @@ tf5(const char *name)
 }
 
 
-// ------------------------- TEST 5 ---------------------------------
+// ------------------------- TEST 6 ---------------------------------
 
 static TestStatus
-tf5(const char *name)
+tf6(const char *name)
 {
     logenter("%s", name);
     int         subnum = 0;
 
-    test_sub("subtest %d: fread_pattern from test file", ++subnum);
+    test_sub("subtest %d: one line read", ++subnum);
     {
         const char fname[] = "res/strict_scanf1.dat";
-        const char pattern[] = "qwertyu12345";
-        FILE *f = fopen(fname, "w+");
+        int             orig_i  = -123;
+        unsigned        orig_u  = 456;
+        long            orig_l  = -999999999999999;
+        unsigned long   orig_ul = 11111111111111;
+        float           orig_f  = 23.456789;
+        double          orig_d  = 1111.0123456789;
 
-        if (!f)
+        const char      fmt[] = "QWERTY[%d][%ld][%u][%lu][%f]---[%.10lf]";
+        FILE           *in = fopen(fname, "w+");
+        if (!in)
             return logerr(TEST_FAILED, "Unable to open %s for write", fname);
-        fclose(f);
+
+        fs              s = FS();
+        fssprintf(s, fmt, orig_i, orig_l, orig_u, orig_ul, orig_f, orig_d);
+        fwrite(fsstr(s), fslen(s), 1, in);
+        fsfree(s);
+
+        rewind(in);
+
+        {
+            int             i;
+            long            l;
+            unsigned        ui;
+            unsigned long   ul;
+            float           f;
+            double          d;
+            int             retval;
+            test_validatefree( (retval = fstrict_scanf(in, "QWERTY[%d][%ld][%u][%lu][%f]---[%lf]", &i, &l, &ui, &ul, &f, &d) ) == 6,
+                                        fclose(in),
+                                        "Must return 6 but not %d",  retval);
+            test_validatefree(i == orig_i && l == orig_l && ui == orig_u && ul == orig_ul && f == orig_f && d == orig_d,
+                                fclose(in), "Violation: %d - %d, %ld - %ld, %u - %u, %lu - %lu, %f - %f, %lf - %lf",
+                                           i, orig_i, l, orig_l, ui, orig_u, ul, orig_ul, f, orig_f, d, orig_d);
+        }
+        fclose(in);
+    }
+    test_sub("subtest %d: multiple line read", ++subnum);
+    {
+        
+
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
