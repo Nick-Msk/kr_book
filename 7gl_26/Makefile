@@ -21,6 +21,9 @@ miniprint.7.3: src/miniprint.7.3.c lib/log.o lib/error.o lib/checker.o
 miniscanf.7.4: src/miniscanf.7.4.c lib/log.o lib/error.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+cat.p7.5: src/cat.p7.5.c lib/log.o lib/error.o lib/checker.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
