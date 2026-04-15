@@ -30,6 +30,7 @@ static const int                        ERR_WRONG_PARAMETER         = 22;
 static const int                        ERR_UNABLE_OPEN_FILE        = 50;
 static const int                        ERR_UNABLE_OPEN_FILE_READ   = 51;
 static const int                        ERR_UNABLE_OPEN_FILE_WRITE  = 52;
+static const int                        ERR_STREAM_ERROR            = 53;
 
 static const int                        ERR_WRONG_INPUT_PARAMETERS  = 60;
 
