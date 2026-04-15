@@ -15,6 +15,9 @@ print_format_test: src/print_format_test.c
 anon_struct: src/anon_struct.c
 	$(CC) $(CFLAGS) $^ -o out/$@_test
 
+singleton: src/singleton.c
+	$(CC) $(CFLAGS) $^ -o out/$@_test
+
 printf_n: printf_n.c
 	$(CC) $(CFLAGS) $^ -o out/$@_test
 
