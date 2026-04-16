@@ -5,6 +5,7 @@
 #include "fs.h"
 #include "common.h"
 #include "error.h"
+#include "fileutils.h"
 
 typedef struct Keys {
     bool        version;    // bool example
@@ -69,6 +70,8 @@ static int              parse_keys(const char *argv[], Keys *ke){
 
 const char *usage_str = "Usage: %s -s file1 -t file2\n";
 
+static int              f_finddiff(FILE *restrict source, FILE *restrict target, fs *restrict s, fs *restrict t);
+
 int                     main(int argc, const char *argv[]){
     logsimpleinit("Start");
 
@@ -87,15 +90,46 @@ int                     main(int argc, const char *argv[]){
     invraise(ke.source != 0 && ke.target != 0, usage_str, *argv);
 
     FILE    *source = fopen(ke.source, "r");
+    if (!source)
+        userraiseint(ERR_UNABLE_OPEN_FILE_READ, "Unable to open %s", ke.source);
     FILE    *target = fopen(ke.target, "r");
+    if (!target)
+        userraiseint(ERR_UNABLE_OPEN_FILE_READ, "Unable to open %s", ke.target);
 
-    invraise(source && target, "Unabel to open %s or %s", ke.source, ke.target);
+    fs      source_str = FS();
+    fs      target_str = FS();
+    int     numdiff = f_finddiff(source, target, &source_str, &target_str);
 
+    if (numdiff == 0)
+        printf("Files equals\n");
+    else if (numdiff < 0)
+        fprintf(stderr, "Error occurs\n");
+    else
+        printf("Diff %d: %s\n%s\n", numdiff, fsstr(source_str), fsstr(target_str) );
+
+    fsfreeall(&source_str, &target_str);
+    fclose(source);
+    fclose(target);
     if (!fs_alloc_check(false))
         logmsg("Warning: incorrect allocation of fs's");
 
     return logret(0, "end...");  // as replace of logclose()
 }
 
-
+// 0 means equal,
+static int              f_finddiff(FILE *restrict source, FILE *restrict target, fs *restrict s, fs *restrict t){
+    int     cnt = 0;
+    int     src_len, trg_len, cmp;
+    do {
+        src_len = fgetline_fs(source, s);
+        trg_len = fgetline_fs(target, t);
+        if (src_len && trg_len)
+            cmp = fs_cmp(s, t);
+        cnt++;      // 1-st line is 1
+    } while (src_len == 0 || trg_len == 0 || cmp != 0);
+    if (cmp)
+        return logsimpleret(cnt, "Diff on %d, [%s],[%s]", cnt, s->v, t->v);
+    else
+        return logsimpleret(0, "No diff");
+}
 
