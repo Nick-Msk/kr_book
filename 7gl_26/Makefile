@@ -24,7 +24,7 @@ miniscanf.7.4: src/miniscanf.7.4.c lib/log.o lib/error.o lib/checker.o
 cat.p7.5: src/cat.p7.5.c lib/log.o lib/error.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-fputs_gets.p7.6: src/fputs_gets.p7.6.c lib/log.o lib/error.o lib/checker.o
+fputs_fgets.p7.6: src/fputs_fgets.p7.6.c lib/log.o lib/error.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 UTIL_PATH = ../utils
