@@ -18,7 +18,7 @@ extern int                      fgetline_fs(FILE *restrict in, fs *restrict s);
 static inline int               getline_fs(fs *str){
     return fgetline_fs(stdin, str);
 }
-
+// ALL file as one fs!
 extern fs                       readfs_file(FILE *f);
 
 // read all lines separately into fs[]
