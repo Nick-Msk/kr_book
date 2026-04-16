@@ -27,6 +27,9 @@ cat.p7.5: src/cat.p7.5.c lib/log.o lib/error.o lib/checker.o
 fputs_fgets.p7.6: src/fputs_fgets.p7.6.c lib/log.o lib/error.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+file_differ7.6: src/file_differ7.6.c lib/log.o lib/error.o lib/checker.o lib/fs.o lib/fileutils.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
