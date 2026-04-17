@@ -13,11 +13,30 @@
 // ---------------------- API ----------------------------------------
 
 // --------------- fs based API ---------------------------
-extern int                      fgetline_fs(FILE *restrict in, fs *restrict s);
+extern int                      fgetline_cmn_fs(FILE *restrict in, fs *restrict s, bool newline);
 
+// line without last '\n'
+static inline int              fgetslim_fs(FILE *restrict in, fs *restrict s){
+    return fgetline_cmn_fs(in, s, false);
+}
+
+// with filal '\n'
+static inline int               getslim_fs(fs *str){
+    return fgetslim_fs(stdin, str);
+}
+
+// with final '\n'
+static inline int              fgetline_fs(FILE *restrict in, fs *restrict s){
+    return fgetline_cmn_fs(in, s, true);
+}
+
+// with filal '\n'
 static inline int               getline_fs(fs *str){
     return fgetline_fs(stdin, str);
 }
+
+
+
 // ALL file as one fs!
 extern fs                       readfs_file(FILE *f);
 

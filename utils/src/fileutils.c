@@ -60,13 +60,13 @@ int                             get_line(char *line, int lim){
     return i;
 }
 
-// for now in common.c, then will be moved out
-int                             fgetline_fs(FILE *restrict in, fs *restrict s){
+// internal, main fs getline
+int                             fgetline_cmn_fs(FILE *restrict in, fs *restrict s, bool newline){
     int     c, i;
     for (i = 0; (c = fgetc(in)) != EOF && c != '\n'; i++){
         elem(*s, i) = c;
     }
-    if (c == '\n')
+    if (newline && c == '\n')
         elem(*s, i++) = c;
     if (i > 0 || c != EOF)
         fsetlen(*s, i);    // fix length and set '\0'!
