@@ -11,8 +11,8 @@
                  FILEUTILS MODULE IMPLEMENTATION
 ********************************************************************/
 
-static const int                FU_LINE_CNT     = 100;
-static const int                FU_PRINT_CNT    = 256;
+static const int                G_FU_LINE_CNT     = 100;
+static const int                G_FU_PRINT_CNT    = 256;
 
 // ------------------------ Utilities ------------------------------
 
@@ -94,7 +94,7 @@ int                             freadlines(FILE *restrict f, fs **restrict ptr){
 
     logenter("file: %p, fs **: %p", ptr, ptr);
 
-    int     nlines = 0, len, maxlines = FU_LINE_CNT;
+    int     nlines = 0, len, maxlines = G_FU_LINE_CNT;
     fs      line = fsempty();
     fs     *lines = malloc(maxlines * sizeof(fs));  // 
     if (!lines){
@@ -104,7 +104,7 @@ int                             freadlines(FILE *restrict f, fs **restrict ptr){
 
     while ( (len = fgetline_fs(f, &line) ) > 0){
         if (nlines >= maxlines - 1){    // is for the last empry fs
-            maxlines += FU_LINE_CNT;
+            maxlines += G_FU_LINE_CNT;
             fs *tmp = lines;
             if ( (tmp = realloc(tmp, maxlines * sizeof(fs) ) ) == 0){
                 perror("Unable to allocated");      // sysraisesig? TODO:
@@ -197,10 +197,10 @@ bool                            fread_pattern(FILE *restrict f, const char *rest
 
 // format vai printf then read pattern
 bool                            fread_pattern_printf(FILE *restrict f, const char *restrict fmt, ...){
-    char buf[FU_PRINT_CNT];
+    char buf[G_FU_PRINT_CNT];
     va_list     ap;
     va_start(ap, fmt);
-    vsnprintf(buf, FU_PRINT_CNT - 1, fmt, ap);
+    vsnprintf(buf, G_FU_PRINT_CNT - 1, fmt, ap);
     logsimple("processed pattern [%s]", buf);
     va_end(ap);
     return fread_pattern(f, buf, strlen(buf) );
@@ -651,7 +651,6 @@ tf6(const char *name)
             int     lim = 6;        // LIMIT!
             char    buf[lim];
             for (int i = 0; i < cnt; i++){
-                // TODO!!!!
                 fssprintf(s, "%d-%s", i, value);    // create the same line
                 test_validatefree( (retval = fstrict_scanf(in, "QWERTY num %6s\n", buf) ) == 1,
                                 (fclose(in), fsfree(s) ), "Must return 1 but not %d",  retval);
