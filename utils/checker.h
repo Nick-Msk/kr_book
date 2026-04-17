@@ -32,11 +32,13 @@ int						inv_fprintf_int(FILE *restrict out, const char *restrict expr, int res,
 #define	_invraise(raise, expr, msg, ...)\
 	({ 	bool _INV_RES = (expr);\
 	   	if (! _INV_RES){\
-			inv_fprintf_int(stderr, #expr, 0, 0, msg, ##__VA_ARGS__);\
             logsimple("Invariant violation: %s", #expr);\
-            logsimple(msg, ##__VA_ARGS__);\
             if (raise)\
 			    userraiseint(ERRNUM_INVARIANT_VIOLATION, msg, ##__VA_ARGS__);\
+			else {\
+                logsimple(msg, ##__VA_ARGS__);\
+                inv_fprintf_int(stderr, #expr, 0, 0, msg, ##__VA_ARGS__);\
+            }\
 	   	}\
 	   	_INV_RES;\
 	})
