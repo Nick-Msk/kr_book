@@ -87,7 +87,9 @@ int                     main(int argc, const char *argv[]){
         printf(usage_str, *argv);
         return 0;
     }
-    invraise(ke.source != 0 && ke.target != 0, usage_str, *argv);
+    //invraise(ke.source != 0 && ke.target != 0, usage_str, *argv);
+    if (ke.source == 0 || ke.target == 0)
+        return userraise(2, ERR_NOT_ENOGH_VALUES, usage_str, *argv);
 
     FILE    *source = fopen(ke.source, "r");
     if (!source)
