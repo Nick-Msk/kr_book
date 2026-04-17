@@ -308,30 +308,4 @@ static inline bool              int__in(int val, const int *arr){
 #define                         int_notin(val, ...) int_not_in( (val),  (const int []) { __VA_ARGS__, INT_MIN} )
 #define                         int_in(val, ...)    int__in( (val),     (const int []) { __VA_ARGS__, INT_MIN} )
 
-#define    SINGLETON(action)\
-        ({ static bool _SINGLE_11 = true;\
-            bool tmp = _SINGLE_11;\
-          if (_SINGLE_11){\
-                (action);\
-                _SINGLE_11 = false;\
-          }\
-          tmp;\
-        })
-
-#define   MODEXEC(modval, action)\
-        ({ static unsigned _MODVAL = 0;\
-           bool res = (++_MODVAL % modval == 0);\
-           if (res)\
-               (action);\
-            res;\
-        })
-
-#define   MODEXECL(modval, action)\
-        ({ static unsigned long _MODVAL = 0;\
-           bool res = (++_MODVAL % modval == 0);\
-           if (res)\
-               (action);\
-            res;\
-        })
-
 #endif /* ! _COMMON_H */
