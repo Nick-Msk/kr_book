@@ -18,7 +18,7 @@ anon_struct: src/anon_struct.c
 singleton: src/singleton.c
 	$(CC) $(CFLAGS) $^ -o out/$@_test
 
-printf_n: printf_n.c
+printf_n: src/printf_n.c
 	$(CC) $(CFLAGS) $^ -o out/$@_test
 
 round_up2: src/round_up2.c
@@ -27,47 +27,47 @@ round_up2: src/round_up2.c
 power: src/power.c
 	$(CC) $(CFLAGS) $^ -o out/$@_test
 
-t7.8.1: t7.8.1.c
+t7.8.1: src/t7.8.1.c
 	$(CC) $(CFLAGS) $^ -o $@_test
 
-va_test: va_test.c ../log.c
+va_test: src/va_test.c ../log.c
 	$(CC) $(CFLAGS) $^ -o $@_test
 
-limit-test: limit-test.c
+limit-test: src/limit-test.c
 	$(CC) $(CFLAGS) $^ -o $@_test
 
-gethostname_t: gethostname_t.c
+gethostname_t: src/gethostname_t.c
 	$(CC) $(CFLAGS) $^ -o $@_test
 
-setjump_test: setjump_test.c
-	$(CC) $(CFLAGS) $^ -o $@
-
-assert_test: assert_test.c
-	$(CC) $(CFLAGS) $^ -o $@
-
-address_in_stack: address_in_stack.c
+setjump_test: src/setjump_test.c
 	$(CC) $(CFLAGS) $^ -o $@_test
 
-strerror_test: strerror_test.c
-	$(CC) $(CFLAGS) $^ -o $@
+assert_test: src/assert_test.c
+	$(CC) $(CFLAGS) $^ -o $@_test
 
-return_test: return_test.c
-	$(CC) $(CFLAGS) $^ -o $@
+address_in_stack: src/address_in_stack.c
+	$(CC) $(CFLAGS) $^ -o $@_test
 
-setjump2_test: setjump2_test.c
-	$(CC) $(CFLAGS) $^ -o $@
+strerror_test: src/strerror_test.c
+	$(CC) $(CFLAGS) $^ -o $@_test
 
-comparator_test: comparator_test.c ../log.c
+return_test: src/return_test.c
+	$(CC) $(CFLAGS) $^ -o $@_test
+
+setjump2_test: src/setjump2_test.c
+	$(CC) $(CFLAGS) $^ -o $@_test
+
+comparator_test: src/comparator_test.c ../log.c
 	#$(CC) $(CFLAGS) $^ -o $@
-	$(CC) $(CFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $^ -o $@_test
 
-macro-cat-test: macro-cat-test.c
+macro-cat-test: src/macro-cat-test.c
 	$(CC) -E $^
 
-timespec_get_test: timespec_get_test.c
-	$(CC) $(CFLAGS) $^ -o $@
+timespec_get_test: src/timespec_get_test.c
+	$(CC) $(CFLAGS) $^ -o $@_test
 
-test-cmp-doc: test-cmp-doc.c
+test-cmp-doc: src/test-cmp-doc.c
 	$(CC) $(CFLAGS) $^ -o $@_test
 
 test-next-prime: src/test-next-prime.c
