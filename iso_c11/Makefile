@@ -73,6 +73,9 @@ test-cmp-doc: test-cmp-doc.c
 test-next-prime: src/test-next-prime.c
 	$(CC) $(CFLAGS) $^ -o out/$@_test
 
+cycleguarg: src/cycleguard.c
+	$(CC) $(CFLAGS) $^ -o out/$@_test
+
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
 	-rm *.o
