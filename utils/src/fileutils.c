@@ -68,9 +68,11 @@ int                             fgetline_cmn_fs(FILE *restrict in, fs *restrict 
     }
     if (newline && c == '\n')
         elem(*s, i++) = c;
-    if (i > 0 || c != EOF)
+    if (i > 0 || c != EOF){
         fsetlen(*s, i);    // fix length and set '\0'!
-    return i;
+        return i;
+    } else
+        return EOF; // return EOF if end of file
 }
 
 // return fs for WHOLE file!
