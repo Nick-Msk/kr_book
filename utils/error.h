@@ -35,6 +35,7 @@ static const int                        ERR_STREAM_ERROR            = 53;
 static const int                        ERR_WRONG_INPUT_PARAMETERS  = 60;
 
 static const int                        ERRNUM_INVARIANT_VIOLATION  = 100;       // Error code for error.h
+static const int                        ERR_NOT_IMPLEMENTED_FEATURE = 200;
 
 // WARNINGS HEHE
 static const int                        WARN_MEM_LEAK_DETECTED      = 1001;
