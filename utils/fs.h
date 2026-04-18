@@ -254,6 +254,46 @@ static inline int            fsicmp(fs str1, fs str2){
 static inline int            fsnicmp(fs str1, fs str2, int len){
     return strncasecmp(str1.v, str2.v, len);
 }
+// pointer, sensitive, unlim
+static inline int            fs_instr(const fs* restrict str1, const fs* restrict str2){
+    const char *p = strstr(str1->v, str2->v);
+    return p == 0 ? -1 : p - str1->v;
+}
+// pointer, insensitive, unlim
+static inline int            fs_iinstr(const fs* restrict str1, const fs* restrict str2){
+    const char *p = strcasestr(str1->v, str2->v);   // NOTE: not portable solution
+    return p == 0 ? -1 : p - str1->v;
+}
+// local, sensitive, unlim
+static inline int            fsinstr(fs str1, fs str2){
+    const char *p = strstr(str1.v, str2.v);   // NOTE: not portable solution
+    return p == 0 ? -1 : p - str1.v;
+}
+// local, insensitive, unlim
+static inline int            fsiinstr(fs str1, fs str2){
+    const char *p = strcasestr(str1.v, str2.v);   // NOTE: not portable solution
+    return p == 0 ? -1 : p - str1.v;
+}
+// TODO: fs_ninstr(fs *, fs *, int); fs_niinstr(fs *, fs *, n);
+// common search for limited!
+extern int                   fs_lim_instr(const fs* restrict str1, const fs* restrict str2, int lim, bool lowercase);
+
+// pointer, sensitive, lim
+static inline int            fs_ninstr(const fs* restrict str1, const fs* restrict str2, int lim){
+    return  fs_lim_instr(str1, str2, lim, false);
+}
+// pointer, insensitive, lim
+static inline int            fs_niinstr(const fs* restrict str1, const fs* restrict str2, int lim){
+    return  fs_lim_instr(str1, str2, lim, true);
+}
+// local, sensitive, lim
+static inline int            fsninstr(fs str1, fs str2, int lim){
+    return  fs_lim_instr(&str1, &str2, lim, false);
+}
+// local, insensitive, lim
+static inline int            fsniinstr(fs str1, fs str2, int lim){
+    return  fs_lim_instr(&str1, &str2, lim, true);
+}
 
 static inline void           fs_exch(fs *s1, fs *s2){
     fs tmp = *s1;
@@ -299,6 +339,27 @@ extern fs                    fs_substr(fs *s, int from, int to);
 
 // constructor version
 extern fs                    fs_newsubstr(const fs *s, int from, int to);
+
+static inline fs            *fs_tolower_interval(fs *str, int from, int to){
+    // TODO: probably fs_iter - think about it
+    for (int i = MAX(from, 0); i < MIN(to, str->len); i++)
+        str->v[i] = tolower(str->v[i]);
+    return str;
+}
+
+static inline fs            *fs_tolower(fs *str){
+    return fs_tolower_interval(str, 0, str->len);
+}
+
+static inline fs            *fs_toupper_interval(fs *str, int from, int to){
+    // TODO: probably fs_iter - think about it
+    for (int i = MAX(from, 0); i < MIN(to, str->len); i++)
+        str->v[i] = toupper(str->v[i]);
+    return str;
+}
+static inline fs            *fs_toupper(fs *str){
+    return fs_toupper_interval(str, 0, str->len);
+}
 
 // full scan version
 static inline bool           fs_notin(fs s, const char *strs[]){

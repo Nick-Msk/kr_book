@@ -253,6 +253,14 @@ fs                                      fs_newsubstr(const fs *s, int from, int 
     fsetlen(tmp, to);
     return tmp;
 }
+// limiter search (primitive alg)
+int                                     fs_lim_instr(const fs* restrict str1, const fs* restrict str2, int lim, bool lowercase){
+    invraise(str1 != 0 && str2 != 0 && lim >= 0, "%p %p, %d", str1, str2, lim);
+    const char *s1 = str1->v, *s2 = str2->v;
+    int pos = 0;
+    // TODO:
+    return userraiseint(ERR_NOT_IMPLEMENTED_FEATURE, "%s not yet implemented", __func__);
+}
 
 // -------------------------- (API) printers -----------------------
 // this is not limit!
@@ -1102,6 +1110,53 @@ tf15(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
+
+// ------------------------- TEST 16 ---------------------------------
+
+static TestStatus
+tf16(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: fs_ninstr", ++subnum);   // sensitive, negative
+    {
+        const char  pt[] = "qwertyuiop1234567890";
+        fs          orig = fsliteral(pt);   // statis, not alloc
+        int         pos = 8, res;
+        fs          s = fsnewsubstr(orig, pos, 6);
+
+        test_validatefree( (res = fs_ninstr(orig, s) ) == pos,
+                          fsfree(s), "Must be %d but returns %d", pos, res);
+
+        fscatstr(s, "Not exists in original pattern"); 
+        test_validatefree( (res = fs_ninstr(orig, s) ) == -1,
+                          fsfree(s), "Must be %d but returns %d", -1, res);
+
+        fsfree(s);
+    }
+    test_sub("subtest %d: fs_niinstr", ++subnum);   // sensitive, negative
+    {
+        const char  pt[] = "qweRTYUIOP1234567890III";
+        fs          orig = fsliteral(pt);
+        int         pos = 8, res;
+        fs          s = fsnewsubstr(orig, pos, 6);
+        fs_tolower(s);
+
+        test_validatefree( (res = fs_niinstr(orig, s) ) == pos,
+                          fsfree(s), "Must be %d but returns %d", pos, res);
+
+        fscatstr(s, "Not exists in original pattern");
+        test_validatefree( (res = fs_niinstr(orig, s) ) == -1,
+                          fsfree(s), "Must be %d but returns %d", -1, res);
+
+
+        fsfree(s);
+    }
+    check_leak(true);
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -1124,6 +1179,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf13, .num = 13, .name = "fs_move simple test"                , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf14, .num = 14, .name = "fs_substr/newsubstr simple test"    , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf15, .num = 15, .name = "fs_ifnotin/fs_ifinotin simple test" , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf16, .num = 16, .name = "fs_ninstr/fs_niinstr simple test"   , .desc=""                , .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
