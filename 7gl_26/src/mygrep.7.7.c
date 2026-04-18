@@ -51,6 +51,7 @@ static                  int parse_keys(const char *argv[], Keys *ke){
                         if (argv[1]){
                             ptr = argv[1];
                             argv++;
+                            argc++;
                         } else
                              return userraise(-1, ERR_WRONG_PARAMETER, "-l option without value (must be integer followed), ex '-l123' or '-l 123'");
                     } else  // argv[1] + 1 is pointer to value
@@ -86,7 +87,7 @@ int                     main(int argc, const char *argv[]){
     }
 
     //const char              *pt = argv[argc];
-    fslocal(pt, 100);
+    fs                      pt = fsliteral(argv[argc]);
     int                     found = 0;
     int                     lineno = 0;
     fs                      s = FS();
@@ -96,14 +97,16 @@ int                     main(int argc, const char *argv[]){
         if ( (in = fopen(ke.filename, "r") ) == 0)
             return userraise(2, ERR_UNABLE_OPEN_FILE_READ, "Unable to open file %s", ke.filename);
 
-    while (fgetslim_fs(in, &s) > 0){
+    fstechfprint(logfile, pt);
+    while (fgetslim_fs(in, &s) >= 0){ // zero length lines are ok!
         lineno++;
-        if ( ( fs_instr(&s, &pt) != 0) != ke.except){
+        if ( ( fs_instr(&s, &pt) >= 0) != ke.except){   // >= 0 means found instr
             found++;
             if (ke.filename)
                 printf("%s: ", ke.filename);
             if (ke.line)
                 printf("%d: ", lineno);
+            printf("%s\n", fsstr(s) );
         }
     }
     /*while (get_line(buf, MaxLine) > 0){
@@ -115,6 +118,8 @@ int                     main(int argc, const char *argv[]){
             found++;
         }
     }*/
+    if (in != stdin)
+        fclose(in);
     printf("\nTotal %d\n", found);
     logclose("found %d", found);
     return 0;
