@@ -66,7 +66,7 @@ static                  int parse_keys(const char *argv[], Keys *ke){
     return logret(argc, "params %d, argc %d", params, argc);
 }
 
-const char *usage_str = "Usage: %s <pattert:str>\n";
+const char *usage_str = "Usage: %s -v -n -x <pattert:str>\n";
 
 int                     main(int argc, const char *argv[]){
     static const char *logfilename = "log/"__FILE__".log";
@@ -85,13 +85,28 @@ int                     main(int argc, const char *argv[]){
         return 0;
     }
 
-    static const int        MaxLine = 8000;
-    char                    buf[MaxLine];
-    const char             *pt = argv[argc];
+    //const char              *pt = argv[argc];
+    fslocal(pt, 100);
     int                     found = 0;
     int                     lineno = 0;
+    fs                      s = FS();
+    FILE                   *in = stdin;
 
-    while (get_line(buf, MaxLine) > 0){
+    if (ke.filename)
+        if ( (in = fopen(ke.filename, "r") ) == 0)
+            return userraise(2, ERR_UNABLE_OPEN_FILE_READ, "Unable to open file %s", ke.filename);
+
+    while (fgetslim_fs(in, &s) > 0){
+        lineno++;
+        if ( ( fs_instr(&s, &pt) != 0) != ke.except){
+            found++;
+            if (ke.filename)
+                printf("%s: ", ke.filename);
+            if (ke.line)
+                printf("%d: ", lineno);
+        }
+    }
+    /*while (get_line(buf, MaxLine) > 0){
         lineno++;
         if ( (strstr(buf, pt) != 0) != ke.except){
             if (ke.line)
@@ -99,7 +114,7 @@ int                     main(int argc, const char *argv[]){
             printf("%s", buf);
             found++;
         }
-    }
+    }*/
     printf("\nTotal %d\n", found);
     logclose("found %d", found);
     return 0;
