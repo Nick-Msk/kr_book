@@ -14,11 +14,12 @@ typedef struct Keys {
     bool            except;
     bool            line;
     bool            version;
+    bool            lowcomparation;
     const char     *filename;
     // ...
 } Keys;
 
-#define                 Keysinit(...) (Keys){.except = false, .line = false, .version = false,.filename = 0 __VA_ARGS__}
+#define                 Keysinit(...) (Keys){.except = false, .line = false, .version = false,.filename = 0, .lowcomparation = false, __VA_ARGS__}
 
 static                  int parse_keys(const char *argv[], Keys *ke){
 
@@ -45,6 +46,10 @@ static                  int parse_keys(const char *argv[], Keys *ke){
                     ke->line = true;
                     params++;
                 break;
+                case 'l':
+                    ke->lowcomparation = true;
+                    params++;
+                break;
                 case 'f':
                     // TODO: refactor that to make more pretty
                     if (argv[0][1] == '\0') {
@@ -67,7 +72,7 @@ static                  int parse_keys(const char *argv[], Keys *ke){
     return logret(argc, "params %d, argc %d", params, argc);
 }
 
-const char *usage_str = "Usage: %s -v -n -x <pattert:str>\n";
+const char *usage_str = "Usage: %s -v -l -n -x <pattert:str>\n";
 
 int                     main(int argc, const char *argv[]){
     static const char *logfilename = "log/"__FILE__".log";
@@ -100,7 +105,8 @@ int                     main(int argc, const char *argv[]){
     fstechfprint(logfile, pt);
     while (fgetslim_fs(in, &s) >= 0){ // zero length lines are ok!
         lineno++;
-        if ( ( fs_instr(&s, &pt) >= 0) != ke.except){   // >= 0 means found instr
+        int res = ke.lowcomparation ? fs_iinstr(&s, &pt) : fs_instr(&s, &pt);
+        if ( (res >= 0) != ke.except){   // >= 0 means found instr
             found++;
             if (ke.filename)
                 printf("%s: ", ke.filename);
