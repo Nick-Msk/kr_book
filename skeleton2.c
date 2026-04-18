@@ -2,35 +2,35 @@
 #include <string.h>
 
 #include "log.h"
-#include "fs.h"
 #include "common.h"
 #include "error.h"
+#include "checker.h"
 
 typedef struct Keys {
-    bool        version;    // bool example
-    bool        string;
-    char       *filename;
-    int         maxline;
+    bool              version;    // bool example
+    bool              string;
+    const char       *filename;
+    int               maxline;
     // ...
 } Keys;
 
-#define                 Keysinit(...) (Keys){ .version = false, .string = 0, .maxline = 0, __VA_ARGS__}
+#define                 Keysinit(...) (Keys){ .version = false, .string = 0, .maxline = 0, .filename __VA_ARGS__}
 
 static int              parse_keys(const char *argv[], Keys *ke){
+
+    invraise(ke, "Zero ke!!! Error!"); // raise here
+
     logenter("...");
+
     int     argc = 1, params = 0;
-    if (!ke)
-        return userraiseint(ERR_WRONG_INPUT_PARAMETERS, "Zero ke!!! Error!");   // raise here
     char    c;
     while (*++argv != 0 && **argv == '-'){
         argc++;
         while ( (c = *++argv[0]) )
             switch (tolower(c)){
                 case 'v':
-                    if (!ke->version){
-                        ke->version = true;
-                        params++;
-                    }
+                     ke->version = true;
+                     params++;
                 break;
                 case 'f':
                     // TODO: refactor that to make more pretty
