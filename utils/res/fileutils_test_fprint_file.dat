@@ -12,8 +12,8 @@ Origin:
                  FILEUTILS MODULE IMPLEMENTATION
 ********************************************************************/
 
-static const int                FU_LINE_CNT     = 100;
-static const int                FU_PRINT_CNT    = 256;
+static const int                G_FU_LINE_CNT     = 100;
+static const int                G_FU_PRINT_CNT    = 256;
 
 // ------------------------ Utilities ------------------------------
 
@@ -95,7 +95,7 @@ int                             freadlines(FILE *restrict f, fs **restrict ptr){
 
     logenter("file: %p, fs **: %p", ptr, ptr);
 
-    int     nlines = 0, len, maxlines = FU_LINE_CNT;
+    int     nlines = 0, len, maxlines = G_FU_LINE_CNT;
     fs      line = fsempty();
     fs     *lines = malloc(maxlines * sizeof(fs));  // 
     if (!lines){
@@ -105,7 +105,7 @@ int                             freadlines(FILE *restrict f, fs **restrict ptr){
 
     while ( (len = fgetline_fs(f, &line) ) > 0){
         if (nlines >= maxlines - 1){    // is for the last empry fs
-            maxlines += FU_LINE_CNT;
+            maxlines += G_FU_LINE_CNT;
             fs *tmp = lines;
             if ( (tmp = realloc(tmp, maxlines * sizeof(fs) ) ) == 0){
                 perror("Unable to allocated");      // sysraisesig? TODO:
@@ -198,10 +198,10 @@ bool                            fread_pattern(FILE *restrict f, const char *rest
 
 // format vai printf then read pattern
 bool                            fread_pattern_printf(FILE *restrict f, const char *restrict fmt, ...){
-    char buf[FU_PRINT_CNT];
+    char buf[G_FU_PRINT_CNT];
     va_list     ap;
     va_start(ap, fmt);
-    vsnprintf(buf, FU_PRINT_CNT - 1, fmt, ap);
+    vsnprintf(buf, G_FU_PRINT_CNT - 1, fmt, ap);
     logsimple("processed pattern [%s]", buf);
     va_end(ap);
     return fread_pattern(f, buf, strlen(buf) );
@@ -652,7 +652,6 @@ tf6(const char *name)
             int     lim = 6;        // LIMIT!
             char    buf[lim];
             for (int i = 0; i < cnt; i++){
-                // TODO!!!!
                 fssprintf(s, "%d-%s", i, value);    // create the same line
                 test_validatefree( (retval = fstrict_scanf(in, "QWERTY num %6s\n", buf) ) == 1,
                                 (fclose(in), fsfree(s) ), "Must return 1 but not %d",  retval);
@@ -661,6 +660,54 @@ tf6(const char *name)
         }
         fsfree(s);
         fclose(in);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
+// ------------------------- TEST 7 ---------------------------------
+
+static TestStatus
+tf7(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+    TFILE       tf;
+
+    test_sub("subtest %d: ", ++subnum);
+    {
+        char    pattern1[] = "Test pattern ^&*()!@123\n";
+        char    pattern2[] = "second line\n";
+        fs      s = FS();
+
+        tf = test_fopen("/tmp/");
+        if (tfile(tf) == 0)
+            return logerr(TEST_SKIPPED, "Unable to create temporary file");
+
+        if (fprintf(tfile(tf), "%s", pattern1) < 0 || fprintf(tfile(tf), "%s", pattern2) < 0){
+            perror("Unable to printf...");
+            return logacterr( test_fclose(tf), TEST_FAILED, "Unable to printf...");
+        }
+        fflush(tfile(tf));
+        test_freset(tf);
+
+        fgetslim_fs(tfile(tf), &s);
+        test_validatefree( (int) strlen(pattern1) - 1 == s.len,        // without last \n
+                                (fsfree(s), test_fclose(tf) ),
+                                "Fs Len should be %lu but not %d", strlen(pattern1) - 1, s.len);
+        test_validatefree(strncmp(pattern1, fsstr(s), strlen(pattern1) - 1) == 0,
+                                (fsfree(s), test_fclose(tf) ),
+                                "Must be [%s] but not [%s]", pattern1, fsstr(s) );
+
+        fgetslim_fs(tfile(tf), &s);
+        test_validatefree( (int) strlen(pattern2) - 1 == s.len,        // without last \n
+                                (fsfree(s), test_fclose(tf) ),
+                                "Fs Len should be %lu but not %d", strlen(pattern2) - 1, s.len);
+        test_validatefree(strncmp(pattern2, fsstr(s), strlen(pattern2) - 1) == 0,
+                                (fsfree(s), test_fclose(tf) ),
+                                "Must be [%s] but not [%s]", pattern2, fsstr(s) );
+
+        fsfree(s);
+        test_fclose(tf);
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
@@ -684,6 +731,7 @@ main( /*int argc, const char *argv[] */ )
       , testnew(.f2 = tf4, .num = 4, .name = "Fprint_file test",                        .desc = "", .mandatory=true)
       , testnew(.f2 = tf5, .num = 5, .name = "fread_pattern test",                      .desc = "", .mandatory=true)
       , testnew(.f2 = tf6, .num = 6, .name = "strict_scanf() test",                     .desc = "", .mandatory=true)
+      , testnew(.f2 = tf7, .num = 7, .name = "(f)getslim_fs simple test",               .desc = "", .mandatory=true)
     );
 
     logclose("end...");

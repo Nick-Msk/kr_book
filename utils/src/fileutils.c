@@ -663,6 +663,54 @@ tf6(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
+// ------------------------- TEST 7 ---------------------------------
+
+static TestStatus
+tf7(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+    TFILE       tf;
+
+    test_sub("subtest %d: ", ++subnum);
+    {
+        char    pattern1[] = "Test pattern ^&*()!@123\n";
+        char    pattern2[] = "second line\n";
+        fs      s = FS();
+
+        tf = test_fopen("/tmp/");
+        if (tfile(tf) == 0)
+            return logerr(TEST_SKIPPED, "Unable to create temporary file");
+
+        if (fprintf(tfile(tf), "%s", pattern1) < 0 || fprintf(tfile(tf), "%s", pattern2) < 0){
+            perror("Unable to printf...");
+            return logacterr( test_fclose(tf), TEST_FAILED, "Unable to printf...");
+        }
+        fflush(tfile(tf));
+        test_freset(tf);
+
+        fgetslim_fs(tfile(tf), &s);
+        test_validatefree( (int) strlen(pattern1) - 1 == s.len,        // without last \n
+                                (fsfree(s), test_fclose(tf) ),
+                                "Fs Len should be %lu but not %d", strlen(pattern1) - 1, s.len);
+        test_validatefree(strncmp(pattern1, fsstr(s), strlen(pattern1) - 1) == 0,
+                                (fsfree(s), test_fclose(tf) ),
+                                "Must be [%s] but not [%s]", pattern1, fsstr(s) );
+
+        fgetslim_fs(tfile(tf), &s);
+        test_validatefree( (int) strlen(pattern2) - 1 == s.len,        // without last \n
+                                (fsfree(s), test_fclose(tf) ),
+                                "Fs Len should be %lu but not %d", strlen(pattern2) - 1, s.len);
+        test_validatefree(strncmp(pattern2, fsstr(s), strlen(pattern2) - 1) == 0,
+                                (fsfree(s), test_fclose(tf) ),
+                                "Must be [%s] but not [%s]", pattern2, fsstr(s) );
+
+        fsfree(s);
+        test_fclose(tf);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
 // -------------------------------------------------------------------
 
 int
@@ -682,6 +730,7 @@ main( /*int argc, const char *argv[] */ )
       , testnew(.f2 = tf4, .num = 4, .name = "Fprint_file test",                        .desc = "", .mandatory=true)
       , testnew(.f2 = tf5, .num = 5, .name = "fread_pattern test",                      .desc = "", .mandatory=true)
       , testnew(.f2 = tf6, .num = 6, .name = "strict_scanf() test",                     .desc = "", .mandatory=true)
+      , testnew(.f2 = tf7, .num = 7, .name = "(f)getslim_fs simple test",               .desc = "", .mandatory=true)
     );
 
     logclose("end...");
