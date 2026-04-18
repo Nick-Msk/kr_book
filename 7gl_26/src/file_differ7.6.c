@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <string.h>
-
 #include "log.h"
 #include "fs.h"
 #include "common.h"
@@ -87,7 +86,7 @@ int                     main(int argc, const char *argv[]){
         printf(usage_str, *argv);
         return 0;
     }
-    //invraise(ke.source != 0 && ke.target != 0, usage_str, *argv);
+
     if (ke.source == 0 || ke.target == 0)
         return userraise(2, ERR_NOT_ENOGH_VALUES, usage_str, *argv);
 
@@ -107,7 +106,7 @@ int                     main(int argc, const char *argv[]){
     else if (numdiff < 0)
         fprintf(stderr, "Error occurs\n");
     else
-        printf("Diff %d: %s\n%s\n", numdiff, fsstr(source_str), fsstr(target_str) );
+        printf("Diff %d: src:\n%s\ntarget:\n%s\n", numdiff, fsstr(source_str), fsstr(target_str) );
 
     fsfreeall(&source_str, &target_str);
     fclose(source);
@@ -125,10 +124,11 @@ static int              f_finddiff(FILE *restrict source, FILE *restrict target,
     do {
         src_len = fgetline_fs(source, s);
         trg_len = fgetline_fs(target, t);
+        logsimple("%d: src len %d[%s], trg len %d[%s]", cnt, src_len, s->v, trg_len, t->v);
         if (src_len && trg_len)
             cmp = fs_cmp(s, t);
         cnt++;      // 1-st line is 1
-    } while (src_len == 0 || trg_len == 0 || cmp != 0);
+    } while ( !(src_len == 0 || trg_len == 0 || cmp != 0) );
     if (cmp)
         return logsimpleret(cnt, "Diff on %d, [%s],[%s]", cnt, s->v, t->v);
     else
