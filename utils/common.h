@@ -107,6 +107,12 @@ rnddbl(double dmax)
     return (long)rand() * dmax / RAND_MAX; // TODO: check if improve
 }
 
+static inline double
+frand(void)
+{
+    return (double) rand() / (RAND_MAX + 1.0);
+}
+
 // simple char comparator
 static inline int               char_cmp(const void *s1, const void *s2){
     const char *c1 = s1;
