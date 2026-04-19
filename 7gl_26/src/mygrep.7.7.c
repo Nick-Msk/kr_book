@@ -77,7 +77,7 @@ static                  int parse_keys(const char *argv[], Keys *ke){
     return logret(argc, "params %d, argc %d", params, argc);
 }
 
-const char *usage_str = "Usage: %s -v -l -n -x <pattert:str>\n";
+const char *usage_str = "Usage: %s -v -l -n -f -x <pattert:str>\n";
 
 int                     main(int argc, const char *argv[]){
     logsimpleinit("Start");
@@ -90,7 +90,7 @@ int                     main(int argc, const char *argv[]){
         return 1;
     }
     if (ke.version){
-        printf("%s KR grep p5.10 p128\n", __FILE__);
+        printf("%s KR: mygrep 7.7\n", __FILE__);
         printf(usage_str, *argv);
         return 0;
     }
