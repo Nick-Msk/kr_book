@@ -6,6 +6,7 @@
 #include "error.h"
 #include "fileutils.h"
 #include "checker.h"
+#include "guard.h"
 
 /********************************************************************
                     FAST STRING MODULE IMPLEMENTATION
@@ -258,8 +259,15 @@ int                                     fs_lim_instr(const fs* restrict str1, co
     invraise(str1 != 0 && str2 != 0 && lim >= 0, "%p %p, %d", str1, str2, lim);
     const char *s1 = str1->v, *s2 = str2->v;
     int pos = 0;
-    // TODO:
-    return userraiseint(ERR_NOT_IMPLEMENTED_FEATURE, "%s not yet implemented", __func__);
+
+    for (pos = 0; pos < MIN(str1->len, lim) - str2->len; pos++){
+        int j = pos, i = 0;
+        while (clower(s1[j], lowercase) == clower(s2[i], lowercase) && s1[j] != '\0' && s2[i] != '\0' && RGUARDM)
+            i++, j++;
+        if (s2[i] == '\0')
+            return logsimpleret(pos, "Found %d", pos);
+    }
+    return logsimpleret(-1, "substr not found");
 }
 
 // -------------------------- (API) printers -----------------------
@@ -1234,7 +1242,6 @@ tf18(const char *name)
         int         pos = 7, res;
         fs          s = fs_newsubstr(&lit, pos, 1);
         char        c = *fsstr(s);
-        logauto(c);
 
         test_validatefree( (res = fs_rchr(&lit, c) ) == pos, fsfree(s),
                         "Position must be %d but returns %d", pos, res);
@@ -1251,7 +1258,6 @@ tf18(const char *name)
         int         pos = 7, res;
         fs          s = fs_newsubstr(&lit, pos, 1);
         char        c = toupper(*fsstr(s) );
-        logauto(c);
 
         test_validatefree( (res = fs_irchr(&lit, c) ) == pos, fsfree(s),
                         "Position must be %d but returns %d", pos, res);
@@ -1261,6 +1267,66 @@ tf18(const char *name)
                         "Position must be -1 but returns %d", res);
         fsfree(s);
 
+    }
+    check_leak(true);
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
+// ------------------------- TEST 19 ---------------------------------
+
+static TestStatus
+tf19(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: fs_ninstr test (lim)", ++subnum);   // sensitive
+    {
+        const char  pt[] = "qwertyuiop1234567890xxxxxxxxxxxxxxx";
+        fs          lit = fsliteral(pt);
+        int         pos = 7, cnt = 11, res;
+        fs          s = fs_newsubstr(&lit, pos, cnt);
+
+        test_validatefree( (res = fs_ninstr(&lit, &s, 20) ) == pos, fsfree(s),
+                    "Position must be %d but returns %d", pos, res);
+        test_validatefree( (res = fs_ninstr(&lit, &s, 15) ) == -1, fsfree(s),
+                    "Position must be %d (not found) but returns %d" , -1, res);
+
+        fsfree(s);
+    }
+    test_sub("subtest %d: fs_ninstr iteration test (lim)", ++subnum);   // sensitive
+    {
+        const char  pt[] = "qwertyuiop1234567890xxxxxxxxxxxxxxx";
+        fs          lit = fsliteral(pt);
+        int         pos = 5, cnt = 10, res;
+        fs          s = fs_newsubstr(&lit, pos, cnt);
+        logauto(lit.v);
+
+        for (int lim = 1; lim < fslen(lit); lim++)
+            if (lim >= pos + cnt){       // positive case
+                test_validatefree( (res = fs_ninstr(&lit, &s, 20) ) == pos, fsfree(s),
+                        "Position must be %d but returns %d", pos, res);
+            } else {    // -1
+                test_validatefree( (res = fs_ninstr(&lit, &s, 15) ) == -1, fsfree(s),
+                        "Position must be %d (not found) but returns %d" , -1, res);
+            }
+
+        fsfree(s);
+    }
+    test_sub("subtest %d: fs_niinstr test (lim)", ++subnum);   // insensitive
+    {
+        const char  pt[] = "qwertyuiop1234567890xxxxxxxxxxxxxxx";
+        fs          lit = fsliteral(pt);
+        int         pos = 7, cnt = 11, res;
+        fs          s = fs_newsubstr(&lit, pos, cnt);
+        fs_toupper(&s);
+
+        test_validatefree( (res = fs_niinstr(&lit, &s, 20) ) == pos, fsfree(s),
+                    "Position must be %d but returns %d", pos, res);
+        test_validatefree( (res = fs_niinstr(&lit, &s, 15) ) == -1, fsfree(s),
+                    "Position must be %d (not found) but returns %d" , -1, res);
+
+        fsfree(s);
     }
     check_leak(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
@@ -1290,7 +1356,8 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf15, .num = 15, .name = "fs_ifnotin/fs_ifinotin simple test" , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf16, .num = 16, .name = "fs_instr/fs_iinstr simple test"     , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf17, .num = 17, .name = "fs_(n)(i)chr simple tests"          , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf18, .num = 18, .name = "fs_(i)rchr simple tests"          , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf18, .num = 18, .name = "fs_(i)rchr simple tests"            , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf19, .num = 19, .name = "fs_n(i)instr simple tests"          , .desc=""                , .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
