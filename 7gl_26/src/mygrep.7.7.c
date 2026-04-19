@@ -15,11 +15,12 @@ typedef struct Keys {
     bool            line;
     bool            version;
     bool            lowcomparation;
-    const char     *filename;
+    bool            printfilename;
+    //const char     *filename;
     // ...
 } Keys;
 
-#define                 Keysinit(...) (Keys){.except = false, .line = false, .version = false,.filename = 0, .lowcomparation = false, __VA_ARGS__}
+#define                 Keysinit(...) (Keys){.except = false, .line = false, .version = false, /* .filename = 0, */ .lowcomparation = false, .printfilename = false, __VA_ARGS__}
 
 static                  int parse_keys(const char *argv[], Keys *ke){
 
@@ -30,7 +31,7 @@ static                  int parse_keys(const char *argv[], Keys *ke){
     char    c;
     while (*++argv != 0 && **argv == '-'){
 
-        const char *ptr;
+        //const char *ptr;
         argc++;
         while ( (c = *++argv[0]) )
             switch (tolower(c)){
@@ -51,6 +52,10 @@ static                  int parse_keys(const char *argv[], Keys *ke){
                     params++;
                 break;
                 case 'f':
+                    ke->printfilename = true;
+                    params++;
+                break;
+                /* case 'f': 
                     // TODO: refactor that to make more pretty
                     if (argv[0][1] == '\0') {
                         if (argv[1]){
@@ -64,7 +69,7 @@ static                  int parse_keys(const char *argv[], Keys *ke){
                     ke->filename = ptr;        // save pointer
                     argv[0] += strlen(argv[0]) - 1; // shift
                     params++;
-                break;
+                break; */
                 default:    // probaly it's possible to ignore unknows parameters
                     return userraise(-1, ERR_WRONG_PARAMETER, "Illegal [%c], params [%d] argc %d", c, params, argc);
             }
@@ -75,8 +80,7 @@ static                  int parse_keys(const char *argv[], Keys *ke){
 const char *usage_str = "Usage: %s -v -l -n -x <pattert:str>\n";
 
 int                     main(int argc, const char *argv[]){
-    static const char *logfilename = "log/"__FILE__".log";
-    loginit(logfilename, false, 0, "Start");    // TODO: rework that to LOG("logdir") or LOGAPPEND("logdir") or LOGSWITCH("logdir")
+    logsimpleinit("Start");
 
     Keys ke = Keysinit();
     argc = parse_keys(argv, &ke);
@@ -91,43 +95,41 @@ int                     main(int argc, const char *argv[]){
         return 0;
     }
 
-    //const char              *pt = argv[argc];
-    fs                      pt = fsliteral(argv[argc]);
+    if (!argv[argc])
+        return userraise(2, ERR_NOT_ENOGH_VALUES, "Empty pattern");
+
+    fs                      pt = fsliteral(argv[argc++]);
+    const char             *filename = argv[argc++];  // next elem(s)
     int                     found = 0;
     int                     lineno = 0;
     fs                      s = FS();
     FILE                   *in = stdin;
 
-    if (ke.filename)
-        if ( (in = fopen(ke.filename, "r") ) == 0)
-            return userraise(2, ERR_UNABLE_OPEN_FILE_READ, "Unable to open file %s", ke.filename);
+    do {
+        if (filename){ // if non-enpty - then open a file
+            if ( (in = fopen(filename, "r") ) == 0)
+                return userraise(3, ERR_UNABLE_OPEN_FILE_READ, "Unable to open file %s", filename);
+        } else
+            logmsg("Empty filename list - use stdin");
+        while (fgetslim_fs(in, &s) >= 0){ // zero length lines are ok!
+            lineno++;
+            int res = ke.lowcomparation ? fs_iinstr(&s, &pt) : fs_instr(&s, &pt);
+            if ( (res >= 0) != ke.except){   // >= 0 means found instr
+                found++;
+                if (ke.printfilename && filename)
+                    printf("%s: ", filename);
+                if (ke.line)
+                    printf("%d: ", lineno);
+                printf("%s\n", fsstr(s) );
+            }
+        }
+        if (in != stdin)
+            fclose(in);
+        if (filename)       // next ONLY if current filename is  present
+            logauto(filename = argv[argc++]);  // next
+    } while (filename != 0);
 
-    fstechfprint(logfile, pt);
-    while (fgetslim_fs(in, &s) >= 0){ // zero length lines are ok!
-        lineno++;
-        int res = ke.lowcomparation ? fs_iinstr(&s, &pt) : fs_instr(&s, &pt);
-        if ( (res >= 0) != ke.except){   // >= 0 means found instr
-            found++;
-            if (ke.filename)
-                printf("%s: ", ke.filename);
-            if (ke.line)
-                printf("%d: ", lineno);
-            printf("%s\n", fsstr(s) );
-        }
-    }
-    /*while (get_line(buf, MaxLine) > 0){
-        lineno++;
-        if ( (strstr(buf, pt) != 0) != ke.except){
-            if (ke.line)
-                printf("%d:", lineno);
-            printf("%s", buf);
-            found++;
-        }
-    }*/
-    if (in != stdin)
-        fclose(in);
     printf("\nTotal %d\n", found);
-    logclose("found %d", found);
-    return 0;
+    return logret(0, "found %d", found);
 }
 
