@@ -30,7 +30,10 @@ fputs_fgets.p7.6: src/fputs_fgets.p7.6.c lib/log.o lib/error.o lib/checker.o
 file_differ7.6: src/file_differ7.6.c lib/log.o lib/error.o lib/checker.o lib/fs.o lib/fileutils.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-mygrep.7.7: src/mygrep.7.7.c lib/log.o lib/common.o lib/fs.o lib/error.o lib/checker.o lib/buffer.o lib/fileutils.o
+mygrep.7.7: src/mygrep.7.7.c lib/log.o lib/common.o lib/fs.o lib/error.o lib/checker.o lib/fileutils.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
+printfiles.7.8: src/printfiles.7.8.c lib/log.o lib/common.o lib/fs.o lib/error.o lib/checker.o lib/fileutils.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 UTIL_PATH = ../utils
