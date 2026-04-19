@@ -1157,6 +1157,31 @@ tf16(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
+// ------------------------- TEST 16 ---------------------------------
+
+static TestStatus
+tf17(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+    fs          s = FS();
+
+    test_sub("subtest %d: fs_(i)str tests (unlim)", ++subnum);   // sensitive, negative
+    {
+        const char pt[] = "qwertyuiop1234567890";
+        // TODO"
+    }
+
+    test_sub("subtest %d: fs_n(i)str tests (lim)", ++subnum);   // sensitive, negative
+    {
+        const char pt[] = "qwertyuiop1234567890";
+        // TODO"
+    }
+    fsfree(s);
+    check_leak(true);
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -1180,6 +1205,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf14, .num = 14, .name = "fs_substr/newsubstr simple test"    , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf15, .num = 15, .name = "fs_ifnotin/fs_ifinotin simple test" , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf16, .num = 16, .name = "fs_instr/fs_iinstr simple test"     , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf17, .num = 17, .name = "fs_(n)(i)chr simple tests"          , .desc=""                , .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()

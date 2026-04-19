@@ -254,6 +254,8 @@ static inline int            fsicmp(fs str1, fs str2){
 static inline int            fsnicmp(fs str1, fs str2, int len){
     return strncasecmp(str1.v, str2.v, len);
 }
+
+// ------------------------------------------ substring srearch ---------------------------------------------------
 // pointer, sensitive, unlim
 static inline int            fs_instr(const fs* restrict str1, const fs* restrict str2){
     const char *p = strstr(str1->v, str2->v);
@@ -294,7 +296,50 @@ static inline int            fsninstr(fs str1, fs str2, int lim){
 static inline int            fsniinstr(fs str1, fs str2, int lim){
     return  fs_lim_instr(&str1, &str2, lim, true);
 }
+// ------------------------------------------ one symbol search --------------------------------------------------------
+// pointer, sensitive, unlim (library call)
+static inline int            fs_chr(const fs *str, char c){
+    const char *p = strchr(str->v, c);
+    return p ? p - str->v : -1;
+}
+// pointer, sensitive, lim
+static inline int            fs_nchr(const fs *str, char c, int lim){
+    const char *p = str->v;
+    while (lim-- > 0 && *p != '\0' && *p != c)
+        p++;
+    return *p == '\0' ? -1: p - str->v;
+}
+// pointer, insensitive, lim
+static inline int            fs_nichr(const fs *str, char c, int lim){
+    const char *p = str->v;
+    c = tolower(c);
+    while (lim-- > 0 && *p != '\0' && tolower(*p) != c)
+        p++;
+    return *p == '\0' ? -1: p - str->v;
+}
+// pointer, insensitive, unlim
+static inline int            fs_ichr(const fs *str, char c){
+    return fs_nichr(str, c, INT_MAX);
+}
+// local version
+// local, sensitive, unlim
+static inline int            fschr(fs str, char c){
+    return fs_chr(&str, c);
+}
+// local, sensitive, lim
+static inline int            fsnchr(fs str, char c, int lim){
+    return fs_nchr(&str, c, lim);
+}
+// local, insensitive, lim
+static inline int            fsnichr(fs str, char c, int lim){
+    return fs_nichr(&str, c, lim);
+}
+// local, insensitive, unlim
+static inline int            fsichr(fs str, char c){
+    return fs_ichr(&str, c);
+}
 
+// ---------------------------------- EXCNAHGERS ---------------------------------------
 static inline void           fs_exch(fs *s1, fs *s2){
     fs tmp = *s1;
     *s1 = *s2;
@@ -305,7 +350,7 @@ static inline fs             fs_reverse(fs str){
     reverse(str.v, str.len);
     return str;
 }
-
+///
 extern fs                    fs_cat(fs *target, fs source);
 static inline fs             fs_catstr(fs *restrict target, const char *restrict source){
     fs l = fsliteral(source);
