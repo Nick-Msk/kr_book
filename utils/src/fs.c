@@ -1157,7 +1157,7 @@ tf16(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
-// ------------------------- TEST 16 ---------------------------------
+// ------------------------- TEST 17 ---------------------------------
 
 static TestStatus
 tf17(const char *name)
@@ -1166,7 +1166,7 @@ tf17(const char *name)
     int         subnum = 0;
     fs          s = FS();
 
-    test_sub("subtest %d: fs_(i)str tests (unlim)", ++subnum);   // sensitive, negative
+    test_sub("subtest %d: fs_chr tests (unlim)", ++subnum);   // sensitive, negative
     {
         const char  pt[] = "qwertyuiop1234567890";
         fs          lit = fsliteral(pt);
@@ -1182,7 +1182,7 @@ tf17(const char *name)
         fsfree(s);
     }
 
-    test_sub("subtest %d: fs_n(i)str tests (lim)", ++subnum);   // sensitive, negative
+    test_sub("subtest %d: fs_nchr tests (lim)", ++subnum);   // sensitive, negative
     {
         const char  pt[] = "qwertyuiop1234567890xxxxx";
         fs          lit = fsliteral(pt);
@@ -1196,7 +1196,7 @@ tf17(const char *name)
                         "Position must be -1 (not found) because of limitation %d but returns %d", lim, res);
         fsfree(s);
     }
-    test_sub("subtest %d: fs_n(i)str iteration tests (lim)", ++subnum);   // sensitive, negative
+    test_sub("subtest %d: fs_nchr iteration tests (lim)", ++subnum);   // sensitive, negative
     {
         const char  pt[] = "qwertyuiop1234567890xxxxx";
         fs          lit = fsliteral(pt);
@@ -1214,6 +1214,53 @@ tf17(const char *name)
             }
         }
         fsfree(s);
+    }
+    check_leak(true);
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
+// ------------------------- TEST 18 ---------------------------------
+
+static TestStatus
+tf18(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: fs_rchr tests (unlim)", ++subnum);   // sensitive
+    {
+        const char  pt[] = "qwertyuiop1234567890";
+        fs          lit = fsliteral(pt);
+        int         pos = 7, res;
+        fs          s = fs_newsubstr(&lit, pos, 1);
+        char        c = *fsstr(s);
+        logauto(c);
+
+        test_validatefree( (res = fs_rchr(&lit, c) ) == pos, fsfree(s),
+                        "Position must be %d but returns %d", pos, res);
+
+        c = 'z';
+        test_validatefree( (res = fs_rchr(&lit, c) ) == -1, fsfree(s),
+                        "Position must be -1 but returns %d", res);
+        fsfree(s);
+    }
+    test_sub("subtest %d: fs_irchr tests (unlim)", ++subnum);   // insensitive reverse
+    {
+        const char  pt[] = "qwertyuiop1234567890";
+        fs          lit = fsliteral(pt);
+        int         pos = 7, res;
+        fs          s = fs_newsubstr(&lit, pos, 1);
+        char        c = toupper(*fsstr(s) );
+        logauto(c);
+
+        test_validatefree( (res = fs_irchr(&lit, c) ) == pos, fsfree(s),
+                        "Position must be %d but returns %d", pos, res);
+
+        c = toupper('z');
+        test_validatefree( (res = fs_irchr(&lit, c) ) == -1, fsfree(s),
+                        "Position must be -1 but returns %d", res);
+        fsfree(s);
+
     }
     check_leak(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
@@ -1243,6 +1290,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf15, .num = 15, .name = "fs_ifnotin/fs_ifinotin simple test" , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf16, .num = 16, .name = "fs_instr/fs_iinstr simple test"     , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf17, .num = 17, .name = "fs_(n)(i)chr simple tests"          , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf18, .num = 18, .name = "fs_(i)rchr simple tests"          , .desc=""                , .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()

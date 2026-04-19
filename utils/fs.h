@@ -338,8 +338,34 @@ static inline int            fsnichr(fs str, char c, int lim){
 static inline int            fsichr(fs str, char c){
     return fs_ichr(&str, c);
 }
+// ------------------------------------------ ONE SYMBOL REVERSE SEARCH  --------------------------------------------------------
+// pointer, sensitive, unlim
+static inline int            fs_rchr(const fs *str, char c){
+    const char *p = str->v;
+    int         pos = str->len;
+    while (pos >= 0 && p[pos] != c)
+        pos--;
+    return p[pos] == c ? pos : -1;
+}
+// pointer, insensitive, unlim
+static inline int            fs_irchr(const fs *str, char c){
+    const char *p = str->v;
+    int         pos = str->len;
+    c = tolower(c);
+    while (pos >= 0 && tolower(p[pos]) != c)
+        pos--;
+    return tolower(p[pos]) == c ? pos : -1;
+}
+// local, sensitive, unlim
+static inline int            fsrchr(fs str, char c){
+    return fs_rchr(&str, c);
+}
+// pointer, insensitive, unlim
+static inline int            fsirchr(fs str, char c){
+    return fs_irchr(&str, c);
+}
+// ------------------------------------------------------ EXCNAHGERS ------------------------------------------------------------
 
-// ---------------------------------- EXCNAHGERS ---------------------------------------
 static inline void           fs_exch(fs *s1, fs *s2){
     fs tmp = *s1;
     *s1 = *s2;
@@ -350,7 +376,7 @@ static inline fs             fs_reverse(fs str){
     reverse(str.v, str.len);
     return str;
 }
-///
+// ----------------------------------------------------------------- CAT/CPY/ETC -------------------------------------------------
 extern fs                    fs_cat(fs *target, fs source);
 static inline fs             fs_catstr(fs *restrict target, const char *restrict source){
     fs l = fsliteral(source);
