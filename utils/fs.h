@@ -307,7 +307,7 @@ static inline int            fs_nchr(const fs *str, char c, int lim){
     const char *p = str->v;
     while (lim-- > 0 && *p != '\0' && *p != c)
         p++;
-    return *p == '\0' ? -1: p - str->v;
+    return *p != '\0' && lim > 0 ? p - str->v : -1;
 }
 // pointer, insensitive, lim
 static inline int            fs_nichr(const fs *str, char c, int lim){
@@ -315,7 +315,7 @@ static inline int            fs_nichr(const fs *str, char c, int lim){
     c = tolower(c);
     while (lim-- > 0 && *p != '\0' && tolower(*p) != c)
         p++;
-    return *p == '\0' ? -1: p - str->v;
+    return *p != '\0' && lim > 0 ? p - str->v : -1;
 }
 // pointer, insensitive, unlim
 static inline int            fs_ichr(const fs *str, char c){

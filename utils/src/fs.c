@@ -1168,16 +1168,53 @@ tf17(const char *name)
 
     test_sub("subtest %d: fs_(i)str tests (unlim)", ++subnum);   // sensitive, negative
     {
-        const char pt[] = "qwertyuiop1234567890";
-        // TODO"
+        const char  pt[] = "qwertyuiop1234567890";
+        fs          lit = fsliteral(pt);
+        int         pos = 7, res;
+        s = fs_newsubstr(&lit, pos, 1);
+        char        c = *fsstr(s);
+
+        test_validatefree( (res = fs_chr(&lit, c) ) == pos, fsfree(s),
+                        "Position must be %d but returns %d", pos, res);
+        c = toupper(c);
+        test_validatefree( (res = fs_chr(&lit, c) ) == -1, fsfree(s),
+                        "Position must be -1 (not found) but returns %d", res);
+        fsfree(s);
     }
 
     test_sub("subtest %d: fs_n(i)str tests (lim)", ++subnum);   // sensitive, negative
     {
-        const char pt[] = "qwertyuiop1234567890";
-        // TODO"
+        const char  pt[] = "qwertyuiop1234567890xxxxx";
+        fs          lit = fsliteral(pt);
+        int         pos = 10, res, lim = 5;
+        fs          s = fs_newsubstr(&lit, pos, 1);
+        char        c = *fsstr(s);
+
+        test_validatefree( (res = fs_nchr(&lit, c, 20) ) == pos, fsfree(s),
+                        "Position must be %d but returns %d", pos, res);
+        test_validatefree( (res = fs_nchr(&lit, c, lim) ) == -1, fsfree(s),
+                        "Position must be -1 (not found) because of limitation %d but returns %d", lim, res);
+        fsfree(s);
     }
-    fsfree(s);
+    test_sub("subtest %d: fs_n(i)str iteration tests (lim)", ++subnum);   // sensitive, negative
+    {
+        const char  pt[] = "qwertyuiop1234567890xxxxx";
+        fs          lit = fsliteral(pt);
+        int         pos = 9, res, lim = 5;
+        fs          s = fs_newsubstr(&lit, pos, 1);
+        char        c = *fsstr(s);
+
+        for (lim = 1; lim < (int) sizeof(pt); lim++){
+            if (lim <= pos){
+                test_validatefree( (res = fs_nchr(&lit, c, lim) ) == -1, fsfree(s),
+                     "[%c] Position must be -1 (not found) because of limitation %d but returns %d\n%s\n%s\n", c, lim, res, pt, "0123456789ABCDE");
+            } else {
+                test_validatefree( (res = fs_nchr(&lit, c, 20) ) == pos, fsfree(s),
+                    "[%c] Position must be %d but returns %d", c, pos, res);
+            }
+        }
+        fsfree(s);
+    }
     check_leak(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
