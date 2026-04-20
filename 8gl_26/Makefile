@@ -9,7 +9,7 @@ all:
 file_ops.8.2: src/file_ops.8.2.c lib/log.o lib/common.o lib/error.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-printfiles.7.8: src/printfiles.7.8.c lib/log.o lib/common.o lib/fs.o lib/error.o lib/checker.o lib/fileutils.o
+cp.8.3: src/cp.8.3.c lib/log.o lib/common.o lib/error.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 UTIL_PATH = ../utils
