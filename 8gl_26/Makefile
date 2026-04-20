@@ -15,6 +15,9 @@ cp.8.3: src/cp.8.3.c lib/log.o lib/common.o lib/error.o lib/checker.o
 cat.p8.1: src/cat.p8.1.c lib/log.o lib/common.o lib/error.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+files.p8.5: src/files.p8.5.c lib/log.o lib/common.o lib/error.o lib/checker.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
 UTIL_PATH = ../utils
 
 # libs from utils
