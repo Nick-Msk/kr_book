@@ -6,13 +6,13 @@ LDLIBS=
 
 all:
 
-file_ops.8.2: src/file_ops.8.2.c lib/log.o lib/common.o lib/error.o lib/checker.o
+file_ops.p8.2: src/file_ops.p8.2.c lib/log.o lib/common.o lib/error.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-cp.8.3: src/cp.8.3.c lib/log.o lib/common.o lib/error.o lib/checker.o
+cp.p8.3: src/cp.p8.3.c lib/log.o lib/common.o lib/error.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-cat.p8.1: src/cat.p8.1.c lib/log.o lib/common.o lib/error.o lib/checker.o
+cat.8.1: src/cat.8.1.c lib/log.o lib/common.o lib/error.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 files.p8.5: src/files.p8.5.c lib/log.o lib/common.o lib/error.o lib/checker.o
