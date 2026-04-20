@@ -21,6 +21,8 @@ int                        main(int argc, const char *argv[]){
         return userraise(1, ERR_UNABLE_OPEN_FILE_WRITE, "Can't open %s for write, mode %04o\n", argv[2], PERMS);
 
     printf("Total %ld\n", cp(from, to) );
+    close(from);
+    close(to);
 
     return 0;
 }
