@@ -126,7 +126,7 @@ static inline fs            fsclone(fs s){
 // lit MUST BE static!
 static inline fs            fsliteral(const char *lit){
     fs s = FSEMPTY;
-    s.v = (char *) lit;  // TODO: probably use a union
+    s.v = (char *) lit;
     s.len = strlen(lit);
     s.sz = s.len + 1;
     return s;
