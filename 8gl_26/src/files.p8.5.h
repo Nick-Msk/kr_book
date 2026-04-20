@@ -15,14 +15,15 @@ typedef struct _iobuf {
     int          fd;
 } MFILE;
 
-extern MFILE _iob[M_OPEN_MAX];
+extern                  MFILE _iob[M_OPEN_MAX];
 
+/*
 #define      fin  (_iob + 0)
 #define      fout (_iob + 1)
-#define      ferr (_iob + 2)
-/*extern fin      = _iob + 0;
-extern fout     = _iob + 1;
-extern ferr     = _iob + 2;*/
+#define      ferr (_iob + 2)*/
+extern MFILE            *fin;
+extern MFILE            *fout;
+extern MFILE            *ferr;
 
 enum FLAGS { MF_READ = 0x1, MF_WRITE = 0x2, MF_UNBUF = 0x4, MF_EOF = 0x8, MF_ERR = 0x10 };
 

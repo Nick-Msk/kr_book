@@ -15,6 +15,10 @@ MFILE                   _iob[M_OPEN_MAX] = {
     MFILE_INIT(.flags = MF_WRITE | MF_UNBUF, .fd = 2)
 };
 
+MFILE           *fin      = _iob + 0;
+MFILE           *fout     = _iob + 1;
+MFILE           *ferr     = _iob + 2;
+
 MFILE           *mopen(const char *restrict filename, const char *restrict mode){
     invraise(filename != 0 && mode != 0, "Null pointers");
 
