@@ -26,7 +26,7 @@ MFILE           *mopen(const char *restrict filename, const char *restrict mode)
     int      fd;
     MFILE   *fp = 0;
 
-    if (*mode != 'r' || *mode != 'w' || *mode != 'a')
+    if (*mode != 'r' && *mode != 'w' && *mode != 'a')
         return logerr( (MFILE *) 0, "Wrong format %s", mode);
     for (fp = _iob; fp < _iob + M_OPEN_MAX; fp++)
         if ( (fp->flags & (MF_READ | MF_WRITE) ) == 0)
