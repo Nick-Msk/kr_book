@@ -107,6 +107,7 @@ int                 proc_quit(Context *ctx){
 }
 
 int                 proc_create(Context *ctx){
+    logsimple("ctx %p, lex %p", ctx, ctx ? ctx->lex : 0);
     Lexem *l = ctx->lex;
     if (getlexem(l, false) )
         if (l->typ == LEXEM_WORD){
@@ -138,6 +139,7 @@ static bool         process_command(const char *restrict name, Command *restrict
     logenter("Cmd [%s]", name);
     // 1-st version, just a fullscan
     while (cmd->proc){
+        logauto(cmd->name);
         if (strcmp(name, cmd->name ) == 0){
             cmd->proc(ctx);
             return logret(true, "Command %s was processed", name);
@@ -153,7 +155,7 @@ static bool         start_checking(const char *filename){
     bool        ret = true;
 
     Lexem       lex = lexeminit();
-    Context     ctx = ContextInit();
+    Context     ctx = ContextInit(.lex = &lex);
     printf("Start with (%s)>", filename);
 
     while (!ctx.quit && getlexem(&lex, false) ){
