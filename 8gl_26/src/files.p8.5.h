@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 static const int            M_EOF         = -1;
-static const int            M_BUFSIZE     = 1024;
+static const int            M_BUFSIZE     = 128;    //1024;
 static const int            M_OPEN_MAX    = 20;
 
 typedef struct _iobuf {
@@ -16,13 +16,16 @@ typedef struct _iobuf {
     int          fd;
 } MFILE;
 
-static inline int       mtech_fprint(FILE *restrict out, MFILE *restrict f){
-    return fprintf(out, "MFILE: cnt %d, ptr %p, base %p, diff %lu, flags %u, fd %d\n",
+static inline int       mtech_fprint(FILE *restrict out, MFILE *restrict f, bool buf){
+    int cnt = fprintf(out, "MFILE: cnt %d, ptr %p, base %p, diff %lu, flags %u, fd %d\n",
         f->cnt, f->ptr, f->base, f->ptr - f->base, f->flags, f->fd);
+    if (buf)
+        cnt += fprintf(out, "%*s\n", (int) (f->ptr - f->base), f->base);
+    return cnt;
 }
 
-static inline int       mtech_print(MFILE *f){
-    return mtech_fprint(stdout, f);
+static inline int       mtech_print(MFILE *f, bool buf){
+    return mtech_fprint(stdout, f, buf);
 }
 
 extern                  MFILE _iob[M_OPEN_MAX];
