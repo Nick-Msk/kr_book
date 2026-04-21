@@ -2,6 +2,7 @@
 #define _FILES_P85_H
 
 #include "bool.h"
+#include <stdio.h>
 
 static const int            M_EOF         = -1;
 static const int            M_BUFSIZE     = 1024;
@@ -15,22 +16,35 @@ typedef struct _iobuf {
     int          fd;
 } MFILE;
 
+static inline int       mtech_fprint(FILE *restrict out, MFILE *restrict f){
+    return fprintf(out, "MFILE: cnt %d, ptr %p, base %p, diff %lu, flags %u, fd %d\n",
+        f->cnt, f->ptr, f->base, f->ptr - f->base, f->flags, f->fd);
+}
+
+static inline int       mtech_print(MFILE *f){
+    return mtech_fprint(stdout, f);
+}
+
 extern                  MFILE _iob[M_OPEN_MAX];
 
-/*
-#define      fin  (_iob + 0)
-#define      fout (_iob + 1)
-#define      ferr (_iob + 2)*/
 extern MFILE            *fin;
 extern MFILE            *fout;
 extern MFILE            *ferr;
 
-enum FLAGS { MF_READ = 0x1, MF_WRITE = 0x2, MF_UNBUF = 0x4, MF_EOF = 0x8, MF_ERR = 0x10 };
+enum MFLAGS { MF_READ = 0x1, MF_WRITE = 0x2, MF_UNBUF = 0x4, MF_EOF = 0x8, MF_ERR = 0x10 };
 
-extern int             _fillbuf(MFILE *p);
-extern int             _flushbuf(int n, MFILE *);
+extern int             _fillbuf(MFILE *fp);
+extern int             _flushbuf(int c, MFILE *fp);
 
 extern MFILE           *mopen(const char *restrict filename, const char *restrict mode);
+
+extern bool             mclose(MFILE *fp);
+
+extern int              mflush(MFILE *fp);
+
+static inline int       mgetpos(MFILE *fp){
+    return lseek(fp->fd, 0L, SEEK_CUR);
+}
 
 static inline bool      mfeof(const MFILE *p){
     return p->flags & MF_EOF;
@@ -49,7 +63,7 @@ static inline int       mgetc(MFILE *p){
 }
 
 static inline int       mputc(int c, MFILE *p){
-    return --p->cnt >= 0 ? *p->ptr++ = c : _flushbuf(c, p);
+    return --p->cnt > 0 ? *p->ptr++ = c : _flushbuf(c, p);
 }
 
 static inline int       mgetchar(void){

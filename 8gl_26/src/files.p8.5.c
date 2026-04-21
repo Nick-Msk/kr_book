@@ -53,6 +53,18 @@ MFILE           *mopen(const char *restrict filename, const char *restrict mode)
     return logret(fp, "%p", fp);
 }
 
+bool             mclose(MFILE *fp){
+    invraise(fp != 0, "Nullable mfile pointer");
+
+    if ( (fp->flags & (MF_READ | MF_WRITE | MF_ERR) ) != MF_WRITE )
+        mflush(fp);
+    bool ret = close(fp->fd) == 0;
+    free(fp->base);
+    fp->base = fp->ptr = 0;
+    fp->cnt = fp->flags = fp->fd = 0;
+    return logsimpleret(ret, "%s", ret ? "Norm" : "Error while closing");
+}
+
 int             _fillbuf(MFILE *fp){
     invraise(fp != 0, "Nullable mfile pointer");
     if ( (fp->flags & (MF_READ | MF_WRITE | MF_ERR) ) != MF_READ)
@@ -76,5 +88,45 @@ int             _fillbuf(MFILE *fp){
     return logsimpleret(*fp->ptr++, "Norm");
 }
 
+int             _flushbuf(int c, MFILE *fp){
+    invraise(fp != 0, "Null pointer");
+
+    if ( (fp->flags & (MF_READ | MF_WRITE | MF_ERR) ) != MF_WRITE)
+        return logsimpleerr(M_EOF, "File is'nt open for write");
+
+    int     bufsize = (fp->flags & MF_UNBUF) ? 1 : M_BUFSIZE;   // TODO: make bufsize a part of MFILE
+
+    *fp->ptr++ = c;
+    int     cnt = write(fp->fd, fp->base, bufsize);
+
+    logsimple("write: %d, bufsize %d, cnt %d", cnt, bufsize, fp->cnt);
+    if (cnt < bufsize){
+        fp->flags |= MF_ERR;
+        return logsimpleerr(M_EOF, "Error while writing");
+    }
+    fp->ptr = fp->base;
+    fp->cnt = bufsize;
+    return logsimpleret(c, "Norm");
+}
+
+int              mflush(MFILE *fp){
+    invraise(fp != 0, "Null pointer");
+
+    if ( (fp->flags & (MF_READ | MF_WRITE | MF_ERR) ) != MF_WRITE )
+        return logsimpleerr(M_EOF, "File is'nt open for write or in the error state");
+    if ( fp->flags & MF_UNBUF)
+        return logsimpleerr(M_EOF, "File is unbuffered");
+
+    int     bytes = fp->ptr - fp->base;
+    int     cnt = write(fp->fd, fp->base, bytes);
+
+    if (cnt < bytes){
+        fp->flags |= MF_ERR;
+        return logsimpleerr(M_EOF, "Error while writing");
+    }
+    fp->ptr = fp->base;
+    fp->cnt = M_BUFSIZE;
+    return logsimpleret(0, "Flushed %d bytes", bytes);
+}
 
 

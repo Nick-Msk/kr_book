@@ -1,0 +1,89 @@
+#include "log.h"
+#include "common.h"
+#include "bool.h"
+#include "error.h"
+#include "getword.h"
+#include "files.p8.5.h"
+
+const char                 *usage_str = "Usage: %s -v -f\n";
+
+typedef struct Keys {
+    bool        version;    // bool example
+    const char *filename;
+    // ...
+} Keys;
+
+#define                 Keysinit(...) (Keys){ .version = false, .filename, __VA_ARGS__}
+
+static int              parse_keys(const char *argv[], Keys *ke){
+    logenter("...");
+    int         argc = 1, params = 0;
+
+    if (!ke)
+        return userraiseint(ERR_WRONG_INPUT_PARAMETERS, "Zero ke!!! Error!");   // raise here
+    char    c;
+    while (*++argv != 0 && **argv == '-'){
+        argc++;
+        const char *ptr;
+        while ( (c = *++argv[0]) )
+            switch (tolower(c)){
+                case 'v':
+                    ke->version = true;
+                    params++;
+                break;
+                case 'f':
+                    // TODO: refactor that to make more pretty
+                    if (argv[0][1] == '\0') {
+                        if (argv[1]){
+                            ptr = argv[1];
+                            argv++;
+                        } else
+                             return userraise(-1, ERR_WRONG_PARAMETER, "-l option without value (must be integer followed), ex '-l123' or '-l 123'");
+                    } else  // argv[1] + 1 is pointer to value
+                        ptr = argv[0] + 1;
+                    ke->filename = ptr;        // save pointer
+                    argv[0] += strlen(argv[0]) - 1; // shift
+                    params++;
+                break;
+                default:    // probaly it's possible to ignore unknows parameters
+                    return userraise(-1, ERR_WRONG_PARAMETER,  "Illegal [%c], params [%d] argc %d", c, params, argc);
+            }
+    }
+    return logret(argc, "params %d, argc %d", params, argc);
+}
+
+static bool         start_checking(const char *filename);
+
+int     main(int argc, const char *argv[]){
+    logsimpleinit("Start");
+
+    Keys    ke = Keysinit();
+    argc = parse_keys(argv, &ke);
+
+    if (argc < 0) {
+        printf(usage_str, *argv);
+        return 1;
+    }
+    if (ke.version){
+        printf("%s files checker, 8.2-8.4\n", __FILE__);
+        printf(usage_str, *argv);
+        return 0;
+    }
+
+    int     res = 0;
+    if (!start_checing(ke.filename) );
+        printf("Failed...\n"), res = 3;
+    else
+        printf("Finished!\n");
+
+    return logret(res, "end...");  // as replace of logclose()
+}
+
+static bool         start_checking(const char *filename)
+    logenter("%s", filename);
+
+    bool        ret = true;
+
+    return logret(ret, "%s", bool_str(ret);
+}
+
