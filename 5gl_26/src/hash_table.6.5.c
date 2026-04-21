@@ -90,13 +90,13 @@ int                     main(int argc, const char *argv[]){
 }
 
 
-static int              process_define(stringhash * restrict h);
-static int              process_undef(stringhash * restrict h);
-static int              process_test(stringhash * restrict h);
-static int              process_clear(stringhash * restrict h);
-static int              process_printall(stringhash * restrict h);
-static int              process_print(stringhash * restrict h);
-static int              process_count(stringhash * restrict h);
+static int              process_define      (stringhash *h);
+static int              process_undef       (stringhash *h);
+static int              process_test        (stringhash *h);
+static int              process_clear       (stringhash *h);
+static int              process_printall    (stringhash *h);
+static int              process_print       (stringhash *h);
+static int              process_count       (stringhash *h);
 
 static int              parse_input(int size){
 
@@ -139,7 +139,7 @@ static int              parse_input(int size){
     return cnt;
 }
 
-static int              process_define(stringhash * restrict ph){
+static int              process_define(stringhash * ph){
 
     static int cnt = 0;
 
@@ -164,7 +164,7 @@ static int              process_define(stringhash * restrict ph){
     return logsimpleret(ret, "Installed %d %d", ret, cnt);
 }
 
-static int              process_undef(stringhash * restrict ph){
+static int              process_undef(stringhash * ph){
 
     static int cnt = 0;
 
@@ -183,16 +183,16 @@ static int              process_undef(stringhash * restrict ph){
     return logsimpleret(ret, "Removed current %d, total %d", ret, ++cnt);
 }
 
-static int              process_clear(stringhash *restrict ph){
+static int              process_clear(stringhash *ph){
     strhash_clear(ph);
     return 1;
 }
 
-static int              process_printall(stringhash *restrict ph){
+static int              process_printall(stringhash *ph){
     return strhash_printall(ph);
 }
 
-static int              process_print(stringhash *restrict ph){
+static int              process_print(stringhash *ph){
 
     Lexem   lex = lexeminit(), *plex = &lex;
     if (!getlexem(plex, false) )  // EOF?
@@ -205,12 +205,12 @@ static int              process_print(stringhash *restrict ph){
     return 1;
 }
 
-static int              process_count(stringhash * restrict ph){
+static int              process_count(stringhash * ph){
     printf("%d\n", strhash_cnt(ph) );
     return 1;
 }
 
-static int              process_test(stringhash *restrict ph){
+static int              process_test(stringhash *ph){
 
     int ret = 0;
     Lexem   lex = lexeminit(), *plex = &lex;
