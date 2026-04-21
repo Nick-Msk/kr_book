@@ -15,7 +15,7 @@ cp.p8.3: src/cp.p8.3.c lib/log.o lib/common.o lib/error.o lib/checker.o
 cat.8.1: src/cat.8.1.c lib/log.o lib/common.o lib/error.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-files_checker: src/files_checker.c lib/log.o lib/common.o lib/error.o lib/checker.o files.p8.5
+files_checker: src/files_checker.c lib/log.o lib/common.o lib/error.o lib/checker.o lib/files.p8.5.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 files.p8.5: src/files.p8.5.c

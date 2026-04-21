@@ -1,3 +1,5 @@
+#include <unistd.h>
+
 #include "log.h"
 #include "common.h"
 #include "bool.h"
@@ -13,7 +15,7 @@ typedef struct Keys {
     // ...
 } Keys;
 
-#define                 Keysinit(...) (Keys){ .version = false, .filename, __VA_ARGS__}
+#define                 Keysinit(...) (Keys){ .version = false, .filename = 0, __VA_ARGS__}
 
 static int              parse_keys(const char *argv[], Keys *ke){
     logenter("...");
@@ -71,7 +73,7 @@ int     main(int argc, const char *argv[]){
     }
 
     int     res = 0;
-    if (!start_checing(ke.filename) );
+    if (!start_checking(ke.filename) )
         printf("Failed...\n"), res = 3;
     else
         printf("Finished!\n");
@@ -79,11 +81,11 @@ int     main(int argc, const char *argv[]){
     return logret(res, "end...");  // as replace of logclose()
 }
 
-static bool         start_checking(const char *filename)
+static bool         start_checking(const char *filename){
     logenter("%s", filename);
 
     bool        ret = true;
 
-    return logret(ret, "%s", bool_str(ret);
+    return logret(ret, "%s", bool_str(ret) );
 }
 
