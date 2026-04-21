@@ -15,7 +15,7 @@ cp.p8.3: src/cp.p8.3.c lib/log.o lib/common.o lib/error.o lib/checker.o
 cat.8.1: src/cat.8.1.c lib/log.o lib/common.o lib/error.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-files_checker: src/files_checker.c lib/log.o lib/common.o lib/error.o lib/checker.o lib/files.p8.5.o
+files_checker: src/files_checker.c lib/log.o lib/common.o lib/error.o lib/checker.o lib/files.p8.5.o lib/getword.o lib/buffer.o lib/fs_iter.o lib/fs.o lib/fileutils.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 files.p8.5: src/files.p8.5.c
@@ -62,8 +62,12 @@ lib/fs.o:
 	@cp $(UTIL_PATH)/lib/fs.o lib/
 
 lib/fs_array.o:
-	cd $(UTIL_PATH) && $(MAKE) fs.o
+	cd $(UTIL_PATH) && $(MAKE) fs_array.o
 	@cp $(UTIL_PATH)/lib/fs_array.o lib/
+
+lib/fs_iter.o:
+	cd $(UTIL_PATH) && $(MAKE) fs_iter.o
+	@cp $(UTIL_PATH)/lib/fs_iter.o lib/
 
 lib/buffer.o:
 	cd $(UTIL_PATH) && $(MAKE) buffer.o
@@ -89,10 +93,6 @@ lib/tree_6.4.o: src/tree_6.4.c
 lib/word_tree.o: src/word_tree.c
 	$(CC) $(CFLAGS) -I./src  $^ -c
 	@mv word_tree.o lib/
-
-#lib/getword.o: src/getword.c
-#	$(CC) $(CFLAGS) -I./src  $^ -c
-#	@mv getword.o lib/
 
 lib/string_hash.o: src/string_hash.c
 	$(CC) $(CFLAGS) -I./src  $^ -c
