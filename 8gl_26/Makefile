@@ -22,7 +22,7 @@ files.p8.5: src/files.p8.5.c
 	$(CC) $(CFLAGS)  $^ -c
 	@mv $@.o lib/
 
-proc_mfile: src/proc_mfile.c
+proc_actions: src/proc_actions.c
 	$(CC) $(CFLAGS)  $^ -c
 	@mv $@.o lib/
 
