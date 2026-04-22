@@ -1,8 +1,10 @@
 #ifndef _FILES_P85_H
 #define _FILES_P85_H
 
-#include "bool.h"
 #include <stdio.h>
+#include <unistd.h>
+
+#include "bool.h"
 
 static const int            M_EOF         = -1;
 static const int            M_BUFSIZE     = 128;    //1024;
