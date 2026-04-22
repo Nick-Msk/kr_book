@@ -91,6 +91,10 @@ getword.o: src/getword.c
 	$(CC) $(CFLAGS)  $^ -c
 	@mv $@ lib/
 
+command_executor.o: src/command_executor.c
+	$(CC) $(CFLAGS)  $^ -c
+	@mv $@ lib/
+
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
 	@rm *.o

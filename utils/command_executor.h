@@ -1,28 +1,18 @@
 #ifndef _COMMAND_EXECUTOR_H
 #define _COMMAND_EXECUTOR_H
 
-// PROTOTYPE
+typedef struct Context Context;     // just to use a pointer
 
-typedef             (*process_unit)(stringhash *h);
-typedef struct {
-    const char      *name;
-    int             shortlen;
+typedef int         (*process_unit)(Context *c);   // function, process context
+
+typedef struct Command {
+    const char *    name;
+    const char *    desc;
     process_unit    proc;
 } Command;
-#define         CommandNull(...) (Command){.name = 0, .proc = 0, ##__VA_ARGS__ }
-#define         CommandsInit(...) (const Command[]) {__VA_ARGS__, CommandNull() }
 
-typedef struct {
-    Command *cmd;
-} Commandlist;
+#define             CommandInit(...) (Command) {.name = 0, .proc = 0, .desc = 0, ##__VA_ARGS__}
 
-#define         commandlistInit(...) (
-
-// load + ordering (???), it's not possible to order that
-bool    reg_commands(Commandlist list){
-    while(list.cmd.name){
-        
-    }
-}
+extern bool         process_command(const char *restrict name, Command *restrict cmd, Context *restrict ctx);
 
 #endif /* !_COMMAND_EXECUTOR_H */
