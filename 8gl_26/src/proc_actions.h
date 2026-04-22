@@ -5,19 +5,7 @@
 #include "bool.h"
 #include "getword.h"
 #include "files.p8.5.h"
-
-
-typedef struct Context Context;
-typedef struct Command Command;     // to be able to add to Context
-// THAT WILL BE MOVED OUT!!! TODO:
-typedef int         (*process_unit)(Context *c);
-
-typedef struct Command {
-    const char *    name;
-    const char *    desc;
-    process_unit    proc;
-} Command;
-// --------------------------- OUT TILL HERE -----------------
+#include "command_executor.h"
 
 typedef struct Context {
     Lexem       *lex;
