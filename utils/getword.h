@@ -41,6 +41,21 @@ static inline const char   *lexem_str(const Lexem *l){
     return l->str.v;
 }
 
+static inline int           lexem_techfprint(FILE *restrict out, const Lexem *restrict l){
+    invraise(l != 0, "Wrong input");
+    int     cnt = 0;
+    if (out){
+        cnt += fprintf(out, "LEXEM: %s:[", Lexemtype_str(l->typ));
+        cnt += fs_techfprint(out, &l->str, "");
+        cnt += fprintf(out, "]\n");
+    }
+    return cnt;
+}
+
+static inline int           lexem_techprint(const Lexem *l){
+    return lexem_techfprint(stdout, l);
+}
+
 static inline void          lexem_free(Lexem *l){
     invraise(l != 0, "Wrong input");
     fsfree(l->str);
