@@ -14,18 +14,22 @@ typedef struct _iobuf {
     char        *base;
     unsigned     flags;
     int          fd;
+    // fs       name;           // TODO!
 } MFILE;
 
-static inline int       mtech_fprint(FILE *restrict out, MFILE *restrict f, bool buf){
-    int cnt = fprintf(out, "MFILE: cnt %d, ptr %p, base %p, diff %lu, flags %u, fd %d\n",
-        f->cnt, f->ptr, f->base, f->ptr - f->base, f->flags, f->fd);
-    if (buf)
-        cnt += fprintf(out, "%*s\n", (int) (f->ptr - f->base), f->base);
+static inline int       mfile_techfprint(FILE *restrict out, MFILE *restrict f, bool buf){
+    int cnt = 0;
+    if (out){
+        cnt += fprintf(out, "MFILE: cnt %d, ptr %p, base %p, diff %lu, flags %u, fd %d\n",
+            f->cnt, f->ptr, f->base, f->ptr - f->base, f->flags, f->fd);
+        if (buf)
+            cnt += fprintf(out, "%*s\n", (int) (f->ptr - f->base), f->base);
+    }
     return cnt;
 }
 
-static inline int       mtech_print(MFILE *f, bool buf){
-    return mtech_fprint(stdout, f, buf);
+static inline int       mfile_techprint(MFILE *f, bool buf){
+    return mfile_techfprint(stdout, f, buf);
 }
 
 extern                  MFILE _iob[M_OPEN_MAX];

@@ -22,6 +22,10 @@ files.p8.5: src/files.p8.5.c
 	$(CC) $(CFLAGS)  $^ -c
 	@mv $@.o lib/
 
+proc_mfile: src/proc_mfile.c
+	$(CC) $(CFLAGS)  $^ -c
+	@mv $@.o lib/
+
 UTIL_PATH = ../utils
 
 # libs from utils
