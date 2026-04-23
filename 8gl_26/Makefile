@@ -20,11 +20,11 @@ files_checker: src/files_checker.c lib/log.o lib/common.o lib/error.o lib/checke
 
 files.p8.5: src/files.p8.5.c
 	$(CC) $(CFLAGS)  $^ -c
-	@mv $@.o lib/
+	@mv $@ lib/
 
 proc_actions.o: src/proc_actions.c
 	$(CC) $(CFLAGS)  $^ -c
-	@mv $@.o lib/
+	@mv $@ lib/
 
 UTIL_PATH = ../utils
 

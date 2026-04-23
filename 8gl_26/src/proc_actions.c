@@ -101,4 +101,16 @@ int                 proc_close(Context *ctx){
     return logsimpleerr(-1, "Failed to close");  // failed
 }
 
-
+// only for read file
+int                 proc_eof(Context *ctx){
+    if (ctx->mfr)
+        if (mfeof(ctx->mfr) )
+            printf("Read file is EOF");
+        else
+            printf("Read file is NOT EOF");
+    else {
+        fprintf(stderr,  "Read file isn't open");
+        return -1;
+    }
+    return 1;
+}

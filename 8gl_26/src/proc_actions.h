@@ -34,5 +34,6 @@ extern int                 proc_techprint(Context *ctx);
 // ------------------------------------------- MFILE PROCS --------------------------------------------
 extern int                 proc_create(Context *ctx);
 extern int                 proc_close(Context *ctx);
+extern int                 proc_eof(Context *ctx);
 
 #endif /* !_PROC_ACTIONS_H */
