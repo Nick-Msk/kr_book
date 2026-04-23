@@ -18,13 +18,13 @@ cat.8.1: src/cat.8.1.c lib/log.o lib/common.o lib/error.o lib/checker.o
 files_checker: src/files_checker.c lib/log.o lib/common.o lib/error.o lib/checker.o lib/files.p8.5.o lib/getword.o lib/buffer.o lib/fs_iter.o lib/fs.o lib/fileutils.o lib/proc_actions.o lib/command_executor.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-files.p8.5: src/files.p8.5.c
+lib/files.p8.5.o: src/files.p8.5.c
 	$(CC) $(CFLAGS)  $^ -c
-	@mv $@ lib/
+	@mv files.p8.5.o lib/
 
-proc_actions.o: src/proc_actions.c
+lib/proc_actions.o: src/proc_actions.c
 	$(CC) $(CFLAGS)  $^ -c
-	@mv $@ lib/
+	@mv proc_actions.o lib/
 
 UTIL_PATH = ../utils
 

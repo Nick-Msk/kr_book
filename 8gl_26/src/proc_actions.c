@@ -5,9 +5,11 @@
 #include "files.p8.5.h"
 #include "getword.h"
 
+static const char               mdir[] = "mdir/";
+
 // ------------------------------------------ Utilities -------------------------------------------
 
-int                 Context_techfprint(FILE *restrict out, const Context *restrict ctx){
+int                             Context_techfprint(FILE *restrict out, const Context *restrict ctx){
     invraise(ctx != 0, "Null context");
     int     cnt = 0;
     if (out){
@@ -29,16 +31,14 @@ int                 Context_techfprint(FILE *restrict out, const Context *restri
 
 // --------------------------------------- AUXILLARY PROCS -------------------------------------------
 
-
-
 // example of working procedures
 // local
-int                 proc_quit(Context *ctx){
+int                             proc_quit(Context *ctx){
     ctx->quit = true;
     return 1;
 }
 
-int                 proc_help(Context *ctx){
+int                             proc_help(Context *ctx){
     Command *cm = ctx->cmds;
     while (cm->desc){
         printf("%s\t\t: %s\n", cm->name, cm->desc);
@@ -47,7 +47,7 @@ int                 proc_help(Context *ctx){
     return 1;
 }
 
-int                 proc_techprint(Context *ctx){
+int                             proc_techprint(Context *ctx){
     // just technical print
     Context_techprint(ctx);
     return 1;
@@ -55,21 +55,22 @@ int                 proc_techprint(Context *ctx){
 
 // ------------------------------------------- MFILE PROCS --------------------------------------------
 
-// LOCAL proc
-int                 proc_create(Context *ctx){
+// create filename
+int                             proc_create(Context *ctx){
     logsimple("ctx %p, lex %p", ctx, ctx ? ctx->lex : 0);
     Lexem *l = ctx->lex;
     if (getlexem(l, false) )
         if (l->typ == LEXEM_WORD){
-            const char *fname = fsstr(l->str);
+            fsrevcatstr(l->str, mdir); // eg. mdir/abc.txt
             MFILE      *mf;
-            if ( (mf = mopen(fname, "w") ) == 0)
+            const char *fname = lexem_str(l);
+            if ( (mf = mopen(fname, "w") ) == 0){
                 fprintf(stderr, "Unable to create %s\n", fname);
-            else {
+            } else {
                 printf("File %s is opened for write\n", fname);
                 ctx->mfw = mf;       // setup ctx;
                 return logsimpleret(1, "File %s was created and opened for write", fname);
-            }   
+            }
         } else
             fprintf(stderr, "Word expected but (%s)", Lexemtype_str(ctx->lex->typ) );
     else
@@ -77,7 +78,29 @@ int                 proc_create(Context *ctx){
     return logsimpleerr(-1, "Failed to create");  // failed
 }
 
-// LOCAL proc
+// open filename
+int                             proc_open(Context *ctx){
+    logsimple("ctx %p, lex %p", ctx, ctx ? ctx->lex : 0);
+    Lexem *l = ctx->lex;
+    if (getlexem(l, false) )
+        if (l->typ == LEXEM_WORD){
+            fsrevcatstr(l->str, mdir); // eg. mdir/abc.txt
+            MFILE      *mf;
+            const char *fname = lexem_str(l);
+            if ( (mf = mopen(fname, "w") ) == 0){
+                fprintf(stderr, "Unable to create %s\n", fname);
+            } else {
+                printf("File %s is opened for write\n", fname);
+                ctx->mfw = mf;       // setup ctx;
+                return logsimpleret(1, "File %s  opened for write", fname);
+            }
+        } else
+            fprintf(stderr, "Word expected but (%s)", Lexemtype_str(ctx->lex->typ) );
+    else
+        fprintf(stderr, "Out of input\n");
+    return logsimpleerr(-1, "Failed to open");  // failed
+}
+// close read/write
 int                 proc_close(Context *ctx){
     Lexem *l = ctx->lex;
     if (getlexem(l, false) ){
@@ -95,7 +118,8 @@ int                 proc_close(Context *ctx){
             }
             printf("%s is closed", tp);
             return logsimpleret(1, "%s closed", tp);
-        }
+        } else
+            fprintf(stderr, "Must be word (%s)\n", Lexemtype_str(l->typ) );
     } else
         fprintf(stderr, "Out of input\n");
     return logsimpleerr(-1, "Failed to close");  // failed
@@ -113,4 +137,40 @@ int                 proc_eof(Context *ctx){
         return -1;
     }
     return 1;
+}
+
+int                 proc_getpos(Context *ctx){
+    Lexem *l = ctx->lex;
+    if (getlexem(l, false) ){
+        if (l->typ == LEXEM_WORD){
+            const char *tp = fsstr(l->str);
+            if (strcmp(tp, "read") == 0){    // close read-associated file
+                mgetpos(ctx->mfr);
+            } else if (strcmp(tp, "write") == 0){   // write-associated file
+                mgetpos(ctx->mfw);
+            } else
+                fprintf(stderr, "Type of file must be read or write %s\n", tp);
+        } else
+            fprintf(stderr, "Must be word (%s)\n", Lexemtype_str(l->typ) );
+    } else
+        fprintf(stderr, "Out of input\n");
+    return logsimpleerr(-1, "Unable to obtain pos");
+}
+
+int                 proc_fileno(Context *ctx){
+    Lexem *l = ctx->lex;
+    if (getlexem(l, false) ){
+        if (l->typ == LEXEM_WORD){
+            const char *tp = fsstr(l->str);
+            if (strcmp(tp, "read") == 0){    // close read-associated file
+                mgetpos(ctx->mfr);
+            } else if (strcmp(tp, "write") == 0){   // write-associated file
+                mgetpos(ctx->mfw);
+            } else
+                fprintf(stderr, "Type of file must be read or write %s\n", tp);
+        } else
+            fprintf(stderr, "Must be word (%s)\n", Lexemtype_str(l->typ) );
+    } else
+        fprintf(stderr, "Out of input\n");
+    return logsimpleerr(-1, "Unable to get file no");
 }
