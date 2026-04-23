@@ -51,6 +51,11 @@ extern bool             mclose(MFILE *fp);
 
 extern int              mflush(MFILE *fp);
 
+static inline long      mseek(MFILE *fp, long offset, int origin){
+    mflush(fp);
+    return lseek(fp->fd, offset, origin);
+}
+
 static inline int       mgetpos(MFILE *fp){
     return lseek(fp->fd, 0L, SEEK_CUR);
 }
