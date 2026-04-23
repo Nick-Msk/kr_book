@@ -105,7 +105,7 @@ int                 proc_close(Context *ctx){
     Lexem *l = ctx->lex;
     if (getlexem(l, false) ){
         if (l->typ == LEXEM_WORD){
-            const char *tp = fsstr(l->str);
+            const char *tp = lexem_str(l);
             if (strcmp(tp, "read") == 0){    // close read-associated file
                 mclose(ctx->mfr);
                 ctx->mfr = 0;
@@ -129,9 +129,9 @@ int                 proc_close(Context *ctx){
 int                 proc_eof(Context *ctx){
     if (ctx->mfr)
         if (mfeof(ctx->mfr) )
-            printf("Read file is EOF");
+            printf("Read file is EOF\n");
         else
-            printf("Read file is NOT EOF");
+            printf("Read file is NOT EOF\n");
     else {
         fprintf(stderr,  "Read file isn't open");
         return -1;
@@ -143,7 +143,7 @@ int                 proc_getpos(Context *ctx){
     Lexem *l = ctx->lex;
     if (getlexem(l, false) ){
         if (l->typ == LEXEM_WORD){
-            const char *tp = fsstr(l->str);
+            const char *tp = lexem_str(l);
             if (strcmp(tp, "read") == 0){    // close read-associated file
                 mgetpos(ctx->mfr);
             } else if (strcmp(tp, "write") == 0){   // write-associated file
@@ -161,7 +161,7 @@ int                 proc_fileno(Context *ctx){
     Lexem *l = ctx->lex;
     if (getlexem(l, false) ){
         if (l->typ == LEXEM_WORD){
-            const char *tp = fsstr(l->str);
+            const char *tp = lexem_str(l);
             if (strcmp(tp, "read") == 0){    // close read-associated file
                 mgetpos(ctx->mfr);
             } else if (strcmp(tp, "write") == 0){   // write-associated file
@@ -174,3 +174,28 @@ int                 proc_fileno(Context *ctx){
         fprintf(stderr, "Out of input\n");
     return logsimpleerr(-1, "Unable to get file no");
 }
+
+// read amount of data
+int                 proc_read(Context *ctx){
+    if (!ctx->mfr)
+        fprintf(stderr, "Read file isn't open\n");
+    else {
+        Lexem *l = ctx->lex;
+        if (getlexem(l, false) ){
+            if (l->typ == LEXEM_INT){
+                const char *tp = lexem_str(l);
+                int         sz = atoi(tp), c = 0;
+                printf("From %4d-%4d:", mgetpos(ctx->mfr), sz);
+                for (int i = 0; c != EOF && i < sz; i++)
+                    putchar(c = mgetc(ctx->mfr) );
+                printf("\n");
+                if (c == EOF)
+                    printf("EOF detected\n");
+            } else
+                fprintf(stderr, "Must be int (%s)\n", Lexemtype_str(l->typ) );
+        } else
+            fprintf(stderr, "Out of input\n");
+    }
+    return -1;
+}
+

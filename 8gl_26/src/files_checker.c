@@ -96,6 +96,7 @@ static Command cmds[] = {
   , CommandInit(.name = "create"        , .proc = proc_create       , .desc = "create <filaname>, create filename for write"                )
   , CommandInit(.name = "close"         , .proc = proc_close        , .desc = "close <read/write>, close read or write assiciated file"     )
   , CommandInit(.name = "open"          , .proc = proc_open         , .desc = "open <filaname>, open filename for read"                     )
+  , CommandInit(.name = "read"          , .proc = proc_read         , .desc = "read <size> read a bunch of data from current position"      )
   , CommandInit(.name = "eof"           , .proc = proc_eof          , .desc = "Check if READ file in EOF"                                   )
   , CommandInit(.name = "getpos"        , .proc = proc_getpos       , .desc = "getpos <read/write> - show current position"                 )
   , CommandInit(.name = "fileno"        , .proc = proc_fileno       , .desc = "fileno <read/write> get file no"                             )
