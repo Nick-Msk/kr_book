@@ -234,6 +234,19 @@ fs                                      fs_cat(fs *target, fs source){
     return *strcopy(target, &source);
 }
 
+// put beginner at the start position of the target
+fs                                      fs_rev_catstr(fs *restrict target, const char *restrict beginner){
+    int len;
+    if (beginner && (len = strlen(beginner) ) != 0 ){
+        fs_resize(target, target->len + len);
+        memmove(target->v + len, target->v, target->len);
+        memcpy(target->v, beginner, len);
+        fs_setlen(target, len + target->len);
+        logsimple("Origin moved to the end (%d)", len);
+    }
+    return *target;
+}
+
 // fast in-place!
 fs                                      fs_substr(fs *s, int from, int to){
     invraise(s != 0 && from >= 0 && to >= 0, "Input violation %p, from %d to %d", s, from, to);     // asssertion if NOINVARIANT is NOT defined
@@ -1332,6 +1345,58 @@ tf19(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
+// ------------------------- TEST 20 ---------------------------------
+
+static TestStatus
+tf20(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: fsrevcatstr simple", ++subnum);
+    {
+        const char  pt[] = "qwertyuiop1234567890";
+        const char  ptinit[] = "ABCDE";
+        fs          s = fscopy(ptinit);
+
+        fsrevcatstr(s, pt);
+
+        test_validatefree(fslen(s) == strlen(pt) + strlen(ptinit), fsfree(s),
+                        "Length of final fs (%d) must be sum of length of original (%zu + %zu)", fslen(s), strlen(ptinit), strlen(pt) );
+
+        test_validatefree(strncmp(pt, fsstr(s), strlen(pt) ) == 0,  fsfree(s),
+                        "Pattern [%s] and first %zu symbols of fs [%.*s] must be equal", pt, strlen(pt), (int) strlen(pt), fsstr(s) );
+
+        test_validatefree(strcmp(ptinit, fsstr(s) + strlen(pt) ) == 0,  fsfree(s),
+                        "Init Pattern [%s] and last %zu symbols of fs [%s] must be equal", ptinit, strlen(ptinit), fsstr(s) + strlen(pt) );
+        fsfree(s);
+    }
+    test_sub("subtest %d: fsrevcatstr iteration", ++subnum);
+    {
+        const char  pt[] = "qwertyuiop1234567890111";
+        const char  ptinit[] = "ABCDEF";
+        fs          s = fscopy(ptinit);
+        int         cnt = 10;
+
+        for (int i = 0; i < cnt; i++){
+            fsrevcatstr(s, pt);
+        }
+
+        test_validatefree(fslen(s) == strlen(pt) * cnt + strlen(ptinit), fsfree(s),
+                             "Length of final fs (%d) must be sum of length of original (%zu + %zu * %d)", fslen(s), strlen(ptinit), strlen(pt), cnt );
+
+        test_validatefree(strncmp(pt, fsstr(s), strlen(pt) ) == 0,  fsfree(s),
+                        "Pattern [%s] and first %zu symbols of fs [%.*s] must be equal", pt, strlen(pt), (int) strlen(pt), fsstr(s) );
+
+        test_validatefree(strcmp(ptinit, fsstr(s) + strlen(pt) * cnt ) == 0,  fsfree(s),
+                        "Init Pattern [%s] and last %zu symbols of fs [%s] must be equal", ptinit, strlen(ptinit), fsstr(s) + strlen(pt) * cnt );
+
+        fsfree(s);
+    }
+    check_leak(true);
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -1358,6 +1423,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf17, .num = 17, .name = "fs_(n)(i)chr simple tests"          , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf18, .num = 18, .name = "fs_(i)rchr simple tests"            , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf19, .num = 19, .name = "fs_n(i)instr simple tests"          , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf20, .num = 20, .name = "fs_rev_catstr simple tests"         , .desc=""                , .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()

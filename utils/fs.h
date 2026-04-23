@@ -382,6 +382,8 @@ static inline fs             fs_catstr(fs *restrict target, const char *restrict
     fs l = fsliteral(source);
     return fs_cat(target, l);
 }
+// put beginner at the start position of the target
+extern fs                    fs_rev_catstr(fs *restrict target, const char *restrict beginner);
 
 static inline fs             fs_cpy(fs *target, fs source){
     target->len = 0;
@@ -495,6 +497,7 @@ static inline bool           fs_iin(fs s, const char *strs[]){
 
 #define                      fscat(t, s) fs_cat(&(t), s)
 #define                      fscatstr(t, s) fs_catstr(&(t), s)
+#define                      fsrevcatstr(t, s) fs_rev_catstr( &(t), s)
 
 #define                      fscpy(t, s) fs_cpy(&(t), s)
 #define                      fscpystr(t, s) fs_cpystr(&(t), s)
