@@ -96,16 +96,24 @@ int             _flushbuf(int c, MFILE *fp){
 
     int     bufsize = (fp->flags & MF_UNBUF) ? 1 : M_BUFSIZE;   // TODO: make bufsize a part of MFILE
 
-    *fp->ptr++ = c;
-    int     cnt = write(fp->fd, fp->base, bufsize);
-
-    logsimple("write: %d, bufsize %d, cnt %d", cnt, bufsize, fp->cnt);
-    if (cnt < bufsize){
-        fp->flags |= MF_ERR;
-        return logsimpleerr(M_EOF, "Error while writing");
+    if (!fp->base){
+        if ( (fp->base = malloc(bufsize) ) == 0)
+            return logsimpleerr(M_EOF, "Unable to allocated %d", bufsize);
+        fp->ptr = fp->base;
+        fp->cnt = bufsize;
     }
-    fp->ptr = fp->base;
-    fp->cnt = bufsize;
+    *fp->ptr++ = c;
+
+    if (--p->cnt <= 0){
+        int     cnt = write(fp->fd, fp->base, bufsize);
+        logsimple("write: %d, bufsize %d, cnt %d", cnt, bufsize, fp->cnt);
+        fp->ptr = fp->base;
+        fp->cnt = bufsize;
+        if (cnt < bufsize){
+            fp->flags |= MF_ERR;
+            return logsimpleerr(M_EOF, "Error while writing");
+        }
+    }
     return logsimpleret(c, "Norm");
 }
 

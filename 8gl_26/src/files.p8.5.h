@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include "bool.h"
+#include "log.h"
 
 static const int            M_EOF         = -1;
 static const int            M_BUFSIZE     = 128;    //1024;
@@ -56,7 +57,7 @@ static inline long      mseek(MFILE *fp, long offset, int origin){
     return lseek(fp->fd, offset, origin);
 }
 
-static inline int       mgetpos(MFILE *fp){
+static inline long      mgetpos(MFILE *fp){
     return lseek(fp->fd, 0L, SEEK_CUR);
 }
 
@@ -77,6 +78,7 @@ static inline int       mgetc(MFILE *p){
 }
 
 static inline int       mputc(int c, MFILE *p){
+    mfile_techfprint(logfile, p, false);
     return --p->cnt > 0 ? *p->ptr++ = c : _flushbuf(c, p);
 }
 
