@@ -163,9 +163,11 @@ int                 proc_fileno(Context *ctx){
         if (l->typ == LEXEM_WORD){
             const char *tp = lexem_str(l);
             if (strcmp(tp, "read") == 0){    // close read-associated file
-                mgetpos(ctx->mfr);
+                printf("Read fileno %d\n", mfileno(ctx->mfr) );
+                return logsimpleret(1, "r fileno ok");
             } else if (strcmp(tp, "write") == 0){   // write-associated file
-                mgetpos(ctx->mfw);
+                printf("Write fileno %d\n", mfileno(ctx->mfr) );
+                return logsimpleret(1, "w fileno ok");
             } else
                 fprintf(stderr, "Type of file must be read or write %s\n", tp);
         } else
@@ -185,19 +187,45 @@ int                 proc_read(Context *ctx){
             if (l->typ == LEXEM_INT){
                 const char *tp = lexem_str(l);
                 int         sz = atoi(tp), c = 0;
-                printf("From %4d-%4d:", mgetpos(ctx->mfr), sz);
-                for (int i = 0; c != EOF && i < sz; i++)
-                    putchar(c = mgetc(ctx->mfr) );
-                printf("\n");
-                if (c == EOF)
-                    printf("EOF detected\n");
+                if (sz > 0) {
+                    printf("From %4d-%4d:", mgetpos(ctx->mfr), sz);
+                    for (int i = 0; c != EOF && i < sz; i++)
+                        putchar(c = mgetc(ctx->mfr) );
+                    printf("\n");
+                    if (c == EOF)
+                        printf("EOF detected\n");
+                    return logsimpleret(1, "Read %d ok", sz);
+                } else
+                    fprintf(stderr, "amount must be positive (%d)\n", sz);
             } else
                 fprintf(stderr, "Must be int (%s)\n", Lexemtype_str(l->typ) );
         } else
             fprintf(stderr, "Out of input\n");
     }
-    return -1;
+    return logsimpleerr(-1, "Unable to read");
 }
+// write <peace of data>
+int                 proc_write(Context *ctx){
+    if (!ctx->mfw)
+        fprintf(stderr, "Write file isn't open\n");
+    else {
+        Lexem *l = ctx->lex;
+        if (getlexem(l, false) ){
+            if (l->typ == LEXEM_WORD){
+                const char *tp = lexem_str(l);
+                int         sz = strlen(tp), c = 0;     // REMOVE THAT STRLEN TODO:
+                    printf("Write %4d-%4d:", mgetpos(ctx->mfw), sz);
+                    for (int i = 0; c != EOF && i < sz; i++)
+                        mputc(tp[i], ctx->mfw);
+                    return logsimpleret(1, "Read %d ok", sz);
+            } else
+                fprintf(stderr, "Must be word (%s)\n", Lexemtype_str(l->typ) );
+        } else
+            fprintf(stderr, "Out of input\n");
+    }
+    return logsimpleerr(-1, "Unable to read");
+}
+
 // <read/write> pos
 int                 proc_seek(Context *ctx){ 
     Lexem *l = ctx->lex;
