@@ -97,6 +97,7 @@ static Command cmds[] = {
   , CommandInit(.name = "close"         , .proc = proc_close        , .desc = "close <read/write>, close read or write assiciated file"     )
   , CommandInit(.name = "open"          , .proc = proc_open         , .desc = "open <filaname>, open filename for read"                     )
   , CommandInit(.name = "read"          , .proc = proc_read         , .desc = "read <size> read a bunch of data from current position"      )
+  , CommandInit(.name = "seek"          , .proc = proc_seek         , .desc = "seek <read/write> <pos> go to position (0 - start, END - end)")
   , CommandInit(.name = "eof"           , .proc = proc_eof          , .desc = "Check if READ file in EOF"                                   )
   , CommandInit(.name = "getpos"        , .proc = proc_getpos       , .desc = "getpos <read/write> - show current position"                 )
   , CommandInit(.name = "fileno"        , .proc = proc_fileno       , .desc = "fileno <read/write> get file no"                             )

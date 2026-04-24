@@ -198,4 +198,22 @@ int                 proc_read(Context *ctx){
     }
     return -1;
 }
+// <read/write> pos
+int                 proc_seek(Context *ctx){ 
+    Lexem *l = ctx->lex;
+    if (getlexem(l, false) ){
+        if (l->typ == LEXEM_WORD){
+            const char *tp = lexem_str(l);
+            if (strcmp(tp, "read") == 0){    // close read-associated file
+                mgetpos(ctx->mfr);
+            } else if (strcmp(tp, "write") == 0){   // write-associated file
+                mgetpos(ctx->mfw);
+            } else
+                fprintf(stderr, "Type of file must be read or write %s\n", tp);
+        } else
+            fprintf(stderr, "Must be word (%s)\n", Lexemtype_str(l->typ) );
+    } else
+        fprintf(stderr, "Out of input\n");
+    return logsimpleerr(-1, "Unable to get file no");
+}
 
