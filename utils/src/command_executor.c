@@ -9,7 +9,9 @@ bool                    process_command(const char *restrict name, Command *rest
     logenter("Cmd [%s]", name);
     // 1-st version, just a fullscan
     while (cmd->proc){
-        if (strcmp(name, cmd->name ) == 0){
+        if ( (cmd->shortlen == 0 && strcmp (name, cmd->name) == 0 ) ||
+             (cmd->shortlen > 0 && strncmp(name, cmd->name, cmd->shortlen) == 0 )
+        ){
             cmd->proc(ctx);
             return logret(true, "Command %s was processed", name);
         }
