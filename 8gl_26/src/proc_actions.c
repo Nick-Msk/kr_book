@@ -106,13 +106,13 @@ int                 proc_close(Context *ctx){
     if (getlexem(l, false) ){
         if (l->typ == LEXEM_WORD){
             const char *tp = lexem_str(l);
-            if (strcmp(tp, "read") == 0){    // close read-associated file
+            if (strncmp(tp, "read", 1) == 0){    // close read-associated file
                 if (ctx->mfr)
                     mclose(ctx->mfr);
                 else
                     printf("Read file isn't opened\n");
                 ctx->mfr = 0;
-            } else if (strcmp(tp, "write") == 0){   // write-associated file
+            } else if (strncmp(tp, "write", 1) == 0){   // write-associated file
                 if (ctx->mfw)
                     mclose(ctx->mfw);
                 else
@@ -162,10 +162,16 @@ int                 proc_getpos(Context *ctx){
     if (getlexem(l, false) ){
         if (l->typ == LEXEM_WORD){
             const char *tp = lexem_str(l);
-            if (strcmp(tp, "read") == 0){    // close read-associated file
-                printf("%ld\n", mgetpos(ctx->mfr) );
-            } else if (strcmp(tp, "write") == 0){   // write-associated file
-                printf("%ld\n", mgetpos(ctx->mfw) );
+            if (strncmp(tp, "read", 1) == 0){    // close read-associated file
+                if (ctx->mfr)
+                    printf("%ld\n", mgetpos(ctx->mfr) );
+                else
+                    printf("Read file isn't open\n");
+            } else if (strncmp(tp, "write", 1) == 0){   // write-associated file
+                if (ctx->mfw)
+                    printf("%ld\n", mgetpos(ctx->mfw) );
+                else
+                    printf("Write file isn't open\n");
             } else
                 fprintf(stderr, "Type of file must be read or write %s\n", tp);
         } else
@@ -180,11 +186,17 @@ int                 proc_fileno(Context *ctx){
     if (getlexem(l, false) ){
         if (l->typ == LEXEM_WORD){
             const char *tp = lexem_str(l);
-            if (strcmp(tp, "read") == 0){    // close read-associated file
-                printf("Read fileno %d\n", mfileno(ctx->mfr) );
+            if (strncmp(tp, "read", 1) == 0){    // close read-associated file
+                if (ctx->mfr)
+                    printf("Read fileno %d\n", mfileno(ctx->mfr) );
+                else
+                    printf("Read file isn't open\n");
                 return logsimpleret(1, "r fileno ok");
-            } else if (strcmp(tp, "write") == 0){   // write-associated file
-                printf("Write fileno %d\n", mfileno(ctx->mfr) );
+            } else if (strncmp(tp, "write", 1) == 0){   // write-associated file
+                if (ctx->mfw)
+                    printf("Write fileno %d\n", mfileno(ctx->mfw) );
+                else
+                   printf("Write file isn't open\n"); 
                 return logsimpleret(1, "w fileno ok");
             } else
                 fprintf(stderr, "Type of file must be read or write %s\n", tp);
@@ -253,10 +265,24 @@ int                 proc_seek(Context *ctx){
     if (getlexem(l, false) ){
         if (l->typ == LEXEM_WORD){
             const char *tp = lexem_str(l);
-            if (strcmp(tp, "read") == 0){    // close read-associated file
-                mgetpos(ctx->mfr);
-            } else if (strcmp(tp, "write") == 0){   // write-associated file
-                mgetpos(ctx->mfw);
+            if (strncmp(tp, "read", 1) == 0){    // close read-associated file
+                if (getlexem(l, false) && l->typ == LEXEM_INT){
+                    int sz = atoi(lexem_str(l) );
+                    if (ctx->mfr)
+                        printf("Pos: %ld\n", mseek(ctx->mfr, SEEK_SET, sz) );
+                    else
+                        printf("Read file isn't open");
+                } else
+                    fprintf(stderr, "Incorrent position\n");
+            } else if (strncmp(tp, "write", 1) == 0){   // write-associated file
+                if (getlexem(l, false) && l->typ == LEXEM_INT){
+                    int sz = atoi(lexem_str(l) );
+                    if (ctx->mfw)
+                        printf("Ros: %ld\n", mseek(ctx->mfw, SEEK_SET, sz) );
+                    else
+                        printf("Write file isn't open\n");
+                } else
+                    fprintf(stderr, "Incorrent position\n");
             } else
                 fprintf(stderr, "Type of file must be read or write %s\n", tp);
         } else
