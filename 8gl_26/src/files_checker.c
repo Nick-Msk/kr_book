@@ -89,21 +89,21 @@ int     main(int argc, const char *argv[]){
 
 // filled locally!
 static Command cmds[] = {
-    CommandInit(.name = "quit"          , .proc = proc_quit         , .desc = "Just quit the runner"                                            )
-  , CommandInit(.name = "help"          , .proc = proc_help         , .desc = "Type all command and descriptions"                               )
-  , CommandInit(.name = "techprint"     , .proc = proc_techprint    , .desc = "Technical print of context"                                      )
+    CommandInit(.name = "quit"          , .shortlen = 1, .proc = proc_quit         , .desc = "Just quit the runner"                                            )
+  , CommandInit(.name = "help"          , .shortlen = 1, .proc = proc_help         , .desc = "Type all command and descriptions"                               )
+  , CommandInit(.name = "techprint"     , .shortlen = 4, .proc = proc_techprint    , .desc = "Technical print of context"                                      )
     // -- MFILE procs
-  , CommandInit(.name = "create"        , .proc = proc_create       , .desc = "create <filaname>, create filename for write"                    )
-  , CommandInit(.name = "close"         , .proc = proc_close        , .desc = "close <read/write>, close read or write assiciated file"         )
-  , CommandInit(.name = "open"          , .proc = proc_open         , .desc = "open <filaname>, open filename for read"                         )
-  , CommandInit(.name = "read"          , .proc = proc_read         , .desc = "read <size> read a bunch of data from current position"          )
-  , CommandInit(.name = "write"         , .proc = proc_write        , .desc = "write <string> write a bunch of data to current position"        )
-  , CommandInit(.name = "seek"          , .proc = proc_seek         , .desc = "seek <read/write> <pos> go to position (0 - start, END - end)"   )
-  , CommandInit(.name = "eof"           , .proc = proc_eof          , .desc = "Check if READ file in EOF"                                       )
-  , CommandInit(.name = "error"         , .proc = proc_error        , .desc = "Check if WRITE file in Error state"                              )
-  , CommandInit(.name = "getpos"        , .proc = proc_getpos       , .desc = "getpos <read/write> - show current position"                     )
-  , CommandInit(.name = "fileno"        , .proc = proc_fileno       , .desc = "fileno <read/write> get file no"                                 )
-  , CommandInit(.name = "!!!END!!!"     , .proc = 0                 , .desc = 0                                                                 )
+  , CommandInit(.name = "create"        , .shortlen = 2, .proc = proc_create       , .desc = "create <filaname>, create filename for write"                    )
+  , CommandInit(.name = "close"         , .shortlen = 2, .proc = proc_close        , .desc = "close <read/write>, close read or write assiciated file"         )
+  , CommandInit(.name = "open"          , .shortlen = 2, .proc = proc_open         , .desc = "open <filaname>, open filename for read"                         )
+  , CommandInit(.name = "read"          , .shortlen = 1, .proc = proc_read         , .desc = "read <size> read a bunch of data from current position"          )
+  , CommandInit(.name = "write"         , .shortlen = 1, .proc = proc_write        , .desc = "write <string> write a bunch of data to current position"        )
+  , CommandInit(.name = "seek"          , .shortlen = 2, .proc = proc_seek         , .desc = "seek <read/write> <pos> go to position (0 - start, END - end)"   )
+  , CommandInit(.name = "eof"           , .shortlen = 0, .proc = proc_eof          , .desc = "Check if READ file in EOF"                                       )
+  , CommandInit(.name = "error"         , .shortlen = 0, .proc = proc_error        , .desc = "Check if WRITE file in Error state"                              )
+  , CommandInit(.name = "getpos"        , .shortlen = 0, .proc = proc_getpos       , .desc = "getpos <read/write> - show current position"                     )
+  , CommandInit(.name = "fileno"        , .shortlen = 0, .proc = proc_fileno       , .desc = "fileno <read/write> get file no"                                 )
+  , CommandInit(.name = "!!!END!!!"                    , .proc = 0                 , .desc = 0                                                                 )
 };
 
 // move out??? not sure
