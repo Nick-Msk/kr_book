@@ -53,6 +53,15 @@ MFILE           *mopen(const char *restrict filename, const char *restrict mode)
     return logret(fp, "%p", fp);
 }
 
+bool             munbuf(MFILE *fp){
+    invraise(fp != 0, "Nullable mfile pointer");
+
+    if (fp->base || ! (fp->flags & MF_WRITE) )
+        return logsimpleerr(false, "File already used or not opened for write (%d)", fp->flags);
+    fp->flags |= MF_UNBUF;
+    return true;
+}
+
 bool             mclose(MFILE *fp){
     invraise(fp != 0, "Nullable mfile pointer");
 

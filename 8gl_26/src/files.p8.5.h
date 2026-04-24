@@ -52,6 +52,8 @@ extern bool             mclose(MFILE *fp);
 
 extern int              mflush(MFILE *fp);
 
+extern bool             munbuf(MFILE *fp);
+
 static inline long      mseek(MFILE *fp, long offset, int origin){
     mflush(fp);
     return lseek(fp->fd, offset, origin);
