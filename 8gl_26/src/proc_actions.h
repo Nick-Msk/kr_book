@@ -38,6 +38,7 @@ extern int                 proc_close(Context *ctx);
 extern int                 proc_read(Context *ctx);
 extern int                 proc_write(Context *ctx);
 extern int                 proc_eof(Context *ctx);
+extern int                 proc_error(Context *ctx);
 extern int                 proc_getpos(Context *ctx);
 extern int                 proc_fileno(Context *ctx);
 extern int                 proc_seek(Context *ctx);

@@ -100,6 +100,7 @@ static Command cmds[] = {
   , CommandInit(.name = "write"         , .proc = proc_write        , .desc = "write <string> write a bunch of data to current position"        )
   , CommandInit(.name = "seek"          , .proc = proc_seek         , .desc = "seek <read/write> <pos> go to position (0 - start, END - end)"   )
   , CommandInit(.name = "eof"           , .proc = proc_eof          , .desc = "Check if READ file in EOF"                                       )
+  , CommandInit(.name = "error"         , .proc = proc_error        , .desc = "Check if WRITE file in Error state"                              )
   , CommandInit(.name = "getpos"        , .proc = proc_getpos       , .desc = "getpos <read/write> - show current position"                     )
   , CommandInit(.name = "fileno"        , .proc = proc_fileno       , .desc = "fileno <read/write> get file no"                                 )
   , CommandInit(.name = "!!!END!!!"     , .proc = 0                 , .desc = 0                                                                 )

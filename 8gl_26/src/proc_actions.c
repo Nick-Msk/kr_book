@@ -127,16 +127,28 @@ int                 proc_close(Context *ctx){
 
 // only for read file
 int                 proc_eof(Context *ctx){
-    if (ctx->mfr)
-        if (mfeof(ctx->mfr) )
+    if (ctx->mfr){
+        if (meof(ctx->mfr) )
             printf("Read file is EOF\n");
         else
             printf("Read file is NOT EOF\n");
-    else {
-        fprintf(stderr,  "Read file isn't open");
-        return -1;
+        return logsimpleret(1, "Ok");
     }
-    return 1;
+    else
+        fprintf(stderr,  "Read file isn't open");
+    return logsimpleerr(-1, "Not opened");
+}
+
+int                 proc_error(Context *ctx){
+    if (ctx->mfw){
+        if (merror(ctx->mfr) )
+            printf("Write file in error state\n");
+        else
+            printf("Write file not in error state\n");
+        return logsimpleret(1, "Ok");
+    } else
+        fprintf(stderr,  "Write file isn't open");
+    return logsimpleerr(-1, "Not opened");
 }
 
 int                 proc_getpos(Context *ctx){
