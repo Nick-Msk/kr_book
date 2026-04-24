@@ -107,10 +107,16 @@ int                 proc_close(Context *ctx){
         if (l->typ == LEXEM_WORD){
             const char *tp = lexem_str(l);
             if (strcmp(tp, "read") == 0){    // close read-associated file
-                mclose(ctx->mfr);
+                if (ctx->mfr)
+                    mclose(ctx->mfr);
+                else
+                    printf("Read file isn't opened\n");
                 ctx->mfr = 0;
             } else if (strcmp(tp, "write") == 0){   // write-associated file
-                mclose(ctx->mfw);
+                if (ctx->mfw)
+                    mclose(ctx->mfw);
+                else
+                    printf("Write file isn't opened\n");
                 ctx->mfw = 0;
             } else {
                 fprintf(stderr, "Type of file must be read or write, e.g. 'close read' but not %s\n", tp);
@@ -157,9 +163,9 @@ int                 proc_getpos(Context *ctx){
         if (l->typ == LEXEM_WORD){
             const char *tp = lexem_str(l);
             if (strcmp(tp, "read") == 0){    // close read-associated file
-                mgetpos(ctx->mfr);
+                printf("%ld\n", mgetpos(ctx->mfr) );
             } else if (strcmp(tp, "write") == 0){   // write-associated file
-                mgetpos(ctx->mfw);
+                printf("%ld\n", mgetpos(ctx->mfw) );
             } else
                 fprintf(stderr, "Type of file must be read or write %s\n", tp);
         } else
@@ -200,7 +206,7 @@ int                 proc_read(Context *ctx){
                 const char *tp = lexem_str(l);
                 int         sz = atoi(tp), c = 0;
                 if (sz > 0) {
-                    printf("From %4d-%4d:", mgetpos(ctx->mfr), sz);
+                    printf("From %4ld-%4d:", mgetpos(ctx->mfr), sz);
                     for (int i = 0; c != EOF && i < sz; i++)
                         putchar(c = mgetc(ctx->mfr) );
                     printf("\n");
@@ -225,11 +231,14 @@ int                 proc_write(Context *ctx){
         if (getlexem(l, false) ){
             if (l->typ == LEXEM_WORD){
                 const char *tp = lexem_str(l);
-                int         sz = strlen(tp), c = 0;     // REMOVE THAT STRLEN TODO:
-                    printf("Write %4d-%4d:", mgetpos(ctx->mfw), sz);
-                    for (int i = 0; c != EOF && i < sz; i++)
-                        mputc(tp[i], ctx->mfw);
-                    return logsimpleret(1, "Read %d ok", sz);
+                logauto(tp);
+                int         sz = strlen(tp);     // REMOVE THAT STRLEN TODO:
+                logauto(mgetpos(ctx->mfw) );
+                printf("Write from %ld position, %d symbols\n", mgetpos(ctx->mfw), sz);
+                logauto(sz);
+                for (int i = 0; i < sz; i++)
+                    mputc(tp[i], ctx->mfw);
+                return logsimpleret(1, "Read %d ok", sz);
             } else
                 fprintf(stderr, "Must be word (%s)\n", Lexemtype_str(l->typ) );
         } else
@@ -239,7 +248,7 @@ int                 proc_write(Context *ctx){
 }
 
 // <read/write> pos
-int                 proc_seek(Context *ctx){ 
+int                 proc_seek(Context *ctx){
     Lexem *l = ctx->lex;
     if (getlexem(l, false) ){
         if (l->typ == LEXEM_WORD){
