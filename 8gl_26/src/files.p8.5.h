@@ -60,11 +60,11 @@ static inline int       mgetpos(MFILE *fp){
     return lseek(fp->fd, 0L, SEEK_CUR);
 }
 
-static inline bool      mfeof(const MFILE *p){
+static inline bool      meof(const MFILE *p){
     return p->flags & MF_EOF;
 }
 
-static inline bool      mferror(const MFILE *p){
+static inline bool      merror(const MFILE *p){
     return p->flags & MF_ERR;
 }
 
