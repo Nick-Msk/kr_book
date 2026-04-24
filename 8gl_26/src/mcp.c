@@ -35,6 +35,10 @@ static int              parse_keys(const char *argv[], Keys *ke){
                      ke->version = true;
                      params++;
                 break;
+                case 'u':
+                     ke->unbuf = true;
+                     params++;
+                break;
                 case 'f':
                     // TODO: refactor that to make more pretty
                     if (argv[0][1] == '\0') {
@@ -91,8 +95,13 @@ int                     main(int argc, const char *argv[]){
     MFILE   *in = 0, *out = 0;
     if ( (in = mopen(ke.infilename, "r") ) == 0)
         return userraise(2, ERR_UNABLE_OPEN_FILE_READ, "Unable to open file %s for read\n", ke.infilename);
+
     if ( (out = mopen(ke.outfilename, "w") ) == 0)
         return userraise(3, ERR_UNABLE_OPEN_FILE_WRITE, "Unable to open file %s for write\n", ke.outfilename);
+
+    if (ke.unbuf)
+        if (!munbuf(out) )
+            return userraise(3, ERR_UNABLE_SET_FILE_PARAM, "Failed to setup unbuffered mode\n");
 
     int     c;
     while ( ( c = mgetc(in) ) != EOF && RGUARDM){
