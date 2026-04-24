@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "guard.h"
 #include "log.h"
 #include "common.h"
 #include "error.h"
@@ -88,14 +89,16 @@ int                     main(int argc, const char *argv[]){
     }
 
     MFILE   *in = 0, *out = 0;
-    if ( (in = mopen(ke.infilename, "r") ) != 0)
+    if ( (in = mopen(ke.infilename, "r") ) == 0)
         return userraise(2, ERR_UNABLE_OPEN_FILE_READ, "Unable to open file %s for read\n", ke.infilename);
-    if ( (out = mopen(ke.outfilename, "w") ) != 0)
+    if ( (out = mopen(ke.outfilename, "w") ) == 0)
         return userraise(3, ERR_UNABLE_OPEN_FILE_WRITE, "Unable to open file %s for write\n", ke.outfilename);
 
     int     c;
-    //while ()
-      //  mputc(c, );
+    while ( ( c = mgetc(in) ) != EOF && RGUARDM){
+        MODEXEC(500, (void) logmsg("next 500, [%c]", c) );
+        mputc(c, out);
+    }
 
     mclose(in);
     mclose(out);
