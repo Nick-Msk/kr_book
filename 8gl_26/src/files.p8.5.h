@@ -78,7 +78,6 @@ static inline int       mgetc(MFILE *p){
 }
 
 static inline int       mputc(int c, MFILE *p){
-    mfile_techfprint(logfile, p, false);
     return --p->cnt > 0 ? *p->ptr++ = c : _flushbuf(c, p);
 }
 

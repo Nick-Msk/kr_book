@@ -10,9 +10,9 @@ static const int        PERM = 0666;
 
 // storage
 MFILE                   _iob[M_OPEN_MAX] = {
-    MFILE_INIT(.flags = MF_READ, .fd = 0),
-    MFILE_INIT(.flags = MF_WRITE, .fd = 1),
-    MFILE_INIT(.flags = MF_WRITE | MF_UNBUF, .fd = 2)
+    MFILE_INIT(.flags = MF_READ,                .fd = 0),
+    MFILE_INIT(.flags = MF_WRITE,               .fd = 1),
+    MFILE_INIT(.flags = MF_WRITE | MF_UNBUF,    .fd = 2)
 };
 
 MFILE           *fin      = _iob + 0;
@@ -56,7 +56,7 @@ MFILE           *mopen(const char *restrict filename, const char *restrict mode)
 bool             mclose(MFILE *fp){
     invraise(fp != 0, "Nullable mfile pointer");
 
-    if ( (fp->flags & (MF_READ | MF_WRITE | MF_ERR) ) != MF_WRITE )
+    if ( (fp->flags & (MF_READ | MF_WRITE | MF_ERR) ) == MF_WRITE )
         mflush(fp);
     bool ret = close(fp->fd) == 0;
     free(fp->base);
@@ -77,7 +77,8 @@ int             _fillbuf(MFILE *fp){
 
     fp->ptr = fp->base;
     fp->cnt = read(fp->fd, fp->ptr, bufsize);
-    if (--fp->cnt > 0){
+
+    if (--fp->cnt < 0){
         if (fp->cnt == -1)
             fp->flags |= MF_EOF;
         else
@@ -92,7 +93,7 @@ int             _flushbuf(int c, MFILE *fp){
     invraise(fp != 0, "Null pointer");
 
     if ( (fp->flags & (MF_READ | MF_WRITE | MF_ERR) ) != MF_WRITE)
-        return logsimpleerr(M_EOF, "File is'nt open for write");
+        return logsimpleerr(M_EOF, "File is'nt open for write or in error state");
 
     int     bufsize = (fp->flags & MF_UNBUF) ? 1 : M_BUFSIZE;   // TODO: make bufsize a part of MFILE
 
@@ -121,7 +122,7 @@ int              mflush(MFILE *fp){
     invraise(fp != 0, "Null pointer");
 
     if ( (fp->flags & (MF_READ | MF_WRITE | MF_ERR) ) != MF_WRITE )
-        return logsimpleerr(M_EOF, "File is'nt open for write or in the error state");
+        return logsimpleerr(M_EOF, "File is'nt open for write or in the error state (%d)", fp->flags);
     if ( fp->flags & MF_UNBUF)
         return logsimpleerr(M_EOF, "File is unbuffered");
 
