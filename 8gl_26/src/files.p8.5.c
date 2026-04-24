@@ -104,7 +104,7 @@ int             _flushbuf(int c, MFILE *fp){
     }
     *fp->ptr++ = c;
 
-    if (--p->cnt <= 0){
+    if (--fp->cnt <= 0){
         int     cnt = write(fp->fd, fp->base, bufsize);
         logsimple("write: %d, bufsize %d, cnt %d", cnt, bufsize, fp->cnt);
         fp->ptr = fp->base;
