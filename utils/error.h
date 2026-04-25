@@ -44,6 +44,7 @@ static const int                        WARN_MEM_LEAK_DETECTED      = 1001;
 
 // CUSTOM ERROR 10000+
 static const int                        ERR_FS_NOT_ALLOC_FLAG       = 10001;
+static const int                        ERR_TOO_LONG_LINE           = 10010;
 static const int                        ERR_GUARD_RAISE             = 10100;
 
 
