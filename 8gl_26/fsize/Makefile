@@ -6,7 +6,7 @@ LDLIBS=
 
 all:
 
-fsize.p8.6: src/fsize.p8.6.c lib/log.o lib/common.o lib/error.o lib/checker.o lib/fsize.o
+fsize.p8.6: src/fsize.p8.6.c lib/log.o lib/common.o lib/error.o lib/checker.o lib/fsize.o lib/fs.o lib/fileutils.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 UTIL_PATH = ../../utils

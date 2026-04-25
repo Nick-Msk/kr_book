@@ -7,6 +7,7 @@
 #include "checker.h"
 #include "parse_keys.h"
 #include "fsize.h"
+#include "fs.h"
 
 typedef struct Keys {
     bool              version;    // bool example
@@ -55,13 +56,15 @@ int                     main(int argc, const char *argv[]){
         return 0;
     }
 
-    const char *dir = ".";
+    fs  dir = fscopy(".");
     if (ke.dirname)
-        dir = ke.dirname;
-    printf("Total: %d\n", fsize(dir) );
+        fscpystr(dir, ke.dirname);
 
-    //if (!fs_alloc_check(false))
-      //  logmsg("Warning: incorrect allocation of fs's");
+    printf("Total: %d\n", fsize(&dir) );
+
+    fsfree(dir);
+    if (!fs_alloc_check(false))
+        logmsg("Warning: incorrect allocation of fs's");
 
     return logret(0, "end...");  // as replace of logclose()
 }

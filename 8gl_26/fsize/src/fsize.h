@@ -3,9 +3,8 @@
 
 #include <sys/stat.h>
 #include <sys/types.h>
+#include "fs.h"
 
-//#include "fs.h"
-
-extern int              fsize(const char *name);
+extern int              fsize(const fs *name);
 
 #endif /* !_FSIZE_H */
