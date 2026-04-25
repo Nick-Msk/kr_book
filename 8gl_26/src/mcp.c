@@ -36,6 +36,12 @@ break;
 // note - name must be a part of Keys structure, c must be char literal
 #define                 parse_string(c, name) parse_value(c, name, )
 
+// note - name must be a part of Keys structure, c must be char literal
+#define                 parse_int(c, name) parse_value(c, name, atoi)
+
+// note - name must be a part of Keys structure, c must be char literal
+#define                 parse_long(c, name) parse_value(c, name, atol)
+
 #define                 parse_bool(c, name)\
 case c:\
      ke->name = true;\
@@ -55,9 +61,10 @@ static int              parse_keys(const char *argv[], Keys *ke){
 
     int     argc = 1, params = 0;
     char    c;
+    const char *ptr;
+
     while (*++argv != 0 && **argv == '-'){
         argc++;
-        const char *ptr;
         while ( (c = *++argv[0]) )
             switch (tolower(c)){
                 parse_bool('v', version);
@@ -68,7 +75,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
                     return userraise(-1, ERR_WRONG_PARAMETER, "Illegal [%c], params [%d] argc %d", c, params, argc);
             }
     }
-    return logret(argc, "params %d, argc %d", params, argc);
+    return logret(argc, "params %d, argc %d, %s", params, argc, ptr = 0);
 }
 
 const char *usage_str = "Usage: %s -u -v -f <input filename> -o <output filename>\n";
