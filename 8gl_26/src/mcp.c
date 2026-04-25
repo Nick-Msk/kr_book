@@ -18,10 +18,39 @@ typedef struct Keys {
 
 #define                 Keysinit(...) (Keys){ .version = false, .unbuf = false, .infilename = 0, .outfilename = 0, __VA_ARGS__}
 
+#define                 parse_value(c, name, func)\
+case c:\
+    if (argv[0][1] == '\0') {\
+        if (argv[1]){\
+            ptr = argv[1];\
+            argv++;\
+        } else\
+             return userraise(-1, ERR_WRONG_PARAMETER, "-"#c" option without value (must be string followed), ex '-lstring' or '-l string'");\
+    } else\
+        ptr = argv[0] + 1;\
+    ke->name = func(ptr);\
+    argv[0] += strlen(argv[0]) - 1;\
+    params++;\
+break;
+
+// note - name must be a part of Keys structure, c must be char literal
+#define                 parse_string(c, name) parse_value(c, name, )
+
+#define                 parse_bool(c, name)\
+case c:\
+     ke->name = true;\
+     params++;\
+break;
+
+#define                 parse_bool_false(c, name)\
+case c:\
+     ke->name = false;\
+     params++;\
+break;
+
 static int              parse_keys(const char *argv[], Keys *ke){
 
     invraise(ke, "Zero ke!!! Error!"); // raise here
-
     logenter("...");
 
     int     argc = 1, params = 0;
@@ -31,42 +60,10 @@ static int              parse_keys(const char *argv[], Keys *ke){
         const char *ptr;
         while ( (c = *++argv[0]) )
             switch (tolower(c)){
-                case 'v':
-                     ke->version = true;
-                     params++;
-                break;
-                case 'u':
-                     ke->unbuf = true;
-                     params++;
-                break;
-                case 'f':
-                    // TODO: refactor that to make more pretty
-                    if (argv[0][1] == '\0') {
-                        if (argv[1]){
-                            ptr = argv[1];
-                            argv++;
-                        } else
-                             return userraise(-1, ERR_WRONG_PARAMETER, "-l option without value (must be integer followed), ex '-l123' or '-l 123'");
-                    } else  // argv[1] + 1 is pointer to value
-                        ptr = argv[0] + 1;
-                    ke->infilename = ptr;        // save pointer
-                    argv[0] += strlen(argv[0]) - 1; // shift
-                    params++;
-                break;
-                case 'o':
-                    // TODO: refactor that to make more pretty
-                    if (argv[0][1] == '\0') {
-                        if (argv[1]){
-                            ptr = argv[1];
-                            argv++;
-                        } else
-                             return userraise(-1, ERR_WRONG_PARAMETER, "-l option without value (must be integer followed), ex '-l123' or '-l 123'");
-                    } else  // argv[1] + 1 is pointer to value
-                        ptr = argv[0] + 1;
-                    ke->outfilename = ptr;        // save pointer
-                    argv[0] += strlen(argv[0]) - 1; // shift
-                    params++;
-                break;
+                parse_bool('v', version);
+                parse_bool('u', unbuf);
+                parse_string('f', infilename);
+                parse_string('o', outfilename);
                 default:    // probaly it's possible to ignore unknows parameters
                     return userraise(-1, ERR_WRONG_PARAMETER, "Illegal [%c], params [%d] argc %d", c, params, argc);
             }
