@@ -12,6 +12,15 @@ typedef int             (*tfcn)(const fs *);
 
 static int              dirwalk(const fs *dir, tfcn func);
 
+static int             fprint_stat(FILE *restrict out, const char *restrict name, const struct stat *restrict stbuf){
+    int cnt = 0;
+    if (out){
+        cnt += fprintf(stderr, "%s: %8lld\nst_dev %d, st_mode %d, st_ino %llu, st_uid %d, st_gid %d, st_rdev %d, st_blocks %lld, st_blksize %d, st_flags %u, st_gen %u\n",
+            name, stbuf->st_size, stbuf->st_dev, stbuf->st_mode, stbuf->st_ino, stbuf->st_uid, stbuf->st_gid, stbuf->st_rdev, stbuf->st_blocks, stbuf->st_blksize, stbuf->st_flags, stbuf->st_gen);
+    }
+    return cnt;
+}
+
 extern int              fsize(const fs *name){
     invraise(name != 0, "NUll input");
 
@@ -24,7 +33,8 @@ extern int              fsize(const fs *name){
 
     if ( (stbuf.st_mode & S_IFMT) == S_IFDIR)
         cnt += dirwalk(name, fsize);
-    printf("%8lld %s\n", stbuf.st_size, name->v);
+
+    fprint_stat(stdout, name->v, &stbuf);
     return logsimpleret(++cnt, "Stat %d", cnt);
 }
 
