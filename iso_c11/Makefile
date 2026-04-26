@@ -76,6 +76,9 @@ test-next-prime: src/test-next-prime.c
 cycleguarg: src/cycleguard.c
 	$(CC) $(CFLAGS) $^ -o out/$@_test
 
+check_alignment: src/check_alignment.c
+	$(CC) $(CFLAGS) $^ -o out/$@_test
+
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
 	-rm *.o
