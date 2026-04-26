@@ -13,4 +13,6 @@ typedef union Header {
 
 extern void                        *alloc(unsigned bytes);
 
+extern void                         afree(void *);
+
 #endif /* !_ALLOC_H */
