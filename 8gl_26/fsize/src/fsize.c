@@ -39,10 +39,10 @@ extern int              fsize(const fs *name){
 }
 
 static int              dirwalk(const fs *dir, tfcn func){
+    invraise(dir != 0, "Null input");
     logsimple("dir %s", dir->v);
     fs                 name = FS();
     int                cnt = 0;
-    //char               name[MAX_PATH];
     struct dirent     *dp;
     DIR               *dfd;
 
@@ -52,9 +52,7 @@ static int              dirwalk(const fs *dir, tfcn func){
         if ( (strcmp(dp->d_name, ".") == 0) ||
             (strcmp(dp->d_name, "..") == 0) )
         continue;
-        /*if (strlen(dir) + strlen(dp->d_name) + 2 >= sizeof(name))
-            return userraise(0, ERR_TOO_LONG_LINE, "%s: name %s %s too long", __func__, dir, dp->d_name);
-        else {*/
+
         fssprintf(name, "%s/%s", dir->v, dp->d_name);
         cnt += func(&name);
     }
