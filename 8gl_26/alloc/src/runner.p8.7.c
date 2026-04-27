@@ -85,11 +85,11 @@ static bool             test1(unsigned sz){
 
     //printf("Total %u/%lu\n", atotal(), atotal() * sizeof(Header));
     fill_and_check(t, sz);
-    afprint(stdout, "After free 1");
+    afprint(stdout, "After free 1\n");
     fill_and_check(t1, sz * 4);
-    afprint(stdout, "After free 2");
+    afprint(stdout, "After free 2\n");
     fill_and_check(t2, sz * 6);
-    afprint(stdout, "After free 3");
+    afprint(stdout, "After free 3\n");
     afree(t2);
     afree(t);
     afree(t1);

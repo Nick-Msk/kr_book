@@ -95,13 +95,16 @@ int                          afprint_all(FILE *out){
     printf("Total %u/%lu\n", atotal(), atotal() * sizeof(Header));
     if (out){
         prevp = freep;  // &base ???
-        for (p = prevp->ptr; p != freep && RGUARDK; prevp = p, p = p->ptr)
+        bool first_run = true;
+        for (p = prevp->ptr; (first_run || (!first_run && p != freep) ) && RGUARDK; prevp = p, p = p->ptr){
+            first_run = false;
             printnode(out, p, &cnt);
+        }
     }
     return cnt;
 }
 
 static void                  printnode(FILE *out, const Header *restrict p, int *restrict cnt){
-    fprintf(out, "%4d: sz %u, off %lu\n", *cnt++, p->size, p->ptr - &base);
+    fprintf(out, "Node %4d: sz %u, off %lu\n", *cnt++, p->size, p->ptr - freep);
 }
 
