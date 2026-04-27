@@ -39,6 +39,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
 }
 
 static bool             test1(unsigned);
+static bool             test2(void);
 const char *usage_str = "Usage: %s -i <initsize:unsigned>\n";
 
 int                     main(int argc, const char *argv[]){
@@ -61,6 +62,8 @@ int                     main(int argc, const char *argv[]){
     if (ke.initsize > 0)
         sz = ke.initsize;
     printf("Test1: %s\n", bool_str(test1(sz) ) );
+
+    printf("Test1: %s\n", bool_str(test2() ) );
 
     if (!fs_alloc_check(false))
         logmsg("Warning: incorrect allocation of fs's");
@@ -101,4 +104,11 @@ static bool             test1(unsigned sz){
     afree(t);
     afree(t1);
     return true;
+}
+
+static bool             test2(void){
+    char *t = alloc(200000000);
+    if (!t)
+        printf("\nOk!!! Not allocated!\n");
+    return !t;
 }

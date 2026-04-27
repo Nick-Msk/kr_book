@@ -7,6 +7,7 @@
 #include "guard.h"
 
 static const int             NALLOC = 1024;
+static const unsigned        MAX_ALLOX = 65536 * 1024;
 static Header                base;
 static Header               *freep = 0;
 static unsigned              totalalloc = 0;
@@ -24,6 +25,10 @@ void                        *alloct(unsigned bytes, unsigned size){
 
 void                        *alloc(unsigned nbytes){
     logenter("%u", nbytes);
+
+    if (nbytes > MAX_ALLOX)
+        return logerr( (void *) 0, "Too big value %u (max %u)", nbytes, MAX_ALLOX);
+
     Header      *p, *prevp;
     unsigned     nunits;
 
