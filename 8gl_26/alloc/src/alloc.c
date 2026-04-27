@@ -4,6 +4,7 @@
 #include "fs.h"
 #include "log.h"
 #include "checker.h"
+#include "guard.h"
 
 static const int        NALLOC = 1024;
 static Header           base;
@@ -11,6 +12,7 @@ static Header          *freep = 0;
 static unsigned         totalalloc = 0; 
 
 static Header               *morecore(unsigned);
+static void                  printnode(FILE *restrict out, const Header *restrict p, int *restrict cnt);
 void                         afree(void *);
 
 void                        *alloc(unsigned nbytes){
@@ -85,3 +87,21 @@ void                         afree(void *ap){
 unsigned                     atotal(void){
     return totalalloc;
 }
+
+int                          afprint_all(FILE *out){
+    int          cnt = 0;
+    Header      *p, *prevp;
+
+    printf("Total %u/%lu\n", atotal(), atotal() * sizeof(Header));
+    if (out){
+        prevp = freep;  // &base ???
+        for (p = prevp->ptr; p != freep && RGUARDK; prevp = p, p = p->ptr)
+            printnode(out, p, &cnt);
+    }
+    return cnt;
+}
+
+static void                  printnode(FILE *out, const Header *restrict p, int *restrict cnt){
+    fprintf(out, "%4d: sz %u, off %lu\n", *cnt++, p->size, p->ptr - &base);
+}
+
