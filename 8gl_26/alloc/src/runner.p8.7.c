@@ -6,6 +6,7 @@
 #include "error.h"
 #include "checker.h"
 #include "parse_keys.h"
+#include "fs.h"
 
 typedef struct Keys {
     bool              version;    // bool example
@@ -15,7 +16,7 @@ typedef struct Keys {
     // ...
 } Keys;
 
-#define                 Keysinit(...) (Keys){ .version = false, .string = 0, .maxline = 0, .filename __VA_ARGS__}
+#define                 Keysinit(...) (Keys){ .version = false, .string = 0, .maxline = 0, .filename = 0, __VA_ARGS__}
 static int              parse_keys(const char *argv[], Keys *ke){
 
     invraise(ke, "Zero ke!!! Error!"); // raise here

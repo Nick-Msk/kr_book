@@ -6,7 +6,7 @@ LDLIBS=
 
 all:
 
-runner.p8.7: src/runner.p8.7.c lib/log.o lib/common.o lib/error.o lib/checker.o lib/fsize.o lib/fs.o
+runner.p8.7: src/runner.p8.7.c lib/log.o lib/common.o lib/error.o lib/checker.o lib/alloc.o lib/fs.o lib/fileutils.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 lib/alloc.o: src/alloc.c
