@@ -53,7 +53,7 @@ static Header               *morecore(unsigned nu){
     up = (Header *) cp;
     up->size = nu;
     afree(up + 1);
-    return logsimpleret(freep, "%p", freep);
+    return logsimpleret(freep, "added %u, %p", nu, freep);
 }
 
 void                         afree(void *ap){
@@ -65,14 +65,18 @@ void                         afree(void *ap){
             break;
 
     if (bp + bp->size == p->ptr){    // up
+        logsimple("up, bp.sz %u + p.sz %u", bp->size, p->ptr->size);
         bp->size += p->ptr->size;
         bp->ptr = p->ptr->ptr;
     } else
         bp->ptr = p->ptr;
     if (p + p->size == bp){  // down
+        logsimple("down, p.sz %u + bp.sz %u", p->ptr->size, bp->size);
         p->size += bp->size;
         p->ptr = bp->ptr;
     } else
         p->ptr = bp;
+    logsimple("Freed %p -> %p", freep, p);
     freep = p;
 }
+
