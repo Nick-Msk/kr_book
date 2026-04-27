@@ -6,10 +6,10 @@
 #include "checker.h"
 #include "guard.h"
 
-static const int        NALLOC = 1024;
-static Header           base;
-static Header          *freep = 0;
-static unsigned         totalalloc = 0; 
+static const int             NALLOC = 1024;
+static Header                base;
+static Header               *freep = 0;
+static unsigned              totalalloc = 0;
 
 static Header               *morecore(unsigned);
 static void                  printnode(FILE *restrict out, const Header *restrict p, int *restrict cnt);
@@ -35,8 +35,9 @@ void                        *alloc(unsigned nbytes){
                 p += p->size;
                 p->size = nunits;
             }
+            logsimple("p offset = %lu\n", p - prevp);
             freep = prevp;
-            return (void *) (p + 1);
+            return logret((void *) (p + 1), "Allocated");
         }
         if (p == freep)
             if ((p = morecore(nunits) ) == 0)
@@ -90,13 +91,12 @@ unsigned                     atotal(void){
 
 int                          afprint_all(FILE *out){
     int          cnt = 0;
-    Header      *p, *prevp;
+    Header      *p;
 
     printf("Total %u/%lu\n", atotal(), atotal() * sizeof(Header));
     if (out){
-        prevp = freep;  // &base ???
         bool first_run = true;
-        for (p = prevp->ptr; (first_run || (!first_run && p != freep) ) && RGUARDK; prevp = p, p = p->ptr){
+        for (p = freep; (first_run || (!first_run && p != freep) ) && RGUARDK; p = p->ptr){
             first_run = false;
             printnode(out, p, &cnt);
         }
@@ -105,6 +105,6 @@ int                          afprint_all(FILE *out){
 }
 
 static void                  printnode(FILE *out, const Header *restrict p, int *restrict cnt){
-    fprintf(out, "Node %4d: sz %u, off %lu\n", *cnt++, p->size, p->ptr - freep);
+    fprintf(out, "Node %4d-%p: sz %u, next free %p\n", (*cnt)++, p, p->size, p->ptr);
 }
 
