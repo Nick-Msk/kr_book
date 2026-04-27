@@ -13,7 +13,14 @@ static unsigned              totalalloc = 0;
 
 static Header               *morecore(unsigned);
 static void                  printnode(FILE *restrict out, const Header *restrict p, int *restrict cnt);
-void                         afree(void *);
+
+void                        *alloct(unsigned bytes, unsigned size){
+    Header *p = alloc(bytes * size);
+    if (!p)
+        return sysraise( (void *) 0, "Unable to custom alloc");
+    memset(p, 0, bytes * size);
+    return p;
+}
 
 void                        *alloc(unsigned nbytes){
     logenter("%u", nbytes);
@@ -41,7 +48,7 @@ void                        *alloc(unsigned nbytes){
         }
         if (p == freep)
             if ((p = morecore(nunits) ) == 0)
-                return logerr( (void *) 0, "Unable to obtain");
+                return sysraise( (void *) 0, "Unable to obtain");
     }
 }
 

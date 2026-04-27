@@ -79,9 +79,17 @@ static bool             test1(unsigned sz){
     char    *t = alloc(sz);
     afprint(stdout, "after 1 %u\n", sz);
     char    *t1 = alloc(sz * 4);
-    afprint(stdout, "after 2 %u\n", sz * 4);/*
+    afprint(stdout, "after 2 %u\n", sz * 4);
     char    *t2 = alloc(sz * 6);
     afprint(stdout, "after 3 %u\n", sz * 6);
+
+    int  lsz = 100;
+    long *l = alloct(lsz, sizeof(long) );
+    afprint(stdout, "after 4\n");
+
+    for (int i = 0; i < lsz; i++)
+        if (l[i] != 0)
+            fprintf(stderr, "l[%d] == %ld\n", i, l[i]);
 
     fill_and_check(t, sz);
     afprint(stdout, "After free 1\n");
@@ -91,6 +99,6 @@ static bool             test1(unsigned sz){
     afprint(stdout, "After free 3\n");
     afree(t2);
     afree(t);
-    afree(t1);*/
+    afree(t1);
     return true;
 }

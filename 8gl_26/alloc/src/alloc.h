@@ -14,6 +14,7 @@ typedef union Header {
 } Header;
 
 extern void                        *alloc(unsigned bytes);
+extern void                        *alloct(unsigned bytes, unsigned size);
 extern void                         afree(void *);
 extern unsigned                     atotal(void);
 extern int                          afprint_all(FILE *restrict out);
