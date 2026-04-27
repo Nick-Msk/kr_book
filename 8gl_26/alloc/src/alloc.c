@@ -8,6 +8,7 @@
 static const int        NALLOC = 1024;
 static Header           base;
 static Header          *freep = 0;
+static unsigned         totalalloc = 0; 
 
 static Header               *morecore(unsigned);
 void                         afree(void *);
@@ -50,6 +51,7 @@ static Header               *morecore(unsigned nu){
     cp = sbrk(nu * sizeof(Header) );
     if (cp == (void *) - 1)
         return sysraise( (Header *) 0, "Sbrk failed");
+    logauto(totalalloc += nu);
     up = (Header *) cp;
     up->size = nu;
     afree(up + 1);
@@ -80,3 +82,6 @@ void                         afree(void *ap){
     freep = p;
 }
 
+unsigned                     atotal(void){
+    return totalalloc;
+}

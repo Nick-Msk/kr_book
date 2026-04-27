@@ -12,7 +12,7 @@ typedef union Header {
 } Header;
 
 extern void                        *alloc(unsigned bytes);
-
 extern void                         afree(void *);
+extern unsigned                     atotal(void);
 
 #endif /* !_ALLOC_H */
