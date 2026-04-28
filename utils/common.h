@@ -92,6 +92,8 @@ static const char 	NULLSTR[] = "(null)";
 
 #define				CASE_RETURN(x) case x:  return #x
 
+// -------------------------------------- Random ------------------------------
+
 // random from 0 till max
 static inline int
 rndint(int max)
@@ -105,6 +107,12 @@ rnduint(unsigned max)
     return (unsigned long)rand() * max / RAND_MAX;
 }
 
+// probably rework is required
+static inline unsigned long
+rndulong(unsigned long max)
+{
+    return (unsigned long)rand() * max / RAND_MAX;
+}
 // random from 0 till dmax
 static inline double
 rnddbl(double dmax)
@@ -117,6 +125,8 @@ frand(void)
 {
     return (double) rand() / (RAND_MAX + 1.0);
 }
+
+// ----------------------------------- Comparators ----------------------------
 
 // simple char comparator
 static inline int               char_cmp(const void *s1, const void *s2){
@@ -135,14 +145,14 @@ static inline int               pint_revcmp(const void *i1, const void *i2){
     return *(const int *) i2 - *(const int *) i1;
 }
 
-// simple comparator pointer pointer
-static inline int               pptr_cmp(const void **i1, const void **i2){
-    return *(const void **) i1 - *(const void **) i2;
+// simple comparator pointer to pointer
+static inline int               pptr_cmp(const void *p1, const void *p2){
+    return *(const void **) p1 - *(const void **) p2;
 }
 
-// simple reverse comparator pointer pointer
-static inline int               pptr_revcmp(const void **i1, const void **i2){
-    return *(const void **) i2 - *(const void **) i1;
+// simple reverse comparator pointer to pointer
+static inline int               pptr_revcmp(const void *p1, const void *p2){
+    return *(const void **) p2 - *(const void **) p1;
 }
 // simple comparator pointer double
 extern int                      pdbl_cmp(const void *d1, const void *d2);
@@ -154,6 +164,8 @@ extern int                      pdbl_revcmp(const void *d1, const void *d2);
 static inline int               pointer_cmp(const void *p1, const void *p2){
     return *(const void **) p1 - *(const void **) p2;   // (void *) - (void *)!
 }
+
+// ----------------------------------- Exchangers ----------------------------------
 
 // simple char exhanger
 static inline void              char_exch(char *s1, char *s2){
@@ -176,6 +188,12 @@ static inline void              dbl_exch(double *d1, double *d2){
     *d2 = tmp;
 }
 
+// simple pointer exchanger  TODO: think about generic exchanger
+static inline void              ptr_exch(void **v1, void **v2){
+    void    *tmp = *v1;
+    *v1 = *v2;
+    *v2 = tmp;
+}
 // str exch
 static inline void              str_exch(const char **s1, const char **s2){
     const char *tmp = *s1;
@@ -183,6 +201,7 @@ static inline void              str_exch(const char **s1, const char **s2){
     *s2 = tmp;
 }
 
+// -------------------------------- Converters ---------------------------
 static inline int               ctoi(char c){
     return c - '0';
 }
