@@ -24,7 +24,7 @@ typedef enum ArrayFillType{
 typedef enum ArrayType{
     ARRAY_DOUBLE    = 0x1,
     ARRAY_INT       = 0x2,
-    ARRAY_POINTER   = 0x3,
+    ARRAY_POINTER   = 0x4,
     ARRAY_ERROR     = 0x100
 } ArrayType;
 
@@ -99,7 +99,7 @@ static inline bool              Array_isdouble(Array a){
     return a.flags & ARRAY_DOUBLE;
 }
 static inline bool              Array_ispointer(Array a){
-    return a.flags & ARRAY_DOUBLE;
+    return a.flags & ARRAY_POINTER;
 }
 static inline bool              Array_iserror(Array a){
     return a.flags & ARRAY_ERROR;

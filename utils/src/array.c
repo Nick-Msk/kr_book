@@ -122,9 +122,9 @@ int                      Array_fillrange(Array a, ArrayFillType typ, int from, i
                         if (Array_isint(a))
                             a.iv[i] = rndint(10 * a.len);
                         else if (Array_isdouble(a))
-                            a.dv[i] = rnddbl(10 * a.len);
+                            a.dv[i] = rnddbl(10.0 * a.len);
                         else if (Array_ispointer(a))
-                            a.pv[i] = (void *) rndulong(10 * a.len);
+                            a.pv[i] = (void *) rndulong(10000UL * a.len);
                     break;
                     case ARRAY_ZERO:
                         if (Array_isint(a))
@@ -147,7 +147,7 @@ int                      Array_fillrange(Array a, ArrayFillType typ, int from, i
             to = from - 1;  // return -1
         break;
     }
-    return logsimpleret(to - from, "Filled %d by %s", to - from, ArrayFillTypeName(typ) );
+    return logsimpleret(to - from, "Filled %s [%d-%d] by %s", ArrayTypeName(a.flags), from, to - 1, ArrayFillTypeName(typ) );
 }
 
 // -------------- ACCESS AND MODIFICATION --------------
@@ -452,10 +452,11 @@ tf4(const char *name){
         test_sub("subtest %d", ++subnum);
 
         Array iarr = IArray_create(100, ARRAY_RND);
+        const char *filename =  "res/iarr.sv";
 
-        Array_save(iarr, "log/arr.sv");
+        Array_save(iarr, filename);
 
-        Array iarr2 = Array_load("log/arr.sv");
+        Array iarr2 = Array_load(filename);
 
         if (!Array_isvalid(iarr2))
             return logactret(Arrayfree(iarr), TEST_FAILED, "Validation is failed");
@@ -487,11 +488,12 @@ tf5(const char *name){
         test_sub("subtest %d", ++subnum);
 
         Array darr = DArray_create(100, ARRAY_RND);
+        const char *filename =  "res/darr.sv";
 
         Array_print(darr, 0);
-        Array_save(darr, "log/darr.sv");
+        Array_save(darr, filename);
 
-        Array darr2 = Array_load("log/darr.sv");
+        Array darr2 = Array_load(filename);
 
         if (!Array_isvalid(darr2))
             return logactret(Arrayfree(darr), TEST_FAILED, "Validation is failed");
@@ -632,11 +634,51 @@ tf9(const char *name){
     logenter("%s", name);
 
     int         subnum = 0;
+    test_sub("subtest %d creating pointer array", ++subnum);
     {
-        test_sub("subtest %d increase pointer array", ++subnum);
-        
-        TODO:
-        Arrayfree(arr);
+        int     cnt = 100;
+        Array   parr = PArray_create(cnt, ARRAY_ZERO);
+
+        test_validatefree(parr.pv[cnt] == 0x0, Arrayfree(parr),
+                "Element %d must be 0x0 but not %p", cnt - 1, parr.pv[cnt - 1]);
+        test_validatefree(Array_isvalid(parr), Arrayfree(parr),
+                "Validation is failed");
+
+        Arrayfree(parr);
+    }
+    test_sub("subtest %d shrinking", ++subnum);
+    {
+
+        Array   parr = PArray_create(100, ARRAY_ZERO);
+
+        int     cnt = 10;
+        parr = Array_shrink(parr, cnt);
+        test_validatefree(Array_isvalid(parr), Arrayfree(parr), "Validation is failed");
+
+        test_validatefree(parr.len == cnt && parr.sz == cnt && parr.iv != 0, Arrayfree(parr),
+                 "Validatation is failed, len %d - sz %d - v %p", parr.len, parr.sz, parr.pv);
+        Arrayfree(parr);
+    }
+    test_sub("subtest %d, pointer array save/load", ++subnum);
+    {
+        const char *filename = "res/parr.sv";
+        Array parr = PArray_create(100, ARRAY_RND);
+
+        Array_save(parr, filename);
+
+        Array parr2 = Array_load(filename);
+
+        test_validatefree(Array_isvalid(parr2), (Arrayfree(parr), Arrayfree(parr2) ), "Validation is failed");
+
+        test_validatefree(parr.len == parr2.len && parr.flags == parr2.flags,  (Arrayfree(parr), Arrayfree(parr2) ),
+                "Not equal len %d - %d, flags %d - %d", parr.len, parr2.len, parr.flags, parr2.flags);
+
+        for (int i = 0; i < parr.len; i++)
+            test_validatefree(parr.pv[i] == parr2.pv[i], (Arrayfree(parr), Arrayfree(parr2) ),
+                 "arr[%d] = %p != arr2[%d] = %p", i, parr.pv[i], i, parr2.pv[i]);
+
+        Arrayfree(parr);
+        Arrayfree(parr2);
     }
 
     return logret(TEST_PASSED, "done"); // TEST_FAILED
