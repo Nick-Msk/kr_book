@@ -98,7 +98,12 @@ rndint(int max)
 {
     return (long)rand() * max / RAND_MAX;
 }
-
+// probably rework is required
+static inline unsigned
+rnduint(unsigned max)
+{
+    return (unsigned long)rand() * max / RAND_MAX;
+}
 
 // random from 0 till dmax
 static inline double
