@@ -16,6 +16,7 @@ int                      g_array_rec_line        = 20;  // TODO: rework that to 
 const char              *g_custom_print_line     = 0;   // TODO: rework that to normal (in Array structure)
 const char              *g_save_format_double    = "%6d      %15.15lg\n";
 const char              *g_save_format_int       = "%6d\t%6d\n";
+const char              *g_save_format_pointer   = "%6d\t%p\n";
 
 // internal type
 
@@ -35,8 +36,10 @@ static int                      increase(Array *arr, int newsz){
         bytes *= sizeof(int);
     else if (Array_isdouble(*arr))
         bytes *= sizeof(double);
+    else if (Array_ispointer(*arr))
+        bytes *= sizeof(void *);
     else
-        bytes = 0;
+        return logerr(-1, "Unknown type");
     logmsg("Arr: bytes=%d, sz=%d", bytes, newsz);
     void *p  = realloc(arr->iv, bytes);
     if (p == 0)
@@ -78,6 +81,7 @@ int                      Array_fill(Array a, ArrayFillType typ){
     return Array_fillrange(a, typ, 0, a.len);
 }
 
+// TODO: probably shoube be reworked to use switch (type) + separate code
 int                      Array_fillrange(Array a, ArrayFillType typ, int from, int to){
     int     initval;
     // fill
@@ -92,8 +96,10 @@ int                      Array_fillrange(Array a, ArrayFillType typ, int from, i
             for (int i = 0; i < a.len; i++){
                 if (Array_isint(a))
                     a.iv[i] = initval -= rndint(dec_value);
-                else    // isdouble
+                else if (Array_isdouble(a))
                     a.dv[i] = initval -= rnddbl(dec_value);
+                else if (Array_ispointer(a))
+                    userraiseint(ERR_ACTION_NOT_APPLICABLE, "ARRAY_ASC isn't appilcable");
             }
         break;
         case ARRAY_ASC:
@@ -102,8 +108,10 @@ int                      Array_fillrange(Array a, ArrayFillType typ, int from, i
             for (int i = 0; i < a.len; i++){
                 if (Array_isint(a))
                     a.iv[i] = initval += rndint(asc_value);
-                else    // isdouble
+                else if (Array_isdouble(a))
                     a.dv[i] = initval += rnddbl(asc_value);
+                else if (Array_ispointer(a))
+                    userraiseint(ERR_ACTION_NOT_APPLICABLE, "ARRAY_ASC isn't appilcable");
             }
         break;
         case ARRAY_RND:
@@ -113,14 +121,18 @@ int                      Array_fillrange(Array a, ArrayFillType typ, int from, i
                     case ARRAY_RND:
                         if (Array_isint(a))
                             a.iv[i] = rndint(10 * a.len);
-                        else
+                        else if (Array_isdouble(a))
                             a.dv[i] = rnddbl(10 * a.len);
+                        else if (Array_ispointer(a))
+                            a.pv[i] = (void *) rndulong(10 * a.len);
                     break;
                     case ARRAY_ZERO:
                         if (Array_isint(a))
                             a.iv[i] = 0;
-                        else
+                        else if (Array_ispointer(a))
                             a.dv[i] = 0.0;
+                        else if (Array_ispointer(a))
+                            a.pv[i] = 0x0;
                     break;
                     default:
                     break;
@@ -158,7 +170,7 @@ Array                           Array_shrink(Array arr, int newsz){
     return logret(arr, "shrinked to (len %d == sz %d)", arr.len, arr.sz);
 }
 
-
+// TODO: probably shoube be reworked to use switch (type) + separate code
 void                     Array_shuffle(Array arr){
     srand(time(NULL) );
     for (int i = arr.len - 1; i > 0; i--){
@@ -167,9 +179,12 @@ void                     Array_shuffle(Array arr){
             int_exch(arr.iv + i, arr.iv + j);
         else if (Array_isdouble(arr) )
             dbl_exch(arr.dv + i, arr.dv + j);
+        else if (Array_ispointer(arr) )
+            ptr_exch(arr.pv + i, arr.pv + j);
     }
 }
 
+// TODO: probably shoube be reworked to use switch (type) + separate code
 void                     Array_qsort(Array arr, ArrayFillType ord){
     int  sz = 0;
     int (*cmp)(const void *, const void *) = 0;
@@ -185,6 +200,12 @@ void                     Array_qsort(Array arr, ArrayFillType ord){
             cmp = pdbl_cmp;
         else
             cmp = pdbl_revcmp;
+    } else if (Array_ispointer(arr) ){
+        sz = sizeof(void *);
+        if (ord == ARRAY_ASC)
+            cmp = pptr_cmp;
+        else
+            cmp = pptr_revcmp;
     }
     if (sz)
         qsort(arr.v, arr.len, sz, cmp);
@@ -202,21 +223,26 @@ int                     Array_fprint(FILE *f, Array val, int limit){
     if (g_array_rec_line)
         array_rec_line = g_array_rec_line;
 
-    cnt += fprintf(f, "Array (%s[%d of total %d]):\n", Array_isint(val) ? "int" : "dbl", limit, val.len);
+    cnt += fprintf(f, "Array (%s[%d of total %d]):\n", ArrayTypeName(val.flags), limit, val.len);
     for (i = 0; i < limit; i++){
         if (Array_isint(val) ){
-            if (g_custom_print_line)
+            if (g_custom_print_line)    // TODO: refactor that!
                 custom_print_line = g_custom_print_line;
             else  // standard behavior
                 custom_print_line = "[%d - %6d]\t";
             cnt += fprintf(f, custom_print_line, i, val.iv[i]);
         }
         else if (Array_isdouble(val) ){
-            if (g_custom_print_line)
+            if (g_custom_print_line)    // TODO: refactor that!
                 custom_print_line = g_custom_print_line;
             else
                 custom_print_line = "[%d - %.8g]\t";
             cnt += fprintf(f, custom_print_line, i, val.dv[i]);
+        } else if (Array_isdouble(val) ){
+            if (g_custom_print_line)    // TODO: refactor that!
+                custom_print_line = g_custom_print_line;
+            else
+                custom_print_line = "[%p - %p]\t";
         }
         // delim
         if ( ( (i + 1) % array_rec_line) == 0){
@@ -244,6 +270,8 @@ long                        Array_savevalues(Array arr, const char *fname, char 
             res += fprintf(f, "%d%c", arr.iv[i], delim);
         else if (Array_isdouble(arr))
             res += fprintf(f, "%12.12f%c", arr.dv[i], delim);
+        else if (Array_ispointer(arr))
+            res += fprintf(f, "%p%c", arr.pv[i], delim);
 
     fclose(f);
     return logret(res, "Done %ld", res);
@@ -252,24 +280,23 @@ long                        Array_savevalues(Array arr, const char *fname, char 
 long                        Array_save(Array arr, const char *fname){
     logenter("%s", fname);
 
-    long    res = 0;
-    FILE   *f = fopen(fname, "w");
+    long         res = 0;
+    FILE        *f = fopen(fname, "w");
     if (f == 0){
         fprintf(stderr, "Unable to open %s for writinf\n", fname);
         return logerr(-1, "Can't open for write");
     }
     // g_save_format_double g_save_format_int
-    const char *typ;
-    if (Array_isint(arr))
-        typ = "INT";
-    else
-        typ = "DBL";
+    const char  *typ = ArrayTypeName(arr.flags);
+
     res = fprintf(f, "ARRAY: %s : %d\n", typ, arr.len);
     for (int i = 0; i < arr.len; i++)
         if (Array_isint(arr))
             res += fprintf(f, g_save_format_int, i, arr.iv[i]);    // TODO: think if shrink repeatable
         else if (Array_isdouble(arr))
             res += fprintf(f, g_save_format_double, i, arr.dv[i]);
+        else if (Array_ispointer(arr))
+            res += fprintf(f, g_save_format_pointer, i, arr.pv[i]);
     res = fprintf(f, "ARRAY: DONE");
     fclose(f);
     return logret(res, "Done %ld", res);
@@ -289,10 +316,12 @@ Array                       Array_load(const char *fname){
 
     char typ[20];
     fscanf(f, "ARRAY: %s : %d", typ, &cnt);
-    if (strcmp(typ, "INT") == 0)
+    if (strcmp(typ, "ARRAY_INT") == 0)
         arr = IArray_create(cnt, ARRAY_NONE);
-    else if (strcmp(typ, "DBL") == 0)
+    else if (strcmp(typ, "ARRAY_DOUBLE") == 0)
         arr = DArray_create(cnt, ARRAY_NONE);
+    else if (strcmp(typ, "ARRAY_POINTER") == 0)
+        arr = PArray_create(cnt, ARRAY_NONE);
     else {
         fprintf(stderr, "Unsupported format %s\n", typ);
         return logactret(fclose(f), arr, "failed, wrong format %s...", typ);
@@ -302,6 +331,8 @@ Array                       Array_load(const char *fname){
             fscanf(f, g_save_format_int, &tmp, arr.iv + i); // tmp isn't used for now
         else if (Array_isdouble(arr) )
             fscanf(f, "%d %lg\n", &tmp, arr.dv + i);
+        else if (Array_ispointer(arr) )
+            fscanf(f, "%d %p\n", &tmp, arr.pv + i);
     }
     // TODO: probably checking for ARRAY: DONE must be here
     fclose(f);
@@ -595,6 +626,22 @@ tf8(const char *name){
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
+// ------------------------- TEST 9 ---------------------------------
+static TestStatus
+tf9(const char *name){
+    logenter("%s", name);
+
+    int         subnum = 0;
+    {
+        test_sub("subtest %d increase pointer array", ++subnum);
+        
+        TODO:
+        Arrayfree(arr);
+    }
+
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -610,6 +657,7 @@ main( /*int argc, char *argv[] */ )
       , testnew(.f2 = tf6, .num = 6, .name = "Shuffle array(dbl/int) simple test"   , .desc = "", .mandatory=true)
       , testnew(.f2 = tf7, .num = 7, .name = "Sort array(dbl/int) simple test"      , .desc = "", .mandatory=true)
       , testnew(.f2 = tf8, .num = 8, .name = "Array_increase simple test"           , .desc = "", .mandatory=true)
+      , testnew(.f2 = tf9, .num = 9, .name = "PArray simple test"                   , .desc = "", .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()

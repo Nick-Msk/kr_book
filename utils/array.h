@@ -24,8 +24,19 @@ typedef enum ArrayFillType{
 typedef enum ArrayType{
     ARRAY_DOUBLE    = 0x1,
     ARRAY_INT       = 0x2,
+    ARRAY_POINTER   = 0x3,
     ARRAY_ERROR     = 0x100
 } ArrayType;
+
+static inline const char        *ArrayTypeName(ArrayType t){
+    switch (t & (ARRAY_DOUBLE | ARRAY_INT | ARRAY_POINTER | ARRAY_ERROR) ){
+        CASE_RETURN(ARRAY_DOUBLE);
+        CASE_RETURN(ARRAY_INT);
+        CASE_RETURN(ARRAY_POINTER);
+        CASE_RETURN(ARRAY_ERROR);
+        default: return "";
+    }
+}
 
 static inline const char        *ArrayFillTypeName(ArrayFillType t){
     switch (t){
@@ -45,11 +56,12 @@ extern const char      *g_custom_print_line;
 typedef struct {
     int     len;
     int     sz; // total size, > len + 1
-    int     flags; // ARRAY_DOUBLE || ARRAY_INT
+    int     flags; // ARRAY_DOUBLE || ARRAY_INT || ARRAY_POINTER
     union {
         void    *v;
         int     *iv;
         double  *dv;
+        void   **pv;    // pointer array
     };
 } Array;
 
@@ -58,6 +70,7 @@ typedef struct {
 // init
 #define                         IArray_init(...) (Array){.len = 0, .sz = 0, .iv = 0, .flags = ARRAY_INT, __VA_ARGS__}
 #define                         DArray_init(...) (Array){.len = 0, .sz = 0, .dv = 0, .flags = ARRAY_DOUBLE, __VA_ARGS__}
+#define                         PArray_init(...) (Array){.len = 0, .sz = 0, .iv = 0, .flags = ARRAY_POINTER, __VA_ARGS__}
 #define                         Array_init(...)  (Array){.len = 0, .sz = 0, .iv = 0, .flags = 0, __VA_ARGS__}
 #define                         Arrayfree(x)({ Array_free(&(x)); (x).iv = 0; })
 
@@ -72,6 +85,9 @@ static inline Array             IArray_create(int cnt, ArrayFillType typ){
 static inline Array             DArray_create(int cnt, ArrayFillType typ){
     return Array_create(cnt, typ, ARRAY_DOUBLE);
 }
+static inline Array             PArray_create(int cnt, ArrayFillType typ){
+    return Array_create(cnt, typ, ARRAY_POINTER);
+}
 
 
 // -------------- ACCESS AND MODIFICATION --------------
@@ -79,11 +95,12 @@ static inline Array             DArray_create(int cnt, ArrayFillType typ){
 static inline bool              Array_isint(Array a){
     return a.flags & ARRAY_INT;
 }
-
 static inline bool              Array_isdouble(Array a){
     return a.flags & ARRAY_DOUBLE;
 }
-
+static inline bool              Array_ispointer(Array a){
+    return a.flags & ARRAY_DOUBLE;
+}
 static inline bool              Array_iserror(Array a){
     return a.flags & ARRAY_ERROR;
 }
@@ -92,9 +109,8 @@ static inline Array             Array_seterror(Array a){
     a.flags |= ARRAY_ERROR;
     return a;
 }
-
 static inline bool              Array_isvalid(Array a){
-    return ( ( !(a.flags & ARRAY_ERROR) && a.flags & (ARRAY_INT | ARRAY_DOUBLE) ) > 0) && a.sz >= a.len && a.len >= 0 && a.iv != 0;
+    return ( ( !(a.flags & ARRAY_ERROR) && a.flags & (ARRAY_INT | ARRAY_DOUBLE | ARRAY_POINTER) ) > 0) && a.sz >= a.len && a.len >= 0 && a.iv != 0;
 }
 
 static inline int               Arraylen(Array a){
