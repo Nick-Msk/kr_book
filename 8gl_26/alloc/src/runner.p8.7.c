@@ -110,5 +110,7 @@ static bool             test2(void){
     char *t = alloc(200000000);
     if (!t)
         printf("\nOk!!! Not allocated!\n");
+    else
+        afree(t);;
     return !t;
 }
