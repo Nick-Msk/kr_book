@@ -135,6 +135,15 @@ static inline int               pint_revcmp(const void *i1, const void *i2){
     return *(const int *) i2 - *(const int *) i1;
 }
 
+// simple comparator pointer pointer
+static inline int               pptr_cmp(const void **i1, const void **i2){
+    return *(const void **) i1 - *(const void **) i2;
+}
+
+// simple reverse comparator pointer pointer
+static inline int               pptr_revcmp(const void **i1, const void **i2){
+    return *(const void **) i2 - *(const void **) i1;
+}
 // simple comparator pointer double
 extern int                      pdbl_cmp(const void *d1, const void *d2);
 
