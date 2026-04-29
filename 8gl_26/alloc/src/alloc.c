@@ -74,7 +74,7 @@ void                        *alloc(unsigned nbytes){
         }
         if (p == freep)
             if ((p = morecore(nunits) ) == 0)
-                return sysraise( (void *) 0, "Unable to obtain");
+                return sysraise( (void *) 0, "Unable to obtain new mem");
     }
 }
 // destructor

@@ -127,23 +127,26 @@ static bool             test3(unsigned initsz){
     Array arr = PArray_create(initsz, ARRAY_ZERO);
     // randomly create int * objects
     for (int i = 0; i < (int) initsz; i++){
-        unsigned sz = rnduint(5000 - 1) + 1;
+        unsigned sz = rnduint(500 - 1) + 1;
         //MODEXEC(500, logmsg("%d - %u", i, sz) );
-        if (IFMOD(500) )
-            logmsg("%d - %u", i, sz);
+        if (IFMOD(50) )
+            logmsg("ALLOC: %d - %u", i, sz);
         if ( (arr.pv[i] = alloc(sz * sizeof(int) ) ) ==0)
-            userraiseint(ERR_UNABLE_ALLOCATE, "%u int's", sz);
+            userraiseint(ERR_UNABLE_ALLOCATE, "pos %d, %u int's", i, sz);
         // fill with current value! From common
         fill_int(arr.pv[i], sz, sz);        // value the same as count
     }
     // random free now
-    for (int i = 0; i <  (int) initsz; i += rndint(5) ){
-        if (IFMOD(200) )
-            logmsg("free %d", i);
-        afree(arr.pv[i]);
-        arr.pv[i] = 0;
+    for (int i = 0; ; i += rndint(5) + 1){
+        if (IFMOD(1) )
+            logmsg("FREE: %d", i);
+        if (i < (int) initsz){
+            afree(arr.pv[i]);
+            arr.pv[i] = 0;
+        } else
+            break;
     }
-    // TODO: printf("Remains %d of %d\n" ArrayCnt(arr), initsz);
+    printf("Remains %d of %d\n", ArrayGetcnt(arr), initsz);
 
     Arrayfree(arr);
 
