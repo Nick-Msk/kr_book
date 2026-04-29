@@ -19,6 +19,7 @@ extern void                        *alloct(unsigned bytes, unsigned size);
 extern void                         afree(void *);
 extern unsigned                     atotal(void);
 extern int                          afprint_all(FILE *restrict out);
+extern bool                         abfree(void *ptr, unsigned n);
 
 static inline void alloc_dummy(void *ptr, size_t cnt, double val) {
     (void)ptr; (void)cnt; (void)val;

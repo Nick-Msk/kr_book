@@ -13,11 +13,12 @@
 
 typedef struct Keys {
     bool              version;    // bool example
-    int               initsize;
+    //int               initsize;
+    bool              abfreekey;
     // ...
 } Keys;
 
-#define                 Keysinit(...) (Keys){ .version = false, .initsize = 0, __VA_ARGS__}
+#define                 Keysinit(...) (Keys){ .version = false, .abfreekey = false, __VA_ARGS__}
 static int              parse_keys(const char *argv[], Keys *ke){
 
     invraise(ke, "Zero ke!!! Error!"); // raise here
@@ -32,7 +33,8 @@ static int              parse_keys(const char *argv[], Keys *ke){
         while ( (c = *++argv[0]) )
             switch (tolower(c)){
                 parse_bool('v', version);
-                parse_int('i', initsize);
+                parse_bool('a', abfreekey);
+                //parse_int('i', initsize);
                 default:    // probaly it's possible to ignore unknows parameters
                     return userraise(-1, ERR_WRONG_PARAMETER, "Illegal [%c], params [%d] argc %d", c, params, argc);
             }
@@ -44,8 +46,9 @@ static bool             test1(unsigned);
 static bool             test2(void);
 static bool             test3(unsigned);
 static bool             test4(void);
+static bool             test5(void);
 
-const char *usage_str = "Usage: %s -i <initsize:unsigned>\n";
+const char *usage_str = "Usage: %s -a\n";
 
 int                     main(int argc, const char *argv[]){
     logsimpleinit("Start");
@@ -63,16 +66,18 @@ int                     main(int argc, const char *argv[]){
         return 0;
     }
 
-    unsigned sz = 1000;
-    if (ke.initsize > 0)
-        sz = ke.initsize;
-    printf("\nTest1: %s\n", bool_str(test1(sz) ) );
+    if (ke.abfreekey)
+        printf("\nTest5: %s\n", bool_str(test5() ) );
+    else {
+        unsigned sz = 1000;
+        printf("\nTest1: %s\n", bool_str(test1(sz) ) );
 
-    printf("\nTest2: %s\n", bool_str(test2() ) );
+        printf("\nTest2: %s\n", bool_str(test2() ) );
 
-    printf("\nTest3: %s\n", bool_str(test3(500) ) );
+        printf("\nTest3: %s\n", bool_str(test3(500) ) );
 
-    printf("\nTest4: %s\n", bool_str(test4() ) );
+        printf("\nTest4: %s\n", bool_str(test4() ) );
+    }
 
     if (!fs_alloc_check(false))
         logmsg("Warning: incorrect allocation of fs's");
@@ -178,3 +183,12 @@ static bool             test4(void){
     return true;
 }
 
+#define                 ARR_SZ 1024 * 1024 * 20
+
+static bool             test5(void){
+    static char bigarray[ARR_SZ];
+
+    abfree(bigarray, ARR_SZ);
+
+    return test3(5000);
+}

@@ -101,6 +101,10 @@ void                         afree(void *ap){
     logsimple("Freed %p -> %p", freep, p);
     freep = p;
 }
+// anyarray additionally adding
+bool                         abfree(void *ptr, unsigned n){
+    // TODO:
+}
 
 unsigned                     atotal(void){
     return totalalloc;
