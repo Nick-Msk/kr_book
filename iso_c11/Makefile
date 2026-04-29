@@ -79,6 +79,9 @@ cycleguarg: src/cycleguard.c
 check_alignment: src/check_alignment.c
 	$(CC) $(CFLAGS) $^ -o out/$@_test
 
+output_off: src/output_off.c
+	$(CC) $(CFLAGS) $^ -o out/$@_test
+
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
 	-rm *.o
