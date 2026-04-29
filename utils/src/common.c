@@ -7,13 +7,31 @@
 
 // --------------------------- API ---------------------------------
 
-// fill with 0.0 cnt elements
-void                            cleaner_double(void *arr, int cnt)
-{
-	double *d = (double *) arr;
+// int[] filler     // TODO: probably to use common code for all of that
+void                            fill_int(int *arr, int cnt, int value){ 
     for (int i = 0; i < cnt; i++)
-        d[i] = 0.0;
+        arr[i] = value;
 }
+
+// long[] filler
+void                            fill_long(long *arr, int cnt, long value){
+    for (int i = 0; i < cnt; i++)
+        arr[i] = value;
+}
+
+// double[] filler
+void                            fill_double(double *arr, int cnt, double value){
+    for (int i = 0; i < cnt; i++)
+        arr[i] = value;
+}
+
+// float[] filler
+void                            fill_float(float *arr, int cnt, float value){
+    for (int i = 0; i < cnt; i++)
+        arr[i] = value;
+}
+
+
 
 char                            *uniq_str(char *s, int *p_len){
     bool    hash[256] = {false};

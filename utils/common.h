@@ -224,6 +224,8 @@ static inline char              itohex(int c){
         return c - 10 + 'A';
 }
 
+// ----------------------------------- Utilities -------------------------------------------
+
 //  binary char search
 static inline char              *bcharsearch(char c, const char *pt, int len){
     return  bsearch(&c, pt, len, 1, char_cmp /* from common.h */);
@@ -234,11 +236,29 @@ static inline char              *sort_str(char *s, int len){
     return s;
 }
 
+// --------------------------------------- Fillers -----------------------------------------
+
 // make s unique by symbols (no odering!!!)
 extern char                     *uniq_str(char *s, int *p_len);
 
+// int[] filler
+extern void                     fill_int(int *arr, int cnt, int value);
+
+// long[] filler
+extern void                     fill_long(long *arr, int cnt, long value);
+
+// double[] filler
+extern void                     fill_double(double *arr, int cnt, double value);
+
+// float[] filler
+extern void                     fill_float(float *arr, int cnt, float value);
+
 // fill with 0.0 cnt elements
-extern void                     cleaner_double(void *arr, int cnt);
+static inline void              cleaner_double(double *arr, int cnt){
+    return fill_double(arr, cnt, 0.0);
+}
+
+// ------------------------------- BITS Operations ------------------------------------------
 
 // print int as bits
 extern int                      fprint_bits(FILE *f, const char *str, unsigned val);
