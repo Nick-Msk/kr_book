@@ -117,6 +117,13 @@ static inline int               Arraylen(Array a){
     return a.len;
 }
 
+static inline int               ArrayGetcnt(Array a){
+    int cnt = 0;
+    for (int i = 0; i < a.len; i++)
+        cnt += a.pv[i] != 0;
+    return logsimpleret(cnt, "Total valuable elem %d", cnt);
+}
+
 static inline int               Arraysz(Array a){
     return a.sz;
 }
