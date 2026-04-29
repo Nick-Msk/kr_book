@@ -65,11 +65,11 @@ int                     main(int argc, const char *argv[]){
     unsigned sz = 1000;
     if (ke.initsize > 0)
         sz = ke.initsize;
-    printf("Test1: %s\n", bool_str(test1(sz) ) );
+    printf("\nTest1: %s\n", bool_str(test1(sz) ) );
 
-    printf("Test2: %s\n", bool_str(test2() ) );
+    printf("\nTest2: %s\n", bool_str(test2() ) );
 
-    printf("Test3: %s\n", bool_str(test3(500) ) );
+    printf("\nTest3: %s\n", bool_str(test3(500) ) );
 
     if (!fs_alloc_check(false))
         logmsg("Warning: incorrect allocation of fs's");
@@ -86,26 +86,26 @@ static bool             fill_and_check(char *t, unsigned sz){
 
 static bool             test1(unsigned sz){
     char    *t = alloc(sz);
-    afprint(stdout, "after 1 %u\n", sz);
+    afprint(stdout, "\nafter 1 %u\n", sz);
     char    *t1 = alloc(sz * 4);
-    afprint(stdout, "after 2 %u\n", sz * 4);
+    afprint(stdout, "\nafter 2 %u\n", sz * 4);
     char    *t2 = alloc(sz * 6);
-    afprint(stdout, "after 3 %u\n", sz * 6);
+    afprint(stdout, "\nafter 3 %u\n", sz * 6);
 
     int  lsz = 100;
     long *l = alloct(lsz, sizeof(long) );
-    afprint(stdout, "after 4\n");
+    afprint(stdout, "\nafter 4\n");
 
     for (int i = 0; i < lsz; i++)
         if (l[i] != 0)
             fprintf(stderr, "l[%d] == %ld\n", i, l[i]);
 
     fill_and_check(t, sz);
-    afprint(stdout, "After free 1\n");
+    afprint(stdout, "\nAfter free 1\n");
     fill_and_check(t1, sz * 4);
-    afprint(stdout, "After free 2\n");
+    afprint(stdout, "\nAfter free 2\n");
     fill_and_check(t2, sz * 6);
-    afprint(stdout, "After free 3\n");
+    afprint(stdout, "\nAfter free 3\n");
     afree(t2);
     afree(t);
     afree(t1);
@@ -146,7 +146,19 @@ static bool             test3(unsigned initsz){
         } else
             break;
     }
-    printf("Remains %d of %d\n", ArrayGetcnt(arr), initsz);
+    printf("I: Remains %d of %d\n\n", ArrayGetcnt(arr), initsz);
+    afprint(stdout, "After multiples alloc and random free...");
+
+
+    // free remains
+    for (int i = 0; i < (int) initsz; i++){
+        if (arr.pv[i]){
+            afree(arr.pv[i]);
+            arr.pv[i] = 0;
+        }
+    }
+    printf("II: Remains %d of %d\n\n", ArrayGetcnt(arr), initsz);
+    afprint(stdout, "After all free");
 
     Arrayfree(arr);
 
