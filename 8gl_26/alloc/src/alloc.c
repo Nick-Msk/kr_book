@@ -32,7 +32,7 @@ static Header               *morecore(unsigned nu){
 }
 
 static void                  printnode(FILE *out, const Header *restrict p, int *restrict cnt){
-    fprintf(out, "Node %4d-%p: sz %u, next free %p\n", (*cnt)++, p, p->size, p->ptr);
+    fprintf(out, "Node %4d-%p %s: sz %u, next free %p\n", (*cnt)++, p, p == &base ? ("base"): "", p->size, p->ptr);
 }
 
 // ------------------------------------ API ------------------------------------------------
@@ -110,13 +110,15 @@ int                          afprint_all(FILE *out){
     int          cnt = 0;
     Header      *p;
 
-    printf("Total %u/%lu\n", atotal(), atotal() * sizeof(Header));
     if (out){
+        fprintf(out, "Total %u/%lu\n", atotal(), atotal() * sizeof(Header));
         bool first_run = true;
         for (p = freep; (first_run || (!first_run && p != freep) ) && RGUARDK; p = p->ptr){
             first_run = false;
             printnode(out, p, &cnt);
         }
+        if (cnt > 0)
+            fprintf(out, "Total free nodes %d\n", cnt);
     }
     return cnt;
 }
