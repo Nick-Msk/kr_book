@@ -43,6 +43,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
 static bool             test1(unsigned);
 static bool             test2(void);
 static bool             test3(unsigned);
+static bool             test4(void);
 
 const char *usage_str = "Usage: %s -i <initsize:unsigned>\n";
 
@@ -70,6 +71,8 @@ int                     main(int argc, const char *argv[]){
     printf("\nTest2: %s\n", bool_str(test2() ) );
 
     printf("\nTest3: %s\n", bool_str(test3(500) ) );
+
+    printf("\nTest4: %s\n", bool_str(test4() ) );
 
     if (!fs_alloc_check(false))
         logmsg("Warning: incorrect allocation of fs's");
@@ -165,4 +168,13 @@ static bool             test3(unsigned initsz){
     return logret(true, "Done");
 }
 
+static bool             test4(void){
+    double  *d = alloc_type(100, double);
+    long    *l = alloc_type(200, long);
+    int     *i = alloc_type(1, int);
+    afree(d);
+    afree(i);
+    afree(l);
+    return true;
+}
 
