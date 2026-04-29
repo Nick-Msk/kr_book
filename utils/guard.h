@@ -43,18 +43,26 @@
 
 #define   MODEXEC(modval, action)\
         ({ static unsigned _MODVAL = 0;\
-           bool res = (++_MODVAL % modval == 0);\
+           bool res = (++_MODVAL % (modval) == 0);\
            if (res)\
                (action);\
             res;\
         })
 
+#define   IFMOD(modval)\
+            ({ static unsigned _MODVAL = 0;\
+               ++_MODVAL % (modval) == 0; })
+
 #define   MODEXECL(modval, action)\
-        ({ static unsigned long _MODVAL = 0;\
-           bool res = (++_MODVAL % modval == 0);\
+        ({ static unsigned long _MODVALL = 0;\
+           bool res = (++_MODVAL % (modval) == 0);\
            if (res)\
                (action);\
             res;\
         })
+
+#define   IFMODL(modval)\
+            ({ static unsigned long _MODVALL = 0;\
+               ++_MODVAL % (modval) == 0; })
 
 #endif /* !_GUARG_H */
