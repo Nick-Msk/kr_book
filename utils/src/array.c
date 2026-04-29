@@ -680,7 +680,43 @@ tf9(const char *name){
         Arrayfree(parr);
         Arrayfree(parr2);
     }
+    test_sub("subtest %d, pointer array sorting", ++subnum);
+    {
 
+        Array parr = PArray_create(10000, ARRAY_ZERO);
+
+        // fiil array manually
+        for (int i = 0; i < parr.len; i++)
+            parr.pv[i] = (void **) rndulong(parr.len * 10000);
+
+        Array_qsort(parr, ARRAY_ASC);
+        //Array_print(darr, 50);
+        // check asc
+        for (int i = 1; i < parr.len; i++)
+            test_validatefree(parr.pv[i - 1] <= parr.pv[i], Arrayfree(parr),
+                            "array[%d] = %p > array[%d] = %p, should be <=", i - 1, parr.pv[i - 1], i, parr.pv[i]);
+        // resort descending
+        Array_qsort(parr, ARRAY_DESC);
+        for (int i = 1; i < parr.len; i++)
+            test_validatefree(parr.pv[i - 1] >= parr.pv[i], Arrayfree(parr),
+                            "array[%d] = %p < array[%d] = %p, should be >=", i - 1, parr.pv[i - 1], i, parr.pv[i]);
+        Arrayfree(parr);
+    }
+    test_sub("subtest %d increase pointer array", ++subnum);
+    {
+        int initsz = 25;
+        Array arr = PArray_create(initsz, ARRAY_RND);
+
+        arr = Array_increase(arr, initsz * 3);
+
+        test_validatefree(Arraylen(arr) == initsz * 3, Arrayfree(arr), "Array length %d must be %d", Arraylen(arr), initsz * 3);
+
+        for (int i = initsz; i < Arraylen(arr); i++){
+            test_validatefree(arr.pv[i] == 0x0, Arrayfree(arr), "arr[%d] must be null, but not %p", i, arr.pv[i]);
+        }
+
+        Arrayfree(arr);
+    }
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
