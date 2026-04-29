@@ -8,6 +8,8 @@
 #include "parse_keys.h"
 #include "fs.h"
 #include "alloc.h"
+#include "array.h"
+#include "guard.h"
 
 typedef struct Keys {
     bool              version;    // bool example
@@ -40,6 +42,8 @@ static int              parse_keys(const char *argv[], Keys *ke){
 
 static bool             test1(unsigned);
 static bool             test2(void);
+static bool             test3(unsigned);
+
 const char *usage_str = "Usage: %s -i <initsize:unsigned>\n";
 
 int                     main(int argc, const char *argv[]){
@@ -63,7 +67,9 @@ int                     main(int argc, const char *argv[]){
         sz = ke.initsize;
     printf("Test1: %s\n", bool_str(test1(sz) ) );
 
-    printf("Test1: %s\n", bool_str(test2() ) );
+    printf("Test2: %s\n", bool_str(test2() ) );
+
+    printf("Test3: %s\n", bool_str(test3(500) ) );
 
     if (!fs_alloc_check(false))
         logmsg("Warning: incorrect allocation of fs's");
@@ -114,3 +120,34 @@ static bool             test2(void){
         afree(t);;
     return !t;
 }
+
+static bool             test3(unsigned initsz){
+    logenter("Sz %u", initsz);
+    // init pointer saver
+    Array arr = PArray_create(initsz, ARRAY_ZERO);
+    // randomly create int * objects
+    for (int i = 0; i < (int) initsz; i++){
+        unsigned sz = rnduint(5000 - 1) + 1;
+        //MODEXEC(500, logmsg("%d - %u", i, sz) );
+        if (IFMOD(500) )
+            logmsg("%d - %u", i, sz);
+        if ( (arr.pv[i] = alloc(sz * sizeof(int) ) ) ==0)
+            userraiseint(ERR_UNABLE_ALLOCATE, "%u int's", sz);
+        // fill with current value! From common
+        fill_int(arr.pv[i], sz, sz);        // value the same as count
+    }
+    // random free now
+    for (int i = 0; i <  (int) initsz; i += rndint(5) ){
+        if (IFMOD(200) )
+            logmsg("free %d", i);
+        afree(arr.pv[i]);
+        arr.pv[i] = 0;
+    }
+    // TODO: printf("Remains %d of %d\n" ArrayCnt(arr), initsz);
+
+    Arrayfree(arr);
+
+    return logret(true, "Done");
+}
+
+

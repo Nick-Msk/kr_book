@@ -15,6 +15,27 @@ static unsigned              totalalloc = 0;
 static Header               *morecore(unsigned);
 static void                  printnode(FILE *restrict out, const Header *restrict p, int *restrict cnt);
 
+static Header               *morecore(unsigned nu){
+    void        *cp;
+    Header      *up;
+
+    if (nu < NALLOC)
+        logauto(nu = NALLOC);
+    cp = sbrk(nu * sizeof(Header) );
+    if (cp == (void *) - 1)
+        return sysraise( (Header *) 0, "Sbrk failed");
+    logauto(totalalloc += nu);
+    up = (Header *) cp;
+    up->size = nu;
+    afree(up + 1);
+    return logsimpleret(freep, "added %u, %p", nu, freep);
+}
+
+static void                  printnode(FILE *out, const Header *restrict p, int *restrict cnt){
+    fprintf(out, "Node %4d-%p: sz %u, next free %p\n", (*cnt)++, p, p->size, p->ptr);
+}
+
+// ------------------------------------ API ------------------------------------------------
 void                        *alloct(unsigned bytes, unsigned size){
     Header *p = alloc(bytes * size);
     if (!p)
@@ -22,7 +43,7 @@ void                        *alloct(unsigned bytes, unsigned size){
     memset(p, 0, bytes * size);
     return p;
 }
-
+// constructor
 void                        *alloc(unsigned nbytes){
     logenter("%u", nbytes);
 
@@ -56,23 +77,7 @@ void                        *alloc(unsigned nbytes){
                 return sysraise( (void *) 0, "Unable to obtain");
     }
 }
-
-static Header               *morecore(unsigned nu){
-    void        *cp;
-    Header      *up;
-
-    if (nu < NALLOC)
-        logauto(nu = NALLOC);
-    cp = sbrk(nu * sizeof(Header) );
-    if (cp == (void *) - 1)
-        return sysraise( (Header *) 0, "Sbrk failed");
-    logauto(totalalloc += nu);
-    up = (Header *) cp;
-    up->size = nu;
-    afree(up + 1);
-    return logsimpleret(freep, "added %u, %p", nu, freep);
-}
-
+// destructor
 void                         afree(void *ap){
     Header      *bp, *p;
 
@@ -100,7 +105,7 @@ void                         afree(void *ap){
 unsigned                     atotal(void){
     return totalalloc;
 }
-
+// simple printer
 int                          afprint_all(FILE *out){
     int          cnt = 0;
     Header      *p;
@@ -114,9 +119,5 @@ int                          afprint_all(FILE *out){
         }
     }
     return cnt;
-}
-
-static void                  printnode(FILE *out, const Header *restrict p, int *restrict cnt){
-    fprintf(out, "Node %4d-%p: sz %u, next free %p\n", (*cnt)++, p, p->size, p->ptr);
 }
 
