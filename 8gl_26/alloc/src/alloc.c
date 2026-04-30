@@ -107,9 +107,12 @@ bool                         abfree(void *ptr, unsigned n){
     if (n > INT_MAX)    // negatove
         return logerr(false, "To big piece %u", n);
     Header      *bp = (Header *) ptr, *p;
-    /*bp->size = (n -= sizeof(Header) );
-    for (p = freep; 
-    */
+    bp->size = (n -= sizeof(Header) );
+    for (p = freep; !(bp > p && bp < p->ptr); p = p->ptr)
+        if (p >= p->ptr && (bp > p || bp < p->ptr) )
+            break;
+    bp->ptr = p->ptr;
+    p->ptr = bp; 
     return logret(true, "Added %u", n);
 }
 

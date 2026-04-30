@@ -220,7 +220,16 @@ static bool             test5(void){
     static char bigarray[ARR_SZ];
 
     abfree(bigarray, ARR_SZ);
+    int    *a = alloc_type(1024 * 1024, int);
+    double *d = alloc_type(1024 * 1024, double);
 
-    return test3(5000);
+    afprint(stdout, "\nafter 2\n");
+
+    return logsimpleret(true, "Ok");
 }
 
+
+static bool             test6(void){
+    // only  burn test for now
+    return test3(5000);
+}
