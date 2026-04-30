@@ -75,8 +75,9 @@ int                     main(int argc, const char *argv[]){
         printf("\nTest2: %s\n", bool_str(test2() ) );
 
         printf("\nTest3: %s\n", bool_str(test3(500) ) );
-
-        printf("\nTest4: %s\n", bool_str(test4() ) );
+        bool res = test4();
+        logmsg("res = %d\n", res);
+        printf("\nTest4: %s\n", bool_str(res) );
     }
 
     if (!fs_alloc_check(false))
@@ -174,13 +175,40 @@ static bool             test3(unsigned initsz){
 }
 
 static bool             test4(void){
-    double  *d = alloc_type(100, double);
-    long    *l = alloc_type(200, long);
-    int     *i = alloc_type(1, int);
+    int   sz1 = 100, sz2 = 200, sz3 = 1, sz4 = 1000;
+    logenter("start alloc_type\n");
+    double  *d = alloc_type(sz1, double);
+    long    *l = alloc_type(sz2, long);
+    int     *i = alloc_type(sz3, int);
+    double  *f = alloc_type(sz4, double);
+    // check that filler with zero
+    for (int i = 0; i < sz1; i++)
+        if (d[i] != 0.0){
+            printf("%d - %lf\n", i, d[i]);
+            return logret(false, "%d - %lf\n", i, d[i]);
+        }
+    for (int i = 0; i < sz2; i++)
+        if (l[i] != 0L){
+            printf("%d - %ld\n", i, l[i]);
+            return logret(false, "%d - %ld\n", i, l[i]);
+        }
+    for (int j = 0; j < sz3; j++)
+        if (i[j] != 0){
+            printf("%d - %d\n", j, i[j]);
+            return logret(false, "%d - %d\n", j, i[j]);
+        }
+    for (int j = 0; j < sz4; j++)
+        if (f[j] != 0.0f){
+            printf("%d - %f\n", j, f[j]);
+            return logret(false, "%d - %f\n", j, f[j]);
+        }
+    // free
+    printf("Free...\n");
+    afree(f);
     afree(d);
     afree(i);
     afree(l);
-    return true;
+    return logret(true, "Ok");
 }
 
 #define                 ARR_SZ 1024 * 1024 * 20
@@ -192,3 +220,4 @@ static bool             test5(void){
 
     return test3(5000);
 }
+

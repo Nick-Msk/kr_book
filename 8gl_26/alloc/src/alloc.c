@@ -103,7 +103,14 @@ void                         afree(void *ap){
 }
 // anyarray additionally adding
 bool                         abfree(void *ptr, unsigned n){
-    // TODO:
+    logenter("%u", n);
+    if (n > INT_MAX)    // negatove
+        return logerr(false, "To big piece %u", n);
+    Header      *bp = (Header *) ptr, *p;
+    /*bp->size = (n -= sizeof(Header) );
+    for (p = freep; 
+    */
+    return logret(true, "Added %u", n);
 }
 
 unsigned                     atotal(void){
