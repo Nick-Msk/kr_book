@@ -124,7 +124,7 @@ int                          afprint_all(FILE *out){
     if (out){
         fprintf(out, "Total %u/%lu\n", atotal(), atotal() * sizeof(Header));
         bool first_run = true;
-        for (p = freep; (first_run || (!first_run && p != freep) ) && RGUARDK; p = p->ptr){
+        for (p = freep; (first_run || (!first_run && p != freep) ) && RGUARDM; p = p->ptr){
             first_run = false;
             printnode(out, p, &cnt);
         }
