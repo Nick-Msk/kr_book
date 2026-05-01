@@ -95,6 +95,13 @@ command_executor.o: src/command_executor.c
 	$(CC) $(CFLAGS)  $^ -c
 	@mv $@ lib/
 
+systemutils.o: src/systemutils.c
+	$(CC) $(CFLAGS)  $^ -c
+	@mv $@ lib/
+
+systemutils: src/systemutils.c lib/log.o lib/test.o lib/error.o lib/checker.o
+	 $(CC) $(CFLAGS) -DSYSTEMUTILSTESTING $^ -o test/$@_test
+
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
 	@rm *.o
