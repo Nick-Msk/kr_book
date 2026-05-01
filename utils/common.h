@@ -254,8 +254,12 @@ extern void                     fill_double(double *arr, int cnt, double value);
 extern void                     fill_float(float *arr, int cnt, float value);
 
 // fill with 0.0 cnt elements
-static inline void              cleaner_double(double *arr, int cnt){
+static inline void              clean_double(double *arr, int cnt){
     return fill_double(arr, cnt, 0.0);
+}
+// fill with 0.0f cnt elements
+static inline void              clean_float(double *arr, int cnt){
+    return fill_float(arr, cnt, 0.0);
 }
 
 // ------------------------------- BITS Operations ------------------------------------------
