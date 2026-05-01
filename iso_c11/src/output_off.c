@@ -45,6 +45,36 @@ static inline bool      fu_saver_get(void){
         return INT_MAX;
 }
 
+/*
+#if defined(__COUNTER__)
+    #define UNIQUE_ID __COUNTER__
+#else
+    #define UNIQUE_ID __LINE__
+#endif
+
+#define CONCAT_EXPAND(x, y)                         x ## y
+#define CONCAT(x, y)                                CONCAT_EXPAND(x, y)
+#define UNIQUE_COUNTER(prefix)                      CONCAT(CONCAT(prefix, _), __COUNTER__)
+#define ITER_UNIQUE_COUNTER(i)                      UNIQUE_COUNTER(CONCAT(_iterarr_, var) )
+
+#define foreachint(var, ...) \
+    foreachint_impl(var, UNIQUE_COUNTER(CONCAT(_iterarr_, var)), __VA_ARGS__)
+
+#define foreachint_impl(var, iter_name, ...) \
+    int *iter_name = (int []) {__VA_ARGS__, INT_MAX}; \
+    for (int var = *iter_name; var != INT_MAX; var = *++iter_name)
+*/
+
+#define foreachint(var, ...) \
+    for (int *_iter = (int[]){__VA_ARGS__, INT_MAX}, var = *_iter; \
+         var != INT_MAX; \
+         var = *++_iter)
+
+// NO NEED I GUESS
+#define                 pforeachint(var, ...)\
+        for (int *var = (int []) {__VA_ARGS__, INT_MAX }; *var != INT_MAX; var++)
+
+
 bool                    fu_disable(void){
 
     int             dev_null_fd;
@@ -54,10 +84,11 @@ bool                    fu_disable(void){
         perror("Unable to open dev/null");
         return false;
     }
+    foreachint (fd, STDOUT_FILENO, STDERR_FILENO) {
+        printf("%d\n", fd);
+    }
     // semi-iterator
-    int     *iterarr = (int []) {STDOUT_FILENO, STDERR_FILENO, INT_MAX};
-
-    for (int fd = *iterarr; fd != INT_MAX; fd = *++iterarr) {
+    foreachint (fd, STDOUT_FILENO, STDERR_FILENO){
         int saver_fd;
         if (saver_ptr < SAVER_MAX){
             if ( (saver_fd = dup(fd) ) < 0 ){    //STDOUT_FILENO);
@@ -74,7 +105,6 @@ bool                    fu_disable(void){
         } else
             fprintf(stderr, "Out of savers...\n");
     }
-
     close(dev_null_fd);
     return true;
 }
