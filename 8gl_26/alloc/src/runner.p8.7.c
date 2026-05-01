@@ -219,11 +219,18 @@ static bool             test4(void){
 static bool             test5(void){
     static char bigarray[ARR_SZ];
 
+    printf("First alloc is required\n");
+
+    int    *tmp = alloc_type(10, int);
+
     abfree(bigarray, ARR_SZ);
     int    *a = alloc_type(1024 * 1024, int);
     double *d = alloc_type(1024 * 1024, double);
 
-    afprint(stdout, "\nafter 2\n");
+    afprint(stdout, "\nafter alloc 2\n");
+
+    afree(a); afree(d); afree(tmp);
+    afprint(stdout, "\nafter free\n");
 
     return logsimpleret(true, "Ok");
 }

@@ -57,13 +57,14 @@ void                        *alloc(unsigned nbytes){
     logauto(nunits);
     if ((prevp = freep) == 0){      // init
         base.ptr = freep = prevp = &base;
-        base.size = 0;
+        logauto(base.size = 0);
     }
     for (p = prevp->ptr; ; prevp = p, p = p->ptr){
         if (p->size >= nunits) {
             if (p->size == nunits)
                 prevp->ptr = p->ptr;
             else {
+                logsimple("found p %p, p->size %d", p, p->size);
                 p->size -= nunits;
                 p += p->size;
                 p->size = nunits;
@@ -103,17 +104,25 @@ void                         afree(void *ap){
 }
 // anyarray additionally adding
 bool                         abfree(void *ptr, unsigned n){
-    logenter("%u", n);
-    if (n > INT_MAX)    // negatove
-        return logerr(false, "To big piece %u", n);
+    invraise(ptr != 0, "Null pointer");
+    logenter("%p - %u", ptr, n);
+    if (n < 2 * sizeof(Header) || n > INT_MAX)    // negatove
+        return logerr(false, "To big or too small piece %u", n);
     Header      *bp = (Header *) ptr, *p;
-    bp->size = (n -= sizeof(Header) );
+
+    n -= (n % sizeof(Header) );     // normallization
+    bp->size = n / sizeof(Header) - 1;
+
+   // OMG, just exec afree(bp + 1) from here ))))))
+
+    logauto(bp->size);
     for (p = freep; !(bp > p && bp < p->ptr); p = p->ptr)
         if (p >= p->ptr && (bp > p || bp < p->ptr) )
             break;
+    logmsg("p %p p->ptr %p", p, p->ptr);
     bp->ptr = p->ptr;
-    p->ptr = bp; 
-    return logret(true, "Added %u", n);
+    p->ptr = bp;
+    return logret(true, "Added %u units", bp->size);
 }
 
 unsigned                     atotal(void){
