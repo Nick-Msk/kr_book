@@ -5,9 +5,15 @@
 #include "systemutils.h"
 #include "iterator.h"
 
+/********************************************************************
+                    SYSTEM UTILS MODULE IMPLEMENTATION
+********************************************************************/
+
 static const int        SAVER_MAX = 10;
 static int              g_savers_fd[SAVER_MAX];
 static int              g_saver_ptr = 0;
+
+// --------------------------- API ---------------------------------
 
 bool                    su_stddisable(void){
     int             dev_null_fd;
@@ -54,4 +60,58 @@ bool                    su_stdenable(void){
     }
     return true;
 }
+
+// -------------------------------Testing --------------------------
+#ifdef SYSTEMUTILSTESTING
+
+#include "test.h"
+#include "checker.h"
+
+//types for testing
+
+
+// ------------------------- TEST 1 ---------------------------------
+
+
+static TestStatus
+tf1(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: ", ++subnum);
+    {
+        printf("Slots: %d\n", getdtablesize());
+
+        if (!su_stddisable() )
+            fprintf(stderr, "Unable to disable\n");
+
+        int     a = 5, cnt = 0;
+        fprintf(stdout, "out %d: a = %d\n", ++cnt, a);
+        fprintf(stderr, "err: %d: a = %d\n", ++cnt, a);
+
+        if (!su_stdenable() )
+            fprintf(stderr, "Unable to enable\n");
+
+        a += 2;
+        fprintf(stdout, "out: %d: a = %d\n", ++cnt, a);
+        fprintf(stderr, "err: %d: a = %d\n", ++cnt, a);
+    }
+    return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
+// ------------------------------------------------------------------------------------------------------------------------------
+int
+main( /* int argc, const char *argv[] */)
+{
+    logsimpleinit("Start");
+
+    testenginestd(
+        testnew(.f2 = tf1,  .num =  1, .name = "Simple init and validate test"      , .desc=""                , .mandatory=true)
+    );
+
+    return logret(0, "end...");  // as replace of logclose()
+}
+
+#endif /* FSTESTING */
 
