@@ -57,19 +57,22 @@ bool                    fu_disable(void){
     // semi-iterator
     int     *iterarr = (int []) {STDOUT_FILENO, STDERR_FILENO, INT_MAX};
 
-    for (int fd = *iterarr; fd != INT_MAX; fd = *(iterarr++) ) {
+    for (int fd = *iterarr; fd != INT_MAX; fd = *++iterarr) {
         int saver_fd;
-        if ( (saver_fd = dup(fd) ) < 0 ){    //STDOUT_FILENO);
-            perror("Unable to dup");    // "%d", fd);
-            return false;
-        }
-        savers_fd[saver_ptr++] = saver_fd;
+        if (saver_ptr < SAVER_MAX){
+            if ( (saver_fd = dup(fd) ) < 0 ){    //STDOUT_FILENO);
+                perror("Unable to dup");    // "%d", fd);
+                return false;
+            }
+            savers_fd[saver_ptr++] = saver_fd;
 //        if (!fu_saver_put(saver_fd) )
   //          fprintf(stderr, "Out of savers...\n");
-        if ( (dup2(dev_null_fd, fd) ) < 0){
-            perror("Unable to dup2"); // "%d", fd);
-            return false;
-        }
+            if ( (dup2(dev_null_fd, fd) ) < 0){
+                perror("Unable to dup2"); // "%d", fd);
+                return false;
+            }
+        } else
+            fprintf(stderr, "Out of savers...\n");
     }
 
     close(dev_null_fd);
@@ -83,7 +86,7 @@ bool                    fu_enable(void){
     // semi-iterator, TODO: rework with struct { orig_fd = STDOUT_FILENO/STDOUT_FILENO, new_id
     int     *iterarr = (int []) {STDOUT_FILENO, STDERR_FILENO, INT_MAX};
 
-    for (int fd = *iterarr; fd != INT_MAX; fd = *(iterarr++) ) {
+    for (int fd = *iterarr; fd != INT_MAX; fd = *++iterarr) {
         int saver_fd = savers_fd[saver_ptr++]; //fu_saver_get();
         if ( (dup2(saver_fd, fd) ) < 0){  // not corrent but for now
             perror("Enable: Unable to dup2 out");   // "%d", fd);
