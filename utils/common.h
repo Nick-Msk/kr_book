@@ -258,8 +258,8 @@ static inline void              clean_double(double *arr, int cnt){
     return fill_double(arr, cnt, 0.0);
 }
 // fill with 0.0f cnt elements
-static inline void              clean_float(double *arr, int cnt){
-    return fill_float(arr, cnt, 0.0);
+static inline void              clean_float(float *arr, int cnt){
+    return fill_float(arr, cnt, 0.0f);
 }
 
 // ------------------------------- BITS Operations ------------------------------------------
