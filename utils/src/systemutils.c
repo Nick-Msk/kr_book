@@ -6,6 +6,7 @@
 #include "systemutils.h"
 #include "iterator.h"
 #include "log.h"
+#include "error.h"
 
 /********************************************************************
                     SYSTEM UTILS MODULE IMPLEMENTATION
@@ -14,60 +15,56 @@
 static const int        SAVER_MAX = 10;
 static int              g_savers_fd[SAVER_MAX];
 static int              g_saver_ptr = 0;
+static const char      *g_dev_null = "/dev/null";
 
 // --------------------------- API ---------------------------------
 
 bool                    su_stddisable(void){
+    logenter("...");
+    if (g_saver_ptr != 0)
+        return logerr(false, "Std's alredy disabled");
 
-    if (g_saver_ptr != 0){
-        fprintf(stderr, "Std's alredy disabled\n");             // TODO: move to log.h
-        return false;
-    }
     int             dev_null_fd;
     fflush(0);
 
-    if ( (dev_null_fd = open("/dev/null", O_WRONLY) ) < 0){
-        perror("Unable to open dev/null");
-        return false;
-    }
+    if ( (dev_null_fd = open(g_dev_null, O_WRONLY) ) < 0)
+        return sysraise(false, "Unable to open dev/null");
+
     // semi-iterator
     foreachint (fd, STDOUT_FILENO, STDERR_FILENO){
         int saver_fd;
         if (g_saver_ptr < SAVER_MAX){
-            if ( (saver_fd = dup(fd) ) < 0 ){    //STDOUT_FILENO);
-                perror("Unable to dup");    // "%d", fd);
-                return false;
-            }
+            if ( (saver_fd = dup(fd) ) < 0 )
+                return sysraise(false, "Unable to dup %d (pos %d)", fd, g_saver_ptr);
+
             g_savers_fd[g_saver_ptr++] = saver_fd;
-            if ( (dup2(dev_null_fd, fd) ) < 0){
-                perror("Unable to dup2"); // "%d", fd);
-                return false;
-            }
-        } else
-            fprintf(stderr, "Out of savers...\n");
+            if ( (dup2(dev_null_fd, fd) ) < 0)
+                return sysraise(false, "Unable to dup2 %d -> %d (/dev/null)", fd, dev_null_fd);
+        } else {
+            logmsg("Out of savers... Break %d\n", g_saver_ptr);
+            break;
+        }
     }
     close(dev_null_fd);
-    return true;
+    return logret(true, "Disabled");;
 }
 
 bool                    su_stdenable(void){
+    logenter("...");
     fflush(0);
 
-    if (g_saver_ptr == 0){
-        fprintf(stderr, "Std not disabled\n");  // TODO: move to log.h
-        return false;
-    }
+    if (g_saver_ptr == 0)
+        return logerr(false, "Std not disabled");
+
     g_saver_ptr = 0;
 
     foreachint (fd, STDOUT_FILENO, STDERR_FILENO){
         int saver_fd = g_savers_fd[g_saver_ptr++]; //fu_saver_get();
-        if ( (dup2(saver_fd, fd) ) < 0){  // not corrent but for now
-            perror("Enable: Unable to dup2 out");   // "%d", fd);
-            return false;
-        }
+        if ( (dup2(saver_fd, fd) ) < 0)  // not corrent but for now
+            return sysraise(false, "Unable to dup2 %d (/dev/null) -> %d", fd, saver_fd);
         close(saver_fd);
     }
-    return true;
+    return logret(true, "Enabled");
 }
 
 bool                    su_reset(void){
