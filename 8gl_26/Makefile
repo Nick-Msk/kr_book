@@ -21,6 +21,9 @@ files_checker: src/files_checker.c lib/log.o lib/common.o lib/error.o lib/checke
 mcp: src/mcp.c lib/log.o lib/common.o lib/error.o lib/checker.o lib/files.p8.5.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
+kaprekar: src/kaprekar.c lib/log.o lib/common.o lib/error.o lib/checker.o lib/fs.o lib/fileutils.o
+	$(CC) $(CFLAGS) $^ -o out/$@
+
 lib/files.p8.5.o: src/files.p8.5.c
 	$(CC) $(CFLAGS)  $^ -c
 	@mv files.p8.5.o lib/
