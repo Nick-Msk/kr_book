@@ -129,12 +129,17 @@ frand(void)
 // ----------------------------------- Comparators ----------------------------
 
 // simple char comparator
-static inline int               char_cmp(const void *s1, const void *s2){
+static inline int               pchar_cmp(const void *s1, const void *s2){
     const char *c1 = s1;
     const char *c2 = s2;
     return *c1 - *c2;
 }
-
+// simple char reverse comparator
+static inline int               pchar_revcmp(const void *s1, const void *s2){
+    const char *c1 = s1;
+    const char *c2 = s2;
+    return *c2 - *c1;
+}
 // simple comparator pointer int
 static inline int               pint_cmp(const void *i1, const void *i2){
     return *(const int *) i1 - *(const int *) i2;
