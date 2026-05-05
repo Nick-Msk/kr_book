@@ -5,17 +5,27 @@
 
 #ifndef NODEBUG
 
-#define     RGUARDRAISE userraiseint(ERR_GUARD_RAISE, "Guard rased %s:%s:%d\n", __FILE__, __func__, __LINE__ );
+#define     RGUARDRAISE(M) userraiseint(ERR_GUARD_RAISE, "Guard raised %s:%s:%d (%s)\n", __FILE__, __func__, __LINE__, (M));
 
-#define     GUARDK ({ static int _guard_val = 1000;             _guard_val-- != 0; })
-#define     GUARDM ({ static int _guard_val = 1000000;          _guard_val-- != 0; })
-#define     GUARDB ({ static int _guard_val = 1000000000;       _guard_val-- != 0; })
-#define     GUARDL ({ static int _guard_val = 1000000000000;    _guard_val-- != 0; })
+#define     GUARDK ({ static int    _guard_val = 1000;             _guard_val-- != 0; })
+#define     GUARDM ({ static int    _guard_val = 1000000;          _guard_val-- != 0; })
+#define     GUARDB ({ static int    _guard_val = 1000000000;       _guard_val-- != 0; })
+#define     GUARDL ({ static long   _guard_val = 1000000000000;    _guard_val-- != 0; })
 
-#define     RGUARDK ({ static int _guard_val = 1000;             if(_guard_val-- == 0) RGUARDRAISE; true; })
-#define     RGUARDM ({ static int _guard_val = 1000000;          if(_guard_val-- == 0) RGUARDRAISE; true; })
-#define     RGUARDB ({ static int _guard_val = 1000000000;       if(_guard_val-- == 0) RGUARDRAISE; true; })
-#define     RGUARDL ({ static int _guard_val = 1000000000000;    if(_guard_val-- == 0) RGUARDRAISE; true; })
+#define     RGUARDK ({ static int   _guard_val = 1000;             if(_guard_val-- == 0) RGUARDRAISE("K"); true; })
+#define     RGUARDM ({ static int   _guard_val = 1000000;          if(_guard_val-- == 0) RGUARDRAISE("M"); true; })
+#define     RGUARDB ({ static int   _guard_val = 1000000000;       if(_guard_val-- == 0) RGUARDRAISE("B"); true; })
+#define     RGUARDL ({ static long  _guard_val = 1000000000000;    if(_guard_val-- == 0) RGUARDRAISE("T"); true; })
+
+#define     FGUARDK(...) (({ static int  _guard_val = 1000;                      (_guard_val-- != 0) && (__VA_ARGS__); }))
+#define     FGUARDM(...) (({ static int  _guard_val = 1000000;                   (_guard_val-- != 0) && (__VA_ARGS__); }))
+#define     FGUARDB(...) (({ static int  _guard_val = 1000000000;                (_guard_val-- != 0) && (__VA_ARGS__); }))
+#define     FGUARDL(...) (({ static long _guard_val = 1000000000000;;            (_guard_val-- != 0) && (__VA_ARGS__); }))
+
+#define     FRGUARDK(...) (({ static int   _guard_val = 1000;             if(_guard_val-- == 0) RGUARDRAISE("K"); (__VA_ARGS__); }))
+#define     FRGUARDM(...) (({ static int   _guard_val = 1000000;          if(_guard_val-- == 0) RGUARDRAISE("M"); (__VA_ARGS__); }))
+#define     FRGUARDB(...) (({ static int   _guard_val = 1000000000;       if(_guard_val-- == 0) RGUARDRAISE("B"); (__VA_ARGS__); }))
+#define     FRGUARDL(...) (({ static long  _guard_val = 1000000000000;    if(_guard_val-- == 0) RGUARDRAISE("T"); (__VA_ARGS__); }))
 
 #else /* NODEBUG */
 
@@ -28,6 +38,16 @@
 #define     RGUARDM (true)
 #define     RGUARDB (true)
 #define     RGUARDL (true)
+
+#define     FGUARDK(...) (__VA_ARGS__);
+#define     FGUARDM(...) (__VA_ARGS__);
+#define     FGUARDB(...) (__VA_ARGS__);
+#define     FGUARDL(...) (__VA_ARGS__);
+
+#define     FRGUARDK(...) (__VA_ARGS__);
+#define     FRGUARDM(...) (__VA_ARGS__);
+#define     FRGUARDB(...) (__VA_ARGS__);
+#define     FRGUARDL(...) (__VA_ARGS__);
 
 #endif /* !NODEBUG */
 
