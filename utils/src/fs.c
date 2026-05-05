@@ -283,6 +283,12 @@ int                                     fs_lim_instr(const fs* restrict str1, co
     return logsimpleret(-1, "substr not found");
 }
 
+// sorting as array
+void                                     fs_sort(fs *s, bool asc){
+    invraise(s || s->v != 0, "Nullable pointer or fs");
+    qsort(s->v, s->len, 1, asc ? pchar_cmp : pchar_revcmp);
+}
+
 // -------------------------- (API) printers -----------------------
 // this is not limit!
 int                                     fs_fprint(FILE *restrict out, const fs *restrict s, const char *restrict name){
@@ -1397,6 +1403,31 @@ tf20(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
+// ------------------------- TEST 21 ---------------------------------
+
+static TestStatus
+tf21(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: just simple", ++subnum);
+    {
+        const char  pt[] = "qwertyuiop      IOPKKNKNMN_1234567890";
+
+        fs s = fscopy(pt);
+        fssort(s, false);
+
+        for (int i = 1; i < s.len; i++)
+            test_validatefree(s.v[i - 1] >= s.v[i], fsfree(s),
+                "s[%d] == [%c] must be >= s[%d] == [%c]", i - 1, s.v[i - 1], i, s.v[i]);
+
+        fsfree(s);
+    }
+    check_leak(true);
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -1424,6 +1455,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf18, .num = 18, .name = "fs_(i)rchr simple tests"            , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf19, .num = 19, .name = "fs_n(i)instr simple tests"          , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf20, .num = 20, .name = "fs_rev_catstr simple tests"         , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf21, .num = 21, .name = "fs_str simple tests"                , .desc=""                , .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()

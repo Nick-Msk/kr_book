@@ -376,6 +376,8 @@ static inline fs             fs_reverse(fs str){
     reverse(str.v, str.len);
     return str;
 }
+
+extern void                  fs_sort(fs *s, bool asc);
 // ----------------------------------------------------------------- CAT/CPY/ETC -------------------------------------------------
 extern fs                    fs_cat(fs *target, fs source);
 static inline fs             fs_catstr(fs *restrict target, const char *restrict source){
@@ -511,6 +513,8 @@ static inline bool           fs_iin(fs s, const char *strs[]){
 #define                      fs_ifinotin(s, ...) fs_inotin( (s), (const char *[]) { __VA_ARGS__, 0 } )
 #define                      fs_ifin(s, ...)  fs_in ( (s), (const char *[]) { __VA_ARGS__, 0 } )
 #define                      fs_ifiin(s, ...) fs_iin( (s), (const char *[]) { __VA_ARGS__, 0 } )
+
+#define                      fssort(s, asc) fs_sort( &(s), (asc) )
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
