@@ -20,11 +20,11 @@ int             main(int argc, const char *argv[]){
     }
 
     fs      s = FS();
-    int     val = atoi(argv[1]), prev = 0; // TODO: fs_getint/long/double
+    int     val = atoi(argv[1]), prev = 0;
     fssprintf(s, "%04d", val);
     fstechprint(s);
 
-    while (val != prev && RGUARDK ){  // TODO: RGUARDK(!next.v || (fscmp(s, next) == 0) )
+    while FRGUARDK(val != prev){
         prev = val;
         val = kapr_next(&s);
     }
