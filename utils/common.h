@@ -233,11 +233,11 @@ static inline char              itohex(int c){
 
 //  binary char search
 static inline char              *bcharsearch(char c, const char *pt, int len){
-    return  bsearch(&c, pt, len, 1, char_cmp /* from common.h */);
+    return  bsearch(&c, pt, len, 1, pchar_cmp /* from common.h */);
 }
 
-static inline char              *sort_str(char *s, int len){
-    qsort(s, len, 1, char_cmp);
+static inline char              *sort_str(char *s, int len, bool asc){
+    qsort(s, len, 1, asc ? pchar_cmp : pchar_revcmp);
     return s;
 }
 
