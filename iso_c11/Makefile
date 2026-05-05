@@ -85,6 +85,9 @@ output_off: src/output_off.c
 check_static_array_size: src/check_static_array_size.c
 	$(CC) $(CFLAGS) $^ -o out/$@_test
 
+test_while: src/test_while.c
+	$(CC) $(CFLAGS) $^ -o out/$@_test
+
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
 	-rm *.o
