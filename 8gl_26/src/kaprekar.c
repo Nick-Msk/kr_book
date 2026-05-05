@@ -14,7 +14,7 @@ int             main(int argc, const char *argv[]){
     if (!check_arg(2, "Usage: %s 4-gidit value\n", *argv) )
         return 1;
 
-    if (strlen(argv[1]) >= 4){
+    if (strlen(argv[1]) > 4){
         fprintf(stderr, "Digit must have <= 4 values\n");
         return 2;
     }
@@ -40,9 +40,9 @@ int             main(int argc, const char *argv[]){
 
 static int       kapr_next(fs *s){
     fs_sort(s, false);     // sort as array! desc
-    int     val1 = atoi(s->v);
+    int     val1 = fs_getint(s);
     fs_reverse(*s);
-    int     val2 = atoi(s->v);
+    int     val2 = fs_getint(s);
     int     num = val1 - val2;  // val1 >= val2
     printf("%d - %d = next num = %d\n", val1, val2, num);
     fs_sprintf(s, "%4d", num);  // for the next iter
