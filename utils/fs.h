@@ -481,29 +481,35 @@ static inline bool           fs_iin(fs s, const char *strs[]){
 }
 
 // try to parse value
-static inline int            fs_getintpos(fs s, int pos){
-    return atoi(s.v + pos);
+static inline int            fs_getintpos(const fs *ps, int pos){
+    invraise(ps != 0, "Null pointer");
+    return atoi(ps->v + pos);
 }
 //
-static inline int            fs_getint(fs s){
-    return fs_getintpos(s, 0);
+static inline int            fs_getint(const fs *ps){
+    invraise(ps != 0, "Null pointer");
+    return fs_getintpos(ps, 0);
 }
 
 // try to parse value
-static inline long           fs_getlongpos(fs s, int pos){
-    return atol(s.v + pos);
+static inline long           fs_getlongpos(const fs *ps, int pos){
+    invraise(ps != 0, "Null pointer");
+    return atol(ps->v + pos);
 }
 //
-static inline long            fs_getlong(fs s){
-    return fs_getlongpos(s, 0);
+static inline long            fs_getlong(const fs *ps){
+    invraise(ps != 0, "Null pointer");
+    return fs_getlongpos(ps, 0);
 }
 // try to parse value
-static inline double          fs_getdoublepos(fs s, int pos){
-    return atof(s.v + pos);
+static inline double          fs_getdoublepos(const fs *ps, int pos){
+    invraise(ps != 0, "Null pointer");
+    return atof(ps->v + pos);
 }
 //
-static inline double          fs_getdouble(fs s){
-    return fs_getdoublepos(s, 0);
+static inline double          fs_getdouble(const fs *ps){
+    invraise(ps != 0, "Null pointer");
+    return fs_getdoublepos(ps, 0);
 }
 // TODO: ordered version, via binsearch
 
@@ -540,6 +546,15 @@ static inline double          fs_getdouble(fs s){
 #define                      fs_ifiin(s, ...) fs_iin( (s), (const char *[]) { __VA_ARGS__, 0 } )
 
 #define                      fssort(s, asc) fs_sort( &(s), (asc) )
+
+#define                      fsgetint(s) fs_getint(s)
+#define                      fsgetintpos(s, pos) fs_getintpos( &(s), (pos) )
+
+#define                      fsgetlong(s) fs_getlong(s)
+#define                      fsgetlongpos(s, pos) fs_getlongpos( &(s), (pos) )
+
+#define                      fsgetdoublepos(s, pos) fs_getdoublepos( &(s), (pos) )
+#define                      fsgetdouble(s) fs_getdouble(s)
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
 

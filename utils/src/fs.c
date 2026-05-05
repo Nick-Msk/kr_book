@@ -1443,7 +1443,7 @@ tf22(const char *name)
         int     ival = 2347890;
         fssprintf(s, "%s%d%s", shift, ival, shift);
 
-        int     ires = fs_getintpos(s, sizeof(shift) - 1);
+        int     ires = fsgetintpos(s, sizeof(shift) - 1);
 
         test_validatefree(ires == ival, fsfree(s),
                 "%d must be == %d", ires, ival);
@@ -1454,7 +1454,7 @@ tf22(const char *name)
         fssprintf(s, "%s%ld%s", shift, lval, shift);
 
         fstechfprint(logfile, s);
-        long    lres = fs_getlongpos(s, sizeof(shift) - 1);
+        long    lres = fsgetlongpos(s, sizeof(shift) - 1);
 
         test_validatefree(lres == lval, fsfree(s),
                 "%ld must be == %ld", lres, lval);
@@ -1464,7 +1464,7 @@ tf22(const char *name)
         double  dval = 12.345;
         fssprintf(s, "%s%lf%s", shift, dval, shift);
 
-        double  dres = fs_getdoublepos(s, sizeof(shift) - 1);
+        double  dres = fsgetdoublepos(s, sizeof(shift) - 1);
 
         test_validatefree(dres == dval, fsfree(s),
                 "%lf must be == %lf", dres, dval);
