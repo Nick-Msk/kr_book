@@ -1428,6 +1428,51 @@ tf21(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
+// ------------------------- TEST 22 ---------------------------------
+
+static TestStatus
+tf22(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+    fs s = FS();
+    const char shift[] = "----------";
+
+    test_sub("subtest %d: getint simple", ++subnum);
+    {
+        int     ival = 2347890;
+        fssprintf(s, "%s%d%s", shift, ival, shift);
+
+        int     ires = fs_getintpos(s, sizeof(shift) - 1);
+
+        test_validatefree(ires == ival, fsfree(s),
+                "%d must be == %d", ires, ival);
+    }
+    test_sub("subtest %d: getlong simple", ++subnum);
+    {
+        long    lval = 987654321099887;
+        fssprintf(s, "%s%ld%s", shift, lval, shift);
+
+        fstechfprint(logfile, s);
+        long    lres = fs_getlongpos(s, sizeof(shift) - 1);
+
+        test_validatefree(lres == lval, fsfree(s),
+                "%ld must be == %ld", lres, lval);
+    }
+    test_sub("subtest %d: getdouble simple", ++subnum);
+    {
+        double  dval = 12.345;
+        fssprintf(s, "%s%lf%s", shift, dval, shift);
+
+        double  dres = fs_getdoublepos(s, sizeof(shift) - 1);
+
+        test_validatefree(dres == dval, fsfree(s),
+                "%lf must be == %lf", dres, dval);
+    }
+    fsfree(s);
+    check_leak(true);
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -1435,27 +1480,28 @@ main( /* int argc, const char *argv[] */)
     logsimpleinit("Start");
 
     testenginestd(
-        testnew(.f2 = tf1,  .num =  1, .name = "Simple init and validate test"      , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf2,  .num =  2, .name = "Access read/write test"             , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf3,  .num =  3, .name = "Elem() test"                        , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf4,  .num =  4, .name = "fs_cat/fs_catstr test"              , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf5,  .num =  5, .name = "fs_cpy/fs_cpystr test"              , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf6,  .num =  6, .name = "fsfreeall test"                     , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf7,  .num =  7, .name = "fsprint/printlim manual test"       , .desc="always ok, for the manual check"                , .mandatory=true)
-      , testnew(.f2 = tf8,  .num =  8, .name = "fsprint_arr manual test"            , .desc="always ok, for the manual check"                , .mandatory=true)
-      , testnew(.f2 = tf9,  .num =  9, .name = "fs_sprintf formatted test"          , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf10, .num = 10, .name = "fslocal simple test"                , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf11, .num = 11, .name = "fs_save/load test"                  , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf12, .num = 12, .name = "fs_free_alloc_checker test"         , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf13, .num = 13, .name = "fs_move simple test"                , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf14, .num = 14, .name = "fs_substr/newsubstr simple test"    , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf15, .num = 15, .name = "fs_ifnotin/fs_ifinotin simple test" , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf16, .num = 16, .name = "fs_instr/fs_iinstr simple test"     , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf17, .num = 17, .name = "fs_(n)(i)chr simple tests"          , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf18, .num = 18, .name = "fs_(i)rchr simple tests"            , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf19, .num = 19, .name = "fs_n(i)instr simple tests"          , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf20, .num = 20, .name = "fs_rev_catstr simple tests"         , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf21, .num = 21, .name = "fs_str simple tests"                , .desc=""                , .mandatory=true)
+        testnew(.f2 = tf1,  .num =  1, .name = "Simple init and validate test"              , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf2,  .num =  2, .name = "Access read/write test"                     , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf3,  .num =  3, .name = "Elem() test"                                , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf4,  .num =  4, .name = "fs_cat/fs_catstr test"                      , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf5,  .num =  5, .name = "fs_cpy/fs_cpystr test"                      , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf6,  .num =  6, .name = "fsfreeall test"                             , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf7,  .num =  7, .name = "fsprint/printlim manual test"               , .desc="always ok, for the manual check"                , .mandatory=true)
+      , testnew(.f2 = tf8,  .num =  8, .name = "fsprint_arr manual test"                    , .desc="always ok, for the manual check"                , .mandatory=true)
+      , testnew(.f2 = tf9,  .num =  9, .name = "fs_sprintf formatted test"                  , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf10, .num = 10, .name = "fslocal simple test"                        , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf11, .num = 11, .name = "fs_save/load test"                          , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf12, .num = 12, .name = "fs_free_alloc_checker test"                 , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf13, .num = 13, .name = "fs_move simple test"                        , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf14, .num = 14, .name = "fs_substr/newsubstr simple test"            , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf15, .num = 15, .name = "fs_ifnotin/fs_ifinotin simple test"         , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf16, .num = 16, .name = "fs_instr/fs_iinstr simple test"             , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf17, .num = 17, .name = "fs_(n)(i)chr simple tests"                  , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf18, .num = 18, .name = "fs_(i)rchr simple tests"                    , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf19, .num = 19, .name = "fs_n(i)instr simple tests"                  , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf20, .num = 20, .name = "fs_rev_catstr simple tests"                 , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf21, .num = 21, .name = "fs_str simple tests"                        , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf22, .num = 22, .name = "fs_get<int/long/double>pos simple tests"    , .desc=""                , .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()

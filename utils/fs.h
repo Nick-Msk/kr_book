@@ -480,6 +480,31 @@ static inline bool           fs_iin(fs s, const char *strs[]){
     return false;
 }
 
+// try to parse value
+static inline int            fs_getintpos(fs s, int pos){
+    return atoi(s.v + pos);
+}
+//
+static inline int            fs_getint(fs s){
+    return fs_getintpos(s, 0);
+}
+
+// try to parse value
+static inline long           fs_getlongpos(fs s, int pos){
+    return atol(s.v + pos);
+}
+//
+static inline long            fs_getlong(fs s){
+    return fs_getlongpos(s, 0);
+}
+// try to parse value
+static inline double          fs_getdoublepos(fs s, int pos){
+    return atof(s.v + pos);
+}
+//
+static inline double          fs_getdouble(fs s){
+    return fs_getdoublepos(s, 0);
+}
 // TODO: ordered version, via binsearch
 
 #define                      get(s, pos) *fs_get(&(s), (pos) )
