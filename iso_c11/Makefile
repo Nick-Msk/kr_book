@@ -1,5 +1,5 @@
 CC=gcc #clang
-CFLAGS= -I../utils/ -Wall -Wextra -std=gnu11 -g -O3 -Wno-gnu-folding-constant
+CFLAGS= -I../utils/ -Wall -Wextra -std=gnu11 -g -O3 -Wno-gnu-folding-constant -std=c23
 # -Wno-initializer-overrides -Wno-unused-function -Wno-format-zero-length
 LDFLAGS=-
 LDLIBS=
@@ -89,6 +89,9 @@ test_while: src/test_while.c
 	$(CC) $(CFLAGS) $^ -o out/$@_test
 
 check_clone: src/check_clone.c 
+	$(CC) $(CFLAGS) $^ -o out/$@_test
+
+iter_test: src/iter_test.c
 	$(CC) $(CFLAGS) $^ -o out/$@_test
 
 .PHONY: clean cleanlog cleanall no_targets__ list
