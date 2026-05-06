@@ -8,13 +8,23 @@
          var != INT_MAX; \
          var = *++_iter)
 
+#define foreachuint(var, ...) \
+    for (unsigned *_iter = (unsigned[]){__VA_ARGS__, INT_MAX}, var = *_iter; \
+         var != INT_MAX; \
+         var = *++_iter)
+
 #define foreachlong(var, ...) \
-    for (long *_iter = (int[]){__VA_ARGS__, LONG_MAX}, var = *_iter; \
+    for (long *_iter = (long[]){__VA_ARGS__, LONG_MAX}, var = *_iter; \
+         var != LONG_MAX; \
+         var = *++_iter)
+
+#define foreachulong(var, ...) \
+    for (unsigned long *_iter = (unsigned long[]){__VA_ARGS__, LONG_MAX}, var = *_iter; \
          var != LONG_MAX; \
          var = *++_iter)
 
 #define foreachstring(var, ...) \
-    for (const char **_iter = (int[]){__VA_ARGS__, 0x0}, var = *_iter; \
+    for (const char **_iter = (const char *[]){__VA_ARGS__, 0x0}, var = *_iter; \
          var != 0; \
          var = *++_iter)
 
