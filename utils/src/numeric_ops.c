@@ -14,11 +14,10 @@ bool                is_prime_miller(uint32_t n) {
     while (d % 2 == 0)
         d /= 2, s++;
 
-    // Базы, гарантирующие простоту для n < 2^32
-    uint32_t bases[] = {2, 7, 61};
-    for (int i = 0; i < 3; i++) {  // TODO: via iterator
-// foreachint(i, 2, 7, 61)
-        uint32_t a = bases[i] % n;
+    //uint32_t bases[] = {2, 7, 61};
+    //for (int i = 0; i < 3; i++) {  // TODO: via iterator
+    foreachuint(i, 2, 7, 61) {
+        uint32_t a = i % n;
         if (a == 0)
             continue;
 
