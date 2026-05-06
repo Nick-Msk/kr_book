@@ -4,6 +4,9 @@
 #include "iterator.h"
 #include "numeric_ops.h"
 
+
+// --------------------------------- prime generation ------------------------------
+
 bool                is_prime_miller(uint32_t n) {
     if (n < 2)
         return 0;
@@ -45,6 +48,33 @@ unsigned            next_prime(unsigned n) {
     while (!is_prime_miller(n))
         n++;
     return n;
+}
+
+// --------------------------------- hash --------------------------
+
+unsigned long hash_djb2(const char *str) {
+    unsigned long hash = 5381;
+    int c;
+    while ((c = *str++))
+        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+    return hash;
+}
+
+unsigned long hash_fnv1a(const char *str) {
+    unsigned long hash = 14695981039346656037UL; /* FNV offset basis (64-bit) */
+    while (*str) {
+        hash ^= (unsigned char)*str++;
+        hash *= 1099511628211UL; /* FNV prime (64-bit) */
+    }
+    return hash;
+}
+
+unsigned long hash_sdbm(const char *str) {
+    unsigned long hash = 0;
+    int c;
+    while ((c = *str++))
+        hash = c + (hash << 6) + (hash << 16) - hash;
+    return hash;
 }
 
 // -------------------------------Testing --------------------------

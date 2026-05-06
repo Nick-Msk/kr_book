@@ -35,10 +35,17 @@ static inline int           calc_next_prime(int num){
     return num;
 }
 
-// adv API
+// adv API for prime number
 extern unsigned             next_prime(unsigned n);
 
 extern bool                 is_prime_miller(uint32_t n);
+
+// hash
+unsigned long hash_djb2(const char *str);
+
+unsigned long hash_fnv1a(const char *str);
+
+unsigned long hash_sdbm(const char *str);
 
 #endif /* !_NUMERIC_OPS_H */
 
