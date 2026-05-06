@@ -102,6 +102,13 @@ systemutils.o: src/systemutils.c
 systemutils: src/systemutils.c lib/log.o lib/test.o lib/error.o lib/checker.o
 	 $(CC) $(CFLAGS) -DSYSTEMUTILSTESTING $^ -o test/$@_test
 
+numeric_ops.o: src/numeric_ops.c
+	$(CC) $(CFLAGS)  $^ -c
+	@mv $@ lib/
+
+numeric_ops: src/numeric_ops.c lib/log.o lib/test.o lib/error.o
+	 $(CC) $(CFLAGS) -DNUMERIC_OPS_TESTING $^ -o test/$@_test
+
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
 	@rm *.o
