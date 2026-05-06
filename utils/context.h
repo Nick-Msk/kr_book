@@ -24,15 +24,15 @@ enum { ContextElemActive = 0x1 };
 
 // very simple, no groups or smth like that
 typedef struct ContextSortedElem {
-    char                *name;
-    char                *value; // LIST of value must be here!!! TODO:
-    unsigned             flags;
-    ContextSortedElem   *next;
+    char                       *name;
+    char                       *value; // LIST of value must be here!!! TODO:
+    unsigned                    flags;
+    struct ContextSortedElem   *next;
 } ContextSortedElem;
 
 typedef struct Context {
     int                   cnt;
-    ContextSortedElem    *ctx;  // TODO: think abound  ctx[] // array w/o limit
+    ContextSortedElem   **ctx;  // TODO: think abound  ctx[] // array w/o limit
 } Context;
 
 // ------------------ CONSTRUCTOTS/DESTRUCTORS -----------------------
@@ -57,12 +57,12 @@ extern bool                  ctxreset(Context *ctx);
 // technical, not for use
 extern int                   ctx_techfprint(FILE *restrict out, const Context *restrict ctx);
 static inline int            ctx_techprint(const Context *ctx){
-    return ctxfprint(stdout, ctx);
+    return ctx_techfprint(stdout, ctx);
 }
 
 extern int                   ctx_fprintelem(FILE *restrict out, const ContextSortedElem *restrict elem);
 static inline int            ctx_printelem(const ContextSortedElem *elem){
-    return ctx_fprintelem(stdout, ctx_fprintelem);
+    return ctx_fprintelem(stdout, elem);
 }
 
 #endif /* !_CONTEXT_H */

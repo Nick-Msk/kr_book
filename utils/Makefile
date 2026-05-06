@@ -109,6 +109,13 @@ numeric_ops.o: src/numeric_ops.c
 numeric_ops: src/numeric_ops.c lib/log.o lib/test.o lib/error.o
 	 $(CC) $(CFLAGS) -DNUMERIC_OPS_TESTING $^ -o test/$@_test
 
+context.o: src/context.c
+	$(CC) $(CFLAGS)  $^ -c
+	@mv $@ lib/
+
+context: src/context.c lib/log.o lib/test.o lib/error.o
+	 $(CC) $(CFLAGS) -DCONTEXTTESTING $^ -o test/$@_test
+
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
 	@rm *.o

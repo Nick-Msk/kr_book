@@ -1,7 +1,8 @@
+
+#include "context.h"
 #include "common.h"
 #include "log.h"
 #include "error.h"
-#include "fileutils.h"
 #include "checker.h"
 #include "guard.h"
 #include "numeric_ops.h"
@@ -11,38 +12,49 @@
                     CONTEXT STRING MODULE IMPLEMENTATION
 ********************************************************************/
 
-// ---------- pseudo-header for utility procedures -----------------
-
-// -------------------------- (Utility) printers -------------------
-
-
 // ------------------------------ Utilities ------------------------
 
+static unsigned      get_hash(const Context *c, const char *str){
+    invraise(c != 0, "Null pointer");
+    return hash_djb2(str) % c->cnt;
+}
+
 static void          free_elements(ContextSortedElem *els){
-    // TODO via recursion or iter
+    int  cnt = 0;
+    for (ContextSortedElem *p = els, *n; p != 0; p = n->next){
+        n = p->next;
+        free(p); cnt++;
+    }
+    logsimple("freed list of %d", cnt);
 }
 
 // --------------------------- API ---------------------------------
 // ------------------ API Constructs/Destrucor  --------------------
 
 Context              ctxinit(int cnt){
+    invraise(cnt <= 0, "Wrong init size");
     logenter("%d", cnt);
-    unsigned    newcnt = next_prime(sz);
+    unsigned    newcnt = next_prime(cnt);
     Context     tmp = (Context) {.cnt = newcnt};
-    newcnt *= sizeof(ContextSortedElem);
-    tmp.ctx = malloc(newcnt);
+    unsigned    newsz = (newcnt + 1) * sizeof(ContextSortedElem *);  // 1 for last 0
+    tmp.ctx = malloc(newsz);
     if (!tmp.ctx)
-        userraiseint(ERR_UNABLE_ALLOCATE, "Unable to allocated %d", newcnt);
-    memset(tmp.ctx, 0, newcnt); // not sure
-    return logret(tmp, "Created");
+        userraiseint(ERR_UNABLE_ALLOCATE, "Unable to allocated %d", newsz);
+    memset(tmp.ctx, 0, newsz); // not sure
+    return logret(tmp, "Created with %d", tmp.cnt);
 }
 
+#define              foreach_arr(i, arr) for (typeof_unqual * (*arr) iter = arr, i = *iter; *iter != 0; i = *++iter)
+
 void                  ctxfreed(Context *c){
-    invraise(ctx != 0, "Null pointer");
-    for (int i = 0; i < ctx->cnt; i++)  // TODO: think about foreach iter
+    invraise(c != 0 && c->ctx != 0, "Null pointer");
+    // foreacharr(elem, c->ctx)
+    // for (typeof_unqual (arr) iter = arr; *iter != 0; iter++)
+    for (int i = 0; i < c->cnt; i++)  // TODO: think about foreach iter
         if (c->ctx[i])
             free_elements(c->ctx[i]), c->ctx[i] = 0;
-    logsimple(c->ctx = 0, "Freed");
+    c->ctx = 0;
+    logsimple("Freed");
 }
 
 // ------------------ General functions ----------------------------
@@ -66,10 +78,9 @@ tf1(const char *name)
 {
     logenter("%s", name);
     int         subnum = 0;
-    fs s = FS();
     const char shift[] = "----------";
 
-    test_sub("subtest %d: getint simple", ++subnum);
+    test_sub("subtest %d: init + free", ++subnum);
     {
 
     }
