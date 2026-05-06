@@ -23,20 +23,21 @@ enum { ContextElemActive = 0x1 };
 // ------------------- TYPES -----------------------
 
 // very simple, no groups or smth like that
-typedef struct ContextElem {
-    char        *name;
-    char        *value; // LIST of value must be here!!! TODO:
-    unsigned     flags;
-} ContextElem;
+typedef struct ContextSortedElem {
+    char                *name;
+    char                *value; // LIST of value must be here!!! TODO:
+    unsigned             flags;
+    ContextSortedElem   *next;
+} ContextSortedElem;
 
 typedef struct Context {
-    int             cnt;
-    ContextElem    *ctx;
+    int                   cnt;
+    ContextSortedElem    *ctx;  // TODO: think abound  ctx[] // array w/o limit
 } Context;
 
 // ------------------ CONSTRUCTOTS/DESTRUCTORS -----------------------
 
-extern Context              *ctxinit(int sz);
+extern Context               ctxinit(int sz);
 extern void                  ctxfreed(Context *ctx);
 
 #define                     ctxfree(c) (ctxfreed(c), c = 0)
@@ -53,9 +54,15 @@ extern bool                  ctxreset(Context *ctx);
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
-extern int                   ctxfprint(FILE *restrict out, const Context *restrict ctx);
-static inline int            ctxprint(const Context *ctx){
+// technical, not for use
+extern int                   ctx_techfprint(FILE *restrict out, const Context *restrict ctx);
+static inline int            ctx_techprint(const Context *ctx){
     return ctxfprint(stdout, ctx);
+}
+
+extern int                   ctx_fprintelem(FILE *restrict out, const ContextSortedElem *restrict elem);
+static inline int            ctx_printelem(const ContextSortedElem *elem){
+    return ctx_fprintelem(stdout, ctx_fprintelem);
 }
 
 #endif /* !_CONTEXT_H */
