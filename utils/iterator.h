@@ -9,8 +9,8 @@
          var = *++_iter)
 
 #define foreachuint(var, ...) \
-    for (unsigned *_iter = (unsigned[]){__VA_ARGS__, INT_MAX}, var = *_iter; \
-         var != INT_MAX; \
+    for (unsigned *_iter = (unsigned[]){__VA_ARGS__, UINT_MAX}, var = *_iter; \
+         var != UINT_MAX; \
          var = *++_iter)
 
 #define foreachlong(var, ...) \
@@ -19,8 +19,8 @@
          var = *++_iter)
 
 #define foreachulong(var, ...) \
-    for (unsigned long *_iter = (unsigned long[]){__VA_ARGS__, LONG_MAX}, var = *_iter; \
-         var != LONG_MAX; \
+    for (unsigned long *_iter = (unsigned long[]){__VA_ARGS__, ULONG_MAX}, var = *_iter; \
+         var != ULONG_MAX; \
          var = *++_iter)
 
 #define foreachstring(var, ...) \
