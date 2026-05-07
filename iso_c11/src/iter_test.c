@@ -8,7 +8,7 @@
 #define UNIQUE_ID(prefix)   CONCAT(prefix, __COUNTER__)
 
 #define foreach_pointer_impl(i, arr, iter_name) \
-    for (__typeof_unqual__(*arr)* iter_name = (arr), i = *iter_name; \
+    for (typeof_unqual(*arr)* iter_name = (arr), i = *iter_name; \
          *iter_name != 0; \
          i = *++iter_name)
 
