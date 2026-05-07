@@ -25,7 +25,7 @@
 
 #define foreachstring(var, ...) \
     for (const char **_iter = (const char *[]){__VA_ARGS__, 0x0}, var = *_iter; \
-         var != 0; \
+         var != 0x0; \
          var = *++_iter)
 
 // ----------------------------------------- COMMON EXPAND MACRO -------------------------------------
@@ -57,9 +57,9 @@
     for (int i = 0; parr[i] != 0; i++)
 
 // -------------------------------- ANY ARRAY, RETURN INDEX, BUT CNT MUST BE SUPPLIED -----------------
-#define                     foreach_arr(i, cnt)\
-    for (int i = 0; i < (cnt); i++)
-
+/*#define                     foreach_arr(i, cnt)\
+    for (int i = 0; i < (cnt); i++)  TODO: DISABLED FOR NOW
+*/
 // ---------------- ARRAY OF POINTERS, RETURNS ELEMENT, BUT CNT MUST BE SUPPLIED  --------------------
 
 // Внутренний макрос: получает уже готовое arr_name и iter_name
