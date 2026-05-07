@@ -1,5 +1,5 @@
 CC=gcc #clang
-CFLAGS= -I./ -Wall -Wextra -std=gnu11 -g -O0 -Wno-initializer-overrides -Wno-gnu-folding-constant 
+CFLAGS= -I./ -Wall -Wextra -std=gnu11 -g -O0 -Wno-initializer-overrides -Wno-gnu-folding-constant -std=c23
 # -Wno-initializer-overrides -Wno-unused-function -Wno-format-zero-length
 LDFLAGS=
 LDLIBS=
@@ -113,7 +113,7 @@ context.o: src/context.c
 	$(CC) $(CFLAGS)  $^ -c
 	@mv $@ lib/
 
-context: src/context.c lib/log.o lib/test.o lib/error.o
+context: src/context.c lib/log.o lib/test.o lib/error.o lib/numeric_ops.o
 	 $(CC) $(CFLAGS) -DCONTEXTTESTING $^ -o test/$@_test
 
 .PHONY: clean cleanlog cleanall no_targets__ list

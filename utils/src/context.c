@@ -6,6 +6,7 @@
 #include "checker.h"
 #include "guard.h"
 #include "numeric_ops.h"
+#include "iterator.h"
 
 
 /********************************************************************
@@ -48,11 +49,16 @@ Context              ctxinit(int cnt){
 
 void                  ctxfreed(Context *c){
     invraise(c != 0 && c->ctx != 0, "Null pointer");
-    // foreacharr(elem, c->ctx)
-    // for (typeof_unqual (arr) iter = arr; *iter != 0; iter++)
-    for (int i = 0; i < c->cnt; i++)  // TODO: think about foreach iter
+    /* for (int i = 0; i < c->cnt; i++)  // TODO: think about foreach iter
         if (c->ctx[i])
-            free_elements(c->ctx[i]), c->ctx[i] = 0;
+            free_elements(c->ctx[i]), c->ctx[i] = 0;*/
+    foreach_pointer(elem, c->ctx){
+        if (elem){      // elem is pointer on c->ctx element, c->ctx + i, similar
+            logauto( (void *) elem);
+            free_elements(elem);
+            elem = 0;
+        }
+    }
     c->ctx = 0;
     logsimple("Freed");
 }
