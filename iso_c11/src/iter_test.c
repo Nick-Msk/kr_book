@@ -13,11 +13,6 @@
          *iter_name != 0; \
          i = *++iter_name)
 */
-
-#define foreach_pointer(i, arr) \
-    foreach_pointer_impl(i, arr, UNIQUE_ID(_iter_))
-
-
 /* #define foreach_pointer_impl(i, arr, iter_name) \
 //        _Static_assert( \
             _Generic((typeof_unqual(*arr) ) 0, \
@@ -38,10 +33,24 @@
                   *iter_name != 0;\
                   i = *++iter_name)
 
+// Промежуточный макрос, который создаёт переменную arr_name
+#define foreach_pointer_named(i, arr, arr_name) \
+    typeof_unqual(arr) arr_name = (arr); \
+    foreach_pointer_impl(i, arr_name, UNIQUE_ID(_iter_))
+
+// Внешний макрос генерирует уникальное имя для arr один раз
+#define foreach_pointer(i, arr) \
+    foreach_pointer_named(i, arr, UNIQUE_ID(_arr_))
+
 typedef struct {
     int     i;
     char    c;
 } TestType;
+
+static TestType   **getparr(TestType   **p){
+    printf("RUN!!!!\n");
+    return p;
+}
 
 int         main(void){
 
@@ -63,10 +72,13 @@ int         main(void){
     foreach_pointer(item, parr)
         printf("%d:%c\n", item->i, item->c);
 
-    // TEST2: simple array, warning or error must be here
-    int a[] = {1, 2, 3, 0};
+    foreach_pointer(item, getparr(parr) )
+        printf("%d:%c\n", item->i, item->c);
+
+    // TEST2: simple array, warning or COMPILATION ERROR must be here!!!!!
+    /*int a[] = {1, 2, 3, 0};
     foreach_pointer(y, a)
-        printf("%d\n", y);
+        printf("%d\n", y); */
 
     return 0;
 }
