@@ -45,18 +45,17 @@ Context              ctxinit(int cnt){
     return logret(tmp, "Created with %d", tmp.cnt);
 }
 
-#define              foreach_arr(i, arr) for (typeof_unqual * (*arr) iter = arr, i = *iter; *iter != 0; i = *++iter)
-
 void                  ctxfreed(Context *c){
     invraise(c != 0 && c->ctx != 0, "Null pointer");
     /* for (int i = 0; i < c->cnt; i++)  // TODO: think about foreach iter
         if (c->ctx[i])
             free_elements(c->ctx[i]), c->ctx[i] = 0;*/
-    foreach_pointer(elem, c->ctx){
-        if (elem){      // elem is pointer on c->ctx element, c->ctx + i, similar
-            logauto( (void *) elem);
-            free_elements(elem);
-            elem = 0;
+    // foreach_
+    // pforeach iterate via pointer to array elements
+    foreach_arr(item, c->ctx, c->cnt){
+        if (item){
+            free_elements(item);
+            item = 0;
         }
     }
     c->ctx = 0;
