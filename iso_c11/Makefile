@@ -94,6 +94,9 @@ check_clone: src/check_clone.c
 iter_test: src/iter_test.c
 	$(CC) $(CFLAGS) $^ -o out/$@_test
 
+iter_test_ind: src/iter_test_ind.c
+	$(CC) $(CFLAGS) $^ -o out/$@_test
+
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
 	-rm *.o
