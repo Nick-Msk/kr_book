@@ -7,13 +7,30 @@
 #define CONCAT(x, y)        CONCAT_EXPAND(x, y)
 #define UNIQUE_ID(prefix)   CONCAT(prefix, __COUNTER__)
 
+/*
 #define foreach_pointer_impl(i, arr, iter_name) \
     for (typeof_unqual(*arr)* iter_name = (arr), i = *iter_name; \
          *iter_name != 0; \
          i = *++iter_name)
+*/
 
 #define foreach_pointer(i, arr) \
     foreach_pointer_impl(i, arr, UNIQUE_ID(_iter_))
+
+#define foreach_pointer_impl(i, arr, iter_name) \
+        /* Проверка на этапе компиляции: arr должен быть указателем на указатель */ \
+        _Static_assert( \
+            _Generic((typeof_unqual(*arr) ) 0, \
+                     void     *: 1,\
+                     char     *: 1,\
+                     int      *: 1,\
+                     TestType *: 1,\
+                     /* добавляйте другие указательные типы, если нужно */ \
+                     default    : 0), \
+            "foreach_pointer: массив должен состоять из указателей, а не из значений"); \
+        for (typeof_unqual(*arr)* iter_name = (arr), i = *iter_name; \
+             *iter_name != 0;\
+             i = *++iter_name)\
 
 typedef struct {
     int     i;
