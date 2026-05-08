@@ -41,11 +41,11 @@ extern unsigned             next_prime(unsigned n);
 extern bool                 is_prime_miller(uint32_t n);
 
 // hash
-unsigned long hash_djb2(const char *str);
+extern unsigned long        hash_djb2(const char *str);
 
-unsigned long hash_fnv1a(const char *str);
+extern unsigned long        hash_fnv1a(const char *str);
 
-unsigned long hash_sdbm(const char *str);
+extern unsigned long        hash_sdbm(const char *str);
 
 #endif /* !_NUMERIC_OPS_H */
 
