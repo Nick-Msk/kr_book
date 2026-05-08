@@ -48,6 +48,12 @@ extern ContextSortedElem           *ctxget(const Context *restrict ctx, const ch
 static inline bool                  ctxexists(const Context *restrict ctx, const char *restrict name){
     return ctxget(ctx, name) != 0;
 }
+
+static inline const char           *ctxgetvalue(const Context *restrict ctx, const char *restrict name){
+    ContextSortedElem *l = ctxget(ctx, name);
+    return l != 0 ? l->value : 0;
+}
+
 extern bool                         ctxadd(Context *restrict ctx, const char *restrict name, const char *restrict value);
 extern bool                         ctxdel(Context *restrict ctx, const char *restrict name);
 extern bool                         ctxreset(Context *ctx);

@@ -29,6 +29,7 @@ static void                 free_elements(ContextSortedElem *els){
     int  cnt = 0;
     for (ContextSortedElem *p = els, *n; p != 0; p = n->next){
         n = p->next;
+        free(p->name), free(p->value);
         free(p); cnt++;
     }
     logsimple("freed list of %d", cnt);
@@ -148,7 +149,7 @@ bool                  ctxadd(Context *restrict c, const char *restrict name, con
             logmsg("Mounted to elem %.20s", el->name);
         }
         else {
-            c->ctx[hash] = el;
+            c->ctx[hash] = newel;
             logmsg("Mounter to ctx %u", hash);
         }
     }
@@ -177,10 +178,15 @@ int                          ctx_techfprint(FILE *restrict out, const Context *r
     int cnt = 0;
     if (out){
         cnt += fprintf(out, "CONTEXT %s[%d - %p]:", name, c->cnt, c->ctx);
-        foreach_arr(item, c->ctx, c->cnt){
+        /* foreach_arr(item, c->ctx, c->cnt){
             if (item)
                 cnt += printlist(out, item);
-        }
+        } */
+        for (int i = 0; i < c->cnt; i++)
+            if (c->ctx[i]){
+                fprintf(out, "%3d: ", i);
+                cnt += printlist(out, c->ctx[i] );
+            }
         cnt += fprintf(out, "\n");
     }
     return cnt;
@@ -216,7 +222,64 @@ tf1(const char *name)
 }
 
 
+// ------------------------- TEST 2 ---------------------------------
 
+static TestStatus
+tf2(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: add + get", ++subnum);
+    {
+        int     initcnt = 100;
+        Context c = ctxinit(initcnt);
+        test_validatefree(c.cnt > initcnt, ctxfree(c), "cnt %d  must be prime number and >= %d", c.cnt, initcnt);
+
+        const char *name = "Test name 1", *value = "Test value 1";
+        ctxadd(&c, name, value);
+        ctxtechfprint(logfile, c);
+
+        const char *res = ctxgetvalue(&c, name);
+
+        test_validatefree(res != 0, ctxfree(c), "Not found - error\n");
+
+      //  test_validatefree(strcmp(res, value) == 0, ctxfree(c), "value [%s] must be equal to init value [%s]", res, value);
+
+        ctxfree(c);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
+// ------------------------- TEST 3 ---------------------------------
+
+static TestStatus
+tf3(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: add + get + del", ++subnum);
+    {
+        int     initcnt = 100;
+        Context c = ctxinit(initcnt);
+        test_validatefree(c.cnt > initcnt, ctxfree(c), "cnt %d  must be prime number and >= %d", c.cnt, initcnt);
+
+        const char *name = "Test name 1", *value = "Test value 1";
+        ctxadd(&c, name, value);
+        ctxtechfprint(logfile, c);
+
+        const char *res = ctxgetvalue(&c, name);
+        test_validatefree(res != 0, ctxfree(c), "Not found - error\n");
+
+        test_validatefree(strcmp(res, value) == 0, ctxfree(c), "value [%s] must be equal to init value [%s]", res, value);
+
+        // TODO: ctxdel()
+
+        ctxfree(c);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -224,7 +287,9 @@ main( /* int argc, const char *argv[] */)
     logsimpleinit("Start");
 
     testenginestd(
-        testnew(.f2 = tf1,  .num =  1, .name = "Simple init and validate test"              , .desc=""                , .mandatory=true)
+        testnew(.f2 = tf1, .num = 1, .name = "Simple init and validate test"              , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf2, .num = 2, .name = "Simple add and get test"                    , .desc=""                , .mandatory=true)
+      //, testnew(.f2 = tf3, .num = 3, .name = "Simple add + get + del test"                , .desc=""                , .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
