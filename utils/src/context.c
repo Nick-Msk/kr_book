@@ -1,3 +1,6 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
 #include "context.h"
 #include "common.h"
@@ -8,19 +11,21 @@
 #include "numeric_ops.h"
 #include "iterator.h"
 
-
 /********************************************************************
                     CONTEXT STRING MODULE IMPLEMENTATION
 ********************************************************************/
 
+static const int                CTX_MAX_NAME_LEN    = 8192;
+static const int                CTX_MAX_VALUE_LEN   = 65536;
+
 // ------------------------------ Utilities ------------------------
 
-static unsigned      get_hash(const Context *c, const char *str){
+static unsigned             get_hash(const Context *c, const char *str){
     invraise(c != 0, "Null pointer");
     return hash_djb2(str) % c->cnt;
 }
 
-static void          free_elements(ContextSortedElem *els){
+static void                 free_elements(ContextSortedElem *els){
     int  cnt = 0;
     for (ContextSortedElem *p = els, *n; p != 0; p = n->next){
         n = p->next;
@@ -29,10 +34,35 @@ static void          free_elements(ContextSortedElem *els){
     logsimple("freed list of %d", cnt);
 }
 
+static ContextSortedElem   *getprev(const Context *restrict c, const char *restrict name){
+    logenter("Loopup %s", name);
+
+    ContextSortedElem *el = 0;
+    for (el =  c->ctx[get_hash(c, name)]; el != 0 && strcmp(el->name, name) < 0; el = el->next)
+        ;
+    return logret(el, "Found prev %p", el);;   // < or = in the list
+}
+
+static ContextSortedElem   *elemalloc(void){
+    return malloc(sizeof(ContextSortedElem) );
+}
+
+// construct a single element
+static ContextSortedElem   *createelem(const char *restrict name, const char *restrict value){
+    ContextSortedElem   *el = elemalloc();
+    if (el == 0)
+        userraiseint(ERR_UNABLE_ALLOCATE, "ContextSortedElem %lu", sizeof(ContextSortedElem) );
+    el->flags = 0;
+    el->next  = 0;
+    el->name  = strndup(name, CTX_MAX_NAME_LEN);    // strndup is more preferable
+    el->value = strndup(value, CTX_MAX_VALUE_LEN);
+    return el;
+}
+
 // --------------------------- API ---------------------------------
 // ------------------ API Constructs/Destrucor  --------------------
 
-Context              ctxinit(int cnt){
+Context                     ctxinit(int cnt){
     invraise(cnt <= 0, "Wrong init size");
     logenter("%d", cnt);
     unsigned    newcnt = next_prime(cnt);
@@ -45,24 +75,69 @@ Context              ctxinit(int cnt){
     return logret(tmp, "Created with %d", tmp.cnt);
 }
 
-void                  ctxfreed(Context *c){
+void                        ctxfreed(Context *c){
+    invraise(c != 0 && c->ctx != 0, "Null pointer");
+    ctxreset(c);
+    free(c->ctx);   // free array, but Context is in stack memory
+    c->ctx = 0;
+    c->cnt = 0;
+    logsimple("Freed");
+}
+
+// ------------------ General functions ----------------------------
+
+bool                  ctxreset(Context *c){
     invraise(c != 0 && c->ctx != 0, "Null pointer");
     /* for (int i = 0; i < c->cnt; i++)  // TODO: think about foreach iter
         if (c->ctx[i])
             free_elements(c->ctx[i]), c->ctx[i] = 0;*/
-    // foreach_
-    // pforeach iterate via pointer to array elements
+    // pforeach iterate via array elements
     foreach_arr(item, c->ctx, c->cnt){
         if (item){
             free_elements(item);
             item = 0;
         }
     }
-    c->ctx = 0;
-    logsimple("Freed");
+    return true;
 }
 
-// ------------------ General functions ----------------------------
+ContextSortedElem    *ctxget(const Context *restrict c, const char *restrict name){
+    invraise(c != 0 && name != 0, "Null pointer");
+    logenter("Loopup %s", name);
+
+    ContextSortedElem *el = getprev(c, name);
+    if (el != 0 && strcmp(el->name, name) == 0)
+         return logret(el, "Found %p", el);   // exact
+    return logerr( (ContextSortedElem *) 0, "Not found");
+}
+
+bool                  ctxadd(Context *restrict c, const char *restrict name, const char *restrict value){
+    invraise(c != 0 && name != 0 && value != 0, "Null pointer");
+    logenter("Adding %.20s:%.40s", name, value);
+
+    ContextSortedElem *el = getprev(c, name);
+    if (el && strcmp(el->name, name) == 0) {        // just update
+        int newlen = strnlen(value, CTX_MAX_VALUE_LEN);
+        logmsg("Revalue from %.40s", el->value);
+        char *tmp = realloc(el->value, newlen);
+        if (!tmp)
+            userraiseint(ERR_UNABLE_ALLOCATE, "Realloc value for %d", newlen);
+        el->value = tmp;
+        strncpy(el->value, value, CTX_MAX_VALUE_LEN);
+    } else {
+        ContextSortedElem *newel = createelem(name, value);
+        if (el){
+            el->next = newel;
+            logmsg("Mounted to elem %.20s", el->name);
+        }
+        else {
+            unsigned hash = get_hash(c, name);
+            c->ctx[get_hash(c, name)] = el;
+            logmsg("Mounter to ctx %u", hash);
+        }
+    }
+    return logret(true, "Ok");
+}
 
 // -------------------------- (API) printers -----------------------
 

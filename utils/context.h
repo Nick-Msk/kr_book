@@ -37,31 +37,31 @@ typedef struct Context {
 
 // ------------------ CONSTRUCTOTS/DESTRUCTORS -----------------------
 
-extern Context               ctxinit(int sz);
-extern void                  ctxfreed(Context *ctx);
+extern Context                      ctxinit(int sz);
+extern void                         ctxfreed(Context *ctx);
 
 #define                     ctxfree(c) (ctxfreed(c), c = 0)
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
-extern const char           *ctxget(const Context *restrict ctx, const char *restrict name);
-static inline bool           ctxexists(const Context *restrict ctx, const char *restrict name){
+extern ContextSortedElem           *ctxget(const Context *restrict ctx, const char *restrict name);
+static inline bool                  ctxexists(const Context *restrict ctx, const char *restrict name){
     return ctxget(ctx, name) != 0;
 }
-extern bool                  ctxadd(Context *restrict ctx, const char *restrict name, const char *restrict value);
-extern bool                  ctxdel(Context *restrict ctx, const char *restrict name);
-extern bool                  ctxreset(Context *ctx);
+extern bool                         ctxadd(Context *restrict ctx, const char *restrict name, const char *restrict value);
+extern bool                         ctxdel(Context *restrict ctx, const char *restrict name);
+extern bool                         ctxreset(Context *ctx);
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
 // technical, not for use
-extern int                   ctx_techfprint(FILE *restrict out, const Context *restrict ctx);
-static inline int            ctx_techprint(const Context *ctx){
+extern int                          ctx_techfprint(FILE *restrict out, const Context *restrict ctx);
+static inline int                   ctx_techprint(const Context *ctx){
     return ctx_techfprint(stdout, ctx);
 }
 
-extern int                   ctx_fprintelem(FILE *restrict out, const ContextSortedElem *restrict elem);
-static inline int            ctx_printelem(const ContextSortedElem *elem){
+extern int                          ctx_fprintelem(FILE *restrict out, const ContextSortedElem *restrict elem);
+static inline int                   ctx_printelem(const ContextSortedElem *elem){
     return ctx_fprintelem(stdout, elem);
 }
 
