@@ -34,13 +34,16 @@ static void                 free_elements(ContextSortedElem *els){
     logsimple("freed list of %d", cnt);
 }
 
-static ContextSortedElem   *getprev(const Context *restrict c, const char *restrict name){
+static ContextSortedElem   *getprev(const Context *restrict c, const char *restrict name, unsigned *restrict phash){
     logenter("Loopup %s", name);
 
-    ContextSortedElem *el = 0;
-    for (el =  c->ctx[get_hash(c, name)]; el != 0 && strcmp(el->name, name) < 0; el = el->next)
-        ;
-    return logret(el, "Found prev %p", el);;   // < or = in the list
+    ContextSortedElem *el = 0, *prevel = 0;
+    unsigned hash;
+    for (el =c->ctx[hash = get_hash(c, name)]; el != 0 && strcmp(el->name, name) < 0; el = el->next)
+        prevel = el;
+    if (phash)
+        *phash = hash;
+    return logret(prevel, "Found prev %p", prevel);   // < or = in the list
 }
 
 static ContextSortedElem   *elemalloc(void){
@@ -59,11 +62,22 @@ static ContextSortedElem   *createelem(const char *restrict name, const char *re
     return el;
 }
 
+static int                  printlist(FILE *restrict out, const ContextSortedElem *restrict elem){
+    int     cnt = 0;
+    if (out){
+        while (elem){
+            cnt += ctx_fprintelem(out, elem);
+            elem = elem->next;
+        }
+    }
+    return cnt;
+}
+
 // --------------------------- API ---------------------------------
 // ------------------ API Constructs/Destrucor  --------------------
 
 Context                     ctxinit(int cnt){
-    invraise(cnt <= 0, "Wrong init size");
+    invraise(cnt > 0, "Wrong init size");
     logenter("%d", cnt);
     unsigned    newcnt = next_prime(cnt);
     Context     tmp = (Context) {.cnt = newcnt};
@@ -105,8 +119,10 @@ ContextSortedElem    *ctxget(const Context *restrict c, const char *restrict nam
     invraise(c != 0 && name != 0, "Null pointer");
     logenter("Loopup %s", name);
 
-    ContextSortedElem *el = getprev(c, name);
-    if (el != 0 && strcmp(el->name, name) == 0)
+    ContextSortedElem *prevel = getprev(c, name, 0), *el = 0;
+    logmsg("prev = %p, next = %p", prevel, prevel ? prevel->next : 0);
+
+    if (prevel != 0 && (el = prevel->next) != 0 && strcmp(el->name, name) == 0)
          return logret(el, "Found %p", el);   // exact
     return logerr( (ContextSortedElem *) 0, "Not found");
 }
@@ -115,8 +131,9 @@ bool                  ctxadd(Context *restrict c, const char *restrict name, con
     invraise(c != 0 && name != 0 && value != 0, "Null pointer");
     logenter("Adding %.20s:%.40s", name, value);
 
-    ContextSortedElem *el = getprev(c, name);
-    if (el && strcmp(el->name, name) == 0) {        // just update
+    unsigned hash  = 0;
+    ContextSortedElem *prevel = getprev(c, name, &hash), *el = 0;
+    if (prevel != 0 && (el = prevel->next) != 0 && strcmp(el->name, name) == 0) {        // just update
         int newlen = strnlen(value, CTX_MAX_VALUE_LEN);
         logmsg("Revalue from %.40s", el->value);
         char *tmp = realloc(el->value, newlen);
@@ -131,15 +148,43 @@ bool                  ctxadd(Context *restrict c, const char *restrict name, con
             logmsg("Mounted to elem %.20s", el->name);
         }
         else {
-            unsigned hash = get_hash(c, name);
-            c->ctx[get_hash(c, name)] = el;
+            c->ctx[hash] = el;
             logmsg("Mounter to ctx %u", hash);
         }
     }
     return logret(true, "Ok");
 }
 
+bool                         ctxdel(Context *restrict c, const char *restrict name){
+    logenter("%.20s", name);
+    ContextSortedElem *prevel = getprev(c, name, 0), *el = 0;
+    // TODO:
+    return logret(true, "Deleted");
+}
+
 // -------------------------- (API) printers -----------------------
+
+int                          ctx_fprintelem(FILE *restrict out, const ContextSortedElem *restrict elem){
+    invraise(elem != 0, "Null pointer");
+    int         cnt = 0;
+    if (out)
+        cnt += fprintf(out, "%d[%.20s:%.100s]%s\n", elem->flags, elem->name, elem->value, elem->next ? "->": "");   // TODO: 20 and 100 can be configurable
+    return cnt;
+}
+
+int                          ctx_techfprint(FILE *restrict out, const Context *restrict c, const char *restrict name){
+    invraise(c != 0, "Null pointer");
+    int cnt = 0;
+    if (out){
+        cnt += fprintf(out, "CONTEXT %s[%d - %p]:", name, c->cnt, c->ctx);
+        foreach_arr(item, c->ctx, c->cnt){
+            if (item)
+                cnt += printlist(out, item);
+        }
+        cnt += fprintf(out, "\n");
+    }
+    return cnt;
+}
 
 // -------------------------------Testing --------------------------
 
@@ -158,13 +203,16 @@ tf1(const char *name)
 {
     logenter("%s", name);
     int         subnum = 0;
-    const char shift[] = "----------";
 
     test_sub("subtest %d: init + free", ++subnum);
     {
-
+        int     initcnt = 100;
+        Context c = ctxinit(initcnt);
+        test_validatefree(c.cnt > initcnt, ctxfree(c), "cnt %d  must be prime number and >= %d", c.cnt, initcnt);
+        ctxtechfprint(stdout, c);
+        ctxfree(c);
     }
-    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+    return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
 

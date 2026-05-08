@@ -40,7 +40,7 @@ typedef struct Context {
 extern Context                      ctxinit(int sz);
 extern void                         ctxfreed(Context *ctx);
 
-#define                     ctxfree(c) (ctxfreed(c), c = 0)
+#define                     ctxfree(c) (ctxfreed( &(c) ))
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
@@ -55,15 +55,22 @@ extern bool                         ctxreset(Context *ctx);
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
 // technical, not for use
-extern int                          ctx_techfprint(FILE *restrict out, const Context *restrict ctx);
-static inline int                   ctx_techprint(const Context *ctx){
-    return ctx_techfprint(stdout, ctx);
+extern int                          ctx_techfprint(FILE *restrict out, const Context *restrict ctx, const char *restrict name);
+static inline int                   ctx_techprint(const Context *restrict ctx, const char *restrict name){
+    return ctx_techfprint(stdout, ctx, name);
 }
+
+#define                             ctxtechfprint(out, ctx) ctx_techfprint( (out), &(ctx), #ctx )
+#define                             ctxtechprint(ctx) ctx_techprint( &(ctx), #ctx)
 
 extern int                          ctx_fprintelem(FILE *restrict out, const ContextSortedElem *restrict elem);
 static inline int                   ctx_printelem(const ContextSortedElem *elem){
     return ctx_fprintelem(stdout, elem);
 }
+
+#define                             ctxfprintelem(out, ctx) ctx_fprintelem( &(out), (ctx) )
+#define                             ctxprintelem(ctx) ctx_printelem(ctx)
+
 
 #endif /* !_CONTEXT_H */
 
