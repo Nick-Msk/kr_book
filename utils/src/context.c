@@ -25,19 +25,27 @@ static unsigned             get_hash(const Context *c, const char *str){
     return hash_djb2(str) % c->cnt;
 }
 
+static void                 free_element(ContextSortedElem *el){
+    free(el->name);
+    free(el->value);
+    free(el);
+}
+
 static void                 free_elements(ContextSortedElem *els){
     int  cnt = 0;
     for (ContextSortedElem *p = els, *n = 0; p != 0; p = n /* next */){
         logsimple("p %p, n = %p", p, n);
         n = p->next;
-        free(p->name), free(p->value);
-        free(p); cnt++;
+        free_element(p);
+        cnt++;
     }
     logsimple("freed list of %d", cnt);
 }
 
-static ContextSortedElem   *getprev(const Context *restrict c, const char *restrict name, unsigned *restrict phash){
+static ContextSortedElem   *getprev(const Context *restrict c, const char *restrict name, unsigned *restrict phash, ContextSortedElem *el){
     logenter("Loopup [%s]", name);
+
+    // TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     ContextSortedElem *el = 0, *prevel = 0;
     unsigned hash;
@@ -123,12 +131,14 @@ bool                  ctxreset(Context *c){
 ContextSortedElem    *ctxget(const Context *restrict c, const char *restrict name){
     invraise(c != 0 && name != 0, "Null pointer");
     logenter("Loopup %s", name);
+    // ref using new getprev(c, name, &hash, &el)
+    ContextSortedElem *el;
+    ContextSortedElem *prevel = getprev(c, name, 0, &el);
 
-    ContextSortedElem *el = getprev(c, name, 0);
-
-    if (el != 0 && strcmp(el->name, name) == 0)
-         return logret(el, "Found %p", el);   // exact
-    return logerr( (ContextSortedElem *) 0, "Not found");
+    if (el) // no mor echecking!
+        return logret(el, "Found %p", el);   // exact
+    else
+        return logerr( (ContextSortedElem *) 0, "Not found");
 }
 
 bool                  ctxadd(Context *restrict c, const char *restrict name, const char *restrict value){
@@ -136,7 +146,9 @@ bool                  ctxadd(Context *restrict c, const char *restrict name, con
     logenter("Adding %.20s:%.40s", name, value);
 
     unsigned hash  = 0;
-    ContextSortedElem *prevel = getprev(c, name, &hash), *el = 0;
+    ContextSortedElem *el;
+    ContextSortedElem *prevel = getprev(c, name, &hash, &el);
+    // TODO: ref using el, no need to compate strcmp
     if (prevel != 0 && (el = prevel->next) != 0 && strcmp(el->name, name) == 0) {        // just update
         int newlen = strnlen(value, CTX_MAX_VALUE_LEN);
         logmsg("Revalue from %.40s", el->value);
@@ -161,8 +173,19 @@ bool                  ctxadd(Context *restrict c, const char *restrict name, con
 
 bool                         ctxdel(Context *restrict c, const char *restrict name){
     logenter("%.20s", name);
-    ContextSortedElem *prevel = getprev(c, name, 0), *el = 0;
-    // TODO:
+
+    unsigned            hash;
+    ContextSortedElem  *el;
+    ContextSortedElem  *prevel = getprev(c, name, &hash, &el);
+    // TODO: move that logic in static getelem(c, name, &hash, &prevel)
+    if (!el)    // not found
+        return logerr(false, "Not deleted");
+
+    if (!prevel)
+         c->ctx[hash] = el->next;
+    else
+        prevel->nexy = el->next;
+    free_element(el);
     return logret(true, "Deleted");
 }
 
