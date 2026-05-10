@@ -85,6 +85,8 @@ static int                  printlist(FILE *restrict out, const ContextSortedEle
             cnt += ctx_fprintelem(out, elem);
             elem = elem->next;
         }
+        if (cnt > 0)
+            cnt += fprintf(out, "\n");
     }
     return cnt;
 }
@@ -202,10 +204,12 @@ bool                         ctxdel(Context *restrict c, const char *restrict na
 
 int                          ctxcount(const Context *c){
     int cnt = 0;
-    foreach_arr(item, c->ctx, c->cnt){
-        if (item)
-            cnt += countlist(item);
-    }
+    if (c && c->ctx)
+        foreach_arr(item, c->ctx, c->cnt){
+            if (item)
+                cnt += countlist(item);
+        }
+    // FIND ME PLEASE
     return logsimpleret(cnt, "Total %d", cnt);
 }
 
@@ -215,7 +219,7 @@ int                          ctx_fprintelem(FILE *restrict out, const ContextSor
     invraise(elem != 0, "Null pointer");
     int         cnt = 0;
     if (out)
-        cnt += fprintf(out, "%d [%.20s:%.100s]%s\n", elem->flags, elem->name, elem->value, elem->next ? "->": "");   // TODO: 20 and 100 can be configurable
+        cnt += fprintf(out, "%d [%.20s:%.100s]%s\t", elem->flags, elem->name, elem->value, elem->next ? "->": "");   // TODO: 20 and 100 can be configurable
     return cnt;
 }
 
@@ -224,15 +228,15 @@ int                          ctx_techfprint(FILE *restrict out, const Context *r
     int cnt = 0;
     if (out){
         cnt += fprintf(out, "CONTEXT %s[%d - %p]:\n", name, c->cnt, c->ctx);
-        foreach_arr(item, c->ctx, c->cnt){
+        /*foreach_arr(item, c->ctx, c->cnt){
             if (item)
                 cnt += printlist(out, item);
-        }
-        /*for (int i = 0; i < c->cnt; i++)
+        }*/
+        for (int i = 0; i < c->cnt; i++)
             if (c->ctx[i]){
-                fprintf(out, "%3d: ", i);
+                fprintf(out, "HASH %3d: ", i);
                 cnt += printlist(out, c->ctx[i] );
-            }*/
+            }
         cnt += fprintf(out, "\n");
     }
     return cnt;
@@ -363,22 +367,32 @@ tf4(const char *name)
     test_sub("subtest %d: multiple add", ++subnum);
     {
         char    name[100], value[100];
+        int     cntasc = 25;
         // asc
-        for (int i = 0; i < 25; i++){
+        for (int i = 0; i < cntasc; i++){
             snprintf(name,  sizeof(name) - 1,  "par name %d", i);
             snprintf(value, sizeof(value) - 1, "par value %d", i);
             ctxadd(&c, name, value);
         }
         ctxtechfprint(logfile, c);
+
+        int     countval = ctxcount(&c);
+        test_validatefree(countval == cntasc, ctxfree(c), "Total count must be %d but not %d", cntasc, countval);
+
         // desc
-        for (int i = 50; i > 0; i--){
+        /*for (int i = 50; i > 0; i--){
             snprintf(name,  sizeof(name) - 1,  "par name2 %d", i);
             snprintf(value, sizeof(value) - 1, "par value2 %d", i);
             ctxadd(&c, name, value);
         }
-        ctxtechfprint(logfile, c);
+        ctxtechfprint(logfile, c); */
     }
-    ctxfree(c);
+    test_sub("subtest %d: last free", ++subnum);
+    {
+        ctxfree(c);
+        int     countval = ctxcount(&c);
+        test_validate(countval == 0, "Total count must be %d but not %d", 0, countval);
+    }
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
@@ -392,7 +406,7 @@ main( /* int argc, const char *argv[] */)
         testnew(.f2 = tf1, .num = 1, .name = "Simple init and validate test"              , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf2, .num = 2, .name = "Simple add and get test"                    , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf3, .num = 3, .name = "Simple add + get + del test"                , .desc=""                , .mandatory=true)
-//      , testnew(.f2 = tf4, .num = 4, .name = "Multiple add + get test"                    , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf4, .num = 4, .name = "Multiple add + get test"                    , .desc=""                , .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
