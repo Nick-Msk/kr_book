@@ -38,32 +38,33 @@ typedef struct Context {
 // ------------------ CONSTRUCTOTS/DESTRUCTORS -----------------------
 
 extern Context                      ctxinit(int sz);
-extern void                         ctxfreed(Context *ctx);
+extern void                         ctxfreed(Context *c);
 
 #define                     ctxfree(c) (ctxfreed( &(c) ))
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
-extern ContextSortedElem           *ctxget(const Context *restrict ctx, const char *restrict name);
-static inline bool                  ctxexists(const Context *restrict ctx, const char *restrict name){
-    return ctxget(ctx, name) != 0;
+extern ContextSortedElem           *ctxget(const Context *restrict c, const char *restrict name);
+static inline bool                  ctxexists(const Context *restrict c, const char *restrict name){
+    return ctxget(c, name) != 0;
 }
 
-static inline const char           *ctxgetvalue(const Context *restrict ctx, const char *restrict name){
-    ContextSortedElem *l = ctxget(ctx, name);
+static inline const char           *ctxgetvalue(const Context *restrict c, const char *restrict name){
+    ContextSortedElem *l = ctxget(c, name);
     return l != 0 ? l->value : 0;
 }
 
-extern bool                         ctxadd(Context *restrict ctx, const char *restrict name, const char *restrict value);
-extern bool                         ctxdel(Context *restrict ctx, const char *restrict name);
-extern bool                         ctxreset(Context *ctx);
+extern bool                         ctxadd(Context *restrict c, const char *restrict name, const char *restrict value);
+extern bool                         ctxdel(Context *restrict c, const char *restrict name);
+extern bool                         ctxreset(Context *c);
+extern int                          ctxcount(const Context *c);
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
 // technical, not for use
-extern int                          ctx_techfprint(FILE *restrict out, const Context *restrict ctx, const char *restrict name);
-static inline int                   ctx_techprint(const Context *restrict ctx, const char *restrict name){
-    return ctx_techfprint(stdout, ctx, name);
+extern int                          ctx_techfprint(FILE *restrict out, const Context *restrict c, const char *restrict name);
+static inline int                   ctx_techprint(const Context *restrict c, const char *restrict name){
+    return ctx_techfprint(stdout, c, name);
 }
 
 #define                             ctxtechfprint(out, ctx) ctx_techfprint( (out), &(ctx), #ctx )
