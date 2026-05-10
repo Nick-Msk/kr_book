@@ -59,7 +59,7 @@ static ContextSortedElem   *getprev(const Context *restrict c, const char *restr
     if (pequal && el && strcmp(el->name, name) == 0){ //  found EXACLTY!
         *pequal = el;
     }
-    return logret(prevel, "Found prev %p, el %p", prevel, el);   // < or = in the list
+    return logret(prevel, "Found prev %p, el %p (%s)", prevel, el, el ? el->name : "");   // < or = in the list
 }
 
 static ContextSortedElem   *elemalloc(void){
@@ -158,17 +158,21 @@ bool                  ctxadd(Context *restrict c, const char *restrict name, con
     logenter("Adding %.20s:%.40s", name, value);
 
     unsigned hash  = 0;
-    ContextSortedElem *equal, *nextel;
+    ContextSortedElem *equal = 0, *nextel = 0;
     ContextSortedElem *prevel = getprev(c, name, &hash, &nextel, &equal);
 
     if (equal){ // just replace previous value
-        int newlen = strnlen(value, CTX_MAX_VALUE_LEN);
+        int     newlen = strnlen(value, CTX_MAX_VALUE_LEN) + 1;
+        char   *tmp;
         logmsg("Revalue from %.40s", equal->value);
-        char *tmp = realloc(equal->value, newlen);
-        if (!tmp)
-            userraiseint(ERR_UNABLE_ALLOCATE, "Realloc value for %d", newlen);
-        equal->value = tmp;
-        strncpy(equal->value, value, CTX_MAX_VALUE_LEN);
+        if (newlen > (int) strlen(equal->value) + 1 ){
+            tmp = realloc(equal->value, newlen);
+            if (!tmp)
+                userraiseint(ERR_UNABLE_ALLOCATE, "Realloc value for %d", newlen);
+            logmsg("tmp %p, prev value %p", tmp, equal->value);
+            equal->value = tmp;
+        }
+        memcpy(equal->value, value, newlen);
     } else {
         ContextSortedElem *newel = createelem(name, value);
         if (prevel){    // mount
@@ -204,12 +208,11 @@ bool                         ctxdel(Context *restrict c, const char *restrict na
 
 int                          ctxcount(const Context *c){
     int cnt = 0;
-    if (c && c->ctx)
-        foreach_arr(item, c->ctx, c->cnt){
+    if (c && c->ctx){
+        foreach_arr(item, c->ctx, c->cnt)
             if (item)
                 cnt += countlist(item);
-        }
-    // FIND ME PLEASE
+    }
     return logsimpleret(cnt, "Total %d", cnt);
 }
 
@@ -359,10 +362,42 @@ tf3(const char *name)
 static TestStatus
 tf4(const char *name)
 {
+
     logenter("%s", name);
     int         subnum = 0;
 
     int     initcnt = 10;
+    Context c = ctxinit(initcnt);
+    test_sub("subtest %d: multiple add", ++subnum);
+    {
+        const char    name[] = "Var name 1";
+        const char    value1[] = "Val1";
+        const char    value2[] = "Vallllllllllllllll2";
+
+        ctxadd(&c, name, value1);
+        ctxadd(&c, name, value2);
+
+        int           countval = ctxcount(&c);
+        test_validatefree(countval == 1, ctxfree(c), "Total count must be %d but not %d", 1, countval);
+
+        const char *res = ctxgetvalue(&c, name);
+        test_validatefree(res != 0, ctxfree(c), "Not found - error\n");
+        test_validatefree(strcmp(res, value2) == 0, ctxfree(c), "value [%s] must be equal to init value [%s]", res, value2);
+
+        ctxfree(c);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
+// ------------------------- TEST 5 ---------------------------------
+
+static TestStatus
+tf5(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    int         initcnt = 10;
     Context c = ctxinit(initcnt);
     test_sub("subtest %d: multiple add", ++subnum);
     {
@@ -380,18 +415,78 @@ tf4(const char *name)
         test_validatefree(countval == cntasc, ctxfree(c), "Total count must be %d but not %d", cntasc, countval);
 
         // desc
-        /*for (int i = 50; i > 0; i--){
+        for (int i = 50; i > 0; i--){
             snprintf(name,  sizeof(name) - 1,  "par name2 %d", i);
             snprintf(value, sizeof(value) - 1, "par value2 %d", i);
             ctxadd(&c, name, value);
         }
-        ctxtechfprint(logfile, c); */
+        ctxtechfprint(logfile, c);
+    }
+    test_sub("subtest %d: multiple get", ++subnum);
+    {
+        char            name[100], value[100];
+        const char     *res;
+        for (int i = 50; i > 0; i--){
+            snprintf(name,  sizeof(name) - 1,  "par name2 %d", i);
+            snprintf(value, sizeof(value) - 1, "par value2 %d", i);
+            res = ctxgetvalue(&c, name);
+
+            test_validatefree(res != 0, ctxfree(c), "%s Not found - error\n", name);
+            logmsg("name [%s], res value [%s]", name, res);
+            // checking
+            test_validatefree(strcmp(res, value) == 0, ctxfree(c), "value [%s] must be equal to init value [%s]", res, value);
+        }
     }
     test_sub("subtest %d: last free", ++subnum);
     {
         ctxfree(c);
         int     countval = ctxcount(&c);
         test_validate(countval == 0, "Total count must be %d but not %d", 0, countval);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
+// ------------------------- TEST 6 ---------------------------------
+
+static TestStatus
+tf6(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: multiple add", ++subnum);
+    {
+        char        name[100], value[100];
+        int         cntasc = 2500, delcnt = 0;
+        int         initsz = 1000;
+        Context     c = ctxinit(initsz);
+        // asc
+        for (int i = 0; i < cntasc; i++){
+            snprintf(name,  sizeof(name) - 1,  "param name %d", i);
+            snprintf(value, sizeof(value) - 1, "param value %d", i);
+            ctxadd(&c, name, value);
+        }
+        for (int i = 0; i < cntasc; i++){
+            if (i % 3 == 0){
+                delcnt++;
+                snprintf(name,  sizeof(name) - 1,  "param name %d", i);
+                if (!ctxdel(&c, name) )
+                    return logacterr(ctxfree(c), TEST_FAILED, "Unable to del %s", name);
+            }
+        }
+        for (int i = 0; i < cntasc; i++){
+            if (i %3 != 0){
+                snprintf(name,  sizeof(name) - 1,  "param name %d", i);
+                snprintf(value, sizeof(value) - 1, "param value %d", i);
+                const char *res = ctxgetvalue(&c, name);
+                // checking
+                test_validatefree(res != 0 && strcmp(res, value) == 0, ctxfree(c), "value [%s] must be equal to init value [%s]", res, value);
+            }
+        }
+        int         cnt = ctxcount(&c);
+        test_validate(cnt == cntasc - delcnt, "Total count must be %d but not %d", cntasc - delcnt, cnt);
+        // done
+        ctxfree(c);
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
@@ -406,7 +501,9 @@ main( /* int argc, const char *argv[] */)
         testnew(.f2 = tf1, .num = 1, .name = "Simple init and validate test"              , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf2, .num = 2, .name = "Simple add and get test"                    , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf3, .num = 3, .name = "Simple add + get + del test"                , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf4, .num = 4, .name = "Multiple add + get test"                    , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf4, .num = 4, .name = "Multiple add + free test"                   , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf5, .num = 5, .name = "Multiple add + get test (cycle)"            , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf6, .num = 6, .name = "Composite test (cycle)"                     , .desc=""                , .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
