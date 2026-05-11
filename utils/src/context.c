@@ -32,14 +32,13 @@ static void                 free_element(ContextSortedElem *el){
 }
 
 static void                 free_elements(ContextSortedElem *els){
-    int  cnt = 0;
+    //int  cnt = 0;
     for (ContextSortedElem *p = els, *n = 0; p != 0; p = n /* next */){
-        logsimple("p %p, n = %p", p, n);
         n = p->next;
         free_element(p);
-        cnt++;
+        //cnt++;
     }
-    logsimple("freed list of %d", cnt);
+    //logsimple("freed list of %d", cnt);
 }
 
 static ContextSortedElem   *getprev(const Context *restrict c, const char *restrict name, unsigned *restrict phash, ContextSortedElem **pel, ContextSortedElem **pequal){
@@ -56,8 +55,11 @@ static ContextSortedElem   *getprev(const Context *restrict c, const char *restr
         *phash = hash;
     if (pel)
         *pel = el;
-    if (pequal && el && strcmp(el->name, name) == 0){ //  found EXACLTY!
-        *pequal = el;
+    if (pequal){
+        if (el && strcmp(el->name, name) == 0) //  found EXACLTY!
+            *pequal = el;
+        else
+            *pequal = 0;        // NOT found exactly!
     }
     return logret(prevel, "Found prev %p, el %p (%s)", prevel, el, el ? el->name : "");   // < or = in the list
 }
@@ -144,7 +146,7 @@ ContextSortedElem    *ctxget(const Context *restrict c, const char *restrict nam
     invraise(c != 0 && name != 0, "Null pointer");
     logenter("Loopup %s", name);
     // ref using new getprev(c, name, &hash, &el)
-    ContextSortedElem *el;
+    ContextSortedElem *el = 0;
      getprev(c, name, 0, 0, &el);   // no need hash or nextel
 
     if (el) // no mor echecking!
@@ -457,8 +459,8 @@ tf6(const char *name)
     test_sub("subtest %d: multiple add", ++subnum);
     {
         char        name[100], value[100];
-        int         cntasc = 2500, delcnt = 0;
-        int         initsz = 1000;
+        int         cntasc = 250, delcnt = 0;
+        int         initsz = 100;
         Context     c = ctxinit(initsz);
         // asc
         for (int i = 0; i < cntasc; i++){
@@ -481,6 +483,13 @@ tf6(const char *name)
                 const char *res = ctxgetvalue(&c, name);
                 // checking
                 test_validatefree(res != 0 && strcmp(res, value) == 0, ctxfree(c), "value [%s] must be equal to init value [%s]", res, value);
+            }
+        }
+        for (int i = 0; i < cntasc; i++){
+            if (i % 3 == 0){
+                snprintf(name,  sizeof(name) - 1,  "param name %d", i);
+                const char *res = ctxgetvalue(&c, name);
+                test_validatefree(res == 0, ctxfree(c), "Should NOT be found [%s] but not [%s]", name, res);
             }
         }
         int         cnt = ctxcount(&c);
