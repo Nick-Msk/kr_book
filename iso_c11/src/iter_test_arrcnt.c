@@ -65,8 +65,9 @@ int         main(void){
     for (int i = 0; i < cnt; i++)
         printf("%d - %d:%c\n", i, parr[i]->i, parr[i]->c);
 
-    foreach_arr(item, parr, cnt)
-        printf("TestType   **parr: %d - %c\n", item->i, item->c);
+    //if (true)
+        foreach_arr(item, parr, cnt)
+            printf("TestType   **parr: %d - %c\n", item->i, item->c);
 
     foreach_arr(item, getparr(parr), cnt)
         printf("getparr(): %d - %c\n", item->i, item->c);
