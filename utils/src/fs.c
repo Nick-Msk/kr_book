@@ -960,7 +960,7 @@ tf11(const char *name)
         char        buf[100];
         for (int i = 0; i < 15; i++){
             s2 = fsfload(f, s2);
-            sprintf(buf, "Check val %d", i);    // make a pattern
+            snprintf(buf, sizeof(buf) - 1, "Check val %d", i);    // make a pattern
             if (strcmp(buf, fsstr(s2) ) != 0)
                 return logacterr( (fclose(f), fsfreeall(&s, &s2) ), TEST_FAILED, "Strings not equal, loaded %s != pattern %s", fsstr(s2), buf);
         }
