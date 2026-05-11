@@ -1,7 +1,7 @@
 CC=gcc #clang
-CFLAGS= -I../../utils -Wall -Wextra -std=gnu11 -g -O0 -Wno-gnu-folding-constant -Wno-initializer-overrides -fmacro-backtrace-limit=0
+CFLAGS= -I../../utils -Wall -Wextra -std=gnu11 -std=c23 -g -O0 -Wno-gnu-folding-constant -Wno-initializer-overrides -fmacro-backtrace-limit=0 -fsanitize=address
 # -Wno-initializer-overrides -Wno-unused-function -Wno-format-zero-length
-LDFLAGS=
+LDFLAGS= -fsanitize=address
 LDLIBS=
 
 all:
@@ -12,6 +12,9 @@ test_alloc.p8.7: src/test_alloc.p8.7.c lib/log.o lib/common.o lib/error.o lib/ch
 lib/alloc2.o: src/alloc2.c
 	$(CC) $(CFLAGS) -I./src  $^ -c
 	@mv alloc2.o lib/
+
+alloc2: src/alloc2.c lib/log.o lib/common.o lib/error.o lib/checker.o lib/common.o lib/test.o
+	$(CC) $(CFLAGS) -DALLOC2TESTING $^ -o out/$@_test
 
 UTIL_PATH = ../../utils
 
