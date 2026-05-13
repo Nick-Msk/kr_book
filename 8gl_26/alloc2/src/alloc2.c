@@ -194,7 +194,7 @@ tf1(const char *name)
     test_sub("subtest %d: alloc simple", ++subnum);
     {
         char    *s1 = alloc(25);
-        printf("sizeof(Header) %lu\n", sizeof(Header) );
+        printf("sizeof(Header) %lu, Header * %lu, unsigned %lu, long %lu\n", sizeof(Header), sizeof(Header *), sizeof(unsigned), sizeof(long) );
         printheader(s1); // print structure Header by s - 1
 
         char    *s2 = alloc(18);
