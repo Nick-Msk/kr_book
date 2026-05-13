@@ -8,6 +8,7 @@ extern void                        *alloct(unsigned cnts, unsigned size);
 extern void                         afree(void *);
 extern int                          afprint_all(FILE *restrict out);
 extern unsigned                     acalcfree(void);
+extern void                         areset(void);
 
 #define                             afprint(out, fmt, ...) {\
                                         if (out) fprintf( (out), (fmt), ##__VA_ARGS__);\

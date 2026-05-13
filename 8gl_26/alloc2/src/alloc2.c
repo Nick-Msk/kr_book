@@ -7,10 +7,15 @@
 
 typedef long Align;
 
+static const int                ALLOC_MAX_NAME = 16;
+
 typedef union Header {
     struct {
         union Header   *freeptr;
         unsigned        size;
+#ifdef ALLOC_USE_NAME
+        char            name[ALLOC_MAX_NAME]; // for future use!
+#endif /* ALLOC_USE_NAME */
     };
     Align               not_used;
 } Header;
@@ -19,7 +24,8 @@ typedef union Header {
 
 typedef struct Control {
     Header             *freeptr;   // to g_arr + i etc
-    unsigned            total;  // units!!!
+    Header             *baseptr;   // const!
+    unsigned            total;  // const units!!!
     unsigned            free;   // units!!!
 } Control;
 
@@ -32,7 +38,9 @@ static const int        ARR_MAX_UNIT    = ARR_MAX / sizeof(Header);
 static Header          g_arr[ARR_MAX_CNT][ARR_MAX]; // to avoid using mmap()
 static int              g_ptr;  // pointer to current unallocated!
 
-#define                 ControlInit(N) (Control) {.freeptr = (Header *)g_arr + ARR_MAX_UNIT * (N), .total = ARR_MAX_UNIT, .free = ARR_MAX_UNIT }
+#define                 CalcArrPtr(N) (Header *) g_arr + ARR_MAX_UNIT * (N)
+
+#define                 ControlInit(N) (Control) {.freeptr = CalcArrPtr(N), .baseptr = CalcArrPtr(N), .total = ARR_MAX_UNIT, .free = ARR_MAX_UNIT }
 
 static Control          g_control[ARR_MAX_CNT] =
 {   ControlInit(0),
@@ -51,7 +59,28 @@ static Control          g_control[ARR_MAX_CNT] =
 
 // ------------------------------- Utilities -------------------------------------
 
+// --------------------------- Location API --------------------------------------
+static Header              *getlastptr(int loc){
+    invraise(loc >= 0 && loc < ARR_MAX_CNT, "Invalid location %d", loc);
+    return g_control[loc].baseptr + g_control[loc].total;
+}
+
+// actually it's possible to binary_search here!
+static int                 getlocation(const void *p){
+    const Header *h = p;
+    for (int i = 0; i < ARR_MAX_CNT; i++)
+        if (h >= g_control[i].baseptr && h < getlastptr(i) )  // found!
+            return logsimpleret(i, "Found loc %d", i);
+    return logsimpleerr(-1, "Wrong pointer %p", p);
+}
+
+static inline Header       *getlocationbaseptr(const void *p){
+    int loc = getlocation(p);
+    return loc >= 0 ? g_control[loc].baseptr : 0;
+}
+
 static void                 initlocation(Header *ptr, unsigned sz){
+    invraise(ptr != 0 && sz > 1, "Invalid input");
     *(Header *) ptr = HeaderInit(.freeptr = ptr + 1, .size = sz - 1);    // -1 for header
 }
 
@@ -60,6 +89,7 @@ static inline bool          checklimitlocation(Header *ptr, int loc){
 }
 
 static void                 updatelocation(int loc, unsigned cntu, bool alloc){
+    invraise(loc >= 0 && loc < ARR_MAX_CNT, "Invalid location %d", loc);
     if (alloc)  // -=
         g_control[loc].free -= cntu;
     else
@@ -67,12 +97,13 @@ static void                 updatelocation(int loc, unsigned cntu, bool alloc){
     invraise(g_control[loc].free <= g_control[loc].total, "Out of range free %u: total %d", g_control[loc].free, g_control[loc].total);
 }
 
+// --------------------------- Common Utilities ----------------------------------------------
 static inline unsigned      calc_units(unsigned bytes){
     return (bytes + sizeof(Header) - 1) / sizeof(Header) + 1;
 }
 
 // loc < 12
-static void                *findlocation(int loc, unsigned bytes){
+static void                *findmemory(int loc, unsigned bytes){
     invraise(loc >= 0 && loc < ARR_MAX_CNT, "Out of loc %d", loc);
 
     logenter("loc %d: %u", loc, bytes);
@@ -81,7 +112,7 @@ static void                *findlocation(int loc, unsigned bytes){
     logauto(nu);
 
     if (g_ptr == loc)       // 1-st alloc this, need to formar
-        initlocation(g_control[loc].freeptr, ARR_MAX_UNIT), g_ptr++;
+        initlocation(g_control[loc].baseptr, ARR_MAX_UNIT), g_ptr++;
 
     if (g_control[loc].free >= nu){
 
@@ -95,11 +126,12 @@ static void                *findlocation(int loc, unsigned bytes){
                     else        // 1-st iter, use g_control[loc].ptr instead
                         g_control[loc].freeptr = pos->freeptr;
                 } else  {   // alloc area at the and of free space TODO: 
-
-                
+                    pos->size -= nu;
+                    pos += pos->size;
+                    pos->size = nu; // new piece
                 }
+                pos->freeptr = 0;   // just for clean
                 // setup Header *pos
-                pos->size = nu;     // to check in afree()
                 updatelocation(loc, nu, true);
                 return logret( (void *) (pos + 1), "Allocated %u", nu);  // header remains
             }
@@ -109,15 +141,39 @@ static void                *findlocation(int loc, unsigned bytes){
     return logerr( (void *) 0, "Unable to alloc %u units", nu);
 }
 
+static int                  fprintheader(FILE *restrict out, void *restrict p){
+    int     cnt = 0;
+    if (out){
+        const Header    *h = (Header *) p - 1;
+#ifdef ALLOC_USE_NAME
+        cnt += fprintf(out, "%s: ", h->name);      // not used for now
+#endif
+        cnt += fprintf(out, "Pos %lu, size %u, ptr %p\t", h - getlocationbaseptr(p), h->size, h->freeptr);
+    }
+    return cnt;
+}
+
+static inline int           printheader(void *p){
+    return fprintheader(stdout, p);
+}
+
 // ------------------------------------- API -------------------------------------
 void                        *alloc(unsigned bytes){
     void    *ret = 0;
     for (int i = 0; i < ARR_MAX_CNT; i++){
-        ret = findlocation(i, bytes);
+        ret = findmemory(i, bytes);
         if (ret)    // found
             return logsimpleret(ret, "Allocated %u", bytes);
     }
     return logsimpleerr(ret, "Out of mem %u", bytes);
+}
+
+void                         areset(void){
+    for (int i = 0; i < ARR_MAX_CNT; i++){
+        g_control[i].freeptr = g_control[i].baseptr;
+        g_control[i].free = g_control[i].total;
+    }
+    logsimple("Reset");
 }
 
 // -------------------------------Testing --------------------------
@@ -137,9 +193,17 @@ tf1(const char *name)
 
     test_sub("subtest %d: alloc simple", ++subnum);
     {
-        // TODO: 
+        char    *s1 = alloc(25);
+        printf("sizeof(Header) %lu\n", sizeof(Header) );
+        printheader(s1); // print structure Header by s - 1
+
+        char    *s2 = alloc(18);
+        printheader(s2);
+
+        char    *s3 = alloc(1);
+        printheader(s3);
     }
-    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+    return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
 // ------------------------------------------------------------------------------------------------------------------------------
