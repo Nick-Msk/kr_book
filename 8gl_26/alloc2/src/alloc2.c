@@ -31,20 +31,20 @@ typedef struct Control {
 
 // storage
 static const int        ARR_MAX_CNT     = 12;
-static const int        ARR_MAX         = 1024 * 1024;    // 1mb of Header
+static const int        ARR_MAX         = 10; // for TEST!//1024 * 1024;    // 1mb of Header
 static const int        ARR_MAX_UNIT    = ARR_MAX / sizeof(Header);
 
 // never user that array directly, only via control structure
-static Header          g_arr[ARR_MAX_CNT][ARR_MAX]; // to avoid using mmap()
-static int              g_ptr;  // pointer to current unallocated!
+static Header           g_arr[ARR_MAX_CNT][ARR_MAX]; // to avoid using mmap()
+static int              g_ptr =         0;  // pointer to current unallocated!
 
 #define                 CalcArrPtr(N) (Header *) g_arr + ARR_MAX_UNIT * (N)
 
 #define                 ControlInit(N) (Control) {.freeptr = CalcArrPtr(N), .baseptr = CalcArrPtr(N), .total = ARR_MAX_UNIT, .free = ARR_MAX_UNIT }
 
 static Control          g_control[ARR_MAX_CNT] =
-{   ControlInit(0),
-    ControlInit(1),
+{   ControlInit(0)
+    /*ControlInit(1),
     ControlInit(2),
     ControlInit(3),
     ControlInit(4),
@@ -54,12 +54,15 @@ static Control          g_control[ARR_MAX_CNT] =
     ControlInit(8),
     ControlInit(9),
     ControlInit(10),
-    ControlInit(11)
+    ControlInit(11)*/
 };
 
 // ------------------------------- Utilities -------------------------------------
 
 // --------------------------- Location API --------------------------------------
+
+#define                     foralllocs(iter) for (int iter = 0; i < ARR_MAX_CNT; i++)
+
 static Header              *getlastptr(int loc){
     invraise(loc >= 0 && loc < ARR_MAX_CNT, "Invalid location %d", loc);
     return g_control[loc].baseptr + g_control[loc].total;
@@ -95,6 +98,10 @@ static void                 updatelocation(int loc, unsigned cntu, bool alloc){
     else
         g_control[loc].free += cntu;
     invraise(g_control[loc].free <= g_control[loc].total, "Out of range free %u: total %d", g_control[loc].free, g_control[loc].total);
+}
+
+static int                  printlocation(int loc){
+    
 }
 
 // --------------------------- Common Utilities ----------------------------------------------
@@ -174,6 +181,12 @@ void                         areset(void){
         g_control[i].free = g_control[i].total;
     }
     logsimple("Reset");
+}
+
+int                          atechfprint(FILE *restrict out){
+    for (int i = 0; i < g_ptr; i++){
+        printlocation(i);
+    }
 }
 
 // -------------------------------Testing --------------------------
