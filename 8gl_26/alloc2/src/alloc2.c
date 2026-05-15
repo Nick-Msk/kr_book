@@ -36,6 +36,7 @@ static const int        ARR_MAX_CNT     = 12;
 static const int        ARR_MAX         = 1024; // for TEST!//1024 * 1024;    // 1mb of Header
 static const int        ARR_MAX_UNIT    = ARR_MAX / sizeof(Header);
 
+// TODO: rework that to get_osmap(sz);
 // never user that array directly, only via control structure
 static Header           g_arr[ARR_MAX_CNT][ARR_MAX]; // to avoid using mmap()
 static int              g_ptr =         0;  // pointer to current unallocated!
@@ -89,9 +90,9 @@ static inline Header       *getlocationbaseptr(const void *p){
     return loc >= 0 ? g_control[loc].baseptr : 0;
 }
 
-static void                 initlocation(Header *ptr, unsigned sz){
+static void                 initlocation(Header *restrict ptr, unsigned sz, Header *restrict nextptr){
     invraise(ptr != 0 && sz > 1, "Invalid input %p, %u", ptr, sz);
-    *(Header *) ptr = HeaderInit(.freeptr = ptr + 1, .size = sz - 1);    // -1 for header
+    *(Header *) ptr = HeaderInit(.freeptr = nextptr, .size = sz - 1);    // -1 for header
 }
 
 static inline bool          checklimitlocation(Header *ptr, int loc){
@@ -145,8 +146,11 @@ static void                *findmemory(int loc, unsigned bytes){
     unsigned nu = calc_units(bytes);
     logauto(nu);
 
-    if (g_ptr == loc)       // 1-st alloc this, need to formar
-        initlocation(g_control[loc].baseptr, ARR_MAX_UNIT), g_ptr++;
+    if (g_ptr == loc){       // 1-st alloc this, need to formar
+        g_control[g_ptr] = ControlInit(g_ptr);
+        initlocation(g_control[loc].baseptr, ARR_MAX_UNIT, 0x0);
+        g_ptr++;
+    }
 
     if (g_control[loc].free >= nu){
 
