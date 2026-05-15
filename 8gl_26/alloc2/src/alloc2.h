@@ -9,6 +9,7 @@ extern void                         afree(void *);
 extern int                          atechfprint(FILE *restrict out);
 extern unsigned                     acalcfreespace(void);
 extern void                         areset(void);
+extern unsigned                     agetallocatedsize(const void *p);
 
 #define                             afprint(out, fmt, ...) {\
                                         if (out) fprintf( (out), (fmt), ##__VA_ARGS__);\

@@ -33,7 +33,7 @@ typedef struct Control {
 
 // storage
 static const int        ARR_MAX_CNT     = 12;
-static const int        ARR_MAX_BYTES   = 1024; // for TEST!//1024 * 1024;    // 1mb of Header
+static const int        ARR_MAX_BYTES   = 1024 * 1024;    // 1mb of Header
 static const int        ARR_MAX_UNIT    = ARR_MAX_BYTES / sizeof(Header);
 
 // TODO: rework that to get_osmap(sz);
@@ -46,19 +46,7 @@ static int              g_ptr =         0;  // pointer to current unallocated!
 #define                 ControlInit(N) (Control) {.freeptr = CalcArrPtr(N), .baseptr = CalcArrPtr(N), .total = ARR_MAX_UNIT, .free = ARR_MAX_UNIT - 1 }
 
 static Control          g_control[ARR_MAX_CNT] =
-{   ControlInit(0)
-    /*ControlInit(1),
-    ControlInit(2),
-    ControlInit(3),
-    ControlInit(4),
-    ControlInit(5),
-    ControlInit(6),
-    ControlInit(7),
-    ControlInit(8),
-    ControlInit(9),
-    ControlInit(10),
-    ControlInit(11)*/
-};
+{   ControlInit(0) };
 
 // ------------------------------- Utilities -------------------------------------
 
@@ -284,7 +272,12 @@ void                         afree(void *p){
     for (hp = locbaseptr(loc); hp && hp < var; prev = hp, hp = hp->freeptr)
         ;
     logsimple("diff base %lu, diff prev %lu", locbaseptr(loc) - var, var - prev);
-    
+    // TODO:!
+}
+
+unsigned                      agetallocatedsize(const void *p){
+    const Header *h = p;
+    return (--h)->size * sizeof(Header);
 }
 
 // -------------------------------Testing --------------------------
@@ -320,9 +313,14 @@ tf1(const char *name)
 
         atechfprint(stdout);
 
-        unsigned res_after = acalcfreespace();
-        test_validate(res_after <= ARR_MAX_UNIT - 2 * 4 /* 4 units allocated */,  
-                "Free space %u Must be less or equal %u", res_after, ARR_MAX_UNIT - 2 * 4);
+        unsigned res_after = acalcfreespace(), totalalloc = agetallocatedsize(s1) / sizeof(Header) +
+                                                            agetallocatedsize(s2) / sizeof(Header) +
+                                                            agetallocatedsize(s3) / sizeof(Header) +
+                                                            agetallocatedsize(s4) / sizeof(Header) + 1;
+        logmsg("1 byte alloc: %lu", agetallocatedsize(s3) / sizeof(Header));
+        logmsg("16 byte alloc: %lu", agetallocatedsize(s1) / sizeof(Header));
+        test_validate(res_after == ARR_MAX_UNIT - totalalloc,
+                "Free space %u Must be equal %u", res_after, ARR_MAX_UNIT - totalalloc);
     }
     test_sub("subtest %d: reset", ++subnum);
     {
