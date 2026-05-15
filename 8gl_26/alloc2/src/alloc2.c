@@ -33,17 +33,17 @@ typedef struct Control {
 
 // storage
 static const int        ARR_MAX_CNT     = 12;
-static const int        ARR_MAX         = 1024; // for TEST!//1024 * 1024;    // 1mb of Header
-static const int        ARR_MAX_UNIT    = ARR_MAX / sizeof(Header);
+static const int        ARR_MAX_BYTES   = 1024; // for TEST!//1024 * 1024;    // 1mb of Header
+static const int        ARR_MAX_UNIT    = ARR_MAX_BYTES / sizeof(Header);
 
 // TODO: rework that to get_osmap(sz);
 // never user that array directly, only via control structure
-static Header           g_arr[ARR_MAX_CNT][ARR_MAX]; // to avoid using mmap()
+static Header           g_arr[ARR_MAX_CNT][ARR_MAX_UNIT]; // to avoid using mmap()
 static int              g_ptr =         0;  // pointer to current unallocated!
 
 #define                 CalcArrPtr(N) (Header *) g_arr + ARR_MAX_UNIT * (N)
 
-#define                 ControlInit(N) (Control) {.freeptr = CalcArrPtr(N), .baseptr = CalcArrPtr(N), .total = ARR_MAX_UNIT, .free = ARR_MAX_UNIT }
+#define                 ControlInit(N) (Control) {.freeptr = CalcArrPtr(N), .baseptr = CalcArrPtr(N), .total = ARR_MAX_UNIT, .free = ARR_MAX_UNIT - 1 }
 
 static Control          g_control[ARR_MAX_CNT] =
 {   ControlInit(0)
@@ -132,6 +132,14 @@ static int                  fprintlocation(FILE *out, int loc){
     return cnt;
 }
 
+static unsigned             acalcfreespace_loc(int loc){
+    unsigned    res = 0;
+    for (const Header *ph = g_control[loc].freeptr; ph != 0; ph=ph->freeptr)
+        res += ph->size;
+    invraise(res == g_control[loc].free, "sum %u for %d must be equal total free %u", res, loc, g_control[loc].free);
+    return logsimpleret(res, "%u for location %d", res, loc);
+}
+
 // --------------------------- Common Utilities ----------------------------------------------
 static inline unsigned      calc_units(unsigned bytes){
     return (bytes + sizeof(Header) - 1) / sizeof(Header) + 1;
@@ -146,9 +154,10 @@ static void                *findmemory(int loc, unsigned bytes){
     unsigned nu = calc_units(bytes);
     logauto(nu);
 
-    if (g_ptr == loc){       // 1-st alloc this, need to formar
+    if (g_ptr == loc){       // 1-st alloc this, need to format
+        // TODO: refactor that to init_control(loc)
         g_control[g_ptr] = ControlInit(g_ptr);
-        initlocation(g_control[loc].baseptr, ARR_MAX_UNIT, 0x0);
+        initlocation(g_control[loc].baseptr, g_control[loc].total, 0x0);
         g_ptr++;
     }
 
@@ -163,7 +172,7 @@ static void                *findmemory(int loc, unsigned bytes){
                         prev->freeptr = pos->freeptr;
                     else        // 1-st iter, use g_control[loc].ptr instead
                         g_control[loc].freeptr = pos->freeptr;
-                } else  {   // alloc area at the and of free space TODO: 
+                } else  {   // alloc area at the and of free space TODO:
                     pos->size -= nu;
                     pos += pos->size;
                     pos->size = nu; // new piece
@@ -207,7 +216,13 @@ static inline int           printheader(const Header *p){
 }
 
 // ------------------------------------- API -------------------------------------
+
+void                        *alloct(unsigned cnts, unsigned size){
+    return alloc(cnts * size);
+}
+
 void                        *alloc(unsigned bytes){
+    invraise(bytes <= ARR_MAX_BYTES * 4, "To heavy %u", bytes);
     void    *ret = 0;
     for (int i = 0; i < ARR_MAX_CNT; i++){
         ret = findmemory(i, bytes);
@@ -218,9 +233,11 @@ void                        *alloc(unsigned bytes){
 }
 
 void                         areset(void){
-    for (int i = 0; i < ARR_MAX_CNT; i++){
+    for (int i = 0; i < g_ptr; i++){
+        // TODO: init_control(i)
         g_control[i].freeptr = g_control[i].baseptr;
-        g_control[i].free = g_control[i].total;
+        initlocation(g_control[i].baseptr, g_control[i].total, 0x0);
+        logauto(g_control[i].free = g_control[i].total - 1);
     }
     logsimple("Reset");
 }
@@ -234,6 +251,15 @@ int                          atechfprint(FILE *restrict out){
         }
     }
     return cnt;
+}
+
+unsigned                     acalcfreespace(void){
+    // got
+    unsigned res = 0;
+    for (int i = 0; i < g_ptr; i++){
+        res += acalcfreespace_loc(i);
+    }
+    return logsimpleret(res, "Caclucated %u", res); 
 }
 
 // -------------------------------Testing --------------------------
@@ -268,6 +294,36 @@ tf1(const char *name)
         fprintf(stdout, "\n");
 
         atechfprint(stdout);
+
+        unsigned res_after = acalcfreespace();
+        test_validate(res_after <= ARR_MAX_UNIT - 2 * 4 /* 4 units allocated */,  
+                "Free space %u Must be less or equal %u", res_after, ARR_MAX_UNIT - 2 * 4);
+    }
+    test_sub("subtest %d: reset", ++subnum);
+    {
+        areset();
+        unsigned res = acalcfreespace();
+        test_validate(res == ARR_MAX_UNIT - 1, "Must be %u after areset but not %u", ARR_MAX_UNIT - 1, res);
+    }
+    return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
+// ------------------------- TEST 2 ---------------------------------
+
+static TestStatus
+tf2(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: alloc many many", ++subnum);
+    {
+        unsigned res_before = acalcfreespace();
+        char    *s1 = alloc(ARR_MAX_BYTES + 1); // more that ARR_MAX_UNIT!
+        test_validate(s1 == 0x0, "Must not be allocated! (actual %p)", s1);
+        unsigned res_after = acalcfreespace();
+        test_validate(res_before * ARR_MAX_CNT == res_after, "%u * ARR_MAX_CNT must be equal %u (after failed alloc)", 
+                res_before * ARR_MAX_CNT, res_after);
     }
     return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
@@ -280,6 +336,7 @@ main( /* int argc, const char *argv[] */)
 
     testenginestd(
         testnew(.f2 = tf1,  .num =  1, .name = "Simple init and validate test"              , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf2,  .num =  2, .name = "Allocate too much test"                     , .desc=""                , .mandatory=true)
     );
     return logret(0, "end...");  // as replace of logclose()
 }

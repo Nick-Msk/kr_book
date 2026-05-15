@@ -7,7 +7,7 @@ extern void                        *alloc(unsigned bytes);
 extern void                        *alloct(unsigned cnts, unsigned size);
 extern void                         afree(void *);
 extern int                          atechfprint(FILE *restrict out);
-extern unsigned                     acalcfree(void);
+extern unsigned                     acalcfreespace(void);
 extern void                         areset(void);
 
 #define                             afprint(out, fmt, ...) {\
