@@ -7,7 +7,9 @@
 
 typedef long Align;
 
+#ifdef ALLOC_USE_NAME
 static const int                ALLOC_MAX_NAME = 16;
+#endif /* ALLOC_USE_NAME */
 
 typedef union Header {
     struct {
@@ -31,7 +33,7 @@ typedef struct Control {
 
 // storage
 static const int        ARR_MAX_CNT     = 12;
-static const int        ARR_MAX         = 10; // for TEST!//1024 * 1024;    // 1mb of Header
+static const int        ARR_MAX         = 1024; // for TEST!//1024 * 1024;    // 1mb of Header
 static const int        ARR_MAX_UNIT    = ARR_MAX / sizeof(Header);
 
 // never user that array directly, only via control structure
@@ -63,6 +65,11 @@ static Control          g_control[ARR_MAX_CNT] =
 
 #define                     foralllocs(iter) for (int iter = 0; i < ARR_MAX_CNT; i++)
 
+static int                  fprintheader(FILE *restrict out, const Header *restrict ph);
+static inline int           printheader(const Header *p);
+static int                  fprintfreeheader(FILE *restrict out, const Header *restrict ph);
+static int                  printfreeheader(const Header * ph);
+
 static Header              *getlastptr(int loc){
     invraise(loc >= 0 && loc < ARR_MAX_CNT, "Invalid location %d", loc);
     return g_control[loc].baseptr + g_control[loc].total;
@@ -83,7 +90,7 @@ static inline Header       *getlocationbaseptr(const void *p){
 }
 
 static void                 initlocation(Header *ptr, unsigned sz){
-    invraise(ptr != 0 && sz > 1, "Invalid input");
+    invraise(ptr != 0 && sz > 1, "Invalid input %p, %u", ptr, sz);
     *(Header *) ptr = HeaderInit(.freeptr = ptr + 1, .size = sz - 1);    // -1 for header
 }
 
@@ -100,8 +107,28 @@ static void                 updatelocation(int loc, unsigned cntu, bool alloc){
     invraise(g_control[loc].free <= g_control[loc].total, "Out of range free %u: total %d", g_control[loc].free, g_control[loc].total);
 }
 
-static int                  printlocation(int loc){
-    
+static int                  fprintheaderlist(FILE *restrict out, const Header *hlist){
+    int     cnt = 0;
+    if (out){
+        while (hlist){
+            cnt += fprintfreeheader(out, hlist);
+            hlist = hlist->freeptr;
+        }
+    }
+    return cnt;
+}
+
+static int                  fprintlocation(FILE *out, int loc){
+    invraise(loc >= 0 && loc < ARR_MAX_CNT, "Invalid location %d", loc);
+    int         cnt = 0;
+    if (out){
+        const Control *c = g_control + loc;
+        cnt += fprintf(out, "LOCATION %d: base %p, free %p, delta %lu, total %u, free %u\n",
+                loc, c->baseptr, c->freeptr, c->freeptr - c->baseptr, c->total, c->free);
+        cnt += fprintheaderlist(out, c->freeptr);
+        cnt += fprintf(out, "\n");
+    }
+    return cnt;
 }
 
 // --------------------------- Common Utilities ----------------------------------------------
@@ -148,19 +175,30 @@ static void                *findmemory(int loc, unsigned bytes){
     return logerr( (void *) 0, "Unable to alloc %u units", nu);
 }
 
-static int                  fprintheader(FILE *restrict out, void *restrict p){
+static int                  fprintfreeheader(FILE *restrict out, const Header *restrict ph){
+    int     cnt = 0;
+    if (out)
+        cnt += fprintf(out, "FREE BLK: Pos %lu, size %u, ptr %p\t", ph - getlocationbaseptr(ph), ph->size, ph->freeptr);
+    return cnt;
+}
+
+static int                  printfreeheader(const Header * ph){
+    return fprintfreeheader(stdout, ph);
+}
+
+static int                  fprintheader(FILE *restrict out, const Header *restrict ph){
     int     cnt = 0;
     if (out){
-        const Header    *h = (Header *) p - 1;
+        const Header    *h = (Header *) ph - 1;
 #ifdef ALLOC_USE_NAME
         cnt += fprintf(out, "%s: ", h->name);      // not used for now
 #endif
-        cnt += fprintf(out, "Pos %lu, size %u, ptr %p\t", h - getlocationbaseptr(p), h->size, h->freeptr);
+        cnt += fprintf(out, "Pos %lu, size %u, ptr %p\t", h - getlocationbaseptr(ph), h->size, h->freeptr);
     }
     return cnt;
 }
 
-static inline int           printheader(void *p){
+static inline int           printheader(const Header *p){
     return fprintheader(stdout, p);
 }
 
@@ -184,9 +222,14 @@ void                         areset(void){
 }
 
 int                          atechfprint(FILE *restrict out){
-    for (int i = 0; i < g_ptr; i++){
-        printlocation(i);
+    int     cnt = 0;
+    if (out){
+        fprintf(out, "G_PTR = %d\n", g_ptr);
+        for (int i = 0; i < g_ptr; i++){
+            cnt += fprintlocation(out, i);
+        }
     }
+    return cnt;
 }
 
 // -------------------------------Testing --------------------------
@@ -208,13 +251,19 @@ tf1(const char *name)
     {
         char    *s1 = alloc(25);
         printf("sizeof(Header) %lu, Header * %lu, unsigned %lu, long %lu\n", sizeof(Header), sizeof(Header *), sizeof(unsigned), sizeof(long) );
-        printheader(s1); // print structure Header by s - 1
+        printheader((const Header *)s1); // print structure Header by s - 1
 
         char    *s2 = alloc(18);
-        printheader(s2);
+        printheader((const Header *)s2);
 
         char    *s3 = alloc(1);
-        printheader(s3);
+        printheader((const Header *)s3);
+
+        char    *s4 = alloc(111);
+        printheader((const Header *)s4);
+        fprintf(stdout, "\n");
+
+        atechfprint(stdout);
     }
     return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
