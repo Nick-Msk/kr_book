@@ -62,7 +62,6 @@ static Control          g_control[ARR_MAX_CNT] =
 
 // ------------------------------- Utilities -------------------------------------
 
-// --------------------------- Location API --------------------------------------
 
 #define                     foralllocs(iter) for (int iter = 0; i < ARR_MAX_CNT; i++)
 
@@ -70,6 +69,9 @@ static int                  fprintheader(FILE *restrict out, const Header *restr
 static inline int           printheader(const Header *p);
 static int                  fprintfreeheader(FILE *restrict out, const Header *restrict ph);
 static int                  printfreeheader(const Header * ph);
+static void                 init_control(int loc);
+
+// --------------------------- Location API --------------------------------------
 
 static Header              *getlastptr(int loc){
     invraise(loc >= 0 && loc < ARR_MAX_CNT, "Invalid location %d", loc);
@@ -155,9 +157,9 @@ static void                *findmemory(int loc, unsigned bytes){
     logauto(nu);
 
     if (g_ptr == loc){       // 1-st alloc this, need to format
-        // TODO: refactor that to init_control(loc)
-        g_control[g_ptr] = ControlInit(g_ptr);
-        initlocation(g_control[loc].baseptr, g_control[loc].total, 0x0);
+        init_control(loc);
+        /*g_control[g_ptr] = ControlInit(g_ptr);
+        initlocation(g_control[loc].baseptr, g_control[loc].total, 0x0);*/
         g_ptr++;
     }
 
@@ -215,6 +217,13 @@ static inline int           printheader(const Header *p){
     return fprintheader(stdout, p);
 }
 
+static void                 init_control(int loc){
+    invraise(loc >= 0 && loc < ARR_MAX_CNT, "Out of loc %d", loc);
+    g_control[loc] = ControlInit(loc);
+    // (re)init memory
+    initlocation(g_control[loc].baseptr, g_control[loc].total, 0x0);
+}
+
 // ------------------------------------- API -------------------------------------
 
 void                        *alloct(unsigned cnts, unsigned size){
@@ -233,12 +242,8 @@ void                        *alloc(unsigned bytes){
 }
 
 void                         areset(void){
-    for (int i = 0; i < g_ptr; i++){
-        // TODO: init_control(i)
-        g_control[i].freeptr = g_control[i].baseptr;
-        initlocation(g_control[i].baseptr, g_control[i].total, 0x0);
-        logauto(g_control[i].free = g_control[i].total - 1);
-    }
+    for (int i = 0; i < g_ptr; i++)
+        init_control(i);
     logsimple("Reset");
 }
 
@@ -259,7 +264,7 @@ unsigned                     acalcfreespace(void){
     for (int i = 0; i < g_ptr; i++){
         res += acalcfreespace_loc(i);
     }
-    return logsimpleret(res, "Caclucated %u", res); 
+    return logsimpleret(res, "Caclucated %u", res);
 }
 
 // -------------------------------Testing --------------------------
