@@ -43,7 +43,7 @@ static int              g_ptr =         0;  // pointer to current unallocated!
 
 #define                 CalcArrPtr(N) (Header *) g_arr + ARR_MAX_UNIT * (N)
 
-#define                 ControlInit(N) (Control) {.freeptr = CalcArrPtr(N), .baseptr = CalcArrPtr(N), .total = ARR_MAX_UNIT, .free = ARR_MAX_UNIT - 1 }
+#define                 ControlInit(N) (Control) {.freeptr = CalcArrPtr(N), .baseptr = CalcArrPtr(N), .total = ARR_MAX_UNIT, .free = ARR_MAX_UNIT }
 
 static Control          g_control[ARR_MAX_CNT] =
 {   ControlInit(0) };
@@ -95,7 +95,7 @@ static inline Header       *getlocfreeptr(const void *p){
 
 static void                 initlocation(Header *restrict ptr, unsigned sz, Header *restrict nextptr){
     invraise(ptr != 0 && sz > 1, "Invalid input %p, %u", ptr, sz);
-    *(Header *) ptr = HeaderInit(.freeptr = nextptr, .size = sz - 1);    // -1 for header
+    *(Header *) ptr = HeaderInit(.freeptr = nextptr, .size = sz);    // -1 for header upd: removed that rule
 }
 
 static inline bool          checklimitlocation(Header *ptr, int loc){
@@ -141,6 +141,17 @@ static unsigned             acalcfreespace_loc(int loc){
         res += ph->size;
     invraise(res == g_control[loc].free, "sum %u for %d must be equal total free %u", res, loc, g_control[loc].free);
     return logsimpleret(res, "%u for location %d", res, loc);
+}
+
+static bool                acheckstructure_loc(int loc){
+    invraise(loc >= 0 && loc < ARR_MAX_CNT, "Invalid location %d", loc);
+    // check p < p->next
+    int     i = 0;
+    for (const Header *p = locfreeptr(loc); p != 0x0; i++, p = p->freeptr){
+        if (p->freeptr != 0 && p > p->freeptr)    // violation
+            return logsimpleerr(false, "Violation loc %d on iter %d, %p > %p", loc, i, p, p->freeptr);
+    }
+    return logsimpleret(true, "Location %d ok", loc);
 }
 
 // --------------------------- Common Utilities ----------------------------------------------
@@ -266,18 +277,47 @@ unsigned                     acalcfreespace(void){
     return logsimpleret(res, "Caclucated %u", res);
 }
 
-void                         afree(void *p){
-    int         loc = getlocation(p);
-    Header     *hp, *prev = 0, *var = (Header *) p - 1;
-    for (hp = locbaseptr(loc); hp && hp < var; prev = hp, hp = hp->freeptr)
+void                         afree(void *pv){
+    invraise(pv != 0x0, "Null pointer p");
+
+    Header     *hp, *p = 0, *var = (Header *) pv - 1;
+    int         loc = getlocation(var);
+    unsigned    nu =  var->size;
+
+    for (hp = locbaseptr(loc); hp && hp < var; p = hp, hp = hp->freeptr)
         ;
-    logsimple("diff base %lu, diff prev %lu", locbaseptr(loc) - var, var - prev);
+    logsimple("diff base %lu, diff prev %lu, diff hp %lu", locbaseptr(loc) - var, var - p, hp - var);
     // TODO:!
+    if (var + var->size == hp->freeptr){    // up // hp > var
+        logsimple("up, bp.sz %u + p.sz %u", var->size, hp->freeptr->size);
+        var->size += hp->size;
+        var->freeptr = hp->freeptr;
+    } else
+        var->freeptr = hp;
+
+    logsimple("p.size %u, var-p %lu ", p->size, var - p);
+    if (p + p->size == var){  // down, p < var
+        logsimple("down, p.sz %u + bp.sz %u", p->size, var->size);
+        p->size += var->size;
+        p->freeptr = var->freeptr;
+    } else
+        p->freeptr = var;
+
+    updatelocation(loc, nu, false); // + nu to control
 }
 
+// sub
 unsigned                      agetallocatedsize(const void *p){
     const Header *h = p;
     return (--h)->size * sizeof(Header);
+}
+// sub
+bool                          acheckstructure(void){
+    bool res = true;
+    for (int i = 0; i < g_ptr; i++){
+        res &= acheckstructure_loc(i);
+    }
+    return logsimpleret(res, "Structure status %s", bool_str(res) );
 }
 
 // -------------------------------Testing --------------------------
@@ -316,7 +356,7 @@ tf1(const char *name)
         unsigned res_after = acalcfreespace(), totalalloc = agetallocatedsize(s1) / sizeof(Header) +
                                                             agetallocatedsize(s2) / sizeof(Header) +
                                                             agetallocatedsize(s3) / sizeof(Header) +
-                                                            agetallocatedsize(s4) / sizeof(Header) + 1;
+                                                            agetallocatedsize(s4) / sizeof(Header);
         logmsg("1 byte alloc: %lu", agetallocatedsize(s3) / sizeof(Header));
         logmsg("16 byte alloc: %lu", agetallocatedsize(s1) / sizeof(Header));
         test_validate(res_after == ARR_MAX_UNIT - totalalloc,
@@ -326,7 +366,7 @@ tf1(const char *name)
     {
         areset();
         unsigned res = acalcfreespace();
-        test_validate(res == ARR_MAX_UNIT - 1, "Must be %u after areset but not %u", ARR_MAX_UNIT - 1, res);
+        test_validate(res == ARR_MAX_UNIT, "Must be %u after areset but not %u", ARR_MAX_UNIT, res);
     }
     return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
@@ -345,7 +385,7 @@ tf2(const char *name)
         char    *s1 = alloc(ARR_MAX_BYTES + 1); // more that ARR_MAX_UNIT!
         test_validate(s1 == 0x0, "Must not be allocated! (actual %p)", s1);
         unsigned res_after = acalcfreespace();
-        test_validate(res_before * ARR_MAX_CNT == res_after, "%u * ARR_MAX_CNT must be equal %u (after failed alloc)", 
+        test_validate(res_before * ARR_MAX_CNT == res_after, "%u * ARR_MAX_CNT must be equal %u (after failed alloc)",
                 res_before * ARR_MAX_CNT, res_after);
     }
     return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
