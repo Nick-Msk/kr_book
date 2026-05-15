@@ -87,9 +87,22 @@ static int                 getlocation(const void *p){
     return logsimpleerr(-1, "Wrong pointer %p", p);
 }
 
-static inline Header       *getlocationbaseptr(const void *p){
+static inline Header       *locbaseptr(int loc){
+    return g_control[loc].baseptr;
+}
+
+static inline Header       *getlocbaseptr(const void *p){
     int loc = getlocation(p);
-    return loc >= 0 ? g_control[loc].baseptr : 0;
+    return loc >= 0 ? locbaseptr(loc) : 0;
+}
+
+static inline Header       *locfreeptr(int loc){
+    return g_control[loc].freeptr;
+}
+
+static inline Header       *getlocfreeptr(const void *p){
+    int loc = getlocation(p);
+    return loc >= 0 ? locfreeptr(loc) : 0;
 }
 
 static void                 initlocation(Header *restrict ptr, unsigned sz, Header *restrict nextptr){
@@ -158,8 +171,6 @@ static void                *findmemory(int loc, unsigned bytes){
 
     if (g_ptr == loc){       // 1-st alloc this, need to format
         init_control(loc);
-        /*g_control[g_ptr] = ControlInit(g_ptr);
-        initlocation(g_control[loc].baseptr, g_control[loc].total, 0x0);*/
         g_ptr++;
     }
 
@@ -193,7 +204,7 @@ static void                *findmemory(int loc, unsigned bytes){
 static int                  fprintfreeheader(FILE *restrict out, const Header *restrict ph){
     int     cnt = 0;
     if (out)
-        cnt += fprintf(out, "FREE BLK: Pos %lu, size %u, ptr %p\t", ph - getlocationbaseptr(ph), ph->size, ph->freeptr);
+        cnt += fprintf(out, "FREE BLK: Pos %lu, size %u, ptr %p\t", ph - getlocbaseptr(ph), ph->size, ph->freeptr);
     return cnt;
 }
 
@@ -208,7 +219,7 @@ static int                  fprintheader(FILE *restrict out, const Header *restr
 #ifdef ALLOC_USE_NAME
         cnt += fprintf(out, "%s: ", h->name);      // not used for now
 #endif
-        cnt += fprintf(out, "Pos %lu, size %u, ptr %p\t", h - getlocationbaseptr(ph), h->size, h->freeptr);
+        cnt += fprintf(out, "Pos %lu, size %u, ptr %p\t", h - getlocbaseptr(ph), h->size, h->freeptr);
     }
     return cnt;
 }
@@ -265,6 +276,15 @@ unsigned                     acalcfreespace(void){
         res += acalcfreespace_loc(i);
     }
     return logsimpleret(res, "Caclucated %u", res);
+}
+
+void                         afree(void *p){
+    int         loc = getlocation(p);
+    Header     *hp, *prev = 0, *var = (Header *) p - 1;
+    for (hp = locbaseptr(loc); hp && hp < var; prev = hp, hp = hp->freeptr)
+        ;
+    logsimple("diff base %lu, diff prev %lu", locbaseptr(loc) - var, var - prev);
+    
 }
 
 // -------------------------------Testing --------------------------
