@@ -280,15 +280,16 @@ unsigned                     acalcfreespace(void){
 void                         afree(void *pv){
     invraise(pv != 0x0, "Null pointer p");
 
-    Header     *hp, *p = 0, *var = (Header *) pv - 1;
-    int         loc = getlocation(var);
+    int         loc;
+    Header     *hp, *p = 0, *var = (Header *) pv - 1, *base = locbaseptr(loc = getlocation(var) );
     unsigned    nu =  var->size;
+    logsimple("loc %d, nu %u", loc, nu);
 
-    for (hp = locbaseptr(loc); hp && hp < var; p = hp, hp = hp->freeptr)
+    for (hp = base; hp && hp < var; p = hp, hp = hp->freeptr)
         ;
-    logsimple("diff base %lu, diff prev %lu, diff hp %lu", locbaseptr(loc) - var, var - p, hp - var);
+    logsimple("diff base %lu, diff prev %lu, diff hp %lu", var - base, var - p, hp ? hp - var : 0);
     // TODO:!
-    if (var + var->size == hp->freeptr){    // up // hp > var
+    if (hp != 0 && var + var->size == hp->freeptr){    // up // hp > var || hr = 0
         logsimple("up, bp.sz %u + p.sz %u", var->size, hp->freeptr->size);
         var->size += hp->size;
         var->freeptr = hp->freeptr;
@@ -351,7 +352,7 @@ tf1(const char *name)
         printheader((const Header *)s4);
         fprintf(stdout, "\n");
 
-        atechfprint(stdout);
+        atechfprint(logfile);
 
         unsigned res_after = acalcfreespace(), totalalloc = agetallocatedsize(s1) / sizeof(Header) +
                                                             agetallocatedsize(s2) / sizeof(Header) +
@@ -361,6 +362,8 @@ tf1(const char *name)
         logmsg("16 byte alloc: %lu", agetallocatedsize(s1) / sizeof(Header));
         test_validate(res_after == ARR_MAX_UNIT - totalalloc,
                 "Free space %u Must be equal %u", res_after, ARR_MAX_UNIT - totalalloc);
+
+        test_validatefree(acheckstructure(), areset(), "Validation vailed");
     }
     test_sub("subtest %d: reset", ++subnum);
     {
@@ -387,6 +390,30 @@ tf2(const char *name)
         unsigned res_after = acalcfreespace();
         test_validate(res_before * ARR_MAX_CNT == res_after, "%u * ARR_MAX_CNT must be equal %u (after failed alloc)",
                 res_before * ARR_MAX_CNT, res_after);
+        areset();
+    }
+    return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
+// ------------------------- TEST 3 ---------------------------------
+
+static TestStatus
+tf3(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: alloc + afree simple", ++subnum);
+    {
+        char *s = alloc(123);
+        test_validatefree(acheckstructure(), areset(), "Validation vailed");
+        afree(s);
+        atechfprint(logfile);
+        logauto(acalcfreespace() );
+
+        test_validatefree(acheckstructure(), areset(), "Validation vailed");
+
+        areset();
     }
     return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
@@ -398,8 +425,9 @@ main( /* int argc, const char *argv[] */)
     logsimpleinit("Start");
 
     testenginestd(
-        testnew(.f2 = tf1,  .num =  1, .name = "Simple init and validate test"              , .desc=""                , .mandatory=true)
+        testnew(.f2 = tf1,  .num =  1, .name = "Simple alloc and validate test"              , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf2,  .num =  2, .name = "Allocate too much test"                     , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf3,  .num =  3, .name = "Simple "                     , .desc=""                , .mandatory=true)
     );
     return logret(0, "end...");  // as replace of logclose()
 }
