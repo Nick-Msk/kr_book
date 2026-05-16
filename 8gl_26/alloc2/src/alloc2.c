@@ -67,7 +67,7 @@ static Header              *getlastptr(int loc){
 }
 
 // actually it's possible to binary_search here!
-static int                 getlocation(const void *p){
+static int                 findlocation(const void *p){
     const Header *h = p;
     for (int i = 0; i < ARR_MAX_CNT; i++)
         if (h >= g_control[i].baseptr && h < getlastptr(i) )  // found!
@@ -80,7 +80,7 @@ static inline Header       *locbaseptr(int loc){
 }
 
 static inline Header       *getlocbaseptr(const void *p){
-    int loc = getlocation(p);
+    int loc = findlocation(p);
     return loc >= 0 ? locbaseptr(loc) : 0;
 }
 
@@ -89,8 +89,26 @@ static inline Header       *locfreeptr(int loc){
 }
 
 static inline Header       *getlocfreeptr(const void *p){
-    int loc = getlocation(p);
+    int loc = findlocation(p);
     return loc >= 0 ? locfreeptr(loc) : 0;
+}
+
+static inline unsigned     locsize(int loc){
+    return g_control[loc].free;
+}
+
+static inline unsigned     getlocfree(const void *p){
+    int loc = findlocation(p);
+    return loc >= 0 ? locsize(loc) : -1;
+}
+
+static inline unsigned     loctotal(int loc){
+    return g_control[loc].total;
+}
+
+static inline unsigned     getloctotal(const void *p){
+    int loc = findlocation(p);
+    return loc >= 0 ? loctotal(loc) : -1;
 }
 
 static void                 initlocation(Header *restrict ptr, unsigned sz, Header *restrict nextptr){
@@ -146,10 +164,13 @@ static unsigned             acalcfreespace_loc(int loc){
 static bool                acheckstructure_loc(int loc){
     invraise(loc >= 0 && loc < ARR_MAX_CNT, "Invalid location %d", loc);
     // check p < p->next
-    int     i = 0;
-    for (const Header *p = locfreeptr(loc); p != 0x0; i++, p = p->freeptr){
+    int             i = 0;
+    const Header   *p, *prev = 0;
+    for (p = locfreeptr(loc); p != 0x0; i++, prev = p, p = p->freeptr){
         if (p->freeptr != 0 && p > p->freeptr)    // violation
             return logsimpleerr(false, "Violation loc %d on iter %d, %p > %p", loc, i, p, p->freeptr);
+        if (prev && prev->freeptr == p) // that should NOT be!
+            return logsimpleerr(false, "Violation loc %d on iter %d, %p ->freepre == %p", loc, i, prev, p); 
     }
     return logsimpleret(true, "Location %d ok", loc);
 }
@@ -203,7 +224,7 @@ static void                *findmemory(int loc, unsigned bytes){
 static int                  fprintfreeheader(FILE *restrict out, const Header *restrict ph){
     int     cnt = 0;
     if (out)
-        cnt += fprintf(out, "FREE BLK: Pos %lu, size %u, ptr %p\t", ph - getlocbaseptr(ph), ph->size, ph->freeptr);
+        cnt += fprintf(out, "FREE BLK: %p  Pos %lu, size %u, ptr %p\t", ph, ph - getlocbaseptr(ph), ph->size, ph->freeptr);
     return cnt;
 }
 
@@ -281,7 +302,7 @@ void                         afree(void *pv){
     invraise(pv != 0x0, "Null pointer p");
 
     int         loc;
-    Header     *hp, *p = 0, *var = (Header *) pv - 1, *base = locbaseptr(loc = getlocation(var) );
+    Header     *hp, *p = 0, *var = (Header *) pv - 1, *base = locbaseptr(loc = findlocation(var) );
     unsigned    nu =  var->size;
     logsimple("loc %d, nu %u", loc, nu);
 
@@ -410,7 +431,6 @@ tf3(const char *name)
         test_validatefree(acheckstructure(), areset(), "Validation vailed");
         afree(s);
         atechfprint(logfile);
-        logauto(acalcfreespace() );
 
         unsigned res =  acalcfreespace();
         test_validatefree(res == ARR_MAX_UNIT,  areset(), "free = %u units, but must be %u", res, ARR_MAX_UNIT);
@@ -420,7 +440,38 @@ tf3(const char *name)
     }
     test_sub("subtest %d: alloc + afree simple", ++subnum);
     {
+        char *s1 = alloc(444);
+        char *s2 = alloc(13);
+        char *s3 = alloc(188);
+        // try to free
+        afree(s1);
+        atechfprint(logfile);
 
+        unsigned res =  acalcfreespace();
+        unsigned total_alloc = (agetallocatedsize(s2) + agetallocatedsize(s3) ) / sizeof(Header);
+
+        test_validatefree(res == getloctotal(s2) - total_alloc,  areset(),
+                "after free s1 free = %u units, but must be %u", res, getloctotal(s2) - total_alloc);
+        test_validatefree(res == getlocfree(s2), areset(),
+                "Total size of free units %u must be equal to control free size %u", res, getlocfree(s2) );
+
+        //
+        afree(s2);
+        atechfprint(logfile);
+
+        test_validatefree(acheckstructure(), areset(), "Validation vailed after free s2");
+        total_alloc = ( agetallocatedsize(s3) ) / sizeof(Header);
+
+        res =  acalcfreespace();
+
+        test_validatefree(res == getloctotal(s2) - total_alloc,  areset(),
+                "after free s2&&s1 free = %u units, but must be %u", res, getloctotal(s2) - total_alloc);
+        test_validatefree(res == getlocfree(s3), areset(),
+                "Total size of free units %u must be equal to control free size %u", res, getlocfree(s3) );
+
+        areset();
+        res =  acalcfreespace();
+        test_validate(res == ARR_MAX_UNIT, "after areset free = %u units, but must be %u", res, ARR_MAX_UNIT);
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
