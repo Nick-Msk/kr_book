@@ -160,13 +160,13 @@ static unsigned             acalcfreespace_loc(int loc){
     invraise(res == g_control[loc].free, "sum %u for %d must be equal total free %u", res, loc, g_control[loc].free);
     return logsimpleret(res, "%u for location %d", res, loc);
 }
-
+// some validity tests
 static bool                acheckstructure_loc(int loc){
     invraise(loc >= 0 && loc < ARR_MAX_CNT, "Invalid location %d", loc);
-    // check p < p->next
     int             i = 0;
     const Header   *p, *prev = 0;
     for (p = locfreeptr(loc); p != 0x0; i++, prev = p, p = p->freeptr){
+        // check p < p->next
         if (p->freeptr != 0 && p > p->freeptr)    // violation
             return logsimpleerr(false, "Violation loc %d on iter %d, %p > %p", loc, i, p, p->freeptr);
         if (prev && prev->freeptr == p) // that should NOT be!
@@ -309,7 +309,7 @@ void                         afree(void *pv){
     for (hp = base; hp && hp < var; p = hp, hp = hp->freeptr)
         ;
     logsimple("diff base %lu, diff prev %lu, diff hp %lu", var - base, var - p, hp ? hp - var : 0);
-    // TODO:!
+
     if (hp != 0 && var + var->size == hp->freeptr){    // up // hp > var || hr = 0
         logsimple("up, bp.sz %u + p.sz %u", var->size, hp->freeptr->size);
         var->size += hp->size;
