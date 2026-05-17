@@ -642,6 +642,23 @@ tf4(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
+// ------------------------- TEST 5 ---------------------------------
+
+static TestStatus
+tf5(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: mass alloc + afree + value", ++subnum);
+    {
+        int     sz = 1000;
+        Array   arr = PArray_create(sz, ARRAY_ZERO);
+    }
+    areset();
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -653,6 +670,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf2,  .num =  2, .name = "Allocate too much test"                     , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf3,  .num =  3, .name = "Complex alloc + free test"                  , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf4,  .num =  4, .name = "Value alloc + free test"                    , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf5,  .num =  5, .name = "Mass random test"                           , .desc=""                , .mandatory=true)
     );
     return logret(0, "end...");  // as replace of logclose()
 }
