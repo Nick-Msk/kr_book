@@ -93,13 +93,13 @@ static inline Header       *getlocfreeptr(const void *p){
     return loc >= 0 ? locfreeptr(loc) : 0;
 }
 
-static inline unsigned     locsize(int loc){
+static inline unsigned     locfree(int loc){
     return g_control[loc].free;
 }
 
 static inline unsigned     getlocfree(const void *p){
     int loc = findlocation(p);
-    return loc >= 0 ? locsize(loc) : -1;
+    return loc >= 0 ? locfree(loc) : -1;
 }
 
 static inline unsigned     loctotal(int loc){
@@ -422,6 +422,41 @@ tf2(const char *name)
 
 // ------------------------- TEST 3 ---------------------------------
 
+typedef struct t_alloc {
+    char        *s;
+    int          sz;
+} t_alloc;
+
+#define CHECK_ALLOCATION(STAGE, ...) { t_alloc *val =(t_alloc []) { __VA_ARGS__, { 0x0, -1} };\
+                                t_alloc *iter = val;\
+                                int      loc = findlocation(val->s);\
+                                unsigned total_alloc = 0U;\
+                                unsigned free_blks = acalcfreespace_loc(loc);\
+                                unsigned total = loctotal(loc);\
+                                while (iter->s){\
+                                    unsigned curr_alloc = agetallocatedsize(iter->s);\
+                                    total_alloc += curr_alloc;\
+                                    test_validatefree(iter->sz + 2 * sizeof(Header) >= curr_alloc && curr_alloc >= iter->sz + sizeof(Header)\
+                                            , areset()\
+                                            , "Allocated value %u must not be more that %lu of requested value %u"\
+                                            , curr_alloc, sizeof(Header), iter->sz);\
+                                    iter++;\
+                                }\
+                                total_alloc /= sizeof(Header);\
+                                test_validatefree(acheckstructure(), areset(), "Validation vailed after " STAGE);\
+                                test_validatefree(free_blks == total - total_alloc,  areset(),\
+                                    STAGE " free = %u units, but must be %u", free_blks, total - total_alloc);\
+                                test_validatefree(free_blks == locfree(loc), areset(),\
+                                    STAGE "Total size of free units %u must be equal to control free size %u", free_blks, locfree(loc) );\
+}
+
+#define TVAR(a, b) (t_alloc) {.s = a, .sz = b }
+
+// only for partial case!
+#define CHECK_ALLOC_RESET(){ areset();\
+        unsigned res =  acalcfreespace();\
+        test_validate(res == ARR_MAX_UNIT, "after areset free = %u units, but must be %u", res, ARR_MAX_UNIT); }\
+
 static TestStatus
 tf3(const char *name)
 {
@@ -446,6 +481,9 @@ tf3(const char *name)
         char *s1 = alloc(444);
         char *s2 = alloc(13);
         char *s3 = alloc(188);
+
+        test_validate(s1 && s2 && s3, "Fail to allocate %p, %p, %p", s1, s2, s3);
+
         // try to free
         afree(s1);
         atechfprint(logfile);
@@ -472,9 +510,41 @@ tf3(const char *name)
         test_validatefree(res == getlocfree(s3), areset(),
                 "Total size of free units %u must be equal to control free size %u", res, getlocfree(s3) );
 
-        areset();
-        res =  acalcfreespace();
-        test_validate(res == ARR_MAX_UNIT, "after areset free = %u units, but must be %u", res, ARR_MAX_UNIT);
+        CHECK_ALLOC_RESET();
+    }
+    test_sub("subtest %d: alloc + afree simple II", ++subnum);
+    {
+        int         sz1 = 444, sz2 = 13, sz3 = 188, sz4 = 17, sz5 = 210;
+        char       *s1 = alloc(sz1);
+        char       *s2 = alloc(sz2);
+        char       *s3 = alloc(sz3);
+        char       *s4 = alloc(sz4);
+        char       *s5 = alloc(sz5);
+
+        test_validate(s1 && s2 && s3 && s4 && s5, "Fail to allocate %p, %p, %p, %p, %p", 
+                        s1, s2, s3, s4, s5);
+
+        // try to free
+        afree(s2);
+        atechfprint(logfile);
+        CHECK_ALLOCATION("After free s2", TVAR(s1, sz1), TVAR(s3, sz3), TVAR(s4, sz4), TVAR(s5, sz5) );
+
+        afree(s4);
+        atechfprint(logfile);
+        CHECK_ALLOCATION("After free s4", TVAR(s1, sz1), TVAR(s3, sz3), TVAR(s5, sz5) );
+
+        afree(s1);
+        atechfprint(logfile);
+        CHECK_ALLOCATION("After free s1", TVAR(s3, sz3), TVAR(s5, sz5) );
+
+        afree(s5);
+        atechfprint(logfile);
+        CHECK_ALLOCATION("After free s5", TVAR(s3, sz3) );
+
+        afree(s3);
+        atechfprint(logfile);
+
+        CHECK_ALLOC_RESET();    // exec areset() here
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
