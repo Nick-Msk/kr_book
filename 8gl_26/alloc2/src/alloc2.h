@@ -2,6 +2,7 @@
 #define _ALLOC2_H
 
 #include <stdio.h>
+#include "bool.h"
 
 extern void                        *alloc(unsigned bytes);
 extern void                        *alloct(unsigned cnts, unsigned size);
@@ -10,6 +11,7 @@ extern int                          atechfprint(FILE *restrict out);
 extern unsigned                     acalcfreespace(void);
 extern void                         areset(void);
 extern unsigned                     agetallocatedsize(const void *p);
+extern bool                         acheckstructure(void);
 
 #define                             afprint(out, fmt, ...) {\
                                         if (out) fprintf( (out), (fmt), ##__VA_ARGS__);\
