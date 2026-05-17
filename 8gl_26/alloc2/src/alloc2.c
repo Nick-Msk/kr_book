@@ -359,6 +359,52 @@ typedef struct t_alloc {
     int          sz;
 } t_alloc;
 
+static TestStatus                   check_allocation_loc(int loc, Array arr, const char *stage){
+    logenter("loc %d", loc);
+    unsigned total_alloc = 0U;
+    unsigned free_blks = acalcfreespace_loc(loc);
+    unsigned total = loctotal(loc);
+    for (int i = 0; i < Arraylen(arr) && arr.pv[i] != 0; i++){
+        unsigned curr_alloc = agetallocatedsize(arr.pv[i]);
+        total_alloc += curr_alloc;
+        // impossible to do for now TODO: think
+        /*test_validatefree(iter->sz + 2 * sizeof(Header) >= curr_alloc && curr_alloc >= iter->sz + sizeof(Header)
+                                            , areset(), "Allocated value %u must not be more that %lu of requested value %u"
+                                            , curr_alloc, sizeof(Header), iter->sz);*/
+    }
+    total_alloc /= sizeof(Header);
+    test_validatefree(acheckstructure(), areset(), "Validation vailed for %s", stage);
+    test_validatefree(free_blks == total - total_alloc,  areset(),
+                                    "%s: free = %u units, but must be %u", stage, free_blks, total - total_alloc);
+                                test_validatefree(free_blks == locfree(loc), areset(),
+                                    "%s: Total size of free units %u must be equal to control free size %u", stage, free_blks, locfree(loc) );
+    return logret(TEST_PASSED, "Passed");
+}
+
+static TestStatus                   check_allocation(Array arr, const char *stage){
+    // split by location (max 12 fow now)
+    Array   loc_arr[ARR_MAX_CNT]; // for each location
+    int     pos[ARR_MAX_CNT];
+    // init each of array's
+    for (int i = 0; i < ARR_MAX_CNT; i++)       // non-optimized version!
+        loc_arr[i] = PArray_create(Arraylen(arr), ARRAY_ZERO), pos[i] = 0;
+
+    for (int i = 0; i < Arraylen(arr); i++)
+        if (arr.pv[i] != 0){
+            int loc = findlocation(arr.pv[i]);
+            loc_arr[loc].pv[ pos[loc]++ ] = arr.pv[i];
+        }
+    for (int i = 0; i < ARR_MAX_CNT; i++)
+        logsimple("Before checking: for loc %d found %d", i, pos[i]);
+    // now exec checking for EVERY location
+    for (int i = 0; i < ARR_MAX_CNT; i++)
+        check_allocation_loc(i, loc_arr[i], stage);
+    // release
+    for (int i = 0; i < ARR_MAX_CNT; i++)
+        Arrayfree(loc_arr[i]);
+    return logsimpleret(TEST_PASSED, "Ok");
+}
+
 #define CHECK_ALLOCATION(STAGE, ...) { t_alloc *val =(t_alloc []) { __VA_ARGS__, { 0x0, -1} };\
                                 t_alloc *iter = val;\
                                 int      loc = findlocation(val->s);\
@@ -564,11 +610,10 @@ tf4(const char *name)
         }
         logmsg("alloc done");
         test_validatefree(acheckstructure(), areset(), "Validation vailed after allocation");
+
         // free some memory
         FREEPOS(5, 7);
-        /*afree(arr.pv[5]); 
-        afree(arr.pv[7]);*/
-        test_validatefree(acheckstructure(), areset(), "Validation vailed after free 5 and 7");
+        check_allocation(arr, "after free 5 and 7");
 
         // check the values
         for (int i = 0; i < Arraylen(arr); i++){
@@ -581,9 +626,7 @@ tf4(const char *name)
 
         // free some memory
         FREEPOS(1, 9);
-        /*afree(arr.pv[1]);
-        afree(arr.pv[9]);*/
-        test_validatefree(acheckstructure(), areset(), "Validation vailed after free 1 and 9");
+        check_allocation(arr, "after free 1 and 9");
 
         // check the values
         for (int i = 0; i < Arraylen(arr); i++){
