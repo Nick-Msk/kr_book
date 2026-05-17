@@ -13,7 +13,7 @@ lib/alloc2.o: src/alloc2.c
 	$(CC) $(CFLAGS) -I./src  $^ -c
 	@mv alloc2.o lib/
 
-alloc2: src/alloc2.c lib/log.o lib/common.o lib/error.o lib/checker.o lib/common.o lib/test.o
+alloc2: src/alloc2.c lib/log.o lib/common.o lib/error.o lib/checker.o lib/common.o lib/test.o lib/array.o
 	$(CC) $(CFLAGS) -DALLOC2TESTING $^ -o out/$@_test
 
 UTIL_PATH = ../../utils

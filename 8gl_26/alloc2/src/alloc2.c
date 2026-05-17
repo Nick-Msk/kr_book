@@ -275,6 +275,7 @@ void                        *alloc(unsigned bytes){
 void                         areset(void){
     for (int i = 0; i < g_ptr; i++)
         init_control(i);
+    //g_ptr = 0;  // as init
     logsimple("Reset");
 }
 
@@ -349,6 +350,7 @@ bool                          acheckstructure(void){
 #ifdef ALLOC2TESTING
 
 #include "test.h"
+#include "array.h"
 
 //types for testing
 
@@ -457,7 +459,6 @@ tf2(const char *name)
 
 // ------------------------- TEST 3 ---------------------------------
 
-
 static TestStatus
 tf3(const char *name)
 {
@@ -536,6 +537,58 @@ tf3(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
+// ------------------------- TEST 4 ---------------------------------
+
+static TestStatus
+tf4(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: alloc + afree value", ++subnum);
+    {
+        Array arr = PArray_create(10, ARRAY_ZERO);
+        for (int i = 0; i < Arraylen(arr); i++){
+            int     sz = (i + 1) * sizeof(Header);
+            arr.pv[i] = alloc(sz);
+            test_validate(arr.pv[i], "Unable to allocate %d %d", i, sz);
+            snprintf(arr.pv[i], sz - 1, "val [%d]", i);
+        }
+        logmsg("alloc done");
+        test_validatefree(acheckstructure(), areset(), "Validation vailed after allocation");
+        // free some memory
+        afree(arr.pv[5]);
+        afree(arr.pv[7]);
+        test_validatefree(acheckstructure(), areset(), "Validation vailed after free 5 and 7");
+
+        // check the values
+        for (int i = 0; i < Arraylen(arr); i++){
+            if (arr.pv[i]){
+                char buf[100];
+                snprintf(buf, sizeof(buf) - 1, "val [%d]", i);
+                test_validatefree(strcmp(buf, arr.pv[i]) == 0, (Arrayfree(arr), areset() ), "str %d equal [%s], but must be [%s]", i, buf, (const char *) arr.pv[i] );
+            }
+        }
+
+        // free some memory
+        afree(arr.pv[1]);
+        afree(arr.pv[9]);
+        test_validatefree(acheckstructure(), areset(), "Validation vailed after free 1 and 9");
+
+        // check the values
+        for (int i = 0; i < Arraylen(arr); i++){
+            if (arr.pv[i]){
+                char buf[100];
+                snprintf(buf, sizeof(buf) - 1, "val [%d]", i);
+                test_validatefree(strcmp(buf, arr.pv[i]) == 0,(Arrayfree(arr), areset() ), "str %d equal [%s], but must be [%s]", i, buf, (const char *) arr.pv[i] );
+            }
+        }
+
+        CHECK_ALLOC_RESET();    // exec areset() here
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -545,7 +598,8 @@ main( /* int argc, const char *argv[] */)
     testenginestd(
         testnew(.f2 = tf1,  .num =  1, .name = "Simple alloc and validate test"             , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf2,  .num =  2, .name = "Allocate too much test"                     , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf3,  .num =  3, .name = "Simple "                                    , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf3,  .num =  3, .name = "Complex alloc + free test"                  , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf4,  .num =  4, .name = "Value alloc + free test"                    , .desc=""                , .mandatory=true)
     );
     return logret(0, "end...");  // as replace of logclose()
 }
