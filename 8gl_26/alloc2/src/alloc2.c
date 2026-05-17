@@ -389,6 +389,14 @@ typedef struct t_alloc {
         unsigned res =  acalcfreespace();\
         test_validate(res == ARR_MAX_UNIT, "after areset free = %u units, but must be %u", res, ARR_MAX_UNIT); }
 
+
+#define FREEPOS(...) { const int *_tmp = (const int []) { __VA_ARGS__, -1 };\
+                       while (*_tmp != -1){\
+                             afree(arr.pv[*_tmp]); arr.pv[*_tmp] = 0x0; _tmp++;\
+                       }\
+                     }
+
+
 // ------------------------- TEST 1 ---------------------------------
 
 static TestStatus
@@ -557,8 +565,9 @@ tf4(const char *name)
         logmsg("alloc done");
         test_validatefree(acheckstructure(), areset(), "Validation vailed after allocation");
         // free some memory
-        afree(arr.pv[5]);
-        afree(arr.pv[7]);
+        FREEPOS(5, 7);
+        /*afree(arr.pv[5]); 
+        afree(arr.pv[7]);*/
         test_validatefree(acheckstructure(), areset(), "Validation vailed after free 5 and 7");
 
         // check the values
@@ -571,8 +580,9 @@ tf4(const char *name)
         }
 
         // free some memory
-        afree(arr.pv[1]);
-        afree(arr.pv[9]);
+        FREEPOS(1, 9);
+        /*afree(arr.pv[1]);
+        afree(arr.pv[9]);*/
         test_validatefree(acheckstructure(), areset(), "Validation vailed after free 1 and 9");
 
         // check the values
