@@ -352,6 +352,41 @@ bool                          acheckstructure(void){
 
 //types for testing
 
+typedef struct t_alloc {
+    char        *s;
+    int          sz;
+} t_alloc;
+
+#define CHECK_ALLOCATION(STAGE, ...) { t_alloc *val =(t_alloc []) { __VA_ARGS__, { 0x0, -1} };\
+                                t_alloc *iter = val;\
+                                int      loc = findlocation(val->s);\
+                                unsigned total_alloc = 0U;\
+                                unsigned free_blks = acalcfreespace_loc(loc);\
+                                unsigned total = loctotal(loc);\
+                                while (iter->s){\
+                                    unsigned curr_alloc = agetallocatedsize(iter->s);\
+                                    total_alloc += curr_alloc;\
+                                    test_validatefree(iter->sz + 2 * sizeof(Header) >= curr_alloc && curr_alloc >= iter->sz + sizeof(Header)\
+                                            , areset()\
+                                            , "Allocated value %u must not be more that %lu of requested value %u"\
+                                            , curr_alloc, sizeof(Header), iter->sz);\
+                                    iter++;\
+                                }\
+                                total_alloc /= sizeof(Header);\
+                                test_validatefree(acheckstructure(), areset(), "Validation vailed after " STAGE);\
+                                test_validatefree(free_blks == total - total_alloc,  areset(),\
+                                    STAGE " free = %u units, but must be %u", free_blks, total - total_alloc);\
+                                test_validatefree(free_blks == locfree(loc), areset(),\
+                                    STAGE "Total size of free units %u must be equal to control free size %u", free_blks, locfree(loc) );\
+}
+
+#define TVAR(a, b) (t_alloc) {.s = a, .sz = b }
+
+// only for partial case!
+#define CHECK_ALLOC_RESET(){ areset();\
+        unsigned res =  acalcfreespace();\
+        test_validate(res == ARR_MAX_UNIT, "after areset free = %u units, but must be %u", res, ARR_MAX_UNIT); }
+
 // ------------------------- TEST 1 ---------------------------------
 
 static TestStatus
@@ -422,40 +457,6 @@ tf2(const char *name)
 
 // ------------------------- TEST 3 ---------------------------------
 
-typedef struct t_alloc {
-    char        *s;
-    int          sz;
-} t_alloc;
-
-#define CHECK_ALLOCATION(STAGE, ...) { t_alloc *val =(t_alloc []) { __VA_ARGS__, { 0x0, -1} };\
-                                t_alloc *iter = val;\
-                                int      loc = findlocation(val->s);\
-                                unsigned total_alloc = 0U;\
-                                unsigned free_blks = acalcfreespace_loc(loc);\
-                                unsigned total = loctotal(loc);\
-                                while (iter->s){\
-                                    unsigned curr_alloc = agetallocatedsize(iter->s);\
-                                    total_alloc += curr_alloc;\
-                                    test_validatefree(iter->sz + 2 * sizeof(Header) >= curr_alloc && curr_alloc >= iter->sz + sizeof(Header)\
-                                            , areset()\
-                                            , "Allocated value %u must not be more that %lu of requested value %u"\
-                                            , curr_alloc, sizeof(Header), iter->sz);\
-                                    iter++;\
-                                }\
-                                total_alloc /= sizeof(Header);\
-                                test_validatefree(acheckstructure(), areset(), "Validation vailed after " STAGE);\
-                                test_validatefree(free_blks == total - total_alloc,  areset(),\
-                                    STAGE " free = %u units, but must be %u", free_blks, total - total_alloc);\
-                                test_validatefree(free_blks == locfree(loc), areset(),\
-                                    STAGE "Total size of free units %u must be equal to control free size %u", free_blks, locfree(loc) );\
-}
-
-#define TVAR(a, b) (t_alloc) {.s = a, .sz = b }
-
-// only for partial case!
-#define CHECK_ALLOC_RESET(){ areset();\
-        unsigned res =  acalcfreespace();\
-        test_validate(res == ARR_MAX_UNIT, "after areset free = %u units, but must be %u", res, ARR_MAX_UNIT); }\
 
 static TestStatus
 tf3(const char *name)
@@ -478,28 +479,33 @@ tf3(const char *name)
     }
     test_sub("subtest %d: alloc + afree simple", ++subnum);
     {
-        char *s1 = alloc(444);
-        char *s2 = alloc(13);
-        char *s3 = alloc(188);
+        int         sz1 = 444, sz2 = 13, sz3 = 188;
+        char       *s1 = alloc(sz1);
+        char       *s2 = alloc(sz2);
+        char       *s3 = alloc(sz3);
 
         test_validate(s1 && s2 && s3, "Fail to allocate %p, %p, %p", s1, s2, s3);
 
         // try to free
         afree(s1);
         atechfprint(logfile);
+        CHECK_ALLOCATION("After free s1", TVAR(s2, sz2), TVAR(s3, sz3) );
 
+        /*
         unsigned res =  acalcfreespace();
         unsigned total_alloc = (agetallocatedsize(s2) + agetallocatedsize(s3) ) / sizeof(Header);
 
         test_validatefree(res == getloctotal(s2) - total_alloc,  areset(),
                 "after free s1 free = %u units, but must be %u", res, getloctotal(s2) - total_alloc);
         test_validatefree(res == getlocfree(s2), areset(),
-                "Total size of free units %u must be equal to control free size %u", res, getlocfree(s2) );
+                "Total size of free units %u must be equal to control free size %u", res, getlocfree(s2) ); */
 
         //
         afree(s2);
         atechfprint(logfile);
+        CHECK_ALLOCATION("After free s2", TVAR(s3, sz3) );
 
+        /*
         test_validatefree(acheckstructure(), areset(), "Validation vailed after free s2");
         total_alloc = ( agetallocatedsize(s3) ) / sizeof(Header);
 
@@ -508,7 +514,7 @@ tf3(const char *name)
         test_validatefree(res == getloctotal(s2) - total_alloc,  areset(),
                 "after free s2&&s1 free = %u units, but must be %u", res, getloctotal(s2) - total_alloc);
         test_validatefree(res == getlocfree(s3), areset(),
-                "Total size of free units %u must be equal to control free size %u", res, getlocfree(s3) );
+                "Total size of free units %u must be equal to control free size %u", res, getlocfree(s3) ); */
 
         CHECK_ALLOC_RESET();
     }
