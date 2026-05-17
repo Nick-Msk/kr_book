@@ -168,9 +168,9 @@ static bool                acheckstructure_loc(int loc){
     for (p = locfreeptr(loc); p != 0x0; i++, prev = p, p = p->freeptr){
         // check p < p->next
         if (p->freeptr != 0 && p > p->freeptr)    // violation
-            return logsimpleerr(false, "Violation loc %d on iter %d, %p > %p", loc, i, p, p->freeptr);
-        if (prev && prev->freeptr == p) // that should NOT be!
-            return logsimpleerr(false, "Violation loc %d on iter %d, %p ->freepre == %p", loc, i, prev, p); 
+            return logsimpleerr(false, "I. Reordered oointer violation loc %d on iter %d, %p > %p", loc, i, p, p->freeptr);
+        if (prev && prev + prev->size == p) // that should NOT be!
+            return logsimpleerr(false, "II. Neighbors free blocks violation loc %d on iter %d, %p ->freepre == %p", loc, i, prev, p); 
     }
     return logsimpleret(true, "Location %d ok", loc);
 }
@@ -308,22 +308,25 @@ void                         afree(void *pv){
 
     for (hp = base; hp && hp < var; p = hp, hp = hp->freeptr)
         ;
-    logsimple("diff base %lu, diff prev %lu, diff hp %lu", var - base, var - p, hp ? hp - var : 0);
+    logsimple("diff base %lu, diff prev %lu, diff hp %lu", var - base, var - p, p->freeptr - var);
 
-    if (hp != 0 && var + var->size == hp->freeptr){    // up // hp > var || hr = 0
-        logsimple("up, bp.sz %u + p.sz %u", var->size, hp->freeptr->size);
-        var->size += hp->size;
-        var->freeptr = hp->freeptr;
+    if (var + var->size == p->freeptr){    // up // p->freeptr > var
+        logsimple("up, bp.sz %u + next p.sz %u", var->size, p->freeptr->size);
+        var->size += p->freeptr->size;
+        var->freeptr = p->freeptr->freeptr;
     } else
-        var->freeptr = hp;
+        var->freeptr = p->freeptr;
 
-    logsimple("p.size %u, var-p %lu ", p->size, var - p);
+    logsimple("p.size %u, var - p %lu ", p->size, var - p);
     if (p + p->size == var){  // down, p < var
         logsimple("down, p.sz %u + bp.sz %u", p->size, var->size);
         p->size += var->size;
         p->freeptr = var->freeptr;
-    } else
+    } else {
+        logsimple("before %p", p->freeptr);
         p->freeptr = var;
+        logsimple("after remap to var %p", p->freeptr);
+    }
 
     updatelocation(loc, nu, false); // + nu to control
 }
@@ -483,9 +486,9 @@ main( /* int argc, const char *argv[] */)
     logsimpleinit("Start");
 
     testenginestd(
-        testnew(.f2 = tf1,  .num =  1, .name = "Simple alloc and validate test"              , .desc=""                , .mandatory=true)
+        testnew(.f2 = tf1,  .num =  1, .name = "Simple alloc and validate test"             , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf2,  .num =  2, .name = "Allocate too much test"                     , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf3,  .num =  3, .name = "Simple "                     , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf3,  .num =  3, .name = "Simple "                                    , .desc=""                , .mandatory=true)
     );
     return logret(0, "end...");  // as replace of logclose()
 }
