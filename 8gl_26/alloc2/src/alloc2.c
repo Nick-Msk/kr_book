@@ -491,30 +491,10 @@ tf3(const char *name)
         atechfprint(logfile);
         CHECK_ALLOCATION("After free s1", TVAR(s2, sz2), TVAR(s3, sz3) );
 
-        /*
-        unsigned res =  acalcfreespace();
-        unsigned total_alloc = (agetallocatedsize(s2) + agetallocatedsize(s3) ) / sizeof(Header);
-
-        test_validatefree(res == getloctotal(s2) - total_alloc,  areset(),
-                "after free s1 free = %u units, but must be %u", res, getloctotal(s2) - total_alloc);
-        test_validatefree(res == getlocfree(s2), areset(),
-                "Total size of free units %u must be equal to control free size %u", res, getlocfree(s2) ); */
-
         //
         afree(s2);
         atechfprint(logfile);
         CHECK_ALLOCATION("After free s2", TVAR(s3, sz3) );
-
-        /*
-        test_validatefree(acheckstructure(), areset(), "Validation vailed after free s2");
-        total_alloc = ( agetallocatedsize(s3) ) / sizeof(Header);
-
-        res =  acalcfreespace();
-
-        test_validatefree(res == getloctotal(s2) - total_alloc,  areset(),
-                "after free s2&&s1 free = %u units, but must be %u", res, getloctotal(s2) - total_alloc);
-        test_validatefree(res == getlocfree(s3), areset(),
-                "Total size of free units %u must be equal to control free size %u", res, getlocfree(s3) ); */
 
         CHECK_ALLOC_RESET();
     }
@@ -549,6 +529,7 @@ tf3(const char *name)
 
         afree(s3);
         atechfprint(logfile);
+        CHECK_ALLOCATION("After free ALL", TVAR(0x0, 0U) );
 
         CHECK_ALLOC_RESET();    // exec areset() here
     }
