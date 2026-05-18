@@ -437,7 +437,7 @@ static TestStatus                   check_allocation(Array arr, const char *stag
 // only for partial case!
 #define CHECK_ALLOC_RESET(){ areset();\
         unsigned res =  acalcfreespace();\
-        test_validate(res == ARR_MAX_UNIT, "after areset free = %u units, but must be %u", res, ARR_MAX_UNIT); }
+        test_validate(res == ARR_MAX_UNIT * (unsigned) g_ptr, "after areset free = %u units, but must be %u", res, ARR_MAX_UNIT); }
 
 
 #define FREEPOS(...) { const int *_tmp = (const int []) { __VA_ARGS__, -1 };\
