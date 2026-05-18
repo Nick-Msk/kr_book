@@ -58,6 +58,7 @@ static inline int           printheader(const Header *p);
 static int                  fprintfreeheader(FILE *restrict out, const Header *restrict ph);
 static int                  printfreeheader(const Header * ph);
 static void                 init_control(int loc);
+static unsigned             acalcfreespace_loc(int loc);
 
 // --------------------------- Location API --------------------------------------
 
@@ -122,10 +123,12 @@ static inline bool          checklimitlocation(Header *ptr, int loc){
 
 static void                 updatelocation(int loc, unsigned cntu, bool alloc){
     invraise(loc >= 0 && loc < ARR_MAX_CNT, "Invalid location %d", loc);
-    if (alloc)  // -=
-        g_control[loc].free -= cntu;
-    else
+    if (alloc){  // -=
+        g_control[loc].free -= cntu; // TODO: remove logauto
+        logsimple("free %u , %u", g_control[loc].free, cntu);
+    } else
         g_control[loc].free += cntu;
+    logsimple("CALC: %d", acalcfreespace_loc(loc) );
     invraise(g_control[loc].free <= g_control[loc].total, "Out of range free %u: total %d", g_control[loc].free, g_control[loc].total);
 }
 
@@ -218,7 +221,7 @@ static void                *findmemory(int loc, unsigned bytes){
         }
 
     }
-    return logerr( (void *) 0, "Unable to alloc %u units", nu);
+    return logerr( (void *) 0, "Unable to alloc %u units, free = %u", nu, g_control[loc].free);
 }
 
 static int                  fprintfreeheader(FILE *restrict out, const Header *restrict ph){
@@ -262,7 +265,7 @@ void                        *alloct(unsigned cnts, unsigned size){
 }
 
 void                        *alloc(unsigned bytes){
-    invraise(bytes <= ARR_MAX_BYTES * 4, "To heavy %u", bytes);
+    invraise(bytes < 1 || bytes <= ARR_MAX_BYTES * 4, "To heavy %u", bytes);
     void    *ret = 0;
     for (int i = 0; i < ARR_MAX_CNT; i++){
         ret = findmemory(i, bytes);
@@ -328,7 +331,8 @@ void                         afree(void *pv){
         p->freeptr = var;
         logsimple("after remap to var %p", p->freeptr);
     }
-
+    // TODO: remove 
+    atechfprint(logfile);
     updatelocation(loc, nu, false); // + nu to control
 }
 
@@ -644,6 +648,61 @@ tf4(const char *name)
 
 // ------------------------- TEST 5 ---------------------------------
 
+static bool                 alloc_data(Array arr){
+    int sz = 0;
+    for (int i = 0; i < Arraylen(arr); i++){
+        if (arr.pv[i] )
+            continue;       // skip if already allocated
+        sz = i * 10 % 1024 + 1;
+        if ( (arr.pv[i] = alloc(sz) ) == 0)
+            return logsimpleret(false, "Failed to alloc %d on iter %d", sz, i);
+    }
+    return logsimpleret(true, "Generared %d", Arraylen(arr) );
+}
+
+static bool                 fill_data(Array arr, const char *fmt){
+    int sz = 0, cnt = 0;
+    for (int i = 0; i < Arraylen(arr); i++){
+        if (arr.pv[i] ){
+            sz = (i + 1) * 10 % 1024;
+            snprintf(arr.pv[i], sz - 1, fmt, i);
+            cnt++;
+        }
+    }
+    return logsimpleret(true, "Filled %d", cnt);
+}
+
+static bool                 check_data(Array arr, const char *fmt){
+    int         cnt = 0;
+    char        buf[100];   // more than enough
+    for (int i = 0; i < Arraylen(arr); i++){
+        if (arr.pv[i] ){
+            snprintf(buf, sizeof(buf) - 1, fmt, i);
+            if (strcmp(buf, arr.pv[i]) != 0)
+                return logsimpleret(false, "Checking failed for %d: [%s] != [%s]", i, buf, (const char *)  arr.pv[i] );
+            cnt++;
+        }
+    }
+    return logsimpleret(true, "Checked valuable %d strings", cnt);
+}
+
+static bool                 free_some_data(Array arr, int inc){
+    int         cnt = 0, i = 0;
+    if (inc < 2)
+        inc = 2;
+    i += rndint(inc);
+    while (i < Arraylen(arr) ) {
+        if (arr.pv[i] ) {
+            logsimple("i %d, cnt %d", i, cnt);
+            afree(arr.pv[i] );
+            arr.pv[i] = 0x0;
+            cnt++;
+        }
+        i += rndint(inc);
+    }
+    return logsimpleret(true, "Freed %d", cnt);
+}
+
 static TestStatus
 tf5(const char *name)
 {
@@ -652,8 +711,18 @@ tf5(const char *name)
 
     test_sub("subtest %d: mass alloc + afree + value", ++subnum);
     {
-        int     sz = 1000;
+        int     sz = 5000;
         Array   arr = PArray_create(sz, ARRAY_ZERO);
+        test_validatefree(alloc_data(arr), Arrayfree(arr), "Unable to allocate");
+        fill_data(arr, "Data1 %4d");
+
+        check_allocation(arr, "after init fill");
+        atechfprint(logfile);
+
+        free_some_data(arr, 5);
+        check_data(arr, "Data1 %4d");
+        check_allocation(arr, "after init fill");
+
     }
     areset();
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
