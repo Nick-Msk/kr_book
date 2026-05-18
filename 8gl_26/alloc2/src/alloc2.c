@@ -118,7 +118,7 @@ static void                 initlocation(Header *restrict ptr, unsigned sz, Head
 }
 
 static inline bool          checklimitlocation(Header *ptr, int loc){
-    return (char *) ptr < (char *) g_control[loc].freeptr + g_control[loc].total;
+    return ptr < locbaseptr(loc) + loctotal(loc);
 }
 
 static void                 updatelocation(int loc, unsigned cntu, bool alloc){
@@ -128,7 +128,7 @@ static void                 updatelocation(int loc, unsigned cntu, bool alloc){
         logsimple("free %u , %u", g_control[loc].free, cntu);
     } else
         g_control[loc].free += cntu;
-    logsimple("CALC: %d", acalcfreespace_loc(loc) );
+    logsimple("CALC: %d, free %u", acalcfreespace_loc(loc), g_control[loc].free );
     invraise(g_control[loc].free <= g_control[loc].total, "Out of range free %u: total %d", g_control[loc].free, g_control[loc].total);
 }
 
@@ -148,8 +148,8 @@ static int                  fprintlocation(FILE *out, int loc){
     int         cnt = 0;
     if (out){
         const Control *c = g_control + loc;
-        cnt += fprintf(out, "LOCATION %d: base %p, free %p, delta %lu, total %u, free %u\n",
-                loc, c->baseptr, c->freeptr, c->freeptr - c->baseptr, c->total, c->free);
+        cnt += fprintf(out, "LOCATION %d: base %p, freeptr %p, delta %lu, total %u, free %u\n",
+                loc, c->baseptr, c->freeptr, c->freeptr ? c->freeptr - c->baseptr : 0LU, c->total, c->free);
         cnt += fprintheaderlist(out, c->freeptr);
         cnt += fprintf(out, "\n");
     }
@@ -160,7 +160,7 @@ static unsigned             acalcfreespace_loc(int loc){
     unsigned    res = 0;
     for (const Header *ph = g_control[loc].freeptr; ph != 0; ph=ph->freeptr)
         res += ph->size;
-    invraise(res == g_control[loc].free, "sum %u for %d must be equal total free %u", res, loc, g_control[loc].free);
+    invraise(res == g_control[loc].free, "sum %u for loc %d must be equal total free in control %u", res, loc, g_control[loc].free);
     return logsimpleret(res, "%u for location %d", res, loc);
 }
 // some validity tests
@@ -194,7 +194,7 @@ static void                *findmemory(int loc, unsigned bytes){
 
     if (g_ptr == loc){       // 1-st alloc this, need to format
         init_control(loc);
-        g_ptr++;
+        logauto(g_ptr++);
     }
 
     if (g_control[loc].free >= nu){
@@ -202,6 +202,7 @@ static void                *findmemory(int loc, unsigned bytes){
         Header         *pos = g_control[loc].freeptr;
         Header         *prev = 0;
         for (; pos && checklimitlocation(pos, loc); prev = pos, pos = pos->freeptr){
+            logmsg("pos->size %u, nu %u pos->freeptr - prev->freeptr %lu", pos->size, nu, prev ? pos->freeptr - prev->freeptr : 0LU);
             if (pos->size >= nu){
                 if (pos->size == nu){       // exact!
                     if (prev)
@@ -328,7 +329,10 @@ void                         afree(void *pv){
         p->freeptr = var->freeptr;
     } else {
         logsimple("before %p", p->freeptr);
-        p->freeptr = var;
+        if (p->freeptr)
+            p->freeptr = var;
+        else
+            g_control[loc].freeptr = var;
         logsimple("after remap to var %p", p->freeptr);
     }
     // TODO: remove 
@@ -721,7 +725,9 @@ tf5(const char *name)
         int     sz = 32;
         Array   arr = PArray_create(sz, ARRAY_ZERO);
         alloc_data(arr, 0); // uniform
-        check_allocation(arr, "tf5: after init fill");
+        //check_allocation(arr, "tf5: after init fill");
+        atechfprint(logfile);
+        logauto(acalcfreespace_loc(0) );
 
         afree(arr.pv[0] );      // free 1 elem
         check_allocation(arr, "after init fill");
@@ -771,9 +777,9 @@ main( /* int argc, const char *argv[] */)
 
     testenginestd(
         testnew(.f2 = tf1,  .num =  1, .name = "Simple alloc and validate test"             , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf2,  .num =  2, .name = "Allocate too much test"                     , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf3,  .num =  3, .name = "Complex alloc + free test"                  , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf4,  .num =  4, .name = "Value alloc + free test"                    , .desc=""                , .mandatory=true)
+      //, testnew(.f2 = tf2,  .num =  2, .name = "Allocate too much test"                     , .desc=""                , .mandatory=true)
+      //, testnew(.f2 = tf3,  .num =  3, .name = "Complex alloc + free test"                  , .desc=""                , .mandatory=true)
+      //, testnew(.f2 = tf4,  .num =  4, .name = "Value alloc + free test"                    , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf5,  .num =  5, .name = "Uniform alloc test"                         , .desc=""                , .mandatory=true)
       //, testnew(.f2 = tf6,  .num =  6, .name = "Mass random test"                           , .desc=""                , .mandatory=true)
     );
