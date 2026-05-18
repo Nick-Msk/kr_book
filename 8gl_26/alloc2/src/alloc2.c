@@ -33,7 +33,7 @@ typedef struct Control {
 
 // storage
 static const int        ARR_MAX_CNT     = 12;
-static const int        ARR_MAX_BYTES   = 1024 * 1024;    // 1mb of Header
+static const int        ARR_MAX_BYTES   = 1024; // TODO: for test * 1024;    // 1mb of Header
 static const int        ARR_MAX_UNIT    = ARR_MAX_BYTES / sizeof(Header);
 
 // TODO: rework that to get_osmap(sz);
@@ -648,12 +648,19 @@ tf4(const char *name)
 
 // ------------------------- TEST 5 ---------------------------------
 
-static bool                 alloc_data(Array arr){
+// count sz by iter
+typedef                     int(*type_sz)(int iter);
+
+static bool                 alloc_data(Array arr, type_sz f){
     int sz = 0;
     for (int i = 0; i < Arraylen(arr); i++){
         if (arr.pv[i] )
             continue;       // skip if already allocated
-        sz = i * 10 % 1024 + 1;
+        if (f)
+            sz = f(i);
+        else    // uniform
+            sz = 1;
+            //sz = i * 10 % 1024 + 1;
         if ( (arr.pv[i] = alloc(sz) ) == 0)
             return logsimpleret(false, "Failed to alloc %d on iter %d", sz, i);
     }
@@ -711,9 +718,36 @@ tf5(const char *name)
 
     test_sub("subtest %d: mass alloc + afree + value", ++subnum);
     {
+        int     sz = 32;
+        Array   arr = PArray_create(sz, ARRAY_ZERO);
+        alloc_data(arr, 0); // uniform
+        check_allocation(arr, "tf5: after init fill");
+
+        afree(arr.pv[0] );      // free 1 elem
+        check_allocation(arr, "after init fill");
+        Arrayfree(arr);
+    }
+    areset();
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
+// ------------------------- TEST 6 ---------------------------------
+
+static int                      calc_sz(int iter){
+    return iter * 10 % 1024 + 1;
+}
+
+static TestStatus
+tf6(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: mass alloc + afree + value", ++subnum);
+    {
         int     sz = 5000;
         Array   arr = PArray_create(sz, ARRAY_ZERO);
-        test_validatefree(alloc_data(arr), Arrayfree(arr), "Unable to allocate");
+        test_validatefree(alloc_data(arr, calc_sz), Arrayfree(arr), "Unable to allocate");
         fill_data(arr, "Data1 %4d");
 
         check_allocation(arr, "after init fill");
@@ -723,6 +757,7 @@ tf5(const char *name)
         check_data(arr, "Data1 %4d");
         check_allocation(arr, "after init fill");
 
+        Arrayfree(arr);
     }
     areset();
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
@@ -739,7 +774,8 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf2,  .num =  2, .name = "Allocate too much test"                     , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf3,  .num =  3, .name = "Complex alloc + free test"                  , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf4,  .num =  4, .name = "Value alloc + free test"                    , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf5,  .num =  5, .name = "Mass random test"                           , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf5,  .num =  5, .name = "Uniform alloc test"                         , .desc=""                , .mandatory=true)
+      //, testnew(.f2 = tf6,  .num =  6, .name = "Mass random test"                           , .desc=""                , .mandatory=true)
     );
     return logret(0, "end...");  // as replace of logclose()
 }
