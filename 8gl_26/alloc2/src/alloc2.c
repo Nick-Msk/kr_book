@@ -325,7 +325,9 @@ void                         afree(void *pv){
         for (hp = locfree, p = 0; hp && hp < var; p = hp, hp = hp->freeptr)
             logsimple("%p - %p", hp, var);
         // invraise(p <= var && hp >= var, "Str violation");
-        logsimple("diff base %lu, diff prev %lu, diff hp %lu", var - locbase, var - p, p->freeptr ? p->freeptr - var : 0x0);
+        logsimple("diff base %lu, diff prev %lu", var - locbase, var - p);
+        if (p)
+            logsimple("---- %lu",  p->freeptr ? p->freeptr - var : 0x0);
 
         if (p == 0)
             var->freeptr = 0;
