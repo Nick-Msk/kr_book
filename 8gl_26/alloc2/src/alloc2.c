@@ -72,7 +72,7 @@ static int                 findlocation(const void *p){
     const Header *h = p;
     for (int i = 0; i < ARR_MAX_CNT; i++)
         if (h >= g_control[i].baseptr && h < getlastptr(i) )  // found!
-            return logsimpleret(i, "Found loc %d", i);
+            return i; //logsimpleret(i, "Found loc %d", i);
     return logsimpleerr(-1, "Wrong pointer %p", p);
 }
 
@@ -125,9 +125,11 @@ static void                 updatelocation(int loc, unsigned cntu, bool alloc){
     invraise(loc >= 0 && loc < ARR_MAX_CNT, "Invalid location %d", loc);
     if (alloc){  // -=
         g_control[loc].free -= cntu; // TODO: remove logauto
-        logsimple("free %u , %u", g_control[loc].free, cntu);
-    } else
+        logsimple("ALLOC: free %u , %u", g_control[loc].free, cntu);
+    } else {
+        logsimple("FREE: free %u , %u", g_control[loc].free, cntu);
         g_control[loc].free += cntu;
+    }
     logsimple("CALC: %d, free %u", acalcfreespace_loc(loc), g_control[loc].free );
     invraise(g_control[loc].free <= g_control[loc].total, "Out of range free %u: total %d", g_control[loc].free, g_control[loc].total);
 }
@@ -283,10 +285,10 @@ void                         areset(void){
     logsimple("Reset");
 }
 
-int                          atechfprint(FILE *restrict out){
+int                          atechfprint(FILE *restrict out, const char *restrict msg){
     int     cnt = 0;
     if (out){
-        fprintf(out, "G_PTR = %d\n", g_ptr);
+        fprintf(out, "%s: G_PTR = %d\n", msg ? msg : "", g_ptr);
         for (int i = 0; i < g_ptr; i++){
             cnt += fprintlocation(out, i);
         }
@@ -311,32 +313,41 @@ void                         afree(void *pv){
     unsigned    nu =  var->size;
     logsimple("loc %d, nu %u", loc, nu);
 
-    for (hp = base; hp && hp < var; p = hp, hp = hp->freeptr)
-        ;
-    logsimple("diff base %lu, diff prev %lu, diff hp %lu", var - base, var - p, p->freeptr - var);
-
-    if (var + var->size == p->freeptr){    // up // p->freeptr > var
-        logsimple("up, bp.sz %u + next p.sz %u", var->size, p->freeptr->size);
-        var->size += p->freeptr->size;
-        var->freeptr = p->freeptr->freeptr;
-    } else
-        var->freeptr = p->freeptr;
-
-    logsimple("p.size %u, var - p %lu ", p->size, var - p);
-    if (p + p->size == var){  // down, p < var
-        logsimple("down, p.sz %u + bp.sz %u", p->size, var->size);
-        p->size += var->size;
-        p->freeptr = var->freeptr;
-    } else {
-        logsimple("before %p", p->freeptr);
-        if (p->freeptr)
-            p->freeptr = var;
-        else
-            g_control[loc].freeptr = var;
-        logsimple("after remap to var %p", p->freeptr);
+        // TODO: remove that
+    if (g_control[loc].freeptr == 0){
+        g_control[loc].freeptr = var;
+        logsimple("g_control[loc].freeptr reinit to %p (%lu) sz %u", var, g_control[loc].freeptr - g_control[loc].baseptr, var->size);
+        var->freeptr = 0;
     }
-    // TODO: remove 
-    atechfprint(logfile);
+    else {
+        for (hp = base; hp && hp < var; p = hp, hp = hp->freeptr)
+            ;
+        logsimple("diff base %lu, diff prev %lu, diff hp %lu", var - base, var - p, p->freeptr ? p->freeptr - var : 0x0);
+
+        if (var + var->size == p->freeptr){    // up // p->freeptr > var
+            logsimple("up, bp.sz %u + next p.sz %u", var->size, p->freeptr->size);
+            var->size += p->freeptr->size;
+            var->freeptr = p->freeptr->freeptr;
+        } else
+            var->freeptr = p->freeptr;
+
+        logsimple("p.size %u, var - p %lu, p - base %lu ", p->size, var - p, p - base);
+
+        if (p + p->size == var){  // down, p < var
+            logsimple("down, p.sz %u + bp.sz %u", p->size, var->size);
+            p->size += var->size;
+            p->freeptr = var->freeptr;
+        } else {
+            logsimple("before %p", p->freeptr);
+            if (p == base)
+                g_control[loc].freeptr = var;
+            else
+                p->freeptr = var;
+            //    g_control[loc].freeptr = p; //var;
+        logsimple("after remap to var %p", p->freeptr);
+        }
+    }
+    atechfprint(logfile, "DEBUG IN FREE BEFORE UPDATE CONTROL");
     updatelocation(loc, nu, false); // + nu to control
 }
 
@@ -475,7 +486,7 @@ tf1(const char *name)
         printheader((const Header *)s4);
         fprintf(stdout, "\n");
 
-        atechfprint(logfile);
+        atechfprint(logfile, "TF1 after alloc");
 
         unsigned res_after = acalcfreespace(), totalalloc = agetallocatedsize(s1) / sizeof(Header) +
                                                             agetallocatedsize(s2) / sizeof(Header) +
@@ -532,7 +543,7 @@ tf3(const char *name)
         char *s = alloc(123);
         test_validatefree(acheckstructure(), areset(), "Validation vailed");
         afree(s);
-        atechfprint(logfile);
+        atechfprint(logfile, "TF3 after free s");
 
         unsigned res =  acalcfreespace();
         test_validatefree(res == ARR_MAX_UNIT,  areset(), "free = %u units, but must be %u", res, ARR_MAX_UNIT);
@@ -540,7 +551,7 @@ tf3(const char *name)
 
         areset();
     }
-    test_sub("subtest %d: alloc + afree simple", ++subnum);
+    test_sub("subtest %d: alloc + afree simple II", ++subnum);
     {
         int         sz1 = 444, sz2 = 13, sz3 = 188;
         char       *s1 = alloc(sz1);
@@ -549,19 +560,21 @@ tf3(const char *name)
 
         test_validate(s1 && s2 && s3, "Fail to allocate %p, %p, %p", s1, s2, s3);
 
+        logauto(agetallocatedsize(s1) );
+        atechfprint(logfile, "II TF3 after alloc");
         // try to free
         afree(s1);
-        atechfprint(logfile);
+        atechfprint(logfile, "II TF3 after free s1");
         CHECK_ALLOCATION("After free s1", TVAR(s2, sz2), TVAR(s3, sz3) );
 
         //
         afree(s2);
-        atechfprint(logfile);
+        atechfprint(logfile, "II TF3 after free s2");
         CHECK_ALLOCATION("After free s2", TVAR(s3, sz3) );
 
         CHECK_ALLOC_RESET();
     }
-    test_sub("subtest %d: alloc + afree simple II", ++subnum);
+    test_sub("subtest %d: alloc + afree simple III", ++subnum);
     {
         int         sz1 = 444, sz2 = 13, sz3 = 188, sz4 = 17, sz5 = 210;
         char       *s1 = alloc(sz1);
@@ -575,23 +588,23 @@ tf3(const char *name)
 
         // try to free
         afree(s2);
-        atechfprint(logfile);
+        atechfprint(logfile, "III TF3 after free s2");
         CHECK_ALLOCATION("After free s2", TVAR(s1, sz1), TVAR(s3, sz3), TVAR(s4, sz4), TVAR(s5, sz5) );
 
         afree(s4);
-        atechfprint(logfile);
+        atechfprint(logfile, "III TF3 after free s4");
         CHECK_ALLOCATION("After free s4", TVAR(s1, sz1), TVAR(s3, sz3), TVAR(s5, sz5) );
 
         afree(s1);
-        atechfprint(logfile);
+        atechfprint(logfile, "III TF3 after free s1");
         CHECK_ALLOCATION("After free s1", TVAR(s3, sz3), TVAR(s5, sz5) );
 
         afree(s5);
-        atechfprint(logfile);
+        atechfprint(logfile, "III TF3 after free s5");
         CHECK_ALLOCATION("After free s5", TVAR(s3, sz3) );
 
         afree(s3);
-        atechfprint(logfile);
+        atechfprint(logfile, "III TF3 after free s3");
         CHECK_ALLOCATION("After free ALL", TVAR(0x0, 0U) );
 
         CHECK_ALLOC_RESET();    // exec areset() here
@@ -725,12 +738,15 @@ tf5(const char *name)
         int     sz = 32;
         Array   arr = PArray_create(sz, ARRAY_ZERO);
         alloc_data(arr, 0); // uniform
-        //check_allocation(arr, "tf5: after init fill");
-        atechfprint(logfile);
+        check_allocation(arr, "tf5: after init fill");
+        atechfprint(logfile, "TF5 after alloc");
         logauto(acalcfreespace_loc(0) );
 
-        afree(arr.pv[0] );      // free 1 elem
-        check_allocation(arr, "after init fill");
+        // afree(arr.pv[0] );      // free 1 elem
+        free_some_data(arr, 5);
+        check_allocation(arr, "after free");
+        atechfprint(logfile, "TF5 after free");
+
         Arrayfree(arr);
     }
     areset();
@@ -757,7 +773,7 @@ tf6(const char *name)
         fill_data(arr, "Data1 %4d");
 
         check_allocation(arr, "after init fill");
-        atechfprint(logfile);
+        atechfprint(logfile, "TF6 after alloc&fill");
 
         free_some_data(arr, 5);
         check_data(arr, "Data1 %4d");
@@ -777,9 +793,9 @@ main( /* int argc, const char *argv[] */)
 
     testenginestd(
         testnew(.f2 = tf1,  .num =  1, .name = "Simple alloc and validate test"             , .desc=""                , .mandatory=true)
-      //, testnew(.f2 = tf2,  .num =  2, .name = "Allocate too much test"                     , .desc=""                , .mandatory=true)
-      //, testnew(.f2 = tf3,  .num =  3, .name = "Complex alloc + free test"                  , .desc=""                , .mandatory=true)
-      //, testnew(.f2 = tf4,  .num =  4, .name = "Value alloc + free test"                    , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf2,  .num =  2, .name = "Allocate too much test"                     , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf3,  .num =  3, .name = "Complex alloc + free test"                  , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf4,  .num =  4, .name = "Value alloc + free test"                    , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf5,  .num =  5, .name = "Uniform alloc test"                         , .desc=""                , .mandatory=true)
       //, testnew(.f2 = tf6,  .num =  6, .name = "Mass random test"                           , .desc=""                , .mandatory=true)
     );

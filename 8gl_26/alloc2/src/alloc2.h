@@ -7,7 +7,7 @@
 extern void                        *alloc(unsigned bytes);
 extern void                        *alloct(unsigned cnts, unsigned size);
 extern void                         afree(void *);
-extern int                          atechfprint(FILE *restrict out);
+extern int                          atechfprint(FILE *restrict out, const char *restrict msg);
 extern unsigned                     acalcfreespace(void);
 extern void                         areset(void);
 extern unsigned                     agetallocatedsize(const void *p);
