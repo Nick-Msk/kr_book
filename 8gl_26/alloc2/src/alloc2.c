@@ -314,24 +314,22 @@ void                         afree(void *pv){
     unsigned    nu =  var->size;
     logsimple("loc %d, nu %u, locfree %p", loc, nu, locfree);
 
-        // TODO: remove that
-    if (locfree == 0){
-        g_control[loc].freeptr = var;
-        logsimple("g_control[loc].freeptr reinit to %p (%lu) sz %u", var, g_control[loc].freeptr - g_control[loc].baseptr, var->size);
-        var->freeptr = 0;
-    }
-    else {
-        logsimple("...");
-        for (hp = locfree, p = 0; hp && hp < var; p = hp, hp = hp->freeptr)
-            logsimple("%p - %p", hp, var);
-        // invraise(p <= var && hp >= var, "Str violation");
-        logsimple("diff base %lu, diff prev %lu", var - locbase, var - p);
-        if (p)
-            logsimple("---- %lu",  p->freeptr ? p->freeptr - var : 0x0);
+    logsimple("...");
+    for (hp = locfree, p = 0; hp && hp < var; p = hp, hp = hp->freeptr)
+        logsimple("%p - %p", hp, var);
+    // invraise(p <= var && hp >= var, "Str violation");
+    logsimple("diff base %lu, diff prev %lu", var - locbase, var - p);
+    if (p)
+        logsimple("---- %lu",  p->freeptr ? p->freeptr - var : 0x0);
 
-        if (p == 0)
-            var->freeptr = 0;
-        else
+    if (p == 0){
+        var->freeptr = locfree;                 // присоединяем старый список
+        g_control[loc].freeptr = var;          // теперь начало – var
+        if (var + var->size == locfree) {      // слияние с последующим блоком
+            var->size += locfree->size;
+            var->freeptr = locfree->freeptr;
+        }
+    } else {
         if (var + var->size == p->freeptr){    // up // p->freeptr > var
             logsimple("up, bp.sz %u + next p.sz %u", var->size, p->freeptr->size);
             var->size += p->freeptr->size;
@@ -339,9 +337,9 @@ void                         afree(void *pv){
         } else
             var->freeptr = p->freeptr;
 
-        logsimple("var - p %lu, p - base %lu ", var - p, p - locbase);
+        logsimple("var - p %lu", var - p);
         if (p)
-            logsimple("p.size %u", p->size);
+            logsimple("p - base %lu, p.size %u", p - locbase, p->size);
 
         if (p == 0)
             g_control[loc].freeptr = var;
@@ -353,11 +351,11 @@ void                         afree(void *pv){
         } else {
             logsimple("before %p", p->freeptr);
                 p->freeptr = var;
-            //    g_control[loc].freeptr = p; //var;
+                //    g_control[loc].freeptr = p; //var;
             logsimple("after remap to var %p", p->freeptr);
         }
     }
-    atechfprint(logfile, "DEBUG IN FREE BEFORE UPDATE CONTROL");
+    //atechfprint(logfile, "DEBUG IN FREE BEFORE UPDATE CONTROL");
     updatelocation(loc, nu, false); // + nu to control
 }
 
