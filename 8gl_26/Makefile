@@ -1,5 +1,5 @@
 CC=gcc #clang
-CFLAGS= -I../utils -Wall -Wextra -std=gnu11 -g -O0 -Wno-gnu-folding-constant -Wno-initializer-overrides -fmacro-backtrace-limit=0
+CFLAGS= -I../utils -Wall -Wextra -std=gnu11 -g -O0 -Wno-gnu-folding-constant -Wno-initializer-overrides -fmacro-backtrace-limit=0 -fsanitize=address
 # -Wno-initializer-overrides -Wno-unused-function -Wno-format-zero-length
 LDFLAGS=
 LDLIBS=

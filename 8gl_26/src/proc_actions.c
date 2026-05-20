@@ -9,7 +9,7 @@ static const char               mdir[] = "mdir/";
 
 // ------------------------------------------ Utilities -------------------------------------------
 
-int                             Context_techfprint(FILE *restrict out, const Context *restrict ctx){
+int                             Runtimedata_techfprint(FILE *restrict out, const Runtimedata *restrict ctx){
     invraise(ctx != 0, "Null context");
     int     cnt = 0;
     if (out){
@@ -33,12 +33,12 @@ int                             Context_techfprint(FILE *restrict out, const Con
 
 // example of working procedures
 // local
-int                             proc_quit(Context *ctx){
+int                             proc_quit(Runtimedata *ctx){
     ctx->quit = true;
     return 1;
 }
 
-int                             proc_help(Context *ctx){
+int                             proc_help(Runtimedata *ctx){
     Command *cm = ctx->cmds;
     while (cm->desc){
         printf("%s\t\t: %s\n", cm->name, cm->desc);
@@ -47,16 +47,16 @@ int                             proc_help(Context *ctx){
     return 1;
 }
 
-int                             proc_techprint(Context *ctx){
+int                             proc_techprint(Runtimedata *ctx){
     // just technical print
-    Context_techprint(ctx);
+    Runtimedata_techprint(ctx);
     return 1;
 }
 
 // ------------------------------------------- MFILE PROCS --------------------------------------------
 
 // create filename
-int                             proc_create(Context *ctx){
+int                             proc_create(Runtimedata *ctx){
     logsimple("ctx %p, lex %p", ctx, ctx ? ctx->lex : 0);
     Lexem *l = ctx->lex;
     if (getlexem(l, false) )
@@ -79,7 +79,7 @@ int                             proc_create(Context *ctx){
 }
 
 // open filename
-int                             proc_open(Context *ctx){
+int                             proc_open(Runtimedata *ctx){
     logsimple("ctx %p, lex %p", ctx, ctx ? ctx->lex : 0);
     Lexem *l = ctx->lex;
     if (getlexem(l, false) )
@@ -101,7 +101,7 @@ int                             proc_open(Context *ctx){
     return logsimpleerr(-1, "Failed to open");  // failed
 }
 // close read/write
-int                 proc_close(Context *ctx){
+int                 proc_close(Runtimedata *ctx){
     Lexem *l = ctx->lex;
     if (getlexem(l, false) ){
         if (l->typ == LEXEM_WORD){
@@ -132,7 +132,7 @@ int                 proc_close(Context *ctx){
 }
 
 // only for read file
-int                 proc_eof(Context *ctx){
+int                 proc_eof(Runtimedata *ctx){
     if (ctx->mfr){
         if (meof(ctx->mfr) )
             printf("Read file is EOF\n");
@@ -145,7 +145,7 @@ int                 proc_eof(Context *ctx){
     return logsimpleerr(-1, "Not opened");
 }
 
-int                 proc_error(Context *ctx){
+int                 proc_error(Runtimedata *ctx){
     if (ctx->mfw){
         if (merror(ctx->mfr) )
             printf("Write file in error state\n");
@@ -157,7 +157,7 @@ int                 proc_error(Context *ctx){
     return logsimpleerr(-1, "Not opened");
 }
 
-int                 proc_getpos(Context *ctx){
+int                 proc_getpos(Runtimedata *ctx){
     Lexem *l = ctx->lex;
     if (getlexem(l, false) ){
         if (l->typ == LEXEM_WORD){
@@ -181,7 +181,7 @@ int                 proc_getpos(Context *ctx){
     return logsimpleerr(-1, "Unable to obtain pos");
 }
 
-int                 proc_fileno(Context *ctx){
+int                 proc_fileno(Runtimedata *ctx){
     Lexem *l = ctx->lex;
     if (getlexem(l, false) ){
         if (l->typ == LEXEM_WORD){
@@ -208,7 +208,7 @@ int                 proc_fileno(Context *ctx){
 }
 
 // read amount of data
-int                 proc_read(Context *ctx){
+int                 proc_read(Runtimedata *ctx){
     if (!ctx->mfr)
         fprintf(stderr, "Read file isn't open\n");
     else {
@@ -235,7 +235,7 @@ int                 proc_read(Context *ctx){
     return logsimpleerr(-1, "Unable to read");
 }
 // write <peace of data>
-int                 proc_write(Context *ctx){
+int                 proc_write(Runtimedata *ctx){
     if (!ctx->mfw)
         fprintf(stderr, "Write file isn't open\n");
     else {
@@ -260,7 +260,7 @@ int                 proc_write(Context *ctx){
 }
 
 // <read/write> pos
-int                 proc_seek(Context *ctx){
+int                 proc_seek(Runtimedata *ctx){
     Lexem *l = ctx->lex;
     if (getlexem(l, false) ){
         if (l->typ == LEXEM_WORD){

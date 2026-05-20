@@ -113,7 +113,7 @@ static bool         cyclerun(const char *filename){
     bool        ret = true;
 
     Lexem       lex = lexeminit();
-    Context     ctx = ContextInit(.lex = &lex, .cmds = cmds);   // .cmds - all commands
+    Runtimedata ctx = RuntimedataInit(.lex = &lex, .cmds = cmds);   // .cmds - all commands
     printf("Start with (%s)>", filename);
 
     while (!ctx.quit && getlexem(&lex, false) ){
