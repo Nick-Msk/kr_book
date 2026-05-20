@@ -66,7 +66,7 @@ typedef struct ExceptionData
 
 // general raise function
 extern void
-err_raise(ErrorType tp, int raise, int errcode, const char *msg, ...);
+err_raise(ErrorType tp, int raise, int errcode, const char *msg, ...)  __attribute__ ((format (printf, 4, 5)));;
 
 extern void
 err_clean(bool force);
