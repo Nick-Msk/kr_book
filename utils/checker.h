@@ -18,7 +18,7 @@
 
 // -------------- ACCESS AND MODIFICATION ----------
 
-int						inv_fprintf_int(FILE *restrict out, const char *restrict expr, int res, int val, const char *restrict msg, ...);
+int						inv_fprintf_int(FILE *restrict out, const char *restrict expr, int res, int val, const char *restrict msg, ...)  __attribute__ ((format (printf, 5, 6)));;
 
 // ----------------- PRINTERS ----------------------
 
