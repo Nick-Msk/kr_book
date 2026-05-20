@@ -1,12 +1,12 @@
 CC=gcc #clang
-CFLAGS= -I../utils -Wall -Wextra -std=gnu11 -g -O0 -Wno-gnu-folding-constant -Wno-initializer-overrides -fmacro-backtrace-limit=0
+CFLAGS= -I../utils -Wall -Wextra -std=gnu11 -g -O0 -Wno-gnu-folding-constant -Wno-initializer-overrides -fmacro-backtrace-limit=0 -fsanitize=address
 # -Wno-initializer-overrides -Wno-unused-function -Wno-format-zero-length
 LDFLAGS=
 LDLIBS=
 
 all:
 
-cInt: src/cInt.c lib/string_hash.o lib/getword.o lib/log.o lib/common.o lib/fs.o lib/error.o lib/checker.o lib/buffer.o lib/fileutils.o lib/fs_iter.o
+cInt: src/cInt.c lib/getword.o lib/log.o lib/common.o lib/fs.o lib/error.o lib/checker.o lib/buffer.o lib/fileutils.o lib/fs_iter.o lib/fs_array.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 UTIL_PATH = ../utils
@@ -55,22 +55,9 @@ lib/fs_array.o:
 lib/buffer.o:
 	cd $(UTIL_PATH) && $(MAKE) buffer.o
 	@cp $(UTIL_PATH)/lib/buffer.o lib/
-
-lib/tree_p6.5.o: src/tree_p6.5.c
-	$(CC) $(CFLAGS) -I./src  $^ -c
-	@mv tree_p6.5.o lib/
-
-lib/tree_6.2.o: src/tree_6.2.c
-	$(CC) $(CFLAGS) -I./src  $^ -c
-	@mv tree_6.2.o lib/
-
-lib/tree_6.3.o: src/tree_6.3.c
-	$(CC) $(CFLAGS) -I./src  $^ -c
-	@mv tree_6.3.o lib/
-
-lib/tree_6.4.o: src/tree_6.4.c
-	$(CC) $(CFLAGS) -I./src  $^ -c
-	@mv tree_6.4.o lib/
+lib/fs_iter.o:
+	cd $(UTIL_PATH) && $(MAKE) fs_iter.o
+	@cp $(UTIL_PATH)/lib/fs_iter.o lib/
 
 # just a regular word + count tree
 lib/word_tree.o: src/word_tree.c
@@ -88,6 +75,10 @@ lib/string_hash.o: src/string_hash.c
 lib/getword.o:
 	cd $(UTIL_PATH) && $(MAKE) getword.o
 	@cp $(UTIL_PATH)/lib/getword.o lib/
+
+lib/string_hash.o:
+	cd $(UTIL_PATH) && $(MAKE) string_hash.o
+	@cp $(UTIL_PATH)/lib/string_hash.o lib/
 
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
