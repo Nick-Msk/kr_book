@@ -403,7 +403,7 @@ static TestStatus                   check_allocation_loc(int loc, Array arr, con
     test_validatefree(acheckstructure(), areset(), "Validation vailed for %s", stage);
     test_validatefree(free_blks == total - total_alloc,  areset(),
                                     "%s: free = %u units, but must be %u", stage, free_blks, total - total_alloc);
-                                test_validatefree(free_blks == locfree(loc), areset(),
+    test_validatefree(free_blks == locfree(loc), areset(),
                                     "%s: Total size of free units %u must be equal to control free size %u", stage, free_blks, locfree(loc) );
     return logret(TEST_PASSED, "Passed");
 }
@@ -781,11 +781,29 @@ tf6(const char *name)
         fill_data(arr, "Data1 %4d");
 
         check_allocation(arr, "after init fill");
-        atechfprint(logfile, "TF6 after alloc&fill");
+        //atechfprint(logfile, "TF6 after alloc&fill");
 
         free_some_data(arr, 5);
         check_data(arr, "Data1 %4d");
-        check_allocation(arr, "after init fill");
+        check_allocation(arr, "after free with 5");
+
+        free_some_data(arr, 4);
+        check_data(arr, "Data1 %4d");
+        check_allocation(arr, "after free with 4");
+
+        free_some_data(arr, 3);
+        check_data(arr, "Data1 %4d");
+        check_allocation(arr, "after free with 3");
+
+        free_some_data(arr, 6);
+        check_data(arr, "Data1 %4d");
+        check_allocation(arr, "after free with 6");
+
+        free_some_data(arr, 3);
+        check_data(arr, "Data1 %4d");
+        check_allocation(arr, "after free with 3");
+
+        atechfprint(logfile, "TF6 after free free free free");
 
         Arrayfree(arr);
     }
@@ -805,7 +823,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf3,  .num =  3, .name = "Complex alloc + free test"                  , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf4,  .num =  4, .name = "Value alloc + free test"                    , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf5,  .num =  5, .name = "Uniform alloc test"                         , .desc=""                , .mandatory=true)
-      //, testnew(.f2 = tf6,  .num =  6, .name = "Mass random test"                           , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf6,  .num =  6, .name = "Mass random test"                           , .desc=""                , .mandatory=true)
     );
     return logret(0, "end...");  // as replace of logclose()
 }
