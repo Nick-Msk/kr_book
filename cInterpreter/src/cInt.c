@@ -71,9 +71,10 @@ int                     main(int argc, const char *argv[]){
 
 // filled locally!
 static Command cmds[] = {
-    CommandInit(.name = "quit"          , .shortlen = 1, .proc = proc_quit         , .desc = "Just quit the runner"                                            )   
-  , CommandInit(.name = "help"          , .shortlen = 1, .proc = proc_help         , .desc = "Type all command and descriptions"                               )   
-  , CommandInit(.name = "techprint"     , .shortlen = 4, .proc = proc_techprint    , .desc = "Technical print of context"                                      )
+    CommandInit(.name = "quit"          , .shortlen = 1, .proc = proc_quit         , .desc = "Just quit the runner"                                            )
+  , CommandInit(.name = "help"          , .shortlen = 1, .proc = proc_help         , .desc = "Type all command and descriptions"                               )
+  , CommandInit(.name = "techprint"     , .shortlen = 4, .proc = proc_techprint    , .desc = "Technical print of run-time data"                                )
+    // -------------------------------------------
 };
 
 static bool             launch(const Keys *s){

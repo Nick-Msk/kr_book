@@ -23,17 +23,17 @@ typedef struct Runtimedata {
 
 // ------------------------------------------ Utilities -------------------------------------------
 
-extern int                 Runtimedata_techfprint(FILE *restrict out, const Runtimedata *restrict ctx);
+extern int                 Runtimedata_techfprint(FILE *restrict out, const Runtimedata *restrict rt);
 
-static inline int          Runtimedata_techprint(const Runtimedata *ctx){
-    return Runtimedata_techfprint(stdout, ctx);
+static inline int          Runtimedata_techprint(const Runtimedata *rt){
+    return Runtimedata_techfprint(stdout, rt);
 }
 
 // --------------------------------------- AUXILLARY PROCS -------------------------------------------
 
-extern int                 proc_quit(Runtimedata *ctx);
-extern int                 proc_help(Runtimedata *ctx);
-extern int                 proc_techprint(Runtimedata *ctx);
+extern int                 proc_quit(Runtimedata *rt);
+extern int                 proc_help(Runtimedata *rt);
+extern int                 proc_techprint(Runtimedata *rt);
 
 // ------------------------------------------- MFILE PROCS --------------------------------------------
 
