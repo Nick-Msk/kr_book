@@ -5,7 +5,11 @@
 #include "command_executor.h"
 
 // go through cmd until cmd->proc is null
-bool                    process_command(const char *restrict name, Command *restrict cmd, Context *restrict ctx){
+bool process_command(
+    const char *restrict name,
+    Command *restrict cmd,
+    Runtimedata *restrict ctx)
+{
     logenter("Cmd [%s]", name);
     // 1-st version, just a fullscan
     while (cmd->proc){
