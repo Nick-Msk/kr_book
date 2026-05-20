@@ -33,7 +33,7 @@ typedef struct Control {
 
 // storage
 static const int        ARR_MAX_CNT     = 12;
-static const int        ARR_MAX_BYTES   = 1024; // TODO: for test * 1024;    // 1mb of Header
+static const int        ARR_MAX_BYTES   = 1024 * 1024;    // 1mb of Header
 static const int        ARR_MAX_UNIT    = ARR_MAX_BYTES / sizeof(Header);
 
 // TODO: rework that to get_osmap(sz);
@@ -124,13 +124,13 @@ static inline bool          checklimitlocation(Header *ptr, int loc){
 static void                 updatelocation(int loc, unsigned cntu, bool alloc){
     invraise(loc >= 0 && loc < ARR_MAX_CNT, "Invalid location %d", loc);
     if (alloc){  // -=
-        g_control[loc].free -= cntu; // TODO: remove logauto
-        logsimple("ALLOC: free %u , %u", g_control[loc].free, cntu);
+        g_control[loc].free -= cntu;
+        //logsimple("ALLOC: free %u , %u", g_control[loc].free, cntu);
     } else {
         logsimple("FREE: free %u , %u", g_control[loc].free, cntu);
         g_control[loc].free += cntu;
     }
-    logsimple("CALC: %d, free %u", acalcfreespace_loc(loc), g_control[loc].free );
+    //logsimple("CALC: %d, free %u", acalcfreespace_loc(loc), g_control[loc].free );
     invraise(g_control[loc].free <= g_control[loc].total, "Out of range free %u: total %d", g_control[loc].free, g_control[loc].total);
 }
 
@@ -683,9 +683,8 @@ static bool                 alloc_data(Array arr, type_sz f){
             continue;       // skip if already allocated
         if (f)
             sz = f(i);
-        else    // uniform
+        else    // uniform sz 1 (2 units)
             sz = 1;
-            //sz = i * 10 % 1024 + 1;
         if ( (arr.pv[i] = alloc(sz) ) == 0)
             return logsimpleret(false, "Failed to alloc %d on iter %d", sz, i);
     }
@@ -743,12 +742,13 @@ tf5(const char *name)
 
     test_sub("subtest %d: mass alloc + afree + value", ++subnum);
     {
-        int     sz = 32;
+        int     sz = 5000;
         Array   arr = PArray_create(sz, ARRAY_ZERO);
         alloc_data(arr, 0); // uniform
         check_allocation(arr, "tf5: after init fill");
         atechfprint(logfile, "TF5 after alloc");
-        logauto(acalcfreespace_loc(0) );
+
+        acalcfreespace_loc(0);
 
         // afree(arr.pv[0] );      // free 1 elem
         free_some_data(arr, 5);
@@ -764,7 +764,7 @@ tf5(const char *name)
 // ------------------------- TEST 6 ---------------------------------
 
 static int                      calc_sz(int iter){
-    return iter * 10 % 1024 + 1;
+    return iter * 10 % 1024 + 12;
 }
 
 static TestStatus
