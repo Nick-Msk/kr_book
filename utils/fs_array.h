@@ -82,6 +82,14 @@ static inline int           fsarr_increaseby(fsarray *arr, int add){
 
 extern int                  fsarr_shrink(fsarray *arr, int newcnt);
 
+static inline int           fsarr_cnt(const fsarray *arr){
+    return arr->cnt;
+}
+
+static inline int           fsarr_sz(const fsarray *arr){
+    return arr->sz;
+}
+
 // -------------------------------------  FSL API ------------------------------------------------
 // TODO: move to separate module
 // fsl f1 = getfsl(fs_array a);
