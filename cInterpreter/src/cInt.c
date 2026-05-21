@@ -10,13 +10,13 @@
 
 typedef struct Keys {
     bool              version;    // bool example
-    bool              unbuf;
-    const char       *infilename;
-    const char       *outfilename;
+    //bool              unbuf;
+    const char       *bufname;
+    const char       *runname;
     // ...
 } Keys;
 
-#define                 Keysinit(...) (Keys){ .version = false, .unbuf = false, .infilename = 0, .outfilename = 0, __VA_ARGS__}
+#define                 Keysinit(...) (Keys){ .version = false, .bufname = 0, .runname = 0, __VA_ARGS__}
 
 static int              parse_keys(const char *argv[], Keys *ke){
 
@@ -32,9 +32,9 @@ static int              parse_keys(const char *argv[], Keys *ke){
         while ( (c = *++argv[0]) )
             switch (tolower(c)){
                 parse_bool('v', version);
-                parse_bool('u', unbuf);
-                parse_string('f', infilename);
-                parse_string('o', outfilename);
+                //parse_bool('u', unbuf);
+                parse_string('b', bufname);
+                parse_string('r', runname);
                 default:    // probaly it's possible to ignore unknows parameters
                     return userraise(-1, ERR_WRONG_PARAMETER, "Illegal [%c], params [%d] argc %d", c, params, argc);
             }
@@ -45,7 +45,7 @@ static int              parse_keys(const char *argv[], Keys *ke){
 const char *usage_str = "Usage: %s ... TODO\n";
 const char *version = "0.1 (init)";
 
-static bool             launch(const Keys *s);
+static bool             launch(const char *restrict buffilename, const char *runfilename);
 
 int                     main(int argc, const char *argv[]){
     logsimpleinit("Start");
@@ -58,13 +58,19 @@ int                     main(int argc, const char *argv[]){
         printf(usage_str, *argv);
         return 1;
     }
-    if (ke.version || ke.outfilename == 0 || ke.infilename == 0){
+    if (ke.version){
         printf("%s, cInterprepet ver %s\n", __FILE__, version);
         printf(usage_str, *argv);
         return 0;
     }
+    const char *bufname = "res/file.buf";
+    const char *runname = "res/_run.c";
+    if (ke.bufname)
+        bufname = ke.bufname;
+    if (ke.runname)
+        runname = ke.runname;
 
-    launch(&ke);
+    launch(bufname, runname);
 
     return logret(0, "end...");  // as replace of logclose()
 }
@@ -83,26 +89,26 @@ static Command cmds[] = {
   , CommandInit(.name = "load"          , .shortlen = 2, .proc = proc_load         , .desc = "Load run-time data from _cInt_buf.c file"                        )
 };
 
-static bool             launch(const Keys *s){
-    logenter("...");
+static bool             launch(const char *restrict bufname, const char *runname){
+    logenter("%s:%s", bufname, runname);
 
     bool        ret = true;
-    Lexem       lex = lexeminit();
-    Runtimedata rt  = RuntimedataInit(.lex = &lex, .cmds = cmds);   // .cmds - all commands
 
+    Runtimedata rt = initRuntimedata(bufname, runname);
     printf(">");
-    while (!getstring(&lex) ){
-        if (lex.typ == LEXEM_CMD){
+    while (!getstring(&rt.lex) ){
+        if (rt.lex.typ == LEXEM_CMD){
             // find + exec
-            process_command( fsstr(lex.str), cmds, &rt);
-        } else if (lex.typ == LEXEM_STR) {
+            process_command( fsstr(rt.lex.str), cmds, &rt);
+        } else if (rt.lex.typ == LEXEM_STR) {
             // TODO: ADD lex.str into rt.body
             // proc_addtoBody(&rt, &lex.str);
         } else
-            fprintf(stderr, "Incorrent lexem type %d:%s\n", lex.typ, Lexemtype_str(lex.typ) );
+            fprintf(stderr, "Incorrent lexem type %d:%s\n", rt.lex.typ, Lexemtype_str(rt.lex.typ) );
         printf(">");
     }
-    lexemfree(lex);
+    //lexemfree(lex); // no need
+    freeRuntimedata(&rt);
     return logret(ret, "%s", bool_str(ret) );
 }
 
