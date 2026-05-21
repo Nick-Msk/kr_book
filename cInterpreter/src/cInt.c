@@ -73,8 +73,14 @@ int                     main(int argc, const char *argv[]){
 static Command cmds[] = {
     CommandInit(.name = "quit"          , .shortlen = 1, .proc = proc_quit         , .desc = "Just quit the runner"                                            )
   , CommandInit(.name = "help"          , .shortlen = 1, .proc = proc_help         , .desc = "Type all command and descriptions"                               )
-  , CommandInit(.name = "techprint"     , .shortlen = 4, .proc = proc_techprint    , .desc = "Technical print of run-time data"                                )
+  , CommandInit(.name = "techdump"      , .shortlen = 4, .proc = proc_techdump     , .desc = "Technical dump of run-time data"                                 )
     // -------------------------------------------
+  , CommandInit(.name = "run"           , .shortlen = 1, .proc = proc_run          , .desc = "Save and run   m _cInt_run.c file"                               )
+  , CommandInit(.name = "par"           , .shortlen = 2, .proc = proc_par          , .desc = "add or reset parameter (into Makefile)"                          )
+  , CommandInit(.name = "print"         , .shortlen = 1, .proc = proc_print        , .desc = "Print of main wrap + body data"                                  )
+  , CommandInit(.name = "save"          , .shortlen = 2, .proc = proc_save         , .desc = "Save run-time data into _cInt_buf.c file"                        )
+  , CommandInit(.name = "clear"         , .shortlen = 2, .proc = proc_clear        , .desc = "Clear run-time data"                                             )
+  , CommandInit(.name = "load"          , .shortlen = 2, .proc = proc_load         , .desc = "Load run-time data from _cInt_buf.c file"                        )
 };
 
 static bool             launch(const Keys *s){
@@ -82,15 +88,19 @@ static bool             launch(const Keys *s){
 
     bool        ret = true;
     Lexem       lex = lexeminit();
-    Runtimedata ctx = RuntimedataInit(.lex = &lex, .cmds = cmds);   // .cmds - all commands
+    Runtimedata rt  = RuntimedataInit(.lex = &lex, .cmds = cmds);   // .cmds - all commands
 
-    while (!ctx.quit && getlexem(&lex, false) ){
+    printf(">");
+    while (!getstring(&lex) ){
         if (lex.typ == LEXEM_CMD){
             // find + exec
-            process_command( fsstr(lex.str), cmds, &ctx);
+            process_command( fsstr(lex.str), cmds, &rt);
+        } else if (lex.typ == LEXEM_STR) {
+            // TODO: ADD lex.str into rt.body
+            // proc_addtoBody(&rt, &lex.str);
         } else
             fprintf(stderr, "Incorrent lexem type %d:%s\n", lex.typ, Lexemtype_str(lex.typ) );
-        printf("Cmd>");
+        printf(">");
     }
     lexemfree(lex);
     return logret(ret, "%s", bool_str(ret) );

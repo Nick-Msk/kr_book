@@ -6,7 +6,7 @@ LDLIBS=
 
 all:
 
-cInt: src/cInt.c lib/getword.o lib/log.o lib/common.o lib/fs.o lib/error.o lib/checker.o lib/buffer.o lib/fileutils.o lib/fs_iter.o lib/fs_array.o
+cInt: src/cInt.c lib/getword.o lib/log.o lib/common.o lib/fs.o lib/error.o lib/checker.o lib/buffer.o lib/fileutils.o lib/fs_iter.o lib/fs_array.o lib/core_impl.o lib/command_executor.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 UTIL_PATH = ../utils
@@ -71,6 +71,10 @@ lib/core_impl.o: src/core_impl.c
 lib/getword.o:
 	cd $(UTIL_PATH) && $(MAKE) getword.o
 	@cp $(UTIL_PATH)/lib/getword.o lib/
+
+lib/command_executor.o:
+	cd $(UTIL_PATH) && $(MAKE) command_executor.o
+	@cp $(UTIL_PATH)/lib/command_executor.o lib/
 
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
