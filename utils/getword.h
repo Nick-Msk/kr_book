@@ -6,6 +6,7 @@
 #include "checker.h"
 
 extern fs                   getword(fs str, bool sens, bool comments, bool get_newline);
+
 // STR MUST BE init with alloc flag
 static inline bool                 getsimpleword(fs *str){
     *str = getword(*str, false, false, false);
