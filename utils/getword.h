@@ -14,7 +14,9 @@ static inline bool                 getsimpleword(fs *str){
 }
 
 // LEXEM_CMD for \<cmd>
-typedef enum { LEXEM_UNK = -1, LEXEM_WORD, LEXEM_INT, LEXEM_FLOAT, LEXEM_SYM, LEXEM_CMD } Lexemtype;
+typedef enum { LEXEM_UNK = -1, LEXEM_WORD, LEXEM_INT, LEXEM_FLOAT, LEXEM_SYM, LEXEM_CMD,
+    LEXEM_STR = 10000000 // separate api getstring!
+} Lexemtype;
 
 static inline const char   *Lexemtype_str(Lexemtype typ){
     switch (typ){
@@ -24,6 +26,7 @@ static inline const char   *Lexemtype_str(Lexemtype typ){
         CASE_RETURN(LEXEM_FLOAT);
         CASE_RETURN(LEXEM_SYM);
         CASE_RETURN(LEXEM_CMD);
+        CASE_RETURN(LEXEM_STR);
         default: return "";
     }
 }
@@ -65,6 +68,9 @@ static inline void          lexem_free(Lexem *l){
 
 #define                     lexeminit(...) {.str = FS(), .typ = LEXEM_UNK }
 #define                     lexemfree(l) lexem_free( &(l) )
+
+// parse only LEXEM_STR or LEXEM_CMD!
+extern bool                 getstring(Lexem *lex);
 
 // any lexem, word or number
 extern bool                 getlexem(Lexem *lex, bool ign_comments);

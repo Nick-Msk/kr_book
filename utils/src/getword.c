@@ -51,9 +51,6 @@ static int               skip_cl(void){
     return logsimpleret(c, "[%c], comments %d", c, cnt);
 }
 
-fs                      getstr(fs str, )
-
-
 // str must have heap alloc
 fs                      getword(fs str, bool lower, bool comments, bool get_newline){
 
@@ -83,6 +80,12 @@ fs                      getword(fs str, bool lower, bool comments, bool get_newl
     elemend(iter);
 
     return logret(str, "%d - [%s]", str.len, str.v); // that is probably new str
+}
+
+// parse only LEXEM_STR or LEXEM_CMD!
+bool                    getstring(Lexem *lex){
+    // TODO:
+    return logsimpleret(true, "Parsed as str %s:%s", Lexemtype_str(lex->typ), lex->str.v);
 }
 
 bool                    getlexem(Lexem *lex, bool ign_comments){
