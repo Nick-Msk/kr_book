@@ -51,6 +51,7 @@ static int               skip_cl(void){
     return logsimpleret(c, "[%c], comments %d", c, cnt);
 }
 
+fs                      getstr(fs str, )
 
 
 // str must have heap alloc
