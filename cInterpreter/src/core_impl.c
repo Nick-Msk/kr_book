@@ -105,6 +105,14 @@ int                             proc_save(Runtimedata *rt){
     return logsimpleret(cnt, "%d Lines were saved", cnt);
 }
 
+int                             proc_clear(Runtimedata *rt){
+    invraise(rt != 0, "Null pointer");
+    fsarr_clean(&rt->body, false);
+    return logsimpleret(1, "Cleared!");
+}
 
-
+int                             proc_par(Runtimedata *rt){
+    // TODO!!!
+    return logsimpleret(1, "Pars...");
+}
 
