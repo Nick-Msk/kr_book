@@ -10,31 +10,37 @@
 
 // renamed from Runtimedata
 typedef struct Runtimedata {
-    Lexem       *lex;
-    bool        quit;   // flag for quit
-    Command    *cmds;   // link to all commands
+    Lexem           *lex;
+    bool             quit;   // flag for quit
+    Command         *cmds;   // link to all commands
     // ----- TODO: use a separate structure for real data
+
     // real data from here
-    fsarray    include;        // not user for now
-    fsarray    functions;      // not user for now
-    fsarray    body;           // code
+    fsarray         include;        // not user for now
+    fsarray         functions;      // not user for now
+    fsarray         body;           // code
+    FILE           *fl, *runfl;
+    const char     *flname;
 } Runtimedata;
-#define             RuntimedataInit(...) (Runtimedata) {.include = fsarr_empty(), .functions = fsarr_empty(), .body = fsarr_init(100), .quit = false,  ##__VA_ARGS__}
+
+#define             RuntimedataInit(...) (Runtimedata)\
+{.include = fsarr_empty(), .functions = fsarr_empty(), .body = fsarr_init(100), .quit = false, .fl = 0, .flname = 0, ##__VA_ARGS__}
 
 // ------------------------------------------ Utilities -------------------------------------------
-
-extern int                 Runtimedata_techfprint(FILE *restrict out, const Runtimedata *restrict rt);
-
-static inline int          Runtimedata_techprint(const Runtimedata *rt){
-    return Runtimedata_techfprint(stdout, rt);
-}
 
 // --------------------------------------- AUXILLARY PROCS -------------------------------------------
 
 extern int                 proc_quit(Runtimedata *rt);
 extern int                 proc_help(Runtimedata *rt);
-extern int                 proc_techprint(Runtimedata *rt);
+extern int                 proc_techdump(Runtimedata *rt);
 
-// ------------------------------------------- MFILE PROCS --------------------------------------------
+// ------------------------------------------- PROCS -------------------------------------------------
+
+extern int                 proc_load(Runtimedata *rt);
+extern int                 proc_print(Runtimedata *rt);
+extern int                 proc_run(Runtimedata *rt);
+extern int                 proc_save(Runtimedata *rt);
+extern int                 proc_clear(Runtimedata *rt);
+extern int                 proc_par(Runtimedata *rt);
 
 #endif /* !_CORE_IMPL_H */
