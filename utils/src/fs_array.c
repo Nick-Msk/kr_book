@@ -170,6 +170,18 @@ int                         fsarr_shrink(fsarray *arr, int newsize){
     return logsimpleret(arr->sz, "Shrinked to %d, new cnt %d", arr->sz, arr->cnt);
 }
 
+// empty or free allocared fs
+extern int                  fsarr_clean(fsarray *arr, bool free){
+    invraise(arr != 0, "Null pointer");
+    // TODO: iterator must be here
+    for (int i = 0; i < arr->cnt; i++)
+        if (free)
+            fsfree(arr->ar[i]);
+        else
+            fsclear(arr->ar[i]);
+    return logsimpleret(arr->cnt, "Cleaned %d free ? %s", arr->cnt, bool_str(free) );
+}
+
 // -------------------------- (API) printers -----------------------
 
 // this is normal printer
@@ -534,7 +546,7 @@ tf7(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED
 }
 
-// ------------------------- TEST 7 ---------------------------------
+// ------------------------- TEST 8 ---------------------------------
 
 static TestStatus
 tf8(const char *name)
@@ -570,6 +582,51 @@ tf8(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED
 }
 
+// ------------------------- TEST 9 ---------------------------------
+
+static TestStatus
+tf9(const char *name)
+{
+    logenter("%s", name);
+    int             subnum = 0;
+
+
+    test_sub("subtest %d: just a clean", ++subnum);
+    {
+        fsarray     fa = fsarr_init(50); 
+        for (int i = 0; i < fa.cnt; i++){
+            elem(fa.ar[i], 100) = 'c';      // real allocation around 128b!
+            fsetlen(fa.ar[i], 101);
+        }
+        logmsg("Len of 0 = %d", fslen(fa.ar[0]) );
+        fsarr_clean(&fa, false);
+        for (int i = 0; i < fa.cnt; i++){
+            int res = fslen(fa.ar[i] );
+            test_validatefree(res == 0, fsarrfree(fa), "Length of %d elem must be 0, but not %d", i, res);
+            test_validatefree(fa.ar[i].v != 0, fsarrfree(fa), "Fs %d must be valuable but not null", i);
+        }
+        fsarrfree(fa);
+    }
+    test_sub("subtest %d: free", ++subnum);
+    {
+        fsarray     fa = fsarr_init(50); 
+        for (int i = 0; i < fa.cnt; i++){
+            elem(fa.ar[i], 1000) = 'c';      // real allocation around 1024b!
+            fsetlen(fa.ar[i], 1001);
+        }
+        logmsg("Len of 0 = %d", fslen(fa.ar[0]) );
+        fsarr_clean(&fa, true);
+        for (int i = 0; i < fa.cnt; i++){
+            int res = fslen(fa.ar[i] );
+            test_validatefree(res == 0, fsarrfree(fa), "Length of %d elem must be 0, but not %d", i, res);
+            test_validatefree(fa.ar[i].v == 0, fsarrfree(fa), "Fs %d must be null after fs_clean(.., true)", i);
+        }
+        fsarrfree(fa);
+    }
+    fs_alloc_check(true);
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED
+}
+
 // ------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -585,6 +642,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf6, .num = 6, .name = "fsarr_shrink/increase test"                   , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf7, .num = 7, .name = "fsarr_detach/attach test"                     , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf8, .num = 8, .name = "fsl simple test"                              , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf9, .num = 9, .name = "fsarr_clean simple test"                      , .desc=""                , .mandatory=true)
     );
 
     return logcloseret(0, "end...");

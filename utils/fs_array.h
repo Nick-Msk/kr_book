@@ -89,6 +89,8 @@ static inline int           fsarr_cnt(const fsarray *arr){
 static inline int           fsarr_sz(const fsarray *arr){
     return arr->sz;
 }
+// empty or free allocared fs
+extern int                  fsarr_clean(fsarray *arr, bool free);
 
 // -------------------------------------  FSL API ------------------------------------------------
 // TODO: move to separate module
