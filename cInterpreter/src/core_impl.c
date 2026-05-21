@@ -5,6 +5,8 @@
 #include "fs.h"
 #include "fs_array.h"
 #include "core_impl.h"
+// actually only for proc_par lexem is need
+#include "getword.h"
 
 // ------------------------------------------ Utilities -------------------------------------------
 
@@ -13,9 +15,7 @@ static int                      Runtimedata_techfprint(FILE *restrict out, const
     int     cnt = 0;
     if (out){
         cnt += fprintf(out, "Run time data: flname [%s]\n", rt->flname);
-        if (rt->lex){
-            cnt += lexem_techfprint(out, rt->lex);
-        }
+        cnt += lexem_techfprint(out, &rt->lex);
         cnt += fsarr_techfprint(out, &rt->body);
         cnt += fprintf(out, "END of Run time data");
     }
@@ -70,7 +70,7 @@ int                             proc_load(Runtimedata *rt){
     return logsimpleret(cnt, "%d Lines were load", cnt);
 }
 
-int                             proc_print(const Runtimedata *rt){
+int                             proc_print(Runtimedata *rt){
     invraise(rt != 0, "Null pointer");
     int     cnt = 0;
     fsarr_print(&rt->body);
@@ -81,7 +81,7 @@ int                             proc_print(const Runtimedata *rt){
 }
 
 // main!
-int                             proc_run(const Runtimedata *rt){
+int                             proc_run(Runtimedata *rt){
     invraise(rt != 0 && rt->runfl != 0, "Null pointer");
     fprintf(rt->runfl, "#include <all.h>\nint main(int argc, const char *argv[]){\n");
     util_save(rt->runfl, &rt->body);  // apprend
@@ -126,6 +126,7 @@ Runtimedata                     initRuntimedata(const char *restrict flname, con
     if (!rt.flname)
         sysraiseint("Unable to open %s for w+", runflname);
     rt.runflname = runflname;
+    rt.body = fsarr_init(100);
     return logsimpleret(rt, "Created with %s, %s", flname, runflname);
 }
 
@@ -138,6 +139,7 @@ void                            freeRuntimedata(Runtimedata *rt){
     if (rt->runfl)
         fclose(rt->runfl), rt->runfl = 0;
     rt->flname = rt->runflname = 0; // must be static or full program live! No free here
+    lexem_free(&rt->lex);
     logsimple("Clean rt done");
 }
 

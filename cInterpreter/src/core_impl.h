@@ -10,7 +10,7 @@
 
 // renamed from Runtimedata
 typedef struct Runtimedata {
-    Lexem           *lex;
+    Lexem            lex;
     bool             quit;   // flag for quit
     Command         *cmds;   // link to all commands
     // ----- TODO: use a separate structure for real data
@@ -24,7 +24,7 @@ typedef struct Runtimedata {
 } Runtimedata;
 
 #define             RuntimedataInit(...) (Runtimedata)\
-{.include = fsarr_empty(), .functions = fsarr_empty(), .body = fsarr_init(100), .quit = false, .fl = 0, .flname = 0, ##__VA_ARGS__}
+{.include = fsarr_empty(), .functions = fsarr_empty(), .body = fsarr_empty(), .quit = false, .fl = 0, .runfl = 0, .flname = 0, .runflname = 0, .lex = lexeminit(),  ##__VA_ARGS__}
 
 // ------------------------------------------ Utilities -------------------------------------------
 
@@ -37,8 +37,8 @@ extern int                 proc_techdump(Runtimedata *rt);
 // ------------------------------------------- PROCS -------------------------------------------------
 
 extern int                 proc_load(Runtimedata *rt);
-extern int                 proc_print(const Runtimedata *rt);
-extern int                 proc_run(const Runtimedata *rt);
+extern int                 proc_print(Runtimedata *rt);
+extern int                 proc_run(Runtimedata *rt);
 extern int                 proc_save(Runtimedata *rt);
 extern int                 proc_clear(Runtimedata *rt);
 extern int                 proc_par(Runtimedata *rt);
