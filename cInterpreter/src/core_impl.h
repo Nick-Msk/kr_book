@@ -20,7 +20,7 @@ typedef struct Runtimedata {
     fsarray         functions;      // not user for now
     fsarray         body;           // code
     FILE           *fl, *runfl;
-    const char     *flname;
+    const char     *flname, *runflname;
 } Runtimedata;
 
 #define             RuntimedataInit(...) (Runtimedata)\
@@ -37,10 +37,15 @@ extern int                 proc_techdump(Runtimedata *rt);
 // ------------------------------------------- PROCS -------------------------------------------------
 
 extern int                 proc_load(Runtimedata *rt);
-extern int                 proc_print(Runtimedata *rt);
-extern int                 proc_run(Runtimedata *rt);
+extern int                 proc_print(const Runtimedata *rt);
+extern int                 proc_run(const Runtimedata *rt);
 extern int                 proc_save(Runtimedata *rt);
 extern int                 proc_clear(Runtimedata *rt);
 extern int                 proc_par(Runtimedata *rt);
+
+// ------------------------------- Contructor/destructor -----------------------------------------------
+
+extern void                freeRuntimedata(Runtimedata *rt);
+extern Runtimedata         initRuntimedata(const char *restrict flname, const char *restrict runflname);
 
 #endif /* !_CORE_IMPL_H */

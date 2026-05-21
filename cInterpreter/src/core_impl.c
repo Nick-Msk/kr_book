@@ -70,7 +70,7 @@ int                             proc_load(Runtimedata *rt){
     return logsimpleret(cnt, "%d Lines were load", cnt);
 }
 
-int                             proc_print(Runtimedata *rt){
+int                             proc_print(const Runtimedata *rt){
     invraise(rt != 0, "Null pointer");
     int     cnt = 0;
     fsarr_print(&rt->body);
@@ -81,7 +81,7 @@ int                             proc_print(Runtimedata *rt){
 }
 
 // main!
-int                             proc_run(Runtimedata *rt){
+int                             proc_run(const Runtimedata *rt){
     invraise(rt != 0 && rt->runfl != 0, "Null pointer");
     fprintf(rt->runfl, "#include <all.h>\nint main(int argc, const char *argv[]){\n");
     util_save(rt->runfl, &rt->body);  // apprend
@@ -114,5 +114,30 @@ int                             proc_clear(Runtimedata *rt){
 int                             proc_par(Runtimedata *rt){
     // TODO!!!
     return logsimpleret(1, "Pars...");
+}
+
+Runtimedata                     initRuntimedata(const char *restrict flname, const char *restrict runflname){
+    invraise(flname && runflname, "Null input files names");
+    Runtimedata rt = RuntimedataInit();
+    rt.fl = fopen(flname, "w+");
+    if (!rt.fl)
+        sysraiseint("Unable to open %s for w+", flname);
+    rt.flname = flname;
+    if (!rt.flname)
+        sysraiseint("Unable to open %s for w+", runflname);
+    rt.runflname = runflname;
+    return logsimpleret(rt, "Created with %s, %s", flname, runflname);
+}
+
+void                            freeRuntimedata(Runtimedata *rt){
+    invraise(rt != 0, "Null pointer");
+    logsimple("Cleanup rt");
+    fsarr_free(&rt->body);
+    if (rt->fl)
+        fclose(rt->fl), rt->fl = 0;
+    if (rt->runfl)
+        fclose(rt->runfl), rt->runfl = 0;
+    rt->flname = rt->runflname = 0; // must be static or full program live! No free here
+    logsimple("Clean rt done");
 }
 
