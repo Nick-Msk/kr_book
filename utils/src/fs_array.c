@@ -197,6 +197,8 @@ int                         fsarr_fprint(FILE *restrict f, const fsarray *restri
     return cnt;     // total printed items
 }
 
+
+
 // -------------------------- (API) Serialization  -----------------------
 int                         fsarr_save(const char *restrict fname, const fsarray *restrict arr){
     FILE    *out = fopen(fname, "w");
@@ -241,11 +243,21 @@ fsarray                     fsarr_fload(FILE *restrict f){
     fsarray     a = fsarr_init(cnt);
     // cycle for fs
     for (int i = 0; i < cnt; i++){
-        FUSKIPFORMATPRINTF(f, "%4d:", i); 
+        FUSKIPFORMATPRINTF(f, "%4d:", i);
         a.ar[i] = fs_fload(f, 0);       // TODO: probably to usr fsarr_get()?
     }
     FUSKIPFORMAT(f, "]");
     return a;
+}
+
+int                         fsarr_fsavelines(FILE *restrict out, const fsarray *restrict arr, int cntline){
+    invraise(arr != 0, "Null pointer");
+    int     cnt = 0;
+    cntline = cntline <= 0 ? arr->cnt : cntline;
+    if (out)
+        for (int i = 0; i < cntline; i++)
+            cnt += fprintf(out, "%s\n", fsstr(arr->ar[i] ) );
+    return logsimpleret(cnt, "Saved %d", cnt);
 }
 
 // ------------------ API Constructs/Destrucor  ----------------------------
@@ -673,6 +685,36 @@ tf10(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED
 }
 
+// ------------------------- TEST 11 ---------------------------------
+
+static TestStatus
+tf11(const char *name)
+{
+    logenter("%s", name);
+    int             subnum = 0;
+    const char * const arr[] = {"Tra ta ta str1", "Bla bla bla str2", "Hu hu vot str3", "Nu meg got str4", "str5", "str6", 0};
+
+    test_sub("subtest %d: fsarr_fsavelines just save as line", ++subnum);
+    {
+        fsarray fa = fsarr_fromarr(arr, 0);
+        const char  fname[] = "res/fsarray_fsarr_fsavelines1.dat";
+
+        FILE        *f = fopen(fname, "w+");
+        if (!f)
+            return logerr(TEST_FAILED, "Unable to open %s for w+", fname);
+
+        fsarr_fsavelines(f, &fa, 0);
+        // TODO: tfile utilities are required... to check file length, count of lines etc...
+
+        fclose(f);
+        fsarrfree(fa);
+    }
+    fs_alloc_check(true);
+    return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED
+}
+
+
+
 // ------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -690,6 +732,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 =  tf8,  .num = 8, .name = "fsl simple test"                              , .desc=""                , .mandatory=true)
       , testnew(.f2 =  tf9,  .num = 9, .name = "fsarr_clean simple test"                      , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf10, .num = 10, .name = "fsarr_fromarr simple test"                    , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf11, .num = 11, .name = "fsarr_fsavelines manual test"                 , .desc=""                , .mandatory=true)
     );
 
     return logcloseret(0, "end...");
