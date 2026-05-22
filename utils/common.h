@@ -20,6 +20,13 @@ typedef int(*Comparator)(const void *, const void *);
 
 #define 			COUNT(arr) (int)(sizeof arr/sizeof(typeof(*arr)) )
 
+static inline int   countstrings(const char * const *p){
+    const char * const *t = p;
+    while (*t)
+        t++;
+    return t - p;
+}
+
 static const char 	NULLSTR[] = "(null)";
 
 #define MIN(x, y)\
