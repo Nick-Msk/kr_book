@@ -272,6 +272,19 @@ fsarray             fsarr_init(int cnt){
     return logsimpleret(ar, "Created with sz %d, cnt %d", ar.sz, ar.cnt);
 }
 
+// null-last array, of cnt == 0, then <= cnt elements
+fsarray              fsarr_fromarr(const char * const *arr, int cnt){
+    const char * const *iter = arr;
+    while (*iter && cnt == 0 ? true : iter - arr < cnt)
+        iter++;
+    cnt = iter - arr;
+    logsimple("%d will be allocated", cnt);
+    fsarray     tmp = fsarr_init(cnt);
+    for (int i = 0; i < cnt; i++)
+        tmp.ar[i] = fscopy(arr[i]);    // allocate one by one
+    return logsimpleret(tmp, "Created fsarray with %d", cnt);
+}
+
 // -------------------------------Testing --------------------------
 #ifdef FSARRAYTESTING
 
@@ -593,7 +606,7 @@ tf9(const char *name)
 
     test_sub("subtest %d: just a clean", ++subnum);
     {
-        fsarray     fa = fsarr_init(50); 
+        fsarray     fa = fsarr_init(50);
         for (int i = 0; i < fa.cnt; i++){
             elem(fa.ar[i], 100) = 'c';      // real allocation around 128b!
             fsetlen(fa.ar[i], 101);
@@ -609,7 +622,7 @@ tf9(const char *name)
     }
     test_sub("subtest %d: free", ++subnum);
     {
-        fsarray     fa = fsarr_init(50); 
+        fsarray     fa = fsarr_init(50);
         for (int i = 0; i < fa.cnt; i++){
             elem(fa.ar[i], 1000) = 'c';      // real allocation around 1024b!
             fsetlen(fa.ar[i], 1001);
@@ -627,6 +640,39 @@ tf9(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED
 }
 
+// ------------------------- TEST 10 ---------------------------------
+
+static TestStatus
+tf10(const char *name)
+{
+    logenter("%s", name);
+    int             subnum = 0;
+    const char * const arr[] = {"Tra ta ta str1", "Bla bla bla str2", "Hu hu vot str3", "Nu meg got str4", "str5", "str6", 0};
+
+    test_sub("subtest %d: fsarr_fromarr from null-ended array", ++subnum);
+    {
+        fsarray fa = fsarr_fromarr(arr, 0);
+        int cnt  = countstrings(arr);
+        test_validatefree(cnt == fa.cnt, fsarrfree(fa), "Count of fsarray = %d but must be %d", fa.cnt, cnt);
+        for (int i = 0; i < fa.cnt; i++)
+            test_validatefree(strcmp(fsstr(fa.ar[i]), arr[i] ) == 0, fsarrfree(fa), "fsarray[%d] = [%s] but must be [%s]", i, fsstr(fa.ar[i]), arr[i]);
+
+        fsarrfree(fa);
+    }
+    test_sub("subtest %d: fsarr_fromarr with limit", ++subnum);
+    {
+        fsarray fa = fsarr_fromarr(arr, 2);
+        test_validatefree(2 == fa.cnt, fsarrfree(fa), "Count of fsarray = %d but must be %d", fa.cnt, 2);
+
+        for (int i = 0; i < fa.cnt; i++)
+            test_validatefree(strcmp(fsstr(fa.ar[i]), arr[i] ) == 0, fsarrfree(fa), "fsarray[%d] = [%s] but must be [%s]", i, fsstr(fa.ar[i]), arr[i]);
+
+        fsarrfree(fa);
+    }
+    fs_alloc_check(true);
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED
+}
+
 // ------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -634,15 +680,16 @@ main( /* int argc, const char *argv[] */)
     logsimpleinit("Start");
 
     testenginestd(
-        testnew(.f2 = tf1, .num = 1, .name = "Simple init free test"                        , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf2, .num = 2, .name = "Init/free test with valid fs (random)"        , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf3, .num = 3, .name = "fsarr_attach test"                            , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf4, .num = 4, .name = "fsarr_save test"                              , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf5, .num = 5, .name = "fsarr_save/load test"                         , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf6, .num = 6, .name = "fsarr_shrink/increase test"                   , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf7, .num = 7, .name = "fsarr_detach/attach test"                     , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf8, .num = 8, .name = "fsl simple test"                              , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf9, .num = 9, .name = "fsarr_clean simple test"                      , .desc=""                , .mandatory=true)
+        testnew(.f2 =  tf1,  .num = 1, .name = "Simple init free test"                        , .desc=""                , .mandatory=true)
+      , testnew(.f2 =  tf2,  .num = 2, .name = "Init/free test with valid fs (random)"        , .desc=""                , .mandatory=true)
+      , testnew(.f2 =  tf3,  .num = 3, .name = "fsarr_attach test"                            , .desc=""                , .mandatory=true)
+      , testnew(.f2 =  tf4,  .num = 4, .name = "fsarr_save test"                              , .desc=""                , .mandatory=true)
+      , testnew(.f2 =  tf5,  .num = 5, .name = "fsarr_save/load test"                         , .desc=""                , .mandatory=true)
+      , testnew(.f2 =  tf6,  .num = 6, .name = "fsarr_shrink/increase test"                   , .desc=""                , .mandatory=true)
+      , testnew(.f2 =  tf7,  .num = 7, .name = "fsarr_detach/attach test"                     , .desc=""                , .mandatory=true)
+      , testnew(.f2 =  tf8,  .num = 8, .name = "fsl simple test"                              , .desc=""                , .mandatory=true)
+      , testnew(.f2 =  tf9,  .num = 9, .name = "fsarr_clean simple test"                      , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf10, .num = 10, .name = "fsarr_fromarr simple test"                    , .desc=""                , .mandatory=true)
     );
 
     return logcloseret(0, "end...");
