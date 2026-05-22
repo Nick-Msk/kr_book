@@ -84,7 +84,23 @@ fs                      getword(fs str, bool lower, bool comments, bool get_newl
 
 // parse only LEXEM_STR or LEXEM_CMD!
 bool                    getstring(Lexem *lex){
-    // TODO:
+
+    int     c;
+    fsnew   iter;
+
+    c = skip_spaces(true);
+    logsimple("[%c]", c);
+    if (c == '\\')
+        lex->typ = LEXEM_CMD;  // if command, then just return line without init '\'
+    else {
+        elemnext(iter) = c;
+        lex->typ = LEXEM_STR;
+    }
+    while ( (c = getch()) != EOF && c != '\n')
+        elemnext(iter) = c;
+    elemend(iter);
+    // no need to ungetch
+
     return logsimpleret(true, "Parsed as str %s:%s", Lexemtype_str(lex->typ), lex->str.v);
 }
 
@@ -129,4 +145,6 @@ bool                    getlexem(Lexem *lex, bool ign_comments){
     ungetch(c);
     return logsimpleret(true, "Parsed %s:%s", Lexemtype_str(lex->typ), lex->str.v );
 }
+
+
 
