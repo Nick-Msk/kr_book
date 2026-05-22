@@ -151,6 +151,7 @@ bool                    getlexem(Lexem *lex, bool ign_comments){
 
 #include "test.h"
 #include "checker.h"
+#include "fs_array.h"
 
 //types for testing
 
@@ -165,9 +166,63 @@ tf1(const char *name)
 
     test_sub("subtest %d: read input by getstring()", ++subnum);
     {
-        
+        const char  fname[] = "res/getword_test_file_getstring.dat";
+        const char *pts[] = { "Fiest line xxx", "Second line yyyyy", "Third line oooooo", 0};
+        FILE        *f = fopen(fname, "w+");
+        if (!f)
+            return logerr(TEST_FAILED, "Unable to open %s for w+", fname);
+
+        fsarray     fa = fsarr_fromarr(pts, 0);
+        fsarr_fsavelines(f, &fa, 0);  // save ONLY lines, divided by '\n'
+
+        rewind(f);
+        buffer_set(f);  // read from f instead of stdin
+
+        Lexem       lex = lexeminit();
+        int         i = 0;
+        while (getstring(&lex) ){
+            test_validatefree(lex.typ = LEXEM_STR, (lexemfree(lex), fsarrfree(fa), fclose(f) ),
+                "Lexem type must be LEXEM_STR but not %s", Lexemtype_str(lex.typ) );
+            test_validatefree(lexem_cmp(&lex, pts[i]) == 0, (lexemfree(lex), fsarrfree(fa), fclose(f) ),
+                "String must be [%s] but not [%s]", lexemstr(lex), pts[i] );
+            i++;
+        }
+
+        lexemfree(lex);
+        fsarrfree(fa);
+        fclose(f);
     }
 
+    test_sub("subtest %d: read input by with command getstring()", ++subnum);
+    {
+        const char  fname[] = "res/getword_test_file_getstring2.dat";
+        // odd - LEXEM_STR
+        const char *pts[] = { "Command line 1", "\\Fiest line xxx", "Second line yyyyy", "\\Third line oooooo", "Command line 2"};
+        FILE        *f = fopen(fname, "w+");
+        if (!f)
+            return logerr(TEST_FAILED, "Unable to open %s for w+", fname);
+
+        fsarray     fa = fsarr_fromarr(pts, 0);
+        fsarr_fsavelines(f, &fa, 0);  // save ONLY lines, divided by '\n'
+
+        rewind(f);
+        buffer_set(f);  // read from f instead of stdin
+
+        Lexem       lex = lexeminit();
+        int         i = 0;
+        while (getstring(&lex) ){
+            Lexemtype typ = (i % 2 == 0) ? LEXEM_STR : LEXEM_CMD;
+            test_validatefree(lex.typ = LEXEM_STR, (lexemfree(lex), fsarrfree(fa), fclose(f) ),
+                "Lexem type must be %s but not %s", Lexemtype_str(typ), Lexemtype_str(lex.typ) );
+            test_validatefree(lexem_cmp(&lex, pts[i] + i % 2) == 0, (lexemfree(lex), fsarrfree(fa), fclose(f) ),
+                "String must be [%s] but not [%s]", lexemstr(lex), pts[i] + i % 2 );
+            i++;
+        }
+
+        lexemfree(lex);
+        fsarrfree(fa);
+        fclose(f);
+    }
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
@@ -178,7 +233,7 @@ main( /* int argc, const char *argv[] */)
     logsimpleinit("Start");
 
     testenginestd(
-        testnew(.f2 = tf1,  .num =  1, .name = "getstring simple file test"                     , .desc=""                , .mandatory=true)
+        testnew(.f2 = tf1,  .num =  1, .name = "getstring() simple file test"                     , .desc=""                , .mandatory=true)
 
 );
 

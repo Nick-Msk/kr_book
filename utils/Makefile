@@ -91,6 +91,9 @@ getword.o: src/getword.c
 	$(CC) $(CFLAGS)  $^ -c
 	@mv $@ lib/
 
+getword: src/getword.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fs.o lib/buffer.o lib/fs_array.o lib/fileutils.o
+	 $(CC) $(CFLAGS) -DGETWORDTESTING $^ -o test/$@_test
+
 command_executor.o: src/command_executor.c
 	$(CC) $(CFLAGS)  $^ -c
 	@mv $@ lib/

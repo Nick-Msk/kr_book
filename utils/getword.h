@@ -80,6 +80,14 @@ static inline bool          lexem_eq(const Lexem *restrict lex, const char *rest
     invraise(lex != 0 && str != 0, "Wrong input");
     return strncmp(lex->str.v, str, len) == 0;
 }
+static inline bool          lexem_cmp(const Lexem *restrict lex, const char *restrict str){
+    invraise(lex != 0 && str != 0, "Wrong input");
+    return strcmp(lex->str.v, str) == 0;
+}
+static inline bool          lexem_ncmp(const Lexem *restrict lex, const char *restrict str, int cnt){
+    invraise(lex != 0 && str != 0, "Wrong input");
+    return strncmp(lex->str.v, str, cnt) == 0;
+}
 // fs port
 static inline bool          lexem_fseq(const Lexem *restrict lex, const fs *restrict str, int len){
     invraise(lex != 0 && str != 0, "Wrong input");
