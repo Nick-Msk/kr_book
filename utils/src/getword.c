@@ -146,5 +146,44 @@ bool                    getlexem(Lexem *lex, bool ign_comments){
     return logsimpleret(true, "Parsed %s:%s", Lexemtype_str(lex->typ), lex->str.v );
 }
 
+// -------------------------------Testing --------------------------
+#ifdef GETWORDTESTING
 
+#include "test.h"
+#include "checker.h"
+
+//types for testing
+
+
+// ------------------------- TEST 1 ---------------------------------
+
+static TestStatus
+tf1(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: read input by getstring()", ++subnum);
+    {
+        
+    }
+
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
+// ------------------------------------------------------------------------------------------------------------------------------
+int
+main( /* int argc, const char *argv[] */)
+{
+    logsimpleinit("Start");
+
+    testenginestd(
+        testnew(.f2 = tf1,  .num =  1, .name = "getstring simple file test"                     , .desc=""                , .mandatory=true)
+
+);
+
+    return logret(0, "end...");  // as replace of logclose()
+}
+
+#endif /* GETWORDTESTING */
 
