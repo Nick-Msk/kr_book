@@ -159,5 +159,10 @@ extern int                  fsarr_fsave(FILE *restrict f, const fsarray *restric
 extern fsarray              fsarr_load(const char *fname);
 extern fsarray              fsarr_fload(FILE *f);
 
+extern int                  fsarr_fsavelines(FILE *restrict out, const fsarray *restrict arr, int cnt);
+static inline int           fsarr_savelines(const fsarray *arr, int cnt){
+    return fsarr_fsavelines(stdout, arr, cnt);
+}
+
 #endif /* !_FS_ARRAY_H */
 
