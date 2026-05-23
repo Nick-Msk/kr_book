@@ -143,3 +143,8 @@ void                            freeRuntimedata(Runtimedata *rt){
     logsimple("Clean rt done");
 }
 
+bool                            addline(Runtimedata *restrict rt, fs *restrict str){
+    // MOVE fs into fsarray
+    // TODO:
+}
+

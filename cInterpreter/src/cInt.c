@@ -102,7 +102,7 @@ static bool             launch(const char *restrict bufname, const char *runname
             process_command( fsstr(rt.lex.str), cmds, &rt);
         } else if (rt.lex.typ == LEXEM_STR) {
             // TODO: ADD lex.str into rt.body
-            // proc_addtoBody(&rt, &lex.str);
+            addline(&rt, &lex.str);
         } else
             fprintf(stderr, "Incorrent lexem type %d:%s\n", rt.lex.typ, Lexemtype_str(rt.lex.typ) );
         printf(">");

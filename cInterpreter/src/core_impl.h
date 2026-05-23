@@ -48,4 +48,7 @@ extern int                 proc_par(Runtimedata *rt);
 extern void                freeRuntimedata(Runtimedata *rt);
 extern Runtimedata         initRuntimedata(const char *restrict flname, const char *restrict runflname);
 
+// ------------------------------------------- Methods -------------------------------------------------
+extern bool                addline(Runtimedata *restrict rt, fs *restrict str);
+
 #endif /* !_CORE_IMPL_H */
