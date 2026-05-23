@@ -26,9 +26,10 @@ static inline int               Runtimedata_techprint(const Runtimedata *rt){
     return Runtimedata_techfprint(stdout, rt);
 }
 
-static int                      util_save(FILE *restrict out, const fsarray *restrict arr){
+static int                      util_save(FILE *restrict out, const fsarray *restrict arr, int cnt){
     int     i;
-    for (i = 0; i < fsarr_cnt(arr); i++){
+    cnt = cnt <= 0 ? fsarr_cnt(arr) : cnt;
+    for (i = 0; i < cnt; i++){
         fs *s = arr->ar + i;
         fwrite(fs_str(s), 1, fs_len(s), out);
     }
@@ -84,7 +85,7 @@ int                             proc_print(Runtimedata *rt){
 int                             proc_run(Runtimedata *rt){
     invraise(rt != 0 && rt->runfl != 0, "Null pointer");
     fprintf(rt->runfl, "#include <all.h>\nint main(int argc, const char *argv[]){\n");
-    util_save(rt->runfl, &rt->body);  // apprend
+    util_save(rt->runfl, &rt->body, rt->bodyptr);  // apprend
     fprintf(rt->fl, "\n}\n");
     // run make cInt from here
     // not sude, via dll or directly
@@ -100,7 +101,7 @@ int                             proc_save(Runtimedata *rt){
         rt->fl = freopen(NULL, "w+", rt->fl);
         if (!rt->fl)
             sysraiseint("Unable to reopen %s", rt->flname);
-        cnt = util_save(rt->fl, &rt->body);
+        cnt = util_save(rt->fl, &rt->body, rt->bodyptr);
     }
     return logsimpleret(cnt, "%d Lines were saved", cnt);
 }
@@ -143,8 +144,14 @@ void                            freeRuntimedata(Runtimedata *rt){
     logsimple("Clean rt done");
 }
 
-bool                            addline(Runtimedata *restrict rt, fs *restrict str){
+bool                            addline(Runtimedata *restrict rt, fs str){
+    invraise(rt != 0, "Null pointer");
     // MOVE fs into fsarray
-    // TODO:
+    fsarray     *b = &rt->body;
+    if (rt->bodyptr >= fsarr_cnt(b) )
+        if (fsarr_increase(b, rt->bodyptr + 100) < 0)
+            return userraise(false, ERR_UNABLE_ALLOCATE, "Unable to add lines to body");
+    fs_cpy(b->ar + rt->bodyptr++, str);
+    return logsimpleret(true, "Added");
 }
 

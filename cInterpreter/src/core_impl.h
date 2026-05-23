@@ -19,12 +19,14 @@ typedef struct Runtimedata {
     fsarray         include;        // not user for now
     fsarray         functions;      // not user for now
     fsarray         body;           // code
+    int             bodyptr;
     FILE           *fl, *runfl;
     const char     *flname, *runflname;
 } Runtimedata;
 
 #define             RuntimedataInit(...) (Runtimedata)\
-{.include = fsarr_empty(), .functions = fsarr_empty(), .body = fsarr_empty(), .quit = false, .fl = 0, .runfl = 0, .flname = 0, .runflname = 0, .lex = lexeminit(),  ##__VA_ARGS__}
+{.include = fsarr_empty(), .functions = fsarr_empty(), .body = fsarr_empty(), .bodyptr = 0, \
+ .quit = false, .fl = 0, .runfl = 0, .flname = 0, .runflname = 0, .lex = lexeminit(),  ##__VA_ARGS__}
 
 // ------------------------------------------ Utilities -------------------------------------------
 
@@ -49,6 +51,6 @@ extern void                freeRuntimedata(Runtimedata *rt);
 extern Runtimedata         initRuntimedata(const char *restrict flname, const char *restrict runflname);
 
 // ------------------------------------------- Methods -------------------------------------------------
-extern bool                addline(Runtimedata *restrict rt, fs *restrict str);
+extern bool                addline(Runtimedata *rt, fs str);
 
 #endif /* !_CORE_IMPL_H */
