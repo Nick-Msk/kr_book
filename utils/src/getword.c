@@ -86,11 +86,14 @@ fs                      getword(fs str, bool lower, bool comments, bool get_newl
 bool                    getstring(Lexem *lex){
 
     int     c;
-    fsnew   iter;
+    fsnew   iter = fsinew(&lex->str);
 
     c = skip_spaces(true);
     logsimple("[%c]", c);
-    if (c == '\\')
+    if (c == EOF){
+        lex->typ = LEXEM_UNK;
+        return logsimpleret(false, "EOF detected");
+    } else if (c == '\\')
         lex->typ = LEXEM_CMD;  // if command, then just return line without init '\'
     else {
         elemnext(iter) = c;
@@ -185,7 +188,7 @@ tf1(const char *name)
                 "Lexem type must be LEXEM_STR but not %s", Lexemtype_str(lex.typ) );
             test_validatefree(lexem_cmp(&lex, pts[i]) == 0, (lexemfree(lex), fsarrfree(fa), fclose(f) ),
                 "String must be [%s] but not [%s]", lexemstr(lex), pts[i] );
-            i++;
+            logauto(i++);
         }
 
         lexemfree(lex);
@@ -197,7 +200,7 @@ tf1(const char *name)
     {
         const char  fname[] = "res/getword_test_file_getstring2.dat";
         // odd - LEXEM_STR
-        const char *pts[] = { "Command line 1", "\\Fiest line xxx", "Second line yyyyy", "\\Third line oooooo", "Command line 2"};
+        const char *pts[] = { "Command line 1", "\\Fiest line xxx", "Second line yyyyy", "\\Third line oooooo", "Command line 2", 0};
         FILE        *f = fopen(fname, "w+");
         if (!f)
             return logerr(TEST_FAILED, "Unable to open %s for w+", fname);
