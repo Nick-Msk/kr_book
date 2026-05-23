@@ -61,7 +61,7 @@ static int                      fsarr_increasesize(fsarray *fa, int newsz, bool 
     if (newsz > fa->sz || !init) {   // if exec from faarr_increate() then resize anyway
         fs *tmp = realloc(fa->ar, newsz * sizeof (fs) );
         if (!tmp) {
-            return userraise(-1, 10, "Unable to allocate %lu bytes", newsz * sizeof (fs) );  // what about LG_LV here??/ TODO:
+            return userraise(-1, ERR_UNABLE_ALLOCATE, "Unable to allocate %lu bytes", newsz * sizeof (fs) );  // what about LG_LV here??/ TODO:
         }
         if (fa->ar == 0)
             logauto(++g_fsarr_alloc_cnt);
