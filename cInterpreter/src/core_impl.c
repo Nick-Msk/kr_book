@@ -36,6 +36,11 @@ static int                      util_save(FILE *restrict out, const fsarray *res
     return i;
 }
 
+static bool                     util_sysexec(const char *fname){
+    // TODO:
+    return logsimpleret(true, "Executed %s", fname);
+}
+
 // --------------------------------------- AUXILLARY PROCS -------------------------------------------
 
 // example of working procedures
@@ -90,6 +95,7 @@ int                             proc_run(Runtimedata *rt){
     // run make cInt from here
     // not sude, via dll or directly
     // this version 0.1 will NOT switch stdout/err
+    util_sysexec(rt->runfl);
     return 1;   // as OK
 }
 
