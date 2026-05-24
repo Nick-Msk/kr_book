@@ -35,6 +35,7 @@ static const int                        ERR_UNABLE_SET_FILE_PARAM   = 54;
 static const int                        ERR_CANT_GET_STAT           = 55;
 
 static const int                        ERR_WRONG_INPUT_PARAMETERS  = 60;
+static const int                        ERR_SHELL_NOT_AVAILABLE     = 65;
 
 static const int                        ERRNUM_INVARIANT_VIOLATION  = 100;       // Error code for error.h
 static const int                        ERR_NOT_IMPLEMENTED_FEATURE = 200;
