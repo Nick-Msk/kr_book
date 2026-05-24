@@ -8,6 +8,9 @@
 // actually only for proc_par lexem is need
 #include "getword.h"
 
+static const char           BUILD[] = "make target1";
+static const char           RUN[] = "make run";
+
 // ------------------------------------------ Utilities -------------------------------------------
 
 static int                      Runtimedata_techfprint(FILE *restrict out, const Runtimedata *restrict rt){
@@ -36,8 +39,28 @@ static int                      util_save(FILE *restrict out, const fsarray *res
     return i;
 }
 
+static bool                     util_run(const char *fname){
+    if (system(RUN) != 0)
+        return userraise(false, ERR_UNABLE_TO_RUN_MAKE, "Unable to run %s", RUN);
+    return logsimpleret(true, "run");
+}
+
+static bool                     util_build(const char *fname){
+    // TODO:
+    if (system(BUILD) != 0)
+        return userraise(false, ERR_UNABLE_TO_RUN_MAKE, "Unable to %s", BUILD);
+    return logsimpleret(true, "builded");
+}
+
+// check + build + run
 static bool                     util_sysexec(const char *fname){
     // TODO:
+    if (!system(0) )
+        return userraise(false, ERR_SHELL_NOT_AVAILABLE, "Unable to find command shell");
+    // run - now directly
+    if (!util_build(fname))
+        return userraise(false, ERR_UNABLE_TO_RUN_MAKE, "Unble to build, check errors");
+    util_run(fname);
     return logsimpleret(true, "Executed %s", fname);
 }
 
@@ -92,10 +115,11 @@ int                             proc_run(Runtimedata *rt){
     fprintf(rt->runfl, "#include <all.h>\nint main(int argc, const char *argv[]){\n");
     util_save(rt->runfl, &rt->body, rt->bodyptr);  // apprend
     fprintf(rt->fl, "\n}\n");
-    // run make cInt from here
-    // not sude, via dll or directly
+    fflush(rt->fl);
     // this version 0.1 will NOT switch stdout/err
-    util_sysexec(rt->runfl);
+    if (!util_sysexec(rt->runflname) )
+        userraise(-1, ERR_UNABLE_TO_EXEC_FILE, "Unable to exec %s", rt->runflname);
+   //
     return 1;   // as OK
 }
 
