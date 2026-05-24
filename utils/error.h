@@ -48,7 +48,9 @@ static const int                        ERR_FS_NOT_ALLOC_FLAG       = 10001;
 static const int                        ERR_TOO_LONG_LINE           = 10010;
 static const int                        ERR_GUARD_RAISE             = 10100;
 static const int                        ERR_ACTION_NOT_APPLICABLE   = 10200;
+
 static const int                        ERR_UNABLE_TO_EXEC_FILE     = 10300;
+static const int                        ERR_UNABLE_TO_RUN_MAKE      = 10301;
 
 // ------------------- TYPES -----------------------
 
