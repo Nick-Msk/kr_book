@@ -64,7 +64,7 @@ int                     main(int argc, const char *argv[]){
         return 0;
     }
     const char *bufname = "res/file.buf";
-    const char *runname = "res/_run.c";
+    const char *runname = "res/_run1.c";
     if (ke.bufname)
         bufname = ke.bufname;
     if (ke.runname)

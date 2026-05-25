@@ -8,7 +8,7 @@
 // actually only for proc_par lexem is need
 #include "getword.h"
 
-static const char           BUILD[] = "make target1";
+static const char           BUILD[] = "make -C res/ _run1";
 static const char           RUN[] = "make run";
 
 // ------------------------------------------ Utilities -------------------------------------------
