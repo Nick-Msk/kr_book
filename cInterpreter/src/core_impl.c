@@ -9,7 +9,7 @@
 #include "getword.h"
 
 static const char           BUILD[] = "make -C res/ _run1";
-static const char           RUN[] = "make run";
+static const char           RUN[] = "make -C res/ run";
 
 // ------------------------------------------ Utilities -------------------------------------------
 
@@ -74,8 +74,11 @@ int                             proc_quit(Runtimedata *rt){
 }
 
 int                             proc_help(Runtimedata *rt){
-    Command *cm = rt->cmds;
-    while (cm->desc){
+    invraise(rt != 0, "Null pointer");
+
+    const Command   *cm = rt->cmds;
+    logsimple("%p", cm);
+    while (cm->proc){
         printf("%s\t\t: %s\n", cm->name, cm->desc);
         cm++;
     }
@@ -147,9 +150,9 @@ int                             proc_par(Runtimedata *rt){
     return logsimpleret(1, "Pars...");
 }
 
-Runtimedata                     initRuntimedata(const char *restrict flname, const char *restrict runflname){
+Runtimedata                     initRuntimedata(const char *restrict flname, const char *restrict runflname, const Command *cmds){
     invraise(flname && runflname, "Null input files names");
-    Runtimedata rt = RuntimedataInit();
+    Runtimedata rt = RuntimedataInit(.cmds = cmds);
     rt.fl = fopen(flname, "w+");
     if (!rt.fl)
         sysraiseint("Unable to open %s for w+", flname);
