@@ -87,6 +87,7 @@ static Command cmds[] = {
   , CommandInit(.name = "save"          , .shortlen = 2, .proc = proc_save         , .desc = "Save run-time data into _cInt_buf.c file"                        )
   , CommandInit(.name = "clear"         , .shortlen = 2, .proc = proc_clear        , .desc = "Clear run-time data"                                             )
   , CommandInit(.name = "load"          , .shortlen = 2, .proc = proc_load         , .desc = "Load run-time data from _cInt_buf.c file"                        )
+  , CommandInit()
 };
 
 static bool             launch(const char *restrict bufname, const char *runname){
@@ -94,9 +95,9 @@ static bool             launch(const char *restrict bufname, const char *runname
 
     bool        ret = true;
 
-    Runtimedata rt = initRuntimedata(bufname, runname);
+    Runtimedata rt = initRuntimedata(bufname, runname, cmds);
     printf(">");
-    while (!getstring(&rt.lex) ){
+    while (getstring(&rt.lex) && !rt.quit){
         if (rt.lex.typ == LEXEM_CMD){
             // find + exec
             process_command( fsstr(rt.lex.str), cmds, &rt);
