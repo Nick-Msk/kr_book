@@ -1,5 +1,7 @@
-Command line 1
-\Fiest line xxx
+First line 1
+\Cmd line 1 xxx
 Second line yyyyy
-\Third line oooooo
-Command line 2
+\Cmd line 2 oooooo
+
+\CMD 3
+Third (4) line oooooo

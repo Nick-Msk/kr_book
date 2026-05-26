@@ -45,6 +45,15 @@ static inline const char   *lexem_str(const Lexem *l){
     return l->str.v;
 }
 
+static inline int           lexemlen(Lexem l){
+    return fslen(l.str);
+}
+
+static inline int           lexem_len(const Lexem *l){
+    invraise(l != 0, "Wrong input");
+    return fslen(l->str);
+}
+
 static inline int           lexem_techfprint(FILE *restrict out, const Lexem *restrict l){
     invraise(l != 0, "Wrong input");
     int     cnt = 0;

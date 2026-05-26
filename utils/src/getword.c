@@ -96,15 +96,20 @@ bool                    getstring(Lexem *lex){
     } else if (c == '\\')
         lex->typ = LEXEM_CMD;  // if command, then just return line without init '\'
     else {
-        elemnext(iter) = c;
         lex->typ = LEXEM_STR;
+        if (c !='\n')
+            elemnext(iter) = c;
+        else {
+            elemend(iter);
+            return logsimpleret(true, "Empty line!");
+        }
     }
     while ( (c = getch()) != EOF && c != '\n')
         elemnext(iter) = c;
     elemend(iter);
     // no need to ungetch
 
-    return logsimpleret(true, "Parsed as str %s:%s", Lexemtype_str(lex->typ), lex->str.v);
+    return logsimpleret(true, "Parsed as str %s:[%s]", Lexemtype_str(lex->typ), lex->str.v);
 }
 
 bool                    getlexem(Lexem *lex, bool ign_comments){
@@ -200,7 +205,7 @@ tf1(const char *name)
     {
         const char  fname[] = "res/getword_test_file_getstring2.dat";
         // odd - LEXEM_STR
-        const char *pts[] = { "Command line 1", "\\Fiest line xxx", "Second line yyyyy", "\\Third line oooooo", "Command line 2", 0};
+        const char *pts[] = { "First line 1", "\\Cmd line 1 xxx", "Second line yyyyy", "\\Cmd line 2 oooooo", "", "\\CMD 3", "Third (4) line oooooo", 0};
         FILE        *f = fopen(fname, "w+");
         if (!f)
             return logerr(TEST_FAILED, "Unable to open %s for w+", fname);
@@ -216,9 +221,14 @@ tf1(const char *name)
         while (getstring(&lex) ){
             Lexemtype typ = (i % 2 == 0) ? LEXEM_STR : LEXEM_CMD;
             test_validatefree(lex.typ = LEXEM_STR, (lexemfree(lex), fsarrfree(fa), fclose(f) ),
-                "Lexem type must be %s but not %s", Lexemtype_str(typ), Lexemtype_str(lex.typ) );
-            test_validatefree(lexem_cmp(&lex, pts[i] + i % 2) == 0, (lexemfree(lex), fsarrfree(fa), fclose(f) ),
-                "String must be [%s] but not [%s]", lexemstr(lex), pts[i] + i % 2 );
+                "Iter %d: Lexem type must be %s but not %s", i, Lexemtype_str(typ), Lexemtype_str(lex.typ)
+            );
+            test_validatefree(lexemlen(lex) == (int) strlen(pts[i] + (typ == LEXEM_CMD ? 1: 0) ),  (lexemfree(lex), fsarrfree(fa), fclose(f) ),
+                "Iter %d: Length of lexem = %d but not %lu", i, lexemlen(lex), strlen(pts[i] + (typ == LEXEM_CMD ? 1: 0) )
+            );
+            test_validatefree(lexem_cmp(&lex, pts[i] + (typ == LEXEM_CMD ? 1: 0) ) == 0, (lexemfree(lex), fsarrfree(fa), fclose(f) ),
+                "Iter %d: String must be [%s] but not [%s]", i, lexemstr(lex), pts[i] + (typ == LEXEM_CMD ? 1: 0)
+            );
             i++;
         }
 
