@@ -96,6 +96,10 @@ static inline int           fsarr_sz(const fsarray *arr){
 // empty or free allocared fs
 extern int                  fsarr_clean(fsarray *arr, bool free);
 
+// ---------------------------------------- Comparator -------------------------------------------
+
+extern bool                 fsarr_cmp(const fsarray *restrict arr1, const fsarray *restrict arr2, int *restrict pos);
+
 // -------------------------------------  FSL API ------------------------------------------------
 // TODO: move to separate module
 // fsl f1 = getfsl(fs_array a);

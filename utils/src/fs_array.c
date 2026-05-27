@@ -183,6 +183,25 @@ extern int                  fsarr_clean(fsarray *arr, bool free){
             fsclear(arr->ar[i]);
     return logsimpleret(arr->cnt, "Cleaned %d free ? %s", arr->cnt, bool_str(free) );
 }
+// ---------------------------------------- Comparator -------------------------------------------
+
+bool                        fsarr_cmp(const fsarray *restrict arr1, const fsarray *restrict arr2, int *restrict pos){
+
+    bool    res = true;
+    int     i;
+    for (i = 0; i < MIN(fsarr_cnt(arr1), fsarr_cnt(arr2) ); i++)
+        if (fscmp(arr1->ar[i], arr2->ar[i]) != 0){
+            res = false;
+            logsimple("diff on %d", i);
+            break;
+        }
+
+    if (res)
+        res = fsarr_cnt(arr1) == fsarr_cnt(arr2);
+    if (!res && pos)
+        *pos = i;
+    return logsimpleret(res, "Compared %s: %d", bool_str(res), i);
+}
 
 // -------------------------- (API) printers -----------------------
 
@@ -791,9 +810,46 @@ tf12(const char *name)
         fsarrfree(fa2);
     }
     fs_alloc_check(true);
-    return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED
 }
 
+// ------------------------- TEST 13 ---------------------------------
+
+static TestStatus
+tf13(const char *name)
+{
+    logenter("%s", name);
+    int             subnum = 0;
+    const char * const arr[] = {"Tra ta ta str1", "", "Bla bla bla str2", "Hu hu vot str3", "", "Nu meg got str4", "str5", "str6", 0};
+
+    test_sub("subtest %d: fsarr_cmp equal test", ++subnum);
+    {
+        fsarray     fa  = fsarr_fromarr(arr, 0);
+        fsarray     fa2 = fsarr_fromarr(arr, 0);
+        int         pos;
+        test_validatefree( fsarr_cmp(&fa, &fa2, &pos), (fsarrfree(fa), fsarrfree(fa2) ),
+            "Must be equal, but not diff at line %d", pos
+        );
+
+        fsarrfree(fa);
+        fsarrfree(fa2);
+    }
+    test_sub("subtest %d: fsarr_cmp not equal test", ++subnum);
+    {
+        fsarray     fa  = fsarr_fromarr(arr, 0);
+        fsarray     fa2 = fsarr_fromarr(arr, 0);
+        int         pos, p = 2;
+
+        fscpystr(fa.ar[p], "ANOTHER VALUE");
+        test_validatefree( !fsarr_cmp(&fa, &fa2, &pos), (fsarrfree(fa), fsarrfree(fa2) ),
+            "Must be not equal, but diff at line %d", p
+        );
+        fsarrfree(fa);
+        fsarrfree(fa2);
+    }
+    fs_alloc_check(true);
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED
+}
 
 // ------------------------------------------------------------------
 int
@@ -814,6 +870,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf10, .num = 10, .name = "fsarr_fromarr simple test"                    , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf11, .num = 11, .name = "fsarr_fsavelines manual test"                 , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf12, .num = 12, .name = "fsarr_floadlines simple test"                 , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf13, .num = 13, .name = "fsarr_cmp simple test"                        , .desc=""                , .mandatory=true)
     );
 
     return logcloseret(0, "end...");
