@@ -280,6 +280,8 @@ int                         fsarr_floadlines(FILE *restrict in, fsarray *restric
             if (fsarr_increase(arr, G_FSARRAY_LOAD_INC + cnt) < 0)
                 return userraise(-1, ERR_UNABLE_LOAD_FSARRAY, "Unable to load fsarray");
     }
+    // setup count directly
+    arr->cnt = cnt;
 
     return logsimpleret(cnt, "Loaded %d", cnt);
 }
@@ -776,7 +778,14 @@ tf12(const char *name)
         test_validatefree(loadcnt == savedcnt, (fsarrfree(fa), fsarrfree(fa2) ),
             "Loaded count %d must be equal to saved count %d", loadcnt, savedcnt
         );
+        test_validatefree(fsarr_cnt(&fa) == fsarr_cnt(&fa2), (fsarrfree(fa), fsarrfree(fa2) ),
+            "Count of loaded arr %d must be equal to saved count %d", fsarr_cnt(&fa2), fsarr_cnt(&fa)
+        );
         // TODO: compare one by one
+        for (int i = 0; i < fsarr_cnt(&fa); i++)
+            test_validatefree(fscmp(fa.ar[i], fa2.ar[i]) == 0, (fsarrfree(fa), fsarrfree(fa2) ),
+                "%d element of loaded [%s] and saved [%s] arrays must be equal", i, fsstr(fa2.ar[i]), fsstr(fa.ar[i])
+            );
 
         fsarrfree(fa);
         fsarrfree(fa2);
