@@ -96,16 +96,19 @@ static bool             launch(const char *restrict bufname, const char *runname
     bool        ret = true;
 
     Runtimedata rt = initRuntimedata(bufname, runname, cmds);
-    printf(">");
-    while (getstring(&rt.lex) && !rt.quit){
+    printf(" >");
+    while (!rt.quit && getstring(&rt.lex) ){
         if (rt.lex.typ == LEXEM_CMD){
             // find + exec
             process_command( fsstr(rt.lex.str), cmds, &rt);
-        } else if (rt.lex.typ == LEXEM_STR) {
-            addline(&rt, rt.lex.str);
+        } else if (rt.lex.typ == LEXEM_STR){
+            logauto(fslen(rt.lex.str) );
+            if (fslen(rt.lex.str) > 1)
+                addline(&rt, rt.lex.str);
         } else
             fprintf(stderr, "Incorrent lexem type %d:%s\n", rt.lex.typ, Lexemtype_str(rt.lex.typ) );
-        printf(">");
+        if (!rt.quit)
+            printf(" >");
     }
     //lexemfree(lex); // no need
     freeRuntimedata(&rt);

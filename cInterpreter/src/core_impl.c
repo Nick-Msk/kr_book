@@ -79,7 +79,7 @@ int                             proc_help(Runtimedata *rt){
     const Command   *cm = rt->cmds;
     logsimple("%p", cm);
     while (cm->proc){
-        printf("%s\t\t: %s\n", cm->name, cm->desc);
+        printf("%s(%d)\t\t: %s\n", cm->name, cm->shortlen, cm->desc);
         cm++;
     }
     return 1;
@@ -98,6 +98,7 @@ int                             proc_load(Runtimedata *rt){
     int     cnt = 0;
     if (rt->fl){
         // TODO: load from file, use fileutils
+        
     }
     return logsimpleret(cnt, "%d Lines were load", cnt);
 }
