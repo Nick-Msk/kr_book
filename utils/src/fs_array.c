@@ -734,6 +734,35 @@ tf11(const char *name)
     return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED
 }
 
+// ------------------------- TEST 12 ---------------------------------
+
+static TestStatus
+tf12(const char *name)
+{
+    logenter("%s", name);
+    int             subnum = 0;
+    const char * const arr[] = {"Tra ta ta str1", "Bla bla bla str2", "Hu hu vot str3", "Nu meg got str4", "str5", "", "", "str6", 0};
+
+    test_sub("subtest %d: fsarr_fsavelines just save as line", ++subnum);
+    {
+        fsarray fa = fsarr_fromarr(arr, 0);
+        const char  fname[] = "res/fsarray_fsarr_fsavelines2.dat";
+
+        FILE        *f = fopen(fname, "w+");
+        if (!f)
+            return logerr(TEST_FAILED, "Unable to open %s for w+", fname);
+
+        fsarr_fsavelines(f, &fa, 0);
+
+        // TODO: fsarr_floadlines() here!
+        
+
+        fclose(f);
+        fsarrfree(fa);
+    }
+    fs_alloc_check(true);
+    return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED
+}
 
 
 // ------------------------------------------------------------------
@@ -754,6 +783,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 =  tf9,  .num = 9, .name = "fsarr_clean simple test"                      , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf10, .num = 10, .name = "fsarr_fromarr simple test"                    , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf11, .num = 11, .name = "fsarr_fsavelines manual test"                 , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf12, .num = 12, .name = "fsarr_floadlines simple test"                 , .desc=""                , .mandatory=true)
     );
 
     return logcloseret(0, "end...");
