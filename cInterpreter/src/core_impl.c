@@ -15,6 +15,7 @@ static const char           RUN[] = "make -C res/ run";
 
 static int                      Runtimedata_techfprint(FILE *restrict out, const Runtimedata *restrict rt){
     invraise(rt != 0, "Null pointer");
+
     int     cnt = 0;
     if (out){
         cnt += fprintf(out, "Run time data: flname [%s]\n", rt->flname);
@@ -46,7 +47,6 @@ static bool                     util_run(const char *fname){
 }
 
 static bool                     util_build(const char *fname){
-    // TODO:
     if (system(BUILD) != 0)
         return userraise(false, ERR_UNABLE_TO_RUN_MAKE, "Unable to %s", BUILD);
     return logsimpleret(true, "builded");
@@ -54,7 +54,7 @@ static bool                     util_build(const char *fname){
 
 // check + build + run
 static bool                     util_sysexec(const char *fname){
-    // TODO:
+    // chech up shell
     if (!system(0) )
         return userraise(false, ERR_SHELL_NOT_AVAILABLE, "Unable to find command shell");
     // run - now directly
@@ -95,27 +95,27 @@ int                             proc_techdump(Runtimedata *rt){
 
 int                             proc_load(Runtimedata *rt){
     invraise(rt != 0, "Null pointer");
+
     int     cnt = 0;
     if (rt->fl){
-        // TODO: load from file, use fileutils
-        
+        if (fsarr_floadlines(rt->fl, &rt->body, 0) < 0)
+            fprintf(stderr, "Unable to load %s", rt->flname);
     }
     return logsimpleret(cnt, "%d Lines were load", cnt);
 }
 
 int                             proc_print(Runtimedata *rt){
     invraise(rt != 0, "Null pointer");
+
     int     cnt = 0;
     fsarr_print(&rt->body);
-    //for (int i = 0; i < fsarr_cnt(rt->body); i++){
-        // TODO:         ???
-    //}
     return logsimpleret(cnt, "%d Lines were load", cnt);
 }
 
 // main!
 int                             proc_run(Runtimedata *rt){
     invraise(rt != 0 && rt->runfl != 0, "Null pointer");
+
     fprintf(rt->runfl, "#include <all.h>\nint main(int argc, const char *argv[]){\n");
     util_save(rt->runfl, &rt->body, rt->bodyptr);  // apprend
     fprintf(rt->fl, "\n}\n");
@@ -123,15 +123,15 @@ int                             proc_run(Runtimedata *rt){
     // this version 0.1 will NOT switch stdout/err
     if (!util_sysexec(rt->runflname) )
         userraise(-1, ERR_UNABLE_TO_EXEC_FILE, "Unable to exec %s", rt->runflname);
-   //
+    //
     return 1;   // as OK
 }
 
 int                             proc_save(Runtimedata *rt){
     invraise(rt != 0, "Null pointer");
+
     int     cnt = 0;
     if (rt->fl){
-        // TODO: save to file, use fileutil
         rt->fl = freopen(NULL, "w+", rt->fl);
         if (!rt->fl)
             sysraiseint("Unable to reopen %s", rt->flname);
@@ -142,6 +142,7 @@ int                             proc_save(Runtimedata *rt){
 
 int                             proc_clear(Runtimedata *rt){
     invraise(rt != 0, "Null pointer");
+
     fsarr_clean(&rt->body, false);
     return logsimpleret(1, "Cleared!");
 }
@@ -153,6 +154,7 @@ int                             proc_par(Runtimedata *rt){
 
 Runtimedata                     initRuntimedata(const char *restrict flname, const char *restrict runflname, const Command *cmds){
     invraise(flname && runflname, "Null input files names");
+
     Runtimedata rt = RuntimedataInit(.cmds = cmds);
     rt.fl = fopen(flname, "w+");
     if (!rt.fl)
@@ -167,6 +169,7 @@ Runtimedata                     initRuntimedata(const char *restrict flname, con
 
 void                            freeRuntimedata(Runtimedata *rt){
     invraise(rt != 0, "Null pointer");
+
     logsimple("Cleanup rt");
     fsarr_free(&rt->body);
     if (rt->fl)
@@ -180,6 +183,7 @@ void                            freeRuntimedata(Runtimedata *rt){
 
 bool                            addline(Runtimedata *restrict rt, fs str){
     invraise(rt != 0, "Null pointer");
+
     // MOVE fs into fsarray
     fsarray     *b = &rt->body;
     if (rt->bodyptr >= fsarr_cnt(b) )
