@@ -185,15 +185,17 @@ extern int                  fsarr_clean(fsarray *arr, bool free){
 // -------------------------- (API) printers -----------------------
 
 // this is normal printer
-int                         fsarr_fprint(FILE *restrict f, const fsarray *restrict arr){
+int                         fsarr_fprint(FILE *restrict out, const fsarray *restrict arr){
     int  cnt = 0;
-    for (int i = 0; i < arr->cnt; i++){
-        if ( !fsisnull(arr->ar[i] ) ) {
-            fsfprint(f, arr->ar[i]);   // directly name!
-            cnt++;
-            fputc('\n', f);
+    if (out)
+        for (int i = 0; i < arr->cnt; i++){
+            if ( !fsisnull(arr->ar[i] ) ) {
+                /*fsfprint(f, arr->ar[i]);   // directly name!
+                cnt++;
+                fputc('\n', f);*/
+                fprintf(out, "%s\n", fsstr(arr->ar[i]) );
+            }
         }
-    }
     return cnt;     // total printed items
 }
 
