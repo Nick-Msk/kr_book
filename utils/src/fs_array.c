@@ -155,17 +155,19 @@ bool                                    fsarr_alloc_check(bool raise){
 int                         fsarr_increase(fsarray *arr, int newcnt){
     logenter("newsize %d", newcnt);
     if (newcnt > arr->sz)
-        fsarr_increasesize(arr, newcnt, true);
+        if (fsarr_increasesize(arr, newcnt, true) < 0)
+            return userraise(-1, ERR_UNABLE_ALLOCATE, "New cnt %d", newcnt);
     fsarr_mass_init(arr, arr->cnt, newcnt);
     arr->cnt = newcnt;
     return logret(arr->sz, "New sz %d, cnt %d", arr->sz, arr->cnt);
 }
 
-int                         fsarr_shrink(fsarray *arr, int newsize){
-    if (newsize < arr->sz && newsize >= 0){
-        if (newsize < arr->cnt)
-            fsarr_mass_free(arr, newsize, arr->cnt), arr->cnt = newsize; // from from newsize to current cnt
-        fsarr_increasesize(arr, newsize, false);
+int                         fsarr_shrink(fsarray *arr, int newcnt){
+    if (newcnt < arr->sz && newcnt >= 0){
+        if (newcnt < arr->cnt)
+            fsarr_mass_free(arr, newcnt, arr->cnt), arr->cnt = newcnt; // from from newcnt to current cnt
+        if (fsarr_increasesize(arr, newcnt, false) < 0)
+            return userraise(-1, ERR_UNABLE_ALLOCATE, "Shrinked cnt %d", newcnt);
     }
     return logsimpleret(arr->sz, "Shrinked to %d, new cnt %d", arr->sz, arr->cnt);
 }
@@ -240,7 +242,6 @@ fsarray                     fsarr_fload(FILE *restrict f){
     FUSKIPFORMAT(f, "FSARRAY(");
     int cnt = FUGETUNSIGNED(f);
 
-    logauto(cnt);
     FUSKIPFORMAT(f, "):[\n");
     fsarray     a = fsarr_init(cnt);
     // cycle for fs
@@ -260,6 +261,24 @@ int                         fsarr_fsavelines(FILE *restrict out, const fsarray *
         for (int i = 0; i < cntline; i++)
             cnt += fprintf(out, "%s\n", fsstr(arr->ar[i] ) );
     return logsimpleret(cnt, "Saved %d", cnt);
+}
+
+int                         fsarr_floadlines(FILE *restrict in, fsarray *restrict arr, int maxcnt){
+    invraise(arr != 0 && in != 0, "Null pointer");
+
+    int     cnt = 0;
+    // TODO: actually fsarrayiter must be here
+    if (cnt >= fsarr_cnt(arr) )
+        if (fsarr_increase(arr, G_FSARRAY_LOAD_INC + cnt) < 0)
+            return userraise(-1, ERR_UNABLE_LOAD_FSARRAY, "Unable to load fsarray");
+
+    while (maxcnt-- > 0 && fgetslim_fs(in, arr->ar + cnt++) >= 0){
+        if (cnt >= fsarr_cnt(arr) )
+            if (fsarr_increase(arr, G_FSARRAY_LOAD_INC + cnt) < 0)
+                return userraise(-1, ERR_UNABLE_LOAD_FSARRAY, "Unable to load fsarray");
+    }
+
+    return logsimpleret(cnt, "Loaded %d", cnt);
 }
 
 // ------------------ API Constructs/Destrucor  ----------------------------
@@ -373,7 +392,7 @@ tf2(const char *name)
         // check the lines
         for (int i = 0; i < cnt; i++){
             snprintf(buf, sizeof(buf) - 1, "str - %d", i);        // ok in this case
-            test_validatefree(strcmp(fa.ar[i].v, buf) == 0, fsarr_free(&fa), 
+            test_validatefree(strcmp(fa.ar[i].v, buf) == 0, fsarr_free(&fa),
                 "fsarr[%d]: '%s' != origin '%s'", i, fa.ar[i].v, buf);
         }
 

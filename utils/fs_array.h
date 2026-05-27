@@ -17,7 +17,9 @@
 
 // ------------------- CONSTANTS AND GLOBALS ---------------------------
 
-static const int                G_FSARRAY_DEFAULT_INIT = 10;
+// TODO: that should be in Context
+static const int                G_FSARRAY_DEFAULT_INIT  = 10;
+static const int                G_FSARRAY_LOAD_INC      = 50;
 
 // --------------------------------- TYPES -----------------------------
 
@@ -162,6 +164,11 @@ extern fsarray              fsarr_fload(FILE *f);
 extern int                  fsarr_fsavelines(FILE *restrict out, const fsarray *restrict arr, int cnt);
 static inline int           fsarr_savelines(const fsarray *arr, int cnt){
     return fsarr_fsavelines(stdout, arr, cnt);
+}
+
+extern int                  fsarr_floadlines(FILE *restrict out, fsarray *restrict arr, int cnt);
+static inline int           fsarr_loadlines(fsarray *arr, int cnt){
+    return fsarr_floadlines(stdin, arr, cnt);
 }
 
 #endif /* !_FS_ARRAY_H */
