@@ -253,13 +253,14 @@ fsarray                     fsarr_fload(FILE *restrict f){
     return a;
 }
 
+// returns count of saved line
 int                         fsarr_fsavelines(FILE *restrict out, const fsarray *restrict arr, int cntline){
     invraise(arr != 0, "Null pointer");
     int     cnt = 0;
     cntline = cntline <= 0 ? arr->cnt : cntline;
     if (out)
         for (int i = 0; i < cntline; i++)
-            cnt += fprintf(out, "%s\n", fsstr(arr->ar[i] ) );
+            fprintf(out, "%s\n", fsstr(arr->ar[i] ) ), cnt++;
     return logsimpleret(cnt, "Saved %d", cnt);
 }
 
@@ -272,8 +273,10 @@ int                         fsarr_floadlines(FILE *restrict in, fsarray *restric
         if (fsarr_increase(arr, G_FSARRAY_LOAD_INC + cnt) < 0)
             return userraise(-1, ERR_UNABLE_LOAD_FSARRAY, "Unable to load fsarray");
 
-    while (maxcnt-- > 0 && fgetslim_fs(in, arr->ar + cnt++) >= 0){
-        if (cnt >= fsarr_cnt(arr) )
+    if (maxcnt == 0)
+        maxcnt = INT_MAX; // omg, unlim
+    while (maxcnt-- > 0 && fgetslim_fs(in, arr->ar + cnt) >= 0){
+        if (++cnt >= fsarr_cnt(arr) )
             if (fsarr_increase(arr, G_FSARRAY_LOAD_INC + cnt) < 0)
                 return userraise(-1, ERR_UNABLE_LOAD_FSARRAY, "Unable to load fsarray");
     }
@@ -714,6 +717,7 @@ tf11(const char *name)
     logenter("%s", name);
     int             subnum = 0;
     const char * const arr[] = {"Tra ta ta str1", "Bla bla bla str2", "Hu hu vot str3", "Nu meg got str4", "str5", "str6", 0};
+    int arrcnt = countstrings(arr);
 
     test_sub("subtest %d: fsarr_fsavelines just save as line", ++subnum);
     {
@@ -724,7 +728,11 @@ tf11(const char *name)
         if (!f)
             return logerr(TEST_FAILED, "Unable to open %s for w+", fname);
 
-        fsarr_fsavelines(f, &fa, 0);
+        int savedcnt = fsarr_fsavelines(f, &fa, 0);
+
+        test_validatefree(savedcnt == arrcnt, (fclose(f), fsarrfree(fa) ),
+            "Saved count %d must be equal origin count %d", savedcnt, arrcnt
+        );
         // TODO: tfile utilities are required... to check file length, count of lines etc...
 
         fclose(f);
@@ -742,8 +750,10 @@ tf12(const char *name)
     logenter("%s", name);
     int             subnum = 0;
     const char * const arr[] = {"Tra ta ta str1", "Bla bla bla str2", "Hu hu vot str3", "Nu meg got str4", "str5", "", "", "str6", 0};
+    int arrcnt = countstrings(arr);
+    logauto(arrcnt);
 
-    test_sub("subtest %d: fsarr_fsavelines just save as line", ++subnum);
+    test_sub("subtest %d: fsarr_fsavelines then fsarr_floadlines", ++subnum);
     {
         fsarray fa = fsarr_fromarr(arr, 0);
         const char  fname[] = "res/fsarray_fsarr_fsavelines2.dat";
@@ -752,13 +762,24 @@ tf12(const char *name)
         if (!f)
             return logerr(TEST_FAILED, "Unable to open %s for w+", fname);
 
-        fsarr_fsavelines(f, &fa, 0);
+        int savedcnt = fsarr_fsavelines(f, &fa, 0);
 
-        // TODO: fsarr_floadlines() here!
-        
+        test_validatefree(savedcnt == arrcnt, (fclose(f), fsarrfree(fa) ),
+            "Saved count %d must be equal origin count %d", savedcnt, arrcnt
+        );
 
+        rewind(f);
+        fsarray fa2 = FSARRAY();
+
+        int loadcnt = fsarr_floadlines(f, &fa2, 0);
         fclose(f);
+        test_validatefree(loadcnt == savedcnt, (fsarrfree(fa), fsarrfree(fa2) ),
+            "Loaded count %d must be equal to saved count %d", loadcnt, savedcnt
+        );
+        // TODO: compare one by one
+
         fsarrfree(fa);
+        fsarrfree(fa2);
     }
     fs_alloc_check(true);
     return logret(TEST_MANUAL, "done"); // TEST_FAILED, TEST_PASSED
