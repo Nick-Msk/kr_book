@@ -1,4 +1,5 @@
 CC=gcc
+CFLAGS= -I./
 
 #target1: _run.c
 

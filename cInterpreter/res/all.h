@@ -26,9 +26,9 @@
 #include <stdnoreturn.h>
 #include <string.h>
 #include <tgmath.h>
-#include <threads.h>
+//#include <threads.h>
 #include <time.h>
-#include <uchar.h>
+//#include <uchar.h>
 #include <wchar.h>
 #include <wctype.h>
 

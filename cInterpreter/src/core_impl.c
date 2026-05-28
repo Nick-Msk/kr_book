@@ -8,8 +8,8 @@
 // actually only for proc_par lexem is need
 #include "getword.h"
 
-static const char           BUILD[] = "make -C res/ _run1";
-static const char           RUN[] = "make -C res/ run";
+static const char           BUILD[] = "make -s -C res/ _run1";
+static const char           RUN[]   = "make -C res/ run";
 
 // ------------------------------------------ Utilities -------------------------------------------
 
@@ -87,6 +87,8 @@ int                             proc_help(Runtimedata *rt){
 }
 
 int                             proc_techdump(Runtimedata *rt){
+    invraise(rt != 0, "Null pointer");
+
     // just technical print
     Runtimedata_techprint(rt);
     return 1;
@@ -124,8 +126,8 @@ int                             proc_run(Runtimedata *rt){
 
     fprintf(rt->runfl, "#include <all.h>\nint main(int argc, const char *argv[]){\n");
     util_save(rt->runfl, &rt->body, rt->bodyptr);  // apprend
-    fprintf(rt->fl, "\n}\n");
-    fflush(rt->fl);
+    fprintf(rt->runfl, "\n}\n");
+    fflush(rt->runfl);
     // this version 0.1 will NOT switch stdout/err
     if (!util_sysexec(rt->runflname) )
         userraise(-1, ERR_UNABLE_TO_EXEC_FILE, "Unable to exec %s", rt->runflname);
@@ -169,8 +171,9 @@ Runtimedata                     initRuntimedata(const char *restrict flname, con
     if (!rt.fl)
         sysraiseint("Unable to open %s for r+", flname);
     rt.flname = flname;
-    if (!rt.flname)
-        sysraiseint("Unable to open %s for w+", runflname);
+    rt.runfl = fopen(runflname, "w");
+    if (!rt.runfl)
+        sysraiseint("Unable to open %s for w", runflname);
     rt.runflname = runflname;
     rt.body = fsarr_init(100);
     return logsimpleret(rt, "Created with %s, %s", flname, runflname);
