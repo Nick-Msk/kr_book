@@ -175,14 +175,22 @@ int                         fsarr_shrink(fsarray *arr, int newcnt){
 // empty or free allocared fs
 extern int                  fsarr_clean(fsarray *arr, bool free){
     invraise(arr != 0, "Null pointer");
+
+    int     cnt = 0;
     // TODO: iterator must be here
-    for (int i = 0; i < arr->cnt; i++)
-        if (free)
-            fsfree(arr->ar[i]);
-        else
-            fsclear(arr->ar[i]);
-    return logsimpleret(arr->cnt, "Cleaned %d free ? %s", arr->cnt, bool_str(free) );
+    for (int i = 0; i < arr->cnt; i++){
+        if (!fsisnull(arr->ar[i]) ){
+            if (free)
+                fsfree(arr->ar[i]);
+            else
+                fsclear(arr->ar[i]);
+            cnt++;
+        }
+    }
+    arr->cnt = 0;   // reset counter
+    return logsimpleret(cnt, "Cleaned %d free ? %s", cnt, bool_str(free) );
 }
+
 // ---------------------------------------- Comparator -------------------------------------------
 
 bool                        fsarr_cmp(const fsarray *restrict arr1, const fsarray *restrict arr2, int *restrict pos){
