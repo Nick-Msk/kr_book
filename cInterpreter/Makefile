@@ -6,7 +6,7 @@ LDLIBS=
 
 all:
 
-out/cInt: src/cInt.c lib/getword.o lib/log.o lib/common.o lib/fs.o lib/error.o lib/checker.o lib/buffer.o lib/fileutils.o lib/fs_iter.o lib/fs_array.o lib/core_impl.o lib/command_executor.o
+out/cInt: src/cInt.c lib/getword.o lib/log.o lib/common.o lib/fs.o lib/error.o lib/checker.o lib/buffer.o lib/fileutils.o lib/fs_iter.o lib/fs_array.o lib/core_impl.o lib/command_executor.o lib/fs_array.o
 	$(CC) $(CFLAGS)  $^ -o $@
 
 UTIL_PATH = ../utils
@@ -49,7 +49,7 @@ lib/fs.o:
 	@cp $(UTIL_PATH)/lib/fs.o lib/
 
 lib/fs_array.o:
-	cd $(UTIL_PATH) && $(MAKE) fs.o
+	cd $(UTIL_PATH) && $(MAKE) fs_array.o
 	@cp $(UTIL_PATH)/lib/fs_array.o lib/
 
 lib/buffer.o:

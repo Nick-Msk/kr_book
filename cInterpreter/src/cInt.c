@@ -100,7 +100,8 @@ static bool             launch(const char *restrict bufname, const char *runname
     while (!rt.quit && getstring(&rt.lex) ){
         if (rt.lex.typ == LEXEM_CMD){
             // find + exec
-            process_command( fsstr(rt.lex.str), cmds, &rt);
+            if (!process_command( lexemstr(rt.lex), cmds, &rt) )
+                fprintf(stderr, "Command %s not found\n", lexemstr(rt.lex) );
         } else if (rt.lex.typ == LEXEM_STR){
             logauto(fslen(rt.lex.str) );
             if (fslen(rt.lex.str) > 1)

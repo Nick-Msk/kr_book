@@ -35,7 +35,8 @@ static int                      util_save(FILE *restrict out, const fsarray *res
     cnt = cnt <= 0 ? fsarr_cnt(arr) : cnt;
     for (i = 0; i < cnt; i++){
         fs *s = arr->ar + i;
-        fwrite(fs_str(s), 1, fs_len(s), out);
+        //fwrite(fs_str(s), 1, fs_len(s), out);
+        fprintf(out, "%s\n", fs_str(s) );
     }
     return i;
 }
@@ -98,8 +99,13 @@ int                             proc_load(Runtimedata *rt){
 
     int     cnt = 0;
     if (rt->fl){
-        if (fsarr_floadlines(rt->fl, &rt->body, 0) < 0)
+        int    lines = 0;
+        if ( (lines = fsarr_floadlines(rt->fl, &rt->body, 0) ) < 0)
             fprintf(stderr, "Unable to load %s", rt->flname);
+        else {
+            rt->bodyptr = lines;
+            printf("%d line(s) were loaded from %s\n", lines, rt->flname);
+        }
     }
     return logsimpleret(cnt, "%d Lines were load", cnt);
 }
@@ -108,8 +114,8 @@ int                             proc_print(Runtimedata *rt){
     invraise(rt != 0, "Null pointer");
 
     int     cnt = 0;
-    fsarr_print(&rt->body);
-    return logsimpleret(cnt, "%d Lines were load", cnt);
+    cnt += fsarr_print(&rt->body);
+    return logsimpleret(cnt, "%d Lines were print", cnt);
 }
 
 // main!
@@ -137,17 +143,20 @@ int                             proc_save(Runtimedata *rt){
             sysraiseint("Unable to reopen %s", rt->flname);
         cnt = util_save(rt->fl, &rt->body, rt->bodyptr);
     }
+    printf("%d line(s) were saved into %s\n", cnt, rt->flname);
     return logsimpleret(cnt, "%d Lines were saved", cnt);
 }
 
 int                             proc_clear(Runtimedata *rt){
     invraise(rt != 0, "Null pointer");
 
-    fsarr_clean(&rt->body, false);
+    printf("Cleared %d lines\n", fsarr_clean(&rt->body, false) );
     return logsimpleret(1, "Cleared!");
 }
 
 int                             proc_par(Runtimedata *rt){
+    invraise(rt != 0, "Null pointer");
+
     // TODO!!!
     return logsimpleret(1, "Pars...");
 }
@@ -156,9 +165,9 @@ Runtimedata                     initRuntimedata(const char *restrict flname, con
     invraise(flname && runflname, "Null input files names");
 
     Runtimedata rt = RuntimedataInit(.cmds = cmds);
-    rt.fl = fopen(flname, "w+");
+    rt.fl = fopen(flname, "r+");
     if (!rt.fl)
-        sysraiseint("Unable to open %s for w+", flname);
+        sysraiseint("Unable to open %s for r+", flname);
     rt.flname = flname;
     if (!rt.flname)
         sysraiseint("Unable to open %s for w+", runflname);
