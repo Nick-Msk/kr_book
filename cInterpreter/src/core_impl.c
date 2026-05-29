@@ -35,7 +35,6 @@ static int                      util_save(FILE *restrict out, const fsarray *res
     cnt = cnt <= 0 ? fsarr_cnt(arr) : cnt;
     for (i = 0; i < cnt; i++){
         fs *s = arr->ar + i;
-        //fwrite(fs_str(s), 1, fs_len(s), out);
         fprintf(out, "%s\n", fs_str(s) );
     }
     return i;
