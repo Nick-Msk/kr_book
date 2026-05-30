@@ -18,7 +18,8 @@ static int                      Runtimedata_techfprint(FILE *restrict out, const
 
     int     cnt = 0;
     if (out){
-        cnt += fprintf(out, "Run time data: flname [%s]\n", rt->flname);
+        cnt += fprintf(out, "Run time data: flname %p [%s], runflname %p [%s], bodyptr %d, prevrunptr %d\n", 
+                rt->fl, rt->flname, rt->runfl, rt->runflname, rt->bodyptr, rt->prevrunptr);
         cnt += lexem_techfprint(out, &rt->lex);
         cnt += fsarr_techfprint(out, &rt->body);
         cnt += fprintf(out, "END of Run time data");
@@ -30,10 +31,14 @@ static inline int               Runtimedata_techprint(const Runtimedata *rt){
     return Runtimedata_techfprint(stdout, rt);
 }
 
-static int                      util_save(FILE *restrict out, const fsarray *restrict arr, int cnt){
+static int                      util_save(FILE *restrict out, const fsarray *restrict arr, int cnt, int prevrunptr){
     int     i;
     cnt = cnt <= 0 ? fsarr_cnt(arr) : cnt;
+    if (prevrunptr > 0)
+        fprintf(out, "%s\n", "su_stddisable();");   // disable std output
     for (i = 0; i < cnt; i++){
+        if (prevrunptr > -1 && i == prevrunptr)
+            fprintf(out, "%s\n", "su_stdenable();");    // enable std output
         fs *s = arr->ar + i;
         fprintf(out, "%s\n", fs_str(s) );
     }
@@ -54,9 +59,6 @@ static bool                     util_build(const char *fname){
 
 // check + build + run
 static bool                     util_sysexec(const char *fname){
-    // chech up shell
-    if (!system(0) )
-        return userraise(false, ERR_SHELL_NOT_AVAILABLE, "Unable to find command shell");
     // run - now directly
     if (!util_build(fname))
         return userraise(false, ERR_UNABLE_TO_RUN_MAKE, "Unble to build, check errors");
@@ -124,13 +126,14 @@ int                             proc_run(Runtimedata *rt){
     invraise(rt != 0 && rt->runfl != 0, "Null pointer");
 
     fprintf(rt->runfl, "#include <all.h>\nint main(int argc, const char *argv[]){\n");
-    util_save(rt->runfl, &rt->body, rt->bodyptr);  // apprend
+    util_save(rt->runfl, &rt->body, rt->bodyptr, rt->prevrunptr);  // apprend
     fprintf(rt->runfl, "\n}\n");
     fflush(rt->runfl);
     // this version 0.1 will NOT switch stdout/err
     if (!util_sysexec(rt->runflname) )
         userraise(-1, ERR_UNABLE_TO_EXEC_FILE, "Unable to exec %s", rt->runflname);
     //
+    rt->prevrunptr = rt->bodyptr;   // add pointer
     return 1;   // as OK
 }
 
@@ -142,7 +145,7 @@ int                             proc_save(Runtimedata *rt){
         rt->fl = freopen(NULL, "w+", rt->fl);
         if (!rt->fl)
             sysraiseint("Unable to reopen %s", rt->flname);
-        cnt = util_save(rt->fl, &rt->body, rt->bodyptr);
+        cnt = util_save(rt->fl, &rt->body, rt->bodyptr, -1);
     }
     printf("%d line(s) were saved into %s\n", cnt, rt->flname);
     return logsimpleret(cnt, "%d Lines were saved", cnt);
@@ -152,6 +155,7 @@ int                             proc_clear(Runtimedata *rt){
     invraise(rt != 0, "Null pointer");
 
     printf("Cleared %d lines\n", fsarr_clean(&rt->body, false) );
+    rt->prevrunptr = rt->bodyptr = 0;
     return logsimpleret(1, "Cleared!");
 }
 
@@ -163,7 +167,11 @@ int                             proc_par(Runtimedata *rt){
 }
 
 Runtimedata                     initRuntimedata(const char *restrict flname, const char *restrict runflname, const Command *cmds){
-    invraise(flname && runflname, "Null input files names");
+    invraise(flname != 0 && runflname != 0, "Null input files names");
+
+    // chech up shell
+    if (!system(0) )
+        sysraiseint("Unable to find command shell");
 
     Runtimedata rt = RuntimedataInit(.cmds = cmds);
     rt.fl = fopen(flname, "r+");

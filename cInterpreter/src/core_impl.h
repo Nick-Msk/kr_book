@@ -20,6 +20,7 @@ typedef struct Runtimedata {
     fsarray         functions;      // not user for now
     fsarray         body;           // code
     int             includeptr, functionsptr, bodyptr;
+    int             prevrunptr;    // pointer to body to point of prev run
     FILE           *fl, *runfl;
     const char     *flname, *runflname;
 } Runtimedata;
