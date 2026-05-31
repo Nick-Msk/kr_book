@@ -119,6 +119,14 @@ context.o: src/context.c
 context: src/context.c lib/log.o lib/test.o lib/error.o lib/numeric_ops.o
 	 $(CC) $(CFLAGS) -DCONTEXTTESTING $^ -o test/$@_test
 
+
+hashset.o: src/hashset.c
+	$(CC) $(CFLAGS)  $^ -c
+	@mv $@ lib/
+
+hashset: src/hashset.c lib/log.o lib/test.o lib/error.o lib/numeric_ops.o
+	 $(CC) $(CFLAGS) -DHSETTESTING $^ -o test/$@_test
+
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
 	@rm *.o
