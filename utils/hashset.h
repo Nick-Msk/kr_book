@@ -8,20 +8,16 @@
 // --------------- Includes -----------------------
 
 #include <stdio.h>
-#include <string.h>
-//
-#include "bool.h"
-#include "log.h"
-#include "common.h"
-#include "error.h"
-#include "checker.h"
-#include "guard.h"
+
+#include "fs.h"
 
 // ----------- CONSTANTS AND GLOBALS ---------------
 
 // ------------------- TYPES -----------------------
 
-enum hset_types { HSET_INT, HSET_LONG, HSET_DBL, HSET_FS, HSET_ };
+typedef enum hset_type
+    { HSET_INT = 1, HSET_LONG, HSET_DBL, HSET_FS, HSET_PTR }
+hset_type;
 
 typedef struct hset_elem {
     union {
@@ -40,9 +36,11 @@ typedef struct hset {
     hset_elem  *table;
 } hset;
 
+#define                 HSET(size, typ) (hset) {.sz = (size), .flags = (typ), .table = 0 }
+
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
-extern hset             hset_init(int sz);      // #define will be for particular type
+extern hset             hset_init(int sz, hset_type typ);      // #define will be for particular type
 extern hset             hset_reinit(hset *s, int newsz);
 //
 extern void             hset_free(hset *s);
