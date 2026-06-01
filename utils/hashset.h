@@ -30,14 +30,16 @@ static inline const char            *hset_type_name(hset_type t){
     }
 }
 
-typedef struct hset_elem {
-    union {
+typedef union hset_value {
         int                 ival;
         long                lval;    // can be ANY type
         double              dval;
         fs                  fsval;  // NOT implemented yet
         void               *pval;
-    };
+} hset_value;
+
+typedef struct hset_elem {
+    hset_value         v;
     struct hset_elem   *next;
 } hset_elem;
 
