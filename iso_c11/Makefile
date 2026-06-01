@@ -100,6 +100,9 @@ iter_test_ind: src/iter_test_ind.c
 iter_test_arrcnt: src/iter_test_arrcnt.c
 	$(CC) $(CFLAGS) $^ -o out/$@_test
 
+conv_test: src/conv_test.c
+	$(CC) $(CFLAGS) $^ -o out/$@_test
+
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
 	-rm *.o
