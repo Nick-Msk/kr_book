@@ -1,5 +1,13 @@
 CC=gcc #clang
-CFLAGS= -I../utils/ -Wall -Wextra -std=gnu11 -g -O3 -Wno-gnu-folding-constant -std=c23
+C23_SUPPORT= $(shell $(CC) -std=c23 -E - < /dev/null > /dev/null 2>&1; echo $$?)
+ifeq ($(C23_SUPPORT),0)
+    C_STD= -std=c23
+else
+    C_STD= -std=c2x
+endif
+
+CFLAGS= -I../utils/ -Wall -Wextra -g -O3 -Wno-gnu-folding-constant $(C_STD)
+#CFLAGS= -I../utils/ -Wall -Wextra -std=gnu11 -g -O3 -Wno-gnu-folding-constant -std=c23
 # -Wno-initializer-overrides -Wno-unused-function -Wno-format-zero-length
 LDFLAGS=-
 LDLIBS=
