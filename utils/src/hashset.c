@@ -13,6 +13,7 @@
 #include "error.h"
 #include "checker.h"
 #include "guard.h"
+#include "fs.h"
 
 // ---------- pseudo-header for utility procedures -----------------
 
@@ -124,7 +125,7 @@ static hset_elem           *getprevelem(const hset *restrict se, hset_value valu
         prevel = el;
         el = el->next;
     }
-    logmsg("after: el %p", el);
+    // logmsg("after: el %p", el);
     if (phash)
         *phash = hash;
     if (pnext)
@@ -138,17 +139,38 @@ static hset_elem           *getprevelem(const hset *restrict se, hset_value valu
     return logret(prevel, "Found prev %p, next %p", prevel, el);   // < or = in the list
 }
 
-static hset_elem           *elemalloc(void){
+static hset_elem           *alloc_elem(void){
     return malloc(sizeof(hset_elem) );
 }
 
 static hset_elem           *create_ielem(int val){
-    hset_elem *res = elemalloc();
+    hset_elem *res = alloc_elem();
     if (!res)
         return logsimpleret( (hset_elem *) 0, "Unable to create elem");
     res->v.ival = val;
     res->next = 0;
     return res;
+}
+
+static void                 free_elem(hset_elem *el, hset_type typ){
+    switch (typ){
+        case HSET_FS:
+            fsfree(el->v.fsval);        // to free space
+        break;
+        default:
+            // nothing here
+        break;
+    }
+    free(el);
+}
+
+static void                 free_elemlist(hset_elem *el, hset_type typ){
+    hset_elem       *next = 0;
+    while (el){
+        next = el->next;
+        free_elem(el, typ);
+        el = next;
+    }
 }
 
 // ------------------------------------- API -----------------------------------------------
@@ -170,22 +192,15 @@ hset                        hset_init(int sz, hset_type typ){
     return logret(res, "Crreated with %d", res.sz);
 }
 
-void                        hset_free(hset *s){
-    invraise(s != 0, "Null pointer");
-    switch (getype(s) ){
-        case HSET_INT: case HSET_LONG: case HSET_DBL: case HSET_PTR:
-            // nothing for now
-        break;
-        case HSET_FS:
-            userraiseint(ERR_UNSUPPORTED_TYPE, "HSET_FS (%d) is'nt suppored for now", HSET_FS);
-        break;
-        default:
-            userraiseint(ERR_UNSUPPORTED_TYPE, "Unknown type %d", s->flags & 0xFF);
-        break;
-    }
-    free(s->table);
+void                        hset_free(hset *se){
+    invraise(se != 0, "Null pointer");
+
+    for (int i = 0; i < se->sz; i++)
+        if (se->table[i] )
+            free_elemlist(se->table[i], getype(se) );
+    free(se->table);
     logsimple("freed");
-    s->sz = s->flags = 0;
+    se->sz = se->flags = 0;
 }
 
 // -------
@@ -240,12 +255,30 @@ bool                        hset_iset(hset *se, int val){
 
 bool                        hset_iget(const hset *se, int val){
     invraise(se != 0 && getype(se) == HSET_INT, "Null pointer or non-int type");
+
     hset_elem   *equal = 0;
     getprevelem(se, HSET_INTVALUE(val), 0, 0, &equal);
     if (equal)
         return logsimpleret(true, "Exists %d", val);
     else
         return logsimpleret(false, "Not exists %d", val);
+}
+
+bool                        hset_idel(hset *se, int val){
+    invraise(se != 0 && getype(se) == HSET_INT, "Null pointer or non-int type");
+
+    unsigned            hash;
+    hset_elem          *el = 0;
+    hset_elem          *prevel = getprevelem(se, HSET_INTVALUE(val), &hash, 0, &el);
+    if (!el)    // not found
+        return logsimpleerr(false, "Not found");
+    // umount el
+    if (!prevel)
+         se->table[hash] = el->next;
+    else
+        prevel->next = el->next;
+    free_elem(el, getype(se) );
+    return logsimpleret(true, "Deleted");
 }
 
 // ------------------------------------- (API) printers ------------------------------------
@@ -327,7 +360,13 @@ tf2(const char *name)
         test_validatefree(
             hset_iget(&se1, num + 1) == false, hset_free(&se1), "Must be false %d", num + 1
         );
-
+        test_validatefree(
+            hset_idel(&se1, num), hset_free(&se1), "Must be true, because element %d exists", num
+        );
+        hset_techfprint(logfile, &se1, 0);
+        test_validatefree(
+            hset_idel(&se1, num) == false, hset_free(&se1), "Must be false, because element %d already deleted", num
+        );
         hset_free(&se1);
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
