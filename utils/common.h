@@ -273,6 +273,10 @@ static inline void              clean_double(double *arr, int cnt){
 static inline void              clean_float(float *arr, int cnt){
     return fill_float(arr, cnt, 0.0f);
 }
+// no filler, only cleaner for pointers!
+static inline void              clean_ptr(void **arr, int cnt){
+    memset(arr, 0, cnt * sizeof(void *) );
+}
 
 // ------------------------------- BITS Operations ------------------------------------------
 
