@@ -218,23 +218,34 @@ bool                        hset_validate(FILE *out, const hset *restrict se){
 
 bool                        hset_iset(hset *se, int val){
     invraise(se != 0 && getype(se) == HSET_INT, "Null pointer or non-int type");
-    unsigned hash = 0;
+
+    unsigned     hash = 0;
+    bool         res = false;
     hset_elem   *equal = 0, *nextel = 0;
-    hset_value  value = {.ival = val};
-    hset_elem   *prevel = getprevelem(se, value, &hash, &nextel, &equal);
+    hset_elem   *prevel = getprevelem(se, HSET_INTVALUE(val), &hash, &nextel, &equal);
     if (equal)
-        return logsimpleret(true, "Already exists %d", val);
+        res = true;
     else {
         hset_elem *newel = create_ielem(val);
         if (!newel)
-            return userraise(false, ERR_UNABLE_ALLOCATE, "Can't create new element"); 
+            return userraise(false, ERR_UNABLE_ALLOCATE, "Can't create new element");
         if (prevel)
             prevel->next = newel;
         else  // mount to root
             se->table[hash] = newel;
         newel->next = nextel;
     }
-    return logsimpleret(true, "Added %d", val);
+    return logsimpleret(true, "Added %d, prev existing %s", val, bool_str(res) );
+}
+
+bool                        hset_iget(const hset *se, int val){
+    invraise(se != 0 && getype(se) == HSET_INT, "Null pointer or non-int type");
+    hset_elem   *equal = 0;
+    getprevelem(se, HSET_INTVALUE(val), 0, 0, &equal);
+    if (equal)
+        return logsimpleret(true, "Exists %d", val);
+    else
+        return logsimpleret(false, "Not exists %d", val);
 }
 
 // ------------------------------------- (API) printers ------------------------------------
@@ -296,14 +307,27 @@ tf2(const char *name)
 
     test_sub("subtest %d: init + free", ++subnum);
     {
-        hset se1 = hset_init(100, HSET_INT);
-        hset_iset(&se1, 77);
+        hset    se1 = hset_init(100, HSET_INT);
+        int     num = 77;
+        // mustb return false
+        test_validatefree(
+            hset_iset(&se1, num), hset_free(&se1), "Must be true"
+        );
         hset_techfprint(logfile, &se1, 0);
-        hset_iset(&se1, 77);
+        test_validatefree(
+            hset_iset(&se1, num),  hset_free(&se1), "Must be true"
+        );
         hset_techfprint(logfile, &se1, 0);
         test_validatefree(
             hset_validate(stdout, &se1), hset_free(&se1), "Validation failed"
         );
+        test_validatefree(
+            hset_iget(&se1, num), hset_free(&se1), "Must be true,  because already added %d", num
+        );
+        test_validatefree(
+            hset_iget(&se1, num + 1) == false, hset_free(&se1), "Must be false %d", num + 1
+        );
+
         hset_free(&se1);
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL

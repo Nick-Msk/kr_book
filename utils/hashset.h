@@ -50,6 +50,11 @@ typedef struct hset {
 } hset;
 
 #define                 HSET(size, typ) (hset) {.sz = (size), .flags = (typ), .table = 0 }
+#define                 HSET_INTVALUE(val)  (hset_value) {.ival = val }
+#define                 HSET_LONGVALUE(val) (hset_value) {.lval = val }
+#define                 HSET_DBLVALUE(val)  (hset_value) {.dval = val }
+#define                 HSET_PTRVALUE(val)  (hset_value) {.pval = val }
+#define                 HSET_FSVALUE(val)   (hset_value) {.fsval = val }
 
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
