@@ -39,7 +39,7 @@ int                         sortedlist_fprint(FILE *restrict out, const hset_ele
                 cnt += fs_fprint(out, &elem->v.fsval, 0);
             break;
         }
-        cnt += fprintf(out, "\t");
+        cnt += fprintf(out, " -> ");
         elem = elem->next;
     }
     return cnt;
@@ -47,10 +47,19 @@ int                         sortedlist_fprint(FILE *restrict out, const hset_ele
 
 // ------------------------------------ Utilities ------------------------------------------
 
-// for int & long
-static unsigned             get_lhash(const hset *se, long val){
+static unsigned long       get_lhash(const hset *se, hset_value value, long val){
     invraise(se != 0, "Null pointer");
-    return hash_long(val) % se->sz;
+
+    unsigned long res;
+    switch (typ){
+        case HSET_INT: case HSET_LONG: case HSET_DBL: case HSET_PTR:
+            res = hash_long(value.lval);    // that is IMPLICIT conversion to long via union {} !
+        break;
+        case HSET_FS:
+            res = hash_djb2(fsstr(value.fsval) );
+        break;
+    }
+    return res % se->sz;
 }
 
 static inline int           compare_int(int v1, int v2){
@@ -114,14 +123,14 @@ static inline hset_type     getype(const hset *se){
 }
 
 static hset_elem           *getprevelem(const hset *restrict se, hset_value value, unsigned *restrict phash, hset_elem **restrict pnext, hset_elem **restrict pequal){
-    logenter("Loopup...");
+    //logenter("Loopup...");
 
-    unsigned hash = get_lhash(se, getype(se) );
+    unsigned hash = get_lhash(se, value, getype(se) );
     hset_elem *el = se->table[hash],
               *prevel = 0;
-    logmsg("Hash %u", hash);
+    logsimple("Hash %u", hash);
     while (el != 0 && compare(value, el->v, getype(se) ) < 0){
-        logmsg("el %p, prevel %p", el, prevel);
+        //logmsg("el %p, prevel %p", el, prevel);
         prevel = el;
         el = el->next;
     }
@@ -136,7 +145,7 @@ static hset_elem           *getprevelem(const hset *restrict se, hset_value valu
         else
             *pequal = 0;        // NOT found exactly!
     }
-    return logret(prevel, "Found prev %p, next %p", prevel, el);   // < or = in the list
+    return prevel; //logsimpleret(prevel, "Found prev %p, next %p", prevel, el);   // < or = in the list
 }
 
 static hset_elem           *alloc_elem(void){
@@ -338,7 +347,7 @@ tf2(const char *name)
     logenter("%s", name);
     int         subnum = 0;
 
-    test_sub("subtest %d: init + free", ++subnum);
+    test_sub("subtest %d: HSET_INT init + get + free", ++subnum);
     {
         hset    se1 = hset_init(100, HSET_INT);
         int     num = 77;
@@ -367,6 +376,24 @@ tf2(const char *name)
         test_validatefree(
             hset_idel(&se1, num) == false, hset_free(&se1), "Must be false, because element %d already deleted", num
         );
+        hset_free(&se1);
+    }
+    test_sub("subtest %d: HSET_INT multiple add/del", ++subnum);
+    {
+        int     cnt = 100, mul = 3;
+        hset    se1 = hset_init(cnt, HSET_INT);
+
+        for (int i = 0; i < cnt * mul; i++)
+            test_validatefree(
+                hset_iset(&se1, i), hset_free(&se1), "Unable to add %d", i
+            );
+        hset_techfprint(logfile, &se1, 0);
+
+        for (int i = 0; i < cnt * mul; i++)
+            test_validatefree(
+                hset_iget(&se1, i), hset_free(&se1), "Unable to get %d", i
+            );
+
         hset_free(&se1);
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
