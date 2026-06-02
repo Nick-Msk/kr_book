@@ -397,6 +397,9 @@ tf2(const char *name)
         test_validatefree(
             hset_del(&se1, HSET_INTVALUE(num) ) == false, hset_free(&se1), "Must be false, because element %d already deleted", num
         );
+        test_validatefree(
+            hset_validate(stdout, &se1), hset_free(&se1), "Validation failed"
+        );
         hset_free(&se1);
     }
     test_sub("subtest %d: HSET_INT multiple add/del", ++subnum);
@@ -431,6 +434,9 @@ tf2(const char *name)
                     hset_get(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Element %d not found", i
                 );
             }
+        test_validatefree(
+            hset_validate(stdout, &se1), hset_free(&se1), "Validation failed"
+        );
 
         hset_free(&se1);
     }
