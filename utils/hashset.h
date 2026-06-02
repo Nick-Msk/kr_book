@@ -75,8 +75,8 @@ extern hset             hset_fromlarr(const long *larr);
 extern bool             hset_iset(hset *se, int val);
 extern bool             hset_lset(hset *se, long val);
 
-extern bool             hset_idel(hset *se, int val);
-extern bool             hset_ldel(hset *se, long val);
+extern bool             hset_del(hset *se, hset_value val);
+// extern bool             hset_ldel(hset *se, long val);
 
 extern bool             hset_iget(const hset *se, int val);
 extern bool             hset_lget(const hset *se, long val);

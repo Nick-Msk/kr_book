@@ -138,7 +138,7 @@ static hset_elem           *getprevelem(const hset *restrict se, hset_value valu
     unsigned hash = get_lhash(se, value, getype(se) );
     hset_elem *el = se->table[hash],
               *prevel = 0;
-    logsimple("Hash %u", hash);
+    // logsimple("Hash %u", hash);
     while (el != 0 && compare(value, el->v, getype(se) ) < 0){
         //logmsg("el %p, prevel %p", el, prevel);
         prevel = el;
@@ -283,12 +283,12 @@ bool                        hset_iget(const hset *se, int val){
         return logsimpleret(false, "Not exists %d", val);
 }
 
-bool                        hset_idel(hset *se, int val){
-    invraise(se != 0 && getype(se) == HSET_INT, "Null pointer or non-int type");
+bool                        hset_del(hset *se, hset_value value){
+    invraise(se != 0, "Null pointer");
 
     unsigned            hash;
     hset_elem          *el = 0;
-    hset_elem          *prevel = getprevelem(se, HSET_INTVALUE(val), &hash, 0, &el);
+    hset_elem          *prevel = getprevelem(se, /*HSET_INTVALUE(val) */ value, &hash, 0, &el);
     if (!el)    // not found
         return logsimpleerr(false, "Not found");
     // umount el
@@ -304,6 +304,7 @@ bool                        hset_idel(hset *se, int val){
 
 int                         hset_techfprint(FILE *restrict out, const hset *se, int sz){
     invraise(se != 0, "Null pointer");
+
     int     cnt = 0;
     if (out){
         sz = sz ? MIN(sz, se->sz) : se->sz;
@@ -380,11 +381,11 @@ tf2(const char *name)
             hset_iget(&se1, num + 1) == false, hset_free(&se1), "Must be false %d", num + 1
         );
         test_validatefree(
-            hset_idel(&se1, num), hset_free(&se1), "Must be true, because element %d exists", num
+            hset_del(&se1, HSET_INTVALUE(num) ), hset_free(&se1), "Must be true, because element %d exists", num
         );
         hset_techfprint(logfile, &se1, 0);
         test_validatefree(
-            hset_idel(&se1, num) == false, hset_free(&se1), "Must be false, because element %d already deleted", num
+            hset_del(&se1, HSET_INTVALUE(num) ) == false, hset_free(&se1), "Must be false, because element %d already deleted", num
         );
         hset_free(&se1);
     }
@@ -403,6 +404,24 @@ tf2(const char *name)
             test_validatefree(
                 hset_iget(&se1, i), hset_free(&se1), "Unable to get %d", i
             );
+
+        int     delfrom = 40, delto = 50; 
+        for (int i = delfrom; i < delto; i++)
+            test_validatefree(
+                hset_del(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Unable to delete %d", i
+            );
+
+        logmsg("sz %d", se1.sz);
+        for (int i = 0; i < cnt * mul; i++)
+            if (i >= delfrom && i < delto){
+                test_validatefree(
+                    hset_iget(&se1, i) == false, hset_free(&se1), "Element %d was deleted, but return found somehow!", i
+                );
+            } else {
+                test_validatefree(
+                    hset_iget(&se1, i), hset_free(&se1), "Element %d not found", i
+                );
+            }
 
         hset_free(&se1);
     }
