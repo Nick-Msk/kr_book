@@ -47,19 +47,29 @@ int                         sortedlist_fprint(FILE *restrict out, const hset_ele
 
 // ------------------------------------ Utilities ------------------------------------------
 
-static unsigned long       get_lhash(const hset *se, hset_value value, long val){
+static unsigned long       get_lhash(const hset *se, hset_value value, hset_type typ){
     invraise(se != 0, "Null pointer");
 
-    unsigned long res;
+    hset_value      tmp = (hset_value){.u64 = 0UL };
     switch (typ){
-        case HSET_INT: case HSET_LONG: case HSET_DBL: case HSET_PTR:
-            res = hash_long(value.lval);    // that is IMPLICIT conversion to long via union {} !
+        case HSET_INT:
+            tmp.u64 = (uint64_t) value.ival;
+        break;
+        case HSET_LONG:
+            tmp.u64 = (uint64_t) value.lval;
+        break;
+        case HSET_DBL:
+            //bits = (uint64_t) value.lval;   // OMG
+            tmp.u64 = value.u64;
+        break;
+        case HSET_PTR:
+            tmp.u64 = (uint64_t)(uintptr_t) value.pval;    // or just do nothing as for HSET_DBL
         break;
         case HSET_FS:
-            res = hash_djb2(fsstr(value.fsval) );
+            return hash_djb2(fsstr(value.fsval) ) % se->sz;
         break;
     }
-    return res % se->sz;
+    return tmp.u64 % se->sz;
 }
 
 static inline int           compare_int(int v1, int v2){
@@ -384,6 +394,24 @@ tf2(const char *name)
         hset    se1 = hset_init(cnt, HSET_INT);
 
         for (int i = 0; i < cnt * mul; i++)
+            test_validatefree(
+                hset_iset(&se1, i), hset_free(&se1), "Unable to add %d", i
+            );
+        hset_techfprint(logfile, &se1, 0);
+
+        for (int i = 0; i < cnt * mul; i++)
+            test_validatefree(
+                hset_iget(&se1, i), hset_free(&se1), "Unable to get %d", i
+            );
+
+        hset_free(&se1);
+    }
+    test_sub("subtest %d: HSET_INT multiple reversed add/del", ++subnum);
+    {
+        int     cnt = 100, mul = 3;
+        hset    se1 = hset_init(cnt, HSET_INT);
+
+        for (int i = cnt * mul - 1; i >= 0; i--)
             test_validatefree(
                 hset_iset(&se1, i), hset_free(&se1), "Unable to add %d", i
             );
