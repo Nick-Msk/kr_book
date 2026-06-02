@@ -164,7 +164,6 @@ static hset_elem           *alloc_elem(void){
 
 static hset_elem           *create_elem(hset_value val){
     hset_elem *res = alloc_elem();
-    /// TODO: think that!!!! 
     if (!res)
         return logsimpleret( (hset_elem *) 0, "Unable to create elem");
     res->v = val;
@@ -293,12 +292,12 @@ bool                        hset_get(const hset *se, hset_value val){
     }
 }
 
-bool                        hset_del(hset *se, hset_value value){
+bool                        hset_del(hset *se, hset_value val){
     invraise(se != 0, "Null pointer");
 
     unsigned            hash;
     hset_elem          *el = 0;
-    hset_elem          *prevel = getprevelem(se, /*HSET_INTVALUE(val) */ value, &hash, 0, &el);
+    hset_elem          *prevel = getprevelem(se, /*HSET_INTVALUE(val) */ val, &hash, 0, &el);
     if (!el)    // not found
         return logsimpleerr(false, "Not found");
     // umount el
@@ -307,6 +306,7 @@ bool                        hset_del(hset *se, hset_value value){
     else
         prevel->next = el->next;
     free_elem(el, getype(se) );
+    //hsetval_log(val, getype(se) );
     return logsimpleret(true, "Deleted");
 }
 
@@ -337,6 +337,7 @@ int                         hset_techfprint(FILE *restrict out, const hset *se, 
 #ifdef HSETTESTING
 
 #include "test.h"
+#include <time.h>
 
 //types for testing
 
@@ -471,6 +472,28 @@ tf2(const char *name)
                 );
             }
 
+        hset_free(&se1);
+    }
+    test_sub("subtest %d: random int add/del", ++subnum);
+    {
+        int     cnt = 100, mul = 3;
+        hset    se1 = hset_init(cnt, HSET_INT);
+
+        for (int i = cnt * mul - 1; i >= 0; i--)
+            test_validatefree(
+                hset_set(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Unable to add %d", i
+            );
+        // random del
+        srand(time(NULL));
+        for (int i = 0; i < cnt * mul; i += rndint(5) + 1 )
+            //if (i < cnt * mul)
+                test_validatefree(
+                    hset_del(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Unable to delete [%d]", i
+                );
+
+        test_validatefree(
+            hset_validate(stdout, &se1), hset_free(&se1), "Validation failed"
+        );
         hset_free(&se1);
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
