@@ -162,12 +162,18 @@ static hset_elem           *alloc_elem(void){
     return malloc(sizeof(hset_elem) );
 }
 
-static hset_elem           *create_ielem(int val){
+static hset_elem           *create_elem(hset_value val){
     hset_elem *res = alloc_elem();
+    /// TODO: think that!!!! 
     if (!res)
         return logsimpleret( (hset_elem *) 0, "Unable to create elem");
-    res->v.ival = val;
+    res->v = val;
     res->next = 0;
+    /*switch (typ){
+        case HSET_INT:
+            res->v.ival = val;
+        break;
+    } */
     return res;
 }
 
@@ -250,17 +256,17 @@ bool                        hset_validate(FILE *out, const hset *restrict se){
 
 // ---------------------------------- General functions ------------------------------------
 
-bool                        hset_iset(hset *se, int val){
+bool                        hset_set(hset *se, hset_value val){
     invraise(se != 0 && getype(se) == HSET_INT, "Null pointer or non-int type");
 
     unsigned     hash = 0;
     bool         res = false;
     hset_elem   *equal = 0, *nextel = 0;
-    hset_elem   *prevel = getprevelem(se, HSET_INTVALUE(val), &hash, &nextel, &equal);
+    hset_elem   *prevel = getprevelem(se, /* HSET_INTVALUE(val), */ val, &hash, &nextel, &equal);
     if (equal)
         res = true;
     else {
-        hset_elem *newel = create_ielem(val);
+        hset_elem *newel = create_elem(val);
         if (!newel)
             return userraise(false, ERR_UNABLE_ALLOCATE, "Can't create new element");
         if (prevel)
@@ -269,7 +275,8 @@ bool                        hset_iset(hset *se, int val){
             se->table[hash] = newel;
         newel->next = nextel;
     }
-    return logsimpleret(true, "Added %d, prev existing %s", val, bool_str(res) );
+    hsetval_log(val, getype(se) );
+    return logsimpleret(true, "Added the value prev existing %s", bool_str(res) );
 }
 
 bool                        hset_get(const hset *se, hset_value val){
@@ -368,11 +375,11 @@ tf2(const char *name)
         int     num = 77;
         // mustb return false
         test_validatefree(
-            hset_iset(&se1, num), hset_free(&se1), "Must be true"
+            hset_set(&se1, HSET_INTVALUE(num) ), hset_free(&se1), "Must be true"
         );
         hset_techfprint(logfile, &se1, 0);
         test_validatefree(
-            hset_iset(&se1, num),  hset_free(&se1), "Must be true"
+            hset_set(&se1, HSET_INTVALUE(num) ),  hset_free(&se1), "Must be true"
         );
         hset_techfprint(logfile, &se1, 0);
         test_validatefree(
@@ -400,7 +407,7 @@ tf2(const char *name)
 
         for (int i = 0; i < cnt * mul; i++)
             test_validatefree(
-                hset_iset(&se1, i), hset_free(&se1), "Unable to add %d", i
+                hset_set(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Unable to add %d", i
             );
         hset_techfprint(logfile, &se1, 0);
 
@@ -436,7 +443,7 @@ tf2(const char *name)
 
         for (int i = cnt * mul - 1; i >= 0; i--)
             test_validatefree(
-                hset_iset(&se1, i), hset_free(&se1), "Unable to add %d", i
+                hset_set(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Unable to add %d", i
             );
         hset_techfprint(logfile, &se1, 0);
 
