@@ -272,15 +272,19 @@ bool                        hset_iset(hset *se, int val){
     return logsimpleret(true, "Added %d, prev existing %s", val, bool_str(res) );
 }
 
-bool                        hset_iget(const hset *se, int val){
-    invraise(se != 0 && getype(se) == HSET_INT, "Null pointer or non-int type");
+bool                        hset_get(const hset *se, hset_value val){
+    // TODO: ref go hset_get()
+    invraise(se != 0, "Null pointer");
 
     hset_elem   *equal = 0;
-    getprevelem(se, HSET_INTVALUE(val), 0, 0, &equal);
-    if (equal)
-        return logsimpleret(true, "Exists %d", val);
-    else
-        return logsimpleret(false, "Not exists %d", val);
+    getprevelem(se, val, 0, 0, &equal);
+    if (equal){
+        hsetval_log(val, getype(se) );
+        return logsimpleret(true, "Exists");
+    } else {
+        hsetval_log(val, getype(se) );
+        return logsimpleret(false, "Not exists");
+    }
 }
 
 bool                        hset_del(hset *se, hset_value value){
@@ -375,10 +379,10 @@ tf2(const char *name)
             hset_validate(stdout, &se1), hset_free(&se1), "Validation failed"
         );
         test_validatefree(
-            hset_iget(&se1, num), hset_free(&se1), "Must be true,  because already added %d", num
+            hset_get(&se1, HSET_INTVALUE(num) ), hset_free(&se1), "Must be true,  because already added %d", num
         );
         test_validatefree(
-            hset_iget(&se1, num + 1) == false, hset_free(&se1), "Must be false %d", num + 1
+            hset_get(&se1, HSET_INTVALUE(num + 1) ) == false, hset_free(&se1), "Must be false %d", num + 1
         );
         test_validatefree(
             hset_del(&se1, HSET_INTVALUE(num) ), hset_free(&se1), "Must be true, because element %d exists", num
@@ -402,7 +406,7 @@ tf2(const char *name)
 
         for (int i = 0; i < cnt * mul; i++)
             test_validatefree(
-                hset_iget(&se1, i), hset_free(&se1), "Unable to get %d", i
+                hset_get(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Unable to get %d", i
             );
 
         int     delfrom = 40, delto = 50; 
@@ -415,11 +419,11 @@ tf2(const char *name)
         for (int i = 0; i < cnt * mul; i++)
             if (i >= delfrom && i < delto){
                 test_validatefree(
-                    hset_iget(&se1, i) == false, hset_free(&se1), "Element %d was deleted, but return found somehow!", i
+                    hset_get(&se1, HSET_INTVALUE(i) ) == false, hset_free(&se1), "Element %d was deleted, but return found somehow!", i
                 );
             } else {
                 test_validatefree(
-                    hset_iget(&se1, i), hset_free(&se1), "Element %d not found", i
+                    hset_get(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Element %d not found", i
                 );
             }
 
@@ -438,7 +442,7 @@ tf2(const char *name)
 
         for (int i = 0; i < cnt * mul; i++)
             test_validatefree(
-                hset_iget(&se1, i), hset_free(&se1), "Unable to get %d", i
+                hset_get(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Unable to get %d", i
             );
 
         hset_free(&se1);
@@ -451,6 +455,9 @@ main( /* int argc, const char *argv[] */)
 {
     logsimpleinit("Start");
 
+    logauto(sizeof(fs) );
+    logauto(sizeof(hset_value) );
+    logauto(sizeof(uint64_t) );
     testenginestd(
         testnew(.f2 = tf1,  .num =  1, .name = "Simple init and validate test"              , .desc="", .mandatory=true)
       , testnew(.f2 = tf2,  .num =  2, .name = "Simple init and add test"                   , .desc="", .mandatory=true)

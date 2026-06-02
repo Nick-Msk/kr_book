@@ -39,6 +39,34 @@ typedef union hset_value {
         uint64_t            u64;    // for hash
 } hset_value;
 
+static inline void          hsetval_fprint(FILE *restrict out, const char *restrict msg, hset_value val, hset_type typ){
+    if (out){
+        if (msg)
+            fprintf(out, "%s ", msg);
+        switch (typ){
+            case HSET_INT:
+                fprintf(out, "%d", val.ival);
+            break;
+            case HSET_LONG:
+                fprintf(out, "%ld", val.lval);
+            break;
+            case HSET_DBL:
+                fprintf(out, "%lf", val.dval);
+            break;
+            case HSET_PTR:
+                fprintf(out, "%p", val.pval);
+            break;
+            case HSET_FS:
+                fs_fprint(out, &val.fsval, 0);
+            break;
+        }
+    }
+}
+
+static inline void          hsetval_log(hset_value val, hset_type typ){
+    hsetval_fprint(logfile, 0, val, typ);
+}
+
 typedef struct hset_elem {
     hset_value         v;
     struct hset_elem   *next;
@@ -78,8 +106,8 @@ extern bool             hset_lset(hset *se, long val);
 extern bool             hset_del(hset *se, hset_value val);
 // extern bool             hset_ldel(hset *se, long val);
 
-extern bool             hset_iget(const hset *se, int val);
-extern bool             hset_lget(const hset *se, long val);
+extern bool             hset_get(const hset *se, hset_value val);
+//extern bool             hset_lget(const hset *se, long val);
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
