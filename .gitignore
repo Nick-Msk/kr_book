@@ -11,4 +11,4 @@ debug/
 .*un~
 *.log
 *_test
-
+.DS_Store
