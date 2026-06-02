@@ -280,7 +280,6 @@ bool                        hset_set(hset *se, hset_value val){
 }
 
 bool                        hset_get(const hset *se, hset_value val){
-    // TODO: ref go hset_get()
     invraise(se != 0, "Null pointer");
 
     hset_elem   *equal = 0;
@@ -416,13 +415,12 @@ tf2(const char *name)
                 hset_get(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Unable to get %d", i
             );
 
-        int     delfrom = 40, delto = 50; 
+        int     delfrom = 40, delto = 50;
         for (int i = delfrom; i < delto; i++)
             test_validatefree(
                 hset_del(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Unable to delete %d", i
             );
 
-        logmsg("sz %d", se1.sz);
         for (int i = 0; i < cnt * mul; i++)
             if (i >= delfrom && i < delto){
                 test_validatefree(
@@ -445,12 +443,27 @@ tf2(const char *name)
             test_validatefree(
                 hset_set(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Unable to add %d", i
             );
-        hset_techfprint(logfile, &se1, 0);
 
         for (int i = 0; i < cnt * mul; i++)
             test_validatefree(
                 hset_get(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Unable to get %d", i
             );
+        int     delfrom = 40, delto = 50;
+        for (int i = delfrom; i < delto ; i++)
+            test_validatefree(
+                hset_del(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Unable to delete %d", i
+            );
+
+        for (int i = 0; i < cnt * mul; i++)
+            if (i >= delfrom && i < delto){
+                test_validatefree(
+                    hset_get(&se1, HSET_INTVALUE(i) ) == false, hset_free(&se1), "Element %d was deleted, but return found somehow!", i
+                );
+            } else {
+                test_validatefree(
+                    hset_get(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Element %d not found", i
+                );
+            }
 
         hset_free(&se1);
     }
@@ -462,9 +475,6 @@ main( /* int argc, const char *argv[] */)
 {
     logsimpleinit("Start");
 
-    logauto(sizeof(fs) );
-    logauto(sizeof(hset_value) );
-    logauto(sizeof(uint64_t) );
     testenginestd(
         testnew(.f2 = tf1,  .num =  1, .name = "Simple init and validate test"              , .desc="", .mandatory=true)
       , testnew(.f2 = tf2,  .num =  2, .name = "Simple init and add test"                   , .desc="", .mandatory=true)
