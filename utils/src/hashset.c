@@ -238,7 +238,6 @@ hset                        hset_init(int sz, hset_type typ){
         userraiseint(ERR_UNSUPPORTED_TYPE, "%d", typ);
 
     unsigned    newsz = next_prime(sz);
-    logauto(newsz);
     hset res = HSET(newsz, typ);
     if ( (res.table = malloc(newsz * sizeof(hset_elem *) ) ) == 0)    // raise here - nothing to do
         userraiseint(ERR_UNABLE_ALLOCATE, "Unable to alloc newsz %u elems", newsz);
@@ -269,9 +268,9 @@ hset                        hset_fromiarr(const int *iarr, int sz){
 
     unsigned    newsz = next_prime(sz * HSET_ARRAY_CREATE_MULTIPLIER);
     int         i = 0;
-    hset    res = HSET(newsz, HSET_INT);
-    while (i < sz && iarr){
-        if (! hset_set(&res, HSET_INTVALUE(*iarr) ) )
+    hset    res = hset_init(newsz, HSET_INT);
+    while (i < sz && iarr[i] != 0){
+        if (! hset_set(&res, HSET_INTVALUE(iarr[i] ) ) )
             userraiseint(ERR_UNABLE_ALLOCATE, "Unable to add %d", i);
         i++;
     }
@@ -399,6 +398,7 @@ int                         hset_techfprint(FILE *restrict out, const hset *se, 
 #ifdef HSETTESTING
 
 #include "test.h"
+#include "array.h"
 #include <time.h>
 
 //types for testing
@@ -599,6 +599,27 @@ tf3(const char *name)
 
         hset_free(&se2);
     }
+    test_sub("subtest %d: create from int array", ++subnum);
+    {
+        Array arr = IArray_create(200, ARRAY_RND);
+
+        hset    se1 = hset_fromiarr(arr.iv, arr.len);
+
+        hset_techfprint(stdout, &se1, 0);
+
+        for (int i = 0; i < arr.len; i++)
+            test_validatefree(
+                hset_get(&se1, HSET_INTVALUE(arr.iv[i]) ), (Array_free(&arr), hset_free(&se1) ),
+                "Element %d isn't found", arr.iv[i]
+            );
+
+        test_validatefree(
+            hset_validate(stdout, &se1), hset_free(&se1), "Validation failed"
+        );
+
+        Array_free(&arr);
+        hset_free(&se1);
+    }
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
@@ -611,7 +632,7 @@ main( /* int argc, const char *argv[] */)
     testenginestd(
         testnew(.f2 = tf1,  .num =  1, .name = "Simple init and validate test"              , .desc="", .mandatory=true)
       , testnew(.f2 = tf2,  .num =  2, .name = "Simple init and add test"                   , .desc="", .mandatory=true)
-      , testnew(.f2 = tf3,  .num =  3, .name = "Simple init + clone test"                   , .desc="", .mandatory=true)
+      , testnew(.f2 = tf3,  .num =  3, .name = "Simple clone and create from array test"    , .desc="", .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
