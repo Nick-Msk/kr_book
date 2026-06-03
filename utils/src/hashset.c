@@ -49,8 +49,7 @@ int                         sortedlist_fprint(FILE *restrict out, const hset_ele
 
 // ------------------------------------ Utilities ------------------------------------------
 
-static unsigned long       get_lhash(const hset *se, hset_value value, hset_type typ){
-    invraise(se != 0, "Null pointer");
+static unsigned long       get_lhash(unsigned cnt, hset_value value, hset_type typ){
 
     hset_value      tmp = (hset_value){.u64 = 0UL };
     switch (typ){
@@ -68,10 +67,10 @@ static unsigned long       get_lhash(const hset *se, hset_value value, hset_type
             tmp.u64 = (uint64_t)(uintptr_t) value.pval;    // or just do nothing as for HSET_DBL
         break;
         case HSET_FS:
-            return hash_djb2(fs_str(value.fsval) ) % se->sz;
+            return hash_djb2(fs_str(value.fsval) ) % cnt;
         break;
     }
-    return tmp.u64 % se->sz;
+    return tmp.u64 % cnt;
 }
 
 static inline int           compare_int(int v1, int v2){
@@ -137,7 +136,7 @@ static inline hset_type     getype(const hset *se){
 static hset_elem           *getprevelem(const hset *restrict se, hset_value value, unsigned *restrict phash, hset_elem **restrict pnext, hset_elem **restrict pequal){
     //logenter("Loopup...");
 
-    unsigned hash = get_lhash(se, value, getype(se) );
+    unsigned hash = get_lhash(se->sz, value, getype(se) );
     hset_elem *el = se->table[hash],
               *prevel = 0;
     // logsimple("Hash %u", hash);
@@ -227,6 +226,16 @@ static void                 free_elemlist(hset_elem *el, hset_type typ){
     }
 }
 
+static bool                 validate_elemlist(const hset_elem *el, hset_type typ, unsigned pos, unsigned sz){
+    while (el){
+        unsigned hash = get_lhash(sz, el->v, typ);
+        if (hash != pos)
+            return logsimpleerr(false, "%u, but must be %u", hash, pos);
+        el = el->next;
+    }
+    return logsimpleerr(true, "%u Ok", pos);
+}
+
 // ------------------------------------- API -----------------------------------------------
 
 // ---------------------------------- API Constructs/Destrucor  ----------------------------
@@ -311,6 +320,15 @@ bool                        hset_validate(FILE *out, const hset *restrict se){
             fprintf(out, "null hashtable");
         return logerr(false, "null hashtable");
     }
+    // cross validation value <=> hashkey
+    for (int i = 0; i < se->sz; i++)
+        if (se->table[i] )
+            if (!validate_elemlist(se->table[i], getype(se), i, se->sz) ){
+                if (out)
+                    fprintf(out, "Hash Validation failed on %d", i);
+                return logerr(false, "Hash Validation failed on %d", i);
+            }
+
     return logret(true, "Validated");
 }
 
@@ -322,7 +340,7 @@ bool                        hset_set(hset *se, hset_value val){
     unsigned     hash = 0;
     bool         res = false;
     hset_elem   *equal = 0, *nextel = 0;
-    hset_elem   *prevel = getprevelem(se, /* HSET_INTVALUE(val), */ val, &hash, &nextel, &equal);
+    hset_elem   *prevel = getprevelem(se, val, &hash, &nextel, &equal);
     if (equal)
         res = true;
     else {
@@ -358,7 +376,7 @@ bool                        hset_del(hset *se, hset_value val){
 
     unsigned            hash;
     hset_elem          *el = 0;
-    hset_elem          *prevel = getprevelem(se, /*HSET_INTVALUE(val) */ val, &hash, 0, &el);
+    hset_elem          *prevel = getprevelem(se, val, &hash, 0, &el);
     if (!el)    // not found
         return logsimpleerr(false, "Not found");
     // umount el
@@ -605,7 +623,7 @@ tf3(const char *name)
 
         hset    se1 = hset_fromiarr(arr.iv, arr.len);
 
-        hset_techfprint(stdout, &se1, 0);
+        hset_techfprint(logfile, &se1, 0);
 
         for (int i = 0; i < arr.len; i++)
             test_validatefree(
