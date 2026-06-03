@@ -172,10 +172,42 @@ static hset_elem           *create_elem(hset_value val){
     return res;
 }
 
+static hset_elem           *clone_elemlist(const hset_elem *el, hset_type typ){
+
+    hset_elem  *prev = 0, *newel = 0, *retel = 0;
+    while (el){
+        if (!(newel = create_elem(el->v) ) )
+            return userraise((hset_elem *) 0, ERR_UNABLE_ALLOCATE, "Unable to create element");
+        switch (typ){
+            case HSET_FS:
+                // NOT GOOD: TODO: refactor that!
+                newel->v.fsval = malloc(sizeof(fs) );
+                if (!newel->v.fsval)
+                    return userraise((hset_elem *) 0, ERR_UNABLE_ALLOCATE, "Unable to create heap fs");
+                *newel->v.fsval = fs_clone(el->v.fsval);
+            break;
+            /* case HSET_STR:
+                newel->v.str = strdup(el->v.str);
+            break;*/
+            default:
+            break;
+        }
+        if (!retel)
+            retel = newel;  //  first elem
+        if (prev)
+            prev->next = newel;
+        // next iter
+        prev = newel;
+        el = el->next;
+    }
+    return logsimpleret(retel, "Chain is created %p", retel);
+}
+
 static void                 free_elem(hset_elem *el, hset_type typ){
     switch (typ){
         case HSET_FS:
             fs_free(el->v.fsval);        // to free space
+            free(el->v.fsval);
         break;
         default:
             // nothing here
@@ -198,18 +230,36 @@ static void                 free_elemlist(hset_elem *el, hset_type typ){
 // ---------------------------------- API Constructs/Destrucor  ----------------------------
 
 hset                        hset_init(int sz, hset_type typ){
-    logenter("init sz %d", sz);
+    logenter("init sz %d - %s", sz, hset_type_name(typ) );
 
-    if (int_notin(typ, HSET_INT, HSET_LONG, HSET_DBL, /* HSET_FS, */ HSET_PTR) )
+    if (int_notin(typ, HSET_INT, HSET_LONG, HSET_DBL, HSET_FS, HSET_PTR) )
         userraiseint(ERR_UNSUPPORTED_TYPE, "%d", typ);
 
     unsigned    newsz = next_prime(sz);
+    logauto(newsz);
     hset res = HSET(newsz, typ);
     if ( (res.table = malloc(newsz * sizeof(hset_elem *) ) ) == 0)    // raise here - nothing to do
         userraiseint(ERR_UNABLE_ALLOCATE, "Unable to alloc newsz %u elems", newsz);
     clean_ptr( (void *) res.table,  newsz);
 
-    return logret(res, "Crreated with %d", res.sz);
+    return logret(res, "Created with %d", res.sz);
+}
+
+hset                        hset_clone(const hset *se){
+    invraise(se != 0, "Null pointer");
+
+    int     newsz = se->sz;
+    hset    res = HSET(newsz, getype(se) );
+
+    if ( (res.table = malloc(newsz * sizeof(hset_elem *) ) ) == 0)    // raise here - nothing to do
+        userraiseint(ERR_UNABLE_ALLOCATE, "Unable to alloc newsz %u elems", newsz);
+
+    for (int i = 0; i < newsz; i++){
+        logauto(i);
+        res.table[i] = clone_elemlist(se->table[i], getype(se) );
+    }
+
+    return logsimpleret(res, "Cloned");
 }
 
 void                        hset_free(hset *se){
@@ -223,7 +273,7 @@ void                        hset_free(hset *se){
     se->sz = se->flags = 0;
 }
 
-// -------
+// ---------------------------------------------------------------------------
 bool                        hset_validate(FILE *out, const hset *restrict se){
     logenter("...");
     if (!se){    // TODO: think about string creation via faststring here!!
@@ -280,11 +330,11 @@ bool                        hset_get(const hset *se, hset_value val){
     hset_elem   *equal = 0;
     getprevelem(se, val, 0, 0, &equal);
     if (equal){
-        hsetval_log(val, getype(se) );
-        return logsimpleret(true, "Exists");
+        //hsetval_log(val, getype(se) );
+        return true;
     } else {
-        hsetval_log(val, getype(se) );
-        return logsimpleret(false, "Not exists");
+        //hsetval_log(val, getype(se) );
+        return false;
     }
 }
 
@@ -494,6 +544,41 @@ tf2(const char *name)
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
+
+// ------------------------- TEST 3 ---------------------------------
+
+static TestStatus
+tf3(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: clone...", ++subnum);
+    {
+        hset    se1 = hset_init(100, HSET_LONG);
+        int     cnt = 500;
+
+        for (int i = 0; i < cnt; i++)
+            test_validatefree(
+                hset_set(&se1, HSET_LONGVALUE(i) ), hset_free(&se1), "Unable to add %d", i
+            );
+        hset    se2 = hset_clone(&se1);
+        // then compare one by one
+        bool        r1, r2;
+        for (int i = 0; i < cnt; i++){
+            r1 = hset_get(&se1, HSET_LONGVALUE(i) );
+            r2 = hset_get(&se2, HSET_LONGVALUE(i) );
+            test_validatefree(
+                (r1 ^ r2) == false, (hset_free(&se1), hset_free(&se2) ),
+                "%d: Must be true all, but origin %s, clone %s", i, bool_str(r1), bool_str(r2)
+            );
+        }
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -503,6 +588,7 @@ main( /* int argc, const char *argv[] */)
     testenginestd(
         testnew(.f2 = tf1,  .num =  1, .name = "Simple init and validate test"              , .desc="", .mandatory=true)
       , testnew(.f2 = tf2,  .num =  2, .name = "Simple init and add test"                   , .desc="", .mandatory=true)
+      , testnew(.f2 = tf3,  .num =  3, .name = "Simple init + clone test"                   , .desc="", .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
