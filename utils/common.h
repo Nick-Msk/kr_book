@@ -371,14 +371,14 @@ static inline int               calcnewsize(Tincrease t, int n){
 // int comparators
 static inline bool              int_not_in(int val, const int *arr){
     while(*arr != INT_MIN)
-        if (val == *arr)
+        if (val == *arr++)
             return false;
     return true;
 }
 
 static inline bool              int__in(int val, const int *arr){
     while(*arr != INT_MIN)
-        if (val == *arr)
+        if (val == *arr++)
             return true;
     return false;
 }
