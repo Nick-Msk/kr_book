@@ -15,6 +15,8 @@
 #include "guard.h"
 #include "fs.h"
 
+static int                              HSET_ARRAY_CREATE_MULTIPLIER = 2;
+
 // ---------- pseudo-header for utility procedures -----------------
 
 // ---------------------------- (Utility) printers -----------------------------
@@ -260,6 +262,20 @@ hset                        hset_clone(const hset *se){
     }
 
     return logsimpleret(res, "Cloned");
+}
+
+hset                        hset_fromiarr(const int *iarr, int sz){
+    invraise(iarr != 0 && sz < INT_MAX / 2, "Incorrent input %p - %d", iarr, sz);
+
+    unsigned    newsz = next_prime(sz * HSET_ARRAY_CREATE_MULTIPLIER);
+    int         i = 0;
+    hset    res = HSET(newsz, HSET_INT);
+    while (i < sz && iarr){
+        if (! hset_set(&res, HSET_INTVALUE(*iarr) ) )
+            userraiseint(ERR_UNABLE_ALLOCATE, "Unable to add %d", i);
+        i++;
+    }
+    return logsimpleret(res, "Created %u", newsz);
 }
 
 void                        hset_free(hset *se){
@@ -573,7 +589,14 @@ tf3(const char *name)
                 "%d: Must be true all, but origin %s, clone %s", i, bool_str(r1), bool_str(r2)
             );
         }
+
         hset_free(&se1);
+
+        hset_techfprint(logfile, &se2, 0);
+        test_validatefree(
+            hset_validate(stdout, &se2), hset_free(&se2), "Validation failed"
+        );
+
         hset_free(&se2);
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL

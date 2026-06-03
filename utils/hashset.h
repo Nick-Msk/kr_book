@@ -93,7 +93,7 @@ extern hset             hset_reinit(hset *se, int newsz);
 extern void             hset_free(hset *se);
 //
 extern hset             hset_clone(const hset *se);
-extern hset             hset_fromiarr(const int *iarr);  // iarr must be null-ended array
+extern hset             hset_fromiarr(const int *iarr, int sz);  // iarr must be null-ended array
 // extern hset             hset_fromfsarr(fs_array iarr);   not supported yet
 extern hset             hset_fromlarr(const long *larr);
 
