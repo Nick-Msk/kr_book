@@ -36,7 +36,7 @@ int                         sortedlist_fprint(FILE *restrict out, const hset_ele
                 cnt += fprintf(out, "%p", elem->v.pval);
             break;
             case HSET_FS:
-                cnt += fs_fprint(out, &elem->v.fsval, 0);
+                cnt += fs_fprint(out, elem->v.fsval, 0);
             break;
         }
         cnt += fprintf(out, " -> ");
@@ -66,7 +66,7 @@ static unsigned long       get_lhash(const hset *se, hset_value value, hset_type
             tmp.u64 = (uint64_t)(uintptr_t) value.pval;    // or just do nothing as for HSET_DBL
         break;
         case HSET_FS:
-            return hash_djb2(fsstr(value.fsval) ) % se->sz;
+            return hash_djb2(fs_str(value.fsval) ) % se->sz;
         break;
     }
     return tmp.u64 % se->sz;
@@ -122,7 +122,7 @@ static inline int           compare(hset_value v1, hset_value v2, hset_type typ)
             return compare_ptr(v1.pval, v2.pval);
         break;
         case HSET_FS:
-            return fscmp(v1.fsval, v2.fsval);
+            return fs_cmp(v1.fsval, v2.fsval);
         break;
     }
     userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", hset_type_name(typ), typ);
@@ -168,18 +168,14 @@ static hset_elem           *create_elem(hset_value val){
         return logsimpleret( (hset_elem *) 0, "Unable to create elem");
     res->v = val;
     res->next = 0;
-    /*switch (typ){
-        case HSET_INT:
-            res->v.ival = val;
-        break;
-    } */
+
     return res;
 }
 
 static void                 free_elem(hset_elem *el, hset_type typ){
     switch (typ){
         case HSET_FS:
-            fsfree(el->v.fsval);        // to free space
+            fs_free(el->v.fsval);        // to free space
         break;
         default:
             // nothing here
@@ -256,7 +252,7 @@ bool                        hset_validate(FILE *out, const hset *restrict se){
 // ---------------------------------- General functions ------------------------------------
 
 bool                        hset_set(hset *se, hset_value val){
-    invraise(se != 0 && getype(se) == HSET_INT, "Null pointer or non-int type");
+    invraise(se != 0, "Null pointer");
 
     unsigned     hash = 0;
     bool         res = false;

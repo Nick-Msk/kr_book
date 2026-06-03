@@ -34,7 +34,7 @@ typedef union hset_value {
         int                 ival;
         long                lval;    // can be ANY type
         double              dval;
-        fs                  fsval;  // NOT implemented yet
+        fs                 *fsval;
         void               *pval;
         uint64_t            u64;    // for hash
 } hset_value;
@@ -57,7 +57,7 @@ static inline void          hsetval_fprint(FILE *restrict out, const char *restr
                 fprintf(out, "%p", val.pval);
             break;
             case HSET_FS:
-                fs_fprint(out, &val.fsval, 0);
+                fs_fprint(out, val.fsval, 0);
             break;
         }
     }
