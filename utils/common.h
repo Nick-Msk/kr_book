@@ -162,6 +162,16 @@ static inline int               pint_revcmp(const void *i1, const void *i2){
     return *(const int *) i2 - *(const int *) i1;
 }
 
+// simple comparator pointer long
+static inline long              plong_cmp(const void *l1, const void *l2){
+    return *(const int *) l1 - *(const int *) l2;
+}
+
+// simple reverse comparator pointer long
+static inline long              plong_revcmp(const void *l1, const void *l2){
+    return *(const long *) l2 - *(const long *) l1;
+}
+
 // simple comparator pointer to pointer
 static inline int               pptr_cmp(const void *p1, const void *p2){
     return *(const void **) p1 - *(const void **) p2;
