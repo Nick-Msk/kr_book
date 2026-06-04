@@ -278,7 +278,7 @@ hset                        hset_fromiarr(const int *iarr, int sz){
     unsigned    newsz = next_prime(sz * HSET_ARRAY_CREATE_MULTIPLIER);
     int         i = 0;
     hset    res = hset_init(newsz, HSET_INT);
-    while (i < sz && iarr[i] != 0){
+    while (i < sz){
         if (! hset_set(&res, HSET_INTVALUE(iarr[i] ) ) )
             userraiseint(ERR_UNABLE_ALLOCATE, "Unable to add %d", i);
         i++;
