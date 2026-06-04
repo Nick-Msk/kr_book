@@ -101,6 +101,7 @@ static const char 	NULLSTR[] = "(null)";
 
 // -------------------------------------- Random ------------------------------
 
+// TODO: refactor here!
 // random from 0 till max
 static inline int
 rndint(int max)
@@ -113,7 +114,11 @@ rnduint(unsigned max)
 {
     return (unsigned long)rand() * max / RAND_MAX;
 }
-
+static inline long
+rndlong(unsigned max)
+{
+    return (long)rand() * max / RAND_MAX;
+}
 // probably rework is required
 static inline unsigned long
 rndulong(unsigned long max)
@@ -185,14 +190,18 @@ static inline void              char_exch(char *s1, char *s2){
     *s1 = *s2;
     *s2 = c;
 }
-
 // simple int exchanger
 static inline void              int_exch(int *i1, int *i2){
     int tmp = *i1;
     *i1 = *i2;
     *i2 = tmp;
 }
-
+// simple long exchanger
+static inline void              long_exch(long *i1, long *i2){
+    long tmp = *i1;
+    *i1 = *i2;
+    *i2 = tmp;
+}
 // simple double exchanger  TODO: think about generic exchanger
 static inline void              dbl_exch(double *d1, double *d2){
     double tmp = *d1;
