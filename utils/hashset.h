@@ -79,11 +79,37 @@ typedef struct hset {
 } hset;
 
 #define                 HSET(size, typ) (hset) {.sz = (size), .flags = (typ), .table = 0 }
+#define                 HSET_VALUE          (hset_value) {.u64 = 0 }
 #define                 HSET_INTVALUE(val)  (hset_value) {.u64 = 0, .ival = val }
 #define                 HSET_LONGVALUE(val) (hset_value) {.u64 = 0, .lval = val }
 #define                 HSET_DBLVALUE(val)  (hset_value) {.u64 = 0, .dval = val }
 #define                 HSET_PTRVALUE(val)  (hset_value) {.u64 = 0, .pval = val }
 #define                 HSET_FSVALUE(val)   (hset_value) {.fsval = val }
+// create value from pointer
+static inline hset_value        hset_createval(const void *p, hset_type typ){
+    hset_value tmp = HSET_VALUE;  // init
+    switch (typ){
+        case HSET_INT:
+            tmp.ival = *(const int *) p;
+        break;
+        case HSET_LONG:
+            tmp.lval = *(const long *) p;
+        break;
+        case HSET_DBL:
+            tmp.dval = *(const double *) p;
+        break;
+        case HSET_PTR:
+            tmp.pval = *(void * const *) p;
+        break;
+        case HSET_FS:  // NOT SURE, PROBABLY DEEP COPY IS REQUIRED
+            tmp.fsval = *(fs * const *) p;
+        break;
+        default:
+            userraiseint(ERR_UNSUPPORTED_TYPE, "type %d isn't suppoted", typ);
+        break;
+    }
+    return tmp;
+}
 
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
@@ -93,11 +119,26 @@ extern hset             hset_reinit(hset *se, int newsz);
 extern void             hset_free(hset *se);
 //
 extern hset             hset_clone(const hset *se);
-extern hset             hset_fromiarr(const int *iarr, int sz);  // iarr must be null-ended array
-//extern hset             hset_fromfsarr(fs_array iarr);  //  not supported yet
-extern hset             hset_fromlarr(const long *larr, int sz);
-extern hset             hset_fromsarr(const double *darr, int sz);
-extern hset             hset_fromparr(const void **parr, int sz);
+
+// universale loader
+extern hset             hset_fromanyarr(const void *arr, int sz, hset_type typ);
+// typed
+static inline hset      hset_fromiarr(const int *iarr, int sz){
+    return hset_fromanyarr(iarr, sz, HSET_INT);
+}
+// not SURE TODO:
+static inline hset      hset_fromfsarr(/*fs_array iarr*/ const fs *fsarr, int sz){
+    return hset_fromanyarr(fsarr, sz, HSET_FS);
+}
+static inline hset      hset_fromlarr(const long *larr, int sz){
+    return hset_fromanyarr(larr, sz, HSET_LONG);
+}
+static inline hset      hset_fromsarr(const double *darr, int sz){
+    return hset_fromanyarr(darr, sz, HSET_DBL);
+}
+extern hset             hset_fromparr(const void **parr, int sz){
+    return hset_fromanyarr(parr, sz, HSET_PTR);
+}
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 

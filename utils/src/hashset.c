@@ -16,6 +16,13 @@
 #include "fs.h"
 
 static int                              HSET_ARRAY_CREATE_MULTIPLIER = 2;
+static const size_t                     hset_elem_sizes[] = {
+    [HSET_INT]  = sizeof(int),
+    [HSET_LONG] = sizeof(long),
+    [HSET_DBL]  = sizeof(double),
+    [HSET_PTR]  = sizeof(void*),
+    [HSET_FS]   = sizeof(fs *)
+};
 
 // ---------- pseudo-header for utility procedures -----------------
 
@@ -236,6 +243,17 @@ static bool                 validate_elemlist(const hset_elem *el, hset_type typ
     return logsimpleerr(true, "%u Ok", pos);
 }
 
+static inline hset_value    hset_createarrval(const void *arr, int idx, hset_type typ) {
+
+    size_t elem_size = hset_elem_sizes[typ];
+
+    if (elem_size == 0)
+        userraiseint(ERR_UNSUPPORTED_TYPE, "type %d", typ);
+
+    const char *base = (const char *)arr;
+    return hset_createval(base + idx * elem_size, typ);
+}
+
 // ------------------------------------- API -----------------------------------------------
 
 // ---------------------------------- API Constructs/Destrucor  ----------------------------
@@ -272,14 +290,17 @@ hset                        hset_clone(const hset *se){
     return logsimpleret(res, "Cloned");
 }
 
-hset                        hset_fromiarr(const int *iarr, int sz){
-    invraise(iarr != 0 && sz < INT_MAX / 2, "Incorrent input %p - %d", iarr, sz);
+hset                        hset_fromanyarr(const void *arr, int sz, hset_type typ){
+    invraise(arr != 0 && sz > 0 && sz < INT_MAX / 4, "Incorrent input %p - %d", arr, sz);
+    if (int_notin(typ, HSET_INT, HSET_LONG, HSET_DBL, HSET_PTR) )
+        userraiseint(ERR_UNSUPPORTED_TYPE, "%d", typ);
 
     unsigned    newsz = next_prime(sz * HSET_ARRAY_CREATE_MULTIPLIER);
     int         i = 0;
-    hset    res = hset_init(newsz, HSET_INT);
+    hset    res = hset_init(newsz, typ);
     while (i < sz){
-        if (! hset_set(&res, HSET_INTVALUE(iarr[i] ) ) )
+        // not sure if that pretty good
+        if (! hset_set(&res, hset_createarrval(arr, i, typ) ) )
             userraiseint(ERR_UNABLE_ALLOCATE, "Unable to add %d", i);
         i++;
     }
