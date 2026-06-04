@@ -164,8 +164,8 @@ static inline int               pint_revcmp(const void *i1, const void *i2){
 
 // simple comparator pointer long
 static inline int               plong_cmp(const void *l1, const void *l2){
-    const long *v1 = l2;
-    const long *v2 = l1;
+    const long *v1 = l1;
+    const long *v2 = l2;
     if (*v1 > *v2)
         return 1;
     else if (*v1 < *v2)
