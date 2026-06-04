@@ -12,10 +12,12 @@
 
 //  globals, can be changed by app
 
+// TODO: context must be used for that
 int                      g_array_rec_line        = 20;  // TODO: rework that to normal (in Array structure)
 const char              *g_custom_print_line     = 0;   // TODO: rework that to normal (in Array structure)
 const char              *g_save_format_double    = "%6d      %15.15lg\n";
 const char              *g_save_format_int       = "%6d\t%6d\n";
+const char              *g_save_format_long      = "%6d\t%6ld\n";
 const char              *g_save_format_pointer   = "%6d\t%p\n";
 
 // internal type
@@ -34,12 +36,15 @@ static int                      increase(Array *arr, int newsz){
     int bytes = newsz;
     if (Array_isint(*arr))
         bytes *= sizeof(int);
+    else if (Array_islong(*arr))
+        bytes *= sizeof(long);
     else if (Array_isdouble(*arr))
         bytes *= sizeof(double);
     else if (Array_ispointer(*arr))
         bytes *= sizeof(void *);
     else
         return logerr(-1, "Unknown type");
+
     logmsg("Arr: bytes=%d, sz=%d", bytes, newsz);
     void *p  = realloc(arr->iv, bytes);
     if (p == 0)
@@ -61,7 +66,7 @@ static int                      increase(Array *arr, int newsz){
 
 // CREATE  and fill with method
 Array                           Array_create(int cnt, ArrayFillType filltyp, ArrayType typ){
-    logenter("cnt %d, typ %s", cnt, ArrayFillTypeName(filltyp));
+    logenter("cnt %d, filltyp %s typ %s", cnt, ArrayFillTypeName(filltyp), ArrayTypeName(typ) );
     // TODO: refactor via Array_increase
     Array       res = Array_init(.flags = typ);
     increase(&res, cnt);
@@ -83,19 +88,24 @@ int                      Array_fill(Array a, ArrayFillType typ){
 
 // TODO: probably shoube be reworked to use switch (type) + separate code
 int                      Array_fillrange(Array a, ArrayFillType typ, int from, int to){
-    int     initval;
+    int         initval;
+    long        longval;
+    //double      doubleval;  // TODO:
     // fill
     if (from < 0)
         from = 0;
-    if (to > a.len)
+    if (to > a.sz)  // to avoid overflow
         to = a.len;
     switch (typ){
         case ARRAY_DESC:
             initval = 100 * a.len;   // hope it'll ne owerwelhm int
+            longval = 1000 * a.len;
             int     dec_value = 10;          // for now!!! It'll be changed
-            for (int i = 0; i < a.len; i++){
+            for (int i = from; i < to; i++){
                 if (Array_isint(a))
                     a.iv[i] = initval -= rndint(dec_value);
+                else if (Array_islong(a))
+                    a.lv[i] = initval -= rndlong(dec_value);
                 else if (Array_isdouble(a))
                     a.dv[i] = initval -= rnddbl(dec_value);
                 else if (Array_ispointer(a))
@@ -104,10 +114,13 @@ int                      Array_fillrange(Array a, ArrayFillType typ, int from, i
         break;
         case ARRAY_ASC:
             initval = a.len / 10;
+            longval = a.len / 10;
             int     asc_value = 10;          // for now!!! It'll be changed
-            for (int i = 0; i < a.len; i++){
+            for (int i = from; i < to; i++){
                 if (Array_isint(a))
                     a.iv[i] = initval += rndint(asc_value);
+                else if (Array_islong(a))
+                    a.lv[i] = longval += rndlong(asc_value);
                 else if (Array_isdouble(a))
                     a.dv[i] = initval += rnddbl(asc_value);
                 else if (Array_ispointer(a))
@@ -116,11 +129,13 @@ int                      Array_fillrange(Array a, ArrayFillType typ, int from, i
         break;
         case ARRAY_RND:
         case ARRAY_ZERO:
-            for (int i = 0; i < a.len; i++){ // iter??? TODO:
+            for (int i = from; i < to; i++){ // iter??? TODO:
                 switch (typ){
                     case ARRAY_RND:
                         if (Array_isint(a))
                             a.iv[i] = rndint(10 * a.len);
+                        else if (Array_islong(a))
+                            a.lv[i] = rndlong(10 * a.len);
                         else if (Array_isdouble(a))
                             a.dv[i] = rnddbl(10.0 * a.len);
                         else if (Array_ispointer(a))
@@ -129,7 +144,9 @@ int                      Array_fillrange(Array a, ArrayFillType typ, int from, i
                     case ARRAY_ZERO:
                         if (Array_isint(a))
                             a.iv[i] = 0;
-                        else if (Array_ispointer(a))
+                        else if (Array_islong(a))
+                            a.lv[i] = 0L;
+                        else if (Array_isdouble(a))
                             a.dv[i] = 0.0;
                         else if (Array_ispointer(a))
                             a.pv[i] = 0x0;
@@ -177,6 +194,8 @@ void                     Array_shuffle(Array arr){
         int j = rndint(i);
         if (Array_isint(arr) )
             int_exch(arr.iv + i, arr.iv + j);
+        else if (Array_islong(arr) )
+            long_exch(arr.lv + i, arr.lv + j);
         else if (Array_isdouble(arr) )
             dbl_exch(arr.dv + i, arr.dv + j);
         else if (Array_ispointer(arr) )
@@ -194,6 +213,14 @@ void                     Array_qsort(Array arr, ArrayFillType ord){
             cmp = pint_cmp;
         else
             cmp = pint_revcmp;
+    } else if (Array_islong(arr) ){
+        sz = sizeof(long);
+        if (ord == ARRAY_ASC){
+            cmp = plong_cmp;
+            logsimple("COMPARATOR: sz %d, ARRAY_ASC", sz);
+        }
+        else
+            cmp = plong_revcmp;
     } else if (Array_isdouble(arr) ){
         sz = sizeof(double);
         if (ord == ARRAY_ASC)
@@ -232,6 +259,13 @@ int                     Array_fprint(FILE *f, Array val, int limit){
                 custom_print_line = "[%d - %6d]\t";
             cnt += fprintf(f, custom_print_line, i, val.iv[i]);
         }
+        else if (Array_islong(val) ){
+            if (g_custom_print_line)    // TODO: refactor that!
+                custom_print_line = g_custom_print_line;
+            else  // standard behavior
+                custom_print_line = "[%ld - %6ld]\t";
+            cnt += fprintf(f, custom_print_line, i, val.lv[i]);
+        }
         else if (Array_isdouble(val) ){
             if (g_custom_print_line)    // TODO: refactor that!
                 custom_print_line = g_custom_print_line;
@@ -268,6 +302,8 @@ long                        Array_savevalues(Array arr, const char *fname, char 
     for (int i = 0; i < arr.len; i++)
         if (Array_isint(arr))
             res += fprintf(f, "%d%c", arr.iv[i], delim);
+        else if (Array_islong(arr))
+            res += fprintf(f, "%ld%c", arr.lv[i], delim);
         else if (Array_isdouble(arr))
             res += fprintf(f, "%12.12f%c", arr.dv[i], delim);
         else if (Array_ispointer(arr))
@@ -289,15 +325,17 @@ long                        Array_save(Array arr, const char *fname){
     // g_save_format_double g_save_format_int
     const char  *typ = ArrayTypeName(arr.flags);
 
-    res = fprintf(f, "ARRAY: %s : %d\n", typ, arr.len);
+    res += fprintf(f, "ARRAY: %s : %d\n", typ, arr.len);
     for (int i = 0; i < arr.len; i++)
         if (Array_isint(arr))
             res += fprintf(f, g_save_format_int, i, arr.iv[i]);    // TODO: think if shrink repeatable
+        else if (Array_islong(arr))
+            res += fprintf(f, g_save_format_long, i, arr.lv[i]);    // TODO: think if shrink repeatable
         else if (Array_isdouble(arr))
             res += fprintf(f, g_save_format_double, i, arr.dv[i]);
         else if (Array_ispointer(arr))
             res += fprintf(f, g_save_format_pointer, i, arr.pv[i]);
-    res = fprintf(f, "ARRAY: DONE");
+    res += fprintf(f, "ARRAY: DONE\n");
     fclose(f);
     return logret(res, "Done %ld", res);
 }
@@ -318,6 +356,8 @@ Array                       Array_load(const char *fname){
     fscanf(f, "ARRAY: %s : %d", typ, &cnt);
     if (strcmp(typ, "ARRAY_INT") == 0)
         arr = IArray_create(cnt, ARRAY_NONE);
+    else if (strcmp(typ, "ARRAY_LONG") == 0)
+        arr = LArray_create(cnt, ARRAY_NONE);
     else if (strcmp(typ, "ARRAY_DOUBLE") == 0)
         arr = DArray_create(cnt, ARRAY_NONE);
     else if (strcmp(typ, "ARRAY_POINTER") == 0)
@@ -329,6 +369,8 @@ Array                       Array_load(const char *fname){
     for (int i = 0; i < cnt; i++){
         if (Array_isint(arr))
             fscanf(f, g_save_format_int, &tmp, arr.iv + i); // tmp isn't used for now
+        else if (Array_islong(arr))
+            fscanf(f, g_save_format_long, &tmp, arr.lv + i);
         else if (Array_isdouble(arr) )
             fscanf(f, "%d %lg\n", &tmp, arr.dv + i);
         else if (Array_ispointer(arr) )
@@ -356,10 +398,11 @@ tf1(const char *name)
     logenter("%s", name);
     int         subnum = 0;
     {
-        test_sub("subtest %d", ++subnum);
+        test_sub("subtest %d: double", ++subnum);
         Array darr = DArray_create(100, ARRAY_ZERO);
-        if (darr.dv[99] != 0.0)
-            return logret(TEST_FAILED, "Element must be 0.0. but not %f", darr.dv[99]);
+        for (int i = 0; i < darr.len; i++)
+            if (darr.dv[i] != 0.0)
+                return logret(TEST_FAILED, "%d: Element must be 0.0. but not %lf", i, darr.dv[i]);
         if (!Array_isvalid(darr))
             return logret(TEST_FAILED, "Validation is failed");
         Arrayfree(darr);
@@ -367,14 +410,27 @@ tf1(const char *name)
             return logret(TEST_FAILED, "Array is'nt freed");
     }
     {
-        test_sub("subtest %d", ++subnum);
+        test_sub("subtest %d: int", ++subnum);
         Array iarr = IArray_create(100, ARRAY_ZERO);
-        if (iarr.iv[99] != 0)
-            return logret(TEST_FAILED, "Element must be 0.0. but not %d", iarr.iv[99]);
+        for (int i = 0; i < iarr.len; i++)
+            if (iarr.iv[i] != 0)
+                return logret(TEST_FAILED, "%d: Element must be 0 but not %d", i, iarr.iv[i]);
         if (!Array_isvalid(iarr))
             return logret(TEST_FAILED, "Validation is failed");
         Arrayfree(iarr);
         if (iarr.dv != 0)
+            return logret(TEST_FAILED, "Array is'nt freed");
+    }
+    {
+        test_sub("subtest %d: long", ++subnum);
+        Array larr = LArray_create(100, ARRAY_ZERO);
+        for (int i = 0; i < larr.len; i++)
+            if (larr.lv[i] != 0)
+                return logret(TEST_FAILED, "%d: Element must be 0L but not %ld", i, larr.lv[i]);
+        if (!Array_isvalid(larr))
+            return logret(TEST_FAILED, "Validation is failed");
+        Arrayfree(larr);
+        if (larr.dv != 0)
             return logret(TEST_FAILED, "Array is'nt freed");
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED
@@ -383,37 +439,51 @@ tf1(const char *name)
 // ------------------------- TEST 2 ---------------------------------
 static TestStatus
 tf2(const char *name){
-    logenter("%s", name);
 
+    logenter("%s", name);
     int         subnum = 0;
+
+    test_sub("subtest %d: double asc", ++subnum);
     {
-        test_sub("subtest %d", ++subnum);
         Array darr = DArray_create(100, ARRAY_ASC);
         for (int i = 0; i < darr.len - 1; i++)
             if (darr.dv[i] > darr.dv[i + 1])
                 return logactret(Arrayfree(darr), TEST_FAILED, "Violation for ACS gen: arr[%d] = %f > arr[%d+1] = %f", i, darr.dv[i], i, darr.dv[i + 1]);
 
-        test_sub("subtest %d", ++subnum);
+        test_sub("subtest %d: double desc", ++subnum);
         Array_fill(darr, ARRAY_DESC);
         for (int i = 0; i < darr.len - 1; i++)
             if (darr.dv[i] < darr.dv[i + 1])
                 return logactret(Arrayfree(darr), TEST_FAILED, "Violation for DESC gen: arr[%d] = %f < arr[%d+1] = %f", i, darr.dv[i], i, darr.dv[i + 1]);
         Arrayfree(darr);
     }
-
+    test_sub("subtest %d: int asc", ++subnum);
     {
-        test_sub("subtest %d", ++subnum);
         Array iarr = IArray_create(100, ARRAY_ASC);
         for (int i = 0; i < iarr.len - 1; i++)
             if (iarr.iv[i] > iarr.iv[i + 1])
                 return logactret(Arrayfree(iarr), TEST_FAILED, "Violation for ACS gen: arr[%d] = %d > arr[%d+1] = %d", i, iarr.iv[i], i, iarr.iv[i + 1]);
 
-        test_sub("subtest %d", ++subnum);
+        test_sub("subtest %d: int desc", ++subnum);
         Array_fill(iarr, ARRAY_DESC);
         for (int i = 0; i < iarr.len - 1; i++)
             if (iarr.iv[i] < iarr.iv[i + 1])
                 return logactret(Arrayfree(iarr), TEST_FAILED, "Violation for DESC gen: arr[%d] = %d < arr[%d+1] = %d", i, iarr.iv[i], i, iarr.iv[i + 1]);
         Arrayfree(iarr);
+    }
+    test_sub("subtest %d: long asc", ++subnum);
+    {
+        Array larr = LArray_create(100, ARRAY_ASC);
+        for (int i = 0; i < larr.len - 1; i++)
+            if (larr.lv[i] > larr.lv[i + 1])
+                return logactret(Arrayfree(larr), TEST_FAILED, "Violation for ACS gen: arr[%d] = %ld > arr[%d+1] = %ld", i, larr.lv[i], i, larr.lv[i + 1]);
+
+        test_sub("subtest %d: long desc", ++subnum);
+        Array_fill(larr, ARRAY_DESC);
+        for (int i = 0; i < larr.len - 1; i++)
+            if (larr.lv[i] < larr.lv[i + 1])
+                return logactret(Arrayfree(larr), TEST_FAILED, "Violation for DESC gen: arr[%d] = %ld < arr[%d+1] = %ld", i, larr.lv[i], i, larr.lv[i + 1]);
+        Arrayfree(larr);
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
@@ -421,13 +491,27 @@ tf2(const char *name){
 // ------------------------- TEST 3 ---------------------------------
 static TestStatus
 tf3(const char *name){
+
     logenter("%s", name);
-
     int         subnum = 0;
-    {
-        test_sub("subtest %d", ++subnum);
 
-        Array iarr = DArray_create(100, ARRAY_ASC);
+    test_sub("subtest %d: double", ++subnum);
+    {
+        Array darr = DArray_create(100, ARRAY_ASC);
+
+        Array_fprint(logfile, darr, 0);
+
+        darr = Array_shrink(darr, 10);
+        if (!Array_isvalid(darr))
+            return logactret(Arrayfree(darr), TEST_FAILED, "Validation is failed");
+
+        if (! inv(darr.len == 10 && darr.sz == 10 && darr.iv != 0, "Broken array!") )
+            return logactret(Arrayfree(darr), TEST_FAILED, "Validatation is failed, len %d - sz %d - v %p", darr.len, darr.sz, darr.dv);
+        Arrayfree(darr);
+    }
+    test_sub("subtest %d: int", ++subnum);
+    {
+        Array iarr = IArray_create(100, ARRAY_ASC);
 
         Array_fprint(logfile, iarr, 0);
 
@@ -439,20 +523,34 @@ tf3(const char *name){
             return logactret(Arrayfree(iarr), TEST_FAILED, "Validatation is failed, len %d - sz %d - v %p", iarr.len, iarr.sz, iarr.iv);
         Arrayfree(iarr);
     }
+    test_sub("subtest %d: long", ++subnum);
+    {
+        Array larr = LArray_create(100, ARRAY_ASC);
+
+        Array_fprint(logfile, larr, 0);
+
+        larr = Array_shrink(larr, 10);
+        if (!Array_isvalid(larr))
+            return logactret(Arrayfree(larr), TEST_FAILED, "Validation is failed");
+
+        if (! inv(larr.len == 10 && larr.sz == 10 && larr.iv != 0, "Broken array!") )
+            return logactret(Arrayfree(larr), TEST_FAILED, "Validatation is failed, len %d - sz %d - v %p", larr.len, larr.sz, larr.dv);
+        Arrayfree(larr);
+    }
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
 // ------------------------- TEST 4 ---------------------------------
 static TestStatus
 tf4(const char *name){
+
     logenter("%s", name);
-
     int         subnum = 0;
-    {
-        test_sub("subtest %d", ++subnum);
 
+    test_sub("subtest %d: int save/load", ++subnum);
+    {
         Array iarr = IArray_create(100, ARRAY_RND);
-        const char *filename =  "res/iarr.sv";
+        const char *filename =  "res/array/iarr.sv";
 
         Array_save(iarr, filename);
 
@@ -461,12 +559,12 @@ tf4(const char *name){
         if (!Array_isvalid(iarr2))
             return logactret(Arrayfree(iarr), TEST_FAILED, "Validation is failed");
 
-        test_sub("subtest %d", ++subnum);
+        test_sub("subtest %d: check", ++subnum);
         if (!inv(iarr.len == iarr2.len && iarr.flags == iarr2.flags, "not equal") )
             return logactret( (Array_free(&iarr), Array_free(&iarr2) ), TEST_FAILED, "Not equal len %d - %d, flags %d - %d",
                 iarr.len, iarr2.len, iarr.flags, iarr2.flags);
 
-        test_sub("subtest %d", ++subnum);
+        test_sub("subtest %d: check2", ++subnum);
         for (int i = 0; i < iarr.len; i++)
             if (iarr.iv[i] != iarr2.iv[i])
                 return logacterr( (Array_free(&iarr), Array_free(&iarr2) ), TEST_FAILED,
@@ -475,20 +573,46 @@ tf4(const char *name){
         Array_free(&iarr);
         Array_free(&iarr2);
     }
+    test_sub("subtest %d: long save/load", ++subnum);
+    {
+        Array larr = LArray_create(100, ARRAY_RND);
+        const char *filename =  "res/array/larr.sv";
+
+        Array_save(larr, filename);
+
+        Array larr2 = Array_load(filename);
+
+        if (!Array_isvalid(larr2))
+            return logactret(Arrayfree(larr), TEST_FAILED, "Validation is failed");
+
+        test_sub("subtest %d: check", ++subnum);
+        if (!inv(larr.len == larr2.len && larr.flags == larr2.flags, "not equal") )
+            return logactret( (Array_free(&larr), Array_free(&larr2) ), TEST_FAILED, "Not equal len %d - %d, flags %d - %d",
+                larr.len, larr2.len, larr.flags, larr2.flags);
+
+        test_sub("subtest %d: check2", ++subnum);
+        for (int i = 0; i < larr.len; i++)
+            if (larr.lv[i] != larr2.lv[i])
+                return logacterr( (Array_free(&larr), Array_free(&larr2) ), TEST_FAILED,
+                                "arr[%d] = %ld != arr2[%d] = %ld", i, larr.lv[i], i, larr2.lv[i]);
+
+        Array_free(&larr);
+        Array_free(&larr2);
+    }
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
 // ------------------------- TEST 5 ---------------------------------
 static TestStatus
 tf5(const char *name){
+
     logenter("%s", name);
-
     int         subnum = 0;
-    {
-        test_sub("subtest %d", ++subnum);
 
+    test_sub("subtest %d", ++subnum);
+    {
         Array darr = DArray_create(100, ARRAY_RND);
-        const char *filename =  "res/darr.sv";
+        const char *filename =  "res/array/darr.sv";
 
         Array_print(darr, 0);
         Array_save(darr, filename);
@@ -521,22 +645,29 @@ tf6(const char *name){
     logenter("%s", name);
 
     int         subnum = 0;
-    {
-        test_sub("subtest %d", ++subnum);
 
+    test_sub("subtest %d: double", ++subnum);
+    {
         Array darr = DArray_create(50, ARRAY_ASC);
 
         Array_shuffle(darr);
         g_custom_print_line = 0;
         Array_print(darr, 0);
         Arrayfree(darr);
-
-        test_sub("subtest %d", ++subnum);
-
+    }
+    test_sub("subtest %d: int", ++subnum);
+    {
         Array iarr = IArray_create(50, ARRAY_ASC);
         Array_shuffle(iarr);
         Array_print(iarr, 0);
         Arrayfree(iarr);
+    }
+    test_sub("subtest %d: long", ++subnum);
+    {
+        Array larr = LArray_create(50, ARRAY_ASC);
+        Array_shuffle(larr);
+        Array_print(larr, 0);
+        Arrayfree(larr);
     }
     return logret(TEST_MANUAL, "done"); // TEST_FAILED
 }
@@ -544,12 +675,12 @@ tf6(const char *name){
 // ------------------------- TEST 7 ---------------------------------
 static TestStatus
 tf7(const char *name){
+
     logenter("%s", name);
-
     int         subnum = 0;
-    {
-        test_sub("subtest %d", ++subnum);
 
+    test_sub("subtest %d: double acs", ++subnum);
+    {
         Array darr = DArray_create(10000, ARRAY_RND);
 
         Array_qsort(darr, ARRAY_ASC);
@@ -559,14 +690,15 @@ tf7(const char *name){
             if (darr.dv[i - 1] > darr.dv[i])
                 return logactret(Arrayfree(darr), TEST_FAILED, "array[%d] = %f > array[%d] = %f, should be <=", i - 1, darr.dv[i - 1], i, darr.dv[i]);
 
-        test_sub("subtest %d", ++subnum);
+        test_sub("subtest %d: double desc", ++subnum);
         Array_qsort(darr, ARRAY_DESC);
         for (int i = 1; i < darr.len; i++)
             if (darr.dv[i - 1] < darr.dv[i])
                 return logactret(Arrayfree(darr), TEST_FAILED, "array[%d] = %f < array[%d] = %f, should be >=", i - 1, darr.dv[i - 1], i, darr.dv[i]);
         Arrayfree(darr);
-
-        test_sub("subtest %d", ++subnum);
+    }
+    test_sub("subtest %d: int acs", ++subnum);
+    {
 
         Array iarr = IArray_create(100000, ARRAY_RND);
         Array_qsort(iarr, ARRAY_ASC);
@@ -575,7 +707,7 @@ tf7(const char *name){
             if (iarr.iv[i - 1] > iarr.iv[i])
                 return logactret(Arrayfree(iarr), TEST_FAILED, "array[%d] = %d > array[%d] = %d, should be <=", i - 1, iarr.iv[i - 1], i, iarr.iv[i]);
 
-        test_sub("subtest %d", ++subnum);
+        test_sub("subtest %d: int desc", ++subnum);
         Array_qsort(iarr, ARRAY_DESC);
         // check desc
         for (int i = 1; i < iarr.len; i++)
@@ -583,6 +715,26 @@ tf7(const char *name){
                 return logactret(Arrayfree(iarr), TEST_FAILED, "array[%d] = %d < array[%d] = %d, should be >=", i - 1, iarr.iv[i - 1], i, iarr.iv[i]);
         //Array_print(iarr, 50);
         Arrayfree(iarr);
+    }
+    test_sub("subtest %d: long asc", ++subnum);
+    {
+
+        Array larr = LArray_create(100000, ARRAY_RND);
+        Array_qsort(larr, ARRAY_ASC);
+        Array_print(larr, 50);
+        // check asc
+        for (int i = 1; i < larr.len; i++)
+            if (larr.lv[i - 1] > larr.lv[i])
+                return logactret(Arrayfree(larr), TEST_FAILED, "array[%d] = %ld > array[%d] = %ld, should be <=", i - 1, larr.lv[i - 1], i, larr.lv[i]);
+
+        test_sub("subtest %d: long desc", ++subnum);
+        Array_qsort(larr, ARRAY_DESC);
+        // check desc
+        for (int i = 1; i < larr.len; i++)
+            if (larr.lv[i - 1] < larr.lv[i])
+                return logactret(Arrayfree(larr), TEST_FAILED, "array[%d] = %ld < array[%d] = %ld, should be >=", i - 1, larr.lv[i - 1], i, larr.lv[i]);
+        //Array_print(iarr, 50);
+        Arrayfree(larr);
     }
 
     return logret(TEST_PASSED, "done"); // TEST_FAILED
@@ -619,7 +771,22 @@ tf8(const char *name){
 
         test_validatefree(Arraylen(arr) == initsz * 3, Arrayfree(arr), "Array length %d must be %d", Arraylen(arr), initsz * 3);
         for (int i = initsz; i < Arraylen(arr); i++){
-            test_validatefree(arr.dv[i] == 0.0, Arrayfree(arr), "arr[%d] must be zero,  but not %f", i, arr.dv[i]);
+            test_validatefree(arr.dv[i] == 0.0, Arrayfree(arr), "arr[%d] must be zero,  but not %lf", i, arr.dv[i]);
+        }
+
+        Arrayfree(arr);
+    }
+    test_sub("subtest %d increas long array", ++subnum);
+    {
+
+        int initsz = 25;
+        Array arr = LArray_create(initsz, ARRAY_RND);
+
+        arr = Array_increase(arr, initsz * 5);
+
+        test_validatefree(Arraylen(arr) == initsz * 5, Arrayfree(arr), "Array length %d must be %d", Arraylen(arr), initsz * 5);
+        for (int i = initsz; i < Arraylen(arr); i++){
+            test_validatefree(arr.lv[i] == 0L, Arrayfree(arr), "arr[%d] must be zero,  but not %ld", i, arr.lv[i]);
         }
 
         Arrayfree(arr);
@@ -639,8 +806,9 @@ tf9(const char *name){
         int     cnt = 100;
         Array   parr = PArray_create(cnt, ARRAY_ZERO);
 
-        test_validatefree(parr.pv[cnt] == 0x0, Arrayfree(parr),
-                "Element %d must be 0x0 but not %p", cnt - 1, parr.pv[cnt - 1]);
+        for (int i = 0; i < parr.len; i++)
+            test_validatefree(parr.pv[i] == 0x0, Arrayfree(parr),
+                "Element %d must be 0x0 but not %p", i, parr.pv[i]);
         test_validatefree(Array_isvalid(parr), Arrayfree(parr),
                 "Validation is failed");
 
