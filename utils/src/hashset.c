@@ -638,6 +638,22 @@ tf3(const char *name)
         Array_free(&arr);
         hset_free(&se1);
     }
+    test_sub("subtest %d: create from int array, contained 0 value", ++subnum);
+    {
+        Array arr = IArray_create(10, ARRAY_ZERO);
+        hset    se1 = hset_fromiarr(arr.iv, arr.len);
+
+        hset_techfprint(stdout, &se1, 0);
+
+        for (int i = 0; i < arr.len; i++)
+            test_validatefree(
+                hset_get(&se1, HSET_INTVALUE(arr.iv[i]) ), (Array_free(&arr), hset_free(&se1) ),
+                "Element %d isn't found", arr.iv[i]
+            );
+
+        Array_free(&arr);
+        hset_free(&se1);
+    }
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 

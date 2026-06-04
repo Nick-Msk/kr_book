@@ -94,8 +94,10 @@ extern void             hset_free(hset *se);
 //
 extern hset             hset_clone(const hset *se);
 extern hset             hset_fromiarr(const int *iarr, int sz);  // iarr must be null-ended array
-// extern hset             hset_fromfsarr(fs_array iarr);   not supported yet
-extern hset             hset_fromlarr(const long *larr);
+//extern hset             hset_fromfsarr(fs_array iarr);  //  not supported yet
+extern hset             hset_fromlarr(const long *larr, int sz);
+extern hset             hset_fromsarr(const double *darr, int sz);
+extern hset             hset_fromparr(const void **parr, int sz);
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
@@ -109,6 +111,7 @@ extern bool             hset_del(hset *se, hset_value val);
 extern bool             hset_get(const hset *se, hset_value val);
 //extern bool             hset_lget(const hset *se, long val);
 
+extern int              hset_cnt(const hset *se);   //TODO:
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
 extern int              hset_techfprint(FILE *restrict out, const hset *se, int cnt);
