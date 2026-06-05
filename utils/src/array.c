@@ -92,7 +92,7 @@ int                      Array_fill(Array a, ArrayFillType typ){
 int                      Array_fillrange(Array a, ArrayFillType typ, int from, int to){
     int         initval;
     long        longval;
-    //double      doubleval;  // TODO:
+    double      doubleval;  // TODO:
     // fill
     if (from < 0)
         from = 0;
@@ -102,14 +102,15 @@ int                      Array_fillrange(Array a, ArrayFillType typ, int from, i
         case ARRAY_DESC:
             initval = 100 * a.len;   // hope it'll ne owerwelhm int
             longval = 1000 * a.len;
+            doubleval = 100.0 * a.len;
             int     dec_value = 10;          // for now!!! It'll be changed
             for (int i = from; i < to; i++){
                 if (Array_isint(a))
-                    a.iv[i] = initval -= rndint(dec_value) + 1;
+                    a.iv[i] = (initval -= rndint(dec_value) + 1);
                 else if (Array_islong(a))
-                    a.lv[i] = initval -= rndlong(dec_value) + 1;
+                    a.lv[i] = (initval -= rndlong(dec_value) + 1);
                 else if (Array_isdouble(a))
-                    a.dv[i] = initval -= (rnddbl(dec_value) + g_array_dbl_increment);
+                    a.dv[i] = doubleval -= (rnddbl(dec_value) + g_array_dbl_increment);
                 else if (Array_ispointer(a))
                     userraiseint(ERR_ACTION_NOT_APPLICABLE, "ARRAY_ASC isn't appilcable");
             }
@@ -117,14 +118,15 @@ int                      Array_fillrange(Array a, ArrayFillType typ, int from, i
         case ARRAY_ASC:
             initval = a.len / 10;
             longval = a.len / 10;
+            doubleval = a.len / 10.0;
             int     asc_value = 10;          // for now!!! It'll be changed
             for (int i = from; i < to; i++){
                 if (Array_isint(a))
-                    a.iv[i] = initval += rndint(asc_value) + 1;
+                    a.iv[i] = (initval += rndint(asc_value) + 1);
                 else if (Array_islong(a))
-                    a.lv[i] = longval += rndlong(asc_value) + 1;
+                    a.lv[i] = (longval += rndlong(asc_value) + 1);
                 else if (Array_isdouble(a))
-                    a.dv[i] = initval += (rnddbl(asc_value)  + g_array_dbl_increment);
+                    a.dv[i] = doubleval += (rnddbl(asc_value)  + g_array_dbl_increment);
                 else if (Array_ispointer(a))
                     userraiseint(ERR_ACTION_NOT_APPLICABLE, "ARRAY_ASC isn't appilcable");
             }
