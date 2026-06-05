@@ -20,6 +20,7 @@ const char              *g_save_format_double    = "%6d      %15.15lg\n";
 const char              *g_save_format_int       = "%6d\t%6d\n";
 const char              *g_save_format_long      = "%6d\t%6ld\n";
 const char              *g_save_format_pointer   = "%6d\t%p\n";
+const double             g_array_dbl_increment   = 0.01;
 
 // internal type
 
@@ -104,11 +105,11 @@ int                      Array_fillrange(Array a, ArrayFillType typ, int from, i
             int     dec_value = 10;          // for now!!! It'll be changed
             for (int i = from; i < to; i++){
                 if (Array_isint(a))
-                    a.iv[i] = initval -= rndint(dec_value);
+                    a.iv[i] = initval -= rndint(dec_value) + 1;
                 else if (Array_islong(a))
-                    a.lv[i] = initval -= rndlong(dec_value);
+                    a.lv[i] = initval -= rndlong(dec_value) + 1;
                 else if (Array_isdouble(a))
-                    a.dv[i] = initval -= (rnddbl(dec_value) + FLT_EPSILON);
+                    a.dv[i] = initval -= (rnddbl(dec_value) + g_array_dbl_increment);
                 else if (Array_ispointer(a))
                     userraiseint(ERR_ACTION_NOT_APPLICABLE, "ARRAY_ASC isn't appilcable");
             }
@@ -119,11 +120,11 @@ int                      Array_fillrange(Array a, ArrayFillType typ, int from, i
             int     asc_value = 10;          // for now!!! It'll be changed
             for (int i = from; i < to; i++){
                 if (Array_isint(a))
-                    a.iv[i] = initval += rndint(asc_value);
+                    a.iv[i] = initval += rndint(asc_value) + 1;
                 else if (Array_islong(a))
-                    a.lv[i] = longval += rndlong(asc_value);
+                    a.lv[i] = longval += rndlong(asc_value) + 1;
                 else if (Array_isdouble(a))
-                    a.dv[i] = initval += (rnddbl(asc_value)  + FLT_EPSILON);
+                    a.dv[i] = initval += (rnddbl(asc_value)  + g_array_dbl_increment);
                 else if (Array_ispointer(a))
                     userraiseint(ERR_ACTION_NOT_APPLICABLE, "ARRAY_ASC isn't appilcable");
             }
