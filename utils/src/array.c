@@ -1,6 +1,7 @@
 #include <limits.h>
 #include <time.h>
 #include <stdlib.h>
+#include <float.h>
 
 #include "array.h"
 #include "error.h"
@@ -107,7 +108,7 @@ int                      Array_fillrange(Array a, ArrayFillType typ, int from, i
                 else if (Array_islong(a))
                     a.lv[i] = initval -= rndlong(dec_value);
                 else if (Array_isdouble(a))
-                    a.dv[i] = initval -= rnddbl(dec_value);
+                    a.dv[i] = initval -= (rnddbl(dec_value) + FLT_EPSILON);
                 else if (Array_ispointer(a))
                     userraiseint(ERR_ACTION_NOT_APPLICABLE, "ARRAY_ASC isn't appilcable");
             }
@@ -137,7 +138,7 @@ int                      Array_fillrange(Array a, ArrayFillType typ, int from, i
                         else if (Array_islong(a))
                             a.lv[i] = rndlong(10 * a.len);
                         else if (Array_isdouble(a))
-                            a.dv[i] = rnddbl(10.0 * a.len);
+                            a.dv[i] = (rnddbl(10.0 * a.len) + FLT_EPSILON);
                         else if (Array_ispointer(a))
                             a.pv[i] = (void *) rndulong(10000UL * a.len);
                     break;
@@ -829,7 +830,7 @@ tf9(const char *name){
     }
     test_sub("subtest %d, pointer array save/load", ++subnum);
     {
-        const char *filename = "res/parr.sv";
+        const char *filename = "res/array/parr.sv";
         Array parr = PArray_create(100, ARRAY_RND);
 
         Array_save(parr, filename);
