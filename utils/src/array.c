@@ -123,7 +123,7 @@ int                      Array_fillrange(Array a, ArrayFillType typ, int from, i
                 else if (Array_islong(a))
                     a.lv[i] = longval += rndlong(asc_value);
                 else if (Array_isdouble(a))
-                    a.dv[i] = initval += rnddbl(asc_value);
+                    a.dv[i] = initval += (rnddbl(asc_value)  + FLT_EPSILON);
                 else if (Array_ispointer(a))
                     userraiseint(ERR_ACTION_NOT_APPLICABLE, "ARRAY_ASC isn't appilcable");
             }
@@ -138,7 +138,7 @@ int                      Array_fillrange(Array a, ArrayFillType typ, int from, i
                         else if (Array_islong(a))
                             a.lv[i] = rndlong(10 * a.len);
                         else if (Array_isdouble(a))
-                            a.dv[i] = (rnddbl(10.0 * a.len) + FLT_EPSILON);
+                            a.dv[i] = rnddbl(10.0 * a.len);
                         else if (Array_ispointer(a))
                             a.pv[i] = (void *) rndulong(10000UL * a.len);
                     break;
