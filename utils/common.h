@@ -129,7 +129,7 @@ rndulong(unsigned long max)
 static inline double
 rnddbl(double dmax)
 {
-    return (long)rand() * dmax / RAND_MAX; // TODO: check if improve
+    return (double) rand() * dmax / RAND_MAX; // TODO: check if improve
 }
 
 static inline double
