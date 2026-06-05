@@ -14,6 +14,9 @@ LDLIBS=
 
 all:
 
+rnd_test: src/rnd_test.c
+	$(CC) $(CFLAGS) $^ -o out/$@_test
+
 malloc_test: src/malloc_test.c
 	$(CC) $(CFLAGS) $^ -o out/$@_test
 
