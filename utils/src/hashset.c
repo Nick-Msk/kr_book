@@ -313,16 +313,9 @@ hset                        hset_fromanyarr(const void *arr, int sz, hset_type t
     if (int_notin(typ, HSET_INT, HSET_LONG, HSET_DBL, HSET_PTR) )
         userraiseint(ERR_UNSUPPORTED_TYPE, "%d", typ);
 
-    unsigned    newsz = next_prime(sz * HSET_ARRAY_CREATE_MULTIPLIER);
-    int         i = 0;
-    hset    res = hset_init(newsz, typ);
-    while (i < sz){
-        // not sure if that pretty good
-        if (! hset_set(&res, hset_createarrval(arr, i, typ) ) )
-            userraiseint(ERR_UNABLE_ALLOCATE, "Unable to add %d", i);
-        i++;
-    }
-    return logsimpleret(res, "Created %u", newsz);
+    hset        res = hset_init(sz * HSET_ARRAY_CREATE_MULTIPLIER, typ);
+    int         cnt = hset_loadanyarr(&res, arr, sz, typ);
+    return logsimpleret(res, "Created hest with sz %u, loaded %d", res.sz, cnt);
 }
 
 void                        hset_free(hset *se){
@@ -390,7 +383,7 @@ bool                        hset_set(hset *se, hset_value val){
             se->table[hash] = newel;
         newel->next = nextel;
     }
-    hsetval_log(val, getype(se) );
+    // hsetval_log(val, getype(se) );
     return logsimpleret(true, "Added the value prev existing %s", bool_str(res) );
 }
 
@@ -466,6 +459,23 @@ bool                        hset_eq(const hset *restrict se1, const hset *restri
         }
 
     return logsimpleret(res, "Equal %s", bool_str(res) );
+}
+
+// TODO: hset_noteq() here
+
+int                         hset_loadanyarr(hset *restrict se, const void *arr, int sz, hset_type typ){ 
+    invraise(arr != 0 && sz > 0 && sz < INT_MAX / 4, "Incorrent input %p - %d", arr, sz);
+    if (int_notin(typ, HSET_INT, HSET_LONG, HSET_DBL, HSET_PTR) )
+        userraiseint(ERR_UNSUPPORTED_TYPE, "%d - %s", typ, hset_type_name(typ) );
+
+    int         cnt = 0;
+    while (cnt < sz){
+        // not sure if that pretty good
+        if (! hset_set(se, hset_createarrval(arr, cnt, typ) ) )
+            userraiseint(ERR_UNABLE_ALLOCATE, "Unable to add %d", cnt);
+        cnt++;
+    }
+    return logsimpleret(cnt, "Loaded %d", cnt);
 }
 
 // ------------------------------------- (API) printers ------------------------------------
@@ -773,9 +783,25 @@ tf4(const char *name)
         hset_free(&se1);
         hset_free(&se2);
     }
-    test_sub("subtest %d: compare with different size", ++subnum);
+    test_sub("subtest %d: compare with different hash table size", ++subnum);
     {
         // TODO:
+        Array   arr = IArray_create(200, ARRAY_RND);
+        // create from array
+        hset    se1 = hset_fromiarr(arr.iv, Arraylen(arr) );
+        // manually creating, small
+        hset    se2 = hset_init(100, HSET_INT);
+        hset_loadiarr(&se2, arr.iv, Arraylen(arr) );
+        test_validatefree(
+            hset_eq(&se1, &se2), (hset_free(&se1), hset_free(&se2) ), "Must be equal!"
+        );
+        // reload se1
+        hset_loadiarr(&se1, arr.iv, Arraylen(arr) );
+        test_validatefree(
+            hset_eq(&se1, &se2), (hset_free(&se1), hset_free(&se2) ), "Must be equal again!"
+        );
+        hset_free(&se1);
+        hset_free(&se2);
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }

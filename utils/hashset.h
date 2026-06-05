@@ -123,6 +123,8 @@ extern void             hset_free(hset *se);
 //
 extern hset             hset_clone(const hset *se);
 
+extern hset             hset_cloneas(const hset *se, hset_type typ);    // TODO:
+
 // universale loader
 extern hset             hset_fromanyarr(const void *arr, int sz, hset_type typ);
 // typed
@@ -157,6 +159,28 @@ extern int              hset_cnt(const hset *se);
 extern void             hset_clean(hset *se);
 
 extern bool             hset_eq(const hset *restrict se1, const hset *restrict se2);
+
+extern bool             hset_noteq(const hset *restrict se1, const hset *restrict se2);
+// load values from array, any type
+extern int              hset_loadanyarr(hset *restrict se, const void *arr, int sz, hset_type typ);
+
+static inline int       hset_loadiarr(hset *restrict se, const int *iarr, int sz){
+    return hset_loadanyarr(se, iarr, sz, HSET_INT);
+}
+static inline int       hset_loadlarr(hset *restrict se, const long *larr, int sz){
+    return hset_loadanyarr(se, larr, sz, HSET_LONG);
+}
+static inline int       hset_loaddarr(hset *restrict se, const double *darr, int sz){
+    return hset_loadanyarr(se, darr, sz, HSET_DBL);
+}
+static inline int       hset_loadparr(hset *restrict se, const void * const *restrict parr, int sz){
+    return hset_loadanyarr(se, parr, sz, HSET_PTR);
+}
+// TODO: not sure
+static inline int       hset_loadfsarr(hset *restrict se, const fs *restrict fsarr, int sz){
+    return hset_loadanyarr(se, fsarr, sz, HSET_FS);
+}
+
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
 extern int              hset_techfprint(FILE *restrict out, const hset *se, int cnt);
