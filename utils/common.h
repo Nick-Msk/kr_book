@@ -125,19 +125,23 @@ rndulong(unsigned long max)
 {
     return (unsigned long)rand() * max / RAND_MAX;
 }
+
+static inline double
+drand(void)
+{
+    #if defined(__unix__) || defined(__APPLE__)
+        return drand48();
+    #else
+        return (double) rand() / (RAND_MAX + 1.0);
+    #endif
+}
+
 // random from 0 till dmax
 static inline double
 rnddbl(double dmax)
 {
-    return (double) rand() * dmax / RAND_MAX; // TODO: check if improve
+    return drand() * dmax;
 }
-
-static inline double
-frand(void)
-{
-    return (double) rand() / (RAND_MAX + 1.0);
-}
-
 // ----------------------------------- Comparators ----------------------------
 
 // simple char comparator
