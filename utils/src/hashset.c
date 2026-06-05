@@ -754,30 +754,34 @@ tf5(const char *name)
     }
     test_sub("subtest %d: loaded count", ++subnum);
     {
-        Array   arr = DArray_create(5, ARRAY_ASC);
+        rndinit();
+        Array   arr = DArray_create(500, ARRAY_ASC);
         hset    se2 = hset_fromdarr(arr.dv, arr.len);
         int     res;
-        hset_techprint(&se2, 0);
+        // hset_techprint(&se2, 5);
+        //Array_print(arr, 5);
         test_validatefree(
-            (res = hset_cnt(&se2) ) == Arraylen(arr), hset_free(&se2), "Must be == %d, but not %d", Arraylen(arr), res
+            (res = hset_cnt(&se2) ) == Arraylen(arr), (hset_free(&se2), Arrayfree(arr) ), "Must be == %d, but not %d", Arraylen(arr), res
         );
+        Arrayfree(arr);
         hset_free(&se2);
     }
     test_sub("subtest %d: loaded count int", ++subnum);
     {
-        Array   arr = IArray_create(5, ARRAY_ASC);
+        Array   arr = IArray_create(500, ARRAY_ASC);
         hset    se2 = hset_fromiarr(arr.iv, arr.len);
         int     res;
         //hset_techprint(&se2, 0);
         test_validatefree(
-            (res = hset_cnt(&se2) ) == Arraylen(arr), hset_free(&se2), "Must be == %d, but not %d", Arraylen(arr), res
+            (res = hset_cnt(&se2) ) == Arraylen(arr), (hset_free(&se2), Arrayfree(arr) ), "Must be == %d, but not %d", Arraylen(arr), res
         );
     test_sub("subtest %d: count after clean", ++subnum);
 
         hset_clean(&se2);
         test_validatefree(
-            (res = hset_cnt(&se2) ) == 0, hset_free(&se2), "Must be zero after cleanbut not %d", res
+            (res = hset_cnt(&se2) ) == 0, (hset_free(&se2), Arrayfree(arr) ), "Must be zero after cleanbut not %d", res
         );
+        Arrayfree(arr);
         hset_free(&se2);
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
