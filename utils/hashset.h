@@ -39,6 +39,9 @@ typedef union hset_value {
         uint64_t            u64;    // for hash
 } hset_value;
 
+_Static_assert(sizeof(hset_value) == sizeof(uint64_t),
+               "hset_value must be exactly 8 bytes");
+
 static inline void          hsetval_fprint(FILE *restrict out, const char *restrict msg, hset_value val, hset_type typ){
     if (out){
         if (msg)
@@ -133,7 +136,7 @@ static inline hset      hset_fromfsarr(/*fs_array iarr*/ const fs *fsarr, int sz
 static inline hset      hset_fromlarr(const long *larr, int sz){
     return hset_fromanyarr(larr, sz, HSET_LONG);
 }
-static inline hset      hset_fromsarr(const double *darr, int sz){
+static inline hset      hset_fromdarr(const double *darr, int sz){
     return hset_fromanyarr(darr, sz, HSET_DBL);
 }
 extern hset             hset_fromparr(const void **parr, int sz){
@@ -144,19 +147,20 @@ extern hset             hset_fromparr(const void **parr, int sz){
 
 // ------------------------ Element access -----------------------------
 extern bool             hset_set(hset *se, hset_value val);
-//extern bool             hset_lset(hset *se, long val);
 
 extern bool             hset_del(hset *se, hset_value val);
-// extern bool             hset_ldel(hset *se, long val);
 
 extern bool             hset_get(const hset *se, hset_value val);
-//extern bool             hset_lget(const hset *se, long val);
 
 extern int              hset_cnt(const hset *se);   //TODO:
+
+extern int              hset_clean(hset *se);
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
 extern int              hset_techfprint(FILE *restrict out, const hset *se, int cnt);
-static inline int       hset_techprint(const hset *se, int cnt);
+static inline int       hset_techprint(const hset *se, int cnt){
+    return hset_techfprint(stdout, se, cnt);
+}
 
 extern bool             hset_validate(FILE *out, const hset *restrict se);
 

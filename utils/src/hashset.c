@@ -254,6 +254,15 @@ static inline hset_value    hset_createarrval(const void *arr, int idx, hset_typ
     return hset_createval(base + idx * elem_size, typ);
 }
 
+static inline int           count_elemlist(const hset_elem *el){
+    int     cnt = 0;
+    while (el){
+        cnt++;
+        el = el->next;
+    }
+    return cnt;
+}
+
 // ------------------------------------- API -----------------------------------------------
 
 // ---------------------------------- API Constructs/Destrucor  ----------------------------
@@ -408,6 +417,17 @@ bool                        hset_del(hset *se, hset_value val){
     free_elem(el, getype(se) );
     //hsetval_log(val, getype(se) );
     return logsimpleret(true, "Deleted");
+}
+
+int                         hset_cnt(const hset *se){
+    invraise(se != 0, "Null pointer");
+
+    int     cnt = 0;
+    for (int i = 0; i < se->sz; i++)
+        if (se->table[i]){  // actually this check is excess
+            cnt += count_elemlist(se->table[i] );
+        }
+    return logsimpleret(cnt, "Total %d", cnt);
 }
 
 // ------------------------------------- (API) printers ------------------------------------
@@ -678,6 +698,80 @@ tf3(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
+// ------------------------- TEST 4 ---------------------------------
+
+static TestStatus
+tf4(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: create from array and compare", ++subnum);
+    {
+        Array arr = DArray_create(200, ARRAY_RND);
+
+        hset    se1 = hset_fromdarr(arr.dv, arr.len);
+
+        hset    se2 = hset_clone(&se1);
+
+        // TODO: compare
+
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+    test_sub("subtest %d: clone and compare", ++subnum);
+    {
+
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
+// ------------------------- TEST 5 ---------------------------------
+
+static TestStatus
+tf5(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: empty count", ++subnum);
+    {
+        hset    se1 = hset_init(100, HSET_LONG);
+        int     res;
+        test_validatefree(
+            (res = hset_cnt(&se1) ) == 0, hset_free(&se1), "Must be zero, but not %d", res
+        );
+
+        hset_free(&se1);
+    }
+    test_sub("subtest %d: loaded count", ++subnum);
+    {
+        Array   arr = DArray_create(5, ARRAY_ASC);
+        hset    se2 = hset_fromdarr(arr.dv, arr.len);
+        int     res;
+        hset_techprint(&se2, 0);
+        test_validatefree(
+            (res = hset_cnt(&se2) ) == Arraylen(arr), hset_free(&se2), "Must be == %d, but not %d", Arraylen(arr), res
+        );
+        hset_free(&se2);
+    }
+    test_sub("subtest %d: loaded count int", ++subnum);
+    {
+        Array   arr = IArray_create(5, ARRAY_ASC);
+        hset    se2 = hset_fromiarr(arr.iv, arr.len);
+        int     res;
+        hset_techprint(&se2, 0);
+        test_validatefree(
+            (res = hset_cnt(&se2) ) == Arraylen(arr), hset_free(&se2), "Must be == %d, but not %d", Arraylen(arr), res
+        );
+    test_sub("subtest %d: count after clean", ++subnum);
+
+        
+        hset_free(&se2);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -688,6 +782,8 @@ main( /* int argc, const char *argv[] */)
         testnew(.f2 = tf1,  .num =  1, .name = "Simple init and validate test"              , .desc="", .mandatory=true)
       , testnew(.f2 = tf2,  .num =  2, .name = "Simple init and add test"                   , .desc="", .mandatory=true)
       , testnew(.f2 = tf3,  .num =  3, .name = "Simple clone and create from array test"    , .desc="", .mandatory=true)
+   //   , testnew(.f2 = tf4,  .num =  4, .name = "Comparation simple test"                    , .desc="", .mandatory=true)
+      , testnew(.f2 = tf5,  .num =  5, .name = "Simple count test"                          , .desc="", .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
