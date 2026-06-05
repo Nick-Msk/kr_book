@@ -243,7 +243,7 @@ static bool                 validate_elemlist(const hset_elem *el, hset_type typ
     return logsimpleerr(true, "%u Ok", pos);
 }
 
-static inline hset_value    hset_createarrval(const void *arr, int idx, hset_type typ) {
+static hset_value           hset_createarrval(const void *arr, int idx, hset_type typ) {
 
     size_t elem_size = hset_elem_sizes[typ];
 
@@ -261,6 +261,15 @@ static inline int           count_elemlist(const hset_elem *el){
         el = el->next;
     }
     return cnt;
+}
+// find every value in the list in se
+static bool                 find_elems(const hset_elem *restrict el, const hset *restrict se){
+    while (el){
+        if (!hset_get(se, el->v) )
+            return false;
+        el = el->next;
+    }
+    return true;
 }
 
 // ------------------------------------- API -----------------------------------------------
@@ -436,6 +445,27 @@ void                        hset_clean(hset *se){
             free_elemlist(se->table[i], getype(se) );
             se->table[i] = 0;   // clean that chain
         }
+}
+// check the equality as SET!
+bool                        hset_eq(const hset *restrict se1, const hset *restrict se2){
+    invraise(se1 != 0 && se2 != 0, "Null pointers");
+
+    if (getype(se1) != getype(se2) )
+        return userraise(false, ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1)), hset_type_name(getype(se2)));
+
+    int     cnt1 = hset_cnt(se1);
+    int     cnt2 = hset_cnt(se2);
+    if (cnt1 != cnt2 )
+        logsimpleret(false, "Count's not equal %d vs %d", cnt1, cnt2);
+    // chech the elements
+    bool        res = true;
+    for (int i = 0; i < se1->sz; i++)
+        if (!find_elems(se1->table[i], se2) ){
+            res = false;
+            break;
+        }
+
+    return logsimpleret(res, "Equal %s", bool_str(res) );
 }
 
 // ------------------------------------- (API) printers ------------------------------------
@@ -716,14 +746,16 @@ tf4(const char *name)
 
     test_sub("subtest %d: create from array and compare", ++subnum);
     {
-        Array arr = DArray_create(200, ARRAY_RND);
+        Array arr = IArray_create(200, ARRAY_RND);
 
-        hset    se1 = hset_fromdarr(arr.dv, arr.len);
+        hset    se1 = hset_fromiarr(arr.iv, arr.len);
+        Arrayfree(arr);
 
         hset    se2 = hset_clone(&se1);
 
-        // TODO: compare
-
+        test_validatefree(
+            hset_eq(&se1, &se2), (hset_free(&se1), hset_free(&se2) ), "Must be equal!"
+        );
         hset_free(&se1);
         hset_free(&se2);
     }
@@ -797,7 +829,7 @@ main( /* int argc, const char *argv[] */)
         testnew(.f2 = tf1,  .num =  1, .name = "Simple init and validate test"              , .desc="", .mandatory=true)
       , testnew(.f2 = tf2,  .num =  2, .name = "Simple init and add test"                   , .desc="", .mandatory=true)
       , testnew(.f2 = tf3,  .num =  3, .name = "Simple clone and create from array test"    , .desc="", .mandatory=true)
-   //   , testnew(.f2 = tf4,  .num =  4, .name = "Comparation simple test"                    , .desc="", .mandatory=true)
+      , testnew(.f2 = tf4,  .num =  4, .name = "Comparation simple test"                    , .desc="", .mandatory=true)
       , testnew(.f2 = tf5,  .num =  5, .name = "Simple count test"                          , .desc="", .mandatory=true)
     );
 

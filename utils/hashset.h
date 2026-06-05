@@ -152,9 +152,11 @@ extern bool             hset_del(hset *se, hset_value val);
 
 extern bool             hset_get(const hset *se, hset_value val);
 
-extern int              hset_cnt(const hset *se);   //TODO:
+extern int              hset_cnt(const hset *se);
 
 extern void             hset_clean(hset *se);
+
+extern bool             hset_eq(const hset *restrict se1, const hset *restrict se2);
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
 extern int              hset_techfprint(FILE *restrict out, const hset *se, int cnt);
