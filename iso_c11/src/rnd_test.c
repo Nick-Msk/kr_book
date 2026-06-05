@@ -1,6 +1,6 @@
-#ifndef _XOPEN_SOURCE
-#define _XOPEN_SOURCE 500   /* или 700 */
-#endif
+//#ifndef _XOPEN_SOURCE
+//#define _XOPEN_SOURCE 500   /* или 700 */
+//#endif 
 
 #include <stdio.h>
 #include <stdlib.h>

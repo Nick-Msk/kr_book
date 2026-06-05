@@ -1,9 +1,17 @@
 CC=gcc #clang
-C23_SUPPORT= $(shell $(CC) -std=c23 -E - < /dev/null > /dev/null 2>&1; echo $$?)
-ifeq ($(C23_SUPPORT),0)
-    C_STD= -std=c23
+
+GNU23_SUPPORT := $(shell $(CC) -std=gnu23 -E - < /dev/null > /dev/null 2>&1; echo $$?)
+ifeq ($(GNU23_SUPPORT),0)
+    C_STD := -std=gnu23
 else
-    C_STD= -std=c2x
+    # Если gnu23 нет, пробуем c23 (для Clang 21 и подобных, где c23 есть, а gnu23 может отсутствовать)
+    C23_SUPPORT := $(shell $(CC) -std=c23 -E - < /dev/null > /dev/null 2>&1; echo $$?)
+    ifeq ($(C23_SUPPORT),0)
+        C_STD := -std=c23
+    else
+        # На самых старых (GCC 11 на Oracle Linux) возвращаемся к gnu11
+        C_STD := -std=gnu11
+    endif
 endif
 
 CFLAGS= -I../utils/ -Wall -Wextra -g -O3 -Wno-gnu-folding-constant $(C_STD)
