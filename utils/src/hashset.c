@@ -319,9 +319,7 @@ hset                        hset_fromanyarr(const void *arr, int sz, hset_type t
 void                        hset_free(hset *se){
     invraise(se != 0, "Null pointer");
 
-    for (int i = 0; i < se->sz; i++)
-        if (se->table[i] )
-            free_elemlist(se->table[i], getype(se) );
+    hset_clean(se);
     free(se->table);
     logsimple("freed");
     se->sz = se->flags = 0;
@@ -428,6 +426,16 @@ int                         hset_cnt(const hset *se){
             cnt += count_elemlist(se->table[i] );
         }
     return logsimpleret(cnt, "Total %d", cnt);
+}
+
+void                        hset_clean(hset *se){
+    invraise(se != 0, "Null pointer");
+
+    for (int i = 0; i < se->sz; i++)
+        if (se->table[i] ){
+            free_elemlist(se->table[i], getype(se) );
+            se->table[i] = 0;   // clean that chain
+        }
 }
 
 // ------------------------------------- (API) printers ------------------------------------
@@ -760,13 +768,16 @@ tf5(const char *name)
         Array   arr = IArray_create(5, ARRAY_ASC);
         hset    se2 = hset_fromiarr(arr.iv, arr.len);
         int     res;
-        hset_techprint(&se2, 0);
+        //hset_techprint(&se2, 0);
         test_validatefree(
             (res = hset_cnt(&se2) ) == Arraylen(arr), hset_free(&se2), "Must be == %d, but not %d", Arraylen(arr), res
         );
     test_sub("subtest %d: count after clean", ++subnum);
 
-        
+        hset_clean(&se2);
+        test_validatefree(
+            (res = hset_cnt(&se2) ) == 0, hset_free(&se2), "Must be zero after cleanbut not %d", res
+        );
         hset_free(&se2);
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL

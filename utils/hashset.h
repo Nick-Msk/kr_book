@@ -154,7 +154,7 @@ extern bool             hset_get(const hset *se, hset_value val);
 
 extern int              hset_cnt(const hset *se);   //TODO:
 
-extern int              hset_clean(hset *se);
+extern void             hset_clean(hset *se);
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
 extern int              hset_techfprint(FILE *restrict out, const hset *se, int cnt);
