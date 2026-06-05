@@ -5,6 +5,7 @@
 #include <string.h>
 #include <limits.h>
 #include <ctype.h>
+#include <time.h>
 
 #include "bool.h"
 #include "log.h"
@@ -100,6 +101,14 @@ static const char 	NULLSTR[] = "(null)";
 #define				CASE_RETURN(x) case x:  return #x
 
 // -------------------------------------- Random ------------------------------
+
+static inline void
+rndinit(void){
+    #if defined(__unix__) || defined(__APPLE__)
+        srand48(time(0));
+    #endif
+    srand(time(0));
+}
 
 // TODO: refactor here!
 // random from 0 till max
