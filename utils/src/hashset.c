@@ -456,7 +456,7 @@ bool                        hset_eq(const hset *restrict se1, const hset *restri
     int     cnt1 = hset_cnt(se1);
     int     cnt2 = hset_cnt(se2);
     if (cnt1 != cnt2 )
-        logsimpleret(false, "Count's not equal %d vs %d", cnt1, cnt2);
+        return logsimpleret(false, "Count's not equal %d vs %d", cnt1, cnt2);
     // chech the elements
     bool        res = true;
     for (int i = 0; i < se1->sz; i++)
@@ -744,11 +744,12 @@ tf4(const char *name)
     logenter("%s", name);
     int         subnum = 0;
 
-    test_sub("subtest %d: create from array and compare", ++subnum);
+    test_sub("subtest %d: clone and compare", ++subnum);
     {
-        Array arr = IArray_create(200, ARRAY_RND);
+        Array   arr = IArray_create(200, ARRAY_RND);
 
         hset    se1 = hset_fromiarr(arr.iv, arr.len);
+        int     elem = arr.iv[0];   // save one
         Arrayfree(arr);
 
         hset    se2 = hset_clone(&se1);
@@ -756,12 +757,25 @@ tf4(const char *name)
         test_validatefree(
             hset_eq(&se1, &se2), (hset_free(&se1), hset_free(&se2) ), "Must be equal!"
         );
+        // remove one elem and check again
+        test_validatefree(
+            hset_del(&se1, HSET_INTVALUE(elem) ), (hset_free(&se1), hset_free(&se2) ), "Element %d must exists in se1", elem
+        );
+        test_validatefree(
+            !hset_eq(&se1, &se2), (hset_free(&se1), hset_free(&se2) ), "Must be NOT equal after deleting %d!", elem
+        );
+        test_validatefree(
+            hset_del(&se2, HSET_INTVALUE(elem) ), (hset_free(&se1), hset_free(&se2) ), "Element %d must exists in se2", elem
+        );
+        test_validatefree(
+            hset_eq(&se1, &se2), (hset_free(&se1), hset_free(&se2) ), "Must be equal again!"
+        );
         hset_free(&se1);
         hset_free(&se2);
     }
-    test_sub("subtest %d: clone and compare", ++subnum);
+    test_sub("subtest %d: compare with different size", ++subnum);
     {
-
+        // TODO:
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
