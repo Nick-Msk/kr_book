@@ -271,7 +271,7 @@ int                     Array_fprint(FILE *f, Array val, int limit){
             if (g_custom_print_line)    // TODO: refactor that!
                 custom_print_line = g_custom_print_line;
             else
-                custom_print_line = "[%d - %.8g]\t";
+                custom_print_line = "[%d - %.8lg]\t";
             cnt += fprintf(f, custom_print_line, i, val.dv[i]);
         } else if (Array_isdouble(val) ){
             if (g_custom_print_line)    // TODO: refactor that!
