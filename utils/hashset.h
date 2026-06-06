@@ -145,6 +145,9 @@ static inline hset      hset_fromdarr(const double *darr, int sz){
 extern hset             hset_fromparr(const void **parr, int sz){
     return hset_fromanyarr(parr, sz, HSET_PTR);
 }
+// TODO:
+extern hset             hset_intersect(const hset *restrict se1, const hset *restrict se2);
+
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
@@ -179,12 +182,16 @@ static inline int       hset_loaddarr(hset *restrict se, const double *darr, int
 static inline int       hset_loadparr(hset *restrict se, const void * const *restrict parr, int sz){
     return hset_loadanyarr(se, parr, sz, HSET_PTR);
 }
-// TODO: not sure
+// TODO: ???
 static inline int       hset_loadfsarr(hset *restrict se, const fs *restrict fsarr, int sz){
     return hset_loadanyarr(se, fsarr, sz, HSET_FS);
 }
 // check if all of se2 in se1
 extern bool             hset_in(const hset *restrict se1, const hset *restrict se2);
+// check if all of se2 in se1  but se2 not equal se1  TODO:
+extern bool             hset_strictin(const hset *restrict se1, const hset *restrict se2);
+// se1 -= se2 as SET
+extern int              hset_minus(hset *restrict se1, const hset *restrict se2);
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
