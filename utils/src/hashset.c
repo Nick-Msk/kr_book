@@ -573,6 +573,9 @@ bool                        hset_in(const hset *restrict se1, const hset *restri
 
     if (getype(se1) != getype(se2) )
         return userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1)), hset_type_name(getype(se2)));
+
+    if (hset_cnt(se1) > hset_cnt(se2) )
+        return logsimpleret(false, "Count of se1 %d more that count of se2 %d", hset_cnt(se1), hset_cnt(se2) );
     // check that EVERY element in se1 exists in se2
     for (int i = 0; i < se1->sz; i++){
         const hset_elem *el = se1->table[i];
