@@ -78,6 +78,7 @@ typedef struct hset_elem {
 typedef struct hset {
     int             sz;     // init size!
     int             flags;  // empty for now
+    int             count;
     hset_elem     **table;
 } hset;
 
@@ -154,7 +155,9 @@ extern bool             hset_del(hset *se, hset_value val);
 
 extern bool             hset_get(const hset *se, hset_value val);
 
-extern int              hset_cnt(const hset *se);
+static inline int       hset_cnt(const hset *se){
+    return se->count;
+}
 
 extern void             hset_clean(hset *se);
 

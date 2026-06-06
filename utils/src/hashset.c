@@ -242,6 +242,25 @@ static hset_elem           *clone_elemlist(const hset_elem *el, hset_type typ){
     return logsimpleret(retel, "Chain is created %p", retel);
 }
 
+static inline int           count_elemlist(const hset_elem *el){
+    int     cnt = 0;
+    while (el){
+        cnt++;
+        el = el->next;
+    }
+    return cnt;
+}
+static int                   hset_calc_cnt(const hset *se){
+    invraise(se != 0, "Null pointer");
+
+    int     cnt = 0;
+    for (int i = 0; i < se->sz; i++)
+        if (se->table[i]){  // actually this check is excess
+            cnt += count_elemlist(se->table[i] );
+        }
+    return logsimpleret(cnt, "Total %d", cnt);
+}
+
 static void                 free_elem(hset_elem *el, hset_type typ){
     switch (typ){
         case HSET_FS:
@@ -254,14 +273,17 @@ static void                 free_elem(hset_elem *el, hset_type typ){
     }
     free(el);
 }
-
-static void                 free_elemlist(hset_elem *el, hset_type typ){
+// return count of deleted elems
+static int                  free_elemlist(hset_elem *el, hset_type typ){
     hset_elem       *next = 0;
+    int              cnt = 0;
     while (el){
         next = el->next;
         free_elem(el, typ);
         el = next;
+        cnt++;
     }
+    return cnt;
 }
 
 static bool                 validate_elemlist(const hset_elem *el, hset_type typ, unsigned pos, unsigned sz){
@@ -291,14 +313,6 @@ static hset_value           hset_createarrval(const void *arr, int idx, hset_typ
     return hset_createval(base + idx * elem_size, typ);
 }
 
-static inline int           count_elemlist(const hset_elem *el){
-    int     cnt = 0;
-    while (el){
-        cnt++;
-        el = el->next;
-    }
-    return cnt;
-}
 // find every value in the list in se
 static bool                 find_elems(const hset_elem *restrict el, const hset *restrict se){
     while (el){
@@ -342,6 +356,7 @@ hset                        hset_clone(const hset *se){
     for (int i = 0; i < newsz; i++){
         res.table[i] = clone_elemlist(se->table[i], getype(se) );
     }
+    res.count = se->count;
 
     return logsimpleret(res, "Cloned");
 }
@@ -394,10 +409,17 @@ bool                        hset_validate(FILE *out, const hset *restrict se){
             fprintf(out, "null pointer");
         return logerr(false, "null pointer");
     }
-    if (se->sz <= 0){
+    if (se->sz <= 1){
         if (out)
             fprintf(out, "Incorrect sz (%d)", se->sz);
         return logerr(false, "Incorrect sz (%d)", se->sz);
+    }
+    // check count agaist hset_cnt()
+    int cnt = hset_calc_cnt(se);
+    if (se->count != cnt){
+        if (out)
+            fprintf(out, "Cnt %d not matched to calculated cnt %d", se->count, cnt);
+        return logerr(false, "Cnt %d not matched to calculated cnt %d", se->count, cnt);
     }
     if (int_notin(getype(se), HSET_INT, HSET_LONG, HSET_DBL, HSET_FS, HSET_PTR) ){
         if (out)
@@ -441,6 +463,7 @@ bool                        hset_set(hset *se, hset_value val){
         else  // mount to root
             se->table[hash] = newel;
         newel->next = nextel;
+        se->count++;        // not thread-safe ((
     }
     // hsetval_log(val, getype(se) );
     return logsimpleret(true, "Added the value prev existing %s", bool_str(res) );
@@ -474,19 +497,9 @@ bool                        hset_del(hset *se, hset_value val){
     else
         prevel->next = el->next;
     free_elem(el, getype(se) );
+    se->count--;
     //hsetval_log(val, getype(se) );
     return logsimpleret(true, "Deleted");
-}
-
-int                         hset_cnt(const hset *se){
-    invraise(se != 0, "Null pointer");
-
-    int     cnt = 0;
-    for (int i = 0; i < se->sz; i++)
-        if (se->table[i]){  // actually this check is excess
-            cnt += count_elemlist(se->table[i] );
-        }
-    return logsimpleret(cnt, "Total %d", cnt);
 }
 
 void                        hset_clean(hset *se){
@@ -494,7 +507,7 @@ void                        hset_clean(hset *se){
 
     for (int i = 0; i < se->sz; i++)
         if (se->table[i] ){
-            free_elemlist(se->table[i], getype(se) );
+            se->count -= free_elemlist(se->table[i], getype(se) );
             se->table[i] = 0;   // clean that chain
         }
 }
@@ -1041,6 +1054,10 @@ tf7(const char *name)
 
         hset    se2 = hset_cloneas(&se1, HSET_LONG);
 
+        test_validatefree(
+            hset_validate(stdout, &se1) && hset_validate(stdout, &se2),
+            (hset_free(&se1), hset_free(&se2) ), "Validation failed"
+        );
         int     sz1 = se1.sz, sz2 = se2.sz;
         test_validatefree(
             se1.sz == se2.sz, (hset_free(&se1), hset_free(&se2) ), "Must have equal table size %d : %d", sz1, sz2
@@ -1080,6 +1097,11 @@ tf7(const char *name)
             se1.sz == se2.sz, (hset_free(&se1), hset_free(&se2) ), "Must have equal table size %d : %d", sz1, sz2
         );
 
+        test_validatefree(
+            hset_validate(stdout, &se1) && hset_validate(stdout, &se2),
+            (hset_free(&se1), hset_free(&se2)), "Validation failed se1"
+        );
+
         sz1 = hset_cnt(&se1);
         sz2 = hset_cnt(&se2);
         test_validatefree(
@@ -1116,6 +1138,10 @@ tf8(const char *name)
         hset empty    = hset_init(10, HSET_INT);
         hset nonempty = hset_fromiarr(vals, 5);
 
+        test_validatefree(
+            hset_validate(stdout, &empty) && hset_validate(stdout, &nonempty),
+            (hset_free(&empty), hset_free(&nonempty) ), "Validation failed empty"
+        );
         test_validatefree(
             hset_in(&empty, &nonempty), (hset_free(&empty), hset_free(&nonempty) ),
             "Empty set should be subset of any set"
