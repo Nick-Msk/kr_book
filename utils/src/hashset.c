@@ -467,9 +467,24 @@ bool                        hset_eq(const hset *restrict se1, const hset *restri
     return logsimpleret(res, "Equal %s", bool_str(res) );
 }
 
-// TODO: hset_noteq() here
+// check NOT equality as SET
 bool                        hset_noteq(const hset *restrict se1, const hset *restrict se2){
-    // TODO:
+    invraise(se1 != 0 && se2 != 0, "Null pointers");
+
+    if (getype(se1) != getype(se2) )
+        return userraise(false, ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1)), hset_type_name(getype(se2)));
+
+    int     cnt1 = hset_cnt(se1);
+    int     cnt2 = hset_cnt(se2);
+    if (cnt1 != cnt2 )
+        return logsimpleret(true, "Not equal counts %d vs %d", cnt1, cnt2);
+    bool    res = false;
+    for (int i = 0; i < se1->sz; i++)
+        if (!find_elems(se1->table[i], se2) ){
+            res = true;
+            break;  // found at least 1 elem which not match to se2
+        }
+    return logsimpleret(res,  "Equal %s", bool_str(!res) );
 }
 
 int                         hset_loadanyarr(hset *restrict se, const void *arr, int sz, hset_type typ){ 
@@ -763,6 +778,58 @@ tf4(const char *name)
     logenter("%s", name);
     int         subnum = 0;
 
+    test_sub("subtest %d: empty count", ++subnum);
+    {
+        hset    se1 = hset_init(100, HSET_LONG);
+        int     res;
+        test_validatefree(
+            (res = hset_cnt(&se1) ) == 0, hset_free(&se1), "Must be zero, but not %d", res
+        );
+
+        hset_free(&se1);
+    }
+    test_sub("subtest %d: loaded count", ++subnum);
+    {
+        rndinit();
+        Array   arr = DArray_create(500, ARRAY_ASC);
+        hset    se2 = hset_fromdarr(arr.dv, arr.len);
+        int     res;
+        // hset_techprint(&se2, 5);
+        //Array_print(arr, 5);
+        test_validatefree(
+            (res = hset_cnt(&se2) ) == Arraylen(arr), (hset_free(&se2), Arrayfree(arr) ), "Must be == %d, but not %d", Arraylen(arr), res
+        );
+        Arrayfree(arr);
+        hset_free(&se2);
+    }
+    test_sub("subtest %d: loaded count int", ++subnum);
+    {
+        Array   arr = IArray_create(500, ARRAY_ASC);
+        hset    se2 = hset_fromiarr(arr.iv, arr.len);
+        int     res;
+        //hset_techprint(&se2, 0);
+        test_validatefree(
+            (res = hset_cnt(&se2) ) == Arraylen(arr), (hset_free(&se2), Arrayfree(arr) ), "Must be == %d, but not %d", Arraylen(arr), res
+        );
+    test_sub("subtest %d: count after clean", ++subnum);
+
+        hset_clean(&se2);
+        test_validatefree(
+            (res = hset_cnt(&se2) ) == 0, (hset_free(&se2), Arrayfree(arr) ), "Must be zero after cleanbut not %d", res
+        );
+        Arrayfree(arr);
+        hset_free(&se2);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
+// ------------------------- TEST 5 ---------------------------------
+static TestStatus
+tf5(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
     test_sub("subtest %d: clone and compare", ++subnum);
     {
         Array   arr = IArray_create(200, ARRAY_RND);
@@ -815,54 +882,74 @@ tf4(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
-// ------------------------- TEST 5 ---------------------------------
-
+// ------------------------- TEST 6 ---------------------------------
 static TestStatus
-tf5(const char *name)
+tf6(const char *name)
 {
     logenter("%s", name);
     int         subnum = 0;
 
-    test_sub("subtest %d: empty count", ++subnum);
+    test_sub("subtest %d: clone and !=", ++subnum);
     {
-        hset    se1 = hset_init(100, HSET_LONG);
-        int     res;
+        Array   arr = IArray_create(200, ARRAY_RND);
+
+        hset    se1 = hset_fromiarr(arr.iv, arr.len);
+        int     elem = arr.iv[0];   // save one
+        Arrayfree(arr);
+
+        hset    se2 = hset_clone(&se1);
+
         test_validatefree(
-            (res = hset_cnt(&se1) ) == 0, hset_free(&se1), "Must be zero, but not %d", res
+            hset_noteq(&se1, &se2) == false, (hset_free(&se1), hset_free(&se2) ), "Must be equal (not equalt must return false)!"
+        );
+        // remove one elem and check again
+        test_validatefree(
+            hset_del(&se1, HSET_INTVALUE(elem) ), (hset_free(&se1), hset_free(&se2) ), "Element %d must exists in se1", elem
+        );
+        test_validatefree(
+            hset_noteq(&se1, &se2), (hset_free(&se1), hset_free(&se2) ), "Must be NOT equal (returns true) after deleting %d!", elem
+        );
+        test_validatefree(
+            hset_del(&se2, HSET_INTVALUE(elem) ), (hset_free(&se1), hset_free(&se2) ), "Element %d must exists in se2", elem
+        );
+        test_validatefree(
+            hset_noteq(&se1, &se2) == false, (hset_free(&se1), hset_free(&se2) ), "Must be equal again (returns false)!"
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+    test_sub("subtest %d: != with different hash table size", ++subnum);
+    {
+        Array   arr = IArray_create(150, ARRAY_RND);
+        int     elem = arr.iv[0];   // save one
+        // create from array
+        hset    se1 = hset_fromiarr(arr.iv, Arraylen(arr) );
+        // manually creating, small
+        hset    se2 = hset_init(50, HSET_INT);
+        hset_loadiarr(&se2, arr.iv, Arraylen(arr) );
+        test_validatefree(
+            hset_noteq(&se1, &se2) == false, (hset_free(&se1), hset_free(&se2) ), "Must be equal (returns false)!"
+        );
+        // reload se1
+        hset_loadiarr(&se1, arr.iv, Arraylen(arr) );
+        test_validatefree(
+            hset_noteq(&se1, &se2) == false, (hset_free(&se1), hset_free(&se2) ), "Must be equal again (return false)!"
+        );
+        test_validatefree(
+            hset_del(&se1, HSET_INTVALUE(elem) ), (hset_free(&se1), hset_free(&se2) ), "Element %d must exists in se1", elem
+        );
+        test_validatefree(
+            hset_noteq(&se1, &se2), (hset_free(&se1), hset_free(&se2) ), "Must be not equal after deleting %d (return tur)!", elem
+        );
+        test_validatefree(
+            hset_del(&se2, HSET_INTVALUE(elem) ), (hset_free(&se1), hset_free(&se2) ), "Element %d must exists in se2", elem
+        );
+        test_validatefree(
+            hset_noteq(&se1, &se2) == false, (hset_free(&se1), hset_free(&se2) ),
+            "Must be equal again after deleting %d from se2 (return false)!", elem
         );
 
         hset_free(&se1);
-    }
-    test_sub("subtest %d: loaded count", ++subnum);
-    {
-        rndinit();
-        Array   arr = DArray_create(500, ARRAY_ASC);
-        hset    se2 = hset_fromdarr(arr.dv, arr.len);
-        int     res;
-        // hset_techprint(&se2, 5);
-        //Array_print(arr, 5);
-        test_validatefree(
-            (res = hset_cnt(&se2) ) == Arraylen(arr), (hset_free(&se2), Arrayfree(arr) ), "Must be == %d, but not %d", Arraylen(arr), res
-        );
-        Arrayfree(arr);
-        hset_free(&se2);
-    }
-    test_sub("subtest %d: loaded count int", ++subnum);
-    {
-        Array   arr = IArray_create(500, ARRAY_ASC);
-        hset    se2 = hset_fromiarr(arr.iv, arr.len);
-        int     res;
-        //hset_techprint(&se2, 0);
-        test_validatefree(
-            (res = hset_cnt(&se2) ) == Arraylen(arr), (hset_free(&se2), Arrayfree(arr) ), "Must be == %d, but not %d", Arraylen(arr), res
-        );
-    test_sub("subtest %d: count after clean", ++subnum);
-
-        hset_clean(&se2);
-        test_validatefree(
-            (res = hset_cnt(&se2) ) == 0, (hset_free(&se2), Arrayfree(arr) ), "Must be zero after cleanbut not %d", res
-        );
-        Arrayfree(arr);
         hset_free(&se2);
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
@@ -878,8 +965,9 @@ main( /* int argc, const char *argv[] */)
         testnew(.f2 = tf1,  .num =  1, .name = "Simple init and validate test"              , .desc="", .mandatory=true)
       , testnew(.f2 = tf2,  .num =  2, .name = "Simple init and add test"                   , .desc="", .mandatory=true)
       , testnew(.f2 = tf3,  .num =  3, .name = "Simple clone and create from array test"    , .desc="", .mandatory=true)
-      , testnew(.f2 = tf4,  .num =  4, .name = "Comparation simple test"                    , .desc="", .mandatory=true)
-      , testnew(.f2 = tf5,  .num =  5, .name = "Simple count test"                          , .desc="", .mandatory=true)
+      , testnew(.f2 = tf4,  .num =  4, .name = "Simple count test"                          , .desc="", .mandatory=true)
+      , testnew(.f2 = tf5,  .num =  5, .name = "Comparation simple test"                    , .desc="", .mandatory=true)
+      , testnew(.f2 = tf6,  .num =  6, .name = "Not equal simple test"                      , .desc="", .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
