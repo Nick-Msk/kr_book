@@ -136,6 +136,37 @@ static inline int           compare(hset_value v1, hset_value v2, hset_type typ)
     userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", hset_type_name(typ), typ);
 }
 
+static hset_value           convert_value(hset_value v, hset_type from, hset_type to){
+    if (from == to)
+        return v;
+
+    hset_value result = HSET_VALUE; // обнуляем u64
+
+    switch (from) {
+        case HSET_INT:
+            if (to == HSET_LONG)
+                result.lval = (long)v.ival;
+            else if (to == HSET_DBL)
+                result.dval = (double)v.ival;
+        break;
+    case HSET_LONG:
+        if (to == HSET_INT)
+            result.ival = (int)v.lval;
+        else if (to == HSET_DBL)
+            result.dval = (double)v.lval;
+        break;
+    case HSET_DBL:
+        if (to == HSET_INT)
+            result.ival = (int)v.dval;
+        else if (to == HSET_LONG)
+            result.lval = (long)v.dval;
+        break;
+    default:
+        break; // неподдерживаемые типы — останется нулевое значение
+    }
+    return result;
+}
+
 static inline hset_type     getype(const hset *se){
     return se->flags & 0xFF;
 }
@@ -288,6 +319,8 @@ hset                        hset_init(int sz, hset_type typ){
     if (int_notin(typ, HSET_INT, HSET_LONG, HSET_DBL, HSET_FS, HSET_PTR) )
         userraiseint(ERR_UNSUPPORTED_TYPE, "%d", typ);
 
+    if (sz <= 0)
+        sz = 1;
     unsigned    newsz = next_prime(sz);
     hset res = HSET(newsz, typ);
     if ( (res.table = malloc(newsz * sizeof(hset_elem *) ) ) == 0)    // raise here - nothing to do
@@ -301,17 +334,35 @@ hset                        hset_clone(const hset *se){
     invraise(se != 0, "Null pointer");
 
     int     newsz = se->sz;
-    hset    res = HSET(newsz, getype(se) );
+    hset    res = hset_init(newsz - 1, getype(se) );
 
     if ( (res.table = malloc(newsz * sizeof(hset_elem *) ) ) == 0)    // raise here - nothing to do
         userraiseint(ERR_UNABLE_ALLOCATE, "Unable to alloc newsz %u elems", newsz);
 
     for (int i = 0; i < newsz; i++){
-        logauto(i);
         res.table[i] = clone_elemlist(se->table[i], getype(se) );
     }
 
     return logsimpleret(res, "Cloned");
+}
+// created with new type only (INT, LONG, DBL) as allowed
+hset                        hset_cloneas(const hset *se, hset_type typ){
+    invraise(se != 0, "Null pointer");
+
+    if (int_notin(typ, HSET_INT, HSET_LONG, HSET_DBL) && int_notin(getype(se), HSET_INT, HSET_LONG, HSET_DBL))
+        userraiseint(ERR_UNSUPPORTED_TYPE, "From %d:%s - to %d:%s",
+            getype(se), hset_type_name(getype(se) ), typ, hset_type_name(typ) );
+
+    hset    res = hset_init(se->sz - 1, typ);
+    for (int i = 0; i < se->sz; i++){
+        const hset_elem *el = se->table[i];     // probably better to create separate function
+        while (el){
+            if (!hset_set(&res, convert_value(el->v, getype(se), typ) ) )
+                userraiseint(ERR_UNABLE_ALLOCATE, "Unable to create element");
+            el = el->next;
+        }
+    }
+    return logsimpleret(res, "Cloned as %d:%s", typ, hset_type_name(typ) );
 }
 
 hset                        hset_fromanyarr(const void *arr, int sz, hset_type typ){
@@ -319,6 +370,8 @@ hset                        hset_fromanyarr(const void *arr, int sz, hset_type t
     if (int_notin(typ, HSET_INT, HSET_LONG, HSET_DBL, HSET_PTR) )
         userraiseint(ERR_UNSUPPORTED_TYPE, "%d", typ);
 
+    if (sz <= 0)
+        sz = 1;     // to avoid 0 initializing
     hset        res = hset_init(sz * HSET_ARRAY_CREATE_MULTIPLIER, typ);
     int         cnt = hset_loadanyarr(&res, arr, sz, typ);
     return logsimpleret(res, "Created hest with sz %u, loaded %d", res.sz, cnt);
@@ -955,6 +1008,85 @@ tf6(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
+// ------------------------- TEST 7 ---------------------------------
+static TestStatus
+tf7(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: cloneas int -> long", ++subnum);
+    {
+        Array   arr = IArray_create(200, ARRAY_ASC);
+
+        hset    se1 = hset_fromiarr(arr.iv, arr.len);
+        Arrayfree(arr);
+
+        hset    se2 = hset_cloneas(&se1, HSET_LONG);
+
+        int     sz1 = se1.sz, sz2 = se2.sz;
+        test_validatefree(
+            se1.sz == se2.sz, (hset_free(&se1), hset_free(&se2) ), "Must have equal table size %d : %d", sz1, sz2
+        );
+
+        sz1 = hset_cnt(&se1);
+        sz2 = hset_cnt(&se2);
+        test_validatefree(
+            se1.sz == se2.sz, (hset_free(&se1), hset_free(&se2) ), "Must have equal element count %d : %d", sz1, sz2
+        );
+
+        // compare directly!
+        for (int i = 0; i < se1.sz; i++){
+            const hset_elem *el = se1.table[i];
+            while (el){
+                int val = el->v.ival;
+                test_validatefree(
+                    hset_get(&se2, HSET_LONGVALUE(val) ), (hset_free(&se1), hset_free(&se2) ), "Unable to find elem %d in se2", val
+                );
+                el = el->next;
+            }
+        }
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+    test_sub("subtest %d: cloneas int -> double", ++subnum);
+    {
+        Array   arr = IArray_create(110, ARRAY_ASC);
+
+        hset    se1 = hset_fromiarr(arr.iv, arr.len);
+        Arrayfree(arr);
+
+        hset    se2 = hset_cloneas(&se1, HSET_DBL);
+
+        int     sz1 = se1.sz, sz2 = se2.sz;
+        test_validatefree(
+            se1.sz == se2.sz, (hset_free(&se1), hset_free(&se2) ), "Must have equal table size %d : %d", sz1, sz2
+        );
+
+        sz1 = hset_cnt(&se1);
+        sz2 = hset_cnt(&se2);
+        test_validatefree(
+            se1.sz == se2.sz, (hset_free(&se1), hset_free(&se2) ), "Must have equal element count %d : %d", sz1, sz2
+        );
+
+        // compare directly! is it correct to compare int vs double?
+        for (int i = 0; i < se1.sz; i++){
+            const hset_elem *el = se1.table[i];
+            while (el){
+                int val = el->v.ival;
+                test_validatefree(
+                    hset_get(&se2, HSET_DBLVALUE(val) ), (hset_free(&se1), hset_free(&se2) ), "Unable to find elem %d in se2", val
+                );
+                el = el->next;
+            }
+        }
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -968,6 +1100,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf4,  .num =  4, .name = "Simple count test"                          , .desc="", .mandatory=true)
       , testnew(.f2 = tf5,  .num =  5, .name = "Comparation simple test"                    , .desc="", .mandatory=true)
       , testnew(.f2 = tf6,  .num =  6, .name = "Not equal simple test"                      , .desc="", .mandatory=true)
+      , testnew(.f2 = tf7,  .num =  7, .name = "Cloneas simple test"                        , .desc="", .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
