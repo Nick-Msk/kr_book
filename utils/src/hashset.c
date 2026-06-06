@@ -525,7 +525,7 @@ bool                        hset_noteq(const hset *restrict se1, const hset *res
     invraise(se1 != 0 && se2 != 0, "Null pointers");
 
     if (getype(se1) != getype(se2) )
-        return userraise(false, ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1)), hset_type_name(getype(se2)));
+        return userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1)), hset_type_name(getype(se2)));
 
     int     cnt1 = hset_cnt(se1);
     int     cnt2 = hset_cnt(se2);
@@ -553,6 +553,23 @@ int                         hset_loadanyarr(hset *restrict se, const void *arr, 
         cnt++;
     }
     return logsimpleret(cnt, "Loaded %d", cnt);
+}
+
+bool                        hset_in(const hset *restrict se1, const hset *restrict se2){
+    invraise(se1 != 0 && se2 != 0, "Null pointers");
+
+    if (getype(se1) != getype(se2) )
+        return userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1)), hset_type_name(getype(se2)));
+    // check that EVERY element in se1 exists in se2
+    for (int i = 0; i < se1->sz; i++){
+        const hset_elem *el = se1->table[i];
+        while (el){
+            if (!hset_get(se2, el->v) )
+                return logsimpleret(false, "Not matched as in");
+            el = el->next;
+        }
+    }
+    return logsimpleret(true, "Matched as in");
 }
 
 // ------------------------------------- (API) printers ------------------------------------
@@ -1086,6 +1103,109 @@ tf7(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
+// ------------------------- TEST 8 ---------------------------------
+static TestStatus
+tf8(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: empty in nonempty", ++subnum);
+    {
+        int vals[] = {1, 3, 5, 7, 9};
+        hset empty    = hset_init(10, HSET_INT);
+        hset nonempty = hset_fromiarr(vals, 5);
+
+        test_validatefree(
+            hset_in(&empty, &nonempty), (hset_free(&empty), hset_free(&nonempty) ),
+            "Empty set should be subset of any set"
+        );
+        hset_free(&empty);
+        hset_free(&nonempty);
+    }
+
+    test_sub("subtest %d: nonempty not in empty", ++subnum);
+    {
+        int vals[] = {1, 3, 5, 7, 9};
+        hset empty    = hset_init(10, HSET_INT);
+        hset nonempty = hset_fromiarr(vals, 5);
+
+        test_validatefree(
+            !hset_in(&nonempty, &empty), (hset_free(&empty), hset_free(&nonempty) ),
+            "Non-empty set should NOT be subset of empty set"
+        );
+        hset_free(&empty);
+        hset_free(&nonempty);
+    }
+
+    test_sub("subtest %d: subset in superset", ++subnum);
+    {
+        int all_vals[] = {1, 3, 5, 7, 9};
+        int sub_vals[] = {1, 5, 9};
+
+        hset superset = hset_fromiarr(all_vals, 5);
+        hset subset   = hset_init(10, HSET_INT);
+        for (int i = 0; i < 3; i++) {
+            test_validatefree(
+                hset_set(&subset, HSET_INTVALUE(sub_vals[i] ) ), ( hset_free(&superset), hset_free(&subset) ),
+                "Failed to add element to subset %d", i
+            );
+        }
+
+        test_validatefree(
+            hset_in(&subset, &superset), (hset_free(&superset), hset_free(&subset) ),
+            "Subset should be in superset"
+        );
+        hset_free(&superset);
+        hset_free(&subset);
+    }
+
+    test_sub("subtest %d: superset not in subset", ++subnum);
+    {
+        int all_vals[] = {1, 3, 5, 7, 9};
+        int sub_vals[] = {1, 5, 9};
+
+        hset superset = hset_fromiarr(all_vals, 5);
+        hset subset   = hset_init(10, HSET_INT);
+        for (int i = 0; i < 3; i++) {
+            test_validatefree(
+                hset_set(&subset, HSET_INTVALUE(sub_vals[i] ) ), ( hset_free(&superset), hset_free(&subset) ),
+                "Failed to add element to subset %d", i
+            );
+        }
+
+        test_validatefree(
+            !hset_in(&superset, &subset), (hset_free(&superset), hset_free(&subset) ),
+            "Superset should NOT be in subset"
+        );
+        hset_free(&superset);
+        hset_free(&subset);
+    }
+
+    test_sub("subtest %d: type mismatch raise SIGINT", ++subnum);
+    {
+        int int_vals[] = {1, 2, 3};
+        hset int_set = hset_fromiarr(int_vals, 3);
+        hset dbl_set = hset_init(10, HSET_DBL);
+        hset_set(&dbl_set, HSET_DBLVALUE(1.0));
+        hset_set(&dbl_set, HSET_DBLVALUE(2.0));
+        if (!try () ){
+            test_validatefree(
+                !hset_in(&int_set, &dbl_set),
+                (hset_free(&int_set), hset_free(&dbl_set)),
+                "Different types should never be subset"
+            );
+        } else {
+            //err_printstacktrace();
+            hset_free(&int_set);
+            hset_free(&dbl_set);
+            return logret(TEST_PASSED, "done");
+        }
+        return logret(TEST_FAILED, "done");
+    }
+
+    return logret(TEST_PASSED, "done");
+}
 
 // ------------------------------------------------------------------------------------------------------------------------------
 int
@@ -1101,6 +1221,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf5,  .num =  5, .name = "Comparation simple test"                    , .desc="", .mandatory=true)
       , testnew(.f2 = tf6,  .num =  6, .name = "Not equal simple test"                      , .desc="", .mandatory=true)
       , testnew(.f2 = tf7,  .num =  7, .name = "Cloneas simple test"                        , .desc="", .mandatory=true)
+      , testnew(.f2 = tf8,  .num =  8, .name = "Hset_in simple test"                        , .desc="", .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()

@@ -117,7 +117,7 @@ static inline hset_value        hset_createval(const void *p, hset_type typ){
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
 extern hset             hset_init(int sz, hset_type typ);      // #define will be for particular type
-extern hset             hset_reinit(hset *se, int newsz);
+extern hset             hset_reinit(hset *se, int newsz);       // TODO:
 //
 extern void             hset_free(hset *se);
 //
@@ -180,6 +180,8 @@ static inline int       hset_loadparr(hset *restrict se, const void * const *res
 static inline int       hset_loadfsarr(hset *restrict se, const fs *restrict fsarr, int sz){
     return hset_loadanyarr(se, fsarr, sz, HSET_FS);
 }
+// check if all of se2 in se1
+extern bool             hset_in(const hset *restrict se1, const hset *restrict se2);
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
