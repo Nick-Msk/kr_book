@@ -57,7 +57,7 @@ int                         sortedlist_fprint(FILE *restrict out, const hset_ele
 // ------------------------------------ Utilities ------------------------------------------
 
 static unsigned long       get_lhash(unsigned cnt, hset_value value, hset_type typ){
-
+    // probably it's better to calc hash by u64 attr (except fs for sure)
     hset_value      tmp = (hset_value){.u64 = 0UL };
     switch (typ){
         case HSET_INT:
@@ -234,10 +234,16 @@ static void                 free_elemlist(hset_elem *el, hset_type typ){
 }
 
 static bool                 validate_elemlist(const hset_elem *el, hset_type typ, unsigned pos, unsigned sz){
+    // // TODO: check ordering too!
+    const hset_elem *prevel = 0;
+    int              iternum = 0;
     while (el){
         unsigned hash = get_lhash(sz, el->v, typ);
         if (hash != pos)
-            return logsimpleerr(false, "%u, but must be %u", hash, pos);
+            return logsimpleerr(false, "iter %d: %u, but must be %u", iternum, hash, pos);
+        if (prevel)
+            if (compare(el->v, prevel->v, typ) < 0)
+                return logsimpleret(false, "iter %d: ordering violation", iternum);  // TODO: valprev %s valnext %s must be here via fs
         el = el->next;
     }
     return logsimpleerr(true, "%u Ok", pos);
@@ -462,6 +468,9 @@ bool                        hset_eq(const hset *restrict se1, const hset *restri
 }
 
 // TODO: hset_noteq() here
+bool                        hset_noteq(const hset *restrict se1, const hset *restrict se2){
+    // TODO:
+}
 
 int                         hset_loadanyarr(hset *restrict se, const void *arr, int sz, hset_type typ){ 
     invraise(arr != 0 && sz > 0 && sz < INT_MAX / 4, "Incorrent input %p - %d", arr, sz);
