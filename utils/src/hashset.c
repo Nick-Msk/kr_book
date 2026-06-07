@@ -535,15 +535,15 @@ bool                        hset_set(hset *se, hset_value val){
     invraise(se != 0, "Null pointer");
 
     unsigned     hash = 0;
-    bool         res = false;
+    bool         already_existed = false;
     hset_elem   *equal = 0, *nextel = 0;
     hset_elem   *prevel = getprevelem(se, val, &hash, &nextel, &equal);
     if (equal)
-        res = true;
+        already_existed = true;
     else {
         hset_elem *newel = create_elem(val);
         if (!newel)
-            return userraise(false, ERR_UNABLE_ALLOCATE, "Can't create new element");
+            userraiseint(ERR_UNABLE_ALLOCATE, "Can't create new element");
         if (prevel)
             prevel->next = newel;
         else  // mount to root
@@ -552,7 +552,7 @@ bool                        hset_set(hset *se, hset_value val){
         se->count++;        // not thread-safe ((
     }
     // hsetval_log(val, getype(se) );
-    return logsimpleret(true, "Added the value prev existing %s", bool_str(res) );
+    return logsimpleret(!already_existed, "Added the value prev existing %s", bool_str(already_existed) );
 }
 
 bool                        hset_get(const hset *se, hset_value val){
@@ -646,9 +646,7 @@ int                         hset_loadanyarr(hset *restrict se, const void *arr, 
 
     int         cnt = 0;
     while (cnt < sz){
-        // not sure if that pretty good
-        if (! hset_set(se, hset_createarrval(arr, cnt, typ) ) )
-            userraiseint(ERR_UNABLE_ALLOCATE, "Unable to add %d", cnt);
+        hset_set(se, hset_createarrval(arr, cnt, typ) );
         cnt++;
     }
     return logsimpleret(cnt, "Loaded %d", cnt);
@@ -696,7 +694,7 @@ int                         hset_minus(hset *restrict se1, const hset *restrict 
     return logsimpleret(cnt, "Removed %d elements", cnt);
 }
 // se1 insersect= se2 as SET
-int              hset_intersect(hset *restrict se1, const hset *restrict se2){
+int                         hset_intersect(hset *restrict se1, const hset *restrict se2){
     invraise(se1 != 0 && se2 != 0, "Null pointers");
     // TODO: rework checkers!!! at least move that into check_it()
     if (getype(se1) != getype(se2) )
@@ -716,7 +714,7 @@ int              hset_intersect(hset *restrict se1, const hset *restrict se2){
     return logsimpleret(se1->count, "%d elements remains", se1->count);
 }
 // se1 symmdiff= se2 as SET
-hset            *hset_symmdiff(hset *restrict se1, const hset *restrict se2){
+hset                       *hset_symmdiff(hset *restrict se1, const hset *restrict se2){
     invraise(se1 != 0 && se2 != 0, "Null pointers");
     // TODO: rework checkers!!! at least move that into check_it()
     if (getype(se1) != getype(se2) )
@@ -793,11 +791,13 @@ tf2(const char *name)
         int     num = 77;
         // mustb return false
         test_validatefree(
-            hset_set(&se1, HSET_INTVALUE(num) ), hset_free(&se1), "Must be true"
+            hset_set(&se1, HSET_INTVALUE(num) ),
+            hset_free(&se1), "Must be true"
         );
         hset_techfprint(logfile, &se1, 0);
         test_validatefree(
-            hset_set(&se1, HSET_INTVALUE(num) ),  hset_free(&se1), "Must be true"
+            hset_set(&se1, HSET_INTVALUE(num) ) == false,
+            hset_free(&se1), "Must be false because elem %d aleady in the set", num
         );
         hset_techfprint(logfile, &se1, 0);
         test_validatefree(
@@ -828,7 +828,7 @@ tf2(const char *name)
 
         for (int i = 0; i < cnt * mul; i++)
             test_validatefree(
-                hset_set(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Unable to add %d", i
+                hset_set(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Already exists %d", i
             );
         hset_techfprint(logfile, &se1, 0);
 
@@ -866,7 +866,7 @@ tf2(const char *name)
 
         for (int i = cnt * mul - 1; i >= 0; i--)
             test_validatefree(
-                hset_set(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Unable to add %d", i
+                hset_set(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Already exists %d", i
             );
 
         for (int i = 0; i < cnt * mul; i++)
@@ -899,7 +899,7 @@ tf2(const char *name)
 
         for (int i = cnt * mul - 1; i >= 0; i--)
             test_validatefree(
-                hset_set(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Unable to add %d", i
+                hset_set(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Already exists %d", i
             );
         // random del
         srand(time(NULL));
@@ -932,7 +932,7 @@ tf3(const char *name)
 
         for (int i = 0; i < cnt; i++)
             test_validatefree(
-                hset_set(&se1, HSET_LONGVALUE(i) ), hset_free(&se1), "Unable to add %d", i
+                hset_set(&se1, HSET_LONGVALUE(i) ), hset_free(&se1), "Already exists %d", i
             );
         hset    se2 = hset_clone(&se1);
         hset_techprint(&se2, 0);

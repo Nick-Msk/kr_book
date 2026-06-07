@@ -155,7 +155,7 @@ extern hset             hset_init_symmdiff(const hset *restrict a, const hset *r
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
 // ------------------------ Element access -----------------------------
-
+// true if new element is added, if exists - false
 extern bool             hset_set(hset *se, hset_value val);
 // try to delete elemenet, true if deleted, false if not found
 extern bool             hset_del(hset *se, hset_value val);
