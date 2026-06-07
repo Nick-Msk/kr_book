@@ -145,8 +145,8 @@ static inline hset      hset_fromdarr(const double *darr, int sz){
 extern hset             hset_fromparr(const void **parr, int sz){
     return hset_fromanyarr(parr, sz, HSET_PTR);
 }
-// TODO:
-extern hset             hset_intersect(const hset *restrict se1, const hset *restrict se2);
+// just intersect with construct
+extern hset             hset_init_intersect(const hset *restrict se1, const hset *restrict se2);
 // minus with construct
 extern hset             hset_init_minus(const hset *restrict se1, const hset *restrict se2);
 
@@ -200,6 +200,8 @@ static inline bool      hset_strictin(const hset *restrict se1, const hset *rest
 }
 // se1 -= se2 as SET
 extern int              hset_minus(hset *restrict se1, const hset *restrict se2);
+// se1 insersect= se2 as SET
+extern int              hset_intersect(hset *restrict se1, const hset *restrict se2);
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
 

@@ -420,6 +420,25 @@ hset             hset_init_minus(const hset *restrict se1, const hset *restrict 
     }
     return logsimpleret(res, "Created minus - total %d", se1->count);
 }
+// just intersect with construct
+hset             hset_init_intersect(const hset *restrict se1, const hset *restrict se2){
+    invraise(se1 != 0 && se2 != 0, "Null pointers");
+
+    if (getype(se1) != getype(se2) )
+          userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1)), hset_type_name(getype(se2) ) );
+
+    // simple implementation
+    hset res = hset_init(se1->sz - 1, se1->flags);
+    for (int i = 0; i < se1->sz; i++){
+        const hset_elem *el = se1->table[i];
+        while (el){
+            if (hset_get(se2, el->v) )  // omg
+                hset_set(&res, el->v);
+            el = el->next;
+        }
+    }
+    return logsimpleret(res, "Created minus - total %d", se1->count);
+}
 
 // ---------------------------------------------------------------------------
 bool                        hset_validate(FILE *out, const hset *restrict se){
@@ -628,6 +647,26 @@ int                         hset_minus(hset *restrict se1, const hset *restrict 
         }
     }
     return logsimpleret(cnt, "Removed %d elements", cnt);
+}
+// se1 insersect= se2 as SET
+int              hset_intersect(hset *restrict se1, const hset *restrict se2){
+    invraise(se1 != 0 && se2 != 0, "Null pointers");
+    // TODO: rework checkers!!! at least move that into check_it()
+    if (getype(se1) != getype(se2) )
+        return userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1) ), hset_type_name(getype(se2) ) );
+
+    // foreach elements in se2 try to delete it from se1
+    if (se1->count > 0)
+        for (int i = 0; i < se1->sz; i++){
+            const hset_elem *el = se1->table[i];
+            while (el){
+                hset_elem *next = el->next;
+                if (!hset_get(se2, el->v) )
+                    hset_del(se1, el->v);    // +1 if reallt deleted
+                el = next;
+            }
+        }
+    return logsimpleret(se1->count, "%d elements remains", se1->count);
 }
 
 // ------------------------------------- (API) printers ------------------------------------
@@ -1720,6 +1759,139 @@ tf11(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST 12 ---------------------------------
+
+static TestStatus
+tf12(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    // subtest 1: empty intersect empty => empty
+    test_sub("subtest %d: empty intersect empty", ++subnum);
+    {
+        hset se1 = hset_init(10, HSET_INT);
+        hset se2 = hset_init(10, HSET_INT);
+
+        int remaining = hset_intersect(&se1, &se2);
+        test_validatefree(
+            remaining == 0 && hset_cnt(&se1) == 0,
+            (hset_free(&se1), hset_free(&se2)),
+            "Empty intersect empty: remaining=%d, cnt=%d (expected 0,0)",
+            remaining, hset_cnt(&se1)
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+    // subtest 2: non-empty intersect empty => empty (в se1 должно быть пусто)
+    test_sub("subtest %d: non-empty intersect empty", ++subnum);
+    {
+        int vals[] = {1, 2, 3};
+        hset se1 = hset_fromiarr(vals, COUNT(vals));
+        hset empty = hset_init(10, HSET_INT);
+
+        int remaining = hset_intersect(&se1, &empty);
+        test_validatefree(
+            remaining == 0 && hset_cnt(&se1) == 0,
+            (hset_free(&se1), hset_free(&empty)),
+            "Non-empty intersect empty: remaining=%d, cnt=%d (expected 0,0)",
+            remaining, hset_cnt(&se1)
+        );
+        hset_free(&se1);
+        hset_free(&empty);
+    }
+
+    // subtest 3: empty intersect non-empty => empty (se1 пустое, результат пустой)
+    test_sub("subtest %d: empty intersect non-empty", ++subnum);
+    {
+        int vals[] = {10, 20};
+        hset empty = hset_init(10, HSET_INT);
+        hset se2 = hset_fromiarr(vals, COUNT(vals));
+
+        int remaining = hset_intersect(&empty, &se2);
+        test_validatefree(
+            remaining == 0 && hset_cnt(&empty) == 0,
+            (hset_free(&empty), hset_free(&se2)),
+            "Empty intersect non-empty: remaining=%d, cnt=%d (expected 0,0)",
+            remaining, hset_cnt(&empty)
+        );
+        hset_free(&empty);
+        hset_free(&se2);
+    }
+
+    // subtest 4: одинаковые множества => после пересечения должны остаться все элементы
+    test_sub("subtest %d: identical sets", ++subnum);
+    {
+        int vals[] = {7, 8, 9};
+        hset se1 = hset_fromiarr(vals, COUNT(vals));
+        hset se2 = hset_clone(&se1);  // используем проверенный clone
+
+        int expected_cnt = COUNT(vals);
+        int remaining = hset_intersect(&se1, &se2);
+        int ok = (remaining == expected_cnt) && (hset_cnt(&se1) == expected_cnt);
+        for (int i = 0; ok && i < expected_cnt; i++)
+            ok = hset_get(&se1, HSET_INTVALUE(vals[i]));
+
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&se2)),
+            "Identical sets: remaining=%d, cnt=%d (expected %d)",
+            remaining, hset_cnt(&se1), expected_cnt
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+
+    // subtest 5: частичное перекрытие
+    test_sub("subtest %d: partial overlap", ++subnum);
+    {
+        int vals1[] = {1, 2, 3, 4, 5};
+        int vals2[] = {2, 4, 6};
+        hset se1 = hset_fromiarr(vals1, COUNT(vals1));
+        hset se2 = hset_fromiarr(vals2, COUNT(vals2));
+
+        int remaining = hset_intersect(&se1, &se2);
+        int expected_remaining = 2; // 2 и 4
+        int ok = (remaining == expected_remaining) && (hset_cnt(&se1) == expected_remaining);
+        if (ok) {
+            ok = hset_get(&se1, HSET_INTVALUE(2)) &&
+                 hset_get(&se1, HSET_INTVALUE(4)) &&
+                 !hset_get(&se1, HSET_INTVALUE(1)) &&
+                 !hset_get(&se1, HSET_INTVALUE(3)) &&
+                 !hset_get(&se1, HSET_INTVALUE(5));
+        }
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&se2)),
+            "Partial overlap: remaining=%d, cnt=%d (expected %d)",
+            remaining, hset_cnt(&se1), expected_remaining
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+
+    // subtest 6: непересекающиеся множества => результат должен быть пустым
+    test_sub("subtest %d: disjoint sets", ++subnum);
+    {
+        int vals1[] = {100, 200};
+        int vals2[] = {300, 400};
+        hset se1 = hset_fromiarr(vals1, COUNT(vals1));
+        hset se2 = hset_fromiarr(vals2, COUNT(vals2));
+
+        int remaining = hset_intersect(&se1, &se2);
+        test_validatefree(
+            remaining == 0 && hset_cnt(&se1) == 0,
+            (hset_free(&se1), hset_free(&se2)),
+            "Disjoint sets: remaining=%d, cnt=%d (expected 0,0)",
+            remaining, hset_cnt(&se1)
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -1738,6 +1910,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 =  tf9,  .num =  9, .name = "Hset_strictin simple test"                  , .desc="", .mandatory=true)
       , testnew(.f2 = tf10,  .num = 10, .name = "Hset_minus simple test"                     , .desc="", .mandatory=true)
       , testnew(.f2 = tf11,  .num = 11, .name = "Hset_init_minus simple test"                , .desc="", .mandatory=true)
+      , testnew(.f2 = tf12,  .num = 12, .name = "hset_intersect test"                        , .desc="", .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
