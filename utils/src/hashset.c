@@ -1576,6 +1576,150 @@ tf10(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST 11 ---------------------------------
+static TestStatus
+tf11(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Пустое минус пустое = пустое */
+    test_sub("subtest %d: empty minus empty", ++subnum);
+    {
+        hset se1 = hset_init(10, HSET_INT);
+        hset se2 = hset_init(10, HSET_INT);
+        hset res = hset_init_minus(&se1, &se2);
+
+        int ok = (hset_cnt(&res) == 0);
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&se2), hset_free(&res)),
+            "Empty minus empty: cnt=%d (expected 0)", hset_cnt(&res)
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+        hset_free(&res);
+    }
+
+    /* 2. Непустое минус пустое = копия исходного (все элементы) */
+    test_sub("subtest %d: non-empty minus empty", ++subnum);
+    {
+        int vals[] = {3, 7, 11, 42};
+        hset se1 = hset_fromiarr(vals, COUNT(vals));
+        hset empty = hset_init(10, HSET_INT);
+        hset res = hset_init_minus(&se1, &empty);
+
+        int ok = (hset_cnt(&res) == COUNT(vals));
+        for (int i = 0; ok && i < COUNT(vals); i++)
+            ok = hset_get(&res, HSET_INTVALUE(vals[i]));
+
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&empty), hset_free(&res)),
+            "Non-empty minus empty: cnt=%d (expected %d)", hset_cnt(&res), COUNT(vals)
+        );
+        hset_free(&se1);
+        hset_free(&empty);
+        hset_free(&res);
+    }
+
+    /* 3. Пустое минус непустое = пустое */
+    test_sub("subtest %d: empty minus non-empty", ++subnum);
+    {
+        int vals[] = {100, 200};
+        hset empty = hset_init(10, HSET_INT);
+        hset se2 = hset_fromiarr(vals, COUNT(vals));
+        hset res = hset_init_minus(&empty, &se2);
+
+        int ok = (hset_cnt(&res) == 0);
+        test_validatefree(
+            ok,
+            (hset_free(&empty), hset_free(&se2), hset_free(&res)),
+            "Empty minus non-empty: cnt=%d (expected 0)", hset_cnt(&res)
+        );
+        hset_free(&empty);
+        hset_free(&se2);
+        hset_free(&res);
+    }
+
+    /* 4. Множество минус его копия = пустое (все элементы удаляются) */
+    test_sub("subtest %d: set minus its copy", ++subnum);
+    {
+        int vals[] = {5, 10, 15, 20};
+        hset se1 = hset_fromiarr(vals, COUNT(vals));
+        hset se2 = hset_clone(&se1);  // или ручное заполнение, но clone уже проверен
+        hset res = hset_init_minus(&se1, &se2);
+
+        int ok = (hset_cnt(&res) == 0);
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&se2), hset_free(&res)),
+            "Set minus its copy: cnt=%d (expected 0)", hset_cnt(&res)
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+        hset_free(&res);
+    }
+
+    /* 5. Частичное перекрытие: элементы, отсутствующие в se2, сохраняются */
+    test_sub("subtest %d: partial overlap", ++subnum);
+    {
+        int vals1[] = {1, 2, 3, 4, 5, 6};
+        int vals2[] = {2, 5};
+        hset se1 = hset_fromiarr(vals1, COUNT(vals1));
+        hset se2 = hset_init(10, HSET_INT);
+        for (int i = 0; i < COUNT(vals2); i++)
+            hset_set(&se2, HSET_INTVALUE(vals2[i]));
+
+        hset res = hset_init_minus(&se1, &se2);
+
+        // Ожидаем, что останутся {1,3,4,6}
+        int expected_vals[] = {1, 3, 4, 6};
+        int ok = (hset_cnt(&res) == COUNT(expected_vals));
+        for (int i = 0; ok && i < COUNT(expected_vals); i++)
+            ok = hset_get(&res, HSET_INTVALUE(expected_vals[i]));
+
+        // Дополнительно убедимся, что удалённых нет
+        if (ok) {
+            ok = !hset_get(&res, HSET_INTVALUE(2)) &&
+                 !hset_get(&res, HSET_INTVALUE(5));
+        }
+
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&se2), hset_free(&res)),
+            "Partial overlap: cnt=%d (expected %d)", hset_cnt(&res), COUNT(expected_vals)
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+        hset_free(&res);
+    }
+
+    /* 6. Непересекающиеся множества: все элементы se1 должны остаться */
+    test_sub("subtest %d: disjoint sets", ++subnum);
+    {
+        int vals1[] = {7, 8, 9};
+        int vals2[] = {1, 2, 3};
+        hset se1 = hset_fromiarr(vals1, COUNT(vals1));
+        hset se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset res = hset_init_minus(&se1, &se2);
+
+        int ok = (hset_cnt(&res) == COUNT(vals1));
+        for (int i = 0; ok && i < COUNT(vals1); i++)
+            ok = hset_get(&res, HSET_INTVALUE(vals1[i]));
+
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&se2), hset_free(&res)),
+            "Disjoint sets: cnt=%d (expected %d)", hset_cnt(&res), COUNT(vals1)
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+        hset_free(&res);
+    }
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -1592,7 +1736,8 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 =  tf7,  .num =  7, .name = "Cloneas simple test"                        , .desc="", .mandatory=true)
       , testnew(.f2 =  tf8,  .num =  8, .name = "Hset_in simple test"                        , .desc="", .mandatory=true)
       , testnew(.f2 =  tf9,  .num =  9, .name = "Hset_strictin simple test"                  , .desc="", .mandatory=true)
-      , testnew(.f2 = tf10,  .num = 10, .name = "Hset_minus simple test"                  , .desc="", .mandatory=true)
+      , testnew(.f2 = tf10,  .num = 10, .name = "Hset_minus simple test"                     , .desc="", .mandatory=true)
+      , testnew(.f2 = tf11,  .num = 11, .name = "Hset_init_minus simple test"                , .desc="", .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
