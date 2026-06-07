@@ -1136,6 +1136,22 @@ tf8(const char *name)
     logenter("%s", name);
     int subnum = 0;
 
+    test_sub("subtest %d: empty in empty", ++subnum);
+    {
+        hset empty1    = hset_init(10, HSET_INT);
+        hset empty2 = hset_init(100, HSET_INT);
+
+        test_validatefree(
+            hset_validate(stdout, &empty1) && hset_validate(stdout, &empty1),
+            (hset_free(&empty1), hset_free(&empty2) ), "Validation failed empty"
+        );
+        test_validatefree(
+            hset_in(&empty1, &empty2), (hset_free(&empty1), hset_free(&empty2) ),
+            "Empty set should be subset of empty set"
+        );
+        hset_free(&empty1);
+        hset_free(&empty2);
+    }
     test_sub("subtest %d: empty in nonempty", ++subnum);
     {
         int vals[] = {1, 3, 5, 7, 9};
@@ -1237,6 +1253,109 @@ tf8(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST 9 ---------------------------------
+static TestStatus
+tf9(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: empty strict in empty", ++subnum);
+    {
+        hset empty1    = hset_init(10, HSET_INT);
+        hset empty2 = hset_init(100, HSET_INT);
+
+        test_validatefree(
+            hset_validate(stdout, &empty1) && hset_validate(stdout, &empty1),
+            (hset_free(&empty1), hset_free(&empty2) ), "Validation failed empty"
+        );
+        test_validatefree(
+            hset_strictin(&empty1, &empty2) == false, (hset_free(&empty1), hset_free(&empty2) ),
+            "Empty set should NOT be subset of empty set"
+        );
+        hset_free(&empty1);
+        hset_free(&empty2);
+    }
+    test_sub("subtest %d: empty strict in nonempty", ++subnum);
+    {
+        int vals[] = {1, 3, 5, 7, 9};
+        hset empty    = hset_init(10, HSET_INT);
+        hset nonempty = hset_fromiarr(vals, COUNT(vals) );
+
+        test_validatefree(
+            hset_validate(stdout, &empty) && hset_validate(stdout, &nonempty),
+            (hset_free(&empty), hset_free(&nonempty) ), "Validation failed empty"
+        );
+        test_validatefree(
+            hset_strictin(&empty, &nonempty), (hset_free(&empty), hset_free(&nonempty) ),
+            "Empty set should be strict subset of any set"
+        );
+        hset_free(&empty);
+        hset_free(&nonempty);
+    }
+    test_sub("subtest %d: nonempty not in empty", ++subnum);
+    {
+        int vals[] = {1, 3, 5, 7, 9};
+        hset empty    = hset_init(10, HSET_INT);
+        hset nonempty = hset_fromiarr(vals, COUNT(vals) );
+
+        test_validatefree(
+            !hset_strictin(&nonempty, &empty), (hset_free(&empty), hset_free(&nonempty) ),
+            "Non-empty set should NOT be strict subset of empty set"
+        );
+        hset_free(&empty);
+        hset_free(&nonempty);
+    }
+
+    test_sub("subtest %d: subset in superset", ++subnum);
+    {
+        int all_vals[] = {1, 3, 5, 7, 9};
+        int sub_vals[] = {1, 5, 9};
+
+        hset superset = hset_fromiarr(all_vals, COUNT(all_vals) );
+        hset subset = hset_fromiarr(sub_vals, COUNT(sub_vals) );
+
+        test_validatefree(
+            hset_strictin(&subset, &superset), (hset_free(&superset), hset_free(&subset) ),
+            "Subset should be strict in superset"
+        );
+        hset_free(&superset);
+        hset_free(&subset);
+    }
+    test_sub("subtest %d: equal sets", ++subnum);
+    {
+        int all_vals[] = {1, 3, 5, 7, 9};
+
+        hset superset = hset_fromiarr(all_vals, COUNT(all_vals) );
+        hset subset   = hset_fromiarr(all_vals, COUNT(all_vals) );
+
+        test_validatefree(
+            hset_strictin(&subset, &superset) == false, (hset_free(&superset), hset_free(&subset) ),
+            "Subset should NOT be strict in equal set"
+        );
+        hset_free(&superset);
+        hset_free(&subset);
+    }
+
+    test_sub("subtest %d: superset not in subset", ++subnum);
+    {
+        int all_vals[] = {1, 3, 5, 7, 9};
+        int sub_vals[] = {1, 5, 9};
+
+        hset superset = hset_fromiarr(all_vals, COUNT(all_vals) );
+        hset subset = hset_fromiarr(sub_vals, COUNT(sub_vals) );
+
+        test_validatefree(
+            !hset_strictin(&superset, &subset), (hset_free(&superset), hset_free(&subset) ),
+            "Superset should NOT be strict in subset"
+        );
+        hset_free(&superset);
+        hset_free(&subset);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -1252,6 +1371,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf6,  .num =  6, .name = "Not equal simple test"                      , .desc="", .mandatory=true)
       , testnew(.f2 = tf7,  .num =  7, .name = "Cloneas simple test"                        , .desc="", .mandatory=true)
       , testnew(.f2 = tf8,  .num =  8, .name = "Hset_in simple test"                        , .desc="", .mandatory=true)
+      , testnew(.f2 = tf9,  .num =  9, .name = "Hset_strictin simple test"                  , .desc="", .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
