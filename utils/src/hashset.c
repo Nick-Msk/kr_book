@@ -1138,7 +1138,7 @@ tf8(const char *name)
 
     test_sub("subtest %d: empty in empty", ++subnum);
     {
-        hset empty1    = hset_init(10, HSET_INT);
+        hset empty1 = hset_init(10, HSET_INT);
         hset empty2 = hset_init(100, HSET_INT);
 
         test_validatefree(
@@ -1156,7 +1156,7 @@ tf8(const char *name)
     {
         int vals[] = {1, 3, 5, 7, 9};
         hset empty    = hset_init(10, HSET_INT);
-        hset nonempty = hset_fromiarr(vals, 5);
+        hset nonempty = hset_fromiarr(vals, COUNT(vals) );
 
         test_validatefree(
             hset_validate(stdout, &empty) && hset_validate(stdout, &nonempty),
@@ -1169,12 +1169,11 @@ tf8(const char *name)
         hset_free(&empty);
         hset_free(&nonempty);
     }
-
     test_sub("subtest %d: nonempty not in empty", ++subnum);
     {
         int vals[] = {1, 3, 5, 7, 9};
         hset empty    = hset_init(10, HSET_INT);
-        hset nonempty = hset_fromiarr(vals, 5);
+        hset nonempty = hset_fromiarr(vals, COUNT(vals) );
 
         test_validatefree(
             !hset_in(&nonempty, &empty), (hset_free(&empty), hset_free(&nonempty) ),
@@ -1183,20 +1182,27 @@ tf8(const char *name)
         hset_free(&empty);
         hset_free(&nonempty);
     }
+    test_sub("subtest %d: equal sets", ++subnum);
+    {
+        int all_vals[] = {1, 3, 5, 7, 9};
 
+        hset superset = hset_fromiarr(all_vals, COUNT(all_vals) );
+        hset subset   = hset_fromiarr(all_vals, COUNT(all_vals) );
+
+        test_validatefree(
+            hset_in(&subset, &superset), (hset_free(&superset), hset_free(&subset) ),
+            "Subset should be strict in equal set"
+        );
+        hset_free(&superset);
+        hset_free(&subset);
+    }
     test_sub("subtest %d: subset in superset", ++subnum);
     {
         int all_vals[] = {1, 3, 5, 7, 9};
         int sub_vals[] = {1, 5, 9};
 
-        hset superset = hset_fromiarr(all_vals, 5);
-        hset subset   = hset_init(10, HSET_INT);
-        for (int i = 0; i < 3; i++) {
-            test_validatefree(
-                hset_set(&subset, HSET_INTVALUE(sub_vals[i] ) ), ( hset_free(&superset), hset_free(&subset) ),
-                "Failed to add element to subset %d", i
-            );
-        }
+        hset superset = hset_fromiarr(all_vals, COUNT(all_vals) );
+        hset subset   = hset_fromiarr(sub_vals, COUNT(sub_vals) );
 
         test_validatefree(
             hset_in(&subset, &superset), (hset_free(&superset), hset_free(&subset) ),
@@ -1211,14 +1217,8 @@ tf8(const char *name)
         int all_vals[] = {1, 3, 5, 7, 9};
         int sub_vals[] = {1, 5, 9};
 
-        hset superset = hset_fromiarr(all_vals, 5);
-        hset subset   = hset_init(10, HSET_INT);
-        for (int i = 0; i < 3; i++) {
-            test_validatefree(
-                hset_set(&subset, HSET_INTVALUE(sub_vals[i] ) ), ( hset_free(&superset), hset_free(&subset) ),
-                "Failed to add element to subset %d", i
-            );
-        }
+        hset superset = hset_fromiarr(all_vals, COUNT(all_vals) );
+        hset subset   = hset_fromiarr(sub_vals, COUNT(sub_vals) );
 
         test_validatefree(
             !hset_in(&superset, &subset), (hset_free(&superset), hset_free(&subset) ),
@@ -1336,7 +1336,6 @@ tf9(const char *name)
         hset_free(&superset);
         hset_free(&subset);
     }
-
     test_sub("subtest %d: superset not in subset", ++subnum);
     {
         int all_vals[] = {1, 3, 5, 7, 9};
