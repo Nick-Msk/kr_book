@@ -152,8 +152,9 @@ extern hset             hset_intersect(const hset *restrict se1, const hset *res
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
 // ------------------------ Element access -----------------------------
-extern bool             hset_set(hset *se, hset_value val);
 
+extern bool             hset_set(hset *se, hset_value val);
+// try to delete elemenet, true if deleted, false if not found
 extern bool             hset_del(hset *se, hset_value val);
 
 extern bool             hset_get(const hset *se, hset_value val);
