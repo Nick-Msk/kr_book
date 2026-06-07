@@ -167,6 +167,14 @@ static inline int       hset_cnt(const hset *se){
 }
 
 extern void             hset_clean(hset *se);
+// origin wll be cleaned
+static inline hset     *hset_move(hset *target, hset * origin){
+    hset_free(target);
+    *target = *origin;
+    origin->table = 0;
+    origin->flags = origin->sz = 0;
+    return logsimpleret(target, "moved to %p, sz %d, cnt %d", target, target->sz, target->count);
+}
 
 extern bool             hset_eq(const hset *restrict se1, const hset *restrict se2);
 
@@ -204,7 +212,8 @@ static inline bool      hset_strictin(const hset *restrict se1, const hset *rest
 extern int              hset_minus(hset *restrict se1, const hset *restrict se2);
 // se1 insersect= se2 as SET
 extern int              hset_intersect(hset *restrict se1, const hset *restrict se2);
-
+// se1 symmdiff= se2 as SET
+extern hset            *hset_symmdiff(hset *restrict a, const hset *restrict b);
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
 extern int              hset_techfprint(FILE *restrict out, const hset *se, int cnt);

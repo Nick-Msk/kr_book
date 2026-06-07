@@ -695,6 +695,17 @@ int              hset_intersect(hset *restrict se1, const hset *restrict se2){
         }
     return logsimpleret(se1->count, "%d elements remains", se1->count);
 }
+// se1 symmdiff= se2 as SET
+hset            *hset_symmdiff(hset *restrict se1, const hset *restrict se2){
+    invraise(se1 != 0 && se2 != 0, "Null pointers");
+    // TODO: rework checkers!!! at least move that into check_it()
+    if (getype(se1) != getype(se2) )
+        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1) ), hset_type_name(getype(se2) ) );
+
+    hset tmp = hset_init_symmdiff(se1, se2);
+    hset_move(se1, &tmp);       // no need to free tmp!!!!
+    return logsimpleret(se1, "Done, new cnt = %d", se1->count);
+}
 
 // ------------------------------------- (API) printers ------------------------------------
 
@@ -2254,6 +2265,168 @@ tf14(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST 15 ---------------------------------
+static TestStatus
+tf15(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Пустое с пустым -> пустое */
+    test_sub("subtest %d: empty symmdiff empty", ++subnum);
+    {
+        hset se1 = hset_init(10, HSET_INT);
+        hset se2 = hset_init(10, HSET_INT);
+        hset *res = hset_symmdiff(&se1, &se2);
+
+        int ok = (hset_cnt(&se1) == 0) && (hset_cnt(&se2) == 0) && (res == &se1);
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&se2)),
+            "Empty symmdiff empty: se1=%d, se2=%d, res=%p (expected se1=0, se2=0, res==&se1)",
+            hset_cnt(&se1), hset_cnt(&se2), (void*)res
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+
+    /* 2. Непустое с пустым -> se1 без изменений */
+    test_sub("subtest %d: non-empty symmdiff empty", ++subnum);
+    {
+        int vals[] = {3, 7, 11};
+        hset se1 = hset_fromiarr(vals, COUNT(vals));
+        hset empty = hset_init(10, HSET_INT);
+        int cnt_before = hset_cnt(&se1);
+        hset *res = hset_symmdiff(&se1, &empty);
+
+        int ok = (hset_cnt(&se1) == cnt_before) && (hset_cnt(&empty) == 0) && (res == &se1);
+        for (int i = 0; ok && i < COUNT(vals); i++)
+            ok = hset_get(&se1, HSET_INTVALUE(vals[i]));
+
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&empty)),
+            "Non-empty symmdiff empty: se1=%d, empty=%d, res=%p (expected se1=%d, empty=0)",
+            hset_cnt(&se1), hset_cnt(&empty), (void*)res, cnt_before
+        );
+        hset_free(&se1);
+        hset_free(&empty);
+    }
+
+    /* 3. Пустое с непустым -> se1 получает все элементы se2 */
+    test_sub("subtest %d: empty symmdiff non-empty", ++subnum);
+    {
+        int vals[] = {5, 9};
+        hset se1 = hset_init(10, HSET_INT);
+        hset se2 = hset_fromiarr(vals, COUNT(vals));
+        hset *res = hset_symmdiff(&se1, &se2);
+
+        int expected = COUNT(vals);
+        int ok = (hset_cnt(&se1) == expected) && (hset_cnt(&se2) == expected) && (res == &se1);
+        for (int i = 0; ok && i < expected; i++)
+            ok = hset_get(&se1, HSET_INTVALUE(vals[i]));
+
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&se2)),
+            "Empty symmdiff non-empty: se1=%d, se2=%d, res=%p (expected se1=%d, se2=%d)",
+            hset_cnt(&se1), hset_cnt(&se2), (void*)res, expected, expected
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+
+    /* 4. Одинаковые множества -> se1 становится пустым */
+    test_sub("subtest %d: identical sets", ++subnum);
+    {
+        int vals[] = {1, 2, 3, 4};
+        hset se1 = hset_fromiarr(vals, COUNT(vals));
+        hset se2 = hset_fromiarr(vals, COUNT(vals));
+        hset *res = hset_symmdiff(&se1, &se2);
+
+        int expected_orig = COUNT(vals);
+        int ok = (hset_cnt(&se1) == 0) && (hset_cnt(&se2) == expected_orig) && (res == &se1);
+        // элементы se2 должны остаться на месте
+        for (int i = 0; ok && i < expected_orig; i++)
+            ok = hset_get(&se2, HSET_INTVALUE(vals[i]));
+
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&se2)),
+            "Identical sets: se1=%d, se2=%d, res=%p (expected se1=0, se2=%d)",
+            hset_cnt(&se1), hset_cnt(&se2), (void*)res, expected_orig
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+
+    /* 5. Частичное перекрытие -> se1 содержит только элементы, принадлежащие ровно одному множеству */
+    test_sub("subtest %d: partial overlap", ++subnum);
+    {
+        int vals1[] = {1, 2, 3, 4, 5};
+        int vals2[] = {2, 4, 6};
+        hset se1 = hset_fromiarr(vals1, COUNT(vals1));
+        hset se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset *res = hset_symmdiff(&se1, &se2);
+
+        // Ожидаем в se1: {1,3,5,6}
+        int expected_vals[] = {1, 3, 5, 6};
+        int expected_cnt = COUNT(expected_vals);
+        int ok = (hset_cnt(&se1) == expected_cnt) && (hset_cnt(&se2) == COUNT(vals2)) && (res == &se1);
+        // проверяем наличие ожидаемых
+        for (int i = 0; ok && i < expected_cnt; i++)
+            ok = hset_get(&se1, HSET_INTVALUE(expected_vals[i]));
+        // проверяем отсутствие общих (2 и 4)
+        if (ok) {
+            ok = !hset_get(&se1, HSET_INTVALUE(2)) &&
+                 !hset_get(&se1, HSET_INTVALUE(4));
+        }
+        // se2 не изменился
+        for (int i = 0; ok && i < COUNT(vals2); i++)
+            ok = hset_get(&se2, HSET_INTVALUE(vals2[i]));
+
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&se2)),
+            "Partial overlap: se1=%d, se2=%d, res=%p (expected se1=%d, se2=%d)",
+            hset_cnt(&se1), hset_cnt(&se2), (void*)res, expected_cnt, COUNT(vals2)
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+
+    /* 6. Непересекающиеся множества -> se1 содержит все элементы обоих */
+    test_sub("subtest %d: disjoint sets", ++subnum);
+    {
+        int vals1[] = {100, 200};
+        int vals2[] = {300, 400};
+        hset se1 = hset_fromiarr(vals1, COUNT(vals1));
+        hset se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset *res = hset_symmdiff(&se1, &se2);
+
+        int expected_total = COUNT(vals1) + COUNT(vals2);
+        int ok = (hset_cnt(&se1) == expected_total) && (hset_cnt(&se2) == COUNT(vals2)) && (res == &se1);
+        // все элементы vals1 и vals2 должны быть в se1
+        for (int i = 0; ok && i < COUNT(vals1); i++)
+            ok = hset_get(&se1, HSET_INTVALUE(vals1[i]));
+        for (int i = 0; ok && i < COUNT(vals2); i++)
+            ok = hset_get(&se1, HSET_INTVALUE(vals2[i]));
+        // se2 не изменился
+        for (int i = 0; ok && i < COUNT(vals2); i++)
+            ok = hset_get(&se2, HSET_INTVALUE(vals2[i]));
+
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&se2)),
+            "Disjoint sets: se1=%d, se2=%d, res=%p (expected se1=%d, se2=%d)",
+            hset_cnt(&se1), hset_cnt(&se2), (void*)res, expected_total, COUNT(vals2)
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
 
 // ------------------------------------------------------------------------------------------------------------------------------
 int
@@ -2275,7 +2448,8 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf11,  .num = 11, .name = "Hset_init_minus simple test"                , .desc="", .mandatory=true)
       , testnew(.f2 = tf12,  .num = 12, .name = "hset_intersect simple test"                 , .desc="", .mandatory=true)
       , testnew(.f2 = tf13,  .num = 13, .name = "hset_init_intersect simple test"            , .desc="", .mandatory=true)
-      , testnew(.f2 = tf14,  .num = 14, .name = "hset_init_symmdiff simple test"                 , .desc="", .mandatory=true)
+      , testnew(.f2 = tf14,  .num = 14, .name = "hset_init_symmdiff simple test"             , .desc="", .mandatory=true)
+      , testnew(.f2 = tf15,  .num = 15, .name = "hset_symmdiff simple test"                  , .desc="", .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
