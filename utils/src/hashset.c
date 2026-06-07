@@ -344,6 +344,26 @@ hset                        hset_init(int sz, hset_type typ){
 
     return logret(res, "Created with %d", res.sz);
 }
+// construct via new hash table size
+hset             hset_init_resize(hset *se, int newsz){
+    invraise(se != 0, "Null pointer");
+
+    if (next_prime(newsz) == (unsigned) se->sz)
+        return logsimpleret(*se, "No change");
+    hset    res = hset_init(newsz, getype(se) );
+    // hset_foreach(se)
+    // simple version via hset_set()
+    for (int i = 0; i < se->sz; i++){
+        hset_elem *el = se->table[i];
+        while (el){
+            hset_set(&res, el->v);  // but that creates new hset_elem, probably it's better to use origin one
+            el = el->next;
+        }
+    }
+    hset_free(se);  // cleanup
+    *se = res;  // and fill with newly created
+    return logsimpleret(res, "Resized to %d", res.sz);
+}
 
 hset                        hset_clone(const hset *se){
     invraise(se != 0, "Null pointer");
@@ -2427,6 +2447,146 @@ tf15(const char *name)
 
     return logret(TEST_PASSED, "done");
 }
+// ------------------------- TEST 16 ---------------------------------
+static TestStatus
+tf16(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Пустое множество увеличиваем – остаётся пустым */
+    test_sub("subtest %d: empty resize larger", ++subnum);
+    {
+        hset se = hset_init(10, HSET_INT);          // sz станет 11
+        int old_sz = se.sz;
+        hset new_se = hset_init_resize(&se, 30);    // запросим 30
+
+        int ok = (se.sz > old_sz) && (se.sz >= 30) &&
+                 (hset_cnt(&se) == 0) && (new_se.sz == se.sz);
+        test_validatefree(
+            ok,
+            hset_free(&se),
+            "Empty resize: old_sz=%d -> new_sz=%d, cnt=%d (expected cnt=0)",
+            old_sz, se.sz, hset_cnt(&se)
+        );
+        hset_free(&se);
+    }
+
+    /* 2. Непустое множество увеличиваем – все элементы сохраняются */
+    test_sub("subtest %d: non‑empty resize larger", ++subnum);
+    {
+        int vals[] = {1, 2, 3, 4, 5};
+        hset se = hset_fromiarr(vals, COUNT(vals));
+        int old_cnt = hset_cnt(&se);
+        int old_sz = se.sz;
+        hset_init_resize(&se, 100);
+
+        int ok = (se.sz > old_sz) && (hset_cnt(&se) == old_cnt);
+        // проверяем, что все значения доступны
+        for (int i = 0; ok && i < COUNT(vals); i++)
+            ok = hset_get(&se, HSET_INTVALUE(vals[i]));
+
+        test_validatefree(
+            ok,
+            hset_free(&se),
+            "Non‑empty resize larger: old_sz=%d -> new_sz=%d, cnt=%d (expected %d)",
+            old_sz, se.sz, hset_cnt(&se), old_cnt
+        );
+        hset_free(&se);
+    }
+
+    /* 3. Непустое множество уменьшаем (но не меньше количества элементов) */
+    test_sub("subtest %d: non‑empty resize smaller", ++subnum);
+    {
+        int vals[] = {10, 20, 30};
+        hset se = hset_fromiarr(vals, COUNT(vals));
+        int old_cnt = hset_cnt(&se);
+        int old_sz = se.sz;
+        hset_init_resize(&se, 3);   // 3 элемента, next_prime(3) = 3
+
+        // Размер может стать меньше, но элементы должны остаться
+        int ok = (hset_cnt(&se) == old_cnt);
+        for (int i = 0; ok && i < COUNT(vals); i++)
+            ok = hset_get(&se, HSET_INTVALUE(vals[i]));
+
+        test_validatefree(
+            ok,
+            hset_free(&se),
+            "Non‑empty resize smaller: old_sz=%d -> new_sz=%d, cnt=%d (expected %d)",
+            old_sz, se.sz, hset_cnt(&se), old_cnt
+        );
+        hset_free(&se);
+    }
+
+    /* 4. Попытка переразмерить на тот же размер – ничего не меняется */
+    test_sub("subtest %d: resize to same size", ++subnum);
+    {
+        int vals[] = {7, 8, 9};
+        hset se = hset_fromiarr(vals, COUNT(vals));
+        int old_sz = se.sz;
+        int old_cnt = hset_cnt(&se);
+        hset_init_resize(&se, old_sz - 1); // передаём sz-1, чтобы next_prime вернуло old_sz
+
+        int ok = (se.sz == old_sz) && (hset_cnt(&se) == old_cnt);
+        for (int i = 0; ok && i < COUNT(vals); i++)
+            ok = hset_get(&se, HSET_INTVALUE(vals[i]));
+
+        test_validatefree(
+            ok,
+            hset_free(&se),
+            "Resize to same size: sz should stay %d, got %d, cnt=%d",
+            old_sz, se.sz, hset_cnt(&se)
+        );
+        hset_free(&se);
+    }
+
+    /* 5. Последовательные ресайзы */
+    test_sub("subtest %d: multiple resizes", ++subnum);
+    {
+        int vals[] = {100, 200, 300, 400};
+        hset se = hset_fromiarr(vals, COUNT(vals));
+        int cnt = hset_cnt(&se);
+
+        hset_init_resize(&se, 50);
+        hset_init_resize(&se, 10);
+        hset_init_resize(&se, 200);
+
+        int ok = (hset_cnt(&se) == cnt);
+        for (int i = 0; ok && i < COUNT(vals); i++)
+            ok = hset_get(&se, HSET_INTVALUE(vals[i]));
+
+        test_validatefree(
+            ok,
+            hset_free(&se),
+            "Multiple resizes: final sz=%d, cnt=%d (expected %d)",
+            se.sz, hset_cnt(&se), cnt
+        );
+        hset_free(&se);
+    }
+
+    /* 6. Ресайз с типом double (проверка, что тип не теряется) */
+    test_sub("subtest %d: resize with double", ++subnum);
+    {
+        double dvals[] = {1.5, 2.5, 3.5};
+        hset se = hset_fromdarr(dvals, COUNT(dvals));
+        int old_cnt = hset_cnt(&se);
+        hset_init_resize(&se, 50);
+
+        int ok = (hset_cnt(&se) == old_cnt) && (se.flags == HSET_DBL);
+        for (int i = 0; ok && i < COUNT(dvals); i++)
+            ok = hset_get(&se, HSET_DBLVALUE(dvals[i]));
+
+        test_validatefree(
+            ok,
+            hset_free(&se),
+            "Resize double: sz=%d, cnt=%d (expected %d)",
+            se.sz, hset_cnt(&se), old_cnt
+        );
+        hset_free(&se);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
 
 // ------------------------------------------------------------------------------------------------------------------------------
 int
@@ -2450,6 +2610,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf13,  .num = 13, .name = "hset_init_intersect simple test"            , .desc="", .mandatory=true)
       , testnew(.f2 = tf14,  .num = 14, .name = "hset_init_symmdiff simple test"             , .desc="", .mandatory=true)
       , testnew(.f2 = tf15,  .num = 15, .name = "hset_symmdiff simple test"                  , .desc="", .mandatory=true)
+      , testnew(.f2 = tf16,  .num = 16, .name = "hset_init_resize simple test"               , .desc="", .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
