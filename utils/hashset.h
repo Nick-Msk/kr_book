@@ -147,8 +147,10 @@ extern hset             hset_fromparr(const void **parr, int sz){
 }
 // just intersect with construct
 extern hset             hset_init_intersect(const hset *restrict se1, const hset *restrict se2);
-// minus with construct
+// minus with construct with construct
 extern hset             hset_init_minus(const hset *restrict se1, const hset *restrict se2);
+// simm diff with construct
+extern hset             hset_init_symmdiff(const hset *restrict a, const hset *restrict b);
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 

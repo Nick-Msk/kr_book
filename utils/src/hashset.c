@@ -440,6 +440,32 @@ hset             hset_init_intersect(const hset *restrict se1, const hset *restr
         }
     return logsimpleret(res, "Created intersect - total %d", res.count);
 }
+// simm diff with construct
+hset             hset_init_symmdiff(const hset *restrict se1, const hset *restrict se2){
+    invraise(se1 != 0 && se2 != 0, "Null pointers");
+    if (getype(se1) != getype(se2) )
+         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1)), hset_type_name(getype(se2) ) );
+    hset res = hset_init(MAX(se1->sz, se2->sz) - 1, se1->flags);
+
+        for (int i = 0; i < se1->sz; i++){
+            const hset_elem *el = se1->table[i];
+            while (el){
+                if (!hset_get(se2, el->v))
+                    hset_set(&res, el->v);
+                el = el->next;
+            }
+        }
+        for (int i = 0; i < se2->sz; i++){
+            const hset_elem *el = se2->table[i];
+            while (el){
+                if (!hset_get(se1, el->v))
+                    hset_set(&res, el->v);
+                el = el->next;
+            }
+        }
+
+    return logsimpleret(res, "Created symm diff - total %d", res.count);
+}
 
 // ---------------------------------------------------------------------------
 bool                        hset_validate(FILE *out, const hset *restrict se){
@@ -1893,7 +1919,7 @@ tf12(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
-// ------------------------- TEST 12 ---------------------------------
+// ------------------------- TEST 13 ---------------------------------
 
 static TestStatus
 tf13(const char *name)
@@ -2053,6 +2079,182 @@ tf13(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST 14 ---------------------------------
+static TestStatus
+tf14(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Пустое с пустым -> пустое */
+    test_sub("subtest %d: empty symm diff empty", ++subnum);
+    {
+        hset se1 = hset_init(10, HSET_INT);
+        hset se2 = hset_init(10, HSET_INT);
+        hset res = hset_init_symmdiff(&se1, &se2);
+
+        int ok = (hset_cnt(&res) == 0) && (hset_cnt(&se1) == 0) && (hset_cnt(&se2) == 0);
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&se2), hset_free(&res)),
+            "Empty symm diff empty: res=%d, se1=%d, se2=%d (expected all 0)",
+            hset_cnt(&res), hset_cnt(&se1), hset_cnt(&se2)
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+        hset_free(&res);
+    }
+
+    /* 2. Непустое с пустым -> все элементы непустого */
+    test_sub("subtest %d: non-empty symm diff empty", ++subnum);
+    {
+        int vals[] = {3, 7, 11};
+        hset se1 = hset_fromiarr(vals, COUNT(vals));
+        hset empty = hset_init(10, HSET_INT);
+        hset res = hset_init_symmdiff(&se1, &empty);
+
+        int expected = COUNT(vals);
+        int ok = (hset_cnt(&res) == expected) && (hset_cnt(&se1) == expected) && (hset_cnt(&empty) == 0);
+        for (int i = 0; ok && i < expected; i++)
+            ok = hset_get(&res, HSET_INTVALUE(vals[i]));
+
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&empty), hset_free(&res)),
+            "Non-empty symm diff empty: res=%d, se1=%d, empty=%d (expected res=%d)",
+            hset_cnt(&res), hset_cnt(&se1), hset_cnt(&empty), expected
+        );
+        hset_free(&se1);
+        hset_free(&empty);
+        hset_free(&res);
+    }
+
+    /* 3. Пустое с непустым -> все элементы непустого */
+    test_sub("subtest %d: empty symm diff non-empty", ++subnum);
+    {
+        int vals[] = {5, 9};
+        hset empty = hset_init(10, HSET_INT);
+        hset se2 = hset_fromiarr(vals, COUNT(vals));
+        hset res = hset_init_symmdiff(&empty, &se2);
+
+        int expected = COUNT(vals);
+        int ok = (hset_cnt(&res) == expected) && (hset_cnt(&empty) == 0) && (hset_cnt(&se2) == expected);
+        for (int i = 0; ok && i < expected; i++)
+            ok = hset_get(&res, HSET_INTVALUE(vals[i]));
+
+        test_validatefree(
+            ok,
+            (hset_free(&empty), hset_free(&se2), hset_free(&res)),
+            "Empty symm diff non-empty: res=%d, empty=%d, se2=%d (expected res=%d)",
+            hset_cnt(&res), hset_cnt(&empty), hset_cnt(&se2), expected
+        );
+        hset_free(&empty);
+        hset_free(&se2);
+        hset_free(&res);
+    }
+
+    /* 4. Одинаковые множества -> пустое */
+    test_sub("subtest %d: identical sets", ++subnum);
+    {
+        int vals[] = {1, 2, 3, 4};
+        hset se1 = hset_fromiarr(vals, COUNT(vals));
+        hset se2 = hset_fromiarr(vals, COUNT(vals));
+        hset res = hset_init_symmdiff(&se1, &se2);
+
+        int expected = COUNT(vals);
+        int ok = (hset_cnt(&res) == 0) && (hset_cnt(&se1) == expected) && (hset_cnt(&se2) == expected);
+        // элементы исходных множеств на месте
+        for (int i = 0; ok && i < expected; i++) {
+            if (!hset_get(&se1, HSET_INTVALUE(vals[i])) ||
+                !hset_get(&se2, HSET_INTVALUE(vals[i])))
+                ok = 0;
+        }
+
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&se2), hset_free(&res)),
+            "Identical sets: res=%d, se1=%d, se2=%d (expected res=0)",
+            hset_cnt(&res), hset_cnt(&se1), hset_cnt(&se2)
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+        hset_free(&res);
+    }
+
+    /* 5. Частичное перекрытие -> только элементы, принадлежащие ровно одному множеству */
+    test_sub("subtest %d: partial overlap", ++subnum);
+    {
+        int vals1[] = {1, 2, 3, 4, 5};
+        int vals2[] = {2, 4, 6};
+        hset se1 = hset_fromiarr(vals1, COUNT(vals1));
+        hset se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset res = hset_init_symmdiff(&se1, &se2);
+
+        // Ожидаем {1,3,5,6}
+        int expected_vals[] = {1, 3, 5, 6};
+        int expected_cnt = COUNT(expected_vals);
+        int ok = (hset_cnt(&res) == expected_cnt) &&
+                 (hset_cnt(&se1) == COUNT(vals1)) &&
+                 (hset_cnt(&se2) == COUNT(vals2));
+        // Проверяем наличие ожидаемых
+        for (int i = 0; ok && i < expected_cnt; i++)
+            ok = hset_get(&res, HSET_INTVALUE(expected_vals[i]));
+        // Проверяем отсутствие общих (2 и 4)
+        if (ok) {
+            ok = !hset_get(&res, HSET_INTVALUE(2)) &&
+                 !hset_get(&res, HSET_INTVALUE(4));
+        }
+        // Убедимся, что исходные множества не изменились
+        for (int i = 0; ok && i < COUNT(vals1); i++)
+            ok = hset_get(&se1, HSET_INTVALUE(vals1[i]));
+        for (int i = 0; ok && i < COUNT(vals2); i++)
+            ok = hset_get(&se2, HSET_INTVALUE(vals2[i]));
+
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&se2), hset_free(&res)),
+            "Partial overlap: res=%d, se1=%d, se2=%d (expected res=%d)",
+            hset_cnt(&res), hset_cnt(&se1), hset_cnt(&se2), expected_cnt
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+        hset_free(&res);
+    }
+
+    /* 6. Непересекающиеся множества -> все элементы обоих */
+    test_sub("subtest %d: disjoint sets", ++subnum);
+    {
+        int vals1[] = {100, 200};
+        int vals2[] = {300, 400};
+        hset se1 = hset_fromiarr(vals1, COUNT(vals1));
+        hset se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset res = hset_init_symmdiff(&se1, &se2);
+
+        int expected_total = COUNT(vals1) + COUNT(vals2);
+        int ok = (hset_cnt(&res) == expected_total) &&
+                 (hset_cnt(&se1) == COUNT(vals1)) &&
+                 (hset_cnt(&se2) == COUNT(vals2));
+        // все элементы vals1 и vals2 должны быть в res
+        for (int i = 0; ok && i < COUNT(vals1); i++)
+            ok = hset_get(&res, HSET_INTVALUE(vals1[i]));
+        for (int i = 0; ok && i < COUNT(vals2); i++)
+            ok = hset_get(&res, HSET_INTVALUE(vals2[i]));
+
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&se2), hset_free(&res)),
+            "Disjoint sets: res=%d, se1=%d, se2=%d (expected res=%d)",
+            hset_cnt(&res), hset_cnt(&se1), hset_cnt(&se2), expected_total
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+        hset_free(&res);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -2071,8 +2273,9 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 =  tf9,  .num =  9, .name = "Hset_strictin simple test"                  , .desc="", .mandatory=true)
       , testnew(.f2 = tf10,  .num = 10, .name = "Hset_minus simple test"                     , .desc="", .mandatory=true)
       , testnew(.f2 = tf11,  .num = 11, .name = "Hset_init_minus simple test"                , .desc="", .mandatory=true)
-      , testnew(.f2 = tf12,  .num = 12, .name = "hset_intersect test"                        , .desc="", .mandatory=true)
-      , testnew(.f2 = tf13,  .num = 13, .name = "hset_init_intersect test"                   , .desc="", .mandatory=true)
+      , testnew(.f2 = tf12,  .num = 12, .name = "hset_intersect simple test"                 , .desc="", .mandatory=true)
+      , testnew(.f2 = tf13,  .num = 13, .name = "hset_init_intersect simple test"            , .desc="", .mandatory=true)
+      , testnew(.f2 = tf14,  .num = 14, .name = "hset_init_symmdiff simple test"                 , .desc="", .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
