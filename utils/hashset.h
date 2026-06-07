@@ -186,10 +186,16 @@ static inline int       hset_loadparr(hset *restrict se, const void * const *res
 static inline int       hset_loadfsarr(hset *restrict se, const fs *restrict fsarr, int sz){
     return hset_loadanyarr(se, fsarr, sz, HSET_FS);
 }
+// check if all of se2 in se1 strictly or not
+extern bool             hset_subset_check(const hset *restrict se1, const hset *restrict se2, bool strict);
 // check if all of se2 in se1
-extern bool             hset_in(const hset *restrict se1, const hset *restrict se2);
+static inline bool      hset_in(const hset *restrict se1, const hset *restrict se2){
+    return hset_subset_check(se1, se2, false);
+}
 // check if all of se2 in se1  but se2 not equal se1  TODO:
-extern bool             hset_strictin(const hset *restrict se1, const hset *restrict se2);
+static inline bool      hset_strictin(const hset *restrict se1, const hset *restrict se2){
+    return hset_subset_check(se1, se2, true);
+}
 // se1 -= se2 as SET
 extern int              hset_minus(hset *restrict se1, const hset *restrict se2);
 
@@ -203,3 +209,4 @@ static inline int       hset_techprint(const hset *se, int cnt){
 extern bool             hset_validate(FILE *out, const hset *restrict se);
 
 #endif /* !_HASHSET_H */
+

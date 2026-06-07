@@ -567,15 +567,16 @@ int                         hset_loadanyarr(hset *restrict se, const void *arr, 
     }
     return logsimpleret(cnt, "Loaded %d", cnt);
 }
-
-bool                        hset_in(const hset *restrict se1, const hset *restrict se2){
+// check if all of se2 in se1 strictly or not
+bool                        hset_subset_check(const hset *restrict se1, const hset *restrict se2, bool strict){
     invraise(se1 != 0 && se2 != 0, "Null pointers");
 
     if (getype(se1) != getype(se2) )
-        return userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1)), hset_type_name(getype(se2)));
+        return userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1) ), hset_type_name(getype(se2) ) );
 
-    if (hset_cnt(se1) > hset_cnt(se2) )
-        return logsimpleret(false, "Count of se1 %d more that count of se2 %d", hset_cnt(se1), hset_cnt(se2) );
+    if ( (!strict && hset_cnt(se1) > hset_cnt(se2) ) ||
+        (strict && hset_cnt(se1) >= hset_cnt(se2) ) )
+        return logsimpleret(false, "Count of se1 %d more (%s) that count of se2 %d", hset_cnt(se1), bool_str(strict), hset_cnt(se2) );
     // check that EVERY element in se1 exists in se2
     for (int i = 0; i < se1->sz; i++){
         const hset_elem *el = se1->table[i];
@@ -585,7 +586,7 @@ bool                        hset_in(const hset *restrict se1, const hset *restri
             el = el->next;
         }
     }
-    return logsimpleret(true, "Matched as in");
+    return logsimpleret(true, "Matched %s as in", strict ? "strict": "");
 }
 
 // ------------------------------------- (API) printers ------------------------------------
