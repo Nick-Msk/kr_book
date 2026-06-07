@@ -147,7 +147,8 @@ extern hset             hset_fromparr(const void **parr, int sz){
 }
 // TODO:
 extern hset             hset_intersect(const hset *restrict se1, const hset *restrict se2);
-
+// minus with construct
+extern hset             hset_init_minus(const hset *restrict se1, const hset *restrict se2);
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
@@ -193,7 +194,7 @@ extern bool             hset_subset_check(const hset *restrict se1, const hset *
 static inline bool      hset_in(const hset *restrict se1, const hset *restrict se2){
     return hset_subset_check(se1, se2, false);
 }
-// check if all of se2 in se1  but se2 not equal se1  TODO:
+// check if all of se2 in se1  but se2 not equal se1
 static inline bool      hset_strictin(const hset *restrict se1, const hset *restrict se2){
     return hset_subset_check(se1, se2, true);
 }

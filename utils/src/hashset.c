@@ -401,6 +401,25 @@ void                        hset_free(hset *se){
     logsimple("freed");
     se->sz = se->flags = 0;
 }
+// return new hset se1 - se2
+hset             hset_init_minus(const hset *restrict se1, const hset *restrict se2){
+    invraise(se1 != 0 && se2 != 0, "Null pointers");
+
+    if (getype(se1) != getype(se2) )
+         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1)), hset_type_name(getype(se2) ) );
+
+    // simple implementation
+    hset res = hset_init(se1->sz - 1, se1->flags);
+    for (int i = 0; i < se1->sz; i++){
+        const hset_elem *el = se1->table[i];
+        while (el){
+            if (!hset_get(se2, el->v) )
+                hset_set(&res, el->v);
+            el = el->next;
+        }
+    }
+    return logsimpleret(res, "Created minus - total %d", se1->count);
+}
 
 // ---------------------------------------------------------------------------
 bool                        hset_validate(FILE *out, const hset *restrict se){
@@ -517,7 +536,7 @@ bool                        hset_eq(const hset *restrict se1, const hset *restri
     invraise(se1 != 0 && se2 != 0, "Null pointers");
 
     if (getype(se1) != getype(se2) )
-        return userraise(false, ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1)), hset_type_name(getype(se2)));
+        return userraise(false, ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1)), hset_type_name(getype(se2) ) );
 
     int     cnt1 = hset_cnt(se1);
     int     cnt2 = hset_cnt(se2);
