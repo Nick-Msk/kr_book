@@ -697,11 +697,11 @@ bool                        hset_subset_check(const hset *restrict se1, const hs
 }
 
 // se1 -= se2 as SET, returns count of deleted element
-int                         hset_minus(hset *restrict se1, const hset *restrict se2){
+hset                       *hset_minus(hset *restrict se1, const hset *restrict se2){
     invraise(se1 != 0 && se2 != 0, "Null pointers");
     // TODO: rework checkers!!! at least move that into check_it()
     if (getype(se1) != getype(se2) )
-        return userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1) ), hset_type_name(getype(se2) ) );
+        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1) ), hset_type_name(getype(se2) ) );
 
     int     cnt = 0;
     if ( !(hset_cnt(se1) == 0 || hset_cnt(se2) == 0) ){
@@ -714,8 +714,9 @@ int                         hset_minus(hset *restrict se1, const hset *restrict 
             }
         }
     }
-    return logsimpleret(cnt, "Removed %d elements", cnt);
+    return logsimpleret(se1, "Removed %d elements", cnt);
 }
+
 // se1 insersect= se2 as SET
 int                         hset_intersect(hset *restrict se1, const hset *restrict se2){
     invraise(se1 != 0 && se2 != 0, "Null pointers");
@@ -1547,53 +1548,57 @@ tf10(const char *name)
     /* 1. Пустое минус пустое */
     test_sub("subtest %d: empty minus empty", ++subnum);
     {
-        hset se1 = hset_init(10, HSET_INT);
-        hset se2 = hset_init(10, HSET_INT);
-        int removed = hset_minus(&se1, &se2);
+        hset    se1 = hset_init(10, HSET_INT);
+        hset    se2 = hset_init(10, HSET_INT);
+        hset   *res = hset_minus(&se1, &se2);
+
+        int     ok = (res == &se1) && (hset_cnt(&se1) == 0);
         test_validatefree(
-            removed == 0 && hset_cnt(&se1) == 0,
+            ok,
             (hset_free(&se1), hset_free(&se2)),
-            "Empty minus empty: removed=%d, cnt=%d (expected 0,0)",
-            removed, hset_cnt(&se1)
+            "Empty minus empty: res=%p, cnt=%d (expected res=&se1, cnt=0)",
+            (void*)res, hset_cnt(&se1)
         );
         hset_free(&se1);
         hset_free(&se2);
     }
-
     /* 2. Пустое минус непустое */
     test_sub("subtest %d: empty minus non-empty", ++subnum);
     {
-        hset empty = hset_init(10, HSET_INT);
-        int vals[] = {1, 2, 3};
-        hset nonempty = hset_fromiarr(vals, COUNT(vals) );
-        int removed = hset_minus(&empty, &nonempty);
+        hset    empty = hset_init(10, HSET_INT);
+        int     vals[] = {1, 2, 3};
+        hset    nonempty = hset_fromiarr(vals, COUNT(vals));
+        hset   *res = hset_minus(&empty, &nonempty);
+
+        int     ok = (res == &empty) && (hset_cnt(&empty) == 0) &&
+                     (hset_cnt(&nonempty) == COUNT(vals));
         test_validatefree(
-            removed == 0 && hset_cnt(&empty) == 0,
+            ok,
             (hset_free(&empty), hset_free(&nonempty)),
-            "Empty minus non-empty: removed=%d, cnt=%d (expected 0,0)",
-            removed, hset_cnt(&empty)
+            "Empty minus non-empty: res=%p, cnt=%d (expected res=&empty, cnt=0)",
+            (void*)res, hset_cnt(&empty)
         );
         hset_free(&empty);
         hset_free(&nonempty);
     }
-
     /* 3. Непустое минус пустое */
     test_sub("subtest %d: non-empty minus empty", ++subnum);
     {
-        int vals[] = {10, 20, 30};
-        hset se1 = hset_fromiarr(vals, COUNT(vals) );
-        hset empty = hset_init(10, HSET_INT);
+        int     vals[] = {10, 20, 30};
+        hset    se1 = hset_fromiarr(vals, COUNT(vals));
+        hset    empty = hset_init(10, HSET_INT);
+        int     cnt_before = hset_cnt(&se1);
+        hset   *res = hset_minus(&se1, &empty);
 
-        int cnt_before = hset_cnt(&se1);
-        int removed = hset_minus(&se1, &empty);
+        int     ok = (res == &se1) && (hset_cnt(&se1) == cnt_before);
+        for (int i = 0; ok && i < COUNT(vals); i++)
+            ok = hset_get(&se1, HSET_INTVALUE(vals[i]));
+
         test_validatefree(
-            removed == 0 && hset_cnt(&se1) == cnt_before &&
-            hset_get(&se1, HSET_INTVALUE(10)) &&
-            hset_get(&se1, HSET_INTVALUE(20)) &&
-            hset_get(&se1, HSET_INTVALUE(30)),
+            ok,
             (hset_free(&se1), hset_free(&empty)),
-            "Non-empty minus empty: removed=%d, cnt=%d (expected 0,%d)",
-            removed, hset_cnt(&se1), cnt_before
+            "Non-empty minus empty: res=%p, cnt=%d (expected res=&se1, cnt=%d)",
+            (void*)res, hset_cnt(&se1), cnt_before
         );
         hset_free(&se1);
         hset_free(&empty);
@@ -1602,19 +1607,22 @@ tf10(const char *name)
     /* 4. Множество минус его копия (все элементы должны быть удалены) */
     test_sub("subtest %d: set minus its copy", ++subnum);
     {
-        int vals[] = {5, 10, 15, 20};
-        hset se1 = hset_fromiarr(vals, COUNT(vals) );
-        hset se2 = hset_clone(&se1);
+        int     vals[] = {5, 10, 15, 20};
+        hset    se1 = hset_fromiarr(vals, COUNT(vals));
+        hset    se2 = hset_fromiarr(vals, COUNT(vals));
+        /*hset    se2 = hset_init(10, HSET_INT);
+        for (int i = 0; i < COUNT(vals); i++)
+            hset_set(&se2, HSET_INTVALUE(vals[i])); */
 
-        //hset_techprint(&se1, 0);
-        //hset_techprint(&se2, 0);
-        int cnt_before = hset_cnt(&se1);
-        int removed = hset_minus(&se1, &se2);
+        int     cnt_before = hset_cnt(&se1);
+        hset   *res = hset_minus(&se1, &se2);
+
+        int     ok = (res == &se1) && (hset_cnt(&se1) == 0);
         test_validatefree(
-            removed == cnt_before && hset_cnt(&se1) == 0,
+            ok,
             (hset_free(&se1), hset_free(&se2)),
-            "Set minus its copy: removed=%d, cnt=%d (expected %d, 0)",
-            removed, hset_cnt(&se1), cnt_before
+            "Set minus its copy: res=%p, cnt=%d (expected res=&se1, cnt=0 after %d deleted)",
+            (void*)res, hset_cnt(&se1), cnt_before
         );
         hset_free(&se1);
         hset_free(&se2);
@@ -1623,76 +1631,85 @@ tf10(const char *name)
     /* 5. Непустое минус строгое подмножество */
     test_sub("subtest %d: non-empty minus subset", ++subnum);
     {
-        int all_vals[] = {1, 2, 3, 4, 5, 6};
-        int sub_vals[] = {2, 5};
-        hset se1 = hset_fromiarr(all_vals, COUNT(all_vals) );
-        hset se2 = hset_fromiarr(sub_vals, COUNT(sub_vals) );
+        int     all_vals[] = {1, 2, 3, 4, 5, 6};
+        int     sub_vals[] = {2, 5};
+        hset    se1 = hset_fromiarr(all_vals, COUNT(all_vals));
+        hset    se2 = hset_fromiarr(sub_vals, COUNT(sub_vals));
+        /* hset    se2 = hset_init(10, HSET_INT);
+        for (int i = 0; i < COUNT(sub_vals); i++)
+            hset_set(&se2, HSET_INTVALUE(sub_vals[i])); */
 
-        int removed = hset_minus(&se1, &se2);
-        int ok = (removed == 2) && (hset_cnt(&se1) == 4) &&
-                 !hset_get(&se1, HSET_INTVALUE(2)) &&
-                 !hset_get(&se1, HSET_INTVALUE(5)) &&
-                  hset_get(&se1, HSET_INTVALUE(1)) &&
-                  hset_get(&se1, HSET_INTVALUE(3)) &&
-                  hset_get(&se1, HSET_INTVALUE(4)) &&
-                  hset_get(&se1, HSET_INTVALUE(6));
+        hset   *res = hset_minus(&se1, &se2);
+
+        int     expected_cnt = 4;   // {1,3,4,6}
+        int     ok = (res == &se1) && (hset_cnt(&se1) == expected_cnt) &&
+                     !hset_get(&se1, HSET_INTVALUE(2)) &&
+                     !hset_get(&se1, HSET_INTVALUE(5)) &&
+                     hset_get(&se1, HSET_INTVALUE(1)) &&
+                     hset_get(&se1, HSET_INTVALUE(3)) &&
+                     hset_get(&se1, HSET_INTVALUE(4)) &&
+                     hset_get(&se1, HSET_INTVALUE(6));
         test_validatefree(
             ok,
             (hset_free(&se1), hset_free(&se2)),
-            "Non-empty minus subset: removed=%d, cnt=%d (expected 2,4); element check failed",
-            removed, hset_cnt(&se1)
+            "Non-empty minus subset: res=%p, cnt=%d (expected res=&se1, cnt=%d)",
+            (void*)res, hset_cnt(&se1), expected_cnt
         );
         hset_free(&se1);
         hset_free(&se2);
     }
-
     /* 6. Непустое минус непересекающееся множество */
     test_sub("subtest %d: non-empty minus disjoint", ++subnum);
     {
-        int vals1[] = {7, 8, 9};
-        int vals2[] = {1, 2, 3};
-        hset se1 = hset_fromiarr(vals1, COUNT(vals1) );
-        hset se2 = hset_fromiarr(vals2, COUNT(vals2) );
+        int     vals1[] = {7, 8, 9};
+        int     vals2[] = {1, 2, 3};
+        hset    se1 = hset_fromiarr(vals1, COUNT(vals1));
+        hset    se2 = hset_fromiarr(vals2, COUNT(vals2));
 
-        int cnt_before = hset_cnt(&se1);
-        int removed = hset_minus(&se1, &se2);
-        int ok = (removed == 0) && (hset_cnt(&se1) == cnt_before) &&
-                 hset_get(&se1, HSET_INTVALUE(7)) &&
-                 hset_get(&se1, HSET_INTVALUE(8)) &&
-                 hset_get(&se1, HSET_INTVALUE(9));
+        int     cnt_before = hset_cnt(&se1);
+        hset   *res = hset_minus(&se1, &se2);
+
+        int     ok = (res == &se1) && (hset_cnt(&se1) == cnt_before);
+        for (int i = 0; ok && i < COUNT(vals1); i++)
+            ok = hset_get(&se1, HSET_INTVALUE(vals1[i]));
+
         test_validatefree(
             ok,
             (hset_free(&se1), hset_free(&se2)),
-            "Non-empty minus disjoint: removed=%d, cnt=%d (expected 0,%d)",
-            removed, hset_cnt(&se1), cnt_before
+            "Non-empty minus disjoint: res=%p, cnt=%d (expected res=&se1, cnt=%d)",
+            (void*)res, hset_cnt(&se1), cnt_before
         );
         hset_free(&se1);
         hset_free(&se2);
     }
-
     /* 7. Удаление, когда se2 содержит лишние элементы */
     test_sub("subtest %d: se2 with extra elements", ++subnum);
     {
-        int vals1[] = {100, 200, 300};
-        int vals2[] = {200, 400, 500};
-        hset se1 = hset_fromiarr(vals1, COUNT(vals1) );
-        hset se2 = hset_fromiarr(vals2, COUNT(vals2));
+        int     vals1[] = {100, 200, 300};
+        int     vals2[] = {200, 400, 500};
+        hset    se1 = hset_fromiarr(vals1, COUNT(vals1));
+        hset    se2 = hset_fromiarr(vals2, COUNT(vals2));
 
-        int removed = hset_minus(&se1, &se2);
-        int ok = (removed == 1) && (hset_cnt(&se1) == 2) &&
-                 hset_get(&se1, HSET_INTVALUE(100)) &&
-                 hset_get(&se1, HSET_INTVALUE(300)) &&
-                 !hset_get(&se1, HSET_INTVALUE(200));
+        hset   *res = hset_minus(&se1, &se2);
+
+        // Ожидаем, что останутся только 100 и 300
+        int     expected_remaining[] = {100, 300};
+        int     ok = (res == &se1) && (hset_cnt(&se1) == COUNT(expected_remaining));
+        for (int i = 0; ok && i < COUNT(expected_remaining); i++)
+            ok = hset_get(&se1, HSET_INTVALUE(expected_remaining[i]));
+        // Убедимся, что 200 действительно удалён
+        if (ok)
+            ok = !hset_get(&se1, HSET_INTVALUE(200));
+
         test_validatefree(
             ok,
             (hset_free(&se1), hset_free(&se2)),
-            "se2 with extra elements: removed=%d, cnt=%d (expected 1,2)",
-            removed, hset_cnt(&se1)
+            "se2 with extra elements: res=%p, cnt=%d (expected res=&se1, cnt=2)",
+            (void*)res, hset_cnt(&se1)
         );
         hset_free(&se1);
         hset_free(&se2);
     }
-
     /* 8. Несовпадение типов – ожидаем аварийный сигнал */
     test_sub("subtest %d: type mismatch raises SIGINT", ++subnum);
     {
