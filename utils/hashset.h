@@ -216,7 +216,7 @@ static inline bool      hset_strictin(const hset *restrict se1, const hset *rest
 // se1 -= se2 as SET
 extern hset            *hset_minus(hset *restrict se1, const hset *restrict se2);
 // se1 insersect= se2 as SET
-extern int              hset_intersect(hset *restrict se1, const hset *restrict se2);
+extern hset            *hset_intersect(hset *restrict se1, const hset *restrict se2);
 // se1 symmdiff= se2 as SET
 extern hset            *hset_symmdiff(hset *restrict a, const hset *restrict b);
 // union= as SET
