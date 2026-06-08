@@ -467,24 +467,47 @@ hset             hset_init_symmdiff(const hset *restrict se1, const hset *restri
          userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1)), hset_type_name(getype(se2) ) );
     hset res = hset_init(MAX(se1->sz, se2->sz) - 1, se1->flags);
 
-        for (int i = 0; i < se1->sz; i++){
-            const hset_elem *el = se1->table[i];
-            while (el){
-                if (!hset_get(se2, el->v))
-                    hset_set(&res, el->v);
-                el = el->next;
-            }
+    for (int i = 0; i < se1->sz; i++){
+        const hset_elem *el = se1->table[i];
+        while (el){
+            if (!hset_get(se2, el->v))
+                hset_set(&res, el->v);
+            el = el->next;
         }
-        for (int i = 0; i < se2->sz; i++){
-            const hset_elem *el = se2->table[i];
-            while (el){
-                if (!hset_get(se1, el->v))
-                    hset_set(&res, el->v);
-                el = el->next;
-            }
+    }
+    for (int i = 0; i < se2->sz; i++){
+        const hset_elem *el = se2->table[i];
+        while (el){
+            if (!hset_get(se1, el->v))
+                hset_set(&res, el->v);
+            el = el->next;
         }
+    }
 
     return logsimpleret(res, "Created symm diff - total %d", res.count);
+}
+// union with construct
+hset             hset_init_union(const hset *restrict se1, const hset *restrict se2){
+    invraise(se1 != 0 && se2 != 0, "Null pointers");
+    if (getype(se1) != getype(se2) )
+         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1)), hset_type_name(getype(se2) ) );
+    hset res = hset_init(MAX(se1->sz, se2->sz) - 1, se1->flags);
+
+    for (int i = 0; i < se1->sz; i++){
+        const hset_elem *el = se1->table[i];
+        while (el){
+            hset_set(&res, el->v);
+            el = el->next;
+        }
+    }
+    for (int i = 0; i < se2->sz; i++){
+        const hset_elem *el = se2->table[i];
+        while (el){
+            hset_set(&res, el->v);
+            el = el->next;
+        }
+    }
+    return logsimpleret(res, "Created union - total %d", res.count);
 }
 
 // ---------------------------------------------------------------------------
@@ -720,18 +743,30 @@ hset                       *hset_symmdiff(hset *restrict se1, const hset *restri
     if (getype(se1) != getype(se2) )
         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1) ), hset_type_name(getype(se2) ) );
 
+    // done via constructor
     hset tmp = hset_init_symmdiff(se1, se2);
     hset_move(se1, &tmp);       // no need to free tmp!!!!
     return logsimpleret(se1, "Done, new cnt = %d", se1->count);
 }
 // union= as SET
-hset            *hset_union(hset *restrict a, const hset *restrict b){ 
+hset            *hset_union(hset *restrict se1, const hset *restrict se2){ 
     invraise(se1 != 0 && se2 != 0, "Null pointers");
     // TODO: rework checkers!!! at least move that into check_it()
     if (getype(se1) != getype(se2) )
         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1) ), hset_type_name(getype(se2) ) );
 
-    
+    int         addcnt = 0;
+    if (se2->count > 0){
+        for (int i = 0; i < se2->sz; i++){
+            const hset_elem *el = se2->table[i];
+            while (el){
+                hset_elem *next = el->next;
+                addcnt += hset_set(se1, el->v);
+                el = next;
+            }
+        }
+    }
+    return  logsimpleret(se1, "%d elements remains, added from se2 %d", se1->count, addcnt);
 }
 
 // ------------------------------------- (API) printers ------------------------------------
@@ -2597,6 +2632,10 @@ tf16(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST 17 ---------------------------------
+
+// ------------------------- TEST 18 ---------------------------------
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -2620,6 +2659,8 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf14,  .num = 14, .name = "hset_init_symmdiff simple test"             , .desc="", .mandatory=true)
       , testnew(.f2 = tf15,  .num = 15, .name = "hset_symmdiff simple test"                  , .desc="", .mandatory=true)
       , testnew(.f2 = tf16,  .num = 16, .name = "hset_init_resize simple test"               , .desc="", .mandatory=true)
+      , testnew(.f2 = tf17,  .num = 17, .name = "hset_union simple test"                     , .desc="", .mandatory=true)
+      , testnew(.f2 = tf18,  .num = 18, .name = "hset_init_union simple test"                , .desc="", .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
