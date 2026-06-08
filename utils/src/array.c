@@ -163,6 +163,36 @@ int                      Array_fillrange(Array a, ArrayFillType typ, int from, i
         case ARRAY_NONE:
             // just do nothing
         break;
+        case ARRAY_ASC_SERIES:
+            initval = 1;
+            longval = 1L;
+            doubleval = 1.0;
+            // TODO: I need invraisenum(ERROR_..., condition, msg, ....);
+            invraise(Array_isint(a) || Array_islong(a) || Array_isdouble(a), "Unsupported type");
+            for (int i = from; i < to; i++){ // iter??? TODO:
+                    if (Array_isint(a))
+                        a.iv[i] = i + initval;
+                    else if (Array_islong(a))
+                        a.lv[i] = i + longval;
+                    else if (Array_isdouble(a))
+                        a.dv[i] = i + doubleval;
+            }
+        break;
+        case ARRAY_DESC_SERIES: 
+            initval   = arr.len;
+            longval   = arr.len;
+            doubleval = arr.len;;
+            // TODO: I need invraisenum(ERROR_..., condition, msg, ....);
+            invraise(Array_isint(a) || Array_islong(a) || Array_isdouble(a), "Unsupported type");
+            for (int i = from; i < to; i++){ // iter??? TODO:
+                    if (Array_isint(a))
+                        a.iv[i] = initval - i;
+                    else if (Array_islong(a))
+                        a.lv[i] = longval - i;
+                    else if (Array_isdouble(a))
+                        a.dv[i] = doubleval - i;
+            }
+        break;
         default:
             logsimple("Unsupported type %d", typ);
             to = from - 1;  // return -1

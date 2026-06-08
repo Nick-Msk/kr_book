@@ -18,7 +18,9 @@ typedef enum ArrayFillType{
     ARRAY_DESC,
     ARRAY_ASC,
     ARRAY_RND,
-    ARRAY_ZERO
+    ARRAY_ZERO,
+    ARRAY_ASC_SERIES,
+    ARRAY_DESC_SERIES
 } ArrayFillType;
 
 typedef enum ArrayType{
@@ -47,6 +49,8 @@ static inline const char        *ArrayFillTypeName(ArrayFillType t){
         CASE_RETURN(ARRAY_ASC);
         CASE_RETURN(ARRAY_RND);
         CASE_RETURN(ARRAY_ZERO);
+        CASE_RETURN(ARRAY_ASC_SERIES);
+        CASE_RETURN(ARRAY_DESC_SERIES);
         default: return "";
     }
 }
@@ -129,6 +133,7 @@ static inline int               Arraylen(Array a){
 }
 
 static inline int               ArrayGetcnt(Array a){
+    invraise(Array_ispointer(a), "Applicable only for pointers ARRAY_POINTER %d", ARRAY_POINTER);
     int cnt = 0;
     for (int i = 0; i < a.len; i++)
         cnt += a.pv[i] != 0;
