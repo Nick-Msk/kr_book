@@ -760,9 +760,8 @@ hset            *hset_union(hset *restrict se1, const hset *restrict se2){
         for (int i = 0; i < se2->sz; i++){
             const hset_elem *el = se2->table[i];
             while (el){
-                hset_elem *next = el->next;
                 addcnt += hset_set(se1, el->v);
-                el = next;
+                el = el->next;
             }
         }
     }
@@ -2491,6 +2490,7 @@ tf15(const char *name)
 
     return logret(TEST_PASSED, "done");
 }
+
 // ------------------------- TEST 16 ---------------------------------
 static TestStatus
 tf16(const char *name)
@@ -2633,8 +2633,352 @@ tf16(const char *name)
 }
 
 // ------------------------- TEST 17 ---------------------------------
+static TestStatus
+tf17(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Пустое ∪ пустое = пустое */
+    test_sub("subtest %d: empty union empty", ++subnum);
+    {
+        hset    se1 = hset_init(10, HSET_INT);
+        hset    se2 = hset_init(10, HSET_INT);
+        hset   *res = hset_union(&se1, &se2);
+
+        int     ok = (hset_cnt(&se1) == 0) && (res == &se1);
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&se2)),
+            "Empty union empty: cnt=%d, res=%p (expected cnt=0, res=&se1)",
+            hset_cnt(&se1), (void*)res
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+
+    /* 2. Непустое ∪ пустое = исходное непустое */
+    test_sub("subtest %d: non-empty union empty", ++subnum);
+    {
+        int     vals[] = {3, 7, 11};
+        hset    se1 = hset_fromiarr(vals, COUNT(vals));
+        hset    empty = hset_init(10, HSET_INT);
+        int     cnt_before = hset_cnt(&se1);
+        hset   *res = hset_union(&se1, &empty);
+
+        int     ok = (hset_cnt(&se1) == cnt_before) && (res == &se1);
+        for (int i = 0; ok && i < COUNT(vals); i++)
+            ok = hset_get(&se1, HSET_INTVALUE(vals[i]));
+
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&empty)),
+            "Non-empty union empty: cnt=%d (expected %d), res=%p",
+            hset_cnt(&se1), cnt_before, (void*)res
+        );
+        hset_free(&se1);
+        hset_free(&empty);
+    }
+
+    /* 3. Пустое ∪ непустое = копия непустого в se1 */
+    test_sub("subtest %d: empty union non-empty", ++subnum);
+    {
+        int     vals[] = {5, 9};
+        hset    se1 = hset_init(10, HSET_INT);
+        hset    se2 = hset_fromiarr(vals, COUNT(vals));
+        hset   *res = hset_union(&se1, &se2);
+
+        int     expected = COUNT(vals);
+        int     ok = (hset_cnt(&se1) == expected) && (res == &se1);
+        for (int i = 0; ok && i < expected; i++)
+            ok = hset_get(&se1, HSET_INTVALUE(vals[i]));
+
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&se2)),
+            "Empty union non-empty: cnt=%d (expected %d), res=%p",
+            hset_cnt(&se1), expected, (void*)res
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+
+    /* 4. Одинаковые множества: результат не меняется, количество не растёт */
+    test_sub("subtest %d: identical sets", ++subnum);
+    {
+        int     vals[] = {1, 2, 3, 4};
+        hset    se1 = hset_fromiarr(vals, COUNT(vals));
+        hset    se2 = hset_fromiarr(vals, COUNT(vals));
+        int     cnt_before = hset_cnt(&se1);
+        hset   *res = hset_union(&se1, &se2);
+
+        int     ok = (hset_cnt(&se1) == cnt_before) && (res == &se1);
+        // все элементы должны остаться на месте
+        for (int i = 0; ok && i < COUNT(vals); i++)
+            ok = hset_get(&se1, HSET_INTVALUE(vals[i]));
+
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&se2)),
+            "Identical sets: cnt=%d (expected %d), res=%p",
+            hset_cnt(&se1), cnt_before, (void*)res
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+
+    /* 5. Частичное перекрытие: добавляются только недостающие элементы */
+    test_sub("subtest %d: partial overlap", ++subnum);
+    {
+        int     vals1[] = {1, 2, 3, 4, 5};
+        int     vals2[] = {3, 5, 6, 7};
+        hset    se1 = hset_fromiarr(vals1, COUNT(vals1));
+        hset    se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset   *res = hset_union(&se1, &se2);
+
+        // Ожидаем {1,2,3,4,5,6,7} – 7 элементов
+        int     expected_vals[] = {1, 2, 3, 4, 5, 6, 7};
+        int     expected_cnt = COUNT(expected_vals);
+        int     ok = (hset_cnt(&se1) == expected_cnt) && (res == &se1);
+        for (int i = 0; ok && i < expected_cnt; i++)
+            ok = hset_get(&se1, HSET_INTVALUE(expected_vals[i]));
+
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&se2)),
+            "Partial overlap: cnt=%d (expected %d), res=%p",
+            hset_cnt(&se1), expected_cnt, (void*)res
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+
+    /* 6. Непересекающиеся множества: все элементы se2 добавляются */
+    test_sub("subtest %d: disjoint sets", ++subnum);
+    {
+        int     vals1[] = {100, 200};
+        int     vals2[] = {300, 400};
+        hset    se1 = hset_fromiarr(vals1, COUNT(vals1));
+        hset    se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset   *res = hset_union(&se1, &se2);
+
+        int     expected_total = COUNT(vals1) + COUNT(vals2);
+        int     ok = (hset_cnt(&se1) == expected_total) && (res == &se1);
+        // все элементы должны быть доступны
+        for (int i = 0; ok && i < COUNT(vals1); i++)
+            ok = hset_get(&se1, HSET_INTVALUE(vals1[i]));
+        for (int i = 0; ok && i < COUNT(vals2); i++)
+            ok = hset_get(&se1, HSET_INTVALUE(vals2[i]));
+
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&se2)),
+            "Disjoint sets: cnt=%d (expected %d), res=%p",
+            hset_cnt(&se1), expected_total, (void*)res
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
 
 // ------------------------- TEST 18 ---------------------------------
+
+static TestStatus
+tf18(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Пустое ∪ пустое = пустое */
+    test_sub("subtest %d: empty union empty", ++subnum);
+    {
+        hset    se1 = hset_init(10, HSET_INT);
+        hset    se2 = hset_init(10, HSET_INT);
+        hset    res = hset_init_union(&se1, &se2);
+
+        int     ok = (hset_cnt(&res) == 0) &&
+                     (hset_cnt(&se1) == 0) &&
+                     (hset_cnt(&se2) == 0);
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&se2), hset_free(&res)),
+            "Empty union empty: res=%d, se1=%d, se2=%d (expected all 0)",
+            hset_cnt(&res), hset_cnt(&se1), hset_cnt(&se2)
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+        hset_free(&res);
+    }
+
+    /* 2. Непустое ∪ пустое = копия se1, исходные не изменились */
+    test_sub("subtest %d: non-empty union empty", ++subnum);
+    {
+        int     vals[] = {3, 7, 11};
+        hset    se1 = hset_fromiarr(vals, COUNT(vals));
+        hset    empty = hset_init(10, HSET_INT);
+
+        int     cnt1_before = hset_cnt(&se1);
+        hset    res = hset_init_union(&se1, &empty);
+        int     expected = COUNT(vals);
+
+        int     ok = (hset_cnt(&res) == expected) &&
+                     (hset_cnt(&se1) == cnt1_before) &&
+                     (hset_cnt(&empty) == 0);
+        for (int i = 0; ok && i < expected; i++)
+            ok = hset_get(&res, HSET_INTVALUE(vals[i]));
+        // se1 должен остаться без изменений
+        for (int i = 0; ok && i < expected; i++)
+            ok = hset_get(&se1, HSET_INTVALUE(vals[i]));
+
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&empty), hset_free(&res)),
+            "Non-empty union empty: res=%d, se1=%d (expected %d, %d)",
+            hset_cnt(&res), hset_cnt(&se1), expected, cnt1_before
+        );
+        hset_free(&se1);
+        hset_free(&empty);
+        hset_free(&res);
+    }
+
+    /* 3. Пустое ∪ непустое = копия se2, исходные не изменились */
+    test_sub("subtest %d: empty union non-empty", ++subnum);
+    {
+        int     vals[] = {5, 9};
+        hset    empty = hset_init(10, HSET_INT);
+        hset    se2 = hset_fromiarr(vals, COUNT(vals));
+
+        int     cnt2_before = hset_cnt(&se2);
+        hset    res = hset_init_union(&empty, &se2);
+
+        int     expected = COUNT(vals);
+        int     ok = (hset_cnt(&res) == expected) &&
+                     (hset_cnt(&empty) == 0) &&
+                     (hset_cnt(&se2) == cnt2_before);
+        for (int i = 0; ok && i < expected; i++)
+            ok = hset_get(&res, HSET_INTVALUE(vals[i]));
+        for (int i = 0; ok && i < expected; i++)
+            ok = hset_get(&se2, HSET_INTVALUE(vals[i]));
+
+        test_validatefree(
+            ok,
+            (hset_free(&empty), hset_free(&se2), hset_free(&res)),
+            "Empty union non-empty: res=%d, se2=%d (expected %d, %d)",
+            hset_cnt(&res), hset_cnt(&se2), expected, cnt2_before
+        );
+        hset_free(&empty);
+        hset_free(&se2);
+        hset_free(&res);
+    }
+
+    /* 4. Одинаковые множества: результат совпадает с исходными */
+    test_sub("subtest %d: identical sets", ++subnum);
+    {
+        int     vals[] = {1, 2, 3, 4};
+        hset    se1 = hset_fromiarr(vals, COUNT(vals));
+        hset    se2 = hset_fromiarr(vals, COUNT(vals));
+
+        int     cnt_before = hset_cnt(&se1);
+        hset    res = hset_init_union(&se1, &se2);
+
+        int     expected = COUNT(vals);
+        int     ok = (hset_cnt(&res) == expected) &&
+                     (hset_cnt(&se1) == cnt_before) &&
+                     (hset_cnt(&se2) == cnt_before);
+        for (int i = 0; ok && i < expected; i++) {
+            ok = hset_get(&res, HSET_INTVALUE(vals[i])) &&
+                 hset_get(&se1, HSET_INTVALUE(vals[i])) &&
+                 hset_get(&se2, HSET_INTVALUE(vals[i]));
+        }
+
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&se2), hset_free(&res)),
+            "Identical sets: res=%d, se1=%d, se2=%d (expected all %d)",
+            hset_cnt(&res), hset_cnt(&se1), hset_cnt(&se2), expected
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+        hset_free(&res);
+    }
+
+    /* 5. Частичное перекрытие: объединение содержит все уникальные элементы */
+    test_sub("subtest %d: partial overlap", ++subnum);
+    {
+        int     vals1[] = {1, 2, 3, 4, 5};
+        int     vals2[] = {3, 5, 6, 7};
+        hset    se1 = hset_fromiarr(vals1, COUNT(vals1));
+        hset    se2 = hset_fromiarr(vals2, COUNT(vals2));
+
+        int     cnt1_before = hset_cnt(&se1);
+        int     cnt2_before = hset_cnt(&se2);
+        hset    res = hset_init_union(&se1, &se2);
+
+        int     expected_vals[] = {1, 2, 3, 4, 5, 6, 7};
+        int     expected_cnt = COUNT(expected_vals);
+        int     ok = (hset_cnt(&res) == expected_cnt) &&
+                     (hset_cnt(&se1) == cnt1_before) &&
+                     (hset_cnt(&se2) == cnt2_before);
+        for (int i = 0; ok && i < expected_cnt; i++)
+            ok = hset_get(&res, HSET_INTVALUE(expected_vals[i]));
+        // se1 и se2 не тронуты
+        for (int i = 0; ok && i < COUNT(vals1); i++)
+            ok = hset_get(&se1, HSET_INTVALUE(vals1[i]));
+        for (int i = 0; ok && i < COUNT(vals2); i++)
+            ok = hset_get(&se2, HSET_INTVALUE(vals2[i]));
+
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&se2), hset_free(&res)),
+            "Partial overlap: res=%d, se1=%d, se2=%d (expected res=%d)",
+            hset_cnt(&res), hset_cnt(&se1), hset_cnt(&se2), expected_cnt
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+        hset_free(&res);
+    }
+
+    /* 6. Непересекающиеся множества: все элементы обоих в результате */
+    test_sub("subtest %d: disjoint sets", ++subnum);
+    {
+        int     vals1[] = {100, 200};
+        int     vals2[] = {300, 400};
+        hset    se1 = hset_fromiarr(vals1, COUNT(vals1));
+        hset    se2 = hset_fromiarr(vals2, COUNT(vals2));
+
+        int     cnt1_before = hset_cnt(&se1);
+        int     cnt2_before = hset_cnt(&se2);
+        hset    res = hset_init_union(&se1, &se2);
+
+        int     expected_total = COUNT(vals1) + COUNT(vals2);
+        int     ok = (hset_cnt(&res) == expected_total) &&
+                     (hset_cnt(&se1) == cnt1_before) &&
+                     (hset_cnt(&se2) == cnt2_before);
+        for (int i = 0; ok && i < COUNT(vals1); i++)
+            ok = hset_get(&res, HSET_INTVALUE(vals1[i]));
+        for (int i = 0; ok && i < COUNT(vals2); i++)
+            ok = hset_get(&res, HSET_INTVALUE(vals2[i]));
+        // исходные целы
+        for (int i = 0; ok && i < COUNT(vals1); i++)
+            ok = hset_get(&se1, HSET_INTVALUE(vals1[i]));
+        for (int i = 0; ok && i < COUNT(vals2); i++)
+            ok = hset_get(&se2, HSET_INTVALUE(vals2[i]));
+
+        test_validatefree(
+            ok,
+            (hset_free(&se1), hset_free(&se2), hset_free(&res)),
+            "Disjoint sets: res=%d, se1=%d, se2=%d (expected res=%d)",
+            hset_cnt(&res), hset_cnt(&se1), hset_cnt(&se2), expected_total
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+        hset_free(&res);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
 
 // ------------------------------------------------------------------------------------------------------------------------------
 int
