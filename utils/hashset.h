@@ -118,7 +118,8 @@ static inline hset_value        hset_createval(const void *p, hset_type typ){
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
 extern hset             hset_init(int sz, hset_type typ);      // #define will be for particular type
-extern hset             hset_init_resize(hset *se, int newsz);       // TODO:
+extern hset             hset_init_resize(hset *se, int newsz);
+extern hset             hset_normalize(hset *se);
 //
 extern void             hset_free(hset *se);
 //

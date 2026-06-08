@@ -15,7 +15,11 @@
 #include "guard.h"
 #include "fs.h"
 
+// TODO: move that to context
 static int                              HSET_ARRAY_CREATE_MULTIPLIER = 2;
+static int                              HSET_MIN_SIZE                = 8;
+static double                           HSET_NORMALIZE_FACTOR        = 1.5;
+
 static const size_t                     hset_elem_sizes[] = {
     [HSET_INT]  = sizeof(int),
     [HSET_LONG] = sizeof(long),
@@ -364,7 +368,19 @@ hset             hset_init_resize(hset *se, int newsz){
     *se = res;  // and fill with newly created
     return logsimpleret(res, "Resized to %d", res.sz);
 }
-
+// normalization
+hset                        hset_normalize(hset *se){
+    double load_factor = (double)se->count / se->sz;
+    // Изменяем размер только при выходе из желаемого диапазона
+    if (load_factor > 0.75 || load_factor < 0.25) {
+        int     newsz = (int) (se->count * HSET_NORMALIZE_FACTOR);   // или любой другой коэффициент
+        if (newsz < HSET_MIN_SIZE)
+            newsz = HSET_MIN_SIZE;                   // минимальный размер
+        return hset_init_resize(se, newsz);
+    }
+    return logsimpleret(*se, "Normilized to %d / %d", se->sz, se->count);
+}
+// cloning
 hset                        hset_clone(const hset *se){
     invraise(se != 0, "Null pointer");
 
@@ -3008,6 +3024,134 @@ tf18(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST 19 ---------------------------------
+
+static TestStatus
+tf19(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Пустое множество: load factor = 0, должен уменьшиться до HSET_MIN_SIZE */
+    test_sub("subtest %d: empty set normalized", ++subnum);
+    {
+        hset    se = hset_init(100, HSET_INT);    // sz будет 101
+        int     old_sz = se.sz;
+        int     old_cnt = hset_cnt(&se);
+        hset    res = hset_normalize(&se);
+
+        int     ok = (res.sz == se.sz) &&                     // возврат совпадает с se
+                     (hset_cnt(&se) == old_cnt) &&           // пусто
+                     (se.sz <= old_sz) &&                    // размер уменьшился
+                     (se.sz >= HSET_MIN_SIZE);               // но не меньше минимума
+        test_validatefree(
+            ok,
+            hset_free(&se),
+            "Empty set: old_sz=%d -> new_sz=%d, cnt=%d (expected sz <= %d, >= %d)",
+            old_sz, se.sz, hset_cnt(&se), old_sz, HSET_MIN_SIZE
+        );
+        hset_free(&se);
+    }
+
+    /* 2. Низкая загрузка (много пустых корзин) -> размер уменьшается */
+    test_sub("subtest %d: low load factor", ++subnum);
+    {
+        int     vals[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        hset    se = hset_init(1000, HSET_INT);   // сразу задаём большой размер
+        hset_loadiarr(&se, vals, COUNT(vals));    // загружаем элементы
+
+        int     old_sz = se.sz;
+        int     cnt_before = hset_cnt(&se);
+        hset    res = hset_normalize(&se);
+
+        int     ok = (res.sz == se.sz) && (hset_cnt(&se) == cnt_before) &&
+                     (se.sz < old_sz);            // размер должен уменьшиться
+        for (int i = 0; ok && i < COUNT(vals); i++)
+            ok = hset_get(&se, HSET_INTVALUE(vals[i]));
+
+        test_validatefree(
+            ok,
+            hset_free(&se),
+            "Low load factor: old_sz=%d -> new_sz=%d, cnt=%d (expected sz < %d)",
+            old_sz, se.sz, hset_cnt(&se), old_sz
+        );
+        hset_free(&se);
+    }
+    /* 3. Высокая загрузка (>0.75) -> размер увеличивается */
+    test_sub("subtest %d: high load factor", ++subnum);
+    {
+        int     vals[100];
+        for (int i = 0; i < COUNT(vals); i++)
+            vals[i] = i;
+
+        hset    se = hset_init(100, HSET_INT);   // next_prime(100) = 101
+        hset_loadiarr(&se, vals, COUNT(vals));   // 100 элементов, load factor ≈ 0.99
+        int     old_sz = se.sz;
+        int     cnt_before = hset_cnt(&se);
+        hset    res = hset_normalize(&se);
+
+        int     ok = (res.sz == se.sz) && (hset_cnt(&se) == cnt_before) &&
+                     (se.sz > old_sz);            // размер должен вырасти
+        for (int i = 0; ok && i < COUNT(vals); i++)
+            ok = hset_get(&se, HSET_INTVALUE(vals[i]));
+
+        test_validatefree(
+            ok,
+            hset_free(&se),
+            "High load factor: old_sz=%d -> new_sz=%d, cnt=%d (expected sz > %d)",
+            old_sz, se.sz, hset_cnt(&se), old_sz
+        );
+        hset_free(&se);
+    }
+    /* 4. Нормальная загрузка (в пределах 0.25..0.75) -> размер не меняется */
+    test_sub("subtest %d: normal load factor unchanged", ++subnum);
+    {
+        int     vals[20];
+        for (int i = 0; i < COUNT(vals); i++)
+            vals[i] = i;
+
+        hset    se = hset_init(50, HSET_INT);           // sz станет 53 (next_prime(50))
+        hset_loadiarr(&se, vals, COUNT(vals));          // 20 элементов, load factor ≈ 0.38
+        int     old_sz = se.sz;
+        int     cnt_before = hset_cnt(&se);
+        hset    res = hset_normalize(&se);
+
+        int     ok = (res.sz == se.sz) && (hset_cnt(&se) == cnt_before) &&
+                     (se.sz == old_sz);                 // размер не должен измениться
+        for (int i = 0; ok && i < COUNT(vals); i++)
+            ok = hset_get(&se, HSET_INTVALUE(vals[i]));
+
+        test_validatefree(
+            ok,
+            hset_free(&se),
+            "Normal load factor: old_sz=%d -> new_sz=%d, cnt=%d (expected sz unchanged %d)",
+            old_sz, se.sz, hset_cnt(&se), old_sz
+        );
+        hset_free(&se);
+    }
+    /* 5. После нормализации все элементы доступны (уже проверялось, но оставим явный) */
+    test_sub("subtest %d: elements preserved after normalize", ++subnum);
+    {
+        int     vals[] = {5, 15, 25, 35, 45};
+        hset    se = hset_fromiarr(vals, COUNT(vals));
+        hset_normalize(&se);   // после создания load factor ~5/7=0.71 – может не измениться, но проверим
+
+        int     ok = (hset_cnt(&se) == COUNT(vals));
+        for (int i = 0; ok && i < COUNT(vals); i++)
+            ok = hset_get(&se, HSET_INTVALUE(vals[i]));
+
+        test_validatefree(
+            ok,
+            hset_free(&se),
+            "Elements preserved: cnt=%d (expected %d)",
+            hset_cnt(&se), COUNT(vals)
+        );
+        hset_free(&se);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -3033,6 +3177,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf16,  .num = 16, .name = "hset_init_resize simple test"               , .desc="", .mandatory=true)
       , testnew(.f2 = tf17,  .num = 17, .name = "hset_union simple test"                     , .desc="", .mandatory=true)
       , testnew(.f2 = tf18,  .num = 18, .name = "hset_init_union simple test"                , .desc="", .mandatory=true)
+      , testnew(.f2 = tf19,  .num = 19, .name = "hset_normalize simple test"                 , .desc="", .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
