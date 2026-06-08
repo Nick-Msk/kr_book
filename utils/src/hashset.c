@@ -724,6 +724,15 @@ hset                       *hset_symmdiff(hset *restrict se1, const hset *restri
     hset_move(se1, &tmp);       // no need to free tmp!!!!
     return logsimpleret(se1, "Done, new cnt = %d", se1->count);
 }
+// union= as SET
+hset            *hset_union(hset *restrict a, const hset *restrict b){ 
+    invraise(se1 != 0 && se2 != 0, "Null pointers");
+    // TODO: rework checkers!!! at least move that into check_it()
+    if (getype(se1) != getype(se2) )
+        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1) ), hset_type_name(getype(se2) ) );
+
+    
+}
 
 // ------------------------------------- (API) printers ------------------------------------
 

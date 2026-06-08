@@ -214,6 +214,9 @@ extern int              hset_minus(hset *restrict se1, const hset *restrict se2)
 extern int              hset_intersect(hset *restrict se1, const hset *restrict se2);
 // se1 symmdiff= se2 as SET
 extern hset            *hset_symmdiff(hset *restrict a, const hset *restrict b);
+// union= as SET
+extern hset            *hset_union(hset *restrict a, const hset *restrict b);
+
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
 extern int              hset_techfprint(FILE *restrict out, const hset *se, int cnt);
