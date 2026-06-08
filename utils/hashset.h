@@ -167,6 +167,9 @@ extern bool             hset_get(const hset *se, hset_value val);
 static inline int       hset_cnt(const hset *se){
     return se->count;
 }
+static inline bool      hset_isempty(const hset *se) {
+    return hset_cnt(se) == 0;
+}
 
 extern void             hset_clean(hset *se);
 // origin wll be cleaned
@@ -211,7 +214,7 @@ static inline bool      hset_strictin(const hset *restrict se1, const hset *rest
     return hset_subset_check(se1, se2, true);
 }
 // se1 -= se2 as SET
-extern int              hset_minus(hset *restrict se1, const hset *restrict se2);
+extern hset            *hset_minus(hset *restrict se1, const hset *restrict se2);
 // se1 insersect= se2 as SET
 extern int              hset_intersect(hset *restrict se1, const hset *restrict se2);
 // se1 symmdiff= se2 as SET
