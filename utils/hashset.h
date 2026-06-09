@@ -181,6 +181,8 @@ static inline hset     *hset_move(hset *target, hset * origin){
     origin->flags = origin->sz = 0;
     return logsimpleret(target, "moved to %p, sz %d, cnt %d", target, target->sz, target->count);
 }
+// TODO:
+extern hset_elem       *hset_item_move(hset *restrict target, const hset_elem *restrict elem);
 
 extern bool             hset_eq(const hset *restrict se1, const hset *restrict se2);
 
