@@ -929,36 +929,50 @@ tf10(const char *name)
 {
     logenter("%s", name);
     int subnum = 0;
-    /* 1. Int ascending series: начинается с 0, шаг +1 */
+
+    /* 1. Int ascending series */
     test_sub("subtest %d: int asc series", ++subnum);
     {
         int     cnt = 100;
         Array   arr = IArray_create(cnt, ARRAY_ASC_SERIES);
-        int     ok = (Arraylen(arr) == cnt) && (arr.iv[0] == 0);
-        for (int i = 0; ok && i < Arraylen(arr) - 1; i++)
-            ok = (arr.iv[i + 1] == arr.iv[i] + 1);
 
+        int     len = Arraylen(arr);
         test_validatefree(
-            ok,
+            len == cnt,
             Arrayfree(arr),
-            "Int asc series invariant or first element failed"
+            "Array length = %d, expected %d", len, cnt
         );
+
+        for (int i = 0; i < cnt; i++) {
+            test_validatefree(
+                arr.iv[i] == i,
+                Arrayfree(arr),
+                "Int asc series: arr[%d] = %d, expected %d", i, arr.iv[i], i
+            );
+        }
     }
 
-    /* 2. Int descending series: начинается с len-1, шаг -1 */
+    /* 2. Int descending series */
     test_sub("subtest %d: int desc series", ++subnum);
     {
         int     cnt = 50;
         Array   arr = IArray_create(cnt, ARRAY_DESC_SERIES);
-        int     ok = (Arraylen(arr) == cnt) && (arr.iv[0] == cnt - 1);
-        for (int i = 0; ok && i < Arraylen(arr) - 1; i++)
-            ok = (arr.iv[i + 1] == arr.iv[i] - 1);
 
+        int     len = Arraylen(arr);
         test_validatefree(
-            ok,
+            len == cnt,
             Arrayfree(arr),
-            "Int desc series invariant or first element failed"
+            "Array length = %d, expected %d", len, cnt
         );
+
+        for (int i = 0; i < cnt; i++) {
+            int expected = cnt - 1 - i;
+            test_validatefree(
+                arr.iv[i] == expected,
+                Arrayfree(arr),
+                "Int desc series: arr[%d] = %d, expected %d", i, arr.iv[i], expected
+            );
+        }
     }
 
     /* 3. Long ascending series */
@@ -966,15 +980,21 @@ tf10(const char *name)
     {
         int     cnt = 70;
         Array   arr = LArray_create(cnt, ARRAY_ASC_SERIES);
-        int     ok = (Arraylen(arr) == cnt) && (arr.lv[0] == 0L);
-        for (int i = 0; ok && i < Arraylen(arr) - 1; i++)
-            ok = (arr.lv[i + 1] == arr.lv[i] + 1);
 
+        int     len = Arraylen(arr);
         test_validatefree(
-            ok,
+            len == cnt,
             Arrayfree(arr),
-            "Long asc series invariant or first element failed"
+            "Array length = %d, expected %d", len, cnt
         );
+
+        for (int i = 0; i < cnt; i++) {
+            test_validatefree(
+                arr.lv[i] == (long)i,
+                Arrayfree(arr),
+                "Long asc series: arr[%d] = %ld, expected %ld", i, arr.lv[i], (long)i
+            );
+        }
     }
 
     /* 4. Long descending series */
@@ -982,15 +1002,22 @@ tf10(const char *name)
     {
         int     cnt = 40;
         Array   arr = LArray_create(cnt, ARRAY_DESC_SERIES);
-        int     ok = (Arraylen(arr) == cnt) && (arr.lv[0] == (long) (cnt - 1) );
-        for (int i = 0; ok && i < Arraylen(arr) - 1; i++)
-            ok = (arr.lv[i + 1] == arr.lv[i] - 1);
 
+        int     len = Arraylen(arr);
         test_validatefree(
-            ok,
+            len == cnt,
             Arrayfree(arr),
-            "Long desc series invariant or first element failed"
+            "Array length = %d, expected %d", len, cnt
         );
+
+        for (int i = 0; i < cnt; i++) {
+            long expected = (long)(cnt - 1 - i);
+            test_validatefree(
+                arr.lv[i] == expected,
+                Arrayfree(arr),
+                "Long desc series: arr[%d] = %ld, expected %ld", i, arr.lv[i], expected
+            );
+        }
     }
 
     /* 5. Double ascending series */
@@ -998,42 +1025,58 @@ tf10(const char *name)
     {
         int     cnt = 30;
         Array   arr = DArray_create(cnt, ARRAY_ASC_SERIES);
-        int     ok = (Arraylen(arr) == cnt) && (arr.dv[0] == 0.0);
-        for (int i = 0; ok && i < Arraylen(arr) - 1; i++)
-            ok = (arr.dv[i + 1] == arr.dv[i] + 1.0);
 
+        int     len = Arraylen(arr);
         test_validatefree(
-            ok,
+            len == cnt,
             Arrayfree(arr),
-            "Double asc series invariant or first element failed"
+            "Array length = %d, expected %d", len, cnt
         );
+
+        for (int i = 0; i < cnt; i++) {
+            test_validatefree(
+                arr.dv[i] == (double)i,
+                Arrayfree(arr),
+                "Double asc series: arr[%d] = %f, expected %f", i, arr.dv[i], (double)i
+            );
+        }
     }
+
     /* 6. Double descending series */
     test_sub("subtest %d: double desc series", ++subnum);
     {
         int     cnt = 25;
         Array   arr = DArray_create(cnt, ARRAY_DESC_SERIES);
-        int     ok = (Arraylen(arr) == cnt) && (arr.dv[0] == (double) (cnt - 1) );
-        for (int i = 0; ok && i < Arraylen(arr) - 1; i++)
-            ok = (arr.dv[i + 1] == arr.dv[i] - 1.0);
 
+        int     len = Arraylen(arr);
         test_validatefree(
-            ok,
+            len == cnt,
             Arrayfree(arr),
-            "Double desc series invariant or first element failed"
+            "Array length = %d, expected %d", len, cnt
         );
+
+        for (int i = 0; i < cnt; i++) {
+            double expected = (double)(cnt - 1 - i);
+            test_validatefree(
+                arr.dv[i] == expected,
+                Arrayfree(arr),
+                "Double desc series: arr[%d] = %f, expected %f", i, arr.dv[i], expected
+            );
+        }
     }
-    /* 7. Empty series */
+
+    /* 7. Empty array */
     test_sub("subtest %d: empty series", ++subnum);
     {
         Array   arr = IArray_create(0, ARRAY_ASC_SERIES);
-        int     ok = (Arraylen(arr) == 0);
+        int     len = Arraylen(arr);
         test_validatefree(
-            ok,
+            len == 0,
             Arrayfree(arr),
-            "Empty series length not zero"
+            "Empty array length = %d, expected 0", len
         );
     }
+
     /* 8. Неподдерживаемый тип (указатели) – должен вернуть ошибку, но не упасть */
     test_sub("subtest %d: pointer series (unsupported)", ++subnum);
     {
@@ -1065,124 +1108,144 @@ tf11(const char *name)
     logenter("%s", name);
     int subnum = 0;
 
-    /* 1. Заполнение середины массива (int) возрастающей серией */
+    /* 1. Заполнение середины int массива возрастающей серией */
     test_sub("subtest %d: fill middle with asc series", ++subnum);
     {
         int     cnt = 50;
-        Array   arr = IArray_create(cnt, ARRAY_ZERO);   // весь массив нули
+        Array   arr = IArray_create(cnt, ARRAY_ZERO);
         int     from = 10, to = 20;
 
         Array_fillrange(arr, ARRAY_ASC_SERIES, from, to);
 
-        int     ok = (Arraylen(arr) == cnt);
-        // Элементы до from должны остаться нулями
-        for (int i = 0; ok && i < from; i++)
-            ok = (arr.iv[i] == 0);
-        // Внутри диапазона значения равны индексу (i)
-        for (int i = from; ok && i < to; i++)
-            ok = (arr.iv[i] == i);
-        // После to – снова нули
-        for (int i = to; ok && i < cnt; i++)
-            ok = (arr.iv[i] == 0);
-
+        // Проверка общей длины
+        int     len = Arraylen(arr);
         test_validatefree(
-            ok,
+            len == cnt,
             Arrayfree(arr),
-            "Middle asc series fill failed"
+            "Array length = %d, expected %d", len, cnt
         );
+
+        // Элементы до from и после to должны остаться нулями
+        for (int i = 0; i < cnt; i++) {
+            if (i >= from && i < to)
+                continue;
+            test_validatefree(
+                arr.iv[i] == 0,
+                Arrayfree(arr),
+                "Element [%d] = %d, expected 0 (outside range)", i, arr.iv[i]
+            );
+        }
+
+        // Внутри диапазона значения равны индексу
+        for (int i = from; i < to; i++) {
+            test_validatefree(
+                arr.iv[i] == i,
+                Arrayfree(arr),
+                "Element [%d] = %d, expected %d (inside range)", i, arr.iv[i], i
+            );
+        }
     }
 
-    /* 2. Заполнение всего массива (long) убывающей серией */
+    /* 2. Заполнение всего long массива убывающей серией */
     test_sub("subtest %d: full fill with desc series (long)", ++subnum);
     {
         int     cnt = 30;
         Array   arr = LArray_create(cnt, ARRAY_NONE);
         Array_fillrange(arr, ARRAY_DESC_SERIES, 0, cnt);
 
-        int     ok = (Arraylen(arr) == cnt) && (arr.lv[0] == cnt - 1);
-        for (int i = 0; ok && i < cnt - 1; i++)
-            ok = (arr.lv[i + 1] == arr.lv[i] - 1);
-
+        int     len = Arraylen(arr);
         test_validatefree(
-            ok,
+            len == cnt,
             Arrayfree(arr),
-            "Full desc series fill (long) failed"
+            "Array length = %d, expected %d", len, cnt
         );
+
+        for (int i = 0; i < cnt; i++) {
+            long expected = (long)(cnt - 1 - i);
+            test_validatefree(
+                arr.lv[i] == expected,
+                Arrayfree(arr),
+                "Element [%d] = %ld, expected %ld", i, arr.lv[i], expected
+            );
+        }
     }
 
-    /* 3. from == to – ничего не должно измениться */
+    /* 3. Пустой диапазон (from == to) – массив не меняется */
     test_sub("subtest %d: from == to leaves array unchanged", ++subnum);
     {
         int     cnt = 20;
-        Array   arr = IArray_create(cnt, ARRAY_ASC_SERIES);   // [0..19]
-        Array_fillrange(arr, ARRAY_RND, 5, 5);   // пустой диапазон
+        Array   arr = IArray_create(cnt, ARRAY_ASC_SERIES);  // [0..19]
+        Array_fillrange(arr, ARRAY_RND, 5, 5);
 
-        int     ok = (Arraylen(arr) == cnt) && (arr.iv[0] == 0);
-        for (int i = 0; ok && i < cnt - 1; i++)
-            ok = (arr.iv[i + 1] == arr.iv[i] + 1);
-
+        int     len = Arraylen(arr);
         test_validatefree(
-            ok,
+            len == cnt,
             Arrayfree(arr),
-            "Array changed when from == to"
+            "Array length = %d, expected %d", len, cnt
         );
+
+        for (int i = 0; i < cnt; i++) {
+            test_validatefree(
+                arr.iv[i] == i,
+                Arrayfree(arr),
+                "Element [%d] = %d, expected %d (unchanged after empty fill)", i, arr.iv[i], i
+            );
+        }
     }
 
-    /* 4. Выход за границы (from < 0, to > len) – программа не падает */
+    /* 4. Выход за границы – программа не должна упасть */
     test_sub("subtest %d: out-of-bounds does not crash", ++subnum);
     {
         int     cnt = 10;
         Array   arr = IArray_create(cnt, ARRAY_ZERO);
-        // Заведомо некорректные индексы
         Array_fillrange(arr, ARRAY_ASC_SERIES, -5, cnt + 5);
 
-        // Проверяем, что массив остался прежним (или функция обрезала границы корректно)
-        // Поскольку поведение "не падать" заявлено, просто убедимся, что длина не изменилась
-        int     ok = (Arraylen(arr) == cnt);
-        // Дополнительно можно проверить, что программа вообще дошла до этой точки
+        int     len = Arraylen(arr);
         test_validatefree(
-            ok,
+            len == cnt,
             Arrayfree(arr),
-            "Out-of-bounds caused crash or changed length"
+            "After out-of-bounds fill, length = %d, expected %d", len, cnt
         );
+        // Дополнительно можно не проверять содержимое, так как поведение не определено
     }
 
-    /* 5. Double массив, заполнение случайными числами в диапазоне */
-    test_sub("subtest %d: double random fill range", ++subnum);
+    /* 5. Double массив, заполнение возрастающей серией в поддиапазоне */
+    test_sub("subtest %d: double asc series fill range", ++subnum);
     {
         int     cnt = 25, from = 5, to = 15;
         Array   arr = DArray_create(cnt, ARRAY_ZERO);
         Array_fillrange(arr, ARRAY_ASC_SERIES, from, to);
 
-        int     ok = (Arraylen(arr) == cnt);
+        int     len = Arraylen(arr);
+        test_validatefree(
+            len == cnt,
+            Arrayfree(arr),
+            "Array length = %d, expected %d", len, cnt
+        );
+
         // Элементы вне диапазона остались нулями
-        if (ok) ok = (arr.dv[0] == 0.0) && (arr.dv[from - 1] == 0.0) && (arr.dv[to] == 0.0);
-        // Внутри диапазона значения равны индексу (i)
-        for (int i = from; ok && i < to; i++)
-            ok = (arr.dv[i] == (double)i);
+        for (int i = 0; i < cnt; i++) {
+            if (i >= from && i < to) continue;
+            test_validatefree(
+                arr.dv[i] == 0.0,
+                Arrayfree(arr),
+                "Element [%d] = %f, expected 0.0 (outside range)", i, arr.dv[i]
+            );
+        }
 
-        test_validatefree(
-            ok,
-            Arrayfree(arr),
-            "Double asc series fill range failed"
-        );
-    }
-
-    /* 6. Пустой массив – не должен упасть */
-    test_sub("subtest %d: empty array fill range", ++subnum);
-    {
-        Array   arr = IArray_create(0, ARRAY_ZERO);
-        Array_fillrange(arr, ARRAY_ASC_SERIES, 0, 0);
-        int     ok = (Arraylen(arr) == 0);
-        test_validatefree(
-            ok,
-            Arrayfree(arr),
-            "Empty array fill range crashed"
-        );
+        // Внутри диапазона значения равны индексу
+        for (int i = from; i < to; i++) {
+            test_validatefree(
+                arr.dv[i] == (double)i,
+                Arrayfree(arr),
+                "Element [%d] = %f, expected %f", i, arr.dv[i], (double)i
+            );
+        }
     }
 
     return logret(TEST_PASSED, "done");
 }
+
 
 // -------------------------------------------------------------------
 int
