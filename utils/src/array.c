@@ -169,7 +169,8 @@ int                      Array_fillrange(Array a, ArrayFillType typ, int from, i
             longval     = 0L;
             doubleval   = 0.0;
             // TODO: I need invraisenum(ERROR_..., condition, msg, ....);
-            invraise(Array_isint(a) || Array_islong(a) || Array_isdouble(a), "Unsupported type");
+            invraisecode(Array_isint(a) || Array_islong(a) || Array_isdouble(a), 
+                ERR_UNSUPPORTED_TYPE, "Unsupported type %d", Array_gettype(a) );
             for (int i = from; i < to; i++){ // iter??? TODO:
                     if (Array_isint(a))
                         a.iv[i] = i + intval;
@@ -184,7 +185,8 @@ int                      Array_fillrange(Array a, ArrayFillType typ, int from, i
             longval     = to - 1;
             doubleval   = to - 1;
             // TODO: I need invraisenum(ERROR_NUMBER, condition, msg, ....);
-            invraise(Array_isint(a) || Array_islong(a) || Array_isdouble(a), "Unsupported type");
+            invraisecode(Array_isint(a) || Array_islong(a) || Array_isdouble(a), 
+                ERR_UNSUPPORTED_TYPE, "Unsupported type %d", Array_gettype(a) );
             for (int i = to - 1; i >= from; i--){ // iter??? TODO:
                     if (Array_isint(a))
                         a.iv[i] = intval - i;
@@ -252,7 +254,7 @@ void                     Array_qsort(Array arr, ArrayFillType ord){
         sz = sizeof(long);
         if (ord == ARRAY_ASC){
             cmp = plong_cmp;
-            logsimple("COMPARATOR: sz %d, ARRAY_ASC", sz);
+            //logsimple("COMPARATOR: sz %d, ARRAY_ASC", sz);
         }
         else
             cmp = plong_revcmp;

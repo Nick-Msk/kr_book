@@ -104,17 +104,21 @@ static inline Array             PArray_create(int cnt, ArrayFillType typ){
 
 // -------------- ACCESS AND MODIFICATION --------------
 
+static inline int               Array_gettype(Array a){
+    return a.flags & 0xFF;
+}
+
 static inline bool              Array_isint(Array a){
-    return (a.flags & 0xFF) == ARRAY_INT;
+    return Array_gettype(a) == ARRAY_INT;
 }
 static inline bool              Array_islong(Array a){
-    return (a.flags & 0xFF) == ARRAY_LONG;
+    return Array_gettype(a) == ARRAY_LONG;
 }
 static inline bool              Array_isdouble(Array a){
-    return (a.flags & 0xFF) == ARRAY_DOUBLE;
+    return Array_gettype(a) == ARRAY_DOUBLE;
 }
 static inline bool              Array_ispointer(Array a){
-    return (a.flags & 0xFF) == ARRAY_POINTER;
+    return Array_gettype(a) == ARRAY_POINTER;
 }
 static inline bool              Array_iserror(Array a){
     return a.flags & ARRAY_ERROR;
