@@ -78,19 +78,19 @@ Array                           Array_create(int cnt, ArrayFillType filltyp, Arr
     return logret(res, "sz = %d", res.sz);
 }
 
-void                    Array_free(Array *val){
+void                            Array_free(Array *val){
     if (val && val->iv){
         free(val->iv);
         val->iv = 0;
     }
 }
 
-int                      Array_fill(Array a, ArrayFillType typ){
+int                             Array_fill(Array a, ArrayFillType typ){
     return Array_fillrange(a, typ, 0, a.len);
 }
 
 // TODO: probably shoube be reworked to use switch (type) + separate code
-int                      Array_fillrange(Array a, ArrayFillType typ, int from, int to){
+int                             Array_fillrange(Array a, ArrayFillType typ, int from, int to){
     int         intval;
     long        longval;
     double      doubleval;  // TODO:

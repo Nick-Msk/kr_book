@@ -157,6 +157,32 @@ extern Array                    Array_increase(Array arr, int newcnt);
 extern void                     Array_shuffle(Array arr);
 extern void                     Array_qsort(Array arr, ArrayFillType ord);
 
+//#define                         Array_apply(arr, condition, action)
+#define Array_foreach(arr, elem, idx, block) do { \
+    typeof_unqual(arr) _arr = (arr); \
+    if (Array_isint(_arr)) { \
+        for (int idx = 0; idx < _arr.len; idx++) { \
+            int *elem = &_arr.iv[idx]; \
+            block \
+        } \
+    } else if (Array_islong(_arr)) { \
+        for (int idx = 0; idx < _arr.len; idx++) { \
+            long *elem = &_arr.lv[idx]; \
+            block \
+        } \
+    } else if (Array_isdouble(_arr)) { \
+        for (int idx = 0; idx < _arr.len; idx++) { \
+            double *elem = &_arr.dv[idx]; \
+            block \
+        } \
+    } else if (Array_ispointer(_arr)) { \
+        for (int idx = 0; idx < _arr.len; idx++) { \
+            void **elem = &_arr.pv[idx]; \
+            block \
+        } \
+    } \
+} while(0)
+
 // ----------------- PRINTERS ----------------------
 
 extern int                      Array_fprint(FILE *f, Array val, int limit);
