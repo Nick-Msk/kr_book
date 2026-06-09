@@ -923,6 +923,141 @@ tf9(const char *name){
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
+// ------------------------- TEST 10 ---------------------------------
+static TestStatus
+tf10(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+    /* 1. Int ascending series: начинается с 0, шаг +1 */
+    test_sub("subtest %d: int asc series", ++subnum);
+    {
+        int     cnt = 100;
+        Array   arr = IArray_create(cnt, ARRAY_ASC_SERIES);
+        int     ok = (Arraylen(arr) == cnt) && (arr.iv[0] == 0);
+        for (int i = 0; ok && i < Arraylen(arr) - 1; i++)
+            ok = (arr.iv[i + 1] == arr.iv[i] + 1);
+
+        test_validatefree(
+            ok,
+            Arrayfree(arr),
+            "Int asc series invariant or first element failed"
+        );
+    }
+
+    /* 2. Int descending series: начинается с len-1, шаг -1 */
+    test_sub("subtest %d: int desc series", ++subnum);
+    {
+        int     cnt = 50;
+        Array   arr = IArray_create(cnt, ARRAY_DESC_SERIES);
+        int     ok = (Arraylen(arr) == cnt) && (arr.iv[0] == cnt - 1);
+        for (int i = 0; ok && i < Arraylen(arr) - 1; i++)
+            ok = (arr.iv[i + 1] == arr.iv[i] - 1);
+
+        test_validatefree(
+            ok,
+            Arrayfree(arr),
+            "Int desc series invariant or first element failed"
+        );
+    }
+
+    /* 3. Long ascending series */
+    test_sub("subtest %d: long asc series", ++subnum);
+    {
+        int     cnt = 70;
+        Array   arr = LArray_create(cnt, ARRAY_ASC_SERIES);
+        int     ok = (Arraylen(arr) == cnt) && (arr.lv[0] == 0L);
+        for (int i = 0; ok && i < Arraylen(arr) - 1; i++)
+            ok = (arr.lv[i + 1] == arr.lv[i] + 1);
+
+        test_validatefree(
+            ok,
+            Arrayfree(arr),
+            "Long asc series invariant or first element failed"
+        );
+    }
+
+    /* 4. Long descending series */
+    test_sub("subtest %d: long desc series", ++subnum);
+    {
+        int     cnt = 40;
+        Array   arr = LArray_create(cnt, ARRAY_DESC_SERIES);
+        int     ok = (Arraylen(arr) == cnt) && (arr.lv[0] == (long) (cnt - 1) );
+        for (int i = 0; ok && i < Arraylen(arr) - 1; i++)
+            ok = (arr.lv[i + 1] == arr.lv[i] - 1);
+
+        test_validatefree(
+            ok,
+            Arrayfree(arr),
+            "Long desc series invariant or first element failed"
+        );
+    }
+
+    /* 5. Double ascending series */
+    test_sub("subtest %d: double asc series", ++subnum);
+    {
+        int     cnt = 30;
+        Array   arr = DArray_create(cnt, ARRAY_ASC_SERIES);
+        int     ok = (Arraylen(arr) == cnt) && (arr.dv[0] == 0.0);
+        for (int i = 0; ok && i < Arraylen(arr) - 1; i++)
+            ok = (arr.dv[i + 1] == arr.dv[i] + 1.0);
+
+        test_validatefree(
+            ok,
+            Arrayfree(arr),
+            "Double asc series invariant or first element failed"
+        );
+    }
+    /* 6. Double descending series */
+    test_sub("subtest %d: double desc series", ++subnum);
+    {
+        int     cnt = 25;
+        Array   arr = DArray_create(cnt, ARRAY_DESC_SERIES);
+        int     ok = (Arraylen(arr) == cnt) && (arr.dv[0] == (double) (cnt - 1) );
+        for (int i = 0; ok && i < Arraylen(arr) - 1; i++)
+            ok = (arr.dv[i + 1] == arr.dv[i] - 1.0);
+
+        test_validatefree(
+            ok,
+            Arrayfree(arr),
+            "Double desc series invariant or first element failed"
+        );
+    }
+    /* 7. Empty series */
+    test_sub("subtest %d: empty series", ++subnum);
+    {
+        Array   arr = IArray_create(0, ARRAY_ASC_SERIES);
+        int     ok = (Arraylen(arr) == 0);
+        test_validatefree(
+            ok,
+            Arrayfree(arr),
+            "Empty series length not zero"
+        );
+    }
+    /* 8. Неподдерживаемый тип (указатели) – должен вернуть ошибку, но не упасть */
+    test_sub("subtest %d: pointer series (unsupported)", ++subnum);
+    {
+        if (!try()) {
+            Array arr = PArray_create(10, ARRAY_ASC_SERIES);
+            // Если мы здесь, значит, программа не упала, хотя должна была вызвать invraise
+            test_validate(
+                false,
+                "Pointer series should have raised an error but didn't"
+            );
+            // just to avoid warning unused variable 'arr' [-Wunused-variable], that NEVER be used
+            Array_print(arr, 0);
+        } else {
+            // Сигнал перехвачен – это ожидаемое поведение
+            // Ничего не освобождаем, так как массив, скорее всего, не создался
+            test_validate(
+                true,
+                "Pointer series correctly raised error"
+            );
+        }
+    }
+    return logret(TEST_PASSED, "done");
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -930,21 +1065,20 @@ main( /*int argc, char *argv[] */ )
     logsimpleinit("Start");
 
     testenginestd(
-        testnew(.f2 = tf1, .num = 1, .name = "Int/double creation/descr test"       , .desc = "", .mandatory=true)
-      , testnew(.f2 = tf2, .num = 2, .name = "Int/double filling test"              , .desc = "", .mandatory=true)
-      , testnew(.f2 = tf3, .num = 3, .name = "Shrink test"                          , .desc = "", .mandatory=true)
-      , testnew(.f2 = tf4, .num = 4, .name = "Save/load int test"                   , .desc = "", .mandatory=true)
-      , testnew(.f2 = tf5, .num = 5, .name = "Save/load dbl test"                   , .desc = "", .mandatory=true)
-      , testnew(.f2 = tf6, .num = 6, .name = "Shuffle array(dbl/int) simple test"   , .desc = "", .mandatory=true)
-      , testnew(.f2 = tf7, .num = 7, .name = "Sort array(dbl/int) simple test"      , .desc = "", .mandatory=true)
-      , testnew(.f2 = tf8, .num = 8, .name = "Array_increase simple test"           , .desc = "", .mandatory=true)
-      , testnew(.f2 = tf9, .num = 9, .name = "PArray simple test"                   , .desc = "", .mandatory=true)
+        testnew(.f2 =  tf1, .num =  1, .name = "Int/double creation/descr test"                 , .desc = "", .mandatory=true)
+      , testnew(.f2 =  tf2, .num =  2, .name = "Int/double filling test"                        , .desc = "", .mandatory=true)
+      , testnew(.f2 =  tf3, .num =  3, .name = "Shrink test"                                    , .desc = "", .mandatory=true)
+      , testnew(.f2 =  tf4, .num =  4, .name = "Save/load int test"                             , .desc = "", .mandatory=true)
+      , testnew(.f2 =  tf5, .num =  5, .name = "Save/load dbl test"                             , .desc = "", .mandatory=true)
+      , testnew(.f2 =  tf6, .num =  6, .name = "Shuffle array(dbl/int) simple test"             , .desc = "", .mandatory=true)
+      , testnew(.f2 =  tf7, .num =  7, .name = "Sort array(dbl/int) simple test"                , .desc = "", .mandatory=true)
+      , testnew(.f2 =  tf8, .num =  8, .name = "Array_increase simple test"                     , .desc = "", .mandatory=true)
+      , testnew(.f2 =  tf9, .num =  9, .name = "PArray simple test"                             , .desc = "", .mandatory=true)
+      , testnew(.f2 = tf10, .num = 10, .name = "Creation with ARRAY_(DE)ASC_SERIES simple test" , .desc = "", .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
 }
-
-
 
 #endif /* ARRAYTESTING */
 
