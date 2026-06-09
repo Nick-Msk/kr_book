@@ -72,6 +72,10 @@ typedef struct {
         void   **pv;    // pointer array
     };
 } Array;
+// condition func
+typedef         bool (*Array_cond)(Array arr, int pos);
+// prosessing func
+typedef         void (*Array_proc)(Array arr, int pos);
 
 // ------------- CONSTRUCTOTS/DESTRUCTORS --------------
 
@@ -156,32 +160,22 @@ extern Array                    Array_increase(Array arr, int newcnt);
 
 extern void                     Array_shuffle(Array arr);
 extern void                     Array_qsort(Array arr, ArrayFillType ord);
+// if condition is 0-ptr == ALL
+extern int                      Array_foreach_proc(Array arr, Array_cond cond, Array_proc func);
 
-//#define                         Array_apply(arr, condition, action)
-#define Array_foreach(arr, elem, idx, block) do { \
-    typeof_unqual(arr) _arr = (arr); \
-    if (Array_isint(_arr)) { \
-        for (int idx = 0; idx < _arr.len; idx++) { \
-            int *elem = &_arr.iv[idx]; \
-            block \
-        } \
-    } else if (Array_islong(_arr)) { \
-        for (int idx = 0; idx < _arr.len; idx++) { \
-            long *elem = &_arr.lv[idx]; \
-            block \
-        } \
-    } else if (Array_isdouble(_arr)) { \
-        for (int idx = 0; idx < _arr.len; idx++) { \
-            double *elem = &_arr.dv[idx]; \
-            block \
-        } \
-    } else if (Array_ispointer(_arr)) { \
-        for (int idx = 0; idx < _arr.len; idx++) { \
-            void **elem = &_arr.pv[idx]; \
-            block \
-        } \
-    } \
-} while(0)
+//#define                       Array_apply(arr, condition, action)
+
+// Общий макрос: p is arr.iv, len is arr.len
+#define                         _Array_foreach_gen(p, len, elem) \
+    for (typeof_unqual(*(p)) *_begin_ = (p), *(elem) = _begin_; \
+         (elem) < _begin_ + (len); \
+         ++(elem))
+
+// Публичные однобуквенные макросы
+#define IArray_foreach(arr, elem) _Array_foreach_gen((arr).iv, (arr).len, elem)
+#define LArray_foreach(arr, elem) _Array_foreach_gen((arr).lv, (arr).len, elem)
+#define DArray_foreach(arr, elem) _Array_foreach_gen((arr).dv, (arr).len, elem)
+#define PArray_foreach(arr, elem) _Array_foreach_gen((arr).pv, (arr).len, elem)
 
 // ----------------- PRINTERS ----------------------
 

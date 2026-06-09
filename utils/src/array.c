@@ -274,10 +274,22 @@ void                     Array_qsort(Array arr, ArrayFillType ord){
     if (sz)
         qsort(arr.v, arr.len, sz, cmp);
 }
+// if condition is 0-ptr == ALL
+int                         Array_foreach_proc(Array arr, Array_cond cond, Array_proc func){
+    // TODO: use foreach here
+    int     cnt = 0;
+    for (int i = 0; i < Arraylen(arr); i++)
+        if (cond == 0 || cond(arr, i) ){
+            if (func)
+                func(arr, i);
+            cnt++;
+        }
+    return logsimpleret(cnt, "processed %d", cnt);
+}
 
 // -------------------------- (API) printers -----------------------
 
-int                     Array_fprint(FILE *f, Array val, int limit){
+int                         Array_fprint(FILE *f, Array val, int limit){
 
     int         cnt = 0, i;
     int         array_rec_line = 20;    // default
@@ -1248,6 +1260,210 @@ tf11(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST 12 ---------------------------------
+
+static TestStatus
+tf12(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. int array */
+    test_sub("subtest %d: int array (even half, odd zero)", ++subnum);
+    {
+        int     cnt = 10;
+        Array   arr = IArray_create(cnt, ARRAY_ASC_SERIES);   // 0..9
+
+        IArray_foreach(arr, elem) {
+            if (*elem % 2 == 0)
+                *elem /= 2;
+            else
+                *elem = 0;
+        }
+
+        test_validatefree(Arraylen(arr) == cnt, Arrayfree(arr), "Length mismatch");
+
+        int expected[] = {0, 0, 1, 0, 2, 0, 3, 0, 4, 0};
+        for (int i = 0; i < cnt; i++)
+            test_validatefree(arr.iv[i] == expected[i], Arrayfree(arr),
+                "int[%d]=%d expected %d", i, arr.iv[i], expected[i]);
+
+        Arrayfree(arr);
+    }
+
+    /* 2. long array */
+    test_sub("subtest %d: long array", ++subnum);
+    {
+        int     cnt = 8;
+        Array   arr = LArray_create(cnt, ARRAY_ASC_SERIES);
+
+        LArray_foreach(arr, elem) {
+            if (*elem % 2 == 0)
+                *elem /= 2;
+            else
+                *elem = 0;
+        }
+
+        test_validatefree(Arraylen(arr) == cnt, Arrayfree(arr), "Length mismatch");
+
+        long expected[] = {0L, 0L, 1L, 0L, 2L, 0L, 3L, 0L};
+        for (int i = 0; i < cnt; i++)
+            test_validatefree(arr.lv[i] == expected[i], Arrayfree(arr),
+                "long[%d]=%ld expected %ld", i, arr.lv[i], expected[i]);
+
+        Arrayfree(arr);
+    }
+
+    /* 3. double array */
+    test_sub("subtest %d: double array", ++subnum);
+    {
+        int     cnt = 6;
+        Array   arr = DArray_create(cnt, ARRAY_ASC_SERIES);
+
+        DArray_foreach(arr, elem) {
+            if (fmod(*elem, 2.0) == 0.0)
+                *elem /= 2.0;
+            else
+                *elem = 0.0;
+        }
+
+        test_validatefree(Arraylen(arr) == cnt, Arrayfree(arr), "Length mismatch");
+
+        double expected[] = {0.0, 0.0, 1.0, 0.0, 2.0, 0.0};
+        for (int i = 0; i < cnt; i++)
+            test_validatefree(arr.dv[i] == expected[i], Arrayfree(arr),
+                "double[%d]=%f expected %f", i, arr.dv[i], expected[i]);
+
+        Arrayfree(arr);
+    }
+
+    /* 4. pointer array (no‑op) */
+    test_sub("subtest %d: pointer array (no‑op)", ++subnum);
+    {
+        int     cnt = 3;
+        Array   arr = PArray_create(cnt, ARRAY_NONE);
+        arr.pv[0] = (void*)1; arr.pv[1] = (void*)2; arr.pv[2] = (void*)3;
+
+        PArray_foreach(arr, elem) {
+            // ничего не делаем
+        }
+
+        test_validatefree(Arraylen(arr) == cnt, Arrayfree(arr), "Length changed");
+        test_validatefree(arr.pv[0] == (void*)1, Arrayfree(arr), "ptr[0] mismatch");
+        test_validatefree(arr.pv[1] == (void*)2, Arrayfree(arr), "ptr[1] mismatch");
+        test_validatefree(arr.pv[2] == (void*)3, Arrayfree(arr), "ptr[2] mismatch");
+
+        Arrayfree(arr);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
+// ------------------------- TEST 13 ---------------------------------
+
+static bool keep_if_index_not_multiple_of_3(Array arr, int pos) {
+    (void)arr;
+    return (pos % 3) != 0;
+}
+
+static void square_int(Array arr, int pos) {
+    int val = arr.iv[pos];
+    arr.iv[pos] = val * val;
+}
+static void square_long(Array arr, int pos) {
+    long val = arr.lv[pos];
+    arr.lv[pos] = val * val;
+}
+static void mul_one_point_five_double(Array arr, int pos) {
+    arr.dv[pos] *= 1.5;
+}
+
+static TestStatus
+tf13(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. int array: возводим в квадрат, если индекс не кратен 3 */
+    test_sub("subtest %d: int array (square non‑multiples of 3)", ++subnum);
+    {
+        int     cnt = 10;
+        Array   arr = IArray_create(cnt, ARRAY_ASC_SERIES);   // 0,1,2,3,4,5,6,7,8,9
+
+        Array_foreach_proc(arr, keep_if_index_not_multiple_of_3, square_int);
+
+        test_validatefree(
+            Arraylen(arr) == cnt,
+            Arrayfree(arr),
+            "Array length = %d, expected %d", Arraylen(arr), cnt
+        );
+
+        int expected[] = {0, 1, 4, 3, 16, 25, 6, 49, 64, 9};
+        for (int i = 0; i < cnt; i++) {
+            test_validatefree(
+                arr.iv[i] == expected[i],
+                Arrayfree(arr),
+                "int proc: arr[%d] = %d, expected %d", i, arr.iv[i], expected[i]
+            );
+        }
+
+        Arrayfree(arr);
+    }
+
+    /* 2. long array */
+    test_sub("subtest %d: long array", ++subnum);
+    {
+        int     cnt = 8;
+        Array   arr = LArray_create(cnt, ARRAY_ASC_SERIES);   // 0L..7L
+
+        Array_foreach_proc(arr, keep_if_index_not_multiple_of_3, square_long);
+
+        test_validatefree(
+            Arraylen(arr) == cnt,
+            Arrayfree(arr),
+            "Array length = %d, expected %d", Arraylen(arr), cnt
+        );
+
+        long expected[] = {0L, 1L, 4L, 3L, 16L, 25L, 6L, 49L};
+        for (int i = 0; i < cnt; i++) {
+            test_validatefree(
+                arr.lv[i] == expected[i],
+                Arrayfree(arr),
+                "long proc: arr[%d] = %ld, expected %ld", i, arr.lv[i], expected[i]
+            );
+        }
+
+        Arrayfree(arr);
+    }
+
+    /* 3. double array: умножаем на 1.5, если индекс не кратен 3 */
+    test_sub("subtest %d: double array", ++subnum);
+    {
+        int     cnt = 6;
+        Array   arr = DArray_create(cnt, ARRAY_ASC_SERIES);   // 0.0..5.0
+
+        Array_foreach_proc(arr, keep_if_index_not_multiple_of_3, mul_one_point_five_double);
+
+        test_validatefree(
+            Arraylen(arr) == cnt,
+            Arrayfree(arr),
+            "Array length = %d, expected %d", Arraylen(arr), cnt
+        );
+
+        double expected[] = {0.0, 1.5, 3.0, 3.0, 6.0, 7.5};
+        for (int i = 0; i < cnt; i++) {
+            test_validatefree(
+                arr.dv[i] == expected[i],
+                Arrayfree(arr),
+                "double proc: arr[%d] = %f, expected %f", i, arr.dv[i], expected[i]
+            );
+        }
+
+        Arrayfree(arr);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
 
 // -------------------------------------------------------------------
 int
@@ -1267,6 +1483,8 @@ main( /*int argc, char *argv[] */ )
       , testnew(.f2 =  tf9, .num =  9, .name = "PArray simple test"                             , .desc = "", .mandatory=true)
       , testnew(.f2 = tf10, .num = 10, .name = "Creation with ARRAY_(DE)ASC_SERIES simple test" , .desc = "", .mandatory=true)
       , testnew(.f2 = tf11, .num = 11, .name = "Array_fillrange simple test"                    , .desc = "", .mandatory=true)
+      , testnew(.f2 = tf12, .num = 12, .name = "Array_foreach macro simple test"                , .desc = "", .mandatory=true)
+      , testnew(.f2 = tf13, .num = 13, .name = "Array_foreach_prod simple test"                 , .desc = "", .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
