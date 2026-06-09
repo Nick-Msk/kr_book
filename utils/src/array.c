@@ -165,9 +165,9 @@ int                      Array_fillrange(Array a, ArrayFillType typ, int from, i
             // just do nothing
         break;
         case ARRAY_ASC_SERIES:
-            intval = 1;
-            longval = 1L;
-            doubleval = 1.0;
+            intval      = 0;
+            longval     = 0L;
+            doubleval   = 0.0;
             // TODO: I need invraisenum(ERROR_..., condition, msg, ....);
             invraise(Array_isint(a) || Array_islong(a) || Array_isdouble(a), "Unsupported type");
             for (int i = from; i < to; i++){ // iter??? TODO:
@@ -180,9 +180,9 @@ int                      Array_fillrange(Array a, ArrayFillType typ, int from, i
             }
         break;
         case ARRAY_DESC_SERIES:
-            intval   = a.len - 1;
-            longval   = a.len - 1;
-            doubleval = a.len - 1;
+            intval      = to - 1;
+            longval     = to - 1;
+            doubleval   = to - 1;
             // TODO: I need invraisenum(ERROR_NUMBER, condition, msg, ....);
             invraise(Array_isint(a) || Array_islong(a) || Array_isdouble(a), "Unsupported type");
             for (int i = to - 1; i >= from; i--){ // iter??? TODO:
