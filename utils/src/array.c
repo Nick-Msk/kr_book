@@ -1058,6 +1058,132 @@ tf10(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST 11 ---------------------------------
+static TestStatus
+tf11(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Заполнение середины массива (int) возрастающей серией */
+    test_sub("subtest %d: fill middle with asc series", ++subnum);
+    {
+        int     cnt = 50;
+        Array   arr = IArray_create(cnt, ARRAY_ZERO);   // весь массив нули
+        int     from = 10, to = 20;
+
+        Array_fillrange(arr, ARRAY_ASC_SERIES, from, to);
+
+        int     ok = (Arraylen(arr) == cnt);
+        // Элементы до from должны остаться нулями
+        for (int i = 0; ok && i < from; i++)
+            ok = (arr.iv[i] == 0);
+        // Внутри диапазона значения равны индексу (i)
+        for (int i = from; ok && i < to; i++)
+            ok = (arr.iv[i] == i);
+        // После to – снова нули
+        for (int i = to; ok && i < cnt; i++)
+            ok = (arr.iv[i] == 0);
+
+        test_validatefree(
+            ok,
+            Arrayfree(arr),
+            "Middle asc series fill failed"
+        );
+    }
+
+    /* 2. Заполнение всего массива (long) убывающей серией */
+    test_sub("subtest %d: full fill with desc series (long)", ++subnum);
+    {
+        int     cnt = 30;
+        Array   arr = LArray_create(cnt, ARRAY_NONE);
+        Array_fillrange(arr, ARRAY_DESC_SERIES, 0, cnt);
+
+        int     ok = (Arraylen(arr) == cnt) && (arr.lv[0] == cnt - 1);
+        for (int i = 0; ok && i < cnt - 1; i++)
+            ok = (arr.lv[i + 1] == arr.lv[i] - 1);
+
+        test_validatefree(
+            ok,
+            Arrayfree(arr),
+            "Full desc series fill (long) failed"
+        );
+    }
+
+    /* 3. from == to – ничего не должно измениться */
+    test_sub("subtest %d: from == to leaves array unchanged", ++subnum);
+    {
+        int     cnt = 20;
+        Array   arr = IArray_create(cnt, ARRAY_ASC_SERIES);   // [0..19]
+        Array_fillrange(arr, ARRAY_RND, 5, 5);   // пустой диапазон
+
+        int     ok = (Arraylen(arr) == cnt) && (arr.iv[0] == 0);
+        for (int i = 0; ok && i < cnt - 1; i++)
+            ok = (arr.iv[i + 1] == arr.iv[i] + 1);
+
+        test_validatefree(
+            ok,
+            Arrayfree(arr),
+            "Array changed when from == to"
+        );
+    }
+
+    /* 4. Выход за границы (from < 0, to > len) – программа не падает */
+    test_sub("subtest %d: out-of-bounds does not crash", ++subnum);
+    {
+        int     cnt = 10;
+        Array   arr = IArray_create(cnt, ARRAY_ZERO);
+        // Заведомо некорректные индексы
+        Array_fillrange(arr, ARRAY_ASC_SERIES, -5, cnt + 5);
+
+        // Проверяем, что массив остался прежним (или функция обрезала границы корректно)
+        // Поскольку поведение "не падать" заявлено, просто убедимся, что длина не изменилась
+        int     ok = (Arraylen(arr) == cnt);
+        // Дополнительно можно проверить, что программа вообще дошла до этой точки
+        test_validatefree(
+            ok,
+            Arrayfree(arr),
+            "Out-of-bounds caused crash or changed length"
+        );
+    }
+
+    /* 5. Double массив, заполнение случайными числами в диапазоне */
+    test_sub("subtest %d: double random fill range", ++subnum);
+    {
+        int     cnt = 25, from = 5, to = 15;
+        Array   arr = DArray_create(cnt, ARRAY_ZERO);
+        Array_fillrange(arr, ARRAY_ASC_SERIES, from, to);
+
+        int     ok = (Arraylen(arr) == cnt);
+        // Элементы вне диапазона остались нулями
+        if (ok) ok = (arr.dv[0] == 0.0) && (arr.dv[from - 1] == 0.0) && (arr.dv[to] == 0.0);
+        // Внутри диапазона значения равны индексу (i)
+        for (int i = from; ok && i < to; i++)
+            ok = (arr.dv[i] == (double)i);
+
+        test_validatefree(
+            ok,
+            Arrayfree(arr),
+            "Double asc series fill range failed"
+        );
+    }
+
+    /* 6. Пустой массив – не должен упасть */
+    test_sub("subtest %d: empty array fill range", ++subnum);
+    {
+        Array   arr = IArray_create(0, ARRAY_ZERO);
+        Array_fillrange(arr, ARRAY_ASC_SERIES, 0, 0);
+        int     ok = (Arraylen(arr) == 0);
+        test_validatefree(
+            ok,
+            Arrayfree(arr),
+            "Empty array fill range crashed"
+        );
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -1075,6 +1201,7 @@ main( /*int argc, char *argv[] */ )
       , testnew(.f2 =  tf8, .num =  8, .name = "Array_increase simple test"                     , .desc = "", .mandatory=true)
       , testnew(.f2 =  tf9, .num =  9, .name = "PArray simple test"                             , .desc = "", .mandatory=true)
       , testnew(.f2 = tf10, .num = 10, .name = "Creation with ARRAY_(DE)ASC_SERIES simple test" , .desc = "", .mandatory=true)
+      , testnew(.f2 = tf11, .num = 11, .name = "Array_fillrange simple test"                    , .desc = "", .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
