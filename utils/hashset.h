@@ -16,7 +16,8 @@
 // ------------------- TYPES -----------------------
 
 typedef enum hset_type
-    { HSET_INT = 1, HSET_LONG, HSET_DBL, HSET_FS, HSET_PTR }
+    { HSET_INT = 1, HSET_LONG, HSET_DBL, HSET_FS, HSET_PTR,
+      HSET_UKNOWN = -1 }
 hset_type;
 
 static inline const char            *hset_type_name(hset_type t){
@@ -60,7 +61,9 @@ static inline void          hsetval_fprint(FILE *restrict out, const char *restr
                 fprintf(out, "%p", val.pval);
             break;
             case HSET_FS:
-                fs_fprint(out, val.fsval, 0);
+                // TODO: fs_fprint(out, val.fsval, 0);
+            break;
+            default:
             break;
         }
     }
@@ -83,11 +86,11 @@ typedef struct hset {
 } hset;
 
 #define                 HSET(size, typ) (hset) {.sz = (size), .flags = (typ), .table = 0 }
-#define                 HSET_ZERO_VALUE     (hset_value) {.u64 = 0 }
-#define                 HSET_INTVALUE(val)  (hset_value) {.u64 = 0, .ival = val }
-#define                 HSET_LONGVALUE(val) (hset_value) {.u64 = 0, .lval = val }
-#define                 HSET_DBLVALUE(val)  (hset_value) {.u64 = 0, .dval = val }
-#define                 HSET_PTRVALUE(val)  (hset_value) {.u64 = 0, .pval = val }
+#define                 HSET_ZERO_VALUE     (hset_value) {.u64 = 0L }
+#define                 HSET_INTVALUE(val)  (hset_value) {.u64 = 0L, .ival = val }
+#define                 HSET_LONGVALUE(val) (hset_value) {.u64 = 0L, .lval = val }
+#define                 HSET_DBLVALUE(val)  (hset_value) {.u64 = 0L, .dval = val }
+#define                 HSET_PTRVALUE(val)  (hset_value) {.u64 = 0L, .pval = val }
 #define                 HSET_FSVALUE(val)   (hset_value) {.fsval = val }
 // create value from pointer
 static inline hset_value        hset_createval(const void *p, hset_type typ){
@@ -240,8 +243,8 @@ extern bool             hset_validate(FILE *out, const hset *restrict se);
 // --------------------------------- SERIALIZATION -----------------------------------------
 extern int              hset_fsave(FILE  *restrict out, const hset *se);
 extern int              hset_save(const char *restrict fname, const hset *se);
-extern hset             hset_fload(FILE *restrict in, hset *restrict se);
-extern hset             hset_load(const char *restrict fname, hset *restrict se);
+extern int              hset_fload(FILE *restrict in, hset *restrict se);
+extern int              hset_load(const char *restrict fname, hset *restrict se);
 
 #endif /* !_HASHSET_H */
 

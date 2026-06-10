@@ -51,6 +51,8 @@ int                         sortedlist_fprint(FILE *restrict out, const hset_ele
             case HSET_FS:
                 cnt += fs_fprint(out, elem->v.fsval, 0);
             break;
+            default:
+            break;
         }
         cnt += fprintf(out, " -> ");
         elem = elem->next;
@@ -62,7 +64,7 @@ int                         sortedlist_fprint(FILE *restrict out, const hset_ele
 
 static unsigned long       get_lhash(unsigned cnt, hset_value value, hset_type typ){
     // probably it's better to calc hash by u64 attr (except fs for sure)
-    hset_value      tmp = (hset_value){.u64 = 0UL };
+    hset_value      tmp = HSET_ZERO_VALUE;
     switch (typ){
         case HSET_INT:
             tmp.u64 = (uint64_t) value.ival;
@@ -79,6 +81,8 @@ static unsigned long       get_lhash(unsigned cnt, hset_value value, hset_type t
         break;
         case HSET_FS:
             return hash_djb2(fs_str(value.fsval) ) % cnt;
+        break;
+        default:
         break;
     }
     return tmp.u64 % cnt;
@@ -136,8 +140,10 @@ static inline int           compare(hset_value v1, hset_value v2, hset_type typ)
         case HSET_FS:
             return fs_cmp(v1.fsval, v2.fsval);
         break;
+        default:
+            userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", hset_type_name(typ), typ);
+            return 0;
     }
-    userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", hset_type_name(typ), typ);
 }
 
 static hset_value           convert_value(hset_value v, hset_type from, hset_type to){
@@ -169,6 +175,31 @@ static hset_value           convert_value(hset_value v, hset_type from, hset_typ
         break; // неподдерживаемые типы — останется нулевое значение
     }
     return result;
+}
+
+static void                 printval(FILE *out, hset_type typ, hset_value v){
+    if (out){
+        switch (typ) {
+            case HSET_INT:
+                fprintf(out, "%d\n", v.ival);
+            break;
+            case HSET_LONG:
+                fprintf(out, "%ld\n", v.lval);
+            break;
+            case HSET_DBL:
+                fprintf(out, "%.15g\n", v.dval);
+            break;
+            case HSET_PTR:
+                fprintf(out, "%p\n", v.pval);
+            break;
+            case HSET_FS:
+                    // TODO:
+                   /* fs_fprint(f, &el->v.fsval, 0); fprintf(f, "\n"); */
+            break;
+            default:
+                break;
+        }
+    }
 }
 
 static inline hset_type     getype(const hset *se){
@@ -607,46 +638,12 @@ bool                        hset_set(hset *se, hset_value val){
     invraise(se != 0, "Null pointer");
 
     return create_or_move_elem(se, 0, val);
-    /*unsigned     hash = 0;
-    bool         already_existed = false;
-    hset_elem   *equal = 0, *nextel = 0;
-    hset_elem   *prevel = getprevelem(se, val, &hash, &nextel, &equal);
-    if (equal)
-        already_existed = true;
-    else {
-        hset_elem *newel = create_elem(val);
-        if (!newel)
-            userraiseint(ERR_UNABLE_ALLOCATE, "Can't create new element");
-        if (prevel)
-            prevel->next = newel;
-        else  // mount to root
-            se->table[hash] = newel;
-        newel->next = nextel;
-        se->count++;        // not thread-safe ((
-    }
-    // hsetval_log(val, getype(se) );
-    return logsimpleret(!already_existed, "Added the value prev existing %s", bool_str(already_existed) ); */
 }
 // move el from one hset to target se
 bool                        hset_elem_move(hset * restrict se, hset_elem *restrict el){
     invraise(se != 0 && el != 0, "Null pointers");
     // No checking type here
     return create_or_move_elem(se, el, HSET_ZERO_VALUE);
-   /* bool         already_existed = false;
-    unsigned     hash = 0;
-    hset_elem   *equal = 0, *nextel = 0;
-    hset_elem   *prevel = getprevelem(se, el->v, &hash, &nextel, &equal);
-    if (equal)
-        already_existed = true;
-    else {
-        if (prevel)
-            prevel->next = el;
-        else
-            se->table[hash] = el;
-        el->next = nextel;
-        se->count++;        // not thread-safe ((
-    }
-    return logsimpleret(!already_existed, "Added the value prev existing %s", bool_str(already_existed) ); */
 }
 
 bool                        hset_get(const hset *se, hset_value val){
@@ -864,28 +861,14 @@ int                         hset_techfprint(FILE *restrict out, const hset *se, 
 
 // --------------------------------- SERIALIZATION -----------------------------------------
 
-static void                 printval(FILE *out, hset_type typ, hset_value v){
-    if (out){
-            switch (typ) {
-                case HSET_INT:
-                    fprintf(out, "%d\n", v.ival);
-                break;
-                case HSET_LONG:
-                    fprintf(out, "%ld\n", v.lval);
-                break;
-                case HSET_DBL:
-                    fprintf(out, "%.15g\n", v.dval);
-                break;
-                case HSET_PTR:
-                    fprintf(out, "%p\n", v.pval);
-                break;
-                case HSET_FS:
-                        // TODO:
-                       /* fs_fprint(f, &el->v.fsval, 0); fprintf(f, "\n"); */
-                break;
-                default:
-                break;
-            }
+static bool readval(FILE *f, hset_type typ, hset_value *v) {
+    switch (typ) {
+        case HSET_INT:  return fscanf(f, "%d", &v->ival) == 1;
+        case HSET_LONG: return fscanf(f, "%ld", &v->lval) == 1;
+        case HSET_DBL:  return fscanf(f, "%lf", &v->dval) == 1;
+        case HSET_PTR:  return fscanf(f, "%p", &v->pval) == 1;
+        // case HSET_FS: return fs_fscan(f, &v->fsval) == 1; // когда будет готово
+        default: return false;
     }
 }
 
@@ -914,6 +897,63 @@ int                         hset_fsave(FILE  *restrict out, const hset *se) {
         fprintf(out, "HSET: DONE\n");
     return logsimpleret(cnt, "Saved %d", cnt);
 }
+
+static hset_type            gettype(const char *str){
+    if (strcmp(str, "HSET_INT") == 0)
+        return  HSET_INT;
+    else if (strcmp(str, "HSET_LONG") == 0)
+        return  HSET_LONG;
+    else if (strcmp(str, "HSET_DBL") == 0)
+        return  HSET_DBL;
+    else if (strcmp(str, "HSET_PTR") == 0)
+        return  HSET_PTR;
+    else if (strcmp(str, "HSET_FS") == 0)
+        return HSET_FS;
+    else
+        return HSET_UKNOWN;
+}
+
+int                         hset_fload(FILE *restrict in, hset *restrict se) {
+    invraisecode(in != NULL && se != 0, ERR_NULLABLE_PTR, "Null pointer");
+
+    char        typestr[20];
+    int         cnt = 0;
+
+    //  TODO: rework!!!
+    if (fscanf(in, " HSET: %s : %d", typestr, &cnt) != 2)
+        return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Invalid header");
+
+    hset_type   file_type = gettype(typestr);
+
+    if (file_type != getype(se))
+        return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Type mismatch: set %s, file %s",
+                      hset_type_name(getype(se)), typestr);
+
+    /*if (!se){
+        // Создаём новое множество TODO: create an aux proc
+        res = malloc(sizeof(hset);
+        if (!res)
+            userraiseint(ERR_UNABLE_ALLOCATE, "New hset");
+        res = hset_init(cnt, file_type);
+        must_free_on_error = true;
+    }*/
+
+    int addcnt = 0;
+    for (int i = 0; i < cnt; i++) {
+        hset_value val = HSET_ZERO_VALUE;
+        if (!readval(in, file_type, &val))
+            return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Failed to read element %d", i);
+        addcnt += hset_set(se, val);    // addcnt++ only if real adding
+    }
+
+    // Проверяем завершающую строку "HSET: DONE"
+    char done[20];
+    if (fscanf(in, " HSET: %19s", done) != 1 || strcmp(done, "DONE") != 0)
+        return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Missing or invalid 'HSET: DONE'");
+
+    return logsimpleret(addcnt, "Loaded %d/%d elements into set", addcnt, se->count);
+}
+
 int                         hset_save(const char *restrict fname, const hset *se) {
     invraisecode(se != NULL && fname != NULL, ERR_NULLABLE_PTR,
                 "Null pointer");
@@ -925,6 +965,18 @@ int                         hset_save(const char *restrict fname, const hset *se
 
     fclose(f);
     return logsimpleret(cnt, "Saved %d into %s", cnt, fname);
+}
+
+int                         hset_load(const char *restrict fname, hset *restrict se) {
+    invraisecode(fname != NULL && se != NULL, ERR_NULLABLE_PTR, "Null pointer");
+
+    FILE *f = fopen(fname, "r");
+    if (!f)
+        return userraise(-1, ERR_UNABLE_OPEN_FILE_READ, "Cannot open '%s'", fname);
+
+    int     result = hset_fload(f, se);
+    fclose(f);
+    return logsimpleret(result, "loaded from '%s'", fname);
 }
 
 // -------------------------------Testing --------------------------
