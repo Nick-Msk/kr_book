@@ -889,7 +889,7 @@ static void                 printval(FILE *out, hset_type typ, hset_value v){
     }
 }
 
-int                         hset_fsave(const hset *se, FILE  *restrict out) {
+int                         hset_fsave(FILE  *restrict out, const hset *se) {
     invraisecode(se != NULL, ERR_NULLABLE_PTR,
                 "Null pointer");
 
@@ -914,14 +914,14 @@ int                         hset_fsave(const hset *se, FILE  *restrict out) {
         fprintf(out, "HSET: DONE\n");
     return logsimpleret(cnt, "Saved %d", cnt);
 }
-int                         hset_save(const hset *se, const char *restrict fname) {
+int                         hset_save(const char *restrict fname, const hset *se) {
     invraisecode(se != NULL && fname != NULL, ERR_NULLABLE_PTR,
                 "Null pointer");
     FILE *f = fopen(fname, "w");
     if (!f)
         return logsimpleret(-1, "Unable to open file %s", fname);
 
-    int         cnt = hset_fsave(se, f);
+    int         cnt = hset_fsave(f, se);
 
     fclose(f);
     return logsimpleret(cnt, "Saved %d into %s", cnt, fname);

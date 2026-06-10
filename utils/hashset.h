@@ -238,9 +238,10 @@ static inline int       hset_techprint(const hset *se, int cnt){
 
 extern bool             hset_validate(FILE *out, const hset *restrict se);
 // --------------------------------- SERIALIZATION -----------------------------------------
-extern int              hset_fsave(const hset *se, FILE  *restrict out);
-extern int              hset_save(const hset *se, const char *restrict fname);
-extern hset             hset_load(hset *restrict se, const char *restrict fname);
+extern int              hset_fsave(FILE  *restrict out, const hset *se);
+extern int              hset_save(const char *restrict fname, const hset *se);
+extern hset             hset_fload(FILE *restrict in, hset *restrict se);
+extern hset             hset_load(const char *restrict fname, hset *restrict se);
 
 #endif /* !_HASHSET_H */
 
