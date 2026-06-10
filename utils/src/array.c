@@ -396,7 +396,7 @@ Array                       Array_load(const char *fname){
     FILE *f = fopen(fname, "r");
     Array arr = Array_init();
     if (f == 0){
-        fprintf(stderr, "Unable to open %s for writinf\n", fname);
+        fprintf(stderr, "Unable to open %s for read\n", fname);
         Array_seterror(arr);
         return logerr(arr, "Can't read");
     }
