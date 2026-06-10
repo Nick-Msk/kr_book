@@ -144,7 +144,7 @@ static hset_value           convert_value(hset_value v, hset_type from, hset_typ
     if (from == to)
         return v;
 
-    hset_value result = HSET_VALUE; // обнуляем u64
+    hset_value result = HSET_ZERO_VALUE; // обнуляем u64
 
     switch (from) {
         case HSET_INT:
@@ -213,6 +213,37 @@ static hset_elem           *create_elem(hset_value val){
     res->next = 0;
 
     return res;
+}
+
+static bool                 create_or_move_elem(hset * restrict se, hset_elem *restrict el, hset_value val){
+    bool         already_existed = false;
+    unsigned     hash = 0;
+    hset_elem   *equal = 0, *nextel = 0;
+    hset_value   value;
+    if (el)
+        value = el->v;
+    else
+        value = val;
+    hset_elem   *prevel = getprevelem(se, value, &hash, &nextel, &equal);
+    if (equal)
+        already_existed = true;
+    else {
+        hset_elem *newel;
+        if (el)     // move
+            newel = el;
+        else {          // create a new one
+            newel = create_elem(val);
+            if (!newel)
+                userraiseint(ERR_UNABLE_ALLOCATE, "Can't create new element");
+        }
+        if (prevel)
+            prevel->next = newel;
+        else
+            se->table[hash] = newel;
+        newel->next = nextel;
+        se->count++;
+    }
+    return logsimpleret(!already_existed, "Added the value prev existing %s", bool_str(already_existed) );
 }
 
 static hset_elem           *clone_elemlist(const hset_elem *el, hset_type typ){
@@ -356,15 +387,17 @@ hset             hset_init_resize(hset *se, int newsz){
         return logsimpleret(*se, "No change");
     hset    res = hset_init(newsz, getype(se) );
     // hset_foreach(se)
-    // simple version via hset_set()
     for (int i = 0; i < se->sz; i++){
         hset_elem *el = se->table[i];
         while (el){
-            hset_set(&res, el->v);  // but that creates new hset_elem, probably it's better to use origin one
-            el = el->next;
+            hset_elem *next = el->next;
+            hset_elem_move(&res, el); // el->next will be modified!
+            el = next;  // go to next elem of ordered list
         }
     }
-    hset_free(se);  // cleanup
+    // clean the table manually
+    free(se->table);
+    //hset_free(se);  // NO NEED cleanup
     *se = res;  // and fill with newly created
     return logsimpleret(res, "Resized to %d", res.sz);
 }
@@ -457,7 +490,7 @@ hset             hset_init_minus(const hset *restrict se1, const hset *restrict 
     return logsimpleret(res, "Created minus - total %d", se1->count);
 }
 // just intersect with construct
-hset             hset_init_intersect(const hset *restrict se1, const hset *restrict se2){
+hset                        hset_init_intersect(const hset *restrict se1, const hset *restrict se2){
     invraise(se1 != 0 && se2 != 0, "Null pointers");
 
     if (getype(se1) != getype(se2) )
@@ -477,7 +510,7 @@ hset             hset_init_intersect(const hset *restrict se1, const hset *restr
     return logsimpleret(res, "Created intersect - total %d", res.count);
 }
 // simm diff with construct
-hset             hset_init_symmdiff(const hset *restrict se1, const hset *restrict se2){
+hset                        hset_init_symmdiff(const hset *restrict se1, const hset *restrict se2){
     invraise(se1 != 0 && se2 != 0, "Null pointers");
     if (getype(se1) != getype(se2) )
          userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1)), hset_type_name(getype(se2) ) );
@@ -503,7 +536,7 @@ hset             hset_init_symmdiff(const hset *restrict se1, const hset *restri
     return logsimpleret(res, "Created symm diff - total %d", res.count);
 }
 // union with construct
-hset             hset_init_union(const hset *restrict se1, const hset *restrict se2){
+hset                        hset_init_union(const hset *restrict se1, const hset *restrict se2){
     invraise(se1 != 0 && se2 != 0, "Null pointers");
     if (getype(se1) != getype(se2) )
          userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1)), hset_type_name(getype(se2) ) );
@@ -573,7 +606,8 @@ bool                        hset_validate(FILE *out, const hset *restrict se){
 bool                        hset_set(hset *se, hset_value val){
     invraise(se != 0, "Null pointer");
 
-    unsigned     hash = 0;
+    return create_or_move_elem(se, 0, val);
+    /*unsigned     hash = 0;
     bool         already_existed = false;
     hset_elem   *equal = 0, *nextel = 0;
     hset_elem   *prevel = getprevelem(se, val, &hash, &nextel, &equal);
@@ -591,7 +625,28 @@ bool                        hset_set(hset *se, hset_value val){
         se->count++;        // not thread-safe ((
     }
     // hsetval_log(val, getype(se) );
-    return logsimpleret(!already_existed, "Added the value prev existing %s", bool_str(already_existed) );
+    return logsimpleret(!already_existed, "Added the value prev existing %s", bool_str(already_existed) ); */
+}
+// move el from one hset to target se
+bool                        hset_elem_move(hset * restrict se, hset_elem *restrict el){
+    invraise(se != 0 && el != 0, "Null pointers");
+    // No checking type here
+    return create_or_move_elem(se, el, HSET_ZERO_VALUE);
+   /* bool         already_existed = false;
+    unsigned     hash = 0;
+    hset_elem   *equal = 0, *nextel = 0;
+    hset_elem   *prevel = getprevelem(se, el->v, &hash, &nextel, &equal);
+    if (equal)
+        already_existed = true;
+    else {
+        if (prevel)
+            prevel->next = el;
+        else
+            se->table[hash] = el;
+        el->next = nextel;
+        se->count++;        // not thread-safe ((
+    }
+    return logsimpleret(!already_existed, "Added the value prev existing %s", bool_str(already_existed) ); */
 }
 
 bool                        hset_get(const hset *se, hset_value val){

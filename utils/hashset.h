@@ -83,7 +83,7 @@ typedef struct hset {
 } hset;
 
 #define                 HSET(size, typ) (hset) {.sz = (size), .flags = (typ), .table = 0 }
-#define                 HSET_VALUE          (hset_value) {.u64 = 0 }
+#define                 HSET_ZERO_VALUE     (hset_value) {.u64 = 0 }
 #define                 HSET_INTVALUE(val)  (hset_value) {.u64 = 0, .ival = val }
 #define                 HSET_LONGVALUE(val) (hset_value) {.u64 = 0, .lval = val }
 #define                 HSET_DBLVALUE(val)  (hset_value) {.u64 = 0, .dval = val }
@@ -91,7 +91,7 @@ typedef struct hset {
 #define                 HSET_FSVALUE(val)   (hset_value) {.fsval = val }
 // create value from pointer
 static inline hset_value        hset_createval(const void *p, hset_type typ){
-    hset_value tmp = HSET_VALUE;  // init
+    hset_value tmp = HSET_ZERO_VALUE;  // init
     switch (typ){
         case HSET_INT:
             tmp.ival = *(const int *) p;
@@ -182,7 +182,7 @@ static inline hset     *hset_move(hset *target, hset * origin){
     return logsimpleret(target, "moved to %p, sz %d, cnt %d", target, target->sz, target->count);
 }
 // TODO:
-extern hset_elem       *hset_item_move(hset *restrict target, const hset_elem *restrict elem);
+extern bool             hset_elem_move(hset *restrict se, hset_elem *restrict elem);
 
 extern bool             hset_eq(const hset *restrict se1, const hset *restrict se2);
 
