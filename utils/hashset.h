@@ -115,6 +115,10 @@ static inline hset_value        hset_createval(const void *p, hset_type typ){
     return tmp;
 }
 
+static inline hset_type     hset_getype(const hset *se){
+    return se->flags & 0xFF;
+}
+
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
 extern hset             hset_init(int sz, hset_type typ);      // #define will be for particular type
@@ -233,6 +237,10 @@ static inline int       hset_techprint(const hset *se, int cnt){
 }
 
 extern bool             hset_validate(FILE *out, const hset *restrict se);
+// --------------------------------- SERIALIZATION -----------------------------------------
+extern int              hset_fsave(const hset *se, FILE  *restrict out);
+extern int              hset_save(const hset *se, const char *restrict fname);
+extern hset             hset_load(hset *restrict se, const char *restrict fname);
 
 #endif /* !_HASHSET_H */
 

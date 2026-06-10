@@ -864,6 +864,69 @@ int                         hset_techfprint(FILE *restrict out, const hset *se, 
 
 // --------------------------------- SERIALIZATION -----------------------------------------
 
+static void                 printval(FILE *out, hset_type typ, hset_value v){
+    if (out){
+            switch (typ) {
+                case HSET_INT:
+                    fprintf(out, "%d\n", v.ival);
+                break;
+                case HSET_LONG:
+                    fprintf(out, "%ld\n", v.lval);
+                break;
+                case HSET_DBL:
+                    fprintf(out, "%.15g\n", v.dval);
+                break;
+                case HSET_PTR:
+                    fprintf(out, "%p\n", v.pval);
+                break;
+                case HSET_FS:
+                        // TODO:
+                       /* fs_fprint(f, &el->v.fsval, 0); fprintf(f, "\n"); */
+                break;
+                default:
+                break;
+            }
+    }
+}
+
+int                         hset_fsave(const hset *se, FILE  *restrict out) {
+    invraisecode(se != NULL, ERR_NULLABLE_PTR,
+                "Null pointer");
+
+    hset_type   typ = getype(se);
+
+    invraisecode ( int_in(typ, HSET_INT, HSET_LONG, HSET_DBL, HSET_PTR),
+                ERR_UNSUPPORTED_TYPE,
+                "%d - %s", typ, hset_type_name(typ) );
+    int         cnt = 0;
+    if (out)
+        fprintf(out, "HSET: %s : %d\n", hset_type_name(typ), se->count);
+
+    for (int i = 0; i < se->sz; i++) {
+        const hset_elem *el = se->table[i];
+        while (el) {
+            printval(out, typ, el->v);
+            el = el->next;
+            cnt++;
+        }
+    }
+    if (out)
+        fprintf(out, "HSET: DONE\n");
+    return logsimpleret(cnt, "Saved %d", cnt);
+}
+int                         hset_save(const hset *se, const char *restrict fname) {
+    invraisecode(se != NULL && fname != NULL, ERR_NULLABLE_PTR,
+                "Null pointer");
+    FILE *f = fopen(fname, "w");
+    if (!f)
+        return logsimpleret(-1, "Unable to open file %s", fname);
+
+    int         cnt = hset_fsave(se, f);
+
+    fclose(f);
+    return logsimpleret(cnt, "Saved %d into %s", cnt, fname);
+}
+
 // -------------------------------Testing --------------------------
 #ifdef HSETTESTING
 
@@ -2581,6 +2644,7 @@ tf15(const char *name)
             ok,
             (hset_free(&se1), hset_free(&se2)),
             "Disjoint sets: se1=%d, se2=%d, res=%p (expected se1=%d, se2=%d)",
+
             hset_cnt(&se1), hset_cnt(&se2), (void*)res, expected_total, COUNT(vals2)
         );
         hset_free(&se1);
