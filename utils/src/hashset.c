@@ -2612,6 +2612,10 @@ tf16(const char *name)
             "Empty resize: old_sz=%d -> new_sz=%d, cnt=%d (expected cnt=0)",
             old_sz, se.sz, hset_cnt(&se)
         );
+        test_validatefree(
+            hset_validate(logfile, &se), hset_free(&se),
+            "Validation failed"
+        );
         hset_free(&se);
     }
 
@@ -2634,6 +2638,10 @@ tf16(const char *name)
             hset_free(&se),
             "Non‑empty resize larger: old_sz=%d -> new_sz=%d, cnt=%d (expected %d)",
             old_sz, se.sz, hset_cnt(&se), old_cnt
+        );
+        test_validatefree(
+            hset_validate(logfile, &se), hset_free(&se),
+            "Validation failed"
         );
         hset_free(&se);
     }
@@ -2658,6 +2666,10 @@ tf16(const char *name)
             "Non‑empty resize smaller: old_sz=%d -> new_sz=%d, cnt=%d (expected %d)",
             old_sz, se.sz, hset_cnt(&se), old_cnt
         );
+        test_validatefree(
+            hset_validate(logfile, &se), hset_free(&se),
+            "Validation failed"
+        );
         hset_free(&se);
     }
 
@@ -2679,6 +2691,10 @@ tf16(const char *name)
             hset_free(&se),
             "Resize to same size: sz should stay %d, got %d, cnt=%d",
             old_sz, se.sz, hset_cnt(&se)
+        );
+        test_validatefree(
+            hset_validate(logfile, &se), hset_free(&se),
+            "Validation failed"
         );
         hset_free(&se);
     }
@@ -2704,6 +2720,10 @@ tf16(const char *name)
             "Multiple resizes: final sz=%d, cnt=%d (expected %d)",
             se.sz, hset_cnt(&se), cnt
         );
+        test_validatefree(
+            hset_validate(logfile, &se), hset_free(&se),
+            "Validation failed"
+        );
         hset_free(&se);
     }
 
@@ -2724,6 +2744,10 @@ tf16(const char *name)
             hset_free(&se),
             "Resize double: sz=%d, cnt=%d (expected %d)",
             se.sz, hset_cnt(&se), old_cnt
+        );
+        test_validatefree(
+            hset_validate(logfile, &se), hset_free(&se),
+            "Validation failed"
         );
         hset_free(&se);
     }
