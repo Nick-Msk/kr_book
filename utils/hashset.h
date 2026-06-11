@@ -86,7 +86,10 @@ typedef struct hset {
     hset_elem     **table;
 } hset;
 
+// hset
 #define                 HSET(size, typ) (hset) {.sz = (size), .flags = (typ), .table = 0 }
+#define                 HSET_NONINIT        HSET(0, HSET_UKNOWN)
+// ---------------------------- hset_value: TODO: refactor to separate value.c (Value type)
 #define                 HSET_ZERO_VALUE     (hset_value) {.u64 = 0L }
 #define                 HSET_INTVALUE(val)  (hset_value) {.u64 = 0L, .ival = val }
 #define                 HSET_LONGVALUE(val) (hset_value) {.u64 = 0L, .lval = val }
@@ -118,6 +121,10 @@ static inline hset_value        hset_createval(const void *p, hset_type typ){
     }
     return tmp;
 }
+//  check if in non-init state
+static inline bool          hset_isnoninit(const hset *se){
+    return se->flags & HSET_UKNOWN && se->sz == 0;
+}
 
 static inline hset_type     hset_getype(const hset *se){
     return se->flags & 0xFF;
@@ -127,7 +134,7 @@ static inline bool          hset_heap_alloc(const hset *se){
     return se->flags & HSET_HEAP_ALLOC;
 }
 
-static inline void          hset_set_heap_alloc(const hset *se){
+static inline void          hset_set_heap_alloc(hset *se){
     se->flags |= HSET_HEAP_ALLOC;
 }
 

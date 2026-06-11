@@ -918,31 +918,28 @@ int                         hset_fsave(FILE  *restrict out, const hset *se) {
 }
 
 int                         hset_fload(FILE *restrict in, hset *restrict se) {
-    invraisecode(in != NULL, ERR_NULLABLE_PTR, "Null pointer");
+    invraisecode(in != NULL && se != 0, ERR_NULLABLE_PTR, "Null pointer");
 
     char        buf[200];
     int         cnt = 0;
-    hset       *res = 0;
+    hset        res;
+    hset       *target = se; 
     bool        must_free_on_error = false;
 
-    //  TODO: rework!!!
+    //  TODO: rework!!! via fs_fscanf()
     if (fscanf(in, " HSET: %s : %d", buf, &cnt) != 2)
         return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Invalid header");
 
     hset_type   file_type = gettype(buf);
 
-    if (se && file_type != getype(se))
+    if (!hset_isnoninit(se) && file_type != getype(se))
         return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Type mismatch: set %s, file %s",
                       hset_type_name(getype(se)), buf);
 
-    if (!se){
-        // Создаём новое множество TODO: create an aux proc
-        res = malloc(sizeof(hset);
-        if (!res)
-            userraiseint(ERR_UNABLE_ALLOCATE, "Unable to allocate hset");
-        *res = hset_init(cnt, file_type);
-        hset_set_heap_alloc(res);
+    if (hset_isnoninit(se) ){
+        res = hset_init(cnt ? cnt : 1, file_type);
         must_free_on_error = true;
+        target = &res;
     }
 
     int addcnt = 0;
@@ -950,20 +947,20 @@ int                         hset_fload(FILE *restrict in, hset *restrict se) {
         hset_value val = HSET_ZERO_VALUE;
         if (!readval(in, file_type, &val)){
             if (must_free_on_error)
-                hset_free(*res);
+                hset_free(&res);
             return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Failed to read element %d", i);
         }
-        addcnt += hset_set(se, val);    // addcnt++ only if real adding
+        addcnt += hset_set(target, val);    // addcnt++ only if real adding
     }
 
     // Проверяем завершающую строку "HSET: DONE"
     if (fscanf(in, " HSET: %19s", buf) != 1 || strcmp(buf, "DONE") != 0){
         if (must_free_on_error)
-            hset_free(*res);
+            hset_free(&res);
         return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Missing or invalid 'HSET: DONE'");
     }
-    if (se)
-        *se = *res;
+    if (hset_isnoninit(se) )
+        *se = res;
 
     return logsimpleret(addcnt, "Loaded %d/%d elements into set", addcnt, se->count);
 }
@@ -988,9 +985,9 @@ int                         hset_load(const char *restrict fname, hset *restrict
     if (!f)
         return userraise(-1, ERR_UNABLE_OPEN_FILE_READ, "Cannot open '%s'", fname);
 
-    int     result = hset_fload(f, se);
+    int    res = hset_fload(f, se);
     fclose(f);
-    return logsimpleret(result, "loaded from '%s'", fname);
+    return logsimpleret(res, "%d loaded from '%s'", res, fname);
 }
 
 // -------------------------------Testing --------------------------
@@ -3361,6 +3358,252 @@ tf19(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST 20 ---------------------------------
+
+static TestStatus
+tf20(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Сохранить и загрузить пустое множество */
+    test_sub("subtest %d: empty save/load", ++subnum);
+    {
+        hset    se = hset_init(10, HSET_INT);
+
+        int     save_ret = hset_save("res/hashret/empty.hset", &se);
+
+        test_validatefree(
+            save_ret >= 0,
+            hset_free(&se),
+            "Empty save failed, ret=%d", save_ret
+        );
+
+        hset    loaded = HSET_NONINIT;
+        save_ret = hset_load("res/hashset/empty.hset", &loaded);
+
+        test_validatefree(
+            save_ret >= 0,
+            hset_free(&se),
+            "Empty save failed, ret=%d", save_ret
+        );
+        test_validatefree(
+            hset_cnt(&loaded) == 0,
+            (hset_free(&se), hset_free(&loaded)),
+            "Empty set: cnt=%d, expected 0", hset_cnt(&loaded)
+        );
+        test_validatefree(
+            hset_validate(logfile, &loaded),
+            (hset_free(&se), hset_free(&loaded)),
+            "Empty set: validation failed"
+        );
+        test_validatefree(
+            hset_eq(&se, &loaded),
+            (hset_free(&se), hset_free(&loaded)),
+            "Empty set: not equal after load"
+        );
+
+        hset_free(&se);
+        hset_free(&loaded);
+    }
+
+    /* 2. Сохранить и загрузить непустое множество (int) — создание нового */
+    test_sub("subtest %d: int save/load new", ++subnum);
+    {
+        int     vals[] = {1, 2, 3, 4, 5};
+        hset    se = hset_fromiarr(vals, COUNT(vals));
+        int     save_ret = hset_save("res/hashret/int.hset", &se);
+
+        test_validatefree(
+            save_ret == COUNT(vals),
+            hset_free(&se),
+            "Int save returned %d, expected %d", save_ret, COUNT(vals)
+        );
+
+        hset    loaded = HSET_NONINIT;
+        int     load_ret = hset_load("res/hashret/int.hset", &loaded);
+
+        test_validatefree(
+            load_ret == COUNT(vals),
+            (hset_free(&se), hset_free(&loaded)),
+            "Int load returned %d, expected %d", load_ret, COUNT(vals)
+        );
+        test_validatefree(
+            hset_cnt(&loaded) == COUNT(vals),
+            (hset_free(&se), hset_free(&loaded)),
+            "Int set: cnt=%d, expected %d", hset_cnt(&loaded), COUNT(vals)
+        );
+        test_validatefree(
+            hset_validate(logfile, &loaded),
+            (hset_free(&se), hset_free(&loaded)),
+            "Int set: validation failed"
+        );
+        test_validatefree(
+            hset_eq(&se, &loaded),
+            (hset_free(&se), hset_free(&loaded)),
+            "Int set: not equal after load"
+        );
+
+        hset_free(&se);
+        hset_free(&loaded);
+    }
+
+    /* 3. Дозагрузка в существующее множество (int) */
+    test_sub("subtest %d: int append load", ++subnum);
+    {
+        int     vals1[] = {10, 20};
+        int     vals2[] = {30, 40};
+        hset    se = hset_fromiarr(vals1, COUNT(vals1));
+
+        hset    tmp = hset_fromiarr(vals2, COUNT(vals2));
+        int     save_ret = hset_save("res/hashset/append_int.hset", &tmp);
+        hset_free(&tmp);
+
+        test_validatefree(
+            save_ret == COUNT(vals2),
+            hset_free(&se),
+            "Append save returned %d, expected %d", save_ret, COUNT(vals2)
+        );
+
+        int     load_ret = hset_load("res/hashret/append_int.hset", &se);
+        test_validatefree(
+            load_ret == COUNT(vals2),
+            hset_free(&se),
+            "Append load returned %d, expected %d", load_ret, COUNT(vals2)
+        );
+
+        int     all_vals[] = {10, 20, 30, 40};
+        hset    expected = hset_fromiarr(all_vals, COUNT(all_vals));
+
+        test_validatefree(
+            hset_cnt(&se) == COUNT(all_vals),
+            (hset_free(&se), hset_free(&expected)),
+            "Append: cnt=%d, expected %d", hset_cnt(&se), COUNT(all_vals)
+        );
+        test_validatefree(
+            hset_validate(logfile, &se),
+            (hset_free(&se), hset_free(&expected)),
+            "Append: validation failed"
+        );
+        test_validatefree(
+            hset_eq(&se, &expected),
+            (hset_free(&se), hset_free(&expected)),
+            "Append: not equal to expected"
+        );
+
+        hset_free(&se);
+        hset_free(&expected);
+    }
+
+    /* 4. Несовпадение типов — возвращается -1, множество не меняется */
+    test_sub("subtest %d: type mismatch returns -1", ++subnum);
+    {
+        hset    se_int = hset_init(10, HSET_INT);
+        hset_save("res/hashset/type_int.hset", &se_int);
+
+        hset    se_dbl = hset_init(10, HSET_DBL);
+        int     ret = hset_load("res/hashset/type_int.hset", &se_dbl);
+
+        test_validatefree(
+            ret == -1,
+            (hset_free(&se_int), hset_free(&se_dbl)),
+            "Type mismatch: return code %d, expected -1", ret
+        );
+        test_validatefree(
+            hset_cnt(&se_dbl) == 0,
+            (hset_free(&se_int), hset_free(&se_dbl)),
+            "Type mismatch: target set cnt=%d, expected 0 (unchanged)", hset_cnt(&se_dbl)
+        );
+
+        hset_free(&se_int);
+        hset_free(&se_dbl);
+    }
+
+    /* 5. Сохранить и загрузить long множество */
+    test_sub("subtest %d: long save/load new", ++subnum);
+    {
+        long    vals[] = {100L, 200L, 300L, 400L, 500L};
+        hset    se = hset_fromlarr(vals, COUNT(vals));
+        int     save_ret = hset_save("res/hashset/long.hset", &se);
+
+        test_validatefree(
+            save_ret == COUNT(vals),
+            hset_free(&se),
+            "Append save returned %d, expected %d", save_ret, COUNT(vals)
+        );
+
+        hset    loaded = HSET_NONINIT;
+        int     load_ret = hset_load("res/hashset/long.hset", &loaded);
+
+        test_validatefree(
+            load_ret == COUNT(vals),
+            hset_free(&se),
+            "Append load returned %d, expected %d", load_ret, COUNT(vals)
+        );
+
+        test_validatefree(
+            hset_cnt(&loaded) == COUNT(vals),
+            (hset_free(&se), hset_free(&loaded)),
+            "Long set: cnt=%d, expected %d", hset_cnt(&loaded), COUNT(vals)
+        );
+        test_validatefree(
+            hset_validate(logfile, &loaded),
+            (hset_free(&se), hset_free(&loaded)),
+            "Long set: validation failed"
+        );
+        test_validatefree(
+            hset_eq(&se, &loaded),
+            (hset_free(&se), hset_free(&loaded)),
+            "Long set: not equal after load"
+        );
+
+        hset_free(&se);
+        hset_free(&loaded);
+    }
+
+    /* 6. Сохранить и загрузить double множество */
+    test_sub("subtest %d: double save/load new", ++subnum);
+    {
+        double  vals[] = {1.1, 2.2, 3.3, 4.4, 5.5};
+        hset    se = hset_fromdarr(vals, COUNT(vals));
+        int     save_ret = hset_save("res/hashset/double.hset", &se);
+
+        test_validatefree(
+            save_ret == COUNT(vals),
+            hset_free(&se),
+            "Append save returned %d, expected %d", save_ret, COUNT(vals)
+        );
+
+        hset    loaded = HSET_NONINIT;
+        int     load_ret = hset_load("res/hashset/double.hset", &loaded);
+
+        test_validatefree(
+            load_ret == COUNT(vals),
+            hset_free(&se),
+            "Append load returned %d, expected %d", load_ret, COUNT(vals)
+        );
+        test_validatefree(
+            hset_cnt(&loaded) == COUNT(vals),
+            (hset_free(&se), hset_free(&loaded)),
+            "Double set: cnt=%d, expected %d", hset_cnt(&loaded), COUNT(vals)
+        );
+        test_validatefree(
+            hset_validate(logfile, &loaded),
+            (hset_free(&se), hset_free(&loaded)),
+            "Double set: validation failed"
+        );
+        test_validatefree(
+            hset_eq(&se, &loaded),
+            (hset_free(&se), hset_free(&loaded)),
+            "Double set: not equal after load"
+        );
+
+        hset_free(&se);
+        hset_free(&loaded);
+    }
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -3387,6 +3630,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf17,  .num = 17, .name = "hset_union simple test"                     , .desc="", .mandatory=true)
       , testnew(.f2 = tf18,  .num = 18, .name = "hset_init_union simple test"                , .desc="", .mandatory=true)
       , testnew(.f2 = tf19,  .num = 19, .name = "hset_normalize simple test"                 , .desc="", .mandatory=true)
+      , testnew(.f2 = tf20,  .num = 20, .name = "hset_save/load simple test"                 , .desc="", .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
