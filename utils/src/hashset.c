@@ -14,6 +14,7 @@
 #include "checker.h"
 #include "guard.h"
 #include "fs.h"
+#include "fileutils.h"
 
 // TODO: move that to context
 static int                              HSET_ARRAY_CREATE_MULTIPLIER = 2;
@@ -146,6 +147,21 @@ static inline int           compare(hset_value v1, hset_value v2, hset_type typ)
     }
 }
 
+static hset_type            gettype(const char *str){
+    if (strcmp(str, "HSET_INT") == 0)
+        return  HSET_INT;
+    else if (strcmp(str, "HSET_LONG") == 0)
+        return  HSET_LONG;
+    else if (strcmp(str, "HSET_DBL") == 0)
+        return  HSET_DBL;
+    else if (strcmp(str, "HSET_PTR") == 0)
+        return  HSET_PTR;
+    else if (strcmp(str, "HSET_FS") == 0)
+        return HSET_FS;
+    else
+        return HSET_UKNOWN;
+}
+
 static hset_value           convert_value(hset_value v, hset_type from, hset_type to){
     if (from == to)
         return v;
@@ -202,6 +218,17 @@ static void                 printval(FILE *out, hset_type typ, hset_value v){
     }
 }
 
+static bool readval(FILE *f, hset_type typ, hset_value *v) {
+    switch (typ) {
+        case HSET_INT:  return fscanf(f, "%d", &v->ival) == 1;
+        case HSET_LONG: return fscanf(f, "%ld", &v->lval) == 1;
+        case HSET_DBL:  return fscanf(f, "%lf", &v->dval) == 1;
+        case HSET_PTR:  return fscanf(f, "%p", &v->pval) == 1;
+        // case HSET_FS: return fs_fscan(f, &v->fsval) == 1; // когда будет готово
+        default: return false;
+    }
+}
+
 static inline hset_type     getype(const hset *se){
     return se->flags & 0xFF;
 }
@@ -212,7 +239,6 @@ static hset_elem           *getprevelem(const hset *restrict se, hset_value valu
     unsigned hash = get_lhash(se->sz, value, getype(se) );
     hset_elem *el = se->table[hash],
               *prevel = 0;
-    // logsimple("Hash %u", hash);
     while (el != 0 && compare(value, el->v, getype(se) ) < 0){
         //logmsg("el %p, prevel %p", el, prevel);
         prevel = el;
@@ -498,8 +524,12 @@ void                        hset_free(hset *se){
 
     hset_clean(se);
     free(se->table);
-    logsimple("freed");
     se->sz = se->flags = 0;
+    if (hset_heap_alloc(se) ){
+        free(se);
+        logsimple("Heap freed");
+    }
+    logsimple("freed");
 }
 // return new hset se1 - se2
 hset             hset_init_minus(const hset *restrict se1, const hset *restrict se2){
@@ -861,17 +891,6 @@ int                         hset_techfprint(FILE *restrict out, const hset *se, 
 
 // --------------------------------- SERIALIZATION -----------------------------------------
 
-static bool readval(FILE *f, hset_type typ, hset_value *v) {
-    switch (typ) {
-        case HSET_INT:  return fscanf(f, "%d", &v->ival) == 1;
-        case HSET_LONG: return fscanf(f, "%ld", &v->lval) == 1;
-        case HSET_DBL:  return fscanf(f, "%lf", &v->dval) == 1;
-        case HSET_PTR:  return fscanf(f, "%p", &v->pval) == 1;
-        // case HSET_FS: return fs_fscan(f, &v->fsval) == 1; // когда будет готово
-        default: return false;
-    }
-}
-
 int                         hset_fsave(FILE  *restrict out, const hset *se) {
     invraisecode(se != NULL, ERR_NULLABLE_PTR,
                 "Null pointer");
@@ -898,58 +917,53 @@ int                         hset_fsave(FILE  *restrict out, const hset *se) {
     return logsimpleret(cnt, "Saved %d", cnt);
 }
 
-static hset_type            gettype(const char *str){
-    if (strcmp(str, "HSET_INT") == 0)
-        return  HSET_INT;
-    else if (strcmp(str, "HSET_LONG") == 0)
-        return  HSET_LONG;
-    else if (strcmp(str, "HSET_DBL") == 0)
-        return  HSET_DBL;
-    else if (strcmp(str, "HSET_PTR") == 0)
-        return  HSET_PTR;
-    else if (strcmp(str, "HSET_FS") == 0)
-        return HSET_FS;
-    else
-        return HSET_UKNOWN;
-}
-
 int                         hset_fload(FILE *restrict in, hset *restrict se) {
-    invraisecode(in != NULL && se != 0, ERR_NULLABLE_PTR, "Null pointer");
+    invraisecode(in != NULL, ERR_NULLABLE_PTR, "Null pointer");
 
-    char        typestr[20];
+    char        buf[200];
     int         cnt = 0;
+    hset       *res = 0;
+    bool        must_free_on_error = false;
 
     //  TODO: rework!!!
-    if (fscanf(in, " HSET: %s : %d", typestr, &cnt) != 2)
+    if (fscanf(in, " HSET: %s : %d", buf, &cnt) != 2)
         return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Invalid header");
 
-    hset_type   file_type = gettype(typestr);
+    hset_type   file_type = gettype(buf);
 
-    if (file_type != getype(se))
+    if (se && file_type != getype(se))
         return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Type mismatch: set %s, file %s",
-                      hset_type_name(getype(se)), typestr);
+                      hset_type_name(getype(se)), buf);
 
-    /*if (!se){
+    if (!se){
         // Создаём новое множество TODO: create an aux proc
         res = malloc(sizeof(hset);
         if (!res)
-            userraiseint(ERR_UNABLE_ALLOCATE, "New hset");
-        res = hset_init(cnt, file_type);
+            userraiseint(ERR_UNABLE_ALLOCATE, "Unable to allocate hset");
+        *res = hset_init(cnt, file_type);
+        hset_set_heap_alloc(res);
         must_free_on_error = true;
-    }*/
+    }
 
     int addcnt = 0;
     for (int i = 0; i < cnt; i++) {
         hset_value val = HSET_ZERO_VALUE;
-        if (!readval(in, file_type, &val))
+        if (!readval(in, file_type, &val)){
+            if (must_free_on_error)
+                hset_free(*res);
             return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Failed to read element %d", i);
+        }
         addcnt += hset_set(se, val);    // addcnt++ only if real adding
     }
 
     // Проверяем завершающую строку "HSET: DONE"
-    char done[20];
-    if (fscanf(in, " HSET: %19s", done) != 1 || strcmp(done, "DONE") != 0)
+    if (fscanf(in, " HSET: %19s", buf) != 1 || strcmp(buf, "DONE") != 0){
+        if (must_free_on_error)
+            hset_free(*res);
         return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Missing or invalid 'HSET: DONE'");
+    }
+    if (se)
+        *se = *res;
 
     return logsimpleret(addcnt, "Loaded %d/%d elements into set", addcnt, se->count);
 }
@@ -968,7 +982,7 @@ int                         hset_save(const char *restrict fname, const hset *se
 }
 
 int                         hset_load(const char *restrict fname, hset *restrict se) {
-    invraisecode(fname != NULL && se != NULL, ERR_NULLABLE_PTR, "Null pointer");
+    invraisecode(fname != NULL, ERR_NULLABLE_PTR, "Null pointer");
 
     FILE *f = fopen(fname, "r");
     if (!f)

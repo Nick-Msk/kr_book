@@ -17,6 +17,7 @@
 
 typedef enum hset_type
     { HSET_INT = 1, HSET_LONG, HSET_DBL, HSET_FS, HSET_PTR,
+      HSET_HEAP_ALLOC = 0x101,      // hset is allocated by malloc
       HSET_UKNOWN = -1 }
 hset_type;
 
@@ -122,6 +123,14 @@ static inline hset_type     hset_getype(const hset *se){
     return se->flags & 0xFF;
 }
 
+static inline bool          hset_heap_alloc(const hset *se){
+    return se->flags & HSET_HEAP_ALLOC;
+}
+
+static inline void          hset_set_heap_alloc(const hset *se){
+    se->flags |= HSET_HEAP_ALLOC;
+}
+
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
 extern hset             hset_init(int sz, hset_type typ);      // #define will be for particular type
@@ -132,7 +141,7 @@ extern void             hset_free(hset *se);
 //
 extern hset             hset_clone(const hset *se);
 
-extern hset             hset_cloneas(const hset *se, hset_type typ);    // TODO:
+extern hset             hset_cloneas(const hset *se, hset_type typ);
 
 // universale loader
 extern hset             hset_fromanyarr(const void *arr, int sz, hset_type typ);
@@ -188,7 +197,7 @@ static inline hset     *hset_move(hset *target, hset * origin){
     origin->flags = origin->sz = 0;
     return logsimpleret(target, "moved to %p, sz %d, cnt %d", target, target->sz, target->count);
 }
-// TODO:
+
 extern bool             hset_elem_move(hset *restrict se, hset_elem *restrict elem);
 
 extern bool             hset_eq(const hset *restrict se1, const hset *restrict se2);
