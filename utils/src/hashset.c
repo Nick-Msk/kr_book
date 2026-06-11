@@ -3371,7 +3371,7 @@ tf20(const char *name)
     {
         hset    se = hset_init(10, HSET_INT);
 
-        int     save_ret = hset_save("res/hashret/empty.hset", &se);
+        int     save_ret = hset_save("res/hashset/empty.hset", &se);
 
         test_validatefree(
             save_ret >= 0,
@@ -3412,7 +3412,7 @@ tf20(const char *name)
     {
         int     vals[] = {1, 2, 3, 4, 5};
         hset    se = hset_fromiarr(vals, COUNT(vals));
-        int     save_ret = hset_save("res/hashret/int.hset", &se);
+        int     save_ret = hset_save("res/hashset/int.hset", &se);
 
         test_validatefree(
             save_ret == COUNT(vals),
@@ -3421,7 +3421,7 @@ tf20(const char *name)
         );
 
         hset    loaded = HSET_NONINIT;
-        int     load_ret = hset_load("res/hashret/int.hset", &loaded);
+        int     load_ret = hset_load("res/hashset/int.hset", &loaded);
 
         test_validatefree(
             load_ret == COUNT(vals),
@@ -3465,7 +3465,7 @@ tf20(const char *name)
             "Append save returned %d, expected %d", save_ret, COUNT(vals2)
         );
 
-        int     load_ret = hset_load("res/hashret/append_int.hset", &se);
+        int     load_ret = hset_load("res/hashset/append_int.hset", &se);
         test_validatefree(
             load_ret == COUNT(vals2),
             hset_free(&se),
