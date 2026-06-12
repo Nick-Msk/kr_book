@@ -82,7 +82,19 @@ extern bool                     fread_pattern_printf(FILE *restrict f, const cha
                                     userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read dynamic pattern");
 
 // particular for unsigned
-#define                         FUGETUNSIGNED(in) ({unsigned _tmp; if (fscanf(in, "%u", &_tmp) < 1)\
+#define                         FUGETUNSIGNED_RAISE(in) ({unsigned _tmp; if (fscanf(in, "%u", &_tmp) < 1)\
+                 userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read unsigned"); _tmp;})
+
+#define                         FUSKIPFORMAT_RAISE(in, pt)\
+                                if (!freadpattern( (in), (pt)) )\
+                                    userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read pattern '%s'", (pt) );
+
+#define                         FUSKIPFORMATPRINTF_RAISE(in, fmt, ...)\
+                                if (!fread_pattern_printf( (in), (fmt), ##__VA_ARGS__) )\
+                                    userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read dynamic pattern");
+
+// particular for unsigned
+#define                         FUGETUNSIGNED_RAISE(in) ({unsigned _tmp; if (fscanf(in, "%u", &_tmp) < 1)\
                  userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read unsigned"); _tmp;})
 
 // universal strict scanf, current versio for int, double, long, char *.
