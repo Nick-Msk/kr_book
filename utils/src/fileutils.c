@@ -208,7 +208,7 @@ bool                            fread_pattern_printf(FILE *restrict f, const cha
     return fread_pattern(f, buf, strlen(buf) );
 }
 
-// universal strict scanf, current versio for int, double, long, char *.
+// universal strict scanf, current version for int, double, long, char *.
 int                             fstrict_scanf(FILE * restrict in, const char *restrict fmt, ...){
     logenter("fmt %s", fmt);
     int         cnt = 0;
@@ -241,7 +241,7 @@ int                             fstrict_scanf(FILE * restrict in, const char *re
         sym = *p;
         //logauto(len);
         switch (sym) {
-            case 'd':   // TODO: npw we'll use regular scanf, probably it's better to parse manually
+            case 'd':   // TODO: now we'll use regular scanf, probably it's better to parse manually
                 i = va_arg(ap, int *);
                 if (!get_int(in, i) )
                     return logret(cnt, "Unalble to parse next int");
