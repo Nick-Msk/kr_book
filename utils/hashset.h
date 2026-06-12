@@ -86,16 +86,17 @@ typedef struct hset {
     hset_elem     **table;
 } hset;
 
-// hset
+// --------------------------------------- hset ----------------------------------------------
 #define                 HSET(size, typ) (hset) {.sz = (size), .flags = (typ), .table = 0 }
 #define                 HSET_NONINIT        HSET(0, HSET_UKNOWN)
-// ---------------------------- hset_value: TODO: refactor to separate value.c (Value type)
+// ---------------------------- hset_value: TODO: refactor to separate value.c (Value64 type)
 #define                 HSET_ZERO_VALUE     (hset_value) {.u64 = 0L }
 #define                 HSET_INTVALUE(val)  (hset_value) {.u64 = 0L, .ival = val }
 #define                 HSET_LONGVALUE(val) (hset_value) {.u64 = 0L, .lval = val }
 #define                 HSET_DBLVALUE(val)  (hset_value) {.u64 = 0L, .dval = val }
 #define                 HSET_PTRVALUE(val)  (hset_value) {.u64 = 0L, .pval = val }
 #define                 HSET_FSVALUE(val)   (hset_value) {.fsval = val }
+
 // create value from pointer
 static inline hset_value        hset_createval(const void *p, hset_type typ){
     hset_value tmp = HSET_ZERO_VALUE;  // init
@@ -248,7 +249,7 @@ extern hset            *hset_symmdiff(hset *restrict a, const hset *restrict b);
 // union= as SET
 extern hset            *hset_union(hset *restrict a, const hset *restrict b);
 
-// ------------------------ PRINTERS/CHECKERS --------------------------
+// ------------------------------------- PRINTERS/CHECKERS ---------------------------------
 
 extern int              hset_techfprint(FILE *restrict out, const hset *se, int cnt);
 static inline int       hset_techprint(const hset *se, int cnt){
@@ -261,6 +262,19 @@ extern int              hset_fsave(FILE  *restrict out, const hset *se);
 extern int              hset_save(const char *restrict fname, const hset *se);
 extern int              hset_fload(FILE *restrict in, hset *restrict se);
 extern int              hset_load(const char *restrict fname, hset *restrict se);
+
+// --------------------------------------- ITERATORS ---------------------------------------
+
+// const
+typedef                 void (*hset_const_proc_t)(hset_value v);
+// change
+typedef                 void (*hset_proc_t)(hset_value *v);
+// modift structure
+typedef                 void (*hset_modify_proc_t)(hset *se, hset_elem *el);
+
+extern void             hset_const_foreach(const hset *se, hset_const_proc_t proc);
+//extern void             hset_foreach(hset *se, hset_proc_t proc);
+//extern void             hset_modify_foreach(hset *se, hset_modify_proc_t proc);
 
 #endif /* !_HASHSET_H */
 

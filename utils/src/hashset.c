@@ -957,7 +957,7 @@ int                         hset_fload(FILE *restrict in, hset *restrict se) {
     }
 
     // Проверяем завершающую строку "HSET: DONE"
-    if (fscanf(in, " HSET: %19s", buf) != 1 || strcmp(buf, "DONE") != 0){
+    if (fscanf(in, " HSET: %" HSET_LOAD_BUF_FMT "s", buf) != 1 || strcmp(buf, "DONE") != 0){
         if (must_free_on_error)
             hset_free(&res);
         return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Missing or invalid 'HSET: DONE'");
@@ -992,6 +992,39 @@ int                         hset_load(const char *restrict fname, hset *restrict
     fclose(f);
     return logsimpleret(res, "%d loaded from '%s'", res, fname);
 }
+
+// --------------------------------------- ITERATORS ---------------------------------------
+
+void                        hset_const_foreach(const hset *se, hset_const_proc_t proc) {
+    for (int i = 0; i < se->sz; i++) {
+        const hset_elem *el = se->table[i];
+        while (el) {
+            proc(el->v);   // передаём копию
+            el = el->next;
+        }
+    }
+}
+/*
+void                        hset_foreach(hset *se, hset_proc_t proc) {
+    for (int i = 0; i < se->sz; i++) {
+        hset_elem *el = se->table[i];
+        while (el) {
+            proc(&el->v);
+            el = el->next;
+        }
+    }
+}
+
+void                        hset_modify_foreach(hset *se, hset_modify_proc_t proc) {
+    for (int i = 0; i < se->sz; i++) {
+        hset_elem *el = se->table[i];
+        while (el) {
+            hset_elem *next = el->next;
+            proc(se, el);   // можно вызывать hset_del внутри
+            el = next;
+        }
+    }
+} */
 
 // -------------------------------Testing --------------------------
 #ifdef HSETTESTING
@@ -3607,6 +3640,74 @@ tf20(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST 21 ---------------------------------
+
+static void             print_as_int(hset_value v){
+    printf("%4d\t", v.ival);
+}
+
+static void             dummy_const_proc(hset_value v) {
+    (void)v; /* ничего не делаем */
+}
+/*
+static void             multiply_by_two(hset_value *v) {
+    v->ival *= 2;
+}
+
+static void             remove_if_even(hset *se, hset_elem *el) {
+    if (el->v.ival % 2 == 0)
+        hset_del(se, el->v);
+}
+
+static void             remove_all(hset *se, hset_elem *el) {
+    hset_del(se, el->v);
+} */
+
+static TestStatus
+tf21(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ---------- 1. hset_const_foreach: только чтение ---------- */
+    test_sub("subtest %d: const_foreach read-only", ++subnum);
+    {
+        int     vals[] = {10, 20, 30, 40, 50};
+        hset    se = hset_fromiarr(vals, COUNT(vals) );
+        // just a printf
+        hset_const_foreach(&se, print_as_int);
+        hset_free(&se);
+    }
+
+    // Так как мы убрали ctx, для сбора данных в const_foreach нужен другой подход.
+    // Пока оставим простую проверку: просто вызовем и убедимся, что множество не изменилось.
+    test_sub("subtest %d: const_foreach does not modify", ++subnum);
+    {
+        int     vals[] = {1, 2, 3};
+        hset    se = hset_fromiarr(vals, COUNT(vals));
+
+        hset_const_foreach(&se, dummy_const_proc); // ничего не делает, но гарантирует проход
+
+        // Проверяем, что все элементы на месте и их количество не изменилось
+        test_validatefree(
+            hset_cnt(&se) == COUNT(vals),
+            hset_free(&se),
+            "const_foreach: cnt=%d, expected %d", hset_cnt(&se), COUNT(vals)
+        );
+        for (int i = 0; i < COUNT(vals); i++) {
+            test_validatefree(
+                hset_get(&se, HSET_INTVALUE(vals[i])),
+                hset_free(&se),
+                "const_foreach: missing value %d", vals[i]
+            );
+        }
+        hset_free(&se);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -3634,6 +3735,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf18,  .num = 18, .name = "hset_init_union simple test"                , .desc="", .mandatory=true)
       , testnew(.f2 = tf19,  .num = 19, .name = "hset_normalize simple test"                 , .desc="", .mandatory=true)
       , testnew(.f2 = tf20,  .num = 20, .name = "hset_save/load simple test"                 , .desc="", .mandatory=true)
+      , testnew(.f2 = tf21,  .num = 21, .name = "hset_const_foreach simple test"             , .desc="", .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
