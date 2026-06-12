@@ -266,17 +266,17 @@ fsarray                     fsarr_load(const char *fname){
 
 fsarray                     fsarr_fload(FILE *restrict f){
     // format: "FSARRAY: sz %d cnt %d ptr %d:[\n"
-    FUSKIPFORMAT(f, "FSARRAY(");
-    int cnt = FUGETUNSIGNED(f);
+    FUSKIPFORMAT_RAISE(f, "FSARRAY(");
+    int cnt = FUGETUNSIGNED_RAISE(f);
 
-    FUSKIPFORMAT(f, "):[\n");
+    FUSKIPFORMAT_RAISE(f, "):[\n");
     fsarray     a = fsarr_init(cnt);
     // cycle for fs
     for (int i = 0; i < cnt; i++){
-        FUSKIPFORMATPRINTF(f, "%4d:", i);
+        FUSKIPFORMATPRINTF_RAISE(f, "%4d:", i);
         a.ar[i] = fs_fload(f, 0);       // TODO: probably to usr fsarr_get()?
     }
-    FUSKIPFORMAT(f, "]");
+    FUSKIPFORMAT_RAISE(f, "]");
     return a;
 }
 
