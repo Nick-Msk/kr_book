@@ -187,7 +187,8 @@ extern int                  fsarr_clean(fsarray *arr, bool free){
             cnt++;
         }
     }
-    arr->cnt = 0;   // reset counter
+    if (free)
+        arr->cnt = 0;   // reset counter
     return logsimpleret(cnt, "Cleaned %d free ? %s", cnt, bool_str(free) );
 }
 
@@ -673,10 +674,11 @@ tf9(const char *name)
     {
         fsarray     fa = fsarr_init(50);
         for (int i = 0; i < fa.cnt; i++){
-            elem(fa.ar[i], 100) = 'c';      // real allocation around 128b!
-            fsetlen(fa.ar[i], 101);
+            int     len = 100;
+            elem(fa.ar[i], len) = 'c';      // real allocation around 128b!
+            fsetlen(fa.ar[i], len + 1);
         }
-        logmsg("Len of 0 = %d", fslen(fa.ar[0]) );
+        logmsg("Len of 0 = %d, cnt %d", fslen(fa.ar[0]), fa.cnt );
         fsarr_clean(&fa, false);
         for (int i = 0; i < fa.cnt; i++){
             int res = fslen(fa.ar[i] );
@@ -685,12 +687,14 @@ tf9(const char *name)
         }
         fsarrfree(fa);
     }
+    fs_alloc_check(true);
     test_sub("subtest %d: free", ++subnum);
     {
         fsarray     fa = fsarr_init(50);
         for (int i = 0; i < fa.cnt; i++){
-            elem(fa.ar[i], 1000) = 'c';      // real allocation around 1024b!
-            fsetlen(fa.ar[i], 1001);
+            int     len = 1000;
+            elem(fa.ar[i], len) = 'c';      // real allocation around 1024b!
+            fsetlen(fa.ar[i], len + 1);
         }
         logmsg("Len of 0 = %d", fslen(fa.ar[0]) );
         fsarr_clean(&fa, true);
