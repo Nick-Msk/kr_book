@@ -920,14 +920,17 @@ int                         hset_fsave(FILE  *restrict out, const hset *se) {
 int                         hset_fload(FILE *restrict in, hset *restrict se) {
     invraisecode(in != NULL && se != 0, ERR_NULLABLE_PTR, "Null pointer");
 
-    char        buf[200];
+#define HSET_LOAD_BUF_SIZE 200
+#define HSET_LOAD_BUF_FMT "199"   /* HSET_LOAD_BUF_SIZE - 1 */
+
+    char        buf[HSET_LOAD_BUF_SIZE];
     int         cnt = 0;
     hset        res;
-    hset       *target = se; 
+    hset       *target = se;
     bool        must_free_on_error = false;
 
     //  TODO: rework!!! via fs_fscanf()
-    if (fscanf(in, " HSET: %s : %d", buf, &cnt) != 2)
+    if (fscanf(in, " HSET: %" HSET_LOAD_BUF_FMT "s : %d", buf, &cnt) != 2)
         return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Invalid header");
 
     hset_type   file_type = gettype(buf);
@@ -937,7 +940,7 @@ int                         hset_fload(FILE *restrict in, hset *restrict se) {
                       hset_type_name(getype(se)), buf);
 
     if (hset_isnoninit(se) ){
-        res = hset_init(cnt ? cnt : 1, file_type);
+        res = hset_init(cnt, file_type);
         must_free_on_error = true;
         target = &res;
     }
