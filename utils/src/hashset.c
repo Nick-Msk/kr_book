@@ -1004,7 +1004,7 @@ void                        hset_const_foreach(const hset *se, hset_const_proc_t
         }
     }
 }
-/*
+/*      NOT USED FOR NOW
 void                        hset_foreach(hset *se, hset_proc_t proc) {
     for (int i = 0; i < se->sz; i++) {
         hset_elem *el = se->table[i];
@@ -1014,7 +1014,6 @@ void                        hset_foreach(hset *se, hset_proc_t proc) {
         }
     }
 }
-
 void                        hset_modify_foreach(hset *se, hset_modify_proc_t proc) {
     for (int i = 0; i < se->sz; i++) {
         hset_elem *el = se->table[i];
@@ -1025,8 +1024,87 @@ void                        hset_modify_foreach(hset *se, hset_modify_proc_t pro
         }
     }
 } */
+// ----------------------------------------- REDUCE -----------------------------------------
 
-// -------------------------------Testing --------------------------
+hset_accum                  hset_initreduce(const hset *se, hset_accum init, hset_reduce_func func) {
+    hset_accum acc = init;
+    for (int i = 0; i < se->sz; i++) {
+        const hset_elem *el = se->table[i];
+        while (el) {
+            func(&acc, el->v);
+            el = el->next;
+        }
+    }
+    return acc;
+}
+// ------------------------------------- REDUCE IMPL -----------------------------------------
+void                        hset_sum_int(hset_accum *acc, hset_value v) {
+    acc->value.ival += v.ival;
+    acc->count++;
+}
+
+void                        hset_count_int(hset_accum *acc, hset_value v) {
+    (void) v;
+    acc->count++;
+}
+
+void                        hset_max_int(hset_accum *acc, hset_value v) {
+    if (acc->count == 0 || v.ival > acc->value.ival) {
+        acc->value.ival = v.ival;
+        acc->count = 1;   // помечаем, что значение уже есть
+    }
+}
+
+void                        hset_min_int(hset_accum *acc, hset_value v) {
+    if (acc->count == 0 || v.ival < acc->value.ival) {
+        acc->value.ival = v.ival;
+        acc->count = 1;
+    }
+}
+
+/*void                        hset_avg_int(hset_accum *acc, hset_value v) {
+    acc->value.ival += v.ival;
+    acc->count++;
+}*/
+// double
+void                        hset_sum_dbl(hset_accum *acc, hset_value v) {
+    if (isfinite(v.dval)) {
+        acc->value.dval += v.dval;
+        acc->count++;
+    }
+}
+
+void                        hset_count_dbl(hset_accum *acc, hset_value v) {
+    if (isfinite(v.dval))
+        acc->count++;
+}
+
+void                        hset_max_dbl(hset_accum *acc, hset_value v) {
+    if (!isfinite(v.dval))
+        return;
+    if (acc->count == 0 || v.dval > acc->value.dval) {
+        acc->value.dval = v.dval;
+        acc->count = 1;   // помечаем, что значение уже есть
+    }
+}
+
+void                        hset_min_dbl(hset_accum *acc, hset_value v) {
+    if (!isfinite(v.dval))
+        return;
+    if (acc->count == 0 || v.dval < acc->value.dval) {
+        acc->value.dval = v.dval;
+        acc->count = 1;
+    }
+}
+
+/*void                        hset_avg_dbl(hset_accum *acc, hset_value v) {
+    if (isfinite(v.dval)) {
+        acc->value.dval += v.dval;
+        acc->count++;
+    }
+}*/
+
+// ---------------------------------------- Testing ------------------------------------------
 #ifdef HSETTESTING
 
 #include "test.h"
@@ -1518,7 +1596,7 @@ tf7(const char *name)
             se1.sz == se2.sz, (hset_free(&se1), hset_free(&se2) ), "Must have equal table size %d : %d", sz1, sz2
         );
 
-        test_validatefree(
+        test_validatefree( 
             hset_validate(stdout, &se1) && hset_validate(stdout, &se2),
             (hset_free(&se1), hset_free(&se2)), "Validation failed se1"
         );

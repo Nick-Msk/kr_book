@@ -62,7 +62,7 @@ static inline void          hsetval_fprint(FILE *restrict out, const char *restr
                 fprintf(out, "%p", val.pval);
             break;
             case HSET_FS:
-                // TODO: fs_fprint(out, val.fsval, 0);
+                fs_fprint(out, val.fsval, 0);
             break;
             default:
             break;
@@ -141,64 +141,64 @@ static inline void          hset_set_heap_alloc(hset *se){
 
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
-extern hset             hset_init(int sz, hset_type typ);      // #define will be for particular type
-extern hset             hset_init_resize(hset *se, int newsz);
-extern hset             hset_normalize(hset *se);
+extern hset                 hset_init(int sz, hset_type typ);      // #define will be for particular type
+extern hset                 hset_init_resize(hset *se, int newsz);
+extern hset                 hset_normalize(hset *se);
 //
-extern void             hset_free(hset *se);
+extern void                 hset_free(hset *se);
 //
-extern hset             hset_clone(const hset *se);
+extern hset                 hset_clone(const hset *se);
 
-extern hset             hset_cloneas(const hset *se, hset_type typ);
+extern hset                 hset_cloneas(const hset *se, hset_type typ);
 
 // universale loader
-extern hset             hset_fromanyarr(const void *arr, int sz, hset_type typ);
+extern hset                 hset_fromanyarr(const void *arr, int sz, hset_type typ);
 // typed
-static inline hset      hset_fromiarr(const int *iarr, int sz){
+static inline hset          hset_fromiarr(const int *iarr, int sz){
     return hset_fromanyarr(iarr, sz, HSET_INT);
 }
 // not SURE TODO:
-static inline hset      hset_fromfsarr(/*fs_array iarr*/ const fs *fsarr, int sz){
+static inline hset          hset_fromfsarr(/*fs_array iarr*/ const fs *fsarr, int sz){
     return hset_fromanyarr(fsarr, sz, HSET_FS);
 }
-static inline hset      hset_fromlarr(const long *larr, int sz){
+static inline hset          hset_fromlarr(const long *larr, int sz){
     return hset_fromanyarr(larr, sz, HSET_LONG);
 }
-static inline hset      hset_fromdarr(const double *darr, int sz){
+static inline hset          hset_fromdarr(const double *darr, int sz){
     return hset_fromanyarr(darr, sz, HSET_DBL);
 }
-extern hset             hset_fromparr(const void **parr, int sz){
+extern hset                 hset_fromparr(const void **parr, int sz){
     return hset_fromanyarr(parr, sz, HSET_PTR);
 }
 // just intersect with construct
-extern hset             hset_init_intersect(const hset *restrict se1, const hset *restrict se2);
+extern hset                 hset_init_intersect(const hset *restrict se1, const hset *restrict se2);
 // minus with construct with construct
-extern hset             hset_init_minus(const hset *restrict se1, const hset *restrict se2);
+extern hset                 hset_init_minus(const hset *restrict se1, const hset *restrict se2);
 // simm diff with construct
-extern hset             hset_init_symmdiff(const hset *restrict a, const hset *restrict b);
+extern hset                 hset_init_symmdiff(const hset *restrict a, const hset *restrict b);
 // union with construct
-extern hset             hset_init_union(const hset *restrict a, const hset *restrict b);
+extern hset                 hset_init_union(const hset *restrict a, const hset *restrict b);
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
 // ------------------------ Element access -----------------------------
 // true if new element is added, if exists - false
-extern bool             hset_set(hset *se, hset_value val);
+extern bool                 hset_set(hset *se, hset_value val);
 // try to delete elemenet, true if deleted, false if not found
-extern bool             hset_del(hset *se, hset_value val);
+extern bool                 hset_del(hset *se, hset_value val);
 
-extern bool             hset_get(const hset *se, hset_value val);
+extern bool                 hset_get(const hset *se, hset_value val);
 
-static inline int       hset_cnt(const hset *se){
+static inline int           hset_cnt(const hset *se){
     return se->count;
 }
-static inline bool      hset_isempty(const hset *se) {
+static inline bool          hset_isempty(const hset *se) {
     return hset_cnt(se) == 0;
 }
 
-extern void             hset_clean(hset *se);
+extern void                 hset_clean(hset *se);
 // origin wll be cleaned
-static inline hset     *hset_move(hset *target, hset * origin){
+static inline hset         *hset_move(hset *target, hset * origin){
     hset_free(target);
     *target = *origin;
     origin->table = 0;
@@ -206,75 +206,104 @@ static inline hset     *hset_move(hset *target, hset * origin){
     return logsimpleret(target, "moved to %p, sz %d, cnt %d", target, target->sz, target->count);
 }
 
-extern bool             hset_elem_move(hset *restrict se, hset_elem *restrict elem);
+extern bool                 hset_elem_move(hset *restrict se, hset_elem *restrict elem);
 
-extern bool             hset_eq(const hset *restrict se1, const hset *restrict se2);
+extern bool                 hset_eq(const hset *restrict se1, const hset *restrict se2);
 
-extern bool             hset_noteq(const hset *restrict se1, const hset *restrict se2);
+extern bool                 hset_noteq(const hset *restrict se1, const hset *restrict se2);
 // load values from array, any type
-extern int              hset_loadanyarr(hset *restrict se, const void *arr, int sz, hset_type typ);
+extern int                  hset_loadanyarr(hset *restrict se, const void *arr, int sz, hset_type typ);
 
-static inline int       hset_loadiarr(hset *restrict se, const int *iarr, int sz){
+static inline int           hset_loadiarr(hset *restrict se, const int *iarr, int sz){
     return hset_loadanyarr(se, iarr, sz, HSET_INT);
 }
-static inline int       hset_loadlarr(hset *restrict se, const long *larr, int sz){
+static inline int           hset_loadlarr(hset *restrict se, const long *larr, int sz){
     return hset_loadanyarr(se, larr, sz, HSET_LONG);
 }
-static inline int       hset_loaddarr(hset *restrict se, const double *darr, int sz){
+static inline int           hset_loaddarr(hset *restrict se, const double *darr, int sz){
     return hset_loadanyarr(se, darr, sz, HSET_DBL);
 }
-static inline int       hset_loadparr(hset *restrict se, const void * const *restrict parr, int sz){
+static inline int           hset_loadparr(hset *restrict se, const void * const *restrict parr, int sz){
     return hset_loadanyarr(se, parr, sz, HSET_PTR);
 }
 // TODO: ???
-static inline int       hset_loadfsarr(hset *restrict se, const fs *restrict fsarr, int sz){
+static inline int           hset_loadfsarr(hset *restrict se, const fs *restrict fsarr, int sz){
     return hset_loadanyarr(se, fsarr, sz, HSET_FS);
 }
 // check if all of se2 in se1 strictly or not
-extern bool             hset_subset_check(const hset *restrict se1, const hset *restrict se2, bool strict);
+extern bool                 hset_subset_check(const hset *restrict se1, const hset *restrict se2, bool strict);
 // check if all of se2 in se1
-static inline bool      hset_in(const hset *restrict se1, const hset *restrict se2){
+static inline bool          hset_in(const hset *restrict se1, const hset *restrict se2){
     return hset_subset_check(se1, se2, false);
 }
 // check if all of se2 in se1  but se2 not equal se1
-static inline bool      hset_strictin(const hset *restrict se1, const hset *restrict se2){
+static inline bool          hset_strictin(const hset *restrict se1, const hset *restrict se2){
     return hset_subset_check(se1, se2, true);
 }
 // se1 -= se2 as SET
-extern hset            *hset_minus(hset *restrict se1, const hset *restrict se2);
+extern hset                *hset_minus(hset *restrict se1, const hset *restrict se2);
 // se1 insersect= se2 as SET
-extern hset            *hset_intersect(hset *restrict se1, const hset *restrict se2);
+extern hset                *hset_intersect(hset *restrict se1, const hset *restrict se2);
 // se1 symmdiff= se2 as SET
-extern hset            *hset_symmdiff(hset *restrict a, const hset *restrict b);
+extern hset                *hset_symmdiff(hset *restrict a, const hset *restrict b);
 // union= as SET
-extern hset            *hset_union(hset *restrict a, const hset *restrict b);
+extern hset                *hset_union(hset *restrict a, const hset *restrict b);
 
 // ------------------------------------- PRINTERS/CHECKERS ---------------------------------
 
-extern int              hset_techfprint(FILE *restrict out, const hset *se, int cnt);
-static inline int       hset_techprint(const hset *se, int cnt){
+extern int                  hset_techfprint(FILE *restrict out, const hset *se, int cnt);
+static inline int           hset_techprint(const hset *se, int cnt){
     return hset_techfprint(stdout, se, cnt);
 }
 
-extern bool             hset_validate(FILE *out, const hset *restrict se);
+extern bool                 hset_validate(FILE *out, const hset *restrict se);
 // --------------------------------- SERIALIZATION -----------------------------------------
-extern int              hset_fsave(FILE  *restrict out, const hset *se);
-extern int              hset_save(const char *restrict fname, const hset *se);
-extern int              hset_fload(FILE *restrict in, hset *restrict se);
-extern int              hset_load(const char *restrict fname, hset *restrict se);
+extern int                  hset_fsave(FILE  *restrict out, const hset *se);
+extern int                  hset_save(const char *restrict fname, const hset *se);
+extern int                  hset_fload(FILE *restrict in, hset *restrict se);
+extern int                  hset_load(const char *restrict fname, hset *restrict se);
 
 // --------------------------------------- ITERATORS ---------------------------------------
 
 // const
-typedef                 void (*hset_const_proc_t)(hset_value v);
-// change
-typedef                 void (*hset_proc_t)(hset_value *v);
-// modift structure
-typedef                 void (*hset_modify_proc_t)(hset *se, hset_elem *el);
+typedef                     void (*hset_const_proc_t)(hset_value v);
+// change //typedef                 void (*hset_proc_t)(hset_value *v);
+// modift structure typedef                 void (*hset_modify_proc_t)(hset *se, hset_elem *el);
 
-extern void             hset_const_foreach(const hset *se, hset_const_proc_t proc);
-//extern void             hset_foreach(hset *se, hset_proc_t proc);
-//extern void             hset_modify_foreach(hset *se, hset_modify_proc_t proc);
+extern void                 hset_const_foreach(const hset *se, hset_const_proc_t proc);
+//extern void               hset_foreach(hset *se, hset_proc_t proc);
+//extern void               hset_modify_foreach(hset *se, hset_modify_proc_t proc);
+
+// ----------------------------------------- REDUCE -----------------------------------------
+typedef struct              hset_accum {
+    hset_value  value;    // накопленное значение (сумма, максимум и т.п.)
+    int         count;    // количество элементов, участвовавших в накоплении
+    fs          str_agg;  // для будущей агрегации строк (пока можно не добавлять)
+} hset_accum;
+
+#define                     HSET_ACCUM(...)  (hset_accum) { .value = HSET_ZERO_VALUE, .count = 0, .str_agg = FS(), __VA_ARGS__} 
+#define                     HSET_ACCUM_DBL(ZERO)  (hset_accum) { .value = HSET_DBLVALUE(0.0), .count = 0, .str_agg = FS(), __VA_ARGS__} 
+
+typedef                     void (*hset_reduce_func)(hset_accum *acc, hset_value v);
+
+extern hset_accum           hset_initreduce(const hset *se, hset_accum init, hset_reduce_func func);
+
+static inline hset_accum    hset_reduce(const hset *se, hset_reduce_func func){
+    return hset_initreduce(se, HSET_ACCUM(), func);
+}
+
+// ------------------------------------- REDUCE IMPL -----------------------------------------
+extern void                 hset_sum_int    (hset_accum *acc, hset_value v);
+extern void                 hset_count_int  (hset_accum *acc, hset_value v);
+extern void                 hset_max_int    (hset_accum *acc, hset_value v);
+extern void                 hset_min_int    (hset_accum *acc, hset_value v);
+//extern void               hset_avg_int    (hset_accum *acc, hset_value v);
+
+extern void                 hset_sum_dbl    (hset_accum *acc, hset_value v);
+extern void                 hset_count_dbl  (hset_accum *acc, hset_value v);
+extern void                 hset_max_dbl    (hset_accum *acc, hset_value v);
+extern void                 hset_min_dbl    (hset_accum *acc, hset_value v);
+//extern void                 hset_avg_dbl    (hset_accum *acc, hset_value v);
 
 #endif /* !_HASHSET_H */
 
