@@ -4190,6 +4190,202 @@ tf24(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST 25 ---------------------------------
+
+static TestStatus
+tf25(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Сумма int через макрос */
+    test_sub("subtest %d: macro sum int", ++subnum);
+    {
+        int     vals[] = {1, 2, 3, 4, 5};
+        hset    se = hset_fromiarr(vals, COUNT(vals));
+        int     sum = 0;
+        HSET_FOREACH_INT(&se, v)
+            sum += v;
+
+        test_validatefree(
+            sum == 15,
+            hset_free(&se),
+            "Macro sum int: sum = %d, expected 15", sum
+        );
+        hset_free(&se);
+    }
+
+    /* 2. Сбор элементов int в массив (проверяем, что все на месте) */
+    test_sub("subtest %d: macro collect int", ++subnum);
+    {
+        int     vals[] = {3, 1, 4, 1, 5, 9, 2, 6};
+        hset    se = hset_fromiarr(vals, COUNT(vals)); // дубликаты будут удалены
+        int     expected[] = {1, 2, 3, 4, 5, 6, 9};   // уникальные отсортированные
+        int     collected[COUNT(expected)];
+        int     idx = 0;
+
+        HSET_FOREACH_INT(&se, v) {
+            if (idx < COUNT(expected))
+                collected[idx++] = v;
+        }
+
+        test_validatefree(
+            idx == COUNT(expected),
+            hset_free(&se),
+            "Macro collect int: collected %d elements, expected %d", idx, COUNT(expected)
+        );
+        // Сортируем, так как порядок обхода не гарантирован
+        qsort(collected, idx, sizeof(int), pint_cmp);
+        for (int i = 0; i < idx; i++) {
+            test_validatefree(
+                collected[i] == expected[i],
+                hset_free(&se),
+                "Macro collect int: collected[%d] = %d, expected %d", i, collected[i], expected[i]
+            );
+        }
+        hset_free(&se);
+    }
+
+    /* 3. Проверка break: прерываем цикл при нахождении значения */
+    test_sub("subtest %d: macro break int", ++subnum);
+    {
+        int     vals[] = {10, 20, 30, 40, 50};
+        hset    se = hset_fromiarr(vals, COUNT(vals));
+        int     found = 0;
+        HSET_FOREACH_INT(&se, v) {
+            if (v == 30) {
+                found = 1;
+                break;
+            }
+        }
+
+        test_validatefree(
+            found == 1,
+            hset_free(&se),
+            "Macro break int: value 30 %s found", found ? "" : "not"
+        );
+        hset_free(&se);
+    }
+
+    /* 4. Пустое множество: тело цикла не должно выполняться */
+    test_sub("subtest %d: macro on empty set", ++subnum);
+    {
+        hset    se = hset_init(10, HSET_INT);
+        int     called = 0;
+        HSET_FOREACH_INT(&se, v)
+            called++;
+
+        test_validatefree(
+            called == 0,
+            hset_free(&se),
+            "Macro on empty set: body executed %d times, expected 0", called
+        );
+        hset_free(&se);
+    }
+
+    /* 5. Double сумма через макрос */
+    test_sub("subtest %d: macro sum double", ++subnum);
+    {
+        double  vals[] = {1.1, 2.2, 3.3, 4.4, 5.5};
+        hset    se = hset_fromdarr(vals, COUNT(vals));
+        double  sum = 0.0;
+        HSET_FOREACH_DBL(&se, v)
+            sum += v;
+
+        test_validatefree(
+            fabs(sum - 16.5) < 0.0001,
+            hset_free(&se),
+            "Macro sum double: sum = %f, expected 16.5", sum
+        );
+        hset_free(&se);
+    }
+    /* 6. Double break: прерываем цикл при нахождении значения */
+    test_sub("subtest %d: macro break double", ++subnum);
+    {
+        double  vals[] = {1.1, 2.2, 3.3, 4.4, 5.5};
+        hset    se = hset_fromdarr(vals, COUNT(vals));
+        int     found = 0;
+        HSET_FOREACH_DBL(&se, v) {
+            if (fabs(v - 3.3) < 0.0001) {
+                found = 1;
+                break;
+            }
+        }
+
+        test_validatefree(
+            found == 1,
+            hset_free(&se),
+            "Macro break double: value 3.3 %s found", found ? "" : "not"
+        );
+        hset_free(&se);
+    }
+
+    /* 7. Long сумма и break */
+    test_sub("subtest %d: macro sum long", ++subnum);
+    {
+        long    vals[] = {100L, 200L, 300L, 400L, 500L};
+        hset    se = hset_fromlarr(vals, COUNT(vals));
+        long    sum = 0;
+        HSET_FOREACH_LONG(&se, v) sum += v;
+
+        test_validatefree(
+            sum == 1500L,
+            hset_free(&se),
+            "Macro sum long: sum = %ld, expected 1500", sum
+        );
+        hset_free(&se);
+    }
+
+    /* 8. Long break */
+    test_sub("subtest %d: macro break long", ++subnum);
+    {
+        long    vals[] = {10L, 20L, 30L, 40L, 50L};
+        hset    se = hset_fromlarr(vals, COUNT(vals));
+        int     found = 0;
+        HSET_FOREACH_LONG(&se, v) {
+            if (v == 30L) {
+                found = 1;
+                break;
+            }
+        }
+
+        test_validatefree(
+            found == 1,
+            hset_free(&se),
+            "Macro break long: value 30 %s found", found ? "" : "not"
+        );
+        hset_free(&se);
+    }
+
+    /* 9. Указатели: проверяем, что компилируется и не падает (содержимое не проверяем) */
+    test_sub("subtest %d: macro foreach pointer", ++subnum);
+    {
+        // Создадим множество указателей с тремя элементами
+        int     a = 1, b = 2, c = 3;
+        void   *vals[] = {&a, &b, &c};
+        hset    se = hset_fromparr( (const void **) vals, COUNT(vals));
+        int     count = 0;
+        HSET_FOREACH_PTR(&se, v) {
+            count++;
+            // просто убедимся, что v не NULL
+            test_validatefree(
+                v != NULL,
+                hset_free(&se),
+                "Macro foreach pointer: NULL pointer at pos %d", count
+            );
+        }
+
+        test_validatefree(
+            count == COUNT(vals),
+            hset_free(&se),
+            "Macro foreach pointer: count = %d, expected %d", count, COUNT(vals)
+        );
+        hset_free(&se);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -4221,6 +4417,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf22,  .num = 22, .name = "hset_initreduct int impl  simple test"      , .desc="", .mandatory=true)
       , testnew(.f2 = tf23,  .num = 23, .name = "hset_initreduct double int simple test"     , .desc="", .mandatory=true)
       , testnew(.f2 = tf24,  .num = 24, .name = "inf/nan double int simple test"             , .desc="", .mandatory=true)
+      , testnew(.f2 = tf25,  .num = 25, .name = "Macro-base iterator simple test"            , .desc="", .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()

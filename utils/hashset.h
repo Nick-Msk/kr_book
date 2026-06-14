@@ -274,6 +274,19 @@ extern void                 hset_const_foreach(const hset *se, hset_const_proc_t
 //extern void               hset_foreach(hset *se, hset_proc_t proc);
 //extern void               hset_modify_foreach(hset *se, hset_modify_proc_t proc);
 
+// Общий внутренний макрос – проходит по всем элементам и на каждой итерации
+// объявляет var заданного типа и присваивает ей значение из поля field.
+#define _HSET_FOREACH_TYPE(se, var, type, field) \
+    for (int _i_ = 0; _i_ < (se)->sz; _i_++) \
+        for (const hset_elem *_el_ = (se)->table[_i_]; _el_; _el_ = _el_->next) \
+            for (type var = _el_->v.field; (void) var,  0; )  /* трюк для поддержки break */ \
+
+// Публичные макросы
+#define                     HSET_FOREACH_INT(se, var)  _HSET_FOREACH_TYPE(se, var, int     , ival)
+#define                     HSET_FOREACH_LONG(se, var)  _HSET_FOREACH_TYPE(se, var, long    , lval)
+#define                     HSET_FOREACH_DBL(se, var)  _HSET_FOREACH_TYPE(se, var, double  , dval)
+#define                     HSET_FOREACH_PTR(se, var)  _HSET_FOREACH_TYPE(se, var, void *  , pval)
+
 // ----------------------------------------- REDUCE -----------------------------------------
 typedef struct              hset_accum {
     hset_value  value;    // накопленное значение (сумма, максимум и т.п.)
