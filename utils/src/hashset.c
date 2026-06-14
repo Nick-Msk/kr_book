@@ -106,12 +106,23 @@ static inline int           compare_long(long v1, long v2){
         return 0;
 }
 static inline int           compare_dbl(double v1, double v2){
-    if (v1 > v2)
-        return 1;
-    else if (v1 < v2)
-        return -1;
-    else
-        return 0;
+    if (isfinite(v1) && isfinite(v2) ){
+        if (v1 > v2)
+            return 1;
+        else if (v1 < v2)
+            return -1;
+        else
+            return 0;
+    } else {
+        if (isnan(v1) && isnan(v2) )
+            return 0;
+        if (isinf(v1) && isinf(v2) )
+            return 0;   //  NOT SURE - + -inf???
+        if (isnan(v1) && isinf(v2) )
+            return 1;
+        else
+            return 0;
+    }
 }
 static inline int           compare_ptr(const void *restrict v1, const void *restrict v2){
     uintptr_t a = (uintptr_t)v1;
@@ -3784,7 +3795,7 @@ tf21(const char *name)
 
     return logret(TEST_PASSED, "done");
 }
-
+// ------------------------- TEST 22 ---------------------------------
 static TestStatus
 tf22(const char *name)
 {
@@ -3909,6 +3920,150 @@ tf22(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST 23 ---------------------------------
+
+static TestStatus
+tf23(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Сумма double (только конечные числа) */
+    test_sub("subtest %d: sum double", ++subnum);
+    {
+        double  vals[] = {1.5, 2.5, 3.5};
+        hset    se = hset_fromdarr(vals, COUNT(vals));
+        hset_accum res = hset_initreduce(&se, HSET_ACCUM_DBL_ZERO, hset_sum_dbl);
+
+        test_validatefree(
+            fabs(res.value.dval - 7.5) < 0.0001,
+            hset_free(&se),
+            "Sum double: value = %f, expected 7.5", res.value.dval
+        );
+        test_validatefree(
+            res.count == 3,
+            hset_free(&se),
+            "Sum double: count = %d, expected 3", res.count
+        );
+        hset_free(&se);
+    }
+
+    /* 2. Счётчик double (только конечные числа) */
+    test_sub("subtest %d: count double", ++subnum);
+    {
+        double  vals[] = {10.0, 20.0, 30.0};
+        hset    se = hset_fromdarr(vals, COUNT(vals));
+        hset_accum res = hset_initreduce(&se, HSET_ACCUM_DBL_ZERO, hset_count_dbl);
+
+        test_validatefree(
+            res.count == 3,
+            hset_free(&se),
+            "Count double: count = %d, expected 3", res.count
+        );
+        test_validatefree(
+            res.value.dval == 0.0,
+            hset_free(&se),
+            "Count double: value = %f, expected 0.0 (unused)", res.value.dval
+        );
+        hset_free(&se);
+    }
+
+    /* 3. Максимум double */
+    test_sub("subtest %d: max double", ++subnum);
+    {
+        double  vals[] = {5.2, 2.3, 9.8, 1.0, 7.4};
+        hset    se = hset_fromdarr(vals, COUNT(vals));
+        hset_accum res = hset_initreduce(&se, HSET_ACCUM_DBL_ZERO, hset_max_dbl);
+
+        test_validatefree(
+            fabs(res.value.dval - 9.8) < 0.0001,
+            hset_free(&se),
+            "Max double: value = %f, expected 9.8", res.value.dval
+        );
+        test_validatefree(
+            res.count == 1,
+            hset_free(&se),
+            "Max double: count = %d, expected 1 (flag)", res.count
+        );
+        hset_free(&se);
+    }
+
+    /* 4. Минимум double (все отрицательные) */
+    test_sub("subtest %d: min double (all negative)", ++subnum);
+    {
+        double  vals[] = {-5.0, -2.5, -9.1, -1.0};
+        hset    se = hset_fromdarr(vals, COUNT(vals));
+        hset_accum res = hset_initreduce(&se, HSET_ACCUM_DBL_ZERO, hset_min_dbl);
+
+        test_validatefree(
+            fabs(res.value.dval - (-9.1)) < 0.0001,
+            hset_free(&se),
+            "Min double: value = %f, expected -9.1", res.value.dval
+        );
+        test_validatefree(
+            res.count == 1,
+            hset_free(&se),
+            "Min double: count = %d, expected 1 (flag)", res.count
+        );
+        hset_free(&se);
+    }
+
+    /* 5. Пустое множество: сумма double */
+    test_sub("subtest %d: sum double on empty set", ++subnum);
+    {
+        hset    se = hset_init(10, HSET_DBL);
+        hset_accum res = hset_initreduce(&se, HSET_ACCUM_DBL_ZERO, hset_sum_dbl);
+
+        test_validatefree(
+            res.value.dval == 0.0,
+            hset_free(&se),
+            "Empty sum double: value = %f, expected 0.0", res.value.dval
+        );
+        test_validatefree(
+            res.count == 0,
+            hset_free(&se),
+            "Empty sum double: count = %d, expected 0", res.count
+        );
+        hset_free(&se);
+    }
+
+    /* 6. Пустое множество: max double (count должен остаться 0) */
+    test_sub("subtest %d: max double on empty set", ++subnum);
+    {
+        hset    se = hset_init(10, HSET_DBL);
+        hset_accum res = hset_initreduce(&se, HSET_ACCUM_DBL_ZERO, hset_max_dbl);
+
+        test_validatefree(
+            res.count == 0,
+            hset_free(&se),
+            "Empty max double: count = %d, expected 0", res.count
+        );
+        hset_free(&se);
+    }
+
+    /* 7. Несколько значений, включая очень большое, для sum */
+    test_sub("subtest %d: sum double with large value", ++subnum);
+    {
+        double  vals[] = {1e10, 2e10, 3e10};
+        hset    se = hset_fromdarr(vals, COUNT(vals));
+        hset_accum res = hset_initreduce(&se, HSET_ACCUM_DBL_ZERO, hset_sum_dbl);
+
+        test_validatefree(
+            fabs(res.value.dval - 6e10) < 1e5,
+            hset_free(&se),
+            "Sum double large: value = %f, expected 6e10", res.value.dval
+        );
+        test_validatefree(
+            res.count == 3,
+            hset_free(&se),
+            "Sum double large: count = %d, expected 3", res.count
+        );
+        hset_free(&se);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -3937,7 +4092,8 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf19,  .num = 19, .name = "hset_normalize simple test"                 , .desc="", .mandatory=true)
       , testnew(.f2 = tf20,  .num = 20, .name = "hset_save/load simple test"                 , .desc="", .mandatory=true)
       , testnew(.f2 = tf21,  .num = 21, .name = "hset_const_foreach simple test"             , .desc="", .mandatory=true)
-      , testnew(.f2 = tf22,  .num = 22, .name = "hset_initreduct  simple test"               , .desc="", .mandatory=true)
+      , testnew(.f2 = tf22,  .num = 22, .name = "hset_initreduct int impl  simple test"      , .desc="", .mandatory=true)
+      , testnew(.f2 = tf23,  .num = 23, .name = "hset_initreduct double int simple test"     , .desc="", .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()

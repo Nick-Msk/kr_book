@@ -282,7 +282,7 @@ typedef struct              hset_accum {
 } hset_accum;
 
 #define                     HSET_ACCUM(...)  (hset_accum) { .value = HSET_ZERO_VALUE, .count = 0, .str_agg = FS(), __VA_ARGS__} 
-#define                     HSET_ACCUM_DBL(ZERO)  (hset_accum) { .value = HSET_DBLVALUE(0.0), .count = 0, .str_agg = FS(), __VA_ARGS__} 
+#define                     HSET_ACCUM_DBL_ZERO  (hset_accum) { .value = HSET_DBLVALUE(0.0), .count = 0, .str_agg = FS() } 
 
 typedef                     void (*hset_reduce_func)(hset_accum *acc, hset_value v);
 
