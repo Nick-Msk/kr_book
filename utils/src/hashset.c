@@ -4057,6 +4057,138 @@ tf23(const char *name)
 
     return logret(TEST_PASSED, "done");
 }
+// ------------------------- TEST 24 ---------------------------------
+static TestStatus
+tf24(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Уникальность NaN, +inf, -inf и корректность поиска */
+    test_sub("subtest %d: double special values uniqueness", ++subnum);
+    {
+        hset    se = hset_init(10, HSET_DBL);
+
+        double  normal_vals[] = {1.0, 2.0, 3.0};
+        for (int i = 0; i < COUNT(normal_vals); i++)
+            hset_set(&se, HSET_DBLVALUE(normal_vals[i]));
+
+        int     cnt_normal = hset_cnt(&se);
+        test_validatefree(
+            cnt_normal == COUNT(normal_vals),
+            hset_free(&se),
+            "After normal values: count = %d, expected %d", cnt_normal, COUNT(normal_vals)
+        );
+
+        /* ---- NaN ---- */
+        test_validatefree(
+            hset_set(&se, HSET_DBLVALUE(NAN)),
+            hset_free(&se),
+            "First NaN was not added"
+        );
+        test_validatefree(
+            hset_cnt(&se) == cnt_normal + 1,
+            hset_free(&se),
+            "After first NaN: count = %d, expected %d", hset_cnt(&se), cnt_normal + 1
+        );
+
+        test_validatefree(
+            !hset_set(&se, HSET_DBLVALUE(NAN)),
+            hset_free(&se),
+            "Second NaN was added, but should be duplicate"
+        );
+        test_validatefree(
+            hset_cnt(&se) == cnt_normal + 1,
+            hset_free(&se),
+            "After second NaN attempt: count = %d, expected %d", hset_cnt(&se), cnt_normal + 1
+        );
+
+        /* ---- +inf ---- */
+        test_validatefree(
+            hset_set(&se, HSET_DBLVALUE(INFINITY)),
+            hset_free(&se),
+            "First +inf was not added"
+        );
+        test_validatefree(
+            hset_cnt(&se) == cnt_normal + 2,
+            hset_free(&se),
+            "After first +inf: count = %d, expected %d", hset_cnt(&se), cnt_normal + 2
+        );
+
+        test_validatefree(
+            !hset_set(&se, HSET_DBLVALUE(INFINITY)),
+            hset_free(&se),
+            "Second +inf was added, but should be duplicate"
+        );
+        test_validatefree(
+            hset_cnt(&se) == cnt_normal + 2,
+            hset_free(&se),
+            "After second +inf attempt: count = %d, expected %d", hset_cnt(&se), cnt_normal + 2
+        );
+
+        /* ---- -inf ---- */
+        test_validatefree(
+            hset_set(&se, HSET_DBLVALUE(-INFINITY)),
+            hset_free(&se),
+            "First -inf was not added"
+        );
+        test_validatefree(
+            hset_cnt(&se) == cnt_normal + 3,
+            hset_free(&se),
+            "After first -inf: count = %d, expected %d", hset_cnt(&se), cnt_normal + 3
+        );
+
+        test_validatefree(
+            !hset_set(&se, HSET_DBLVALUE(-INFINITY)),
+            hset_free(&se),
+            "Second -inf was added, but should be duplicate"
+        );
+        test_validatefree(
+            hset_cnt(&se) == cnt_normal + 3,
+            hset_free(&se),
+            "After second -inf attempt: count = %d, expected %d", hset_cnt(&se), cnt_normal + 3
+        );
+
+        /* ---- поиск всех значений ---- */
+        for (int i = 0; i < COUNT(normal_vals); i++) {
+            test_validatefree(
+                hset_get(&se, HSET_DBLVALUE(normal_vals[i])),
+                hset_free(&se),
+                "Missing normal value %f", normal_vals[i]
+            );
+        }
+        test_validatefree(
+            hset_get(&se, HSET_DBLVALUE(NAN)),
+            hset_free(&se),
+            "Missing NaN after insertions"
+        );
+        test_validatefree(
+            hset_get(&se, HSET_DBLVALUE(INFINITY)),
+            hset_free(&se),
+            "Missing +inf after insertions"
+        );
+        test_validatefree(
+            hset_get(&se, HSET_DBLVALUE(-INFINITY)),
+            hset_free(&se),
+            "Missing -inf after insertions"
+        );
+
+        for (int i = 0; i < 15; i++)
+            hset_set(&se, HSET_DBLVALUE(i) );
+        hset_techprint(&se, 0);
+
+        /* ---- структурная целостность ---- */
+        test_validatefree(
+            hset_validate(logfile, &se),
+            hset_free(&se),
+            "Validation failed after special values"
+        );
+
+        hset_free(&se);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
 
 // ------------------------------------------------------------------------------------------------------------------------------
 int
@@ -4088,6 +4220,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf21,  .num = 21, .name = "hset_const_foreach simple test"             , .desc="", .mandatory=true)
       , testnew(.f2 = tf22,  .num = 22, .name = "hset_initreduct int impl  simple test"      , .desc="", .mandatory=true)
       , testnew(.f2 = tf23,  .num = 23, .name = "hset_initreduct double int simple test"     , .desc="", .mandatory=true)
+      , testnew(.f2 = tf24,  .num = 24, .name = "inf/nan double int simple test"             , .desc="", .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
