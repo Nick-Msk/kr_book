@@ -240,6 +240,10 @@ static inline bool          hset_in(const hset *restrict se1, const hset *restri
 static inline bool          hset_strictin(const hset *restrict se1, const hset *restrict se2){
     return hset_subset_check(se1, se2, true);
 }
+// if not exists
+extern bool                 hset_notexists(const hset *restrict se1, const hset *restrict se2);
+// if exists any of se2 in se1
+extern bool                 hset_any(const hset *restrict se1, const hset *restrict se2);
 // se1 -= se2 as SET
 extern hset                *hset_minus(hset *restrict se1, const hset *restrict se2);
 // se1 insersect= se2 as SET
@@ -263,7 +267,6 @@ extern int                  hset_save(const char *restrict fname, const hset *se
 extern int                  hset_fload(FILE *restrict in, hset *restrict se);
 extern int                  hset_load(const char *restrict fname, hset *restrict se);
 
-// --------------------------------------- ITERATORS ---------------------------------------
 
 // const
 typedef                     void (*hset_const_proc_t)(hset_value v);
@@ -281,17 +284,23 @@ extern void                 hset_const_foreach(const hset *se, hset_const_proc_t
 #define _HSET_FOREACH_TYPE(se, var, type, field) \
     for (int _i_ = 0; _i_ < (se)->sz; _i_++) \
         for (const hset_elem *_el_ = (se)->table[_i_]; _el_; _el_ = _el_->next) \
-            _Pragma("GCC diagnostic push") \
-            _Pragma("GCC diagnostic ignored \"-Wfor-loop-analysis\"") \
             for (int _flag_ = 1; _flag_; _flag_ = 0) \
-                for (type var = _el_->v.field; _flag_; _flag_ = 0) \
-            _Pragma("GCC diagnostic pop")
+                for (type var = _el_->v.field; _flag_; _flag_ = 0)
 
+            //_Pragma("GCC diagnostic push") \
+            //_Pragma("GCC diagnostic ignored \"-Wfor-loop-analysis\"") \
+           // _Pragma("GCC diagnostic pop")
 // Публичные макросы
 #define                     HSET_FOREACH_INT(se, var)  _HSET_FOREACH_TYPE(se, var, int, ival)
 #define                     HSET_FOREACH_LONG(se, var)  _HSET_FOREACH_TYPE(se, var, long, lval)
 #define                     HSET_FOREACH_DBL(se, var)  _HSET_FOREACH_TYPE(se, var, double, dval)
 #define                     HSET_FOREACH_PTR(se, var)  _HSET_FOREACH_TYPE(se, var, void*, pval)
+// any type
+#define                     HSET_FOREACH(se, var) \
+        for (int _i_ = 0; _i_ < (se)->sz; _i_++) \
+            for (const hset_elem *_el_ = (se)->table[_i_]; _el_; _el_ = _el_->next) \
+                for (int _flag_ = 1; _flag_; _flag_ = 0) \
+                    for (hset_value var  = _el_->v; _flag_; _flag_ = 0)
 
 // ----------------------------------------- REDUCE -----------------------------------------
 typedef struct              hset_accum {

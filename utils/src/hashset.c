@@ -214,8 +214,7 @@ static void                 printval(FILE *out, hset_type typ, hset_value v){
                 fprintf(out, "%p\n", v.pval);
             break;
             case HSET_FS:
-                    // TODO:
-                   /* fs_fprint(f, &el->v.fsval, 0); fprintf(f, "\n"); */
+                fs_fprint(out, v.fsval, 0); fprintf(out, "\n");
             break;
             default:
                 break;
@@ -782,7 +781,7 @@ bool                        hset_subset_check(const hset *restrict se1, const hs
     invraise(se1 != 0 && se2 != 0, "Null pointers");
 
     if (getype(se1) != getype(se2) )
-        return userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1) ), hset_type_name(getype(se2) ) );
+        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1) ), hset_type_name(getype(se2) ) );
 
     if ( (!strict && hset_cnt(se1) > hset_cnt(se2) ) ||
         (strict && hset_cnt(se1) >= hset_cnt(se2) ) )
@@ -798,7 +797,34 @@ bool                        hset_subset_check(const hset *restrict se1, const hs
     }
     return logsimpleret(true, "Matched %s as in", strict ? "strict": "");
 }
-
+// if not exists se2 in se1
+bool                        hset_notexists(const hset *restrict se1, const hset *restrict se2){
+    invraise(se1 != 0 && se2 != 0, "Null pointers");
+    // refsctor tha to common
+    if (getype(se1) != getype(se2) )
+        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1) ), hset_type_name(getype(se2) ) );
+    HSET_FOREACH(se2, val){
+        if (hset_get(se1, val) ){
+            printval(logfile, getype(se2), val);
+            return logsimpleret(false, "Found element in se1");
+        }
+    }
+    return logsimpleret(true, "Not found - OK");
+}
+// if exists any of se2 in se1
+bool                        hset_any(const hset *restrict se1, const hset *restrict se2){
+    invraise(se1 != 0 && se2 != 0, "Null pointers");
+    // refsctor tha to common
+    if (getype(se1) != getype(se2) )
+        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1) ), hset_type_name(getype(se2) ) );
+    HSET_FOREACH(se2, val){
+        if (!hset_get(se1, val) ){
+            printval(logfile, getype(se2), val);
+            return logsimpleret(false, "Element of se2 NOT Found in se1");
+        }
+    }
+    return logsimpleret(true, "All found - OK");
+}
 // se1 -= se2 as SET, returns count of deleted element
 hset                       *hset_minus(hset *restrict se1, const hset *restrict se2){
     invraise(se1 != 0 && se2 != 0, "Null pointers");
