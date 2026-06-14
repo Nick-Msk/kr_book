@@ -270,6 +270,8 @@ typedef                     void (*hset_const_proc_t)(hset_value v);
 // change //typedef                 void (*hset_proc_t)(hset_value *v);
 // modift structure typedef                 void (*hset_modify_proc_t)(hset *se, hset_elem *el);
 
+typedef                     void * pointer_to_void;
+
 extern void                 hset_const_foreach(const hset *se, hset_const_proc_t proc);
 //extern void               hset_foreach(hset *se, hset_proc_t proc);
 //extern void               hset_modify_foreach(hset *se, hset_modify_proc_t proc);
@@ -279,13 +281,17 @@ extern void                 hset_const_foreach(const hset *se, hset_const_proc_t
 #define _HSET_FOREACH_TYPE(se, var, type, field) \
     for (int _i_ = 0; _i_ < (se)->sz; _i_++) \
         for (const hset_elem *_el_ = (se)->table[_i_]; _el_; _el_ = _el_->next) \
-            for (type var = _el_->v.field; (void) var,  0; )  /* трюк для поддержки break */ \
+            _Pragma("GCC diagnostic push") \
+            _Pragma("GCC diagnostic ignored \"-Wfor-loop-analysis\"") \
+            for (int _flag_ = 1; _flag_; _flag_ = 0) \
+                for (type var = _el_->v.field; _flag_; _flag_ = 0) \
+            _Pragma("GCC diagnostic pop")
 
 // Публичные макросы
-#define                     HSET_FOREACH_INT(se, var)  _HSET_FOREACH_TYPE(se, var, int     , ival)
-#define                     HSET_FOREACH_LONG(se, var)  _HSET_FOREACH_TYPE(se, var, long    , lval)
-#define                     HSET_FOREACH_DBL(se, var)  _HSET_FOREACH_TYPE(se, var, double  , dval)
-#define                     HSET_FOREACH_PTR(se, var)  _HSET_FOREACH_TYPE(se, var, void *  , pval)
+#define                     HSET_FOREACH_INT(se, var)  _HSET_FOREACH_TYPE(se, var, int, ival)
+#define                     HSET_FOREACH_LONG(se, var)  _HSET_FOREACH_TYPE(se, var, long, lval)
+#define                     HSET_FOREACH_DBL(se, var)  _HSET_FOREACH_TYPE(se, var, double, dval)
+#define                     HSET_FOREACH_PTR(se, var)  _HSET_FOREACH_TYPE(se, var, void*, pval)
 
 // ----------------------------------------- REDUCE -----------------------------------------
 typedef struct              hset_accum {
@@ -298,7 +304,6 @@ typedef struct              hset_accum {
 #define                     HSET_ACCUM_DBL_ZERO  (hset_accum) { .value = HSET_DBLVALUE(0.0), .count = 0, .str_agg = FS() } 
 
 typedef                     void (*hset_reduce_func)(hset_accum *acc, hset_value v);
-
 extern hset_accum           hset_initreduce(const hset *se, hset_accum init, hset_reduce_func func);
 
 static inline hset_accum    hset_reduce(const hset *se, hset_reduce_func func){

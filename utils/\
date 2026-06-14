@@ -4201,17 +4201,14 @@ tf25(const char *name)
     /* 1. Сумма int через макрос */
     test_sub("subtest %d: macro sum int", ++subnum);
     {
-        int     vals[] = {1, 2, 3, 4, 5, 6, 7, 8};
+        int     vals[] = {1, 2, 3, 4, 5};
         hset    se = hset_fromiarr(vals, COUNT(vals));
-        hset_techprint(&se, 0);
         int     sum = 0;
-        HSET_FOREACH_INT(&se, v){
-            printf("%d\n", v);
+        HSET_FOREACH_INT(&se, v)
             sum += v;
-        }
 
         test_validatefree(
-            sum == 36,
+            sum == 15,
             hset_free(&se),
             "Macro sum int: sum = %d, expected 15", sum
         );
@@ -4275,7 +4272,7 @@ tf25(const char *name)
     {
         hset    se = hset_init(10, HSET_INT);
         int     called = 0;
-        HSET_FOREACH_INT(&se, v)
+        HSET_FOREACH_INT(&se, (int) v)
             called++;
 
         test_validatefree(
