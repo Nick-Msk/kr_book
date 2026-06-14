@@ -818,12 +818,12 @@ bool                        hset_any(const hset *restrict se1, const hset *restr
     if (getype(se1) != getype(se2) )
         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1) ), hset_type_name(getype(se2) ) );
     HSET_FOREACH(se2, val){
-        if (!hset_get(se1, val) ){
+        if (hset_get(se1, val) ){
             printval(logfile, getype(se2), val);
-            return logsimpleret(false, "Element of se2 NOT Found in se1");
+            return logsimpleret(true, "Element of se2 Found in se1");
         }
     }
-    return logsimpleret(true, "All found - OK");
+    return logsimpleret(false, "All not found - OK");
 }
 // se1 -= se2 as SET, returns count of deleted element
 hset                       *hset_minus(hset *restrict se1, const hset *restrict se2){
@@ -4417,6 +4417,185 @@ tf25(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST 26 ---------------------------------
+static TestStatus
+tf26(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== hset_any ========== */
+
+    /* 1. any: пустое с пустым -> false (нет элементов для поиска) */
+    test_sub("subtest %d:hset_any  empty vs empty", ++subnum);
+    {
+        hset se1 = hset_init(10, HSET_INT);
+        hset se2 = hset_init(10, HSET_INT);
+        test_validatefree(
+            !hset_any(&se1, &se2),   // false
+            (hset_free(&se1), hset_free(&se2)),
+            "hset_any empty vs empty must be false"
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+
+    /* 2. any: пустое с непустым -> false */
+    test_sub("subtest %d:hset_any  empty vs non-empty", ++subnum);
+    {
+        int vals[] = {1, 2, 3};
+        hset empty = hset_init(10, HSET_INT);
+        hset nonempty = hset_fromiarr(vals, COUNT(vals));
+        test_validatefree(
+            !hset_any(&empty, &nonempty),   // false
+            (hset_free(&empty), hset_free(&nonempty)),
+            "hset_any empty vs non-empty must be false"
+        );
+        hset_free(&empty);
+        hset_free(&nonempty);
+    }
+    /* 3. any: непустое с пустым -> false (нет элементов в se2 для поиска) */
+    test_sub("subtest %d: any non‑empty vs empty", ++subnum);
+    {
+        int vals[] = {1, 2, 3};
+        hset empty = hset_init(10, HSET_INT);
+        hset nonempty = hset_fromiarr(vals, COUNT(vals));
+        test_validatefree(
+            !hset_any(&nonempty, &empty),   // false
+            (hset_free(&empty), hset_free(&nonempty)),
+            "hset_any non‑empty vs empty must be false"
+        );
+        hset_free(&empty);
+        hset_free(&nonempty);
+    }
+    /* 4. any: непустое с непустым, есть пересечение -> true */
+    test_sub("subtest %d:hset_any  with overlap", ++subnum);
+    {
+        int vals1[] = {1, 3, 5, 7};
+        int vals2[] = {5, 9, 11};
+        hset se1 = hset_fromiarr(vals1, COUNT(vals1));
+        hset se2 = hset_fromiarr(vals2, COUNT(vals2));
+        test_validatefree(
+            hset_any(&se1, &se2),   // true
+            (hset_free(&se1), hset_free(&se2)),
+            "hset_any with overlap must be true"
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+
+    /* 5. any: непустое с непустым, нет пересечения -> false */
+    test_sub("subtest %d:hset_any  disjoint", ++subnum);
+    {
+        int vals1[] = {100, 200};
+        int vals2[] = {300, 400};
+        hset se1 = hset_fromiarr(vals1, COUNT(vals1));
+        hset se2 = hset_fromiarr(vals2, COUNT(vals2));
+        test_validatefree(
+            !hset_any(&se1, &se2),   // false
+            (hset_free(&se1), hset_free(&se2)),
+            "hset_any disjoint must be false"
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+
+    /* 6. any: одинаковые множества -> true (все элементы se2 есть в se1) */
+    test_sub("subtest %d:hset_any  identical sets", ++subnum);
+    {
+        int vals[] = {7, 8, 9};
+        hset se1 = hset_fromiarr(vals, COUNT(vals));
+        hset se2 = hset_fromiarr(vals, COUNT(vals));
+        test_validatefree(
+            hset_any(&se1, &se2),   // true
+            (hset_free(&se1), hset_free(&se2)),
+            "hset_any identical sets must be true"
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+
+    /* ========== hset_notexists ========== */
+
+    /* 7. notexists: пустое с пустым -> true (нет общих элементов) */
+    test_sub("subtest %d: notexists empty vs empty", ++subnum);
+    {
+        hset se1 = hset_init(10, HSET_INT);
+        hset se2 = hset_init(10, HSET_INT);
+        test_validatefree(
+            hset_notexists(&se1, &se2),   // true
+            (hset_free(&se1), hset_free(&se2)),
+            "hset_notexists empty vs empty must be true"
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+
+    /* 8. notexists: пустое с непустым -> true */
+    test_sub("subtest %d: notexists empty vs non-empty", ++subnum);
+    {
+        int vals[] = {1, 2, 3};
+        hset empty = hset_init(10, HSET_INT);
+        hset nonempty = hset_fromiarr(vals, COUNT(vals));
+        test_validatefree(
+            hset_notexists(&empty, &nonempty),   // true
+            (hset_free(&empty), hset_free(&nonempty)),
+            "hset_notexists empty vs non-empty must be true"
+        );
+        hset_free(&empty);
+        hset_free(&nonempty);
+    }
+
+    /* 9. notexists: непустое с непустым, нет пересечения -> true */
+    test_sub("subtest %d: notexists disjoint", ++subnum);
+    {
+        int vals1[] = {10, 20};
+        int vals2[] = {30, 40};
+        hset se1 = hset_fromiarr(vals1, COUNT(vals1));
+        hset se2 = hset_fromiarr(vals2, COUNT(vals2));
+        test_validatefree(
+            hset_notexists(&se1, &se2),   // true
+            (hset_free(&se1), hset_free(&se2)),
+            "hset_notexists disjoint must be true"
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+
+    /* 10. notexists: непустое с непустым, есть пересечение -> false */
+    test_sub("subtest %d: notexists with overlap", ++subnum);
+    {
+        int vals1[] = {1, 2, 3};
+        int vals2[] = {3, 4, 5};
+        hset se1 = hset_fromiarr(vals1, COUNT(vals1));
+        hset se2 = hset_fromiarr(vals2, COUNT(vals2));
+        test_validatefree(
+            !hset_notexists(&se1, &se2),   // false
+            (hset_free(&se1), hset_free(&se2)),
+            "hset_notexists with overlap must be false"
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+
+    /* 11. notexists: одинаковые множества -> false */
+    test_sub("subtest %d: notexists identical sets", ++subnum);
+    {
+        int vals[] = {5, 6, 7};
+        hset se1 = hset_fromiarr(vals, COUNT(vals));
+        hset se2 = hset_fromiarr(vals, COUNT(vals));
+        test_validatefree(
+            !hset_notexists(&se1, &se2),   // false
+            (hset_free(&se1), hset_free(&se2)),
+            "hset_notexists identical sets must be false"
+        );
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -4461,6 +4640,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf23,  .num = 23, .name = "hset_initreduct double int simple test"     , .desc="", .mandatory=true)
               , testnew(.f2 = tf24,  .num = 24, .name = "inf/nan double int simple test"             , .desc="", .mandatory=true)
               , testnew(.f2 = tf25,  .num = 25, .name = "Macro-base iterator simple test"            , .desc="", .mandatory=true)
+              , testnew(.f2 = tf26,  .num = 26, .name = "hset_any(), hset_nonexists() simple test"   , .desc="", .mandatory=true)
             );
         if (runall)
             break;
