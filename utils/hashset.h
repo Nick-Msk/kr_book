@@ -115,6 +115,8 @@ static inline hset_value        hset_createval(const void *p, hset_type typ){
         break;
         case HSET_FS:  // NOT SURE, PROBABLY DEEP COPY IS REQUIRED
             tmp.fsval = *(fs * const *) p;
+            if (! (fs_alloc(tmp.fsval) || fs_static(tmp.fsval) ) )
+                userraiseint(ERR_UNSUPPORTED_TYPE, "Only fs heap and static are allowed, but not %s", fs_flag_str(tmp.fsval->flags) );
         break;
         default:
             userraiseint(ERR_UNSUPPORTED_TYPE, "type %d isn't suppoted", typ);
