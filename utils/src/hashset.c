@@ -3785,6 +3785,129 @@ tf21(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+static TestStatus
+tf22(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Сумма int */
+    test_sub("subtest %d: reduce sum int", ++subnum);
+    {
+        int     vals[] = {1, 2, 3, 4, 5};
+        hset    se = hset_fromiarr(vals, COUNT(vals));
+        hset_accum res = hset_reduce(&se, hset_sum_int);
+
+        test_validatefree(
+            res.value.ival == 15,
+            hset_free(&se),
+            "Sum int: value = %d, expected 15", res.value.ival
+        );
+        test_validatefree(
+            res.count == 5,
+            hset_free(&se),
+            "Sum int: count = %d, expected 5", res.count
+        );
+        hset_free(&se);
+    }
+
+    /* 2. Счётчик int */
+    test_sub("subtest %d: reduce count int", ++subnum);
+    {
+        int     vals[] = {10, 20, 30};
+        hset    se = hset_fromiarr(vals, COUNT(vals));
+        hset_accum res = hset_reduce(&se, hset_count_int);
+
+        test_validatefree(
+            res.count == COUNT(vals),
+            hset_free(&se),
+            "Count int: count = %d, expected %d", res.count, COUNT(vals)
+        );
+        // value не должно измениться (осталось нулевым)
+        test_validatefree(
+            res.value.ival == 0,
+            hset_free(&se),
+            "Count int: value = %d, expected 0 (unused)", res.value.ival
+        );
+        hset_free(&se);
+    }
+
+    /* 3. Максимум int */
+    test_sub("subtest %d: reduce max int", ++subnum);
+    {
+        int     vals[] = {5, 2, 9, 1, 7};
+        hset    se = hset_fromiarr(vals, COUNT(vals));
+        hset_accum res = hset_reduce(&se, hset_max_int);
+
+        test_validatefree(
+            res.value.ival == 9,
+            hset_free(&se),
+            "Max int: value = %d, expected 9", res.value.ival
+        );
+        test_validatefree(
+            res.count == 1,
+            hset_free(&se),
+            "Max int: count = %d, expected 1 (flag)", res.count
+        );
+        hset_free(&se);
+    }
+
+    /* 4. Минимум int */
+    test_sub("subtest %d: reduce min int", ++subnum);
+    {
+        int     vals[] = {3, 8, 1, 6, 4};
+        hset    se = hset_fromiarr(vals, COUNT(vals));
+        hset_accum res = hset_reduce(&se, hset_min_int);
+
+        test_validatefree(
+            res.value.ival == 1,
+            hset_free(&se),
+            "Min int: value = %d, expected 1", res.value.ival
+        );
+        test_validatefree(
+            res.count == 1,
+            hset_free(&se),
+            "Min int: count = %d, expected 1 (flag)", res.count
+        );
+        hset_free(&se);
+    }
+
+    /* 5. Пустое множество: сумма и счётчик */
+    test_sub("subtest %d: reduce on empty set", ++subnum);
+    {
+        hset    se = hset_init(10, HSET_INT);
+        hset_accum res = hset_reduce(&se, hset_sum_int);
+
+        test_validatefree(
+            res.value.ival == 0,
+            hset_free(&se),
+            "Empty sum: value = %d, expected 0", res.value.ival
+        );
+        test_validatefree(
+            res.count == 0,
+            hset_free(&se),
+            "Empty sum: count = %d, expected 0", res.count
+        );
+        hset_free(&se);
+    }
+
+    /* 6. Пустое множество: max (count остаётся 0) */
+    test_sub("subtest %d: reduce max on empty set", ++subnum);
+    {
+        hset    se = hset_init(10, HSET_INT);
+        hset_accum res = hset_reduce(&se, hset_max_int);
+
+        test_validatefree(
+            res.count == 0,
+            hset_free(&se),
+            "Empty max: count = %d, expected 0 (no elements)", res.count
+        );
+        // value не важно, т.к. нет элементов
+        hset_free(&se);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
 
 // ------------------------------------------------------------------------------------------------------------------------------
 int
@@ -3814,6 +3937,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf19,  .num = 19, .name = "hset_normalize simple test"                 , .desc="", .mandatory=true)
       , testnew(.f2 = tf20,  .num = 20, .name = "hset_save/load simple test"                 , .desc="", .mandatory=true)
       , testnew(.f2 = tf21,  .num = 21, .name = "hset_const_foreach simple test"             , .desc="", .mandatory=true)
+      , testnew(.f2 = tf22,  .num = 22, .name = "hset_initreduct  simple test"               , .desc="", .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
