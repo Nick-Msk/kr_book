@@ -106,23 +106,17 @@ static inline int           compare_long(long v1, long v2){
         return 0;
 }
 static inline int           compare_dbl(double v1, double v2){
-    if (isfinite(v1) && isfinite(v2) ){
-        if (v1 > v2)
-            return 1;
-        else if (v1 < v2)
-            return -1;
-        else
-            return 0;
-    } else {
-        if (isnan(v1) && isnan(v2) )
-            return 0;
-        if (isinf(v1) && isinf(v2) )
-            return 0;   //  NOT SURE - + -inf???
-        if (isnan(v1) && isinf(v2) )
-            return 1;
-        else
-            return 0;
-    }
+    if (isnan(v1) && isnan(v2))
+        return 0;
+    if (isnan(v1))
+        return -1;
+    if (isnan(v2))
+        return 1;
+    if (v1 > v2)
+        return 1;
+    if (v1 < v2)
+        return -1;
+    return 0; // равны (включая случай +0.0 и -0.0)
 }
 static inline int           compare_ptr(const void *restrict v1, const void *restrict v2){
     uintptr_t a = (uintptr_t)v1;
