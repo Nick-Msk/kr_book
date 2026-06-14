@@ -49,9 +49,12 @@ typedef bool (*Tcomp)(const char *restrict, int, const char *restrict);
 
 #define testdep(...) .dep_list = { __VA_ARGS__ }
 
-#define testengine(out, ...) test_engine2((Utest []) { __VA_ARGS__ , testnew(.f2 = 0) }, out).passed
+#define testengine(num, out, ...) test_engine2((Utest []) { __VA_ARGS__ , testnew(.f2 = 0) }, num, out).passed
 
-#define testenginestd(...) testengine(stdout, __VA_ARGS__)
+// 0 mean all tests
+#define testenginestd(...) testengine(0, stdout, __VA_ARGS__)
+
+#define testenginestd_run(num, ...) testengine( (num), stdout, __VA_ARGS__)
 
 typedef struct
             {
@@ -77,7 +80,7 @@ tfile(TFILE tf)
 
 // engine function
 extern TestRes
-test_engine2(Utest *, FILE *);
+test_engine2(Utest * restrict tests, int num, FILE *restrict out);
 
 // subtest, close previous one if it was
 extern void

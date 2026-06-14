@@ -80,7 +80,7 @@ fprint(FILE *restrict out, const char *restrict msg, ...)
 
 // duplicate number checker, tests must be sorted by .num
 static bool
-check_duplicate_num(Utest *tests, int cnt, int *num)
+check_duplicate_num(Utest *restrict tests, int cnt, int *restrict num)
 {
 	for (int i = 0; i < cnt - 1; i++)
 		if (tests[i].num != 0 && tests[i].num == tests[i + 1].num)		// multiple 0 is allowed
@@ -122,7 +122,7 @@ test_sub_close(TestStatus status)
 
 // dep checker
 static bool
-check_dependencies(FILE *out, Utest *tests, int testnum, int cnt)
+check_dependencies(FILE *restrict out, Utest *restrict tests, int testnum, int cnt)
 {
 	// check if all dependent tests are passed
 	Utest 	*t = tests + testnum;
@@ -160,7 +160,7 @@ check_dependencies(FILE *out, Utest *tests, int testnum, int cnt)
 }
 
 static bool
-launcher(FILE *out, Utest *t)
+launcher(FILE *restrict out, Utest *restrict t)
 {
 	bool  				 res;
 	TestStatus  		 status;
@@ -211,7 +211,7 @@ launcher(FILE *out, Utest *t)
 
 // print summary info
 static inline int
-print_summary(FILE *out, const TestRes *restrict summary, const char *restrict msg, int total)
+print_summary(FILE *restrict out, const TestRes *restrict summary, const char *restrict msg, int total)
 {
 	return fprint(out, "\n%s(%s):\n[PASSED\t/FAILED\t/EXCEPTION FAILED\t/SKIPPED\t/TOTAL RUNNED\t/TOTAL]\n[%d\t/%d\t/%d\t\t\t/%d\t\t/%d\t\t/%d]\n\n",
                   msg, summary->passed ? "PASSED" : "FAILED",
@@ -239,7 +239,7 @@ static inline const char *print_test_status(TestStatus s)
 
 // detailed test info print
 static inline int
-print_test(FILE *out, const Utest *test)
+print_test(FILE *restrict out, const Utest *restrict test)
 {
 	int 	cnt = 0;
 	cnt += fprint(out, "Logical num: %d\n", test->num);
@@ -255,7 +255,7 @@ print_test(FILE *out, const Utest *test)
 
 // detailed all test print
 static int
-print_all_test(FILE *out, const Utest *restrict tests)
+print_all_test(FILE *restrict out, const Utest *restrict tests)
 {
 	int 	cnt = 0;
 	while (tests->f2)	// TODO: replace to .f
@@ -271,9 +271,9 @@ print_all_test(FILE *out, const Utest *restrict tests)
 
 // ------------------------------- interface ----------------------------------------
 
-// tests must have final .f=0, if out==0 then output is disabled
+// tests must have final .f=0, if out==0 then output is disabled, num == 0: all tests
 TestRes
-test_engine2(Utest *tests, FILE *out)
+test_engine2(Utest *restrict tests, int num, FILE *restrict out)
 {
 	static const char 	*START_ALL	= "START OF TESTING";
 	static const char 	*END_ALL	= "END OF TESTING, TOTAL";
@@ -310,21 +310,24 @@ test_engine2(Utest *tests, FILE *out)
 		summary.total++;
 
 		// check dependencies
-		if (!check_dependencies(out, tests, i, cnt))
-		{
-			summary.skip_total++;
-			continue;
-		}
+        if (num == 0)
+    		if (!check_dependencies(out, tests, i, cnt))
+	    	{
+		    	summary.skip_total++;
+			    continue;
+		    }
 		// exception handling is moved to launcher()
-		if (!launcher(out, tests + i))
-		{
-			summary.err_total++;
-            if (tests[i].mandatory)
-                summary.passed = false; // interrupt
-			if (tests[i].status == TEST_FAILED_EXCEPTION)
-				summary.exception_total++;
-		} else
-			summary.pass_total++;
+        if (num == 0 || num == i){
+		    if (!launcher(out, tests + i))
+		    {
+			    summary.err_total++;
+                if (tests[i].mandatory)
+                    summary.passed = false; // interrupt
+			    if (tests[i].status == TEST_FAILED_EXCEPTION)
+				    summary.exception_total++;
+		    } else
+			    summary.pass_total++;
+        }
 	}
 
 	offsetinc(-1);
