@@ -21,11 +21,11 @@
 // ------------------- TYPES -----------------------
 
 typedef enum  {
-               FS_FLAG_ALLOC  = 0x0     // standard allocation
+               FS_FLAG_ALLOC  = 0x10     // standard allocation
              , FS_FLAG_STATIC = 0x1
              , FS_FLAG_CONST  = 0x2     // Not user for now
              , FS_FLAG_LOCAL  = 0x4
-             //, FS_FLAG_MOVED  = 0x8     // for fsarr_move()
+             , FS_FLAG_MOVED  = 0x8     // for fsarr_move()
 } FS_FLAGS;
 
 // type-support functions
@@ -75,20 +75,20 @@ static inline bool          fs_local(const fs *s){
 }
 
 static inline bool          fs_flag_alloc(FS_FLAGS fl){
-    return fl == FS_FLAG_ALLOC; // heap marker
+    return fl & FS_FLAG_ALLOC; // heap marker
 }
 
 static inline bool          fs_alloc(const fs *s){
     return fs_flag_alloc(s->flags);
 }
 
-/*static inline bool          fs_flag_moved(FS_FLAGS fl){
-    return fl == FS_FLAG_MOVED;
+static inline bool          fs_flag_moved(FS_FLAGS fl){
+    return fl & FS_FLAG_MOVED;
 }
 
 static inline bool          fs_moved(const fs *s){
     return fs_flag_moved(s->flags);
-}*/
+}
 
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
@@ -157,12 +157,27 @@ extern void                 fsfreeall(void);
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
+// move only heap alloc fs
 static inline fs            fs_move(fs *orig){
     if (!fs_alloc(orig) )
         userraiseint(ERR_FS_NOT_ALLOC_FLAG, "Unable to move not allocated fs (type %s)", fs_flag_str(orig->flags) );    // 10001 interrupt
     fs tmp = *orig;
     *orig = FS();
     return logsimpleret(tmp, "fs moved %d: %p", tmp.sz, tmp.v);
+}
+// move whole fs (body and string)
+static inline fs           *fs_moveall(fs *orig){
+    if (! (fs_alloc(orig) || fs_static(orig) ) )
+        userraiseint(ERR_UNSUPPORTED_TYPE, "Unable to move not allocated fs (type %s)", fs_flag_str(orig->flags) );
+    fs  *tmp = malloc(sizeof(fs) );
+    if (!tmp)
+        userraiseint(ERR_FS_NOT_ALLOC_FLAG, "Unable to allocate fs body (%lu)", sizeof(fs) );
+    *tmp = *orig;
+    // clear orig
+    orig->v = NULL;
+    tmp->flags |= FS_FLAG_MOVED;
+    fs_free(orig);  // need that because orig can ne FS_FLAG_MOVED too
+    return tmp;
 }
 
 // direct access, NO change len or sz, position MUST be < sz
@@ -237,6 +252,14 @@ static inline int            fscmp(fs str1, fs str2){
 // local version, limited
 static inline int            fsncmp(fs str1, fs str2, int len){
     return strncmp(str1.v, str2.v, len);
+}
+// STRICT pointer version
+static inline bool           fs_cmp_strict(const fs *restrict str1, const fs *restrict str2){
+    return fs_len(str1) == fs_len(str2) && fs_cmp(str1, str2) == 0;
+}
+// STRICT local version
+static inline bool           fscmp_strict(fs str1, fs str2){
+    return fslen(str1) == fslen(str2) && fscmp(str1, str2) == 0;
 }
 // pointer version, insensitive
 static inline int            fs_icmp(const fs* restrict str1, const fs* restrict str2){
@@ -342,19 +365,19 @@ static inline int            fsichr(fs str, char c){
 // pointer, sensitive, unlim
 static inline int            fs_rchr(const fs *str, char c){
     const char *p = str->v;
-    int         pos = str->len;
+    int         pos = str->len - 1;
     while (pos >= 0 && p[pos] != c)
         pos--;
-    return p[pos] == c ? pos : -1;
+    return pos;
 }
 // pointer, insensitive, unlim
 static inline int            fs_irchr(const fs *str, char c){
     const char *p = str->v;
-    int         pos = str->len;
-    c = tolower(c);
-    while (pos >= 0 && tolower(p[pos]) != c)
+    int         pos = str->len - 1;
+    c = tolower( (unsigned char) c);
+    while (pos >= 0 && tolower( (unsigned char) p[pos] ) != c)
         pos--;
-    return tolower(p[pos]) == c ? pos : -1;
+    return pos; // tolower( (unsigned char) p[pos] ) == c ? pos : -1;
 }
 // local, sensitive, unlim
 static inline int            fsrchr(fs str, char c){

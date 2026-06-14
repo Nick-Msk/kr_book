@@ -496,15 +496,16 @@ fs                                      fs_clone(const fs *s){
 
 // destructor, macro wrapper will be
 void                                    fs_free(fs *s){
-    if (fs_alloc(s) /* || fs_moved(s) */ ){    // actualy alloc must be a flag, but not statememnt TODO:
-        logsimpleact(free(s->v), "freed... %p", s->v);   // WOW, logsimpleact?
+    bool  moved = fs_moved(s);
+    if (fs_alloc(s) ) {    // actualy alloc must be a flag, but not statememnt TODO:
         if (s->v)
             logauto(++g_free_cnt);   // calculate only  if really free memory
-        s->sz = s->len = 0;
+        logsimpleact(free(s->v), "freed... %p", s->v);   // WOW, logsimpleact?
+        s->sz = s->len = s->flags =  0;
         s->v = 0;
     }
-    /*if (fs_moved(s))  TEMPORARY DISABLE BECAUSE OF CHANGING SEMANTIC OF MOVE
-        free(s);    // because in that case fs in heap too */
+    if (moved)
+        logsimpleact(free(s), "fs body %p freed", s);
 }
 
 #if defined(FS_ALLOCATOR)
@@ -1260,6 +1261,8 @@ tf18(const char *name)
         fs          lit = fsliteral(pt);
         int         pos = 7, res;
         fs          s = fs_newsubstr(&lit, pos, 1);
+        fstechprint(s);
+        fstechprint(lit);
         char        c = *fsstr(s);
 
         test_validatefree( (res = fs_rchr(&lit, c) ) == pos, fsfree(s),
@@ -1473,6 +1476,72 @@ tf22(const char *name)
     check_leak(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
+
+// ------------------------- TEST 23 ---------------------------------
+
+
+static TestStatus
+tf23(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: local version fscmp_strinct", ++subnum);
+    {
+        const char pt[] = "Qwertyuiop12345";
+        fs  s = fscopy(pt);;
+        fs  s1 = fsliteral(pt);
+
+        test_validatefree(
+            fscmp_strict(s, s1), (fsfree(s), fsfree(s1) ),
+            "Literar and normal fs must be equal '%s' != '%s' || %d != %d", fsstr(s), fsstr(s1), fslen(s), fslen(s1)
+        );
+
+        fs_sprintf(&s, "bla bla bla %s %s %s %s ...", pt, pt, pt, pt);
+        fs  s2 = fsclone(s);
+
+        test_validatefree(
+            fscmp_strict(s, s2), (fsfree(s), fsfree(s1), fsfree(s2) ),
+             "Origin and clone fs must be equal '%s' != '%s' || %d != %d", fsstr(s), fsstr(s2), fslen(s), fslen(s2)
+        );
+        fsfree(s), fsfree(s1), fsfree(s2);
+    }
+    test_sub("subtest %d: pointer version fs_cmp_strinct", ++subnum);
+    {
+
+    }
+    check_leak(true);
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
+// ------------------------- TEST 24 ---------------------------------
+
+static TestStatus
+tf24(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+    fs s = FS();
+
+    test_sub("subtest %d: move local", ++subnum);
+    {
+        const char pattern[] = "Qwertyuiop12345";
+        fs      s = fscopy(pattern);
+        
+        
+
+        fsfree(s);
+    }
+    test_sub("subtest %d: move literal", ++subnum);
+    {
+        const char pattern[] = "Qwertyuiop12345";
+        fs      lit = fsliteral(pattern);
+        
+    }
+    check_leak(true);
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -1502,6 +1571,8 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf20, .num = 20, .name = "fs_rev_catstr simple tests"                 , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf21, .num = 21, .name = "fs_str simple tests"                        , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf22, .num = 22, .name = "fs_get<int/long/double>pos simple tests"    , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf23, .num = 23, .name = "fs_cmp_strict simple tests"                 , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf24, .num = 24, .name = "fs_moveall simple tests"                    , .desc=""                , .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
