@@ -2,6 +2,7 @@
 #define _TESTING_H
 
 #include <stdio.h>
+#include <limits.h>
 #include "bool.h"
 #include "log.h"
 #include "error.h"
@@ -52,7 +53,7 @@ typedef bool (*Tcomp)(const char *restrict, int, const char *restrict);
 #define testengine(num, out, ...) test_engine2((Utest []) { __VA_ARGS__ , testnew(.f2 = 0) }, num, out).passed
 
 // 0 mean all tests
-#define testenginestd(...) testengine(0, stdout, __VA_ARGS__)
+#define testenginestd(...) testengine(INT_MAX, stdout, __VA_ARGS__)
 
 #define testenginestd_run(num, ...) testengine( (num), stdout, __VA_ARGS__)
 
