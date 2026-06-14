@@ -7,6 +7,7 @@
 #include <log.h>
 #include <string.h>
 #include <ctype.h>
+#include <limits.h>
 
 static const int		G_OFFSET_INC 	= 4;
 static 		 int 		g_offset 	 	= 0;		// offset
@@ -310,14 +311,14 @@ test_engine2(Utest *restrict tests, int num, FILE *restrict out)
 		summary.total++;
 
 		// check dependencies
-        if (num == 0)
+        if (num == INT_MAX)
     		if (!check_dependencies(out, tests, i, cnt))
 	    	{
 		    	summary.skip_total++;
 			    continue;
 		    }
 		// exception handling is moved to launcher()
-        if (num == 0 || num == i){
+        if (num == INT_MAX || num == i){
 		    if (!launcher(out, tests + i))
 		    {
 			    summary.err_total++;
@@ -331,8 +332,9 @@ test_engine2(Utest *restrict tests, int num, FILE *restrict out)
 	}
 
 	offsetinc(-1);
-	print_summary(out, &summary, END_ALL, cnt);
-
+    if (num == INT_MAX){
+    	print_summary(out, &summary, END_ALL, cnt);
+    }
 	//print_all_test(out, tests);
 	return summary;
 }
