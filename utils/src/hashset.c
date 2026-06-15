@@ -50,9 +50,10 @@ int                         sortedlist_fprint(FILE *restrict out, const hset_ele
                 cnt += fprintf(out, "%p", elem->v.pval);
             break;
             case HSET_FS:
-                cnt += fs_fprint(out, elem->v.fsval, 0);
+                cnt += fs_fprint(out, elem->v.fsval, NULL);
             break;
             default:
+                logsimple("Unsuported %d - %s", typ, hset_type_name(typ) );
             break;
         }
         cnt += fprintf(out, " -> ");
@@ -315,11 +316,12 @@ static hset_elem           *clone_elemlist(const hset_elem *el, hset_type typ){
             return userraise((hset_elem *) 0, ERR_UNABLE_ALLOCATE, "Unable to create element");
         switch (typ){
             case HSET_FS:
-                // NOT GOOD: TODO: refactor that!
-                newel->v.fsval = malloc(sizeof(fs) );
+                fs  tmp = fs_clone(el->v.fsval);
+                newel->v.fsval = fs_moveall(&tmp);
+                /* newel->v.fsval = malloc(sizeof(fs) );
                 if (!newel->v.fsval)
                     return userraise((hset_elem *) 0, ERR_UNABLE_ALLOCATE, "Unable to create heap fs");
-                *newel->v.fsval = fs_clone(el->v.fsval);
+                *newel->v.fsval = fs_clone(el->v.fsval);*/
             break;
             /* case HSET_STR:
                 newel->v.str = strdup(el->v.str);
@@ -361,8 +363,7 @@ static int                   hset_calc_cnt(const hset *se){
 static void                 free_elem(hset_elem *el, hset_type typ){
     switch (typ){
         case HSET_FS:
-            fs_free(el->v.fsval);        // to free space
-            free(el->v.fsval);
+            fs_free(el->v.fsval);        // to free space, NO need to free(el->v.fsval)! That will do fs_free() because of FS_FLAG_MOVED
         break;
         default:
             // nothing here
@@ -402,12 +403,40 @@ static bool                 validate_elemlist(const hset_elem *el, hset_type typ
 static hset_value           hset_createarrval(const void *arr, int idx, hset_type typ) {
 
     size_t elem_size = hset_elem_sizes[typ];
+    logauto(elem_size);
 
     if (elem_size == 0)
         userraiseint(ERR_UNSUPPORTED_TYPE, "type %d", typ);
 
-    const char *base = (const char *)arr;
+    const char *base = (const char *) arr;
     return hset_createval(base + idx * elem_size, typ);
+}
+
+hset_value                  hset_createval(const void *p, hset_type typ){
+    hset_value tmp = HSET_ZERO_VALUE;  // init
+    switch (typ){
+        case HSET_INT:
+            tmp.ival = *(const int *) p;
+        break;
+        case HSET_LONG:
+            tmp.lval = *(const long *) p;
+        break;
+        case HSET_DBL:
+            tmp.dval = *(const double *) p;
+        break;
+        case HSET_PTR:
+            tmp.pval = *(void * const *) p;
+        break;
+        case HSET_FS:  // NOT SURE
+            if (! (fs_alloc(tmp.fsval) || fs_static(tmp.fsval) ) )
+                userraiseint(ERR_UNSUPPORTED_TYPE, "Only fs heap and static are allowed, but not %s", fs_flag_str(tmp.fsval->flags) );
+            tmp.fsval = fs_moveall( (fs *) p);
+        break;
+        default:
+            userraiseint(ERR_UNSUPPORTED_TYPE, "type %d isn't suppoted", typ);
+        break;
+    }
+    return tmp;
 }
 
 // find every value in the list in se
@@ -513,7 +542,7 @@ hset                        hset_cloneas(const hset *se, hset_type typ){
 
 hset                        hset_fromanyarr(const void *arr, int sz, hset_type typ){
     invraise(arr != 0 && sz > 0 && sz < INT_MAX / 4, "Incorrent input %p - %d", arr, sz);
-    if (int_notin(typ, HSET_INT, HSET_LONG, HSET_DBL, HSET_PTR) )
+    if (int_notin(typ, HSET_INT, HSET_LONG, HSET_DBL, HSET_PTR, HSET_FS) )
         userraiseint(ERR_UNSUPPORTED_TYPE, "%d", typ);
 
     if (sz <= 0)
@@ -766,7 +795,7 @@ bool                        hset_noteq(const hset *restrict se1, const hset *res
 
 int                         hset_loadanyarr(hset *restrict se, const void *arr, int sz, hset_type typ){ 
     invraise(arr != 0 && sz > 0 && sz < INT_MAX / 4, "Incorrent input %p - %d", arr, sz);
-    if (int_notin(typ, HSET_INT, HSET_LONG, HSET_DBL, HSET_PTR) )
+    if (int_notin(typ, HSET_INT, HSET_LONG, HSET_DBL, HSET_PTR, HSET_FS) )
         userraiseint(ERR_UNSUPPORTED_TYPE, "%d - %s", typ, hset_type_name(typ) );
 
     int         cnt = 0;

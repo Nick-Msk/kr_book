@@ -98,32 +98,8 @@ typedef struct hset {
 #define                 HSET_FSVALUE(val)   (hset_value) {.fsval = val }
 
 // create value from pointer
-static inline hset_value        hset_createval(const void *p, hset_type typ){
-    hset_value tmp = HSET_ZERO_VALUE;  // init
-    switch (typ){
-        case HSET_INT:
-            tmp.ival = *(const int *) p;
-        break;
-        case HSET_LONG:
-            tmp.lval = *(const long *) p;
-        break;
-        case HSET_DBL:
-            tmp.dval = *(const double *) p;
-        break;
-        case HSET_PTR:
-            tmp.pval = *(void * const *) p;
-        break;
-        case HSET_FS:  // NOT SURE, PROBABLY DEEP COPY IS REQUIRED
-            tmp.fsval = *(fs * const *) p;
-            if (! (fs_alloc(tmp.fsval) || fs_static(tmp.fsval) ) )
-                userraiseint(ERR_UNSUPPORTED_TYPE, "Only fs heap and static are allowed, but not %s", fs_flag_str(tmp.fsval->flags) );
-        break;
-        default:
-            userraiseint(ERR_UNSUPPORTED_TYPE, "type %d isn't suppoted", typ);
-        break;
-    }
-    return tmp;
-}
+extern hset_value        hset_createval(const void *p, hset_type typ);
+
 //  check if in non-init state
 static inline bool          hset_isnoninit(const hset *se){
     return se->flags & HSET_UKNOWN && se->sz == 0;
