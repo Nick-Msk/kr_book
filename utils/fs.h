@@ -157,6 +157,9 @@ extern void                 fsfreeall(void);
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
+static inline int            fs_sprintf(fs *restrict s, const char *restrict fmt, ...) __attribute__ (( format (printf, 2, 3) ) );
+static inline int            fs_sprintf_concat(fs *restrict s, const char *restrict fmt, ...)  __attribute__ (( format (printf, 2, 3) ) );
+
 // move only heap alloc fs
 static inline fs            fs_move(fs *orig){
     if (!fs_alloc(orig) )
@@ -219,7 +222,9 @@ static inline bool          fsisnull(fs s){
 static inline int           fssz(fs s){
     return s.sz;
 }
-
+static inline int           fs_sz(const fs *s){
+    return s->sz;
+}
 // shrink to real len + 1 ( + 1 because '\0' is ASSUMED)
 extern fs                   *fs_shrink(fs *s);
 
@@ -420,7 +425,21 @@ static inline fs             fs_cpystr(fs *restrict target, const char *restrict
     return fs_cpy(target, l);
 }
 
-extern int                   fs_sprintf(fs *restrict s, const char *restrict fmt, ...) __attribute__ (( format (printf, 2, 3) ) );
+extern int                   fs_sprintf_position(fs *restrict s, int pos, const char *restrict fmt, va_list ap);
+
+static inline int            fs_sprintf(fs *restrict s, const char *restrict fmt, ...) {
+    invraisecode(s != 0 && fmt != 0, ERR_NULLABLE_PTR, "%p - %p", s, fmt);
+    va_list ap;
+    va_start(ap, fmt);
+    return fs_sprintf_position(s, s->len, fmt, ap);
+}
+
+static inline int            fs_sprintf_concat(fs *restrict s, const char *restrict fmt, ...) {
+    invraisecode(s != 0 && fmt != 0, ERR_NULLABLE_PTR, "%p - %p", s, fmt);
+    va_list ap;
+    va_start(ap, fmt);
+    return fs_sprintf_position(s, 0, fmt, ap);
+}
 
 // fast in-place left substring
 static inline fs             fs_left(fs *s, int cnt){

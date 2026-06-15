@@ -18,7 +18,7 @@
     static const int            g_initsize              = 32;   // not sure
 #endif
 
-static const int                FS_SPRINTF_SZ           = 8192;
+// static const int                FS_SPRINTF_SZ           = 8192;
 
 // external contol
 int                             FS_MIN_ACCOC            = 128;
@@ -200,11 +200,26 @@ char                                    *fs_elem(fs *s, int pos){
     return fs_get(s, pos);
 }
 
-// TODO:
-//int                     fs_sprintfend(fs *restrict s, const char *restrict fmt, ...){
-//}
+// sprintf to particular position
+int                                     fs_sprintf_position(fs *restrict s, int pos, const char *restrict fmt, va_list ap)
+{
+    logenter("len %d pos %d", s->len, pos);
+    va_list ap2 = ap;
+    int needed = vsnprintf(NULL, 0, fmt, ap);
+    va_end(ap);
+    if (needed < 0)
+        return logret(-1, "vsnprintf length failed");
 
-// snprint()
+    if (s->sz < pos + 1 + needed)
+        increasesize(s, pos + 1 + needed, true);
+    int cnt = vsnprintf(fs_str(s) + pos, 0, fmt, ap);
+    //if (pos + needed > s->len)
+    s->len = pos + needed;      // note: string CAN BE CUTTED!
+    va_end(ap2);
+    return logret(cnt, "printed %d to pos %d", cnt, pos);
+}
+
+/* // snprint()
 int                                     fs_sprintf(fs *restrict s, const char *restrict fmt, ...){
     static char buf[FS_SPRINTF_SZ]; // NO thread-safe this is
 
@@ -215,7 +230,7 @@ int                                     fs_sprintf(fs *restrict s, const char *r
     //cnt = MIN(cnt, FS_SPRINTF_SZ - 1);
     fs_cpystr(s, buf);  // TODO: think about fs_cpynstr(fs, s, n);
     return s->len;
-}
+} */
 
 fs                                      *fs_resize(fs *s, int newsz){
     if (newsz > s->sz){
@@ -504,8 +519,10 @@ void                                    fs_free(fs *s){
     }
     s->sz = s->len = 0; // destroy even literals
     s->v = 0;
-    if (moved)
+    if (moved){
+        s->flags = 0;   // clear  FS_FLAG_MOVED
         logsimpleact(free(s), "fs body %p freed", s);
+    }
 }
 
 #if defined(FS_ALLOCATOR)
