@@ -579,6 +579,8 @@ static inline double          fs_getdouble(const fs *ps){
 #define                      fsgetdoublepos(s, pos) fs_getdoublepos( &(s), (pos) )
 #define                      fsgetdouble(s) fs_getdouble(s)
 
+#define                      fsmoveall(s) fs_moveall(&(s))
+
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
 extern int                   fs_techfprint(FILE *restrict out, const fs *restrict s, const char *name);

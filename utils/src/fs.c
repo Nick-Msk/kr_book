@@ -496,14 +496,14 @@ fs                                      fs_clone(const fs *s){
 
 // destructor, macro wrapper will be
 void                                    fs_free(fs *s){
-    bool  moved = fs_moved(s);
+    bool  moved = fs_moved(s);  // flags based
     if (fs_alloc(s) ) {    // actualy alloc must be a flag, but not statememnt TODO:
         if (s->v)
             logauto(++g_free_cnt);   // calculate only  if really free memory
         logsimpleact(free(s->v), "freed... %p", s->v);   // WOW, logsimpleact?
-        s->sz = s->len = s->flags =  0;
-        s->v = 0;
     }
+    s->sz = s->len = 0; // destroy even literals
+    s->v = 0;
     if (moved)
         logsimpleact(free(s), "fs body %p freed", s);
 }
@@ -1494,7 +1494,7 @@ tf23(const char *name)
 
         test_validatefree(
             fscmp_strict(s, s1), (fsfree(s), fsfree(s1) ),
-            "Literar and normal fs must be equal '%s' != '%s' || %d != %d", fsstr(s), fsstr(s1), fslen(s), fslen(s1)
+            "Literal and normal fs must be equal '%s' != '%s' || %d != %d", fsstr(s), fsstr(s1), fslen(s), fslen(s1)
         );
 
         fs_sprintf(&s, "bla bla bla %s %s %s %s ...", pt, pt, pt, pt);
@@ -1521,22 +1521,59 @@ tf24(const char *name)
 {
     logenter("%s", name);
     int         subnum = 0;
-    fs s = FS();
 
     test_sub("subtest %d: move local", ++subnum);
     {
         const char pattern[] = "Qwertyuiop12345";
         fs      s = fscopy(pattern);
-        
-        
-
-        fsfree(s);
+        fs      *sp = fsmoveall(s);
+        test_validatefree(
+            s.v == NULL && s.sz == 0 && s.len == 0, fs_free(sp),
+            "Must be empty after moving but not %p %d: %d %d", s.v, s.sz, s.len, s.flags
+        );
+        test_validatefree(
+            strcmp(pattern, sp->v) == 0 && fs_len(sp) == strlen(pattern), fs_free(sp),
+            "Must be equal '%s' and '%s'", pattern, sp->v
+        );
+        fsfree(s);  // should work!
+        fs_free(sp);
     }
     test_sub("subtest %d: move literal", ++subnum);
     {
-        const char pattern[] = "Qwertyuiop12345";
+        const char pattern[] = "Qwertyuiop1234567890";
         fs      lit = fsliteral(pattern);
-        
+        fs      *sp = fsmoveall(lit);
+
+        test_validatefree(
+            strcmp(pattern, sp->v) == 0 && fs_len(sp) == strlen(pattern), fs_free(sp),
+            "Must be equal '%s' and '%s'", pattern, sp->v
+        );
+        //fstechprint(*sp);
+        //fstechprint(lit);
+        test_validatefree(
+             strcmp(pattern, fs_str(sp) ) == 0 && fs_len(sp) == strlen(pattern), fs_free(sp),
+             "Origin and clone fs must be equal '%s' != '%s' || %lu != %d", pattern, fs_str(sp), strlen(pattern), fs_len(sp)
+        );
+        fsfree(lit);  // should work!
+        fs_free(sp);
+    }
+    test_sub("subtest %d: move MOVED fs", ++subnum);
+    {
+        const char pattern[] = "Qwertyuiop1234567890!!!!!!!!";
+        fs         s = fscopy(pattern);
+        fs        *sp = fsmoveall(s);
+        fs        *sp2 = fs_moveall(sp);
+
+        //fstechprint(s);
+        ////fstechprint(*sp); // impossible, sp pointer to nowhere
+        //fstechprint(*sp2);
+        test_validatefree(
+            strcmp(pattern, fs_str(sp2) ) == 0 && fs_len(sp2) == strlen(pattern), fs_free(sp2),
+            "Origin and clone fs must be equal '%s' != '%s' || %lu != %d", pattern, fs_str(sp), strlen(pattern), fs_len(sp)
+        );
+        fsfree(s);
+        //fs_free(sp);  // impossible, sp pointer to nowhere
+        fs_free(sp2);   // !!!
     }
     check_leak(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
