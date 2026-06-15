@@ -1,5 +1,6 @@
 #include <stdarg.h>
 
+#include "getword.h"
 #include "common.h"
 #include "log.h"
 #include "fs.h"
@@ -441,6 +442,15 @@ int                                     fs_save_arr(const char *restrict fname, 
     int cnt = fs_fsave_arr(out, arr);
     fclose(out);
     return cnt;
+}
+//
+bool                                    fs_fscanf(FILE *restrict in, fs *restrict s){
+    fs          res = FS();
+    // TODO: think is create a someting like: fs init_or_use(fs *origin)
+    if (!s)
+        s = &res;
+    bool ret = getpurestring(in, s);
+    return logsimpleret(ret, "Read line ? %s", bool_str(ret) );
 }
 
 // raise int in case of wrong format

@@ -162,7 +162,7 @@ static inline int            fs_sprintf(fs *restrict s, const char *restrict fmt
 static inline int            fs_sprintf_concat(fs *restrict s, const char *restrict fmt, ...)  __attribute__ (( format (printf, 2, 3) ) );
 
 // move only heap alloc fs
-static inline fs            fs_move(fs *orig){
+static inline fs             fs_move(fs *orig){
     if (!fs_alloc(orig) )
         userraiseint(ERR_FS_NOT_ALLOC_FLAG, "Unable to move not allocated fs (type %s)", fs_flag_str(orig->flags) );    // 10001 interrupt
     fs tmp = *orig;
@@ -170,7 +170,7 @@ static inline fs            fs_move(fs *orig){
     return logsimpleret(tmp, "fs moved %d: %p", tmp.sz, tmp.v);
 }
 // move whole fs (body and string)
-static inline fs           *fs_moveall(fs *orig){
+static inline fs            *fs_moveall(fs *orig){
     if (! (fs_alloc(orig) || fs_static(orig) ) )
         userraiseint(ERR_UNSUPPORTED_TYPE, "Unable to move not allocated fs (type %s)", fs_flag_str(orig->flags) );
     fs  *tmp = malloc(sizeof(fs) );
@@ -623,6 +623,10 @@ static inline int            fs_print_arr(const fs *restrict arrs[]){
     return fs_fprint_arr(stdout, arrs);
 }
 
+extern bool                  fs_fscanf(FILE *restrict in, fs *restrict s);
+static inline bool           fs_scanf(fs *s){
+    return fs_fscanf(stdin, s);
+}
 
 #define                      fstechfprint(out, s) fs_techfprint( (out), &(s), #s)
 #define                      fstechprint(s)       fs_techprint( &(s), #s)
