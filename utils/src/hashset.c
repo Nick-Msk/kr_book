@@ -193,6 +193,9 @@ static hset_value           convert_value(hset_value v, hset_type from, hset_typ
         else if (to == HSET_LONG)
             result.lval = (long)v.dval;
         break;
+    case HSET_FS:
+            userraiseint(ERR_UNSUPPORTED_TYPE, "TODO: do it!");
+        break;
     default:
         break; // неподдерживаемые типы — останется нулевое значение
     }
@@ -215,7 +218,7 @@ static void                 printval(FILE *out, hset_type typ, hset_value v){
                 fprintf(out, "%p\n", v.pval);
             break;
             case HSET_FS:
-                fs_fprint(out, v.fsval, 0); fprintf(out, "\n");
+                fs_fprint(out, v.fsval, NULL); fprintf(out, "\n");
             break;
             default:
                 break;
@@ -225,11 +228,16 @@ static void                 printval(FILE *out, hset_type typ, hset_value v){
 
 static bool readval(FILE *f, hset_type typ, hset_value *v) {
     switch (typ) {
-        case HSET_INT:  return fscanf(f, "%d", &v->ival) == 1;
-        case HSET_LONG: return fscanf(f, "%ld", &v->lval) == 1;
-        case HSET_DBL:  return fscanf(f, "%lf", &v->dval) == 1;
-        case HSET_PTR:  return fscanf(f, "%p", &v->pval) == 1;
-        // case HSET_FS: return fs_fscan(f, &v->fsval) == 1; // когда будет готово
+        case HSET_INT:
+            return fscanf(f, "%d", &v->ival) == 1;
+        case HSET_LONG:
+            return fscanf(f, "%ld", &v->lval) == 1;
+        case HSET_DBL:
+            return fscanf(f, "%lf", &v->dval) == 1;
+        case HSET_PTR:
+            return fscanf(f, "%p", &v->pval) == 1;
+        case HSET_FS:
+            return false;   // TODO: fs_fscan(f, &v->fsval) == 1; // когда будет готово
         default: return false;
     }
 }
@@ -1189,6 +1197,14 @@ tf1(const char *name)
             hset_validate(stdout, &se1), hset_free(&se1), "Validation failed"
         );
         hset_free(&se1);
+    }
+    test_sub("subtest %d: init + free", ++subnum);
+    {
+        hset sefs1 = hset_init(100, HSET_FS);
+        hset_techfprint(logfile, &sefs1, 0);
+        test_validatefree(
+            hset_validate(stdout, &sefs1), hset_free(&sefs1), "Validation failed"
+        );
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
