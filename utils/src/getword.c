@@ -81,6 +81,20 @@ fs                      getword(fs str, bool lower, bool comments, bool get_newl
 
     return logret(str, "%d - [%s]", str.len, str.v); // that is probably new str
 }
+// not using buffer.c, VERY simple, empty line is OK, just "" empty fs
+bool                    getpurestring(FILE *restrict in, fs *restrict str){
+    invraisecode(in != NULL && str != NULL, ERR_NULLABLE_PTR, "%p - %p", in, str);
+
+    int     c;
+    fsnew   iter = fsinew(str);
+    while ( (c = getc(in)) != EOF && c != '\n')
+        elemnext(iter) = c;
+    elemend(iter);
+    if (c == EOF && fs_len(str) == 0)   // no data at all
+        return logsimpleret(false, "EOF");
+    else
+        return logsimpleret(true, "line %d", fs_len(str) );
+}
 
 // parse only LEXEM_STR or LEXEM_CMD!
 bool                    getstring(Lexem *lex){
@@ -163,9 +177,7 @@ bool                    getlexem(Lexem *lex, bool ign_comments){
 
 //types for testing
 
-
 // ------------------------- TEST 1 ---------------------------------
-
 static TestStatus
 tf1(const char *name)
 {
@@ -174,7 +186,7 @@ tf1(const char *name)
 
     test_sub("subtest %d: read input by getstring()", ++subnum);
     {
-        const char  fname[] = "res/getword_test_file_getstring.dat";
+        const char  fname[] = "res/getword/test_file_getstring.dat";
         const char *pts[] = { "Fiest line xxx", "Second line yyyyy", "Third line oooooo", 0};
         FILE        *f = fopen(fname, "w+");
         if (!f)
@@ -203,7 +215,7 @@ tf1(const char *name)
 
     test_sub("subtest %d: read input by with command getstring()", ++subnum);
     {
-        const char  fname[] = "res/getword_test_file_getstring2.dat";
+        const char  fname[] = "res/getword/test_file_getstring2.dat";
         // odd - LEXEM_STR
         const char *pts[] = { "First line 1", "\\Cmd line 1 xxx", "Second line yyyyy", "\\Cmd line 2 oooooo", "", "\\CMD 3", "Third (4) line oooooo", 0};
         FILE        *f = fopen(fname, "w+");
@@ -239,6 +251,25 @@ tf1(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
+// ------------------------- TEST 2 ---------------------------------
+static TestStatus
+tf2(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: read input by getstring()", ++subnum);
+    {
+        const char  fname[] = "res/getword/test_file_puregetstring.dat";
+        FILE        *f = fopen(fname, "w+");
+        if (!f)
+            return logerr(TEST_FAILED, "Unable to open %s for w+", fname);
+
+        //TODO:
+        fclose(f);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -247,6 +278,7 @@ main( /* int argc, const char *argv[] */)
 
     testenginestd(
         testnew(.f2 = tf1,  .num =  1, .name = "getstring() simple file test"                     , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf2,  .num =  2, .name = "getpurestring() simple file test"                 , .desc=""                , .mandatory=true)
 
 );
 
