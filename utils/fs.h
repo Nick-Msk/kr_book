@@ -431,14 +431,14 @@ static inline int            fs_sprintf(fs *restrict s, const char *restrict fmt
     invraisecode(s != 0 && fmt != 0, ERR_NULLABLE_PTR, "%p - %p", s, fmt);
     va_list ap;
     va_start(ap, fmt);
-    return fs_sprintf_position(s, s->len, fmt, ap);
+    return fs_sprintf_position(s, 0, fmt, ap);
 }
 
 static inline int            fs_sprintf_concat(fs *restrict s, const char *restrict fmt, ...) {
     invraisecode(s != 0 && fmt != 0, ERR_NULLABLE_PTR, "%p - %p", s, fmt);
     va_list ap;
     va_start(ap, fmt);
-    return fs_sprintf_position(s, 0, fmt, ap);
+    return fs_sprintf_position(s, s->len, fmt, ap);
 }
 
 // fast in-place left substring

@@ -204,7 +204,8 @@ char                                    *fs_elem(fs *s, int pos){
 int                                     fs_sprintf_position(fs *restrict s, int pos, const char *restrict fmt, va_list ap)
 {
     logenter("len %d pos %d", s->len, pos);
-    va_list ap2 = ap;
+    va_list ap2;
+    va_copy(ap2, ap);
     int needed = vsnprintf(NULL, 0, fmt, ap);
     va_end(ap);
     if (needed < 0)
@@ -212,7 +213,7 @@ int                                     fs_sprintf_position(fs *restrict s, int 
 
     if (s->sz < pos + 1 + needed)
         increasesize(s, pos + 1 + needed, true);
-    int cnt = vsnprintf(fs_str(s) + pos, 0, fmt, ap);
+    int cnt = vsnprintf(fs_str(s) + pos, s->sz - pos, fmt, ap2);
     //if (pos + needed > s->len)
     s->len = pos + needed;      // note: string CAN BE CUTTED!
     va_end(ap2);
