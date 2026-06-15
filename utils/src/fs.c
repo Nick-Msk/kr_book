@@ -1545,8 +1545,8 @@ tf24(const char *name)
         fs      *sp = fsmoveall(lit);
 
         test_validatefree(
-            strcmp(pattern, sp->v) == 0 && fs_len(sp) == strlen(pattern), fs_free(sp),
-            "Must be equal '%s' and '%s'", pattern, sp->v
+            strcmp(pattern, fs_str(sp) ) == 0 && fs_len(sp) == strlen(pattern), fs_free(sp),
+            "Must be equal '%s' and '%s'", pattern, fs_str(sp)
         );
         //fstechprint(*sp);
         //fstechprint(lit);
@@ -1563,7 +1563,6 @@ tf24(const char *name)
         fs         s = fscopy(pattern);
         fs        *sp = fsmoveall(s);
         fs        *sp2 = fs_moveall(sp);
-
         //fstechprint(s);
         ////fstechprint(*sp); // impossible, sp pointer to nowhere
         //fstechprint(*sp2);
