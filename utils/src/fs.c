@@ -864,7 +864,131 @@ tf8(const char *name)
 }
 
 // ------------------------- TEST 9 ---------------------------------
+static TestStatus
+tf9(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+    char        buf[1000];
+    const char  fmt[] = "%d, %f, %s\n";
 
+    test_sub("subtest %d: fs_sprintf EMPTY", ++subnum);
+    {
+        fs s1 = FS();
+
+        snprintf(buf, sizeof(buf), fmt, 1223, 1.445, "Blablabla");
+        fs_sprintf(&s1, fmt, 1223, 1.445, "Blablabla");
+
+        // Проверяем длину
+        test_validatefree(
+            (int)strlen(buf) == fslen(s1),
+            fsfree(s1),
+            "Length mismatch: buf=%zu, s1=%d", strlen(buf), fslen(s1)
+        );
+        // Проверяем содержимое
+        test_validatefree(
+            strcmp(buf, fsstr(s1)) == 0,
+            fsfree(s1),
+            "Content mismatch: buf='%s', s1='%s'", buf, fsstr(s1)
+        );
+
+        fsfree(s1);
+    }
+    /* ---- 1. fs_sprintf в большой буфер ---- */
+    test_sub("subtest %d: fs_sprintf (large buffer)", ++subnum);
+    {
+        fs s1 = fsinit(1000);
+
+        snprintf(buf, sizeof(buf), fmt, 1223, 1.445, "Blablabla");
+        fs_sprintf(&s1, fmt, 1223, 1.445, "Blablabla");
+
+        // Проверяем длину
+        test_validatefree(
+            (int)strlen(buf) == fslen(s1),
+            fsfree(s1),
+            "Length mismatch: buf=%zu, s1=%d", strlen(buf), fslen(s1)
+        );
+        // Проверяем содержимое
+        test_validatefree(
+            strcmp(buf, fsstr(s1)) == 0,
+            fsfree(s1),
+            "Content mismatch: buf='%s', s1='%s'", buf, fsstr(s1)
+        );
+        fsfree(s1);
+    }
+
+    /* ---- 2. fs_sprintf в крошечный буфер (расширение) ---- */
+    test_sub("subtest %d: fs_sprintf (small buffer, expands)", ++subnum);
+    {
+        fs s2 = fsinit(1);   // начальный размер 1
+
+        snprintf(buf, sizeof(buf), fmt, 12345, 9.8765, "XXXYYYYZZZZZZZZZRRRRR");
+        fs_sprintf(&s2, fmt, 12345, 9.8765, "XXXYYYYZZZZZZZZZRRRRR");
+
+        test_validatefree(
+            (int)strlen(buf) == fslen(s2),
+            fsfree(s2),
+            "Length mismatch after expand: buf=%zu, s2=%d", strlen(buf), fslen(s2)
+        );
+        test_validatefree(
+            strcmp(buf, fsstr(s2)) == 0,
+            fsfree(s2),
+            "Content mismatch after expand: buf='%s', s2='%s'", buf, fsstr(s2)
+        );
+        fsfree(s2);
+    }
+
+    /* ---- 3. fs_sprintf_concat (дописывание) ---- */
+    test_sub("subtest %d: fs_sprintf_concat", ++subnum);
+    {
+        fs s = fsinit(10);
+
+        // Начальная строка
+        fs_sprintf(&s, "Hello");
+        // Конкатенация
+        fs_sprintf_concat(&s, ", %s!", "World");
+
+        const char expected[] = "Hello, World!";
+        test_validatefree(
+            (int)strlen(expected) == fslen(s),
+            fsfree(s),
+            "Concat length mismatch: expected=%zu, got=%d", strlen(expected), fslen(s)
+        );
+        test_validatefree(
+            strcmp(expected, fsstr(s)) == 0,
+            fsfree(s),
+            "Concat content mismatch: expected='%s', got='%s'", expected, fsstr(s)
+        );
+        fsfree(s);
+    }
+
+    /* ---- 4. Пустой fs_sprintf ---- */
+    test_sub("subtest %d: fs_sprintf empty format", ++subnum);
+    {
+        fs s = fsinit(16);
+        int cntres = fs_sprintf(&s, "");
+        test_validatefree(
+            cntres == 0,
+            fsfree(s),
+            "Empty format should return cntres == 0, got %d", fslen(s)
+        );
+        test_validatefree(
+            fslen(s) == 0,
+            fsfree(s),
+            "Empty format should produce length 0, got %d", fslen(s)
+        );
+        test_validatefree(
+            strcmp("", fsstr(s)) == 0,
+            fsfree(s),
+            "Empty format should be empty string, got '%s'", fsstr(s)
+        );
+        fsfree(s);
+    }
+
+    check_leak(true);
+    return logret(TEST_PASSED, "done");
+}
+/*
 static TestStatus
 tf9(const char *name)
 {
@@ -907,7 +1031,7 @@ tf9(const char *name)
     }
     check_leak(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
-}
+}  */
 
 // ------------------------- TEST 10 ---------------------------------
 
