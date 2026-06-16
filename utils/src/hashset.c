@@ -180,24 +180,49 @@ static hset_value           convert_value(hset_value v, hset_type from, hset_typ
                 result.lval = (long)v.ival;
             else if (to == HSET_DBL)
                 result.dval = (double)v.ival;
+            else if (to == HSET_FS) {
+                fs tmp = FS();
+                fs_sprintf(&tmp, "%d", v.ival);
+                result.fsval = fs_moveall(&tmp);
+            } else
+                userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, hset_type_name(from), to, hset_type_name(to) );
         break;
-    case HSET_LONG:
-        if (to == HSET_INT)
-            result.ival = (int)v.lval;
-        else if (to == HSET_DBL)
-            result.dval = (double)v.lval;
-        break;
-    case HSET_DBL:
-        if (to == HSET_INT)
-            result.ival = (int)v.dval;
-        else if (to == HSET_LONG)
-            result.lval = (long)v.dval;
-        break;
-    case HSET_FS:
-            userraiseint(ERR_UNSUPPORTED_TYPE, "TODO: do it!");
-        break;
-    default:
-        break; // неподдерживаемые типы — останется нулевое значение
+        case HSET_LONG:
+            if (to == HSET_INT)
+                result.ival = (int)v.lval;
+            else if (to == HSET_DBL)
+                result.dval = (double)v.lval;
+            else if (to == HSET_FS) {
+                    fs tmp = FS();
+                    fs_sprintf(&tmp, "%ld", v.lval);
+                    result.fsval = fs_moveall(&tmp);
+            } else
+                userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, hset_type_name(from), to, hset_type_name(to) );
+            break;
+        case HSET_DBL:
+            if (to == HSET_INT)
+                result.ival = (int)v.dval;
+            else if (to == HSET_LONG)
+                result.lval = (long)v.dval;
+            else if (to == HSET_FS) {
+                    fs tmp = FS();
+                    fs_sprintf(&tmp, "%g", v.dval); // TODO: context must be here!
+                    result.fsval = fs_moveall(&tmp);
+            } else
+                userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, hset_type_name(from), to, hset_type_name(to) );
+            break;
+        case HSET_FS:
+            if (to == HSET_INT)
+                result.ival = fs_getint(v.fsval);
+            else if (to == HSET_LONG)
+                result.lval = fs_getlong(v.fsval);
+            else if (to == HSET_DBL)
+                result.dval = fs_getdouble(v.fsval);
+            else
+                userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, hset_type_name(from), to, hset_type_name(to) );
+            break;
+        default:
+            break; // неподдерживаемые типы — останется нулевое значение
     }
     return result;
 }
@@ -237,7 +262,8 @@ static bool readval(FILE *f, hset_type typ, hset_value *v) {
         case HSET_PTR:
             return fscanf(f, "%p", &v->pval) == 1;
         case HSET_FS:
-            return false;   // TODO: fs_fscan(f, &v->fsval) == 1; // когда будет готово
+            v->fsval = fs_fscanf(f, NULL);
+            return v->fsval != NULL;
         default: return false;
     }
 }
