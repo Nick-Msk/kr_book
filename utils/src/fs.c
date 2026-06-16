@@ -19,20 +19,17 @@
     static const int            g_initsize              = 32;   // not sure
 #endif
 
-// static const int                FS_SPRINTF_SZ           = 8192;
-
 // external contol
 int                             FS_MIN_ACCOC            = 128;
 int                             FS_TECH_PRINT_COUNT     = 100; // symplos to print
-
 // mem leak checking
 static int                      g_alloc_cnt             = 0;
 static int                      g_free_cnt              = 0;
-
+static int                      g_alloc_body_cnt        = 0;
+static int                      g_free_body_cnt         = 0;
 // ---------- pseudo-header for utility procedures -----------------
 
 // -------------------------- (Utility) printers -------------------
-
 
 // ------------------------------ Utilities -------------- ----------
 
@@ -183,6 +180,27 @@ static inline fs                       *strcopy(fs *restrict target, const fs *r
 
 // ------------------ General functions ----------------------------
 
+// move only heap alloc fs
+fs                                       fs_move(fs *orig){
+    if (!fs_alloc(orig) )
+        userraiseint(ERR_FS_NOT_ALLOC_FLAG, "Unable to move not allocated fs (type %s)", fs_flag_str(orig->flags) );    // 10001 interrupt
+    fs tmp = *orig;
+    *orig = FS();
+    return logsimpleret(tmp, "fs moved %d: %p", tmp.sz, tmp.v);
+}
+// move whole fs (body and string)
+fs                                      *fs_moveall(fs *orig){
+    if (! (fs_alloc(orig) || fs_static(orig) ) )
+        userraiseint(ERR_UNSUPPORTED_TYPE, "Unable to moveall not allocated fs (type %s)", fs_flag_str(orig->flags) );
+    fs  *tmp = fs_create();
+    *tmp = *orig;
+    tmp->flags |= FS_FLAG_MOVED;
+    // clear orig
+    orig->v = NULL;
+    fs_free(orig);  // orig->v is null, so won't be freed, but orig can be FS_FLAG_MOVED too
+    return tmp;
+}
+
 fs                                      *fs_shrink(fs *s){
     if (fs_alloc(s)){
         int     newsz = s->len + 1; // final '\0' is assumed!
@@ -220,19 +238,6 @@ int                                     fs_sprintf_position(fs *restrict s, int 
     va_end(ap2);
     return logret(cnt, "printed %d to pos %d", cnt, pos);
 }
-
-/* // snprint()
-int                                     fs_sprintf(fs *restrict s, const char *restrict fmt, ...){
-    static char buf[FS_SPRINTF_SZ]; // NO thread-safe this is
-
-    va_list argp;
-    va_start(argp, fmt);
-    vsnprintf(buf, FS_SPRINTF_SZ - 1, fmt, argp);
-    va_end(argp);
-    //cnt = MIN(cnt, FS_SPRINTF_SZ - 1);
-    fs_cpystr(s, buf);  // TODO: think about fs_cpynstr(fs, s, n);
-    return s->len;
-} */
 
 fs                                      *fs_resize(fs *s, int newsz){
     if (newsz > s->sz){
@@ -378,26 +383,42 @@ bool                                    fs_validate(FILE *restrict out, const fs
     }
     return logret(true, "true");
 }
-
+// TODO: refactor that!!!!!!!
+extern bool                             fs_free_body_alloc_checker(int *freecnt, int *alloccnt){
+    if (freecnt)
+        *freecnt = g_free_body_cnt;
+    if (alloccnt)
+        *alloccnt= g_alloc_body_cnt;
+    return logsimpleret(freecnt == alloccnt, "body allocated %d, freed %d", g_alloc_cnt, g_free_cnt);
+}
+// TODO: refactor that!!!!!!!
 extern bool                             fs_free_alloc_checker(int *freecnt, int *alloccnt){
     if (freecnt)
         *freecnt = g_free_cnt;
     if (alloccnt)
         *alloccnt= g_alloc_cnt;
-    return logsimpleret(freecnt == alloccnt, "allocated %d, freed %d", g_alloc_cnt, g_free_cnt);
+    return logsimpleret(freecnt == alloccnt, "string allocated %d, freed %d", g_alloc_cnt, g_free_cnt);
 }
-
+// TODO: refactor that!!!!!!!
 // internal, for testing
 static bool                             check_leak(bool raise){
-    int     f, a;
-    fs_free_alloc_checker(&f, &a);
-    if (f != a){
+    int     free_v, alloc_v;
+    fs_free_alloc_checker(&free_v, &alloc_v);
+    if (free_v != alloc_v){
         if (raise)
-            userraiseint(WARN_MEM_LEAK_DETECTED, "allocaed %d, freed %d", a, f);
+            userraiseint(WARN_MEM_LEAK_DETECTED, "string allocaed %d, freed %d", alloc_v, free_v);
         else
-            userraise(false, WARN_MEM_LEAK_DETECTED, "WARNING: allocaed %d, freed %d", a, f);
+            userraise(false, WARN_MEM_LEAK_DETECTED, "WARNING: string allocaed %d, freed %d", alloc_v, free_v);
     }
-    return f == a;
+    if (free_v != alloc_v)
+        return false;
+    if (free_v != alloc_v){
+        if (raise)
+            userraiseint(WARN_MEM_LEAK_DETECTED, "body allocaed %d, freed %d", alloc_v, free_v);
+        else
+            userraise(false, WARN_MEM_LEAK_DETECTED, "WARNING: body allocaed %d, freed %d", alloc_v, free_v);
+    }
+    return free_v == alloc_v;
 }
 
 // just a wrapper for check_leak
@@ -445,10 +466,9 @@ int                                     fs_save_arr(const char *restrict fname, 
 }
 //
 bool                                    fs_fscanf(FILE *restrict in, fs *restrict s){
-    fs          res = FS();
-    // TODO: think is create a someting like: fs init_or_use(fs *origin)
-    if (!s)
-        s = &res;
+    invraisecode(in != NULL && s != NULL, ERR_NULLABLE_PTR, "Null pointer %p - %p", in, s);
+
+    s = fs_init_or_use(s);
     bool ret = getpurestring(in, s);
     return logsimpleret(ret, "Read line ? %s", bool_str(ret) );
 }
@@ -501,26 +521,34 @@ fs                                      fs_load(const char *restrict fname, fs *
 }
 
 // ------------------ API Constructs/Destrucor  ----------------------------
-
+// local creation
 fs                                      fsinit(int n){
     fs      res = FS();     // fsalloc flag
     increasesize(&res, n, true);
     *res.v = '\0';
     return logsimpleret(res, "Created empty with sz %d", res.sz);
 }
-
+// just create fs in heap!
+fs                                     *fs_create(void){
+    fs  *new_fs = malloc(sizeof(fs) );
+    if (!new_fs)
+        userraiseint(ERR_UNABLE_ALLOCATE, "Unable to allocate fs body");
+    *new_fs = FS();
+    new_fs->flags |= FS_FLAG_MOVED;   // чтобы fs_free удалил и тело, и будущую строку
+    g_alloc_body_cnt++;
+    return new_fs;
+}
+// clone as body local
 fs                                      fs_clone(const fs *s){
     fs tmp = FS();
     if (s){
         tmp = fsinit(s->len + 1);
         strcopy(&tmp, s);
-        //tmp.len = s->len;
-        //memcpy(tmp.v, s->v, tmp.len + 1);
     }
     return tmp;
 }
-
 // destructor, macro wrapper will be
+// free fs string and fs body if FS_FLAG_MOVED
 void                                    fs_free(fs *s){
     bool  moved = fs_moved(s);  // flags based
     if (fs_alloc(s) ) {    // actualy alloc must be a flag, but not statememnt TODO:
@@ -532,7 +560,7 @@ void                                    fs_free(fs *s){
     s->v = 0;
     if (moved){
         s->flags = 0;   // clear  FS_FLAG_MOVED
-        logsimpleact(free(s), "fs body %p freed", s);
+        logsimpleact(free(s), "fs body %p freed (freecnt %d)", s, g_free_body_cnt);
     }
 }
 
@@ -1086,7 +1114,7 @@ tf11(const char *name)
 
     test_sub("subtest %d: fssave/load 1 fs", ++subnum);
     {
-        const char fname[] = "res/fs_test_save_load.dat";
+        const char fname[] = "res/fs/test_save_load.dat";
         fs s = fscopy("Tra la la 1234567890");
         if (fssave(fname, s) != 1)
             return logacterr(fsfree(s), TEST_FAILED, "Fssave returns != 1 value");
@@ -1097,7 +1125,7 @@ tf11(const char *name)
 
     test_sub("subtest %d: fs_save multiples fs", ++subnum);
 
-        const char   fname2[] = "res/fs_test_save_load_mass.dat";
+        const char   fname2[] = "res/fs/test_save_load_mass.dat";
         FILE        *f = fopen(fname2, "w+");
         if (!f)
             return logacterr(fsfreeall(&s, &s2), TEST_FAILED, "Unable to open %s for w+", fname2);
@@ -1730,6 +1758,203 @@ tf24(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
+// ------------------------- TEST 25 ---------------------------------
+static TestStatus
+tf25(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: fscanf nothing", ++subnum);
+    {
+        const char   fname[] = "res/fs/fscanf.dat";
+        FILE        *f = fopen(fname, "w+");
+        if (!f)
+            userraiseint(ERR_UNABLE_OPEN_FILE_WRITE, "Unable to open %s for w+", fname);
+        fclose(f);
+        f = fopen(fname, "r");
+        if (!f)
+            userraiseint(ERR_UNABLE_OPEN_FILE_READ, "Unable to open %s for r", fname);
+        fs  s = FS();
+        test_validatefree(
+            fs_fscanf(f, &s) == false,
+            (fsfree(s), fclose(f) ),
+            "Line must NOT be read, cnt %d [%s]", fslen(s), fsstr(s)
+        );
+        fsfree(s);
+        fclose(f);
+    }
+    test_sub("subtest %d: just fscanf several lines", ++subnum);
+    {
+        const char   fname[] = "res/fs/fscanf.dat";
+        FILE        *f = fopen(fname, "w+");
+        if (!f)
+            userraiseint(ERR_UNABLE_OPEN_FILE_WRITE, "Unable to open %s for w+", fname);
+        const int       cnt = 20;
+        char            buf[200];
+        for (int i = 0; i < cnt; i++){
+            fprintf(f, "just a string %4d --- hz", i);
+            fprintf(f, "%s\n", buf);
+        }
+        fflush(f);
+        rewind(f);
+        fs  s = FS();
+        for (int i = 0; i < cnt; i++){
+            test_validatefree(
+                fs_fscanf(f, &s),
+                (fsfree(s), fclose(f) ),
+                "Unable to fs_fscanf() %d line", i
+            );
+            snprintf(buf, sizeof(buf) - 1, "just a string %4d --- hz", i);
+            test_validatefree(
+                strcmp(buf, fsstr(s)) == 0,
+                (fsfree(s), fclose(f) ),
+                "Line %d not matched [%s] vs fs [%s]", i, buf, fsstr(s)
+            );
+        }
+        fclose(f);
+        fsfree(s);
+    }
+    /* 3. Пустая строка (только перевод строки) */
+    test_sub("subtest %d: read empty line", ++subnum);
+    {
+        const char fname[] = "res/fs/fscanf_empty.dat";
+        FILE *f = fopen(fname, "w+");
+        if (!f)
+            userraiseint(ERR_UNABLE_OPEN_FILE_WRITE, "Unable to open %s", fname);
+        fprintf(f, "\n");
+        fflush(f);
+        rewind(f);
+
+        fs s = FS();
+        test_validatefree(
+            fs_fscanf(f, &s) == true && fslen(s) == 0,
+            (fsfree(s), fclose(f)),
+            "Empty line must be read with length 0, got len=%d, str='%s'", fslen(s), fsstr(s)
+        );
+        fsfree(s);
+        fclose(f);
+    }
+
+    /* 4. Последняя строка без завершающего перевода строки */
+    test_sub("subtest %d: read last line without newline", ++subnum);
+    {
+        const char fname[] = "res/fs/fscanf_last.dat";
+        FILE *f = fopen(fname, "w+");
+        if (!f)
+            userraiseint(ERR_UNABLE_OPEN_FILE_WRITE, "Unable to open %s", fname);
+        fprintf(f, "line1\nline2");
+        fflush(f);
+        rewind(f);
+
+        fs s = FS();
+
+        // читаем первую строку
+        test_validatefree(
+            fs_fscanf(f, &s) == true && strcmp(fsstr(s), "line1") == 0,
+            (fsfree(s), fclose(f)),
+            "First line must be 'line1', got '%s'", fsstr(s)
+        );
+
+        // читаем вторую (последнюю) строку без \n
+        test_validatefree(
+            fs_fscanf(f, &s) == true && strcmp(fsstr(s), "line2") == 0,
+            (fsfree(s), fclose(f)),
+            "Last line without newline must be 'line2', got '%s'", fsstr(s)
+        );
+
+        fsfree(s);
+        fclose(f);
+    }
+
+    /* 5. Строка с пробелами и спецсимволами */
+    test_sub("subtest %d: read line with spaces and special chars", ++subnum);
+    {
+        const char fname[] = "res/fs/fscanf_special.dat";
+        FILE *f = fopen(fname, "w+");
+        if (!f)
+            userraiseint(ERR_UNABLE_OPEN_FILE_WRITE, "Unable to open %s", fname);
+        const char *special_line = "  hello,\tworld!  ";
+        fprintf(f, "%s\n", special_line);
+        fflush(f);
+        rewind(f);
+
+        fs s = FS();
+        test_validatefree(
+            fs_fscanf(f, &s) == true && strcmp(fsstr(s), special_line) == 0,
+            (fsfree(s), fclose(f)),
+            "Line with spaces must be '%s', got '%s'", special_line, fsstr(s)
+        );
+        fsfree(s);
+        fclose(f);
+    }
+
+    /* 6. Очень длинная строка (2000 символов) */
+    test_sub("subtest %d: read long line", ++subnum);
+    {
+        const char fname[] = "res/fs/fscanf_long.dat";
+        FILE *f = fopen(fname, "w+");
+        if (!f)
+            userraiseint(ERR_UNABLE_OPEN_FILE_WRITE, "Unable to open %s", fname);
+
+        // генерируем длинную строку
+        int     long_len = 200000;
+        char   *long_str = malloc(long_len + 1);
+        if (!long_str)
+            userraiseint(ERR_UNABLE_ALLOCATE, "malloc failed");
+        for (int i = 0; i < long_len; i++)
+            long_str[i] = itoupper(i % 26);   // 'A' + (i % 26);
+        long_str[long_len] = '\0';
+
+        fprintf(f, "%s\n", long_str);
+        fflush(f);
+        rewind(f);
+
+        fs s = FS();
+        test_validatefree(
+            fs_fscanf(f, &s) == true && fslen(s) == long_len && strcmp(fsstr(s), long_str) == 0,
+            (fsfree(s), free(long_str), fclose(f)),
+            "Long line length must be %d, got len=%d", long_len, fslen(s)
+        );
+        fsfree(s);
+        free(long_str);
+        fclose(f);
+    }
+
+    /* 7. Перезапись существующего fs (повторный вызов fs_fscanf) */
+    test_sub("subtest %d: overwrite existing fs", ++subnum);
+    {
+        const char fname[] = "res/fs/fscanf_overwrite.dat";
+        FILE *f = fopen(fname, "w+");
+        if (!f)
+            userraiseint(ERR_UNABLE_OPEN_FILE_WRITE, "Unable to open %s", fname);
+        fprintf(f, "old line11111\nnew line\n");
+        fflush(f);
+        rewind(f);
+
+        fs s = FS();
+
+        // читаем первую строку
+        test_validatefree(
+            fs_fscanf(f, &s) == true && strcmp(fsstr(s), "old line11111") == 0,
+            (fsfree(s), fclose(f)),
+            "First line must be 'old line', got '%s'", fsstr(s)
+        );
+
+        // читаем вторую строку в тот же объект s – он должен перезаписаться
+        test_validatefree(
+            fs_fscanf(f, &s) == true && strcmp(fsstr(s), "new line") == 0,
+            (fsfree(s), fclose(f)),
+            "After second read, s must be 'new line', got '%s'", fsstr(s)
+        );
+
+        fsfree(s);
+        fclose(f);
+    }
+    check_leak(true);
+    return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -1761,6 +1986,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf22, .num = 22, .name = "fs_get<int/long/double>pos simple tests"    , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf23, .num = 23, .name = "fs_cmp_strict simple tests"                 , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf24, .num = 24, .name = "fs_moveall simple tests"                    , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf25, .num = 25, .name = "fs_fscanf simple tests"                     , .desc=""                , .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()

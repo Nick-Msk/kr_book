@@ -38,7 +38,7 @@ static inline const char * fs_flag_str(FS_FLAGS flag){
         CASE_RETURN(FS_FLAG_CONST);
         CASE_RETURN(FS_FLAG_LOCAL);
         CASE_RETURN(FS_FLAG_ALLOC);
-        //CASE_RETURN(FS_FLAG_MOVED);
+        CASE_RETURN(FS_FLAG_MOVED);
         default:         return "Unknown action";
     }
 }
@@ -123,6 +123,8 @@ extern fs                   fs_clone(const fs *s);
 static inline fs            fsclone(fs s){
     return fs_clone(&s);
 }
+// create ONLY fs body with FS_FLAG_MOVED
+extern fs                  *fs_create(void);
 
 // lit MUST BE static!
 static inline fs            fsliteral(const char *lit){
@@ -133,11 +135,18 @@ static inline fs            fsliteral(const char *lit){
     return s;
 }
 extern fs                   fsinit(int sz);
-
+// wrapper for functions
+static inline fs                       *fs_init_or_use(fs *s) {
+    if (s)
+        return s;
+    else
+        return fs_create();
+}
+//
 static inline fs            fsempty(void){
     return FS();
 }
-
+// body local copy from char *
 static inline fs            fscopy(const char *str){
     fs         tmp = fsliteral(str);
     return  fs_clone(&tmp);
@@ -152,9 +161,7 @@ extern bool                 fsdetach(fs *s);
 extern void                 fsfreeall(void);
 #endif
 
-// TODO: fs_const()
-
-#define                     fsmove(s) fs_move(&(s) )
+// TODO: fs_const() NOT SURE
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
@@ -162,28 +169,9 @@ static inline int            fs_sprintf(fs *restrict s, const char *restrict fmt
 static inline int            fs_sprintf_concat(fs *restrict s, const char *restrict fmt, ...)  __attribute__ (( format (printf, 2, 3) ) );
 
 // move only heap alloc fs
-static inline fs             fs_move(fs *orig){
-    if (!fs_alloc(orig) )
-        userraiseint(ERR_FS_NOT_ALLOC_FLAG, "Unable to move not allocated fs (type %s)", fs_flag_str(orig->flags) );    // 10001 interrupt
-    fs tmp = *orig;
-    *orig = FS();
-    return logsimpleret(tmp, "fs moved %d: %p", tmp.sz, tmp.v);
-}
+extern fs                    fs_move(fs *orig);
 // move whole fs (body and string)
-static inline fs            *fs_moveall(fs *orig){
-    if (! (fs_alloc(orig) || fs_static(orig) ) )
-        userraiseint(ERR_UNSUPPORTED_TYPE, "Unable to move not allocated fs (type %s)", fs_flag_str(orig->flags) );
-    fs  *tmp = malloc(sizeof(fs) );
-    if (!tmp)
-        userraiseint(ERR_FS_NOT_ALLOC_FLAG, "Unable to allocate fs body (%lu)", sizeof(fs) );
-    *tmp = *orig;
-    // clear orig
-    orig->v = NULL;
-    tmp->flags |= FS_FLAG_MOVED;
-    fs_free(orig);  // need that because orig can ne FS_FLAG_MOVED too
-    return tmp;
-}
-
+extern fs                   *fs_moveall(fs *orig);
 // direct access, NO change len or sz, position MUST be < sz
 static inline char          *fs_get(const fs *s, int pos){
     //return logsimpleret(s->v + pos, "Getting %p[%c]", s->v + pos, s->v[pos]);
@@ -600,6 +588,7 @@ static inline double          fs_getdouble(const fs *ps){
 #define                      fsgetdouble(s) fs_getdouble(s)
 
 #define                      fsmoveall(s) fs_moveall(&(s))
+#define                      fsmove(s) fs_move(&(s) )
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
