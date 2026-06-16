@@ -95,7 +95,10 @@ typedef struct hset {
 #define                 HSET_LONGVALUE(val) (hset_value) {.u64 = 0L, .lval = val }
 #define                 HSET_DBLVALUE(val)  (hset_value) {.u64 = 0L, .dval = val }
 #define                 HSET_PTRVALUE(val)  (hset_value) {.u64 = 0L, .pval = val }
-#define                 HSET_FSVALUE(val)   (hset_value) {.fsval = val }
+// local version
+#define                 HSET_FSVALUE(val)   (hset_value) {.fsval = hset_create_fs(&(val) ) }
+// pointer version
+#define                 HSET_FSPVALUE(pval)   (hset_value) {.fsval = hset_create_fs(pval) }
 
 // create value from pointer
 extern hset_value        hset_createval(const void *p, hset_type typ);

@@ -443,32 +443,6 @@ static hset_value           hset_createarrval(const void *arr, int idx, hset_typ
     return hset_createval(base + idx * elem_size, typ);
 }
 
-hset_value                  hset_createval(const void *p, hset_type typ){
-    hset_value tmp = HSET_ZERO_VALUE;  // init
-    switch (typ){
-        case HSET_INT:
-            tmp.ival = *(const int *) p;
-        break;
-        case HSET_LONG:
-            tmp.lval = *(const long *) p;
-        break;
-        case HSET_DBL:
-            tmp.dval = *(const double *) p;
-        break;
-        case HSET_PTR:
-            tmp.pval = *(void * const *) p;
-        break;
-        case HSET_FS:  // NOT SURE
-            if (! (fs_alloc(tmp.fsval) || fs_static(tmp.fsval) ) )
-                userraiseint(ERR_UNSUPPORTED_TYPE, "Only fs heap and static are allowed, but not %s", fs_flag_str(tmp.fsval->flags) );
-            tmp.fsval = fs_moveall( (fs *) p);      //TODO: probably clone semantic should be here, but not move
-        break;
-        default:
-            userraiseint(ERR_UNSUPPORTED_TYPE, "type %d isn't suppoted", typ);
-        break;
-    }
-    return tmp;
-}
 
 // find every value in the list in se
 static bool                 find_elems(const hset_elem *restrict el, const hset *restrict se){
@@ -484,6 +458,37 @@ static bool                 find_elems(const hset_elem *restrict el, const hset 
 
 // ---------------------------------- API Constructs/Destrucor  ----------------------------
 
+// fs DEEP creator! TODO: will be moved to value64
+fs                         *hset_create_fs(const fs *orig){
+    fs local = fs_clone(orig);
+    return fs_moveall(&local);         // FS_FLAG_MOVED is set!
+}
+// value64 constructor ANY type, TODO: will be moved to value64
+hset_value                  hset_createval(const void *p, hset_type typ){
+    hset_value tmp = HSET_ZERO_VALUE;  // init
+    switch (typ){
+        case HSET_INT:
+            tmp.ival = *(const int *) p;
+        break;
+        case HSET_LONG:
+            tmp.lval = *(const long *) p;
+        break;
+        case HSET_DBL:
+            tmp.dval = *(const double *) p;
+        break;
+        case HSET_PTR:
+            tmp.pval = *(void * const *) p;
+        break;
+        case HSET_FS:
+            tmp.fsval = hset_create_fs(p);         // FS_FLAG_MOVED is set!
+        break;
+        default:
+            userraiseint(ERR_UNSUPPORTED_TYPE, "type %d isn't suppoted", typ);
+        break;
+    }
+    return tmp;
+}
+// hset basic constructor
 hset                        hset_init(int sz, hset_type typ){
     logenter("init sz %d - %s", sz, hset_type_name(typ) );
 
@@ -1371,6 +1376,60 @@ tf2(const char *name)
         );
         hset_free(&se1);
     }
+
+    test_sub("subtest %d: FS init + add + get + free", ++subnum);
+    {
+        hset se = hset_init(10, HSET_FS);
+
+        fs s1 = fscopy("hello");   // локальная копия строки
+        fs s2 = fscopy("world");
+        fs s3 = fscopy("foo");
+
+        // Вставляем (hset_createval сделает свою копию)
+        test_validatefree(
+            hset_set(&se, HSET_FSVALUE(s1)) == true,
+            hset_free(&se),
+            "Failed to insert 'hello'"
+        );
+        test_validatefree(
+            hset_set(&se, HSET_FSVALUE(s2)) == true,
+            hset_free(&se),
+            "Failed to insert 'world'"
+        );
+        test_validatefree(
+            hset_set(&se, HSET_FSVALUE(s3)) == true,
+            hset_free(&se),
+            "Failed to insert 'foo'"
+        );
+
+        // Проверяем наличие (s1, s2, s3 всё ещё валидны)
+        test_validatefree(
+            hset_get(&se, HSET_FSVALUE(s1)) == true,
+            hset_free(&se),
+            "Missing 'hello'"
+        );
+        test_validatefree(
+            hset_get(&se, HSET_FSVALUE(s2)) == true,
+            hset_free(&se),
+            "Missing 'world'"
+        );
+        test_validatefree(
+            hset_get(&se, HSET_FSVALUE(s3)) == true,
+            hset_free(&se),
+            "Missing 'foo'"
+        );
+
+        test_validatefree(
+            hset_cnt(&se) == 3,
+            hset_free(&se),
+            "Count should be 3, got %d", hset_cnt(&se)
+        );
+
+        // Очищаем исходные строки (они больше не нужны)
+        fsfree(s1); fsfree(s2); fsfree(s3);
+        hset_free(&se);
+    }
+
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
