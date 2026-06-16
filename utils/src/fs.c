@@ -556,6 +556,7 @@ fs                                      fs_clone(const fs *s){
 // destructor, macro wrapper will be
 // free fs string and fs body if FS_FLAG_MOVED
 void                                    fs_free(fs *s){
+    
     bool  moved = fs_moved(s);  // flags based
     if (fs_alloc(s) ) {    // actualy alloc must be a flag, but not statememnt TODO:
         if (s->v)
@@ -1955,6 +1956,50 @@ tf25(const char *name)
         );
 
         fsfree(s);
+        fclose(f);
+    }
+    check_leak(true);
+    /* 8. Вызов fs_fscanf(f, NULL) – успешное чтение */
+    test_sub("subtest %d: fs_fscanf with NULL (create new)", ++subnum);
+    {
+        const char fname[] = "res/fs/fscanf_null_new.dat";
+        FILE *f = fopen(fname, "w+");
+        if (!f)
+            userraiseint(ERR_UNABLE_OPEN_FILE_WRITE, "Unable to open %s", fname);
+        fprintf(f, "hello from NULL\n");
+        rewind(f);
+
+        fs *sp = fs_fscanf(f, NULL);   // создаёт новый fs
+        test_validatefree(
+            sp != NULL && strcmp(fsstr(sp), "hello from NULL") == 0,
+            (sp ? fs_free(sp) : (void)0, fclose(f)),
+            "fs_fscanf(NULL) should return new fs with correct string, got %p, str='%s'",
+            (void*)sp, sp ? fsstr(sp) : "null"
+        );
+        //if (sp)
+        fs_free(sp);    // MUST work even if sp is NULL
+        fclose(f);
+    }
+
+    /* 9. Вызов fs_fscanf(f, NULL) – EOF (пустой файл) */
+    test_sub("subtest %d: fs_fscanf with NULL (EOF)", ++subnum);
+    {
+        const char fname[] = "res/fs/fscanf_null_eof.dat";
+        FILE *f = fopen(fname, "w+");   // создали пустой файл
+        if (!f)
+            userraiseint(ERR_UNABLE_OPEN_FILE_WRITE, "Unable to open %s", fname);
+        rewind(f);
+
+        fs *sp = fs_fscanf(f, NULL);
+        test_validatefree(
+            sp == NULL,
+            fclose(f),
+            "fs_fscanf(NULL) on empty file must return NULL"
+        );
+        // just to be sure
+        //if (sp)
+        fs_free(sp); // MUST work even if sp is NULL
+        // если бы вернулся не NULL, надо было бы освободить, но этого не произошло
         fclose(f);
     }
     check_leak(true);
