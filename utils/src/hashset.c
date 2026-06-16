@@ -350,15 +350,8 @@ static hset_elem           *clone_elemlist(const hset_elem *el, hset_type typ){
             return userraise((hset_elem *) 0, ERR_UNABLE_ALLOCATE, "Unable to create element");
         switch (typ){
             case HSET_FS:
-                // TODO: not sue about that solution
-                //fs  tmp = fs_clone(el->v.fsval);
-                //newel->v.fsval = fs_moveall(&tmp);
                 fs      *tmp = fs_create();
                 *tmp = fs_clone(el->v.fsval);
-                /* newel->v.fsval = malloc(sizeof(fs) );
-                if (!newel->v.fsval)
-                    return userraise((hset_elem *) 0, ERR_UNABLE_ALLOCATE, "Unable to create heap fs");
-                *newel->v.fsval = fs_clone(el->v.fsval);*/
             break;
             /* case HSET_STR:
                 newel->v.str = strdup(el->v.str);
@@ -441,7 +434,7 @@ static bool                 validate_elemlist(const hset_elem *el, hset_type typ
 static hset_value           hset_createarrval(const void *arr, int idx, hset_type typ) {
 
     size_t elem_size = hset_elem_sizes[typ];
-    logauto(elem_size);
+    //logauto(elem_size);
 
     if (elem_size == 0)
         userraiseint(ERR_UNSUPPORTED_TYPE, "type %d", typ);
@@ -468,7 +461,7 @@ hset_value                  hset_createval(const void *p, hset_type typ){
         case HSET_FS:  // NOT SURE
             if (! (fs_alloc(tmp.fsval) || fs_static(tmp.fsval) ) )
                 userraiseint(ERR_UNSUPPORTED_TYPE, "Only fs heap and static are allowed, but not %s", fs_flag_str(tmp.fsval->flags) );
-            tmp.fsval = fs_moveall( (fs *) p);
+            tmp.fsval = fs_moveall( (fs *) p);      //TODO: probably clone semantic should be here, but not move
         break;
         default:
             userraiseint(ERR_UNSUPPORTED_TYPE, "type %d isn't suppoted", typ);
@@ -531,6 +524,8 @@ hset             hset_init_resize(hset *se, int newsz){
 }
 // normalization
 hset                        hset_normalize(hset *se){
+    invraise(se != 0, "Null pointer");
+
     double load_factor = (double)se->count / se->sz;
     // Изменяем размер только при выходе из желаемого диапазона
     if (load_factor > 0.75 || load_factor < 0.25) {
