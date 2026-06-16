@@ -256,25 +256,27 @@ static inline void              str_exch(const char **s1, const char **s2){
 static inline int               ctoi(char c){
     return c - '0';
 }
-
 static inline int               ctoihex(char c){
     if (isdigit(c) )
         return c - '0';
     else
         return tolower(c) - 'a';        // a - f
 }
-
 static inline char              itoc(int c){
     return c + '0';
 }
-
 static inline char              itohex(int c){
     if (c < 10)
         return c + '0';
     else
         return c - 10 + 'A';
 }
-
+static inline char              itoupper(int c){
+    return c + 'A';
+}
+static inline char              itolower(int c){
+    return c + 'a';
+}
 // ----------------------------------- Utilities -------------------------------------------
 
 //  binary char search
