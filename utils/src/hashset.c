@@ -324,8 +324,11 @@ static hset_elem           *clone_elemlist(const hset_elem *el, hset_type typ){
             return userraise((hset_elem *) 0, ERR_UNABLE_ALLOCATE, "Unable to create element");
         switch (typ){
             case HSET_FS:
-                fs  tmp = fs_clone(el->v.fsval);
-                newel->v.fsval = fs_moveall(&tmp);
+                // TODO: not sue about that solution
+                //fs  tmp = fs_clone(el->v.fsval);
+                //newel->v.fsval = fs_moveall(&tmp);
+                fs      *tmp = fs_create();
+                *tmp = fs_clone(el->v.fsval);
                 /* newel->v.fsval = malloc(sizeof(fs) );
                 if (!newel->v.fsval)
                     return userraise((hset_elem *) 0, ERR_UNABLE_ALLOCATE, "Unable to create heap fs");
@@ -335,7 +338,8 @@ static hset_elem           *clone_elemlist(const hset_elem *el, hset_type typ){
                 newel->v.str = strdup(el->v.str);
             break;*/
             default:
-                //newel->v = el->v;
+                newel->v = el->v;
+                logsimple("Warning: unk type %d", typ);
             break;
         }
         if (!retel)
