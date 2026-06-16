@@ -1799,7 +1799,7 @@ tf25(const char *name)
         const int       cnt = 20;
         char            buf[200];
         for (int i = 0; i < cnt; i++){
-            fprintf(f, "just a string %4d --- hz", i);
+            snprintf(buf, sizeof(buf) - 1, "just a string %4d --- hz", i);
             fprintf(f, "%s\n", buf);
         }
         fflush(f);
