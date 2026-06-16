@@ -93,7 +93,7 @@ bool                    getpurestring(FILE *restrict in, fs *restrict str){
     if (c == EOF && fs_len(str) == 0)   // no data at all
         return logsimpleret(false, "EOF");
     else
-        return logsimpleret(true, "line %d", fs_len(str) );
+        return logsimpleret(true, "line %d [%10s]", fs_len(str), fs_str(str) );
 }
 
 // parse only LEXEM_STR or LEXEM_CMD!
@@ -258,14 +258,67 @@ tf2(const char *name)
     logenter("%s", name);
     int         subnum = 0;
 
-    test_sub("subtest %d: read input by getstring()", ++subnum);
+    test_sub("subtest %d: empty getpurestring()", ++subnum);
+    {
+        const char  fname[] = "res/getword/test_file_puregetstring.dat";
+        FILE        *f = fopen(fname, "w+");
+        if (!f)
+            return userraise(TEST_FAILED, ERR_UNABLE_OPEN_FILE_WRITE, "Unable to open %s for w+", fname);
+
+        fclose(f);
+        f = fopen(fname, "r");
+        if (!f)
+            return userraise(TEST_FAILED, ERR_UNABLE_OPEN_FILE_READ, "Unable to open %s for r", fname);
+        fs      s = FS();
+        test_validatefree(
+            getpurestring(f, &s) == false,
+            (fsfree(s), fclose(f) ),
+            "Must not be read"
+        );
+        fsfree(s);
+        fclose(f);
+    }
+    test_sub("subtest %d: read 1 line getpurestring()", ++subnum);
     {
         const char  fname[] = "res/getword/test_file_puregetstring.dat";
         FILE        *f = fopen(fname, "w+");
         if (!f)
             return logerr(TEST_FAILED, "Unable to open %s for w+", fname);
+        fprintf(f, "%s\n", fname);
+        rewind(f);
+        fs      s = FS();
+        test_validatefree(
+            getpurestring(f, &s) && strcmp(fname, fsstr(s) ) == 0,
+            (fsfree(s), fclose(f) ),
+            "Line must be equal [%s] vs origin [%s]", fsstr(s), fname
+        );
 
-        //TODO:
+        fsfree(s);
+        fclose(f);
+    }
+    test_sub("subtest %d: read multiples lines via getpurestring()", ++subnum);
+    {
+        const char  fname[] = "res/getword/test_file_puregetstring.dat";
+        FILE        *f = fopen(fname, "w+");
+        const int    cnt = 12;
+        if (!f)
+            return logerr(TEST_FAILED, "Unable to open %s for w+", fname);
+        for (int i = 0; i < cnt; i++)
+            fprintf(f, "%d - %s\n", i, fname);
+        rewind(f);
+        fs      s = FS();
+        char    buf[200];
+        bool    res;
+        for (int i = 0; i < cnt; i++){
+            snprintf(buf, sizeof(buf) -  1, "%d - %s", i, fname);
+            test_validatefree(
+                (res = getpurestring(f, &s) ) && strcmp(buf, fsstr(s) ) == 0,
+                (fsfree(s), fclose(f) ),
+                "%s - %d: Line must be equal [%s]/%d vs origin [%s]/%lu", 
+                bool_str(res), i, fsstr(s), fslen(s), buf, strlen(buf)
+            );
+        }
+        fsfree(s);
         fclose(f);
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
