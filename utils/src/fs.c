@@ -465,12 +465,18 @@ int                                     fs_save_arr(const char *restrict fname, 
     return cnt;
 }
 //
-bool                                    fs_fscanf(FILE *restrict in, fs *restrict s){
-    invraisecode(in != NULL && s != NULL, ERR_NULLABLE_PTR, "Null pointer %p - %p", in, s);
+fs                                     *fs_fscanf(FILE *restrict in, fs *restrict s){
+    invraisecode(in != NULL, ERR_NULLABLE_PTR, "Null pointer %p - %p", in, s);
 
+    fs *original_s = s;
     s = fs_init_or_use(s);
-    bool ret = getpurestring(in, s);
-    return logsimpleret(ret, "Read line ? %s", bool_str(ret) );
+    if (getpurestring(in, s) )
+        return logsimpleret(s, "Line read len %d", fs_len(s) );
+    else {
+        if (!original_s)
+            fs_free(s);
+        return logsimpleerr(NULL, "EOF detectod");
+    }
 }
 
 // raise int in case of wrong format
@@ -1828,7 +1834,7 @@ tf25(const char *name)
 
         fs s = FS();
         test_validatefree(
-            fs_fscanf(f, &s) == true && fslen(s) == 0,
+            fs_fscanf(f, &s) && fslen(s) == 0,
             (fsfree(s), fclose(f)),
             "Empty line must be read with length 0, got len=%d, str='%s'", fslen(s), fsstr(s)
         );
@@ -1851,14 +1857,14 @@ tf25(const char *name)
 
         // читаем первую строку
         test_validatefree(
-            fs_fscanf(f, &s) == true && strcmp(fsstr(s), "line1") == 0,
+            fs_fscanf(f, &s) && strcmp(fsstr(s), "line1") == 0,
             (fsfree(s), fclose(f)),
             "First line must be 'line1', got '%s'", fsstr(s)
         );
 
         // читаем вторую (последнюю) строку без \n
         test_validatefree(
-            fs_fscanf(f, &s) == true && strcmp(fsstr(s), "line2") == 0,
+            fs_fscanf(f, &s) && strcmp(fsstr(s), "line2") == 0,
             (fsfree(s), fclose(f)),
             "Last line without newline must be 'line2', got '%s'", fsstr(s)
         );
@@ -1881,7 +1887,7 @@ tf25(const char *name)
 
         fs s = FS();
         test_validatefree(
-            fs_fscanf(f, &s) == true && strcmp(fsstr(s), special_line) == 0,
+            fs_fscanf(f, &s) && strcmp(fsstr(s), special_line) == 0,
             (fsfree(s), fclose(f)),
             "Line with spaces must be '%s', got '%s'", special_line, fsstr(s)
         );
@@ -1912,7 +1918,7 @@ tf25(const char *name)
 
         fs s = FS();
         test_validatefree(
-            fs_fscanf(f, &s) == true && fslen(s) == long_len && strcmp(fsstr(s), long_str) == 0,
+            fs_fscanf(f, &s) && fslen(s) == long_len && strcmp(fsstr(s), long_str) == 0,
             (fsfree(s), free(long_str), fclose(f)),
             "Long line length must be %d, got len=%d", long_len, fslen(s)
         );
@@ -1936,14 +1942,14 @@ tf25(const char *name)
 
         // читаем первую строку
         test_validatefree(
-            fs_fscanf(f, &s) == true && strcmp(fsstr(s), "old line11111") == 0,
+            fs_fscanf(f, &s) && strcmp(fsstr(s), "old line11111") == 0,
             (fsfree(s), fclose(f)),
             "First line must be 'old line', got '%s'", fsstr(s)
         );
 
         // читаем вторую строку в тот же объект s – он должен перезаписаться
         test_validatefree(
-            fs_fscanf(f, &s) == true && strcmp(fsstr(s), "new line") == 0,
+            fs_fscanf(f, &s) && strcmp(fsstr(s), "new line") == 0,
             (fsfree(s), fclose(f)),
             "After second read, s must be 'new line', got '%s'", fsstr(s)
         );

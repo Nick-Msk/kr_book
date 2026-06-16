@@ -612,8 +612,8 @@ static inline int            fs_print_arr(const fs *restrict arrs[]){
     return fs_fprint_arr(stdout, arrs);
 }
 
-extern bool                  fs_fscanf(FILE *restrict in, fs *restrict s);
-static inline bool           fs_scanf(fs *s){
+extern fs                   *fs_fscanf(FILE *restrict in, fs *restrict s);
+static inline fs            *fs_scanf(fs *s){
     return fs_fscanf(stdin, s);
 }
 
