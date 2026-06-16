@@ -52,6 +52,7 @@ static const int                        ERR_ACTION_NOT_APPLICABLE   = 10200;
 
 static const int                        ERR_UNABLE_LOAD_FSARRAY     = 10220;
 static const int                        ERR_UNSUPPORTED_TYPE        = 10230;
+static const int                        ERR_UNSUPPORTED_TYPE_CONV   = 10231;
 
 static const int                        ERR_UNABLE_TO_EXEC_FILE     = 10300;
 static const int                        ERR_UNABLE_TO_RUN_MAKE      = 10301;
