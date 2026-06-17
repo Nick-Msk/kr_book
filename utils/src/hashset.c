@@ -30,6 +30,7 @@ static const size_t                     hset_elem_sizes[] = {
 };
 
 // ---------- pseudo-header for utility procedures -----------------
+fs                         *hset_create_fs(const fs *orig);
 
 // ---------------------------- (Utility) printers -----------------------------
 
