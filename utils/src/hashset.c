@@ -4725,6 +4725,146 @@ tf26(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST 27 ---------------------------------
+static TestStatus
+tf27(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Перемещение одной строки: оригинал теряет владение */
+    test_sub("subtest %d: move single string", ++subnum);
+    {
+        hset        se = hset_init(10, HSET_FS);
+
+        fs          s = fscopy("move_me");          // локальная копия
+        //const char *orig_ptr = fsstr(s);       // запомним указатель на строку
+
+        test_validatefree(
+            hset_set(&se, HSET_FSMOVE(&s)),     // перемещаем!
+            hset_free(&se),
+            "Failed to insert via FSMOVE"
+        );
+
+        // После перемещения оригинал должен быть пуст (не владеть строкой)
+        test_validatefree(
+            fslen(s) == 0 && fsstr(s) == NULL,
+            hset_free(&se),
+            "After move, original fs must be empty (len=%d, str=%p)",
+            fslen(s), (void*)fsstr(s)
+        );
+
+        // Проверяем, что строка во множестве
+        fs      search = fsliteral("move_me");
+        test_validatefree(
+            hset_get(&se, HSET_FSVALUE(search)),
+            hset_free(&se),
+            "Moved string 'move_me' not found in set"
+        );
+
+        fsfree(s);      // оригинал пуст, но fsfree безопасен
+        hset_free(&se);
+    }
+
+    /* 2. Перемещение нескольких строк */
+    test_sub("subtest %d: move multiple strings", ++subnum);
+    {
+        hset        se = hset_init(10, HSET_FS);
+        const int   cnt = 20;
+        fs          strings[cnt];
+
+        for (int i = 0; i < cnt; i++) {
+            fs_sprintf(strings + i, "str_%d", i);
+            test_validatefree(
+                hset_set(&se, HSET_FSMOVE(&strings[i])),
+                hset_free(&se),
+                "Failed to move 'str_%d'", i
+            );
+            // Оригинал должен быть пуст
+            test_validatefree(
+                fslen(strings[i]) == 0 && fsstr(strings[i]) == NULL,
+                hset_free(&se),
+                "After move %d, original must be empty", i
+            );
+        }
+
+        // Проверяем количество
+        test_validatefree(
+            hset_cnt(&se) == cnt,
+            hset_free(&se),
+            "Count after moves: %d, expected %d", hset_cnt(&se), cnt
+        );
+
+        // Проверяем наличие всех строк
+        for (int i = 0; i < cnt; i++) {
+            fs search = FS();
+            fs_sprintf(&search, "str_%d", i); 
+            test_validatefree(
+                hset_get(&se, HSET_FSVALUE(search)),
+                hset_free(&se),
+                "Moved string 'str_%d' not found", i
+            );
+            fsfree(search);
+        }
+
+        // Освобождаем пустые оригиналы
+        for (int i = 0; i < cnt; i++)
+            fsfree(strings[i]);
+        hset_free(&se);
+    }
+
+    /* 3. Попытка переместить уже перемещённый (пустой) fs */
+    test_sub("subtest %d: move already moved (empty) fs", ++subnum);
+    {
+        hset    se = hset_init(10, HSET_FS);
+
+        fs      s = fscopy("first_move");
+        hset_set(&se, HSET_FSMOVE(&s));         // первое перемещение
+
+        // s теперь пуст, попытка ещё раз переместить должна просто не добавить элемент
+        // NOT SURE
+        bool    added = hset_set(&se, HSET_FSMOVE(&s));
+        test_validatefree(
+            added == false,                     // пустой fs не должен добавиться
+            hset_free(&se),
+            "Moving empty fs should return false"
+        );
+
+        test_validatefree(
+            hset_cnt(&se) == 1,
+            hset_free(&se),
+            "Count after second move attempt: %d, expected 1", hset_cnt(&se)
+        );
+
+        fsfree(s);
+        hset_free(&se);
+    }
+
+    /* 4. Перемещение с последующим поиском через копию */
+    test_sub("subtest %d: move then search by copy", ++subnum);
+    {
+        hset    se = hset_init(10, HSET_FS);
+
+        fs      orig = fscopy("search_me");
+        hset_set(&se, HSET_FSMOVE(&orig));
+
+        // Поиск через копию (HSET_FSVALUE делает глубокую копию)
+        fs      copy = fscopy("search_me");
+        test_validatefree(
+            hset_get(&se, HSET_FSVALUE(copy)),
+            hset_free(&se),
+            "Moved string should be found by copy"
+        );
+
+        fsfree(copy);
+        fsfree(orig);
+        hset_free(&se);
+    }
+
+    fs_alloc_check(true);
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -4770,6 +4910,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf24,  .num = 24, .name = "inf/nan double int simple test"             , .desc="", .mandatory=true)
               , testnew(.f2 = tf25,  .num = 25, .name = "Macro-base iterator simple test"            , .desc="", .mandatory=true)
               , testnew(.f2 = tf26,  .num = 26, .name = "hset_any(), hset_nonexists() simple test"   , .desc="", .mandatory=true)
+              , testnew(.f2 = tf27,  .num = 27, .name = "HSET_FSMOVE() macro simple test"            , .desc="", .mandatory=true)
             );
         if (runall)
             break;

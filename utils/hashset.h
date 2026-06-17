@@ -98,10 +98,13 @@ typedef struct hset {
 // local version
 #define                 HSET_FSVALUE(val)   (hset_value) {.fsval = hset_create_fs(&(val) ) }
 // pointer version
-#define                 HSET_FSPVALUE(pval)   (hset_value) {.fsval = hset_create_fs(pval) }
+#define                 HSET_FSPVALUE(pval) (hset_value) {.fsval = hset_create_fs(pval) }
+//move version
+#define                 HSET_FSMOVE(val)    (hset_value) {.fsval = fs_moveall(val) }
+
 
 // create value from pointer
-extern hset_value        hset_createval(const void *p, hset_type typ);
+extern hset_value           hset_createval(const void *p, hset_type typ);
 
 //  check if in non-init state
 static inline bool          hset_isnoninit(const hset *se){
