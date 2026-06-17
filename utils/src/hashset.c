@@ -1518,6 +1518,156 @@ tf3(const char *name)
         Array_free(&arr);
         hset_free(&se1);
     }
+    // HSET_FS
+    /* ---- FS: clone set ---- */
+    test_sub("subtest %d: FS clone", ++subnum);
+    {
+        hset    se1 = hset_init(10, HSET_FS);
+        const char *words[] = {"alpha", "beta", "gamma", "delta"};
+        for (int i = 0; i < COUNT(words); i++) {
+            fs tmp = fscopy(words[i]);
+            test_validatefree(
+                hset_set(&se1, HSET_FSVALUE(tmp)),
+                hset_free(&se1),
+                "Failed to insert '%s'", words[i]
+            );
+            fsfree(tmp);
+        }
+
+        hset    se2 = hset_clone(&se1);
+
+        // Проверяем, что клон содержит те же элементы
+        for (int i = 0; i < COUNT(words); i++) {
+            fs tmp = fscopy(words[i]);
+            test_validatefree(
+                hset_get(&se2, HSET_FSVALUE(tmp)),
+                (hset_free(&se1), hset_free(&se2)),
+                "Clone: missing '%s'", words[i]
+            );
+            fsfree(tmp);
+        }
+
+        test_validatefree(
+            hset_cnt(&se2) == COUNT(words),
+            (hset_free(&se1), hset_free(&se2)),
+            "Clone: count = %d, expected %d", hset_cnt(&se2), COUNT(words)
+        );
+
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+    fs_alloc_check(true);
+    /* ---- FS: create from array of strings ---- */
+    test_sub("subtest %d: FS from array", ++subnum);
+    {
+        const int cnt = 30;
+        fs      strings[cnt];   // локальные fs
+        fs     *parr[cnt];      // массив указателей для hset_loadanyarr
+
+        for (int i = 0; i < cnt; i++) {
+            strings[i] = fscopyf("item_%d", i);   // если fscopyf ещё нет, используйте fscopy + snprintf
+            parr[i] = &strings[i];
+        }
+
+        hset    se = hset_init(cnt, HSET_FS);
+        int     loaded = hset_loadanyarr(&se, parr, cnt, HSET_FS);
+
+        test_validatefree(
+            loaded == cnt,
+            hset_free(&se),
+            "FS from array: loaded %d, expected %d", loaded, cnt
+        );
+        test_validatefree(
+            hset_cnt(&se) == cnt,
+            hset_free(&se),
+            "FS from array: count = %d, expected %d", hset_cnt(&se), cnt
+        );
+
+        // Проверяем наличие всех строк
+        for (int i = 0; i < cnt; i++) {
+            fs tmp = fscopyf("item_%d", i);
+            test_validatefree(
+                hset_get(&se, HSET_FSVALUE(tmp)),
+                hset_free(&se),
+                "FS from array: missing 'item_%d'", i
+            );
+            fsfree(tmp);
+        }
+
+        // Освобождаем исходные строки (множество владеет копиями)
+        for (int i = 0; i < cnt; i++)
+            fsfree(strings[i]);
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+    /* ---- FS: array with duplicates ---- */
+    test_sub("subtest %d: FS from array with duplicates", ++subnum);
+    {
+        const char *words[] = {"one", "two", "two", "three", "three", "three"};
+        const int uniq = 3;   // one, two, three
+        fs      strings[COUNT(words)];
+        fs     *parr[COUNT(words)];
+
+        for (int i = 0; i < COUNT(words); i++) {
+            strings[i] = fscopy(words[i]);
+            parr[i] = &strings[i];
+        }
+
+        hset    se = hset_init(10, HSET_FS);
+        int     loaded = hset_loadanyarr(&se, parr, COUNT(words), HSET_FS);
+
+        // loaded должно быть равно общему числу попыток, но count — только уникальные
+        test_validatefree(
+            loaded == COUNT(words),
+            hset_free(&se),
+            "Duplicates: loaded %d, expected %d", loaded, COUNT(words)
+        );
+        test_validatefree(
+            hset_cnt(&se) == uniq,
+            hset_free(&se),
+            "Duplicates: count = %d, expected %d", hset_cnt(&se), uniq
+        );
+
+        for (int i = 0; i < COUNT(words); i++) fsfree(strings[i]);
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+    /* ---- FS: array with NULL pointers (empty strings) ---- */
+    test_sub("subtest %d: FS array with NULL pointers", ++subnum);
+    {
+        // Создадим массив, где некоторые указатели NULL (пустые fs)
+        fs     *parr[5] = { NULL };
+        fs      s1 = fscopy("valid1");
+        fs      s2 = fscopy("valid2");
+        parr[1] = &s1;
+        parr[3] = &s2;
+
+        hset    se = hset_init(10, HSET_FS);
+        int     loaded = hset_loadanyarr(&se, parr, 5, HSET_FS);
+
+        test_validatefree(
+            loaded == 5,
+            hset_free(&se),
+            "NULL array: loaded %d, expected 5", loaded
+        );
+        test_validatefree(
+            hset_cnt(&se) == 2,
+            hset_free(&se),
+            "NULL array: count = %d, expected 2", hset_cnt(&se)
+        );
+
+        // Проверяем, что валидные строки есть
+        fs tmp = fscopy("valid1");
+        test_validatefree(hset_get(&se, HSET_FSVALUE(tmp)), hset_free(&se), "Missing valid1");
+        fsfree(tmp);
+        tmp = fscopy("valid2");
+        test_validatefree(hset_get(&se, HSET_FSVALUE(tmp)), hset_free(&se), "Missing valid2");
+        fsfree(tmp);
+
+        fsfree(s1); fsfree(s2);
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
