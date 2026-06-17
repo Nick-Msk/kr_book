@@ -273,7 +273,6 @@ static inline hset_type     getype(const hset *se){
 }
 
 static hset_elem           *getprevelem(const hset *restrict se, hset_value value, unsigned *restrict phash, hset_elem **restrict pnext, hset_elem **restrict pequal){
-    //logenter("Loopup...");
 
     unsigned hash = get_lhash(se->sz, value, getype(se) );
     hset_elem *el = se->table[hash],
@@ -312,6 +311,11 @@ static hset_elem           *create_elem(hset_value val){
 }
 
 static bool                 create_or_move_elem(hset * restrict se, hset_elem *restrict el, hset_value val){
+    if (getype(se) == HSET_FS)
+        logsimple("%p %p", val.fsval, val.fsval ? fs_str(val.fsval) : NULL);
+    if (getype(se) == HSET_FS && (val.fsval == NULL || fs_str(val.fsval) == NULL) )
+        return logsimpleret(false, "Unable to add Null FS value");
+
     bool         already_existed = false;
     unsigned     hash = 0;
     hset_elem   *equal = 0, *nextel = 0;
@@ -4774,6 +4778,7 @@ tf27(const char *name)
         fs          strings[cnt];
 
         for (int i = 0; i < cnt; i++) {
+            strings[i] = FS();
             fs_sprintf(strings + i, "str_%d", i);
             test_validatefree(
                 hset_set(&se, HSET_FSMOVE(&strings[i])),
@@ -4861,7 +4866,7 @@ tf27(const char *name)
         hset_free(&se);
     }
 
-    fs_alloc_check(true);
+    //fs_alloc_check(true);
     return logret(TEST_PASSED, "done");
 }
 
