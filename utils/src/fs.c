@@ -226,7 +226,7 @@ int                                     fs_sprintf_position(fs *restrict s, int 
     va_list ap2;
     va_copy(ap2, ap);
     int needed = vsnprintf(NULL, 0, fmt, ap);
-    va_end(ap);
+    // va_end(ap);
     if (needed < 0)
         return logret(-1, "vsnprintf length failed");
 

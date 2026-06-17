@@ -93,6 +93,9 @@ static inline bool          fs_moved(const fs *s){
 
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
+static inline fs             fscopyf(const char *fmt, ...) __attribute__ (( format (printf, 1, 2) ) );
+extern int                   fs_sprintf_position(fs *restrict s, int pos, const char *restrict fmt, va_list ap);
+
 #define             FSEMPTY (fs){.sz = 0, .len = 0, .flags = FS_FLAG_STATIC, .v = ""};
 
 #define             FSINITSTATIC(...)  (fs){.sz = 1, .len = 0, .flags = FS_FLAG_STATIC, .v = "", ##__VA_ARGS__}
@@ -162,6 +165,16 @@ extern void                 fsfreeall(void);
 #endif
 
 // TODO: fs_const() NOT SURE
+
+static inline fs fscopyf(const char *fmt, ...) {
+    invraisecode(fmt != 0, ERR_NULLABLE_PTR, "Null pointer");
+    fs s = FS();
+    va_list ap;
+    va_start(ap, fmt);
+    fs_sprintf_position(&s, 0, fmt, ap);
+    va_end(ap);
+    return s;
+}
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
@@ -414,20 +427,22 @@ static inline fs             fs_cpystr(fs *restrict target, const char *restrict
     return fs_cpy(target, l);
 }
 
-extern int                   fs_sprintf_position(fs *restrict s, int pos, const char *restrict fmt, va_list ap);
-
 static inline int            fs_sprintf(fs *restrict s, const char *restrict fmt, ...) {
     invraisecode(s != 0 && fmt != 0, ERR_NULLABLE_PTR, "%p - %p", s, fmt);
     va_list ap;
     va_start(ap, fmt);
-    return fs_sprintf_position(s, 0, fmt, ap);
+    int res = fs_sprintf_position(s, 0, fmt, ap);
+    va_end(ap);
+    return res;
 }
 
 static inline int            fs_sprintf_concat(fs *restrict s, const char *restrict fmt, ...) {
     invraisecode(s != 0 && fmt != 0, ERR_NULLABLE_PTR, "%p - %p", s, fmt);
     va_list ap;
     va_start(ap, fmt);
-    return fs_sprintf_position(s, s->len, fmt, ap);
+    int res = fs_sprintf_position(s, s->len, fmt, ap);
+    va_end(ap);
+    return res;
 }
 
 // fast in-place left substring
