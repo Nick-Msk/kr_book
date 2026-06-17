@@ -96,7 +96,7 @@ typedef struct hset {
 #define                 HSET_DBLVALUE(val)  (hset_value) {.u64 = 0L, .dval = val }
 #define                 HSET_PTRVALUE(val)  (hset_value) {.u64 = 0L, .pval = val }
 // local version
-#define                 HSET_FSVALUE(val)   (hset_value) {.fsval = hset_create_fs(&(val) ) }
+#define                 HSET_FSVALUE(val)   (hset_value) {.fsval = &(val) }
 // pointer version
 #define                 HSET_FSPVALUE(pval) (hset_value) {.fsval = hset_create_fs(pval) }
 //move version

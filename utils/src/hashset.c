@@ -322,8 +322,12 @@ static bool                 create_or_move_elem(hset * restrict se, hset_elem *r
     hset_value   value;
     if (el)
         value = el->v;
-    else
+    else {
+        if (getype(se) == HSET_FS){
+            val.fsval = hset_create_fs(val.fsval);    //  clone here!
+        }
         value = val;
+    }
     hset_elem   *prevel = getprevelem(se, value, &hash, &nextel, &equal);
     if (equal)
         already_existed = true;
@@ -1433,7 +1437,7 @@ tf2(const char *name)
         fsfree(s1); fsfree(s2); fsfree(s3);
         hset_free(&se);
     }
-
+    fs_alloc_check(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
