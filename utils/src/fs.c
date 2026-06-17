@@ -2007,6 +2007,131 @@ tf25(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
+// ------------------------- TEST 26 ---------------------------------
+static TestStatus
+tf26(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    /* 1. Пустой формат */
+    test_sub("subtest %d: empty format", ++subnum);
+    {
+        fs      s = fscopyf("");
+        test_validatefree(
+            fslen(s) == 0,
+            fsfree(s),
+            "Empty format must have length 0, got %d", fslen(s)
+        );
+        test_validatefree(
+            strcmp(fsstr(s), "") == 0,
+            fsfree(s),
+            "Empty format must produce empty string, got '%s'", fsstr(s)
+        );
+        fsfree(s);
+    }
+    check_leak(true);
+
+    /* 2. Простой текст (без спецификаторов) */
+    test_sub("subtest %d: plain text", ++subnum);
+    {
+        const char *text = "hello, world";
+        fs      s = fscopyf("%s", text);   /* можно и просто fscopyf("hello, world") */
+        test_validatefree(
+            fslen(s) == (int) strlen(text),
+            fsfree(s),
+            "Plain text: length mismatch, got %d, expected %zu", fslen(s), strlen(text)
+        );
+        test_validatefree(
+            strcmp(fsstr(s), text) == 0,
+            fsfree(s),
+            "Plain text: content mismatch, got '%s', expected '%s'", fsstr(s), text
+        );
+        fsfree(s);
+    }
+    check_leak(true);
+
+    /* 3. Формат с числами и строкой */
+    test_sub("subtest %d: formatted string", ++subnum);
+    {
+        int     ival = 42;
+        double  dval = 3.1415;
+        const char *sval = "test";
+        char    expected[200];
+        snprintf(expected, sizeof(expected), "int=%d, double=%.4f, str=%s", ival, dval, sval);
+
+        fs      s = fscopyf("int=%d, double=%.4f, str=%s", ival, dval, sval);
+        test_validatefree(
+            fslen(s) == (int) strlen(expected),
+            fsfree(s),
+            "Formatted length: got %d, expected %zu", fslen(s), strlen(expected)
+        );
+        test_validatefree(
+            strcmp(fsstr(s), expected) == 0,
+            fsfree(s),
+            "Formatted content: got '%s', expected '%s'", fsstr(s), expected
+        );
+        fsfree(s);
+    }
+    check_leak(true);
+
+    /* 4. Длинная строка (проверка расширения буфера) */
+    test_sub("subtest %d: long string (expands buffer)", ++subnum);
+    {
+        // Генерируем длинную строку из повторяющихся символов
+        int     repeat = 20000;
+        char    *long_text = malloc(repeat + 1);
+        if (!long_text)
+            userraiseint(ERR_UNABLE_ALLOCATE, "malloc failed");
+        memset(long_text, 'A', repeat);
+        long_text[repeat] = '\0';
+
+        fs      s = fscopyf("%s", long_text);
+        test_validatefree(
+            fslen(s) == repeat,
+            fsfree(s),
+            "Long string length: got %d, expected %d", fslen(s), repeat
+        );
+        test_validatefree(
+            strcmp(fsstr(s), long_text) == 0,
+            fsfree(s),
+            "Long string content mismatch"
+        );
+
+        free(long_text);
+        fsfree(s);
+    }
+    check_leak(true);
+
+    /* 5. Последовательные вызовы (проверка утечек) */
+    test_sub("subtest %d: sequential calls (no leaks)", ++subnum);
+    {
+        // Несколько созданий и удалений, чтобы убедиться, что память не утекает
+        for (int i = 0; i < 50; i++) {
+            fs s = fscopyf("iteration_%d", i);
+            fsfree(s);
+        }
+        // Если бы были утечки, check_leak в конце функции их обнаружит
+    }
+    check_leak(true);
+
+    /* 6. Строка со спецсимволами и пробелами */
+    test_sub("subtest %d: special chars and spaces", ++subnum);
+    {
+        const char *special = "  \t\n\r  hello  \t\n\r  ";
+        fs      s = fscopyf("%s", special);
+        test_validatefree(
+            strcmp(fsstr(s), special) == 0,
+            fsfree(s),
+            "Special chars mismatch: got '%s', expected '%s'", fsstr(s), special
+        );
+        fsfree(s);
+    }
+    check_leak(true);
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -2039,6 +2164,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf23, .num = 23, .name = "fs_cmp_strict simple tests"                 , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf24, .num = 24, .name = "fs_moveall simple tests"                    , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf25, .num = 25, .name = "fs_fscanf simple tests"                     , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf26, .num = 26, .name = "fscopyf simple tests"                       , .desc=""                , .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
