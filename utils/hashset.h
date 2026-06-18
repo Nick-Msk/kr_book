@@ -165,6 +165,23 @@ extern hset                 hset_init_union(const hset *restrict a, const hset *
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
+// -------------------- hset_elem API ----------------------------------
+static inline fs           *hsetelem_getfs(const hset_elem *el){
+    return el->v.fsval;
+}
+static inline int          hsetelem_getint(const hset_elem *el){
+    return el->v.ival;
+}
+static inline long         hsetelem_getlong(const hset_elem *el){
+    return el->v.lval;
+}
+static inline double       hsetelem_getdbl(const hset_elem *el){
+    return el->v.dval;
+}
+static inline void         *hsetelem_getptr(const hset_elem *el){
+    return el->v.pval;
+}
+
 // ------------------------ Element access -----------------------------
 // true if new element is added, if exists - false
 extern bool                 hset_set(hset *se, hset_value val);
@@ -239,10 +256,15 @@ extern hset                *hset_union(hset *restrict a, const hset *restrict b)
 
 // ------------------------------------- PRINTERS/CHECKERS ---------------------------------
 
-extern int                  hset_techfprint(FILE *restrict out, const hset *se, int cnt);
-static inline int           hset_techprint(const hset *se, int cnt){
-    return hset_techfprint(stdout, se, cnt);
+extern int                  hset_techfprint(FILE *restrict out, const hset *se, int cnt, const char *restrict name);
+static inline int           hset_techprint(const hset *restrict se, int cnt, const char *restrict name){
+    return hset_techfprint(stdout, se, cnt, name);
 }
+
+#define                     hset_tech_fprint(out, se, cnt) hset_techfprint( (out), &(se), (cnt), #se)
+#define                     hset_tech_fprintall(out, se) hset_techfprint( (out), &(se), 0, #se)
+#define                     hset_tech_print(se, cnt) hset_techprint( &(se), (cnt), #se)
+#define                     hset_tech_printall(se) hset_techprint( &(se), 0, #se)
 
 extern bool                 hset_validate(FILE *out, const hset *restrict se);
 // --------------------------------- SERIALIZATION -----------------------------------------

@@ -359,15 +359,15 @@ static hset_elem           *clone_elemlist(const hset_elem *el, hset_type typ){
             return userraise((hset_elem *) 0, ERR_UNABLE_ALLOCATE, "Unable to create element");
         switch (typ){
             case HSET_FS:
-                fs      *tmp = fs_create();
-                *tmp = fs_clone(el->v.fsval);
+                //fs      *tmp = fs_create();
+                //*tmp = fs_clone(el->v.fsval);
+                newel->v.fsval = hset_create_fs(el->v.fsval);        // TODO: hsetelem_getfs(el)
             break;
             /* case HSET_STR:
                 newel->v.str = strdup(el->v.str);
             break;*/
             default:
                 newel->v = el->v;
-                logsimple("Warning: unk type %d", typ);
             break;
         }
         if (!retel)
@@ -489,7 +489,7 @@ hset_value                  hset_createval(const void *p, hset_type typ){
             tmp.pval = *(void * const *) p;
         break;
         case HSET_FS:
-            tmp.fsval = hset_create_fs(p);         // FS_FLAG_MOVED is set!
+            tmp.fsval = *(fs * const *)p; //hset_create_fs(*(const fs * const *) p);         // FS_FLAG_MOVED is set!
         break;
         default:
             userraiseint(ERR_UNSUPPORTED_TYPE, "type %d isn't suppoted", typ);
@@ -560,7 +560,7 @@ hset                        hset_clone(const hset *se){
     if ( (res.table = malloc(newsz * sizeof(hset_elem *) ) ) == 0)    // raise here - nothing to do
         userraiseint(ERR_UNABLE_ALLOCATE, "Unable to alloc newsz %u elems", newsz);
 
-    for (int i = 0; i < newsz; i++){
+    for (int i = 0; i < res.sz; i++){
         res.table[i] = clone_elemlist(se->table[i], getype(se) );
     }
     res.count = se->count;
@@ -977,14 +977,14 @@ hset            *hset_union(hset *restrict se1, const hset *restrict se2){
 
 // ------------------------------------- (API) printers ------------------------------------
 
-int                         hset_techfprint(FILE *restrict out, const hset *se, int sz){
+int                         hset_techfprint(FILE *restrict out, const hset *se, int sz, const char *restrict name){
     invraise(se != 0, "Null pointer");
 
     int     cnt = 0;
     if (out){
         sz = sz ? MIN(sz, se->sz) : se->sz;
         logauto(sz);
-        cnt += fprintf(out, "HSET (%d:%s) [\n", se->sz, hset_type_name(getype(se) ) );
+        cnt += fprintf(out, "HSET %s(sz %d, flags %d, typez %s)[\n", name ? name : "", se->sz, se->flags, hset_type_name(getype(se) ) );
         for (int i = 0; i < sz; i++)
             if (se->table[i]){
                 cnt += fprintf(out, "%4d: ", i);
@@ -1076,8 +1076,8 @@ int                         hset_fload(FILE *restrict in, hset *restrict se) {
 }
 
 int                         hset_save(const char *restrict fname, const hset *se) {
-    invraisecode(se != NULL && fname != NULL, ERR_NULLABLE_PTR,
-                "Null pointer");
+    invraisecode(se != NULL && fname != NULL, ERR_NULLABLE_PTR, "Null pointer");
+
     FILE *f = fopen(fname, "w");
     if (!f)
         return logsimpleret(-1, "Unable to open file %s", fname);
@@ -1231,7 +1231,7 @@ tf1(const char *name)
     test_sub("subtest %d: init + free", ++subnum);
     {
         hset se1 = hset_init(100, HSET_INT);
-        hset_techfprint(logfile, &se1, 0);
+        hset_tech_fprintall(logfile, se1);
         test_validatefree(
             hset_validate(stdout, &se1), hset_free(&se1), "Validation failed"
         );
@@ -1240,7 +1240,7 @@ tf1(const char *name)
     test_sub("subtest %d: init + free", ++subnum);
     {
         hset sefs1 = hset_init(100, HSET_FS);
-        hset_techfprint(logfile, &sefs1, 0);
+        hset_tech_fprintall(logfile, sefs1);
         test_validatefree(
             hset_validate(stdout, &sefs1), hset_free(&sefs1), "Validation failed"
         );
@@ -1265,12 +1265,12 @@ tf2(const char *name)
             hset_set(&se1, HSET_INTVALUE(num) ),
             hset_free(&se1), "Must be true"
         );
-        hset_techfprint(logfile, &se1, 0);
+        hset_tech_fprintall(logfile, se1);
         test_validatefree(
             hset_set(&se1, HSET_INTVALUE(num) ) == false,
             hset_free(&se1), "Must be false because elem %d aleady in the set", num
         );
-        hset_techfprint(logfile, &se1, 0);
+        hset_tech_fprintall(logfile, se1);
         test_validatefree(
             hset_validate(stdout, &se1), hset_free(&se1), "Validation failed"
         );
@@ -1283,7 +1283,7 @@ tf2(const char *name)
         test_validatefree(
             hset_del(&se1, HSET_INTVALUE(num) ), hset_free(&se1), "Must be true, because element %d exists", num
         );
-        hset_techfprint(logfile, &se1, 0);
+        hset_tech_fprintall(logfile, se1);
         test_validatefree(
             hset_del(&se1, HSET_INTVALUE(num) ) == false, hset_free(&se1), "Must be false, because element %d already deleted", num
         );
@@ -1301,7 +1301,7 @@ tf2(const char *name)
             test_validatefree(
                 hset_set(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Already exists %d", i
             );
-        hset_techfprint(logfile, &se1, 0);
+        hset_tech_fprintall(logfile, se1);
 
         for (int i = 0; i < cnt * mul; i++)
             test_validatefree(
@@ -1460,7 +1460,7 @@ tf3(const char *name)
                 hset_set(&se1, HSET_LONGVALUE(i) ), hset_free(&se1), "Already exists %d", i
             );
         hset    se2 = hset_clone(&se1);
-        hset_techprint(&se2, 0);
+        hset_tech_printall(se2);
         // then compare one by one
         bool        r1, r2;
         for (int i = 0; i < cnt; i++){
@@ -1474,7 +1474,7 @@ tf3(const char *name)
 
         hset_free(&se1);
 
-        hset_techfprint(logfile, &se2, 0);
+        hset_tech_fprintall(logfile, se2);
         test_validatefree(
             hset_validate(stdout, &se2), hset_free(&se2), "Validation failed"
         );
@@ -1487,7 +1487,7 @@ tf3(const char *name)
 
         hset    se1 = hset_fromiarr(arr.iv, arr.len);
 
-        hset_techfprint(logfile, &se1, 0);
+        hset_tech_fprintall(logfile, se1);
 
         for (int i = 0; i < arr.len; i++)
             test_validatefree(
@@ -1507,7 +1507,7 @@ tf3(const char *name)
         Array arr = IArray_create(10, ARRAY_ZERO);
         hset    se1 = hset_fromiarr(arr.iv, arr.len);
 
-        hset_techfprint(stdout, &se1, 0);
+        hset_tech_fprintall(stdout, se1);
 
         for (int i = 0; i < arr.len; i++)
             test_validatefree(
@@ -1534,7 +1534,13 @@ tf3(const char *name)
             fsfree(tmp);
         }
 
+        logauto(se1.sz);
         hset    se2 = hset_clone(&se1);
+        logauto(se1.sz);
+
+        // TODO: temporary
+        hset_tech_printall(se1);
+        hset_tech_printall(se2);
 
         // Проверяем, что клон содержит те же элементы
         for (int i = 0; i < COUNT(words); i++) {
@@ -1560,7 +1566,8 @@ tf3(const char *name)
     /* ---- FS: create from array of strings ---- */
     test_sub("subtest %d: FS from array", ++subnum);
     {
-        const int cnt = 30;
+        { int f, a; fs_free_alloc_checker(&f, &a); logmsg("I freed %d, alloc %d", f, a); }
+        const int cnt = 3;
         fs      strings[cnt];   // локальные fs
         fs     *parr[cnt];      // массив указателей для hset_loadanyarr
 
@@ -1569,8 +1576,13 @@ tf3(const char *name)
             parr[i] = &strings[i];
         }
 
+        { int f, a; fs_free_alloc_checker(&f, &a); logmsg("II freed %d, alloc %d", f, a); }
         hset    se = hset_init(cnt, HSET_FS);
+        { int f, a; fs_free_alloc_checker(&f, &a); logmsg("IV freed %d, alloc %d", f, a); }
         int     loaded = hset_loadanyarr(&se, parr, cnt, HSET_FS);
+
+        { int f, a; fs_free_alloc_checker(&f, &a); logmsg("III freed %d, alloc %d", f, a); }
+        fs_alloc_check(false);
 
         test_validatefree(
             loaded == cnt,
@@ -1595,8 +1607,10 @@ tf3(const char *name)
         }
 
         // Освобождаем исходные строки (множество владеет копиями)
-        for (int i = 0; i < cnt; i++)
+        for (int i = 0; i < cnt; i++){
+            fstechprint(strings[i] );
             fsfree(strings[i]);
+        }
         hset_free(&se);
     }
     fs_alloc_check(true);
@@ -1915,7 +1929,7 @@ tf7(const char *name)
             se1.sz == se2.sz, (hset_free(&se1), hset_free(&se2) ), "Must have equal table size %d : %d", sz1, sz2
         );
 
-        test_validatefree( 
+        test_validatefree(
             hset_validate(stdout, &se1) && hset_validate(stdout, &se2),
             (hset_free(&se1), hset_free(&se2)), "Validation failed se1"
         );
@@ -4489,7 +4503,7 @@ tf24(const char *name)
 
         for (int i = 0; i < 15; i++)
             hset_set(&se, HSET_DBLVALUE(i) );
-        hset_techprint(&se, 0);
+        hset_tech_printall(se);
 
         /* ---- структурная целостность ---- */
         test_validatefree(
