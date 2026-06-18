@@ -1442,6 +1442,31 @@ tf2(const char *name)
         hset_free(&se);
     }
     fs_alloc_check(true);
+    test_sub("subtest %d: FS empty \"\" checking", ++subnum);
+    {
+        hset    se = hset_init(10, HSET_FS);
+        fs      s1 = fsliteral("");
+        fs      s2 = fscopy("");
+        test_validatefree(
+            hset_set(&se, HSET_FSVALUE(s1)) == true,
+            hset_free(&se),
+            "Failed to insert empty literal"
+        );
+        hset_clean(&se);
+        test_validatefree(
+            hset_set(&se, HSET_FSVALUE(s2)) == true,
+            hset_free(&se),
+            "Failed to insert empty fs"
+        );
+        test_validatefree(
+            hset_set(&se, HSET_FSVALUE(s1)) == false,
+            hset_free(&se),
+            "Shiuld be false, because empty line again (literal)"
+        );
+        fsfree(s2);
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
@@ -1569,8 +1594,7 @@ tf3(const char *name)
     /* ---- FS: create from array of strings ---- */
     test_sub("subtest %d: FS from array", ++subnum);
     {
-        { int f, a; fs_free_alloc_checker(&f, &a); logmsg("I freed %d, alloc %d", f, a); }
-        const int cnt = 3;
+        const int cnt = 30;
         fs      strings[cnt];   // локальные fs
         fs     *parr[cnt];      // массив указателей для hset_loadanyarr
 
@@ -1579,12 +1603,9 @@ tf3(const char *name)
             parr[i] = &strings[i];
         }
 
-        { int f, a; fs_free_alloc_checker(&f, &a); logmsg("II freed %d, alloc %d", f, a); }
         hset    se = hset_init(cnt, HSET_FS);
-        { int f, a; fs_free_alloc_checker(&f, &a); logmsg("IV freed %d, alloc %d", f, a); }
         int     loaded = hset_loadanyarr(&se, parr, cnt, HSET_FS);
 
-        { int f, a; fs_free_alloc_checker(&f, &a); logmsg("III freed %d, alloc %d", f, a); }
         fs_alloc_check(false);
 
         test_validatefree(
