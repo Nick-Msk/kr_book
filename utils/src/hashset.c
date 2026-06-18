@@ -1868,7 +1868,6 @@ tf5(const char *name)
     }
     test_sub("subtest %d: compare with different hash table size", ++subnum);
     {
-        // TODO:
         Array   arr = IArray_create(200, ARRAY_RND);
         // create from array
         hset    se1 = hset_fromiarr(arr.iv, Arraylen(arr) );
@@ -1886,6 +1885,111 @@ tf5(const char *name)
         hset_free(&se1);
         hset_free(&se2);
     }
+
+    // HSET_FS
+    test_sub("subtest %d: FS clone and compare", ++subnum);
+    {
+        const int cnt = 200;
+        fs      strings[cnt];
+        fs     *parr[cnt];
+
+        // Создаём массив уникальных строк
+        for (int i = 0; i < cnt; i++) {
+            strings[i] = fscopyf("fs_str_%d", i);
+            parr[i] = &strings[i];
+        }
+
+        hset    se1 = hset_init(cnt, HSET_FS);
+        hset_loadanyarr(&se1, parr, cnt, HSET_FS);
+
+        // Сохраняем первый элемент для последующего удаления
+        fs      first_elem = fscopyf("fs_str_%d", 0);   // или просто fscopyf("fs_str_0")
+        //fs     *first_parr[1] = { &first_elem };
+
+        // Клонируем se1
+        hset    se2 = hset_clone(&se1);
+
+        // 1. Исходно множества должны быть равны
+        test_validatefree(
+            hset_eq(&se1, &se2),
+            (hset_free(&se1), hset_free(&se2), fsfree(first_elem)),
+            "FS clone: sets must be equal after clone"
+        );
+
+        // 2. Удаляем элемент из se1
+        test_validatefree(
+            hset_del(&se1, HSET_FSVALUE(first_elem)),
+            (hset_free(&se1), hset_free(&se2), fsfree(first_elem)),
+            "FS clone: failed to delete '%s' from se1", fsstr(first_elem)
+        );
+        // После удаления множества не должны быть равны
+        test_validatefree(
+            !hset_eq(&se1, &se2),
+            (hset_free(&se1), hset_free(&se2), fsfree(first_elem)),
+            "FS clone: sets must NOT be equal after deletion from se1"
+        );
+
+        // 3. Удаляем тот же элемент из se2
+        test_validatefree(
+            hset_del(&se2, HSET_FSVALUE(first_elem)),
+            (hset_free(&se1), hset_free(&se2), fsfree(first_elem)),
+            "FS clone: failed to delete '%s' from se2", fsstr(first_elem)
+        );
+        // Теперь снова должны быть равны
+        test_validatefree(
+            hset_eq(&se1, &se2),
+            (hset_free(&se1), hset_free(&se2), fsfree(first_elem)),
+            "FS clone: sets must be equal after both deletions"
+        );
+
+        // Освобождаем исходные строки (множества владеют копиями)
+        for (int i = 0; i < cnt; i++)
+            fsfree(strings[i]);
+        fsfree(first_elem);
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+    fs_alloc_check(true);
+    test_sub("subtest %d: FS compare with different hash table size", ++subnum);
+    {
+        const int cnt = 200;
+        fs      strings[cnt];
+        fs     *parr[cnt];
+
+        for (int i = 0; i < cnt; i++) {
+            strings[i] = fscopyf("diff_%d", i);
+            parr[i] = &strings[i];
+        }
+
+        // Первое множество – стандартное создание из массива
+        hset    se1 = hset_init(cnt, HSET_FS);
+        hset_loadanyarr(&se1, parr, cnt, HSET_FS);
+
+        // Второе – с заведомо меньшим начальным размером таблицы
+        hset    se2 = hset_init(cnt / 2, HSET_FS);
+        hset_loadanyarr(&se2, parr, cnt, HSET_FS);
+
+        // Они должны быть равны, несмотря на разный размер таблиц
+        test_validatefree(
+            hset_eq(&se1, &se2),
+            (hset_free(&se1), hset_free(&se2)),
+            "FS diff size: sets must be equal after initial load"
+        );
+
+        // Повторная загрузка тех же данных не должна испортить равенство
+        hset_loadanyarr(&se1, parr, cnt, HSET_FS);
+        test_validatefree(
+            hset_eq(&se1, &se2),
+            (hset_free(&se1), hset_free(&se2)),
+            "FS diff size: sets must be equal after reloading duplicates"
+        );
+
+        for (int i = 0; i < cnt; i++)
+            fsfree(strings[i]);
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+    fs_alloc_check(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 

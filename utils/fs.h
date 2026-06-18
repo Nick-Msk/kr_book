@@ -481,7 +481,11 @@ static inline fs            *fs_toupper_interval(fs *str, int from, int to){
 static inline fs            *fs_toupper(fs *str){
     return fs_toupper_interval(str, 0, str->len);
 }
+extern int                   fs_rpad(fs *restrict str, int len, fs *pad);
 
+extern int                   fs_lpad(fs *restrict str, int len, fs *pad);
+
+// ----------------------------------- Finders -----------------------------------
 // full scan version
 static inline bool           fs_notin(fs s, const char *strs[]){
     while (*strs){
