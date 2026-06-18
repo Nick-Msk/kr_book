@@ -190,6 +190,7 @@ fs                                       fs_move(fs *orig){
 }
 // move whole fs (body and string)
 fs                                      *fs_moveall(fs *orig){
+    invraisecode(orig != NULL, ERR_NULLABLE_PTR, "Null pointer");
     if (! (fs_alloc(orig) || fs_static(orig) ) )
         userraiseint(ERR_UNSUPPORTED_TYPE, "Unable to moveall not allocated fs (type %s)", fs_flag_str(orig->flags) );
     fs  *tmp = fs_create();
@@ -316,7 +317,7 @@ void                                     fs_sort(fs *s, bool asc){
 int                                     fs_fprint(FILE *restrict out, const fs *restrict s, const char *restrict name){
     int     cnt = 0;
     if (s){
-        cnt = fprintf(out, "[%s: %s]", name, s->v);
+        cnt = fprintf(out, "[%s%s%s]", name ? name : "", name ? ": " : "", s->v);
     }
     return cnt;
 }
@@ -325,7 +326,7 @@ int                                     fs_fprint(FILE *restrict out, const fs *
 int                                     fs_fprintlim(FILE *restrict out, const fs *restrict s, int lim, const char *restrict name){
     int     cnt = 0;
     if (s){
-        cnt = fprintf(out, "[%s: %.*s]", name, lim, s->v);
+        cnt = fprintf(out, "[%s%s%.*s]", name ? name : "", name ? ": " : "", lim, s->v);
     }
     return cnt;
 }
@@ -389,7 +390,7 @@ extern bool                             fs_free_body_alloc_checker(int *freecnt,
         *freecnt = g_free_body_cnt;
     if (alloccnt)
         *alloccnt= g_alloc_body_cnt;
-    return logsimpleret(freecnt == alloccnt, "body allocated %d, freed %d", g_alloc_cnt, g_free_cnt);
+    return logsimpleret(g_free_body_cnt == g_alloc_body_cnt, "body allocated %d, freed %d", g_alloc_cnt, g_free_cnt);
 }
 // TODO: refactor that!!!!!!!
 extern bool                             fs_free_alloc_checker(int *freecnt, int *alloccnt){
@@ -397,7 +398,7 @@ extern bool                             fs_free_alloc_checker(int *freecnt, int 
         *freecnt = g_free_cnt;
     if (alloccnt)
         *alloccnt= g_alloc_cnt;
-    return logsimpleret(freecnt == alloccnt, "string allocated %d, freed %d", g_alloc_cnt, g_free_cnt);
+    return logsimpleret(g_free_cnt == g_alloc_cnt, "string allocated %d, freed %d", g_alloc_cnt, g_free_cnt);
 }
 // TODO: refactor that!!!!!!!
 // internal, for testing
@@ -406,17 +407,17 @@ static bool                             check_leak(bool raise){
     fs_free_alloc_checker(&free_v, &alloc_v);
     if (free_v != alloc_v){
         if (raise)
-            userraiseint(WARN_MEM_LEAK_DETECTED, "string allocaed %d, freed %d", alloc_v, free_v);
+            userraiseint(WARN_MEM_LEAK_DETECTED, "string allocated %d, freed %d", alloc_v, free_v);
         else
-            userraise(false, WARN_MEM_LEAK_DETECTED, "WARNING: string allocaed %d, freed %d", alloc_v, free_v);
+            userraise(false, WARN_MEM_LEAK_DETECTED, "WARNING: string allocated %d, freed %d", alloc_v, free_v);
     }
     if (free_v != alloc_v)
         return false;
     if (free_v != alloc_v){
         if (raise)
-            userraiseint(WARN_MEM_LEAK_DETECTED, "body allocaed %d, freed %d", alloc_v, free_v);
+            userraiseint(WARN_MEM_LEAK_DETECTED, "body allocated %d, freed %d", alloc_v, free_v);
         else
-            userraise(false, WARN_MEM_LEAK_DETECTED, "WARNING: body allocaed %d, freed %d", alloc_v, free_v);
+            userraise(false, WARN_MEM_LEAK_DETECTED, "WARNING: body allocated %d, freed %d", alloc_v, free_v);
     }
     return free_v == alloc_v;
 }
@@ -541,7 +542,7 @@ fs                                     *fs_create(void){
         userraiseint(ERR_UNABLE_ALLOCATE, "Unable to allocate fs body");
     *new_fs = FS();
     new_fs->flags |= FS_FLAG_MOVED;   // чтобы fs_free удалил и тело, и будущую строку
-    g_alloc_body_cnt++;
+    logauto(++g_alloc_body_cnt);
     return new_fs;
 }
 // clone as body local
@@ -568,7 +569,8 @@ void                                    fs_free(fs *s){
     s->v = 0;
     if (moved){
         s->flags = 0;   // clear  FS_FLAG_MOVED
-        logsimpleact(free(s), "fs body %p freed (freecnt %d)", s, g_free_body_cnt);
+        free(s);
+        logsimple("fs body %p freed (g_free_body_cnt %d)", s, ++g_free_body_cnt);
     }
 }
 
