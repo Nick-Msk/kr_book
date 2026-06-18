@@ -1,5 +1,7 @@
 CC=gcc #clang
 CFLAGS= -I./ -Wall -Wextra -g -O0 -Wno-initializer-overrides -Wno-gnu-folding-constant -std=c23 -fsanitize=address
+#CFLAGS += -fanalyzer
+
 # -Wno-initializer-overrides -Wno-unused-function -Wno-format-zero-length
 LDFLAGS=
 LDLIBS=
