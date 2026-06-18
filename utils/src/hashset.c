@@ -330,8 +330,11 @@ static bool                 create_or_move_elem(hset * restrict se, hset_elem *r
         value = val;
     }
     hset_elem   *prevel = getprevelem(se, value, &hash, &nextel, &equal);
-    if (equal)
+    if (equal) {
         already_existed = true;
+        if (getype(se) == HSET_FS)
+            fs_free(val.fsval);   // освобождаем копию, которая не понадобилась
+    }
     else {
         hset_elem *newel;
         if (el)     // move
@@ -1617,7 +1620,7 @@ tf3(const char *name)
     /* ---- FS: array with duplicates ---- */
     test_sub("subtest %d: FS from array with duplicates", ++subnum);
     {
-        const char *words[] = {"one", "two", "two", "three", "three", "three"};
+        const char *words[] = {"one", "two", "two", "three", "three", "three", "two", "two"};
         const int uniq = 3;   // one, two, three
         fs      strings[COUNT(words)];
         fs     *parr[COUNT(words)];
@@ -1642,7 +1645,8 @@ tf3(const char *name)
             "Duplicates: count = %d, expected %d", hset_cnt(&se), uniq
         );
 
-        for (int i = 0; i < COUNT(words); i++) fsfree(strings[i]);
+        for (int i = 0; i < COUNT(words); i++)
+            fsfree(strings[i]);
         hset_free(&se);
     }
     fs_alloc_check(true);
