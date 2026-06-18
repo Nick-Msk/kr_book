@@ -1760,6 +1760,73 @@ tf4(const char *name)
         Arrayfree(arr);
         hset_free(&se2);
     }
+    // HSET_FS
+    test_sub("subtest %d: FS empty count", ++subnum);
+    {
+        hset    se = hset_init(100, HSET_FS);
+        int     res;
+        test_validatefree(
+            (res = hset_cnt(&se)) == 0,
+            hset_free(&se),
+            "FS empty count must be 0, but got %d", res
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+    test_sub("subtest %d: FS loaded count", ++subnum);
+    {
+        const int cnt = 500;
+        fs      strings[cnt];
+        fs     *parr[cnt];
+
+        for (int i = 0; i < cnt; i++) {
+            strings[i] = fscopyf("str_%d", i);   // уникальные строки
+            parr[i] = &strings[i];
+        }
+
+        hset    se = hset_init(cnt, HSET_FS);
+        int     loaded = hset_loadanyarr(&se, parr, cnt, HSET_FS);
+        int     set_cnt = hset_cnt(&se);
+
+        // После загрузки исходные строки можно освободить
+        for (int i = 0; i < cnt; i++)
+            fsfree(strings[i]);
+
+        test_validatefree(
+            loaded == cnt && set_cnt == cnt,
+            hset_free(&se),
+            "FS loaded count: loaded %d, set count %d, expected both %d",
+            loaded, set_cnt, cnt
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+    test_sub("subtest %d: FS count after clean", ++subnum);
+    {
+        const int cnt = 200;
+        fs      strings[cnt];
+        fs     *parr[cnt];
+
+        for (int i = 0; i < cnt; i++) {
+            strings[i] = fscopyf("clean_%d", i);
+            parr[i] = &strings[i];
+        }
+
+        hset    se = hset_init(cnt, HSET_FS);
+        hset_loadanyarr(&se, parr, cnt, HSET_FS);
+        for (int i = 0; i < cnt; i++) fsfree(strings[i]);
+
+        hset_clean(&se);
+        int  cntclean;
+
+        test_validatefree(
+            (cntclean = hset_cnt(&se) ) == 0,
+            hset_free(&se),
+            "FS count after clean must be 0, but got %d", cntclean
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
