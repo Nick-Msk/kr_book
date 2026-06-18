@@ -352,7 +352,7 @@ static inline unsigned          round_up_2(unsigned val){
     int prev = 0;
     while (val)
         val &= ( (prev = val) - 1);
-    return prev <<= 1;
+    return prev << 1;
 }
 
 // reverse string
