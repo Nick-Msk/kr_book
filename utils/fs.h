@@ -645,7 +645,7 @@ static inline fs            *fs_scanf(fs *s){
 #define                      fsprint_arr(...)       fs_print_arr( (const fs *[]) { __VA_ARGS__, 0} )
 
 extern bool                  fs_validate(FILE *restrict out, const fs *restrict s);
-
+extern bool                  fs_free_body_alloc_checker(int *freecnt, int *alloccnt);
 extern bool                  fs_free_alloc_checker(int *freecnt, int *alloccnt);
 extern bool                  fs_alloc_check(bool raise);
 

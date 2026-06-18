@@ -308,7 +308,7 @@ int                                     fs_lim_instr(const fs* restrict str1, co
 
 // sorting as array
 void                                     fs_sort(fs *s, bool asc){
-    invraise(s || s->v != 0, "Nullable pointer or fs");
+    invraise(s || s != 0, "Nullable pointer or fs");
     qsort(s->v, s->len, 1, asc ? pchar_cmp : pchar_revcmp);
 }
 
@@ -393,7 +393,7 @@ extern bool                             fs_free_body_alloc_checker(int *freecnt,
     return logsimpleret(g_free_body_cnt == g_alloc_body_cnt, "body allocated %d, freed %d", g_alloc_cnt, g_free_cnt);
 }
 // TODO: refactor that!!!!!!!
-extern bool                             fs_free_alloc_checker(int *freecnt, int *alloccnt){
+bool                                    fs_free_alloc_checker(int *freecnt, int *alloccnt){
     if (freecnt)
         *freecnt = g_free_cnt;
     if (alloccnt)
@@ -432,7 +432,7 @@ bool                                    fs_alloc_check(bool raise){
 // seqialization (strictly FULL save into the steam with only FS and .len info), out must be opened for write
 int                                     fs_fsave(FILE *restrict out, const fs *restrict str){
     int cnt = 0;
-    if (str){
+    if (out){
         fprintf(out, "FS(%d):[%s]\n", str->len, str->v);
         cnt++;
     }
@@ -441,10 +441,12 @@ int                                     fs_fsave(FILE *restrict out, const fs *r
 
 int                                     fs_save(const char *restrict fname, const fs *restrict str){ 
     FILE *out = fopen(fname, "w");
-    if (!out)
+    int     cnt = 0;
+    if (out){
+        cnt = fs_fsave(out, str);
+        fclose(out);
+    } else
         userraiseint(ERR_UNABLE_OPEN_FILE_WRITE, "Unable to open %s for write", fname);
-    int cnt = fs_fsave(out, str);
-    fclose(out);
     return cnt;
 }
 
@@ -459,10 +461,12 @@ int                                     fs_fsave_arr(FILE *restrict out, const f
 // note: arr can be nullable, this mean 0 length array
 int                                     fs_save_arr(const char *restrict fname, const fs *restrict arr){
     FILE *out = fopen(fname, "w");
-    if (!out)
+    int     cnt = 0;
+    if (out){
+        cnt = fs_fsave_arr(out, arr);
+        fclose(out);
+    } else
         userraiseint(ERR_UNABLE_OPEN_FILE_WRITE, "Unable to open %s for write", fname);
-    int cnt = fs_fsave_arr(out, arr);
-    fclose(out);
     return cnt;
 }
 //
@@ -482,6 +486,8 @@ fs                                     *fs_fscanf(FILE *restrict in, fs *restric
 
 // raise int in case of wrong format
 fs                                      fs_fload(FILE *restrict in, fs *restrict s){
+    invraisecode(in != 0, ERR_NULLABLE_PTR, "Null pointer %p - %p", in, s);
+
     // FORMAT: FS(%d):[%s]\n
     unsigned     len = 0;
     char         pt1[] = "FS(", pt2[] = "):[", pt3[] = "]\n";
@@ -540,9 +546,11 @@ fs                                     *fs_create(void){
     fs  *new_fs = malloc(sizeof(fs) );
     if (!new_fs)
         userraiseint(ERR_UNABLE_ALLOCATE, "Unable to allocate fs body");
-    *new_fs = FS();
-    new_fs->flags |= FS_FLAG_MOVED;   // чтобы fs_free удалил и тело, и будущую строку
-    logauto(++g_alloc_body_cnt);
+    else {
+        *new_fs = FS();
+        new_fs->flags |= FS_FLAG_MOVED;   // чтобы fs_free удалил и тело, и будущую строку
+        logauto(++g_alloc_body_cnt);
+    }
     return new_fs;
 }
 // clone as body local
@@ -560,17 +568,18 @@ void                                    fs_free(fs *s){
     if (!s)
         return;
     bool  moved = fs_moved(s);  // flags based
-    if (fs_alloc(s) ) {    // actualy alloc must be a flag, but not statememnt TODO:
-        if (s->v)
+    if (fs_alloc(s) )    // actualy alloc must be a flag, but not statememnt TODO:
+        if (s->v){
             logauto(++g_free_cnt);   // calculate only  if really free memory
-        logsimpleact(free(s->v), "freed... %p", s->v);   // WOW, logsimpleact?
-    }
+            logsimple("freed... %p", s->v);   // WOW, logsimpleact?
+            free(s->v);
+        }
     s->sz = s->len = 0; // destroy even literals
     s->v = 0;
     if (moved){
         s->flags = 0;   // clear  FS_FLAG_MOVED
-        free(s);
         logsimple("fs body %p freed (g_free_body_cnt %d)", s, ++g_free_body_cnt);
+        free(s);
     }
 }
 
