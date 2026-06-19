@@ -24,6 +24,9 @@ mcp: src/mcp.c lib/log.o lib/common.o lib/error.o lib/checker.o lib/files.p8.5.o
 kaprekar: src/kaprekar.c lib/log.o lib/common.o lib/error.o lib/checker.o lib/fs.o lib/fileutils.o
 	$(CC) $(CFLAGS) $^ -o out/$@
 
+triplets: src/triplets.c lib/log.o lib/common.o lib/error.o lib/checker.o
+	$(CC) $(CFLAGS) $^ -o out/$@
+
 lib/files.p8.5.o: src/files.p8.5.c
 	$(CC) $(CFLAGS)  $^ -c
 	@mv files.p8.5.o lib/
