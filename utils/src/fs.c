@@ -2188,102 +2188,108 @@ tf27(const char *name)
     /* 1. rpad: короткая строка, pad длиннее */
     test_sub("subtest %d: rpad short string with longer pad", ++subnum);
     {
+        int     newlen = 7;
         fs      s = fscopy("abc");
         fs      pad = fscopy("XY");
-        fs      result = fs_rpad(&s, 7, &pad);
+        fs      result = fs_rpad(&s, newlen, &pad);
+        fstechfprint(logfile, result);
 
         test_validatefree(
-            fslen(s) == 7,
-            fsfree(s), fsfree(pad),
-            "rpad: length must be 7, got %d", fslen(s)
+            fslen(s) == newlen,
+            (fsfree(s), fsfree(pad) ),
+            "rpad: length must be %d, got %d", newlen, fslen(s)
         );
         test_validatefree(
             strcmp(fsstr(s), "abcXYXY") == 0,
-            fsfree(s), fsfree(pad),
+            (fsfree(s), fsfree(pad) ),
             "rpad: expected 'abcXYXY', got '%s'", fsstr(s)
         );
         fsfree(s);
         fsfree(pad);
     }
-
     /* 2. rpad: обрезание длинной строки */
     test_sub("subtest %d: rpad cut long string", ++subnum);
     {
+        int     newlen = 5;
         fs      s = fscopy("hello world");
         fs      pad = fscopy(".");
-        fs      result = fs_rpad(&s, 5, &pad);
+        fs      result = fs_rpad(&s, newlen, &pad);
+        fstechfprint(logfile, result);
 
         test_validatefree(
-            fslen(s) == 5,
-            fsfree(s), fsfree(pad),
-            "rpad cut: length must be 5, got %d", fslen(s)
+            fslen(s) == newlen,
+            (fsfree(s), fsfree(pad)),
+            "rpad cut: length must be %d, got %d", newlen, fslen(s)
         );
         test_validatefree(
             strcmp(fsstr(s), "hello") == 0,
-            fsfree(s), fsfree(pad),
+            (fsfree(s), fsfree(pad)),
             "rpad cut: expected 'hello', got '%s'", fsstr(s)
         );
         fsfree(s);
         fsfree(pad);
     }
-
     /* 3. rpad: пустой pad – строка остаётся без изменений (короткая) */
     test_sub("subtest %d: rpad empty pad (short string)", ++subnum);
     {
+        int     newlen = 5;
         fs      s = fscopy("abc");
         fs      pad = FS();               /* пустая строка */
-        fs      result = fs_rpad(&s, 5, &pad);
+        fs      result = fs_rpad(&s, newlen, &pad);
+        fstechfprint(logfile, result);
 
         test_validatefree(
             fslen(s) == 3,
-            fsfree(s), fsfree(pad),
+            (fsfree(s), fsfree(pad)),
             "rpad empty pad: length must stay 3, got %d", fslen(s)
         );
         test_validatefree(
             strcmp(fsstr(s), "abc") == 0,
-            fsfree(s), fsfree(pad),
+            (fsfree(s), fsfree(pad)),
             "rpad empty pad: expected 'abc', got '%s'", fsstr(s)
         );
         fsfree(s);
         fsfree(pad);
     }
-
     /* 4. rpad: циклическое заполнение (pad короче) */
     test_sub("subtest %d: rpad cyclic pad", ++subnum);
     {
+        int     newlen = 8;
         fs      s = fscopy("AB");
         fs      pad = fscopy("123");
-        fs      result = fs_rpad(&s, 8, &pad);
+        fs      result = fs_rpad(&s, newlen, &pad);
+        fstechfprint(logfile, result);
 
         test_validatefree(
-            fslen(s) == 8,
-            fsfree(s), fsfree(pad),
-            "rpad cyclic: length must be 8, got %d", fslen(s)
+            fslen(s) == newlen,
+            (fsfree(s), fsfree(pad)),
+            "rpad cyclic: length must be %d, got %d", newlen, fslen(s)
         );
         test_validatefree(
             strcmp(fsstr(s), "AB123123") == 0,
-            fsfree(s), fsfree(pad),
+            (fsfree(s), fsfree(pad)),
             "rpad cyclic: expected 'AB123123', got '%s'", fsstr(s)
         );
         fsfree(s);
         fsfree(pad);
     }
-
     /* 5. rpad: len == 0, строка непустая – обрезается до пустой */
     test_sub("subtest %d: rpad len=0 (cut to empty)", ++subnum);
     {
+        int     newlen = 0;
         fs      s = fscopy("cutme");
         fs      pad = fscopy("-");
-        fs      result = fs_rpad(&s, 0, &pad);
+        fs      result = fs_rpad(&s, newlen, &pad);
+        fstechfprint(logfile, result);
 
         test_validatefree(
             fslen(s) == 0,
-            fsfree(s), fsfree(pad),
+            (fsfree(s), fsfree(pad)),
             "rpad len=0: length must be 0, got %d", fslen(s)
         );
         test_validatefree(
             strcmp(fsstr(s), "") == 0,
-            fsfree(s), fsfree(pad),
+            (fsfree(s), fsfree(pad)),
             "rpad len=0: expected empty, got '%s'", fsstr(s)
         );
         fsfree(s);
@@ -2295,108 +2301,113 @@ tf27(const char *name)
     /* 6. lpad: короткая строка, pad длиннее */
     test_sub("subtest %d: lpad short string with longer pad", ++subnum);
     {
+        int     newlen = 7;
         fs      s = fscopy("abc");
         fs      pad = fscopy("XY");
-        fs      result = fs_lpad(&s, 7, &pad);
+        fs      result = fs_lpad(&s, newlen, &pad);
+        fstechfprint(logfile, result);
 
         test_validatefree(
-            fslen(s) == 7,
-            fsfree(s), fsfree(pad),
-            "lpad: length must be 7, got %d", fslen(s)
+            fslen(s) == newlen,
+            (fsfree(s), fsfree(pad)),
+            "lpad: length must be %d, got %d", newlen, fslen(s)
         );
         test_validatefree(
             strcmp(fsstr(s), "XYXYabc") == 0,
-            fsfree(s), fsfree(pad),
+            (fsfree(s), fsfree(pad)),
             "lpad: expected 'XYXYabc', got '%s'", fsstr(s)
         );
         fsfree(s);
         fsfree(pad);
     }
-
     /* 7. lpad: обрезание длинной строки */
     test_sub("subtest %d: lpad cut long string", ++subnum);
     {
+        int     newlen = 5;
         fs      s = fscopy("hello world");
         fs      pad = fscopy(".");
-        fs      result = fs_lpad(&s, 5, &pad);
+        fs      result = fs_lpad(&s, newlen, &pad);
+        fstechfprint(logfile, result);
 
         test_validatefree(
-            fslen(s) == 5,
-            fsfree(s), fsfree(pad),
-            "lpad cut: length must be 5, got %d", fslen(s)
+            fslen(s) == newlen,
+            (fsfree(s), fsfree(pad)),
+            "lpad cut: length must be %d, got %d", newlen, fslen(s)
         );
         test_validatefree(
             strcmp(fsstr(s), "hello") == 0,
-            fsfree(s), fsfree(pad),
+            (fsfree(s), fsfree(pad)),
             "lpad cut: expected 'hello', got '%s'", fsstr(s)
         );
         fsfree(s);
         fsfree(pad);
     }
-
     /* 8. lpad: пустой pad – строка не меняется (короткая) */
     test_sub("subtest %d: lpad empty pad (short string)", ++subnum);
     {
+        int     newlen = 5;
         fs      s = fscopy("abc");
         fs      pad = FS();
-        fs      result = fs_lpad(&s, 5, &pad);
+        fs      result = fs_lpad(&s, newlen, &pad);
+        fstechfprint(logfile, result);
 
         test_validatefree(
             fslen(s) == 3,
-            fsfree(s), fsfree(pad),
+            (fsfree(s), fsfree(pad)),
             "lpad empty pad: length must stay 3, got %d", fslen(s)
         );
         test_validatefree(
             strcmp(fsstr(s), "abc") == 0,
-            fsfree(s), fsfree(pad),
+            (fsfree(s), fsfree(pad)),
             "lpad empty pad: expected 'abc', got '%s'", fsstr(s)
         );
         fsfree(s);
         fsfree(pad);
     }
-
     /* 9. lpad: циклическое заполнение */
     test_sub("subtest %d: lpad cyclic pad", ++subnum);
     {
+        int     newlen = 8;
         fs      s = fscopy("AB");
         fs      pad = fscopy("123");
-        fs      result = fs_lpad(&s, 8, &pad);
+        fs      result = fs_lpad(&s, newlen, &pad);
+        fstechfprint(logfile, result);
 
         test_validatefree(
-            fslen(s) == 8,
-            fsfree(s), fsfree(pad),
-            "lpad cyclic: length must be 8, got %d", fslen(s)
+            fslen(s) == newlen,
+            (fsfree(s), fsfree(pad)),
+            "lpad cyclic: length must be %d, got %d", newlen, fslen(s)
         );
         test_validatefree(
             strcmp(fsstr(s), "123123AB") == 0,
-            fsfree(s), fsfree(pad),
+            (fsfree(s), fsfree(pad)),
             "lpad cyclic: expected '123123AB', got '%s'", fsstr(s)
         );
         fsfree(s);
         fsfree(pad);
     }
-
     /* 10. lpad: len == 0 */
     test_sub("subtest %d: lpad len=0 (cut to empty)", ++subnum);
     {
+        int     newlen = 0;
         fs      s = fscopy("cutme");
         fs      pad = fscopy("-");
-        fs      result = fs_lpad(&s, 0, &pad);
+        fs      result = fs_lpad(&s, newlen, &pad);
+        fstechfprint(logfile, result);
 
         test_validatefree(
             fslen(s) == 0,
-            fsfree(s), fsfree(pad),
+            (fsfree(s), fsfree(pad)),
             "lpad len=0: length must be 0, got %d", fslen(s)
         );
         test_validatefree(
             strcmp(fsstr(s), "") == 0,
-            fsfree(s), fsfree(pad),
+            (fsfree(s), fsfree(pad)),
             "lpad len=0: expected empty, got '%s'", fsstr(s)
         );
         fsfree(s);
         fsfree(pad);
     }
-
     check_leak(true);
     return logret(TEST_PASSED, "done");
 }
