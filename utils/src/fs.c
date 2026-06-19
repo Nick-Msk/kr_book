@@ -470,6 +470,14 @@ static bool                             check_leak(bool raise){
 bool                                    fs_alloc_check(bool raise){
     return check_leak(raise);
 }
+// just print
+bool                                    fs_fprint_checker_cnt(FILE *restrict out, const char *str){
+    if (!out)
+        return false;
+    fprintf(out, "%.6s: g_free_cnt %d g_alloc_cnt %d g_free_body_cnt %d g_alloc_body_cnt %d\n",
+        str, g_free_cnt, g_alloc_cnt, g_free_body_cnt, g_alloc_body_cnt);
+    return true;
+}
 
 // --------------------------------- SERIALIZATION -----------------------------------------
 

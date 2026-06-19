@@ -659,6 +659,7 @@ extern bool                  fs_validate(FILE *restrict out, const fs *restrict 
 extern bool                  fs_free_body_alloc_checker(int *freecnt, int *alloccnt);
 extern bool                  fs_free_alloc_checker(int *freecnt, int *alloccnt);
 extern bool                  fs_alloc_check(bool raise);
+extern bool                  fs_fprint_checker_cnt(FILE *restrict out, const char *str);
 
 // --------------------------------- SERIALIZATION -----------------------------------------
 
