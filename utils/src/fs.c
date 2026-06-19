@@ -1420,6 +1420,27 @@ tf14(const char *name)
         fsfree(s);
     }
 
+    test_sub("subtest %d: fs_substr len beyond length", ++subnum);
+    {
+        const char *orig = "abcdefgh";
+        int         from = 5, to = 200;
+        fs          s = fscopy(orig);
+        fs          result = fs_substr(&s, from, to);
+        fstechfprint(logfile, result);
+
+        test_validatefree(
+            fslen(s) == (int) strlen(orig) - from,
+            fsfree(s),
+            "fs_substr beyond: length must be %d, got %d", (int) strlen(orig) - from, fslen(s)
+        );
+        test_validatefree(
+            strcmp(fsstr(s), "fgh") == 0,
+            fsfree(s),
+            "fs_substr beyond: expected '%s', got '%s'", "fgh", fsstr(s)
+        );
+        fsfree(s);
+    }
+
     /* ================= fs_newsubstr (constructor) ================= */
 
     /* 5. Копирование подстроки с середины (оригинал не меняется) */
