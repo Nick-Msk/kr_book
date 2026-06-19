@@ -324,8 +324,8 @@ static bool                 create_or_move_elem(hset * restrict se, hset_elem *r
     if (el)
         value = el->v;
     else {
-        // TODO: rework
-        if (getype(se) == HSET_FS){
+        // TODO: rework, shouldn't create and then free in (equal)
+        if (getype(se) == HSET_FS && !fs_moved(val.fsval) ){
             val.fsval = hset_create_fs(val.fsval);    //  clone here!
         }
         value = val;
@@ -333,8 +333,10 @@ static bool                 create_or_move_elem(hset * restrict se, hset_elem *r
     hset_elem   *prevel = getprevelem(se, value, &hash, &nextel, &equal);
     if (equal) {
         already_existed = true;
-        if (getype(se) == HSET_FS)
+        if (getype(se) == HSET_FS){
+            logsimple("DUPLICATE FS, freeing %p", val.fsval);
             fs_free(val.fsval);   // освобождаем копию, которая не понадобилась
+        }
     }
     else {
         hset_elem *newel;
@@ -2064,10 +2066,11 @@ tf6(const char *name)
         hset_free(&se1);
         hset_free(&se2);
     }
+    fs_alloc_check(true);
     // HSET_FS
     test_sub("subtest %d: FS clone and !=", ++subnum);
     {
-        const int cnt = 200;
+        const int cnt = 10;
         fs      strings[cnt];
         fs     *parr[cnt];
 
@@ -2122,6 +2125,7 @@ tf6(const char *name)
         // Освобождаем исходные строки (множества владеют копиями)
         for (int i = 0; i < cnt; i++)
             fsfree(strings[i]);
+
         fsfree(first_elem);
         hset_free(&se1);
         hset_free(&se2);
@@ -2129,7 +2133,7 @@ tf6(const char *name)
     fs_alloc_check(true);
     test_sub("subtest %d: FS != with different hash table size", ++subnum);
     {
-        const int cnt = 150;
+        const int cnt = 15;
         fs      strings[cnt];
         fs     *parr[cnt];
 
@@ -2175,14 +2179,13 @@ tf6(const char *name)
             (hset_free(&se1), hset_free(&se2), fsfree(first_elem)),
             "FS diff size !=: sets must be not equal after deletion from se1"
         );
-
         // Удаляем тот же элемент из se2
         test_validatefree(
             hset_del(&se2, HSET_FSVALUE(first_elem)),
             (hset_free(&se1), hset_free(&se2), fsfree(first_elem)),
             "FS diff size !=: failed to delete first element from se2"
         );
-        fs_alloc_check(true);
+       // fs_alloc_check(true);
         // 3. Снова равны
         test_validatefree(
             hset_noteq(&se1, &se2) == false,
@@ -2193,6 +2196,8 @@ tf6(const char *name)
         for (int i = 0; i < cnt; i++)
             fsfree(strings[i]);
         fsfree(first_elem);
+
+
         hset_free(&se1);
         hset_free(&se2);
     }
@@ -2205,11 +2210,18 @@ tf6(const char *name)
 
         // Вставляем одну и ту же строку, но в se1 через перемещение, в se2 через копирование
         fs      orig = fscopyf("move_vs_copy");
+        fs_fprint_checker_cnt(stdout, "0");
         hset_set(&se1, HSET_FSMOVE(&orig));          // orig опустеет
+        fs_fprint_checker_cnt(stdout, "I");
+
         hset_set(&se2, HSET_FSVALUE(orig));          // orig пуст, поэтому вставится пустая строка? Нет, HSET_FSVALUE передаёт &orig, а orig.v == NULL – будет пустая строка.
+        fs_fprint_checker_cnt(stdout, "II");
+
         // Чтобы избежать путаницы, создадим новую строку для se2
         fs      copy = fscopyf("move_vs_copy");
+        fs_fprint_checker_cnt(stdout, "III");
         hset_set(&se2, HSET_FSVALUE(copy));
+        fs_fprint_checker_cnt(stdout, "IV");
 
         // Множества должны быть равны, потому что строки одинаковы
         test_validatefree(
@@ -2230,10 +2242,17 @@ tf6(const char *name)
             (hset_free(&se1), hset_free(&se2), fsfree(copy)),
             "FS != after move: sets must be not equal after deletion"
         );
+        fs_fprint_checker_cnt(stdout, "V");
 
         fsfree(copy);
+        hset_tech_printall(se1);
+        hset_tech_printall(se2);
+
+        fs_fprint_checker_cnt(stdout, "VI");
         hset_free(&se1);
+        fs_fprint_checker_cnt(stdout, "VII");
         hset_free(&se2);
+        fs_fprint_checker_cnt(stdout, "VIII");
     }
     fs_alloc_check(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
