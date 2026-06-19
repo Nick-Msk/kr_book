@@ -324,6 +324,7 @@ static bool                 create_or_move_elem(hset * restrict se, hset_elem *r
     if (el)
         value = el->v;
     else {
+        // TODO: rework
         if (getype(se) == HSET_FS){
             val.fsval = hset_create_fs(val.fsval);    //  clone here!
         }
@@ -2063,6 +2064,178 @@ tf6(const char *name)
         hset_free(&se1);
         hset_free(&se2);
     }
+    // HSET_FS
+    test_sub("subtest %d: FS clone and !=", ++subnum);
+    {
+        const int cnt = 200;
+        fs      strings[cnt];
+        fs     *parr[cnt];
+
+        // Создаём массив уникальных строк
+        for (int i = 0; i < cnt; i++) {
+            strings[i] = fscopyf("fs_str_%d", i);
+            parr[i] = &strings[i];
+        }
+
+        hset    se1 = hset_init(cnt, HSET_FS);
+        hset_loadanyarr(&se1, parr, cnt, HSET_FS);
+
+        // Клонируем se1
+        hset    se2 = hset_clone(&se1);
+
+        // 1. Исходно множества должны быть равны (hset_noteq возвращает false)
+        test_validatefree(
+            hset_noteq(&se1, &se2) == false,
+            (hset_free(&se1), hset_free(&se2)),
+            "FS clone !=: sets must be equal initially"
+        );
+
+        // Удаляем первый элемент из se1 (сохраняем ссылку на него для проверки)
+        fs      first_elem = fscopyf("fs_str_0");
+        test_validatefree(
+            hset_del(&se1, HSET_FSVALUE(first_elem)),
+            (hset_free(&se1), hset_free(&se2), fsfree(first_elem)),
+            "FS clone !=: failed to delete first element from se1"
+        );
+
+        // 2. После удаления множества должны быть НЕ равны
+        test_validatefree(
+            hset_noteq(&se1, &se2) == true,
+            (hset_free(&se1), hset_free(&se2), fsfree(first_elem)),
+            "FS clone !=: sets must be not equal after deletion from se1"
+        );
+
+        // Удаляем тот же элемент из se2
+        test_validatefree(
+            hset_del(&se2, HSET_FSVALUE(first_elem)),
+            (hset_free(&se1), hset_free(&se2), fsfree(first_elem)),
+            "FS clone !=: failed to delete first element from se2"
+        );
+
+        // 3. Теперь снова должны быть равны
+        test_validatefree(
+            hset_noteq(&se1, &se2) == false,
+            (hset_free(&se1), hset_free(&se2), fsfree(first_elem)),
+            "FS clone !=: sets must be equal after both deletions"
+        );
+
+        // Освобождаем исходные строки (множества владеют копиями)
+        for (int i = 0; i < cnt; i++)
+            fsfree(strings[i]);
+        fsfree(first_elem);
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+    fs_alloc_check(true);
+    test_sub("subtest %d: FS != with different hash table size", ++subnum);
+    {
+        const int cnt = 150;
+        fs      strings[cnt];
+        fs     *parr[cnt];
+
+        for (int i = 0; i < cnt; i++) {
+            strings[i] = fscopyf("diff_fs_%d", i);
+            parr[i] = &strings[i];
+        }
+
+        // Первое множество – создание из массива
+        hset    se1 = hset_init(cnt, HSET_FS);
+        hset_loadanyarr(&se1, parr, cnt, HSET_FS);
+
+        // Второе – с заведомо меньшим размером таблицы
+        hset    se2 = hset_init(cnt / 3, HSET_FS);
+        hset_loadanyarr(&se2, parr, cnt, HSET_FS);
+
+        // 1. Должны быть равны, несмотря на разный размер таблиц
+        test_validatefree(
+            hset_noteq(&se1, &se2) == false,
+            (hset_free(&se1), hset_free(&se2)),
+            "FS diff size !=: sets must be equal initially"
+        );
+
+        // Повторная загрузка тех же данных не должна испортить равенство
+        hset_loadanyarr(&se1, parr, cnt, HSET_FS);
+        test_validatefree(
+            hset_noteq(&se1, &se2) == false,
+            (hset_free(&se1), hset_free(&se2)),
+            "FS diff size !=: sets must be equal after reloading duplicates"
+        );
+
+        // Удаляем первый элемент из se1
+        fs      first_elem = fscopyf("diff_fs_0");
+        test_validatefree(
+            hset_del(&se1, HSET_FSVALUE(first_elem)),
+            (hset_free(&se1), hset_free(&se2), fsfree(first_elem)),
+            "FS diff size !=: failed to delete first element from se1"
+        );
+
+        // 2. После удаления должны стать не равны
+        test_validatefree(
+            hset_noteq(&se1, &se2) == true,
+            (hset_free(&se1), hset_free(&se2), fsfree(first_elem)),
+            "FS diff size !=: sets must be not equal after deletion from se1"
+        );
+
+        // Удаляем тот же элемент из se2
+        test_validatefree(
+            hset_del(&se2, HSET_FSVALUE(first_elem)),
+            (hset_free(&se1), hset_free(&se2), fsfree(first_elem)),
+            "FS diff size !=: failed to delete first element from se2"
+        );
+        fs_alloc_check(true);
+        // 3. Снова равны
+        test_validatefree(
+            hset_noteq(&se1, &se2) == false,
+            (hset_free(&se1), hset_free(&se2), fsfree(first_elem)),
+            "FS diff size !=: sets must be equal after both deletions"
+        );
+
+        for (int i = 0; i < cnt; i++)
+            fsfree(strings[i]);
+        fsfree(first_elem);
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+    fs_alloc_check(true);
+    /* Бонус: проверка неравенства после перемещения (HSET_FSMOVE) */
+    test_sub("subtest %d: FS != after move", ++subnum);
+    {
+        hset    se1 = hset_init(10, HSET_FS);
+        hset    se2 = hset_init(10, HSET_FS);
+
+        // Вставляем одну и ту же строку, но в se1 через перемещение, в se2 через копирование
+        fs      orig = fscopyf("move_vs_copy");
+        hset_set(&se1, HSET_FSMOVE(&orig));          // orig опустеет
+        hset_set(&se2, HSET_FSVALUE(orig));          // orig пуст, поэтому вставится пустая строка? Нет, HSET_FSVALUE передаёт &orig, а orig.v == NULL – будет пустая строка.
+        // Чтобы избежать путаницы, создадим новую строку для se2
+        fs      copy = fscopyf("move_vs_copy");
+        hset_set(&se2, HSET_FSVALUE(copy));
+
+        // Множества должны быть равны, потому что строки одинаковы
+        test_validatefree(
+            hset_noteq(&se1, &se2) == false,
+            (hset_free(&se1), hset_free(&se2), fsfree(copy)),
+            "FS != after move: sets with moved and copied strings must be equal"
+        );
+
+        // Удаляем элемент из se1
+        test_validatefree(
+            hset_del(&se1, HSET_FSVALUE(copy)),
+            (hset_free(&se1), hset_free(&se2), fsfree(copy)),
+            "FS != after move: failed to delete from se1"
+        );
+        // Теперь должны быть не равны
+        test_validatefree(
+            hset_noteq(&se1, &se2) == true,
+            (hset_free(&se1), hset_free(&se2), fsfree(copy)),
+            "FS != after move: sets must be not equal after deletion"
+        );
+
+        fsfree(copy);
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+    fs_alloc_check(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 

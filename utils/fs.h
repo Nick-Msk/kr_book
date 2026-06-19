@@ -481,9 +481,16 @@ static inline fs            *fs_toupper_interval(fs *str, int from, int to){
 static inline fs            *fs_toupper(fs *str){
     return fs_toupper_interval(str, 0, str->len);
 }
-extern int                   fs_rpad(fs *restrict str, int len, fs *pad);
-
-extern int                   fs_lpad(fs *restrict str, int len, fs *pad);
+extern fs                    fs_rpad(fs *restrict str, int len, const fs *restrict pad);
+extern fs                    fs_lpad(fs *restrict str, int len, const fs *restrict pad);
+static inline fs             fs_rpadstr(fs *restrict str, int len, const char *restrict padstr){
+    fs l = fsliteral(padstr);
+    return fs_rpad(str, len, &l);
+}
+static inline fs             fs_lpadstr(fs *restrict str, int len, const char *restrict padstr){
+    fs l = fsliteral(padstr);
+    return fs_lpad(str, len, &l);
+}
 
 // ----------------------------------- Finders -----------------------------------
 // full scan version
