@@ -25,6 +25,9 @@ int                 main(int argc, const char *argv[]){
     }
 
     int        *arr = get_array(len);
+    //fprint_array(stdout, arr, len);
+
+    qsort(arr, len, sizeof(int), pint_cmp);
     fprint_array(stdout, arr, len);
 
     return logret(0, "Done");
