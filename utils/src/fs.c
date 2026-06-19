@@ -271,26 +271,38 @@ fs                                      fs_rev_catstr(fs *restrict target, const
 }
 
 // fast in-place!
-fs                                      fs_substr(fs *s, int from, int to){
-    invraise(s != 0 && from >= 0 && to >= 0, "Input violation %p, from %d to %d", s, from, to);     // asssertion if NOINVARIANT is NOT defined
-    to = MIN(to, s->len - from);
+fs                                      fs_substr(fs *s, int from, int len){
+    invraisecode(s != 0 && from >= 0 && len >= 0, 
+        ERR_NULLABLE_PTR, "Input violation %p, from %d to %d", s, from, len);     // asssertion if NOINVARIANT is NOT defined
+
+    if (from >= s->len) {
+        fs_setlen(s, 0);
+        return logsimpleret(*s, "[]");
+    }
+    len = MIN(len, s->len - from);
     if (from > 0)
-        memmove(s->v, s->v + from, to);     // TODO: probably to use strcopy?
-    fs_setlen(s, to);
-    return logsimpleret(*s, "[%s]", s->v);
+        memmove(s->v, s->v + from, len);     // TODO: probably to use strcopy?
+    fs_setlen(s, len);
+    return logsimpleret(*s, "[%.20s]", s->v);
 }
 
 // constructor version
-fs                                      fs_newsubstr(const fs *s, int from, int to){
-    //if (!inv(from >= 0 && to >= from) )
-      //  userraisesig(ERR_OUT_OF_RANGE, "from %d, to %d", from, to);
-    invraise(s != 0 && from >= 0 && to >= 0, "%p from %d, to %d", s, from, to);     // asssertion if NOINVARIANT is NOT defined
-    to = MIN(to, s->len - from);
-    fs tmp = fsinit(to + 1);  // not possible to use fs_cpy or fs_cat here!
+fs                                      fs_newsubstr(const fs *s, int from, int len){
+    invraisecode(s != 0 && from >= 0 && len >= 0,
+        ERR_NULLABLE_PTR, "%p from %d, to %d", s, from, len);     // asssertion if NOINVARIANT is NOT defined
+
+    if (from >= s->len) {
+        fs tmp = fsinit(1);
+        fsetlen(tmp, 0);
+        return logsimpleret(tmp, "from %d over length", from);
+    }
+
+    len = MIN(len, s->len - from);
+    fs tmp = fsinit(len + 1);  // not possible to use fs_cpy or fs_cat here!
     if (from > 0)
-        memmove(tmp.v, s->v + from, to);
-    fsetlen(tmp, to);
-    return tmp;
+        memmove(tmp.v, s->v + from, len);
+    fsetlen(tmp, len);
+    return logsimpleret(tmp, "Created substr %d", tmp.len);
 }
 // right padding up to len
 fs                                       fs_rpad(fs *restrict str, int len, const fs *restrict pad){
