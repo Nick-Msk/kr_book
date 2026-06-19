@@ -272,8 +272,8 @@ fs                                      fs_rev_catstr(fs *restrict target, const
 
 // fast in-place!
 fs                                      fs_substr(fs *s, int from, int len){
-    invraisecode(s != 0 && from >= 0 && len >= 0, 
-        ERR_NULLABLE_PTR, "Input violation %p, from %d to %d", s, from, len);     // asssertion if NOINVARIANT is NOT defined
+    invraisecode(s != 0 && from >= 0 && len >= 0,
+        ERR_NULLABLE_PTR, "Input violation %p, from %d, len %d", s, from, len);     // asssertion if NOINVARIANT is NOT defined
 
     if (from >= s->len) {
         fs_setlen(s, 0);
@@ -289,7 +289,7 @@ fs                                      fs_substr(fs *s, int from, int len){
 // constructor version
 fs                                      fs_newsubstr(const fs *s, int from, int len){
     invraisecode(s != 0 && from >= 0 && len >= 0,
-        ERR_NULLABLE_PTR, "%p from %d, to %d", s, from, len);     // asssertion if NOINVARIANT is NOT defined
+        ERR_NULLABLE_PTR, "%p from %d, len %d", s, from, len);     // asssertion if NOINVARIANT is NOT defined
 
     if (from >= s->len) {
         fs tmp = fsinit(1);
@@ -1284,7 +1284,7 @@ tf13(const char *name)
 }
 
 // ------------------------- TEST 14 ---------------------------------
-
+/*
 static TestStatus
 tf14(const char *name)
 {
@@ -1330,6 +1330,195 @@ tf14(const char *name)
     }
     check_leak(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+} */
+static TestStatus
+tf14(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    /* ================= fs_substr (in-place) ================= */
+
+    /* 1. Обрезание с начала (from = 0) до меньшей длины */
+    test_sub("subtest %d: fs_substr cut from start", ++subnum);
+    {
+        const char *orig = "hello world";
+        int         new_len = 5;
+        fs          s = fscopy(orig);
+        fs          result = fs_substr(&s, 0, new_len);
+        fstechfprint(logfile, result);
+
+        test_validatefree(
+            fslen(s) == new_len,
+            fsfree(s),
+            "fs_substr cut: length must be %d, got %d", new_len, fslen(s)
+        );
+        test_validatefree(
+            strcmp(fsstr(s), "hello") == 0,
+            fsfree(s),
+            "fs_substr cut: expected 'hello', got '%s'", fsstr(s)
+        );
+        fsfree(s);
+    }
+
+    /* 2. Взятие подстроки с середины */
+    test_sub("subtest %d: fs_substr mid part", ++subnum);
+    {
+        const char *orig = "abcdefghij";
+        int         from = 3, to = 4;
+        fs          s = fscopy(orig);
+        fs          result = fs_substr(&s, from, to);
+        fstechfprint(logfile, result);
+
+        test_validatefree(
+            fslen(s) == to,
+            fsfree(s),
+            "fs_substr mid: length must be %d, got %d", to, fslen(s)
+        );
+        test_validatefree(
+            strcmp(fsstr(s), "defg") == 0,
+            fsfree(s),
+            "fs_substr mid: expected 'defg', got '%s'", fsstr(s)
+        );
+        fsfree(s);
+    }
+
+    /* 3. from выходит за пределы строки -> пустая строка */
+    test_sub("subtest %d: fs_substr from beyond length", ++subnum);
+    {
+        const char *orig = "abc";
+        int         from = 10, to = 2;
+        fs          s = fscopy(orig);
+        fs          result = fs_substr(&s, from, to);
+        fstechfprint(logfile, result);
+
+        test_validatefree(
+            fslen(s) == 0,
+            fsfree(s),
+            "fs_substr beyond: length must be 0, got %d", fslen(s)
+        );
+        test_validatefree(
+            strcmp(fsstr(s), "") == 0,
+            fsfree(s),
+            "fs_substr beyond: expected empty, got '%s'", fsstr(s)
+        );
+        fsfree(s);
+    }
+
+    /* 4. Пустая исходная строка */
+    test_sub("subtest %d: fs_substr on empty string", ++subnum);
+    {
+        fs          s = FS();               /* пустая строка */
+        fs          result = fs_substr(&s, 0, 5);
+        fstechfprint(logfile, result);
+
+        test_validatefree(
+            fslen(s) == 0,
+            fsfree(s),
+            "fs_substr empty: length must be 0, got %d", fslen(s)
+        );
+        fsfree(s);
+    }
+
+    /* ================= fs_newsubstr (constructor) ================= */
+
+    /* 5. Копирование подстроки с середины (оригинал не меняется) */
+    test_sub("subtest %d: fs_newsubstr copy mid part", ++subnum);
+    {
+        const char *orig_str = "abcdefghij";
+        int         from = 2, to = 5;
+        fs          orig = fscopy(orig_str);
+        fs          sub = fs_newsubstr(&orig, from, to);
+
+        // Проверяем подстроку
+        test_validatefree(
+            fslen(sub) == to,
+            (fsfree(orig), fsfree(sub)),
+            "fs_newsubstr copy: length must be %d, got %d", to, fslen(sub)
+        );
+        test_validatefree(
+            strcmp(fsstr(sub), "cdefg") == 0,
+            (fsfree(orig), fsfree(sub)),
+            "fs_newsubstr copy: expected 'cdefg', got '%s'", fsstr(sub)
+        );
+        // Проверяем, что оригинал не изменился
+        test_validatefree(
+            strcmp(fsstr(orig), orig_str) == 0 && fslen(orig) == (int) strlen(orig_str),
+            (fsfree(orig), fsfree(sub)),
+            "fs_newsubstr copy: original must stay unchanged, got '%s' (len %d)",
+            fsstr(orig), fslen(orig)
+        );
+        fsfree(orig);
+        fsfree(sub);
+    }
+
+    /* 6. from за пределами -> пустая строка, оригинал цел */
+    test_sub("subtest %d: fs_newsubstr from beyond length", ++subnum);
+    {
+        const char *orig_str = "abc";
+        int         from = 10, to = 2;
+        fs          orig = fscopy(orig_str);
+        fs          sub = fs_newsubstr(&orig, from, to);
+
+        test_validatefree(
+            fslen(sub) == 0,
+            (fsfree(orig), fsfree(sub)),
+            "fs_newsubstr beyond: result length must be 0, got %d", fslen(sub)
+        );
+        test_validatefree(
+            strcmp(fsstr(sub), "") == 0,
+            (fsfree(orig), fsfree(sub)),
+            "fs_newsubstr beyond: result must be empty, got '%s'", fsstr(sub)
+        );
+        test_validatefree(
+            strcmp(fsstr(orig), orig_str) == 0,
+            (fsfree(orig), fsfree(sub)),
+            "fs_newsubstr beyond: original must stay '%s', got '%s'", orig_str, fsstr(orig)
+        );
+        fsfree(orig);
+        fsfree(sub);
+    }
+
+    /* 7. to больше оставшейся длины -> обрезается до конца строки */
+    test_sub("subtest %d: fs_newsubstr to exceeds length", ++subnum);
+    {
+        const char *orig_str = "hello";
+        int         from = 2, to = 100;
+        fs          orig = fscopy(orig_str);
+        fs          sub = fs_newsubstr(&orig, from, to);
+
+        int         expected_len = (int)strlen(orig_str) - from;
+        test_validatefree(
+            fslen(sub) == expected_len,
+            (fsfree(orig), fsfree(sub)),
+            "fs_newsubstr exceed: length must be %d, got %d", expected_len, fslen(sub)
+        );
+        test_validatefree(
+            strcmp(fsstr(sub), orig_str + from) == 0,
+            (fsfree(orig), fsfree(sub)),
+            "fs_newsubstr exceed: expected '%s', got '%s'", orig_str + from, fsstr(sub)
+        );
+        fsfree(orig);
+        fsfree(sub);
+    }
+
+    /* 8. Пустая исходная строка */
+    test_sub("subtest %d: fs_newsubstr on empty string", ++subnum);
+    {
+        fs          orig = FS();
+        fs          sub = fs_newsubstr(&orig, 0, 5);
+
+        test_validatefree(
+            fslen(sub) == 0,
+            (fsfree(orig), fsfree(sub)),
+            "fs_newsubstr empty: result length must be 0, got %d", fslen(sub)
+        );
+        fsfree(orig);
+        fsfree(sub);
+    }
+
+    check_leak(true);
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 15 ---------------------------------

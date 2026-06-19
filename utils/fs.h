@@ -456,10 +456,10 @@ static inline fs             fs_left(fs *s, int cnt){
 }
 
 // fast in-place!
-extern fs                    fs_substr(fs *s, int from, int to);
+extern fs                    fs_substr(fs *s, int from, int len);
 
 // constructor version
-extern fs                    fs_newsubstr(const fs *s, int from, int to);
+extern fs                    fs_newsubstr(const fs *s, int from, int len);
 
 static inline fs            *fs_tolower_interval(fs *str, int from, int to){
     // TODO: probably fs_iter - think about it
