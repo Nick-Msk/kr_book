@@ -129,6 +129,9 @@ static inline fs            fsclone(fs s){
 // create ONLY fs body with FS_FLAG_MOVED
 extern fs                  *fs_create(void);
 
+// fs HEAP creator !
+extern fs                  *fs_heapcreate(const fs *orig);
+
 // lit MUST BE static!
 static inline fs            fsliteral(const char *lit){
     fs s = FSEMPTY;
@@ -139,7 +142,7 @@ static inline fs            fsliteral(const char *lit){
 }
 extern fs                   fsinit(int sz);
 // wrapper for functions
-static inline fs                       *fs_init_or_use(fs *s) {
+static inline fs           *fs_init_or_use(fs *s) {
     if (s)
         return s;
     else

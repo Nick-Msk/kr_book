@@ -605,6 +605,25 @@ fs                                     *fs_create(void){
     }
     return new_fs;
 }
+
+fs                                     *fs_heapcreate(const fs *orig) {
+    fs      *new_fs = fs_create();       // выделяет fs в куче, ставит FS_FLAG_MOVED
+    *new_fs = fs_clone(orig);       // копирует строку и поля
+    new_fs->flags |= FS_FLAG_MOVED; // гарантируем флаг перемещения
+    return new_fs;
+}
+
+fs                  *hset_create_fs(const fs *orig) {
+    fs *new_fs = fs_create();       // выделяет fs в куче, ставит FS_FLAG_MOVED
+    *new_fs = fs_clone(orig);       // копирует строку и поля
+    new_fs->flags |= FS_FLAG_MOVED; // гарантируем флаг перемещения
+    return new_fs;
+}
+fs                  *hset_move_fs(const fs *orig){
+    fs local = fs_clone(orig);
+    return fs_moveall(&local);         // FS_FLAG_MOVED is set!
+}
+
 // clone as body local
 fs                                      fs_clone(const fs *s){
     fs tmp = FS();
