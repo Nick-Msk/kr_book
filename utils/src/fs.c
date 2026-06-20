@@ -2413,7 +2413,7 @@ tf26(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
-// ------------------------- TEST 26 ---------------------------------
+// ------------------------- TEST 27 ---------------------------------
 
 static TestStatus
 tf27(const char *name)
@@ -2650,6 +2650,167 @@ tf27(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST 28 ---------------------------------
+static TestStatus
+tf28(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Создание копии из пустой строки (FS()) */
+    test_sub("subtest %d: heapcreate from empty FS", ++subnum);
+    {
+        fs      orig = FS();                    // пустая строка
+        fs     *copy = fs_heapcreate(&orig);
+
+        // Оригинал не должен пострадать
+        test_validatefree(
+            fslen(orig) == 0 && fsstr(orig) == NULL,
+            fs_free(copy),
+            "Original must stay empty after heapcreate"
+        );
+        // Копия должна быть пустой, но валидной
+        test_validatefree(
+            copy != NULL && fs_len(copy) == 0,
+            fs_free(copy),
+            "Copy must be non-NULL with length 0"
+        );
+        test_validatefree(
+            fs_bodyalloc(copy),   // проверяем FS_FLAG_BODYALLOC
+            fs_free(copy),
+            "Copy must have FS_FLAG_BODYALLOC flag"
+        );
+
+        fs_free(copy);
+        fs_alloc_check(true);
+    }
+
+    /* 2. Создание копии из обычной строки (fscopy) */
+    test_sub("subtest %d: heapcreate from normal string", ++subnum);
+    {
+        const char *text = "test string";
+        fs      orig = fscopy(text);
+        fs     *copy = fs_heapcreate(&orig);
+
+        // Оригинал не должен измениться
+        test_validatefree(
+            strcmp(fsstr(orig), text) == 0 && fslen(orig) == (int)strlen(text),
+            (fsfree(orig), fs_free(copy)),
+            "Original must be unchanged after heapcreate"
+        );
+        test_validatefree(
+            !fs_bodyalloc(&orig),
+            (fsfree(orig), fs_free(copy)),
+            "Original must NOT have FS_FLAG_BODYALLOC"
+        );
+
+        // Копия должна содержать ту же строку и быть независимой
+        test_validatefree(
+            strcmp(fs_str(copy), text) == 0 && fs_len(copy) == (int)strlen(text),
+            (fsfree(orig), fs_free(copy)),
+            "Copy must contain the same string"
+        );
+        test_validatefree(
+            fs_bodyalloc(copy),
+            (fsfree(orig), fs_free(copy)),
+            "Copy must have FS_FLAG_BODYALLOC flag"
+        );
+
+        // Модифицируем оригинал – копия не должна измениться
+        fs_sprintf(&orig, "modified");
+        test_validatefree(
+            strcmp(fs_str(copy), text) == 0,
+            (fsfree(orig), fs_free(copy)),
+            "Copy must remain unchanged after original modification"
+        );
+
+        fsfree(orig);
+        fs_free(copy);
+        fs_alloc_check(true);
+    }
+
+    /* 3. Копирование уже перемещённого объекта (после fs_moveto_heap) */
+    test_sub("subtest %d: heapcreate from moved object", ++subnum);
+    {
+        const char *text = "move_then_copy";
+        fs      orig = fscopy(text);
+        fs     *moved = fs_moveto_heap(&orig);      // orig опустошён, moved в куче с FS_FLAG_BODYALLOC
+
+        // orig больше не владеет строкой
+        test_validatefree(
+            fslen(orig) == 0 && fsstr(orig) == NULL,
+            fs_free(moved),
+            "After moveto_heap, original must be empty"
+        );
+
+        // Теперь создаём копию из перемещённого объекта
+        fs     *copy = fs_heapcreate(moved);
+
+        test_validatefree(
+            strcmp(fs_str(copy), text) == 0 && fs_len(copy) == (int)strlen(text),
+            (fs_free(moved), fs_free(copy)),
+            "Copy from moved object must contain original string"
+        );
+        test_validatefree(
+            fs_bodyalloc(copy),
+            (fs_free(moved), fs_free(copy)),
+            "Copy from moved object must have FS_FLAG_BODYALLOC"
+        );
+
+        fs_free(moved);
+        fs_free(copy);
+        fs_alloc_check(true);
+    }
+
+    /* 4. NULL-указатель – ожидаем аварийное завершение (перехватываем сигнал) */
+    test_sub("subtest %d: heapcreate with NULL pointer (must raise error)", ++subnum);
+    {
+        if (!try()) {
+            fs *copy = fs_heapcreate(NULL);     // должно упасть внутри fs_heapcreate
+            // Если мы здесь, ошибки не было – тест провален
+            test_validate(
+                false,
+                "fs_heapcreate(NULL) must raise an error, but it didn't"
+            );
+            if (copy) fs_free(copy);            // на всякий случай
+        } else {
+            // Сигнал перехвачен – это ожидаемое поведение
+            test_validate(
+                true,
+                "fs_heapcreate(NULL) correctly raised an error"
+            );
+        }
+        fs_alloc_check(true);
+    }
+
+    /* 5. Последовательные вызовы и проверка утечек */
+    test_sub("subtest %d: heapcreate multiple calls (leak check)", ++subnum);
+    {
+        const char *words[] = {"one", "two", "three"};
+        fs     *copies[3];
+
+        for (int i = 0; i < COUNT(words); i++) {
+            fs      orig = fscopy(words[i]);
+            copies[i] = fs_heapcreate(&orig);
+            fsfree(orig);   // оригинал больше не нужен
+        }
+
+        // Проверяем содержимое
+        for (int i = 0; i < COUNT(words); i++) {
+            test_validatefree(
+                strcmp(fs_str(copies[i]), words[i]) == 0,
+                (fs_free(copies[0]), fs_free(copies[1]), fs_free(copies[2])),
+                "Copy %d must be '%s'", i, words[i]
+            );
+        }
+
+        for (int i = 0; i < COUNT(words); i++) fs_free(copies[i]);
+        fs_alloc_check(true);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -2684,6 +2845,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf25, .num = 25, .name = "fs_fscanf simple tests"                     , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf26, .num = 26, .name = "fscopyf simple tests"                       , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf27, .num = 27, .name = "fs_rpad()/lpad() simple tests"              , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf28, .num = 28, .name = "fs_heapcreate() simple tests"               , .desc=""                , .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
