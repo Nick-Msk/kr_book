@@ -98,9 +98,9 @@ typedef struct hset {
 // local version
 #define                 HSET_FSVALUE(val)   (hset_value) {.fsval = &(val) }
 // pointer version
-#define                 HSET_FSPVALUE(pval) (hset_value) {.fsval = hset_create_fs(pval) }
+#define                 HSET_FSPVALUE(pval) (hset_value) {.fsval = fs_heapcreate(pval) }
 //move version
-#define                 HSET_FSMOVE(val)    (hset_value) {.fsval = fs_moveall(val) }
+#define                 HSET_FSMOVE(val)    (hset_value) {.fsval = fs_moveto_heap(val) }
 
 
 // create value from pointer

@@ -30,8 +30,6 @@ static const size_t                     hset_elem_sizes[] = {
 };
 
 // ---------- pseudo-header for utility procedures -----------------
-fs                         *hset_create_fs(const fs *orig);
-fs                         *hset_move_fs(const fs *orig);
 
 // ---------------------------- (Utility) printers -----------------------------
 
@@ -185,7 +183,7 @@ static hset_value           convert_value(hset_value v, hset_type from, hset_typ
             else if (to == HSET_FS) {
                 fs tmp = FS();
                 fs_sprintf(&tmp, "%d", v.ival);
-                result.fsval = fs_moveall(&tmp);
+                result.fsval = fs_heapcreate(&tmp);
             } else
                 userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, hset_type_name(from), to, hset_type_name(to) );
         break;
@@ -197,7 +195,7 @@ static hset_value           convert_value(hset_value v, hset_type from, hset_typ
             else if (to == HSET_FS) {
                     fs tmp = FS();
                     fs_sprintf(&tmp, "%ld", v.lval);
-                    result.fsval = fs_moveall(&tmp);
+                    result.fsval = fs_heapcreate(&tmp);
             } else
                 userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, hset_type_name(from), to, hset_type_name(to) );
             break;
@@ -209,7 +207,7 @@ static hset_value           convert_value(hset_value v, hset_type from, hset_typ
             else if (to == HSET_FS) {
                     fs tmp = FS();
                     fs_sprintf(&tmp, "%g", v.dval); // TODO: context must be here!
-                    result.fsval = fs_moveall(&tmp);
+                    result.fsval = fs_heapcreate(&tmp);
             } else
                 userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, hset_type_name(from), to, hset_type_name(to) );
             break;
@@ -221,7 +219,7 @@ static hset_value           convert_value(hset_value v, hset_type from, hset_typ
             else if (to == HSET_DBL)
                 result.dval = fs_getdouble(v.fsval);
             else if (to == HSET_FS)
-                result.fsval = hset_create_fs(v.fsval); // body in heap too!!!
+                result.fsval = fs_heapcreate(v.fsval); // body in heap too!!!
             else
                 userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, hset_type_name(from), to, hset_type_name(to) );
             break;
@@ -328,8 +326,8 @@ static bool                 create_or_move_elem(hset * restrict se, hset_elem *r
         value = el->v;
     else {
         // TODO: rework, shouldn't create and then free in (equal)
-        if (getype(se) == HSET_FS && !fs_moved(val.fsval) ){
-            val.fsval = hset_create_fs(val.fsval);    //  clone here!
+        if (getype(se) == HSET_FS && !fs_bodyalloc(val.fsval) ){
+            val.fsval = fs_heapcreate(val.fsval);    //  clone here!
         }
         value = val;
     }
@@ -370,7 +368,7 @@ static hset_elem           *clone_elemlist(const hset_elem *el, hset_type typ){
             case HSET_FS:
                 //fs      *tmp = fs_create();
                 //*tmp = fs_clone(el->v.fsval);
-                newel->v.fsval = hset_create_fs(el->v.fsval);        // TODO: hsetelem_getfs(el)
+                newel->v.fsval = fs_heapcreate(el->v.fsval);
             break;
             /* case HSET_STR:
                 newel->v.str = strdup(el->v.str);
@@ -475,18 +473,6 @@ static bool                 find_elems(const hset_elem *restrict el, const hset 
 // ------------------------------------- API -----------------------------------------------
 
 // ---------------------------------- API Constructs/Destrucor  ----------------------------
-
-// fs head (MOVED) creator ! TODO: will be moved to fs.c !!!!
-fs                         *hset_create_fs(const fs *orig) {
-    fs *new_fs = fs_create();       // выделяет fs в куче, ставит FS_FLAG_MOVED
-    *new_fs = fs_clone(orig);       // копирует строку и поля
-    new_fs->flags |= FS_FLAG_MOVED; // гарантируем флаг перемещения
-    return new_fs;
-}
-fs                         *hset_move_fs(const fs *orig){
-    fs local = fs_clone(orig);
-    return fs_moveall(&local);         // FS_FLAG_MOVED is set!
-}
 
 // value64 constructor ANY type, TODO: will be moved to value64
 hset_value                  hset_createval(const void *p, hset_type typ){
