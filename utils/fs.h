@@ -22,11 +22,11 @@
 // ------------------- TYPES -----------------------
 
 typedef enum  {
-               FS_FLAG_ALLOC  = 0x10     // standard allocation
-             , FS_FLAG_STATIC = 0x1
-             , FS_FLAG_CONST  = 0x2     // Not user for now
-             , FS_FLAG_LOCAL  = 0x4
-             , FS_FLAG_MOVED  = 0x8     // for fsarr_move()
+               FS_FLAG_ALLOC        = 0x10     // standard allocation
+             , FS_FLAG_STATIC       = 0x1
+             , FS_FLAG_CONST        = 0x2     // Not user for now
+             , FS_FLAG_LOCAL        = 0x4
+             , FS_FLAG_BODYALLOC    = 0x8     // for fsarr_move()
 } FS_FLAGS;
 
 // type-support functions
@@ -38,8 +38,9 @@ static inline const char * fs_flag_str(FS_FLAGS flag){
         CASE_RETURN(FS_FLAG_CONST);
         CASE_RETURN(FS_FLAG_LOCAL);
         CASE_RETURN(FS_FLAG_ALLOC);
-        CASE_RETURN(FS_FLAG_MOVED);
-        default:         return "Unknown action";
+        CASE_RETURN(FS_FLAG_BODYALLOC);
+        default:
+            return "Unknown action";
     }
 }
 
@@ -83,12 +84,12 @@ static inline bool          fs_alloc(const fs *s){
     return fs_flag_alloc(s->flags);
 }
 
-static inline bool          fs_flag_moved(FS_FLAGS fl){
-    return fl & FS_FLAG_MOVED;
+static inline bool          fs_flag_bodyalloc(FS_FLAGS fl){
+    return fl & FS_FLAG_BODYALLOC;
 }
 
-static inline bool          fs_moved(const fs *s){
-    return fs_flag_moved(s->flags);
+static inline bool          fs_bodyalloc(const fs *s){
+    return fs_flag_bodyalloc(s->flags);
 }
 
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
@@ -126,7 +127,7 @@ extern fs                   fs_clone(const fs *s);
 static inline fs            fsclone(fs s){
     return fs_clone(&s);
 }
-// create ONLY fs body with FS_FLAG_MOVED
+// create ONLY fs body with FS_FLAG_BODYALLOC
 extern fs                  *fs_create(void);
 
 // fs HEAP creator !

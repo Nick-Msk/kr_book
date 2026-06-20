@@ -195,10 +195,10 @@ fs                                      *fs_moveall(fs *orig){
         userraiseint(ERR_UNSUPPORTED_TYPE, "Unable to moveall not allocated fs (type %s)", fs_flag_str(orig->flags) );
     fs  *tmp = fs_create();
     *tmp = *orig;
-    tmp->flags |= FS_FLAG_MOVED;
+    tmp->flags |= FS_FLAG_BODYALLOC;
     // clear orig
     orig->v = NULL;
-    fs_free(orig);  // orig->v is null, so won't be freed, but orig can be FS_FLAG_MOVED too
+    fs_free(orig);  // orig->v is null, so won't be freed, but orig can be FS_FLAG_BODYALLOC too
     return tmp;
 }
 
@@ -600,28 +600,28 @@ fs                                     *fs_create(void){
         userraiseint(ERR_UNABLE_ALLOCATE, "Unable to allocate fs body");
     else {
         *new_fs = FS();
-        new_fs->flags |= FS_FLAG_MOVED;   // чтобы fs_free удалил и тело, и будущую строку
+        new_fs->flags |= FS_FLAG_BODYALLOC;   // чтобы fs_free удалил и тело, и будущую строку
         logauto(++g_alloc_body_cnt);
     }
     return new_fs;
 }
 
 fs                                     *fs_heapcreate(const fs *orig) {
-    fs      *new_fs = fs_create();       // выделяет fs в куче, ставит FS_FLAG_MOVED
+    fs      *new_fs = fs_create();       // выделяет fs в куче, ставит FS_FLAG_BODYALLOC
     *new_fs = fs_clone(orig);       // копирует строку и поля
-    new_fs->flags |= FS_FLAG_MOVED; // гарантируем флаг перемещения
+    new_fs->flags |= FS_FLAG_BODYALLOC; // гарантируем флаг перемещения
     return new_fs;
 }
 
 fs                  *hset_create_fs(const fs *orig) {
-    fs *new_fs = fs_create();       // выделяет fs в куче, ставит FS_FLAG_MOVED
+    fs *new_fs = fs_create();       // выделяет fs в куче, ставит FS_FLAG_BODYALLOC
     *new_fs = fs_clone(orig);       // копирует строку и поля
-    new_fs->flags |= FS_FLAG_MOVED; // гарантируем флаг перемещения
+    new_fs->flags |= FS_FLAG_BODYALLOC; // гарантируем флаг перемещения
     return new_fs;
 }
 fs                  *hset_move_fs(const fs *orig){
     fs local = fs_clone(orig);
-    return fs_moveall(&local);         // FS_FLAG_MOVED is set!
+    return fs_moveall(&local);         // FS_FLAG_BODYALLOC is set!
 }
 
 // clone as body local
@@ -634,11 +634,11 @@ fs                                      fs_clone(const fs *s){
     return tmp;
 }
 // destructor, macro wrapper will be
-// free fs string and fs body if FS_FLAG_MOVED
+// free fs string and fs body if FS_FLAG_BODYALLOC
 void                                    fs_free(fs *s){
     if (!s)
         return;
-    bool  moved = fs_moved(s);  // flags based
+    bool  moved = fs_bodyalloc(s);  // flags based
     if (fs_alloc(s) )    // actualy alloc must be a flag, but not statememnt TODO:
         if (s->v){
             logauto(++g_free_cnt);   // calculate only  if really free memory
@@ -648,7 +648,7 @@ void                                    fs_free(fs *s){
     s->sz = s->len = 0; // destroy even literals
     s->v = 0;
     if (moved){
-        s->flags = 0;   // clear  FS_FLAG_MOVED
+        s->flags = 0;   // clear  FS_FLAG_BODYALLOC
         logsimple("fs body %p freed (g_free_body_cnt %d)", s, ++g_free_body_cnt);
         free(s);
     }
