@@ -5326,7 +5326,7 @@ tf27(const char *name)
         fsfree(s);      // оригинал пуст, но fsfree безопасен
         hset_free(&se);
     }
-
+    fs_alloc_check(true);
     /* 2. Перемещение нескольких строк */
     test_sub("subtest %d: move multiple strings", ++subnum);
     {
@@ -5374,7 +5374,7 @@ tf27(const char *name)
             fsfree(strings[i]);
         hset_free(&se);
     }
-
+    fs_alloc_check(true);
     /* 3. Попытка переместить уже перемещённый (пустой) fs */
     test_sub("subtest %d: move already moved (empty) fs", ++subnum);
     {
@@ -5401,7 +5401,7 @@ tf27(const char *name)
         fsfree(s);
         hset_free(&se);
     }
-
+    fs_alloc_check(true);
     /* 4. Перемещение с последующим поиском через копию */
     test_sub("subtest %d: move then search by copy", ++subnum);
     {
@@ -5422,8 +5422,73 @@ tf27(const char *name)
         fsfree(orig);
         hset_free(&se);
     }
+    fs_alloc_check(true);
+    // ADDITIONAL 
+    test_sub("subtest %d: move 5 strings and clone", ++subnum);
+    {
+        const int cnt = 5;
+        // Массив локальных fs – они будут перемещены и опустеют
+        fs      strings[cnt];
+        const char *expected[] = { "alpha", "beta", "gamma", "delta", "epsilon" };
 
-    //fs_alloc_check(true);
+        // Создаём строки через fscopyf (все в куче, с FS_FLAG_ALLOC)
+        for (int i = 0; i < cnt; i++) {
+            strings[i] = fscopyf("%s", expected[i]);
+        }
+
+        // Множество, в которое будем перемещать
+        hset    se = hset_init(cnt, HSET_FS);
+
+        // Перемещаем каждую строку (оригиналы опустеют)
+        for (int i = 0; i < cnt; i++) {
+            test_validatefree(
+                hset_set(&se, HSET_FSMOVE(&strings[i])) == true,
+                hset_free(&se),
+                "Failed to move '%s' into set", expected[i]
+            );
+            // После перемещения strings[i] не должен владеть строкой
+            test_validatefree(
+                fslen(strings[i]) == 0 && fsstr(strings[i]) == NULL,
+                hset_free(&se),
+                "After move, original must be empty, but len=%d, str=%p",
+                fslen(strings[i]), (void*)fsstr(strings[i])
+            );
+        }
+
+        // Клонируем множество (внутренние строки должны быть глубоко скопированы)
+        hset    clone = hset_clone(&se);
+
+        // Проверяем, что в клоне есть все строки
+        for (int i = 0; i < cnt; i++) {
+            fs      tmp = fscopyf("%s", expected[i]);   // временный ключ для поиска
+            test_validatefree(
+                hset_get(&clone, HSET_FSVALUE(tmp)),
+                (hset_free(&se), hset_free(&clone), fsfree(tmp)),
+                "Clone missing '%s'", expected[i]
+            );
+            fsfree(tmp);
+        }
+
+        // Количество элементов должно совпадать
+        test_validatefree(
+            hset_cnt(&clone) == cnt,
+            (hset_free(&se), hset_free(&clone)),
+            "Clone count = %d, expected %d", hset_cnt(&clone), cnt
+        );
+
+        // Структурная целостность клона
+        test_validatefree(
+            hset_validate(logfile, &clone),
+            (hset_free(&se), hset_free(&clone)),
+            "Clone validation failed"
+        );
+
+        // Оригинальные strings не нужно освобождать – они пусты после перемещения
+        // (fsfree для пустого fs безопасен, но не обязателен)
+        hset_free(&se);
+        hset_free(&clone);
+    }
+    fs_alloc_check(true);
     return logret(TEST_PASSED, "done");
 }
 
