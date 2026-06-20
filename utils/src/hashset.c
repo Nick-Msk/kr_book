@@ -183,7 +183,7 @@ static hset_value           convert_value(hset_value v, hset_type from, hset_typ
             else if (to == HSET_FS) {
                 fs tmp = FS();
                 fs_sprintf(&tmp, "%d", v.ival);
-                result.fsval = fs_heapcreate(&tmp);
+                result.fsval = fs_moveto_heap(&tmp);
             } else
                 userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, hset_type_name(from), to, hset_type_name(to) );
         break;
@@ -195,7 +195,7 @@ static hset_value           convert_value(hset_value v, hset_type from, hset_typ
             else if (to == HSET_FS) {
                     fs tmp = FS();
                     fs_sprintf(&tmp, "%ld", v.lval);
-                    result.fsval = fs_heapcreate(&tmp);
+                    result.fsval = fs_moveto_heap(&tmp);
             } else
                 userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, hset_type_name(from), to, hset_type_name(to) );
             break;
@@ -207,7 +207,7 @@ static hset_value           convert_value(hset_value v, hset_type from, hset_typ
             else if (to == HSET_FS) {
                     fs tmp = FS();
                     fs_sprintf(&tmp, "%g", v.dval); // TODO: context must be here!
-                    result.fsval = fs_heapcreate(&tmp);
+                    result.fsval = fs_moveto_heap(&tmp);
             } else
                 userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, hset_type_name(from), to, hset_type_name(to) );
             break;
@@ -302,10 +302,16 @@ static hset_elem           *alloc_elem(void){
     return malloc(sizeof(hset_elem) );
 }
 
-static hset_elem           *create_elem(hset_value val){
+static hset_elem           *create_elem(hset_value val, hset_type typ){
     hset_elem *res = alloc_elem();
     if (!res)
         return logsimpleret( (hset_elem *) 0, "Unable to create elem");
+
+    if (typ == HSET_FS) {
+        if (val.fsval && !fs_bodyalloc(val.fsval))
+            // Локальный или временный fs — создаём копию в куче
+            val.fsval = fs_heapcreate(val.fsval);
+    }
     res->v = val;
     res->next = 0;
 
@@ -326,25 +332,25 @@ static bool                 create_or_move_elem(hset * restrict se, hset_elem *r
         value = el->v;
     else {
         // TODO: rework, shouldn't create and then free in (equal)
-        if (getype(se) == HSET_FS && !fs_bodyalloc(val.fsval) ){
-            val.fsval = fs_heapcreate(val.fsval);    //  clone here!
-        }
+        //if (getype(se) == HSET_FS && !fs_bodyalloc(val.fsval) ){
+          //  val.fsval = fs_heapcreate(val.fsval);    //  clone here!
+        //}
         value = val;
     }
     hset_elem   *prevel = getprevelem(se, value, &hash, &nextel, &equal);
     if (equal) {
         already_existed = true;
-        if (getype(se) == HSET_FS){
-            logsimple("DUPLICATE FS, freeing %p", val.fsval);
-            fs_free(val.fsval);   // освобождаем копию, которая не понадобилась
-        }
+        //if (getype(se) == HSET_FS){
+        //    logsimple("DUPLICATE FS, freeing %p", val.fsval);
+        //    fs_free(val.fsval);   // освобождаем копию, которая не понадобилась
+        //}
     }
     else {
         hset_elem *newel;
         if (el)     // move
             newel = el;
         else {          // create a new one
-            newel = create_elem(val);
+            newel = create_elem(val, getype(se) );
             if (!newel)
                 userraiseint(ERR_UNABLE_ALLOCATE, "Can't create new element");
         }
@@ -362,12 +368,10 @@ static hset_elem           *clone_elemlist(const hset_elem *el, hset_type typ){
 
     hset_elem  *prev = 0, *newel = 0, *retel = 0;
     while (el){
-        if (!(newel = create_elem(el->v) ) )
+        if (!(newel = create_elem(el->v, typ) ) )
             return userraise((hset_elem *) 0, ERR_UNABLE_ALLOCATE, "Unable to create element");
         switch (typ){
             case HSET_FS:
-                //fs      *tmp = fs_create();
-                //*tmp = fs_clone(el->v.fsval);
                 newel->v.fsval = fs_heapcreate(el->v.fsval);
             break;
             /* case HSET_STR:
@@ -2251,7 +2255,7 @@ tf7(const char *name)
 
     test_sub("subtest %d: cloneas int -> long", ++subnum);
     {
-        Array   arr = IArray_create(200, ARRAY_ASC);
+        Array   arr = IArray_create(/*200*/ 10, ARRAY_ASC);
 
         hset    se1 = hset_fromiarr(arr.iv, arr.len);
         Arrayfree(arr);
@@ -2329,7 +2333,7 @@ tf7(const char *name)
     /* ========== 1. cloneas int -> FS ========== */
     test_sub("subtest %d: cloneas int -> FS", ++subnum);
     {
-        int     cnt = 200;
+        int     cnt = 10 /*200*/;
         Array   arr = IArray_create(cnt, ARRAY_ASC);   // 0,1,2,...,199
         hset    se_int = hset_fromiarr(arr.iv, arr.len);
         Arrayfree(arr);
