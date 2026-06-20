@@ -31,6 +31,7 @@ static const size_t                     hset_elem_sizes[] = {
 
 // ---------- pseudo-header for utility procedures -----------------
 fs                         *hset_create_fs(const fs *orig);
+fs                         *hset_move_fs(const fs *orig);
 
 // ---------------------------- (Utility) printers -----------------------------
 
@@ -170,7 +171,7 @@ static hset_type            gettype(const char *str){
 }
 
 static hset_value           convert_value(hset_value v, hset_type from, hset_type to){
-    if (from == to)
+    if (from == to && from != HSET_FS)  // криво конечно
         return v;
 
     hset_value result = HSET_ZERO_VALUE; // обнуляем u64
@@ -219,6 +220,8 @@ static hset_value           convert_value(hset_value v, hset_type from, hset_typ
                 result.lval = fs_getlong(v.fsval);
             else if (to == HSET_DBL)
                 result.dval = fs_getdouble(v.fsval);
+            else if (to == HSET_FS)
+                result.fsval = hset_create_fs(v.fsval); // body in heap too!!!
             else
                 userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, hset_type_name(from), to, hset_type_name(to) );
             break;
@@ -244,7 +247,7 @@ static void                 printval(FILE *out, hset_type typ, hset_value v){
                 fprintf(out, "%p\n", v.pval);
             break;
             case HSET_FS:
-                fs_fprint(out, v.fsval, NULL); fprintf(out, "\n");
+                fs_fprint(out, v.fsval, NULL); fprintf(out, "\n");  // TODO: ref is required
             break;
             default:
                 break;
@@ -263,7 +266,7 @@ static bool readval(FILE *f, hset_type typ, hset_value *v) {
         case HSET_PTR:
             return fscanf(f, "%p", &v->pval) == 1;
         case HSET_FS:
-            v->fsval = fs_fscanf(f, NULL);
+            v->fsval = fs_fscanf(f, NULL); // TODO: ref is required to make smth like return fs_fscanf(f, &v->fsval) == true;
             return v->fsval != NULL;
         default: return false;
     }
@@ -473,11 +476,18 @@ static bool                 find_elems(const hset_elem *restrict el, const hset 
 
 // ---------------------------------- API Constructs/Destrucor  ----------------------------
 
-// fs DEEP creator! TODO: will be moved to value64
-fs                         *hset_create_fs(const fs *orig){
+// fs head (MOVED) creator ! TODO: will be moved to fs.c !!!!
+fs                         *hset_create_fs(const fs *orig) {
+    fs *new_fs = fs_create();       // выделяет fs в куче, ставит FS_FLAG_MOVED
+    *new_fs = fs_clone(orig);       // копирует строку и поля
+    new_fs->flags |= FS_FLAG_MOVED; // гарантируем флаг перемещения
+    return new_fs;
+}
+fs                         *hset_move_fs(const fs *orig){
     fs local = fs_clone(orig);
     return fs_moveall(&local);         // FS_FLAG_MOVED is set!
 }
+
 // value64 constructor ANY type, TODO: will be moved to value64
 hset_value                  hset_createval(const void *p, hset_type typ){
     hset_value tmp = HSET_ZERO_VALUE;  // init
@@ -573,11 +583,11 @@ hset                        hset_clone(const hset *se){
 
     return logsimpleret(res, "Cloned");
 }
-// created with new type only (INT, LONG, DBL) as allowed
+// created with new type only (INT, LONG, DOUBLE, FS) as allowed
 hset                        hset_cloneas(const hset *se, hset_type typ){
     invraise(se != 0, "Null pointer");
 
-    if (int_notin(typ, HSET_INT, HSET_LONG, HSET_DBL) && int_notin(getype(se), HSET_INT, HSET_LONG, HSET_DBL))
+    if (int_notin(typ, HSET_INT, HSET_LONG, HSET_DBL, HSET_FS) && int_notin(getype(se), HSET_INT, HSET_LONG, HSET_DBL, HSET_FS))
         userraiseint(ERR_UNSUPPORTED_TYPE, "From %d:%s - to %d:%s",
             getype(se), hset_type_name(getype(se) ), typ, hset_type_name(typ) );
 
@@ -1569,10 +1579,6 @@ tf3(const char *name)
         hset    se2 = hset_clone(&se1);
         logauto(se1.sz);
 
-        // TODO: temporary
-        hset_tech_printall(se1);
-        hset_tech_printall(se2);
-
         // Проверяем, что клон содержит те же элементы
         for (int i = 0; i < COUNT(words); i++) {
             fs tmp = fscopy(words[i]);
@@ -1635,7 +1641,7 @@ tf3(const char *name)
 
         // Освобождаем исходные строки (множество владеет копиями)
         for (int i = 0; i < cnt; i++){
-            fstechprint(strings[i] );
+            //fstechprint(strings[i] );
             fsfree(strings[i]);
         }
         hset_free(&se);
@@ -2210,18 +2216,13 @@ tf6(const char *name)
 
         // Вставляем одну и ту же строку, но в se1 через перемещение, в se2 через копирование
         fs      orig = fscopyf("move_vs_copy");
-        fs_fprint_checker_cnt(stdout, "0");
         hset_set(&se1, HSET_FSMOVE(&orig));          // orig опустеет
-        fs_fprint_checker_cnt(stdout, "I");
 
         hset_set(&se2, HSET_FSVALUE(orig));          // orig пуст, поэтому вставится пустая строка? Нет, HSET_FSVALUE передаёт &orig, а orig.v == NULL – будет пустая строка.
-        fs_fprint_checker_cnt(stdout, "II");
 
         // Чтобы избежать путаницы, создадим новую строку для se2
         fs      copy = fscopyf("move_vs_copy");
-        fs_fprint_checker_cnt(stdout, "III");
         hset_set(&se2, HSET_FSVALUE(copy));
-        fs_fprint_checker_cnt(stdout, "IV");
 
         // Множества должны быть равны, потому что строки одинаковы
         test_validatefree(
@@ -2248,11 +2249,8 @@ tf6(const char *name)
         hset_tech_printall(se1);
         hset_tech_printall(se2);
 
-        fs_fprint_checker_cnt(stdout, "VI");
         hset_free(&se1);
-        fs_fprint_checker_cnt(stdout, "VII");
         hset_free(&se2);
-        fs_fprint_checker_cnt(stdout, "VIII");
     }
     fs_alloc_check(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
@@ -2342,6 +2340,218 @@ tf7(const char *name)
         hset_free(&se1);
         hset_free(&se2);
     }
+    /* ========== 1. cloneas int -> FS ========== */
+    test_sub("subtest %d: cloneas int -> FS", ++subnum);
+    {
+        int     cnt = 200;
+        Array   arr = IArray_create(cnt, ARRAY_ASC);   // 0,1,2,...,199
+        hset    se_int = hset_fromiarr(arr.iv, arr.len);
+        Arrayfree(arr);
+
+        hset    se_fs = hset_cloneas(&se_int, HSET_FS);
+
+        test_validatefree(
+            hset_validate(stdout, &se_int) && hset_validate(stdout, &se_fs),
+            (hset_free(&se_int), hset_free(&se_fs)),
+            "Validation failed after int->FS clone"
+        );
+
+        int     sz1, sz2;
+        test_validatefree(
+            (sz1 = se_int.sz) == (sz2 = se_fs.sz),
+            (hset_free(&se_int), hset_free(&se_fs)),
+            "Table sizes differ: %d vs %d", sz1, sz2
+        );
+
+        int     cnt1 = hset_cnt(&se_int), cnt2 = hset_cnt(&se_fs);
+        test_validatefree(
+            (cnt1 = hset_cnt(&se_int) ) == (cnt2 = hset_cnt(&se_fs) ),
+            (hset_free(&se_int), hset_free(&se_fs)),
+            "Counts differ: %d vs %d", cnt1, cnt2
+        );
+
+        fs tmp = FS();
+        HSET_FOREACH_INT(&se_int, ival) {
+            fs_sprintf(&tmp, "%d", ival);
+            test_validatefree(
+                hset_get(&se_fs, HSET_FSVALUE(tmp)),
+                (hset_free(&se_int), hset_free(&se_fs), fsfree(tmp)),
+                "FS set missing '%d'", ival
+            );
+        }
+        fsfree(tmp);
+
+        hset_free(&se_int);
+        hset_free(&se_fs);
+    }
+    fs_alloc_check(true);
+    /* ========== 2. cloneas FS -> int ========== */
+    test_sub("subtest %d: cloneas FS -> int", ++subnum);
+    {
+        const int   cnt = 50;
+        fs          strings[cnt];
+        fs         *parr[cnt];
+
+        for (int i = 0; i < cnt; i++) {
+            strings[i] = fscopyf("%d", i);
+            parr[i] = &strings[i];
+        }
+
+        hset    se_fs = hset_init(cnt, HSET_FS);
+        hset_loadanyarr(&se_fs, parr, cnt, HSET_FS);
+        for (int i = 0; i < cnt; i++)
+            fsfree(strings[i]);
+
+        hset    se_int = hset_cloneas(&se_fs, HSET_INT);
+
+        test_validatefree(
+            hset_validate(stdout, &se_fs) && hset_validate(stdout, &se_int),
+            (hset_free(&se_fs), hset_free(&se_int)),
+            "Validation failed after FS->int clone"
+        );
+
+        int         cnt1, cnt2;
+        test_validatefree(
+            (cnt1 = hset_cnt(&se_fs) ) == (cnt2 = hset_cnt(&se_fs) ),
+            (hset_free(&se_fs), hset_free(&se_int)),
+            "Counts differ: %d vs %d", cnt1, cnt2
+        );
+
+        for (int i = 0; i < cnt; i++) {
+            test_validatefree(
+                hset_get(&se_int, HSET_INTVALUE(i)),
+                (hset_free(&se_fs), hset_free(&se_int)),
+                "Int set missing %d", i
+            );
+        }
+
+        hset_free(&se_fs);
+        hset_free(&se_int);
+    }
+    fs_alloc_check(true);
+    /* ========== 3. cloneas FS -> FS (identity) ========== */
+    test_sub("subtest %d: cloneas FS -> FS (identity)", ++subnum);
+    {
+        const int cnt = 5;
+        fs      strings[cnt];
+        fs     *parr[cnt];
+
+        for (int i = 0; i < cnt; i++) {
+            strings[i] = fscopyf("str_%d", i);
+            parr[i] = &strings[i];
+        }
+
+        hset    se1 = hset_init(cnt, HSET_FS);
+        hset_loadanyarr(&se1, parr, cnt, HSET_FS);
+        for (int i = 0; i < cnt; i++)
+            fsfree(strings[i]);
+
+        hset    se2 = hset_cloneas(&se1, HSET_FS);
+
+        test_validatefree(
+            hset_validate(stdout, &se1) && hset_validate(stdout, &se2),
+            (hset_free(&se1), hset_free(&se2)),
+            "Validation failed after FS->FS clone"
+        );
+
+        fs      tmp = FS();
+        for (int i = 0; i < cnt; i++) {
+            fs_sprintf(&tmp, "str_%d", i);
+            test_validatefree(
+                hset_get(&se2, HSET_FSVALUE(tmp)),
+                (hset_free(&se1), hset_free(&se2), fsfree(tmp)),
+                "Clone missing 'str_%d'", i
+            );
+        }
+        fsfree(tmp);
+
+        hset_free(&se1);
+        hset_free(&se2);
+    }
+    fs_alloc_check(true);
+    /* ========== 4. cloneas double -> FS ========== */
+    test_sub("subtest %d: cloneas double -> FS", ++subnum);
+    {
+        const int cnt = 30;
+        double  vals[cnt];
+        // TODO: rework via DArray_create
+        for (int i = 0; i < cnt; i++)
+            vals[i] = i * 1.5;
+
+        hset    se_dbl = hset_init(cnt, HSET_DBL);
+        for (int i = 0; i < cnt; i++)
+            hset_set(&se_dbl, HSET_DBLVALUE(vals[i]));
+
+        hset    se_fs = hset_cloneas(&se_dbl, HSET_FS);
+
+        test_validatefree(
+            hset_validate(stdout, &se_dbl) && hset_validate(stdout, &se_fs),
+            (hset_free(&se_dbl), hset_free(&se_fs)),
+            "Validation failed after double->FS clone"
+        );
+
+        fs      tmp = FS();
+        for (int i = 0; i < cnt; i++) {
+            fs_sprintf(&tmp, "%g", vals[i]);
+            test_validatefree(
+                hset_get(&se_fs, HSET_FSVALUE(tmp)),
+                (hset_free(&se_dbl), hset_free(&se_fs), fsfree(tmp)),
+                "FS set missing '%g'", vals[i]
+            );
+        }
+        fsfree(tmp);
+
+        hset_free(&se_dbl);
+        hset_free(&se_fs);
+    }
+    fs_alloc_check(true);
+    /* ========== 5. cloneas FS -> double ========== */
+    test_sub("subtest %d: cloneas FS -> double", ++subnum);
+    {
+        const int cnt = 30;
+        double  vals[cnt];
+        fs      strings[cnt];
+        fs     *parr[cnt];
+
+        // TODO: replace to macro DArray_create( {iter * 1.5} )
+        for (int i = 0; i < cnt; i++) {
+            vals[i] = i * 1.5;
+            strings[i] = fscopyf("%g", vals[i]);
+            parr[i] = &strings[i];
+        }
+
+        hset    se_fs = hset_init(cnt, HSET_FS);
+        hset_loadanyarr(&se_fs, parr, cnt, HSET_FS);
+        for (int i = 0; i < cnt; i++)
+            fsfree(strings[i]);
+
+        hset    se_dbl = hset_cloneas(&se_fs, HSET_DBL);
+
+        test_validatefree(
+            hset_validate(stdout, &se_fs) && hset_validate(stdout, &se_dbl),
+            (hset_free(&se_fs), hset_free(&se_dbl)),
+            "Validation failed after FS->double clone"
+        );
+
+        int     cnt1, cnt2;
+        test_validatefree(
+            (cnt1 = hset_cnt(&se_fs) ) == (cnt2 = hset_cnt(&se_dbl) ),
+            (hset_free(&se_fs), hset_free(&se_dbl)),
+            "Counts differ: %d vs %d", cnt1, cnt2
+        );
+
+        for (int i = 0; i < cnt; i++) {
+            test_validatefree(
+                hset_get(&se_dbl, HSET_DBLVALUE(vals[i])),
+                (hset_free(&se_fs), hset_free(&se_dbl)),
+                "Double set missing %g", vals[i]
+            );
+        }
+
+        hset_free(&se_fs);
+        hset_free(&se_dbl);
+    }
+    fs_alloc_check(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
