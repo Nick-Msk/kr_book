@@ -189,7 +189,7 @@ fs                                       fs_move(fs *orig){
     return logsimpleret(tmp, "fs moved %d: %p", tmp.sz, tmp.v);
 }
 // move whole fs (body and string)
-fs                                      *fs_moveall(fs *orig){
+fs                                      *fs_moveto_heap(fs *orig){
     invraisecode(orig != NULL, ERR_NULLABLE_PTR, "Null pointer");
     if (! (fs_alloc(orig) || fs_static(orig) ) )
         userraiseint(ERR_UNSUPPORTED_TYPE, "Unable to moveall not allocated fs (type %s)", fs_flag_str(orig->flags) );
@@ -611,17 +611,6 @@ fs                                     *fs_heapcreate(const fs *orig) {
     *new_fs = fs_clone(orig);       // копирует строку и поля
     new_fs->flags |= FS_FLAG_BODYALLOC; // гарантируем флаг перемещения
     return new_fs;
-}
-
-fs                  *hset_create_fs(const fs *orig) {
-    fs *new_fs = fs_create();       // выделяет fs в куче, ставит FS_FLAG_BODYALLOC
-    *new_fs = fs_clone(orig);       // копирует строку и поля
-    new_fs->flags |= FS_FLAG_BODYALLOC; // гарантируем флаг перемещения
-    return new_fs;
-}
-fs                  *hset_move_fs(const fs *orig){
-    fs local = fs_clone(orig);
-    return fs_moveall(&local);         // FS_FLAG_BODYALLOC is set!
 }
 
 // clone as body local
@@ -2006,7 +1995,7 @@ tf24(const char *name)
     {
         const char pattern[] = "Qwertyuiop12345";
         fs      s = fscopy(pattern);
-        fs      *sp = fsmoveall(s);
+        fs      *sp = fsmoveto_heap(s);
         test_validatefree(
             s.v == NULL && s.sz == 0 && s.len == 0, fs_free(sp),
             "Must be empty after moving but not %p %d: %d %d", s.v, s.sz, s.len, s.flags
@@ -2022,7 +2011,7 @@ tf24(const char *name)
     {
         const char pattern[] = "Qwertyuiop1234567890";
         fs      lit = fsliteral(pattern);
-        fs      *sp = fsmoveall(lit);
+        fs      *sp = fsmoveto_heap(lit);
 
         test_validatefree(
             strcmp(pattern, fs_str(sp) ) == 0 && fs_len(sp) == strlen(pattern), fs_free(sp),
@@ -2041,8 +2030,8 @@ tf24(const char *name)
     {
         const char pattern[] = "Qwertyuiop1234567890!!!!!!!!";
         fs         s = fscopy(pattern);
-        fs        *sp = fsmoveall(s);
-        fs        *sp2 = fs_moveall(sp);
+        fs        *sp = fsmoveto_heap(s);
+        fs        *sp2 = fs_moveto_heap(sp);
         //fstechprint(s);
         ////fstechprint(*sp); // impossible, sp pointer to nowhere
         //fstechprint(*sp2);
@@ -2691,7 +2680,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf21, .num = 21, .name = "fs_str simple tests"                        , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf22, .num = 22, .name = "fs_get<int/long/double>pos simple tests"    , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf23, .num = 23, .name = "fs_cmp_strict simple tests"                 , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf24, .num = 24, .name = "fs_moveall simple tests"                    , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf24, .num = 24, .name = "fs_moveto_heap simple tests"                , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf25, .num = 25, .name = "fs_fscanf simple tests"                     , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf26, .num = 26, .name = "fscopyf simple tests"                       , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf27, .num = 27, .name = "fs_rpad()/lpad() simple tests"              , .desc=""                , .mandatory=true)

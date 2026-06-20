@@ -188,7 +188,7 @@ static inline int            fs_sprintf_concat(fs *restrict s, const char *restr
 // move only heap alloc fs
 extern fs                    fs_move(fs *orig);
 // move whole fs (body and string)
-extern fs                   *fs_moveall(fs *orig);
+extern fs                   *fs_moveto_heap(fs *orig);
 // direct access, NO change len or sz, position MUST be < sz
 static inline char          *fs_get(const fs *s, int pos){
     //return logsimpleret(s->v + pos, "Getting %p[%c]", s->v + pos, s->v[pos]);
@@ -617,7 +617,7 @@ static inline double          fs_getdouble(const fs *ps){
 #define                      fsgetdoublepos(s, pos) fs_getdoublepos( &(s), (pos) )
 #define                      fsgetdouble(s) fs_getdouble(s)
 
-#define                      fsmoveall(s) fs_moveall(&(s))
+#define                      fsmoveto_heap(s) fs_moveto_heap(&(s))
 #define                      fsmove(s) fs_move(&(s) )
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
