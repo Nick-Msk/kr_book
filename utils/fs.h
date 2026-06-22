@@ -142,6 +142,9 @@ static inline fs            fsliteral(const char *lit){
     return s;
 }
 extern fs                   fsinit(int sz);
+
+// fs HEAP creator !
+
 // wrapper for functions
 static inline fs           *fs_init_or_use(fs *s) {
     if (s)
@@ -158,7 +161,11 @@ static inline fs            fscopy(const char *str){
     fs         tmp = fsliteral(str);
     return  fs_clone(&tmp);
 }
-
+//  fs HEAP copy creator !  TODO: tests!!!
+static inline  fs          *fs_heapcopy(const char *str){
+    fs         tmp = fsliteral(str);
+    return fs_heapcreate(&tmp);
+}
 
 #if defined(FS_ALLOCATOR)
 // detach from allocator! Must be freed manually
