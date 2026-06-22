@@ -36,14 +36,19 @@ typedef union value64 {
 _Static_assert(sizeof(value64) == sizeof(uint64_t),
                "value64 must be exactly as uint64_t");
 
-typedef enum value64_type
-    { VALUE64_INT = 1, VALUE64_LNG, VALUE64_DBL, VALUE64_FS, VALUE64_PTR, VALUE64_STR,
-      // HSET_HEAP_ALLOC = 0x101,      // hset is allocated by malloc
-      VALUE64_UKNOWN = -1 }
-value64_type;
+typedef enum value64_type {
+    VVALUE64_UKNOWN = 0,
+    VALUE64_INT = 1,
+    VALUE64_LNG,
+    VALUE64_DBL,
+    VALUE64_FS,
+    VALUE64_PTR,
+    VALUE64_STR,
+    VALUE64_TYPE_COUNT
+} value64_type;
 
 static inline bool                   value64_checktype(value64_type typ){
-    return int_in(typ, VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_PTR, VALUE64_STR);
+    return int_in(typ, VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_PTR, VALUE64_STR, VALUE64_FS);
 }
 
 static inline const char            *value64_type_name(value64_type t){
