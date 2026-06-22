@@ -5,6 +5,31 @@
 // common include
 #include "value64.h"
 
+// -------------------------- TYPE SUPPORT API ------------------------
+
+// Вся информация о типах в одном месте!
+static const value64_typeinfo           value64_info[] = {
+    [VALUE64_UKNOWN]     = {"INVALID",     0,              false},
+    [VALUE64_INT]        = {"INT",         sizeof(int),    true},
+    [VALUE64_LNG]        = {"LNG",         sizeof(long),   true},
+    [VALUE64_DBL]        = {"DBL",         sizeof(double), true},
+    [VALUE64_FS]         = {"FS",          sizeof(fs *),   true},
+    [VALUE64_PTR]        = {"PTR",         sizeof(void *), true},
+    [VALUE64_STR]        = {"STR",         sizeof(char *), true},
+    [VALUE64_TYPE_COUNT] = {"",            0,              false}
+};
+
+_Static_assert(COUNT(value64_info) == VALUE64_TYPE_COUNT + 1,
+               "Размер массива value65_info не совпадает с количеством типов!");
+
+const                   value64_typeinfo* value64_info_get(value64_type typ) {
+    // Проверка границ массива
+    if (typ < 0 || typ >= COUNT(value64_info) || !value64_info[typ].is_valid)
+        return NULL;
+    return &value64_info[typ];
+}
+
+
 // create value from pointer, value64 constructor ANY type, MOVE semantic
 value64                   value64_pcopy_move(void *p, value64_type typ, bool move){
     invraisecode(p != NULL, ERR_NULLABLE_PTR, "Null pointer");
