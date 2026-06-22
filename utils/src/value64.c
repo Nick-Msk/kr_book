@@ -5,19 +5,6 @@
 // common include
 #include "value64.h"
 
-const size_t                     value_sizes[] = {
-    [VVALUE64_UKNOWN]   = 0,
-    [VALUE64_INT]       = sizeof(int),
-    [VALUE64_LNG]       = sizeof(long),
-    [VALUE64_DBL]       = sizeof(double),
-    [VALUE64_PTR]       = sizeof(void *),
-    [VALUE64_STR]       = sizeof(char *),
-    [VALUE64_FS]        = sizeof(fs *)
-};
-
-_Static_assert(sizeof(value_sizes) / sizeof(value_sizes[0]) == VALUE64_TYPE_COUNT,
-               "Размер массива value_sizes не совпадает с количеством типов!");
-
 // create value from pointer, value64 constructor ANY type, MOVE semantic
 value64                   value64_pcopy_move(void *p, value64_type typ, bool move){
     invraisecode(p != NULL, ERR_NULLABLE_PTR, "Null pointer");
@@ -63,8 +50,6 @@ value64                   value64_pcopy_move(void *p, value64_type typ, bool mov
 #ifdef VALUE64TESTING
 
 #include "test.h"
-#include "array.h"
-#include <time.h>
 
 //types for testing
 

@@ -23,9 +23,10 @@
 
 // ---------------------------------- TYPES -----------------------------------------
 
+// ANY type must be inside uint64_t
 typedef union value64 {
         int                 ival;
-        long                lval;    // can be ANY type
+        long                lval;
         double              dval;
         char               *sval;
         fs                 *fsval;
@@ -37,7 +38,7 @@ _Static_assert(sizeof(value64) == sizeof(uint64_t),
                "value64 must be exactly as uint64_t");
 
 typedef enum value64_type {
-    VVALUE64_UKNOWN = 0,
+    VALUE64_UKNOWN = 0,
     VALUE64_INT = 1,
     VALUE64_LNG,
     VALUE64_DBL,
@@ -47,20 +48,47 @@ typedef enum value64_type {
     VALUE64_TYPE_COUNT
 } value64_type;
 
-static inline bool                   value64_checktype(value64_type typ){
-    return int_in(typ, VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_PTR, VALUE64_STR, VALUE64_FS);
+typedef struct {
+    const char  *name;
+    size_t       size;
+    bool         is_valid;
+} value64_typeinfo;
+
+// Вся информация о типах в одном месте!
+static const                value64_typeinfo value64_info[] = {
+    [VALUE64_UKNOWN]     = {"INVALID",     0,              false},
+    [VALUE64_INT]        = {"INT",         sizeof(int),    true},
+    [VALUE64_LNG]        = {"LNG",         sizeof(long),   true},
+    [VALUE64_DBL]        = {"DBL",         sizeof(double), true},
+    [VALUE64_FS]         = {"FS",          sizeof(fs *),   true},
+    [VALUE64_PTR]        = {"PTR",         sizeof(void *), true},
+    [VALUE64_STR]        = {"STR",         sizeof(char *), true},
+    [VALUE64_TYPE_COUNT] = {"UKNOWN",      0,              false}
+};
+
+_Static_assert(sizeof(value64_info) / sizeof(value64_info[0]) == VALUE64_TYPE_COUNT + 1,
+               "Размер массива value65_info не совпадает с количеством типов!");
+
+static inline const                 value64_typeinfo* value64_info_get(value64_type typ) {
+    // Проверка границ массива
+    if (typ < 0 || typ >= COUNT(value64_info) ) {
+        return NULL;
+    }
+    return &value64_info[typ];
 }
 
-static inline const char            *value64_type_name(value64_type t){
-    switch (t){
-        CASE_RETURN(VALUE64_INT);
-        CASE_RETURN(VALUE64_LNG);
-        CASE_RETURN(VALUE64_DBL);
-        CASE_RETURN(VALUE64_FS);
-        CASE_RETURN(VALUE64_PTR);
-        CASE_RETURN(VALUE64_STR);
-        default: return "";
+static inline bool                  value64_checktype(value64_type typ) {
+    // Проверяем, не вышли ли мы за границы массива и валиден ли тип
+    if (typ < 0 || typ >= COUNT(value64_info) ) {
+        return false;
     }
+    return value64_info[typ].is_valid;
+}
+
+static inline const char            *value64_type_name(value64_type t) {
+    if (t < 0 || t >= COUNT(value64_info) )
+        return userraise(NULL, ERR_UNSUPPORTED_TYPE, "Type %d not supported", t);
+    return value64_info[t].name;
 }
 
 #define                 VALUE64_ZERO      (value64) {.u64 = 0L }
