@@ -16,16 +16,148 @@
 #include "common.h"
 #include "error.h"
 #include "checker.h"
+#include "fs.h"
 
 // --------------------------------- CONSTANTS AND GLOBALS --------------------------
 
 // ---------------------------------- TYPES -----------------------------------------
 
+typedef union value64 {
+        int                 ival;
+        long                lval;    // can be ANY type
+        double              dval;
+        char               *sval;
+        fs                 *fsval;
+        void               *pval;
+        uint64_t            u64;    // for hash
+} value64;
+
+_Static_assert(sizeof(value64) == sizeof(uint64_t),
+               "value64 must be exactly as uint64_t");
+
+typedef enum value64_type
+    { VALUE64_INT = 1, VALUE64_LNG, VALUE64_DBL, VALUE64_FS, VALUE64_PTR, VALUE64_STR,
+      // HSET_HEAP_ALLOC = 0x101,      // hset is allocated by malloc
+      VALUE64_UKNOWN = -1 }
+value64_type;
+
+static inline bool                   value64_checktype(value64_type typ){
+    return int_in(typ, VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_PTR, VALUE64_STR);
+}
+
+static inline const char            *value64_type_name(value64_type t){
+    switch (t){
+        CASE_RETURN(VALUE64_INT);
+        CASE_RETURN(VALUE64_LNG);
+        CASE_RETURN(VALUE64_DBL);
+        CASE_RETURN(VALUE64_FS);
+        CASE_RETURN(VALUE64_PTR);
+        CASE_RETURN(VALUE64_STR);
+        default: return "";
+    }
+}
+
+#define                 VALUE64_ZERO      (value64) {.u64 = 0L }
+#define                 VALUE64_INT(val)  (value64) {.u64 = 0L, .ival = val }
+#define                 VALUE64_LONG(val) (value64) {.u64 = 0L, .lval = val }
+#define                 VALUE64_DBL(val)  (value64) {.u64 = 0L, .dval = val }
+#define                 VALUE64_PTR(val)  (value64) {.u64 = 0L, .pval = val }
+// pointer copy!!!
+#define                 VALUE64_STR(val)  (value64) {.u64 = 0L, .sval = val }
+// local version
+#define                 VALUE64_FSVALUE(val) (value64) {.u64 = 0L, .fsval = &(val) }
+// pointer version TODO: not sure, commented for now
+/*
+#define                 VALUE64_FSPVALUE(pval) (hset_value) {.fsval = fs_heapcreate(pval) }
+//move version
+#define                 VALUE64_FSMOVE(val)    (hset_value) {.fsval = fs_moveto_heap(val) } */
+
+
+
+
 // ------------------------- CONSTRUCTOTS/DESTRUCTORS -------------------------------
+
+// create value from pointer, value64 constructor ANY type, MOVE semantic
+extern value64                      value64_pmove(void *p, value64_type typ);
+// copy, for array operations
+extern value64                      value64_pinit(const void *p, value64_type typ);
+
+// copy logic
+static inline value64               value64_createint(int val){
+    value64 tmp = VALUE64_ZERO;
+    tmp.ival = val;
+    return tmp;
+}
+static inline value64               value64_createlong(long lval){
+    value64 tmp = VALUE64_ZERO;
+    tmp.lval = lval;
+    return tmp;
+}
+static inline value64               value64_createdbl(double dval){
+    value64 tmp = VALUE64_ZERO;
+    tmp.dval = dval;
+    return tmp;
+}
+static inline value64               value64_createptr(void *pval){
+    value64 tmp = VALUE64_ZERO;
+    tmp.pval = pval;
+    return tmp;
+}
+static inline value64               value64_createsrtr(const char *sval){
+    value64 tmp = VALUE64_ZERO;
+    if ( (tmp.sval = strdup(sval) ) == NULL)
+        userraiseint(ERR_UNABLE_ALLOCATE, "Unable to dup string");
+    return tmp;
+}
+
+static inline value64               value64_createfs(const fs *fsval){
+    value64 tmp = VALUE64_ZERO;
+    if ( (tmp.fsval = fs_heapcreate(fsval) ) == NULL)
+        userraiseint(ERR_UNABLE_ALLOCATE, "Unable to dup fs");
+    return tmp;
+}
 
 // -------------------- ACCESS AND MODIFICATORS -------------------------------------
 
+
+
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
+
+static inline void                  value64_fprint(FILE *restrict out, const char *restrict msg, value64 val, value64_type typ){
+    if (out){
+        if (msg)
+            fprintf(out, "%s ", msg);
+        switch (typ){
+            case VALUE64_INT:
+                fprintf(out, "%d", val.ival);
+            break;
+            case VALUE64_LNG:
+                fprintf(out, "%ld", val.lval);
+            break;
+            case VALUE64_DBL:
+                fprintf(out, "%lf", val.dval);
+            break;
+            case VALUE64_PTR:
+                fprintf(out, "%p", val.pval);
+            break;
+            case VALUE64_STR:
+                fprintf(out, "%s", val.sval);
+            break;
+            case VALUE64_FS:
+                fs_fprint(out, val.fsval, 0);
+            break;
+            default:
+                fprintf(out, "Unsupported %d!\n", typ);
+            break;
+        }
+    }
+}
+
+static inline void          value64_log(value64 val, value64_type typ){
+    value64_fprint(logfile, 0, val, typ);
+}
+
+
 
 // --------------------------------- SERIALIZATION ----------------------------------
 

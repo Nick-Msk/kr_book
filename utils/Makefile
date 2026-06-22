@@ -129,6 +129,13 @@ hashset.o: src/hashset.c
 hashset: src/hashset.c lib/log.o lib/test.o lib/error.o lib/numeric_ops.o lib/fs.o lib/fileutils.o lib/array.o lib/common.o lib/getword.o lib/buffer.o
 	 $(CC) $(CFLAGS) -DHSETTESTING $^ -o test/$@_test
 
+value64.o: src/value64.c
+	$(CC) $(CFLAGS)  $^ -c
+	@mv $@ lib/
+
+value64: src/value64.c lib/log.o lib/test.o lib/error.o lib/common.o lib/fs.o lib/fileutils.o lib/getword.o lib/buffer.o
+	$(CC) $(CFLAGS) -DVALUE64TESTING $^ -o test/$@_test
+
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
 	@rm *.o
