@@ -63,7 +63,7 @@ static const                value64_typeinfo value64_info[] = {
     [VALUE64_FS]         = {"FS",          sizeof(fs *),   true},
     [VALUE64_PTR]        = {"PTR",         sizeof(void *), true},
     [VALUE64_STR]        = {"STR",         sizeof(char *), true},
-    [VALUE64_TYPE_COUNT] = {"UKNOWN",      0,              false}
+    [VALUE64_TYPE_COUNT] = {"",            0,              false}
 };
 
 _Static_assert(sizeof(value64_info) / sizeof(value64_info[0]) == VALUE64_TYPE_COUNT + 1,
@@ -71,24 +71,20 @@ _Static_assert(sizeof(value64_info) / sizeof(value64_info[0]) == VALUE64_TYPE_CO
 
 static inline const                 value64_typeinfo* value64_info_get(value64_type typ) {
     // Проверка границ массива
-    if (typ < 0 || typ >= COUNT(value64_info) ) {
+    if (typ < 0 || typ >= COUNT(value64_info) || !value64_info[typ].is_valid)
         return NULL;
-    }
     return &value64_info[typ];
 }
 
 static inline bool                  value64_checktype(value64_type typ) {
-    // Проверяем, не вышли ли мы за границы массива и валиден ли тип
-    if (typ < 0 || typ >= COUNT(value64_info) ) {
-        return false;
-    }
-    return value64_info[typ].is_valid;
+    return value64_info_get(typ) != NULL;
 }
 
 static inline const char            *value64_type_name(value64_type t) {
-    if (t < 0 || t >= COUNT(value64_info) )
+    const value64_typeinfo* info = value64_info_get(t);
+    if (!info)
         return userraise(NULL, ERR_UNSUPPORTED_TYPE, "Type %d not supported", t);
-    return value64_info[t].name;
+    return info->name;
 }
 
 #define                 VALUE64_ZERO      (value64) {.u64 = 0L }
