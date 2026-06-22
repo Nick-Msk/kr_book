@@ -2946,6 +2946,98 @@ tf28(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST fs_heapcopy ---------------------------------
+static TestStatus
+tf_fs_heapcopy(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Обычная строка */
+    test_sub("subtest %d: heapcopy normal string", ++subnum);
+    {
+        const char *text = "hello, world";
+        fs     *copy = fs_heapcopy(text);
+
+        test_validatefree(
+            strcmp(fs_str(copy), text) == 0 && fs_len(copy) == (int)strlen(text),
+            fs_free(copy),
+            "Heapcopy must contain '%s', got '%s' (len %d)", text, fs_str(copy), fs_len(copy)
+        );
+        test_validatefree(
+            fs_bodyalloc(copy),
+            fs_free(copy),
+            "Copy must have FS_FLAG_BODYALLOC flag"
+        );
+
+        fs_free(copy);
+        fs_alloc_check(true);
+    }
+
+    /* 2. Пустая строка "" */
+    test_sub("subtest %d: heapcopy empty string", ++subnum);
+    {
+        const char *text = "";
+        fs     *copy = fs_heapcopy(text);
+
+        test_validatefree(
+            fs_len(copy) == 0 && copy->v != NULL && fs_str(copy)[0] == '\0',
+            fs_free(copy),
+            "Heapcopy of empty string must have len=0, v!=NULL, got len=%d, v=%p", fs_len(copy), (void*)copy->v
+        );
+        test_validatefree(
+            fs_bodyalloc(copy),
+            fs_free(copy),
+            "Copy must have FS_FLAG_BODYALLOC flag"
+        );
+
+        fs_free(copy);
+        fs_alloc_check(true);
+    }
+
+    /* 3. Несколько вызовов и проверка утечек */
+    test_sub("subtest %d: heapcopy multiple calls (leak check)", ++subnum);
+    {
+        const char *words[] = {"one", "two", "three"};
+        fs     *copies[3];
+
+        for (int i = 0; i < COUNT(words); i++) {
+            copies[i] = fs_heapcopy(words[i]);
+        }
+
+        for (int i = 0; i < COUNT(words); i++) {
+            test_validatefree(
+                strcmp(fs_str(copies[i]), words[i]) == 0,
+                (fs_free(copies[0]), fs_free(copies[1]), fs_free(copies[2])),
+                "Copy %d must be '%s', got '%s'", i, words[i], fs_str(copies[i])
+            );
+            fs_free(copies[i]);
+        }
+        fs_alloc_check(true);
+    }
+
+    /* 4. NULL-указатель (ожидаем ошибку) */
+    test_sub("subtest %d: heapcopy NULL pointer (must raise error)", ++subnum);
+    {
+        if (!try()) {
+            fs *copy = fs_heapcopy(NULL);
+            test_validate(
+                false,
+                "fs_heapcopy(NULL) must raise an error, but it didn't"
+            );
+            if (copy) fs_free(copy);
+        } else {
+            test_validate(
+                true,
+                "fs_heapcopy(NULL) correctly raised an error"
+            );
+        }
+        fs_alloc_check(true);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -2953,36 +3045,37 @@ main( /* int argc, const char *argv[] */)
     logsimpleinit("Start");
 
     testenginestd(
-        testnew(.f2 = tf1,          .num =  1, .name = "Simple init and validate test"              , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf2,          .num =  2, .name = "Access read/write test"                     , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf3,          .num =  3, .name = "Elem() test"                                , .desc=""                , .mandatory=true)
+        testnew(.f2 = tf1,              .num =  1, .name = "Simple init and validate test"              , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf2,              .num =  2, .name = "Access read/write test"                     , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf3,              .num =  3, .name = "Elem() test"                                , .desc=""                , .mandatory=true)
     // non numeral
-      , testnew(.f2 = tf_fs_clone,  .num =  4, .name = "fs_clone() simple test"                     , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf4,          .num =  5, .name = "fs_cat/fs_catstr test"                      , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf5,          .num =  6, .name = "fs_cpy/fs_cpystr test"                      , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf6,          .num =  7, .name = "fsfreeall test"                             , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf7,          .num =  8, .name = "fsprint/printlim manual test"               , .desc="always ok, for the manual check"                , .mandatory=true)
-      , testnew(.f2 = tf8,          .num =  9, .name = "fsprint_arr manual test"                    , .desc="always ok, for the manual check"                , .mandatory=true)
-      , testnew(.f2 = tf9,          .num = 10, .name = "fs_sprintf formatted test"                  , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf10,         .num = 11, .name = "fslocal simple test"                        , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf11,         .num = 12, .name = "fs_save/load test"                          , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf12,         .num = 13, .name = "fs_free_alloc_checker test"                 , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf13,         .num = 14, .name = "fs_move simple test"                        , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf14,         .num = 15, .name = "fs_substr/newsubstr simple test"            , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf15,         .num = 16, .name = "fs_ifnotin/fs_ifinotin simple test"         , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf16,         .num = 17, .name = "fs_instr/fs_iinstr simple test"             , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf17,         .num = 18, .name = "fs_(n)(i)chr simple tests"                  , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf18,         .num = 19, .name = "fs_(i)rchr simple tests"                    , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf19,         .num = 20, .name = "fs_n(i)instr simple tests"                  , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf20,         .num = 21, .name = "fs_rev_catstr simple tests"                 , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf21,         .num = 22, .name = "fs_str simple tests"                        , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf22,         .num = 23, .name = "fs_get<int/long/double>pos simple tests"    , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf23,         .num = 24, .name = "fs_cmp_strict simple tests"                 , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf24,         .num = 25, .name = "fs_moveto_heap simple tests"                , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf25,         .num = 26, .name = "fs_fscanf simple tests"                     , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf26,         .num = 27, .name = "fscopyf simple tests"                       , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf27,         .num = 28, .name = "fs_rpad()/lpad() simple tests"              , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf28,         .num = 29, .name = "fs_heapcreate() simple tests"               , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf_fs_clone,      .num =  4, .name = "fs_clone() simple test"                     , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf4,              .num =  5, .name = "fs_cat/fs_catstr test"                      , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf5,              .num =  6, .name = "fs_cpy/fs_cpystr test"                      , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf6,              .num =  7, .name = "fsfreeall test"                             , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf7,              .num =  8, .name = "fsprint/printlim manual test"               , .desc="always ok, for the manual check"                , .mandatory=true)
+      , testnew(.f2 = tf8,              .num =  9, .name = "fsprint_arr manual test"                    , .desc="always ok, for the manual check"                , .mandatory=true)
+      , testnew(.f2 = tf9,              .num = 10, .name = "fs_sprintf formatted test"                  , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf10,             .num = 11, .name = "fslocal simple test"                        , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf11,             .num = 12, .name = "fs_save/load test"                          , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf12,             .num = 13, .name = "fs_free_alloc_checker test"                 , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf13,             .num = 14, .name = "fs_move simple test"                        , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf14,             .num = 15, .name = "fs_substr/newsubstr simple test"            , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf15,             .num = 16, .name = "fs_ifnotin/fs_ifinotin simple test"         , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf16,             .num = 17, .name = "fs_instr/fs_iinstr simple test"             , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf17,             .num = 18, .name = "fs_(n)(i)chr simple tests"                  , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf18,             .num = 19, .name = "fs_(i)rchr simple tests"                    , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf19,             .num = 20, .name = "fs_n(i)instr simple tests"                  , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf20,             .num = 21, .name = "fs_rev_catstr simple tests"                 , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf21,             .num = 22, .name = "fs_str simple tests"                        , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf22,             .num = 23, .name = "fs_get<int/long/double>pos simple tests"    , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf23,             .num = 24, .name = "fs_cmp_strict simple tests"                 , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf24,             .num = 25, .name = "fs_moveto_heap simple tests"                , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf25,             .num = 26, .name = "fs_fscanf simple tests"                     , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf26,             .num = 27, .name = "fscopyf simple tests"                       , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf27,             .num = 28, .name = "fs_rpad()/lpad() simple tests"              , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf28,             .num = 29, .name = "fs_heapcreate() simple tests"               , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf_fs_heapcopy,   .num = 30, .name = "fs_heapcopy() simple tests"                 , .desc=""                , .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
