@@ -62,7 +62,7 @@ value64                   value64_pcopy_move(void *p, value64_type typ, bool mov
 
 //types for testing
 
-// ------------------------- TEST 1 ---------------------------------
+// ------------------------- TEST init_free ---------------------------------
 
 static TestStatus
 tf_init_free(const char *name)
@@ -207,6 +207,173 @@ tf_init_free(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST value64_pcopy_move ---------------------------------
+static TestStatus
+tf_point_init(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ---------- value64_pinit (copy) ---------- */
+
+    /* 1. copy int */
+    test_sub("subtest %d: pinit int", ++subnum);
+    {
+        int ival = 123;
+        value64 v = value64_pinit(&ival, VALUE64_INT);
+        test_validate(v.ival == 123, "Copy int: got %d, expected 123", v.ival);
+    }
+
+    /* 2. copy long */
+    test_sub("subtest %d: pinit long", ++subnum);
+    {
+        long lval = 999999999L;
+        value64 v = value64_pinit(&lval, VALUE64_LNG);
+        test_validate(v.lval == 999999999L, "Copy long: got %ld, expected 999999999", v.lval);
+    }
+
+    /* 3. copy double */
+    test_sub("subtest %d: pinit double", ++subnum);
+    {
+        double dval = 2.7182818;
+        value64 v = value64_pinit(&dval, VALUE64_DBL);
+        test_validate(fabs(v.dval - 2.7182818) < 0.0000001,
+                      "Copy double: got %f, expected 2.7182818", v.dval);
+    }
+
+    /* 4. copy pointer */
+    test_sub("subtest %d: pinit pointer", ++subnum);
+    {
+        int x = 5;
+        void *ptr = &x;
+        value64 v = value64_pinit(&ptr, VALUE64_PTR);
+        test_validate(v.pval == ptr,
+                      "Copy pointer: got %p, expected %p", v.pval, ptr);
+    }
+
+    /* 5. copy C-string */
+    test_sub("subtest %d: pinit str", ++subnum);
+    {
+        const char *text = "copy-me";
+        value64 v = value64_pinit(text, VALUE64_STR);
+        test_validatefree(
+            strcmp(v.sval, text) == 0,
+            value64_freestr(v),
+            "Copy str: got '%s', expected '%s'", v.sval, text
+        );
+        test_validatefree(
+            v.sval != text,
+            value64_freestr(v),
+            "Copy str must have different address from original"
+        );
+        value64_freestr(v);
+    }
+
+    /* 6. copy fs */
+    test_sub("subtest %d: pinit fs", ++subnum);
+    {
+        const char *text = "fs-copy";
+        fs orig = fscopy(text);
+        value64 v = value64_pinit(&orig, VALUE64_FS);
+
+        test_validatefree(
+            strcmp(fs_str(v.fsval), text) == 0,
+            (fsfree(orig), value64_freefs(v)),
+            "Copy fs: got '%s', expected '%s'", fs_str(v.fsval), text
+        );
+        test_validatefree(
+            fs_bodyalloc(v.fsval),
+            (fsfree(orig), value64_freefs(v)),
+            "Copy fs must have FS_FLAG_BODYALLOC"
+        );
+
+        fsfree(orig);
+        value64_freefs(v);
+        fs_alloc_check(true);
+    }
+
+    /* ---------- value64_pmove (move) ---------- */
+
+    /* 7. move int (семантика копирования, т.к. скаляр) */
+    test_sub("subtest %d: pmove int", ++subnum);
+    {
+        int ival = -5;
+        value64 v = value64_pmove(&ival, VALUE64_INT);
+        test_validate(v.ival == -5, "Move int: got %d, expected -5", v.ival);
+    }
+
+    /* 8. move long */
+    test_sub("subtest %d: pmove long", ++subnum);
+    {
+        long lval = -999999999L;
+        value64 v = value64_pmove(&lval, VALUE64_LNG);
+        test_validate(v.lval == -999999999L, "Move long: got %ld, expected -999999999", v.lval);
+    }
+
+    /* 9. move double */
+    test_sub("subtest %d: pmove double", ++subnum);
+    {
+        double dval = -1.4142135;
+        value64 v = value64_pmove(&dval, VALUE64_DBL);
+        test_validate(fabs(v.dval - (-1.4142135)) < 0.0000001,
+                      "Move double: got %f, expected -1.4142135", v.dval);
+    }
+
+    /* 10. move pointer */
+    test_sub("subtest %d: pmove pointer", ++subnum);
+    {
+        int x = 99;
+        void *ptr = &x;
+        value64 v = value64_pmove(&ptr, VALUE64_PTR);
+        test_validate(v.pval == &x,
+                      "Move pointer: got %p, expected %p", v.pval, (void*)&x);
+    }
+
+    /* 11. move C-string (забирает владение) */
+    test_sub("subtest %d: pmove str", ++subnum);
+    {
+        char *text = strdup("move-str");
+        value64 v = value64_pmove(text, VALUE64_STR);
+        test_validatefree(
+            strcmp(v.sval, "move-str") == 0,
+            free(v.sval),
+            "Move str: got '%s', expected 'move-str'", v.sval
+        );
+        // text больше не владеет памятью, его нельзя освобождать
+        free(v.sval);
+    }
+
+    /* 12. move fs (оригинал опустошается) */
+    test_sub("subtest %d: pmove fs", ++subnum);
+    {
+        const char *text = "fs-move";
+        fs orig = fscopy(text);
+        value64 v = value64_pmove(&orig, VALUE64_FS);
+
+        test_validatefree(
+            strcmp(fs_str(v.fsval), text) == 0,
+            fs_free(v.fsval),
+            "Move fs: got '%s', expected '%s'", fs_str(v.fsval), text
+        );
+        test_validatefree(
+            fs_bodyalloc(v.fsval),
+            fs_free(v.fsval),
+            "Move fs must have FS_FLAG_BODYALLOC"
+        );
+        test_validatefree(
+            fslen(orig) == 0 && fsstr(orig) == NULL,
+            fs_free(v.fsval),
+            "After move, original fs must be empty (len=%d, str=%p)", fslen(orig), (void*)fsstr(orig)
+        );
+
+        fs_free(v.fsval);
+        fsfree(orig);
+        fs_alloc_check(true);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -228,6 +395,7 @@ main(int argc, const char *argv[])
         printf("Num %d\n", num);
             testenginestd_run(num,
                 testnew(.f2 = tf_init_free,        .num =  1, .name = "Simple init and validate test"              , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_point_init,       .num =  2, .name = "Simple value64_pcopy_move() test"           , .desc="", .mandatory=true)
             );
         if (runall)
             break;
