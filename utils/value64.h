@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <math.h>
 //
 #include "bool.h"
 #include "log.h"
@@ -77,10 +78,15 @@ static inline const char            *value64_type_name(value64_type t){
 
 // ------------------------- CONSTRUCTOTS/DESTRUCTORS -------------------------------
 
-// create value from pointer, value64 constructor ANY type, MOVE semantic
-extern value64                      value64_pmove(void *p, value64_type typ);
+extern value64                      value64_pcopy_move(void *p, value64_type typ, bool move);
 // copy, for array operations
-extern value64                      value64_pinit(const void *p, value64_type typ);
+static inline value64               value64_pinit(const void *p, value64_type typ){
+    return value64_pcopy_move( (void *) p, typ, false);
+}
+// create value from pointer, value64 constructor ANY type, MOVE semantic
+static inline value64               value64_pmove(void *p, value64_type typ){
+    return value64_pcopy_move(p, typ, true);
+}
 
 // copy logic
 static inline value64               value64_createint(int val){
@@ -103,18 +109,42 @@ static inline value64               value64_createptr(void *pval){
     tmp.pval = pval;
     return tmp;
 }
-static inline value64               value64_createsrtr(const char *sval){
+// TODO: mobestr?
+static inline value64               value64_createstr(const char *sval){
     value64 tmp = VALUE64_ZERO;
     if ( (tmp.sval = strdup(sval) ) == NULL)
         userraiseint(ERR_UNABLE_ALLOCATE, "Unable to dup string");
     return tmp;
 }
-
 static inline value64               value64_createfs(const fs *fsval){
     value64 tmp = VALUE64_ZERO;
     if ( (tmp.fsval = fs_heapcreate(fsval) ) == NULL)
         userraiseint(ERR_UNABLE_ALLOCATE, "Unable to dup fs");
     return tmp;
+}
+static inline value64               value64_movefs(const fs *fsval){
+    value64 tmp = VALUE64_ZERO;
+    if ( (tmp.fsval = fs_moveto_heap( (fs *) fsval) ) == NULL)
+        userraiseint(ERR_UNABLE_ALLOCATE, "Unable to dup fs");
+    return tmp;
+}
+static inline void                  value64_free(value64 v, value64_type typ){
+    switch (typ){
+        case VALUE64_STR:
+            free(v.sval);   // even if NULL
+        break;
+        case VALUE64_FS:
+            fs_free(v.fsval);   // even if NULL
+        break;
+        default:
+        break;
+    }
+}
+static inline void                  value64_freefs(value64 v){
+    return value64_free(v, VALUE64_FS);
+}
+static inline void                  value64_freestr(value64 v){
+    return value64_free(v, VALUE64_STR);
 }
 
 // -------------------- ACCESS AND MODIFICATORS -------------------------------------
