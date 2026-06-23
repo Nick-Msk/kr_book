@@ -6,6 +6,7 @@
 #include <limits.h>
 #include <ctype.h>
 #include <time.h>
+#include <math.h>
 
 #include "bool.h"
 #include "log.h"
