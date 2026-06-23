@@ -29,7 +29,7 @@ const                   value64_typeinfo* value64_info_get(value64_type typ) {
     return &value64_info[typ];
 }
 
-
+// the part of mass creation API, probably'll be changed
 // create value from pointer, value64 constructor ANY type, MOVE semantic
 value64                   value64_pcopy_move(void *p, value64_type typ, bool move){
     invraisecode(p != NULL, ERR_NULLABLE_PTR, "Null pointer");
@@ -95,6 +95,11 @@ tf_init_free(const char *name)
             value64_free(v, VALUE64_INT),
             "Int value mismatch: got %d, expected 42", v.ival
         );
+        test_validatefree(
+            value64_int(v) == 42,
+            value64_free(v, VALUE64_INT),
+            "Int value mismatch: got %d, expected 42", v.ival
+        );
         // для int освобождение не требуется
         value64_free(v, VALUE64_INT);
     }
@@ -107,6 +112,10 @@ tf_init_free(const char *name)
             v.lval == 1234567890L,
             "Long value mismatch: got %ld, expected 1234567890", v.lval
         );
+        test_validate(
+            value64_long(v) == 1234567890L,
+            "Long value mismatch: got %ld, expected 1234567890", v.lval
+        );
     }
 
     /* 3. double */
@@ -115,6 +124,10 @@ tf_init_free(const char *name)
         value64 v = value64_createdbl(3.14159265);
         test_validate(
             fabs(v.dval - 3.14159265) < 0.00000001,
+            "Double value mismatch: got %f, expected 3.14159265", v.dval
+        );
+        test_validate(
+            fabs(value64_dbl(v) - 3.14159265) < 0.00000001,
             "Double value mismatch: got %f, expected 3.14159265", v.dval
         );
     }
@@ -128,6 +141,10 @@ tf_init_free(const char *name)
             v.pval == &x,
             "Pointer mismatch: got %p, expected %p", v.pval, (void*)&x
         );
+        test_validate(
+            value64_ptr(v) == &x,
+            "Pointer mismatch: got %p, expected %p", v.pval, (void*)&x
+        );
     }
 
     /* 5. fs (copy) */
@@ -139,6 +156,11 @@ tf_init_free(const char *name)
 
         test_validatefree(
             strcmp(fs_str(v.fsval), text) == 0,
+            (fsfree(orig), fs_free(v.fsval)),
+            "FS copy mismatch: got '%s', expected '%s'", fs_str(v.fsval), text
+        );
+        test_validatefree(
+            strcmp(fs_str(value64_fs(v) ), text) == 0,
             (fsfree(orig), fs_free(v.fsval)),
             "FS copy mismatch: got '%s', expected '%s'", fs_str(v.fsval), text
         );
@@ -162,6 +184,11 @@ tf_init_free(const char *name)
 
         test_validatefree(
             strcmp(fs_str(v.fsval), text) == 0,
+            value64_freefs(v),
+            "Moved fs value mismatch: got '%s', expected '%s'", fs_str(v.fsval), text
+        );
+        test_validatefree(
+            strcmp(fs_str(value64_fs(v) ), text) == 0,
             value64_freefs(v),
             "Moved fs value mismatch: got '%s', expected '%s'", fs_str(v.fsval), text
         );
@@ -213,6 +240,11 @@ tf_init_free(const char *name)
 
         test_validatefree(
             strcmp(v.sval, text) == 0,
+            value64_freestr(v),
+            "Str copy mismatch: got '%s', expected '%s'", v.sval, text
+        );
+        test_validatefree(
+            strcmp(value64_str(v), text) == 0,
             value64_freestr(v),
             "Str copy mismatch: got '%s', expected '%s'", v.sval, text
         );

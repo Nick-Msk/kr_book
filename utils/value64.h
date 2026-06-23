@@ -67,8 +67,11 @@ static inline const char            *value64_type_name(value64_type t) {
     return info->name;
 }
 
+// only zero for now
 #define                 VALUE64_ZERO      (value64) {.u64 = 0L }
-#define                 VALUE64_INT(val)  (value64) {.u64 = 0L, .ival = val }
+
+
+/*#define                 VALUE64_INT(val)  (value64) {.u64 = 0L, .ival = val }
 #define                 VALUE64_LONG(val) (value64) {.u64 = 0L, .lval = val }
 #define                 VALUE64_DBL(val)  (value64) {.u64 = 0L, .dval = val }
 #define                 VALUE64_PTR(val)  (value64) {.u64 = 0L, .pval = val }
@@ -77,7 +80,7 @@ static inline const char            *value64_type_name(value64_type t) {
 // local version
 #define                 VALUE64_FSVALUE(val) (value64) {.u64 = 0L, .fsval = &(val) }
 // pointer version TODO: not sure, commented for now
-/*
+
 #define                 VALUE64_FSPVALUE(pval) (hset_value) {.fsval = fs_heapcreate(pval) }
 //move version
 #define                 VALUE64_FSMOVE(val)    (hset_value) {.fsval = fs_moveto_heap(val) } */
@@ -87,6 +90,8 @@ static inline const char            *value64_type_name(value64_type t) {
 
 // ------------------------- CONSTRUCTOTS/DESTRUCTORS -------------------------------
 
+// the part of mass creation API
+// create value from pointer, value64 constructor ANY type, MOVE semantic
 extern value64                      value64_pcopy_move(void *p, value64_type typ, bool move);
 // copy, for array operations
 static inline value64               value64_pinit(const void *p, value64_type typ){
@@ -96,7 +101,6 @@ static inline value64               value64_pinit(const void *p, value64_type ty
 static inline value64               value64_pmove(void *p, value64_type typ){
     return value64_pcopy_move(p, typ, true);
 }
-
 // copy logic
 static inline value64               value64_createint(int val){
     value64 tmp = VALUE64_ZERO;
@@ -118,19 +122,43 @@ static inline value64               value64_createptr(void *pval){
     tmp.pval = pval;
     return tmp;
 }
-// TODO: mobestr?
+// TODO: movestr?
 static inline value64               value64_createstr(const char *sval){
+    if (!sval)
+        userraiseint(ERR_NULLABLE_PTR, "Null pointer");
     value64 tmp = VALUE64_ZERO;
     if ( (tmp.sval = strdup(sval) ) == NULL)
         userraiseint(ERR_UNABLE_ALLOCATE, "Unable to dup string");
     return tmp;
 }
 static inline value64               value64_createfs(const fs *fsval){
+    if (!fsval)
+        userraiseint(ERR_NULLABLE_PTR, "Null pointer");
     value64 tmp = VALUE64_ZERO;
     if ( (tmp.fsval = fs_heapcreate(fsval) ) == NULL)
         userraiseint(ERR_UNABLE_ALLOCATE, "Unable to dup fs");
     return tmp;
 }
+// just switch over the types!
+static inline value64               value64_clone(value64 source, value64_type typ){
+    switch (typ){
+        case VALUE64_INT:
+            return value64_createint(source.ival);
+        case VALUE64_LNG:
+            return value64_createlong(source.lval);
+        case VALUE64_DBL:
+            return value64_createdbl(source.dval);
+        case VALUE64_FS:
+            return value64_createfs(source.fsval);
+        case VALUE64_PTR:
+            return value64_createptr(source.pval);
+        case VALUE64_STR:
+            return value64_createstr(source.sval);
+        default:
+            return VALUE64_ZERO;
+    }
+}
+// move constructor
 static inline value64               value64_movefs(const fs *fsval){
     value64 tmp = VALUE64_ZERO;
     if ( (tmp.fsval = fs_moveto_heap( (fs *) fsval) ) == NULL)
@@ -157,6 +185,67 @@ static inline void                  value64_freestr(value64 v){
 }
 
 // -------------------- ACCESS AND MODIFICATORS -------------------------------------
+// just get
+static inline int                   value64_int(value64 v){
+    return v.ival;
+}
+static inline long                  value64_long(value64 v){
+    return v.lval;
+}
+static inline double                value64_dbl(value64 v){
+    return v.dval;
+}
+static inline char                 *value64_str(value64 v){
+    return v.sval;
+}
+static inline void                 *value64_ptr(value64 v){
+    return v.pval;
+}
+static inline fs                   *value64_fs(value64 v){
+    return v.fsval;
+}
+
+// move to EXISTING object, thart is NOT a constructor
+// move switcher to EXISTING object
+static inline value64              *value64_move(value64 *restrict target, value64 *restrict source, value64_type typ){
+    if (!target)    // not sure about that logic
+        return source;
+    invraisecode(target && source,  ERR_NULLABLE_PTR, "Null pointers %p %p", target, source);
+    switch (typ){
+        case VALUE64_FS:    // note: this's NOT the same as value64_movefs!
+            target->fsval = fs_moveto_heap(source->fsval);  // no need to null source, fs_moveto_heap'll do that
+            if (!target->fsval)
+                userraiseint(ERR_UNABLE_ALLOCATE, "Unable to alloc new fs body");
+        break;
+        case VALUE64_DBL:
+            target->dval = source->dval;
+            source->dval = 0.0;
+        break;
+        default:    // ALL others type even VALUE64_STR follows the same logic!
+            target->u64 = source->u64;
+            source->u64 = 0L;   // u64 cover all types
+        break;
+    }
+    return target;
+}
+static inline value64              *value64_move_int(value64 *restrict target, value64 *restrict source){
+    return value64_move(target, source, VALUE64_INT);
+}
+static inline value64              *value64_move_long(value64 *restrict target, value64 *restrict source){
+    return value64_move(target, source, VALUE64_LNG);
+}
+static inline value64              *value64_move_dbl(value64 *restrict target, value64 *restrict source){
+    return value64_move(target, source, VALUE64_DBL);
+}
+static inline value64              *value64_move_str(value64 *restrict target, value64 *restrict source){
+    return value64_move(target, source, VALUE64_STR);
+}
+static inline value64              *value64_move_ptr(value64 *restrict target, value64 *restrict source){
+    return value64_move(target, source, VALUE64_PTR);
+}
+static inline value64              *value64_move_fs(value64 *restrict target, value64 *restrict source){
+    return value64_move(target, source, VALUE64_FS);
+}
 
 
 
@@ -191,12 +280,12 @@ static inline void                  value64_fprint(FILE *restrict out, const cha
         }
     }
 }
-
 static inline void          value64_log(value64 val, value64_type typ){
     value64_fprint(logfile, 0, val, typ);
 }
-
-
+static inline void          value64_print(value64 val, value64_type typ){
+    value64_fprint(stdout, 0, val, typ);
+}
 
 // --------------------------------- SERIALIZATION ----------------------------------
 

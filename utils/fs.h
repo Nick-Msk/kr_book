@@ -177,7 +177,7 @@ extern void                 fsfreeall(void);
 
 // TODO: fs_const() NOT SURE
 
-static inline fs fscopyf(const char *fmt, ...) {
+static inline fs            fscopyf(const char *fmt, ...) {
     invraisecode(fmt != 0, ERR_NULLABLE_PTR, "Null pointer");
     fs s = FS();
     va_list ap;
