@@ -597,6 +597,146 @@ tf_clone(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST value64_move ---------------------------------
+
+static TestStatus
+tf_move(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. move int */
+    test_sub("subtest %d: move int", ++subnum);
+    {
+        value64 src = value64_createint(42);
+        value64 dst = VALUE64_ZERO;
+        value64 *ret = value64_move_int(&dst, &src);
+
+        test_validate(ret == &dst, "move_int must return &dst");
+        test_validate(value64_int(dst) == 42, "dst must be 42, got %d", value64_int(dst));
+        test_validate(value64_int(src) == 0, "src must be 0 after move, got %d", value64_int(src));
+    }
+
+    /* 2. move long */
+    test_sub("subtest %d: move long", ++subnum);
+    {
+        value64 src = value64_createlong(123456789L);
+        value64 dst = VALUE64_ZERO;
+        value64_move_long(&dst, &src);
+
+        test_validate(value64_long(dst) == 123456789L, "dst mismatch, got %ld", value64_long(dst));
+        test_validate(value64_long(src) == 0L, "src must be 0 after move, got %ld", value64_long(src));
+    }
+
+    /* 3. move double */
+    test_sub("subtest %d: move double", ++subnum);
+    {
+        value64 src = value64_createdbl(3.1415);
+        value64 dst = VALUE64_ZERO;
+        value64_move_dbl(&dst, &src);
+
+        test_validate(fabs(value64_dbl(dst) - 3.1415) < 0.0001, "dst mismatch, got %f", value64_dbl(dst));
+        test_validate(fabs(value64_dbl(src) - 0.0) < 1e-12, "src must be 0.0 after move, got %f", value64_dbl(src));
+    }
+
+    /* 4. move pointer */
+    test_sub("subtest %d: move pointer", ++subnum);
+    {
+        int x = 7;
+        value64 src = value64_createptr(&x);
+        value64 dst = VALUE64_ZERO;
+        value64_move_ptr(&dst, &src);
+
+        test_validate(value64_ptr(dst) == &x, "dst must point to x, got %p", value64_ptr(dst));
+        test_validate(value64_ptr(src) == NULL, "src must be NULL after move, got %p", value64_ptr(src));
+    }
+
+    /* 5. move str */
+    test_sub("subtest %d: move str", ++subnum);
+    {
+        const char *text = "movable string";
+        value64 src = value64_createstr(text);
+        value64 dst = VALUE64_ZERO;
+        value64_move_str(&dst, &src);
+
+        test_validatefree(
+            value64_str(dst) != NULL && strcmp(value64_str(dst), text) == 0,
+            value64_free(dst, VALUE64_STR),
+            "dst must be '%s', got '%s'", text, value64_str(dst)
+        );
+        test_validatefree(
+            value64_str(src) == NULL,
+            value64_free(dst, VALUE64_STR),
+            "src must be NULL after move, got %p", value64_str(src)
+        );
+        value64_free(dst, VALUE64_STR);
+    }
+
+    /* 6. move fs */
+    test_sub("subtest %d: move fs", ++subnum);
+    {
+        const char *text = "fs-move-target";
+        fs orig = fscopy(text);
+        value64 src = value64_createfs(&orig);
+        fsfree(orig);
+
+        fs *src_fs_before = value64_fs(src);   // запоминаем указатель до move
+
+        value64 dst = VALUE64_ZERO;
+        value64_move_fs(&dst, &src);
+
+        fs *dst_fs = value64_fs(dst);
+
+        test_validatefree(
+            dst_fs != NULL && strcmp(fs_str(dst_fs), text) == 0,
+            value64_free(dst, VALUE64_FS),
+            "dst must be '%s', got '%s'", text, fs_str(dst_fs)
+        );
+        test_validatefree(
+            fs_bodyalloc(dst_fs),
+            value64_free(dst, VALUE64_FS),
+            "dst fs must have FS_FLAG_BODYALLOC"
+        );
+       // Убеждаемся, что dst получил новую память (не ту, что была у src)
+        test_validatefree(
+            dst_fs != src_fs_before,
+            value64_free(dst, VALUE64_FS),
+            "dst fs pointer must differ from original src pointer"
+        );
+        value64_free(dst, VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    /* 7. multiple fs moves (leak check) */
+    test_sub("subtest %d: multiple fs moves (leak check)", ++subnum);
+    {
+        const char *words[] = {"first", "second", "third"};
+        value64 dst[3] = { VALUE64_ZERO, VALUE64_ZERO, VALUE64_ZERO };
+
+        for (int i = 0; i < COUNT(words); i++) {
+            fs orig = fscopy(words[i]);
+            value64 src = value64_createfs(&orig);
+            fsfree(orig);
+            value64_move_fs(&dst[i], &src);
+        }
+
+        for (int i = 0; i < COUNT(words); i++) {
+            fs *dst_fs = value64_fs(dst[i]);
+            test_validatefree(
+                strcmp(fs_str(dst_fs), words[i]) == 0,
+                (value64_free(dst[0], VALUE64_FS), value64_free(dst[1], VALUE64_FS), value64_free(dst[2], VALUE64_FS)),
+                "dst[%d] must be '%s', got '%s'", i, words[i], fs_str(dst_fs)
+            );
+        }
+        for (int i = 0; i < COUNT(words); i++) {
+            value64_free(dst[i], VALUE64_FS);
+        }
+        fs_alloc_check(true);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -620,6 +760,7 @@ main(int argc, const char *argv[])
                 testnew(.f2 = tf_init_free,        .num =  1, .name = "Simple init and validate test"              , .desc="", .mandatory=true)
               , testnew(.f2 = tf_point_init,       .num =  2, .name = "Simple value64_pcopy_move() test"           , .desc="", .mandatory=true)
               , testnew(.f2 = tf_clone,            .num =  3, .name = "Simple value64_clone() test"                , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_move,             .num =  4, .name = "Simple value64_move() test"                 , .desc="", .mandatory=true)
             );
         if (runall)
             break;
