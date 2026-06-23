@@ -422,6 +422,181 @@ tf_point_init(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST value64_clone ---------------------------------
+
+static TestStatus
+tf_clone(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ---------- value64_create* (конструкторы) ---------- */
+
+    /* 1. int */
+    test_sub("subtest %d: create int", ++subnum);
+    {
+        value64 v = value64_createint(42);
+        test_validate(v.ival == 42, "Create int: got %d, expected 42", v.ival);
+    }
+
+    /* 2. long */
+    test_sub("subtest %d: create long", ++subnum);
+    {
+        value64 v = value64_createlong(1234567890L);
+        test_validate(v.lval == 1234567890L, "Create long: got %ld, expected 1234567890", v.lval);
+    }
+
+    /* 3. double */
+    test_sub("subtest %d: create double", ++subnum);
+    {
+        value64 v = value64_createdbl(2.718281828);
+        test_validate(fabs(v.dval - 2.718281828) < 0.000000001,
+                      "Create double: got %f, expected 2.718281828", v.dval);
+    }
+
+    /* 4. pointer */
+    test_sub("subtest %d: create pointer", ++subnum);
+    {
+        int x = 77;
+        value64 v = value64_createptr(&x);
+        test_validate(v.pval == &x,
+                      "Create pointer: got %p, expected %p", v.pval, (void*)&x);
+    }
+
+    /* 5. C-string (копирование) */
+    test_sub("subtest %d: create str", ++subnum);
+    {
+        const char *text = "hello value64";
+        value64 v = value64_createstr(text);
+
+        test_validatefree(
+            strcmp(v.sval, text) == 0,
+            value64_free(v, VALUE64_STR),
+            "Create str: got '%s', expected '%s'", v.sval, text
+        );
+        test_validatefree(
+            v.sval != text,
+            value64_free(v, VALUE64_STR),
+            "Create str must have its own memory"
+        );
+        value64_free(v, VALUE64_STR);
+    }
+
+    /* 6. fs (копирование) */
+    test_sub("subtest %d: create fs", ++subnum);
+    {
+        const char *text = "hello fs";
+        fs orig = fscopy(text);
+        value64 v = value64_createfs(&orig);
+
+        test_validatefree(
+            strcmp(fs_str(v.fsval), text) == 0,
+            (fsfree(orig), value64_free(v, VALUE64_FS)),
+            "Create fs: got '%s', expected '%s'", fs_str(v.fsval), text
+        );
+        test_validatefree(
+            fs_bodyalloc(v.fsval),
+            (fsfree(orig), value64_free(v, VALUE64_FS)),
+            "Create fs must have FS_FLAG_BODYALLOC"
+        );
+
+        fsfree(orig);
+        value64_free(v, VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    /* ---------- value64_clone ---------- */
+
+    /* 7. clone int */
+    test_sub("subtest %d: clone int", ++subnum);
+    {
+        value64 orig = value64_createint(100);
+        value64 copy = value64_clone(orig, VALUE64_INT);
+        test_validate(copy.ival == 100, "Clone int: got %d, expected 100", copy.ival);
+    }
+
+    /* 8. clone long */
+    test_sub("subtest %d: clone long", ++subnum);
+    {
+        value64 orig = value64_createlong(999999999L);
+        value64 copy = value64_clone(orig, VALUE64_LNG);
+        test_validate(copy.lval == 999999999L, "Clone long: got %ld, expected 999999999", copy.lval);
+    }
+
+    /* 9. clone double */
+    test_sub("subtest %d: clone double", ++subnum);
+    {
+        value64 orig = value64_createdbl(1.6180339);
+        value64 copy = value64_clone(orig, VALUE64_DBL);
+        test_validate(fabs(copy.dval - 1.6180339) < 0.0000001,
+                      "Clone double: got %f, expected 1.6180339", copy.dval);
+    }
+
+    /* 10. clone pointer */
+    test_sub("subtest %d: clone pointer", ++subnum);
+    {
+        int x = 123;
+        value64 orig = value64_createptr(&x);
+        value64 copy = value64_clone(orig, VALUE64_PTR);
+        test_validate(copy.pval == &x,
+                      "Clone pointer: got %p, expected %p", copy.pval, (void*)&x);
+    }
+
+    /* 11. clone C-string */
+    test_sub("subtest %d: clone str", ++subnum);
+    {
+        const char *text = "clone-string";
+        value64 orig = value64_createstr(text);
+        value64 copy = value64_clone(orig, VALUE64_STR);
+
+        test_validatefree(
+            strcmp(copy.sval, text) == 0,
+            (value64_free(orig, VALUE64_STR), value64_free(copy, VALUE64_STR)),
+            "Clone str: got '%s', expected '%s'", copy.sval, text
+        );
+        test_validatefree(
+            copy.sval != orig.sval,
+            (value64_free(orig, VALUE64_STR), value64_free(copy, VALUE64_STR)),
+            "Clone str must have different address"
+        );
+
+        value64_free(orig, VALUE64_STR);
+        value64_free(copy, VALUE64_STR);
+    }
+
+    /* 12. clone fs */
+    test_sub("subtest %d: clone fs", ++subnum);
+    {
+        const char *text = "clone-fs";
+        fs orig_fs = fscopy(text);
+        value64 orig = value64_createfs(&orig_fs);
+        value64 copy = value64_clone(orig, VALUE64_FS);
+
+        test_validatefree(
+            strcmp(fs_str(copy.fsval), text) == 0,
+            (fsfree(orig_fs), value64_free(orig, VALUE64_FS), value64_free(copy, VALUE64_FS)),
+            "Clone fs: got '%s', expected '%s'", fs_str(copy.fsval), text
+        );
+        test_validatefree(
+            fs_bodyalloc(copy.fsval),
+            (fsfree(orig_fs), value64_free(orig, VALUE64_FS), value64_free(copy, VALUE64_FS)),
+            "Clone fs must have FS_FLAG_BODYALLOC"
+        );
+        test_validatefree(
+            copy.fsval != orig.fsval,
+            (fsfree(orig_fs), value64_free(orig, VALUE64_FS), value64_free(copy, VALUE64_FS)),
+            "Clone fs must have different pointer"
+        );
+
+        fsfree(orig_fs);
+        value64_free(orig, VALUE64_FS);
+        value64_free(copy, VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -444,6 +619,7 @@ main(int argc, const char *argv[])
             testenginestd_run(num,
                 testnew(.f2 = tf_init_free,        .num =  1, .name = "Simple init and validate test"              , .desc="", .mandatory=true)
               , testnew(.f2 = tf_point_init,       .num =  2, .name = "Simple value64_pcopy_move() test"           , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_clone,            .num =  3, .name = "Simple value64_clone() test"                , .desc="", .mandatory=true)
             );
         if (runall)
             break;
