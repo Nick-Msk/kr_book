@@ -69,6 +69,35 @@ value64                   value64_pcopy_move(void *p, value64_type typ, bool mov
     return tmp;
 }
 
+unsigned long               get_lhash(unsigned cnt, value64 value, value64_type typ){
+    // probably it's better to calc hash by u64 attr (except fs for sure)
+    value64      tmp = VALUE64_ZERO;
+    switch (typ){
+        case VALUE64_INT:
+            tmp.u64 = (uint64_t) value64_int(value);
+        break;
+        case VALUE64_LNG:
+            tmp.u64 = (uint64_t) value64_long(value);
+        break;
+        case VALUE64_DBL:
+            tmp.u64 = value64_dbl(value);
+        break;
+        case VALUE64_PTR:
+            tmp.u64 = (uint64_t) value64_ptr(value);    // or just do nothing as for HSET_DBL
+        break;
+        case VALUE64_FS:
+            return  hash_djb2(fs_str(value64_fs(value) ) ) % cnt;
+        break;
+        case VALUE64_STR:
+            return  hash_djb2(value64_str(value) ) % cnt;
+        break;
+        default:
+        break;
+    }
+    return hash_long(tmp.u64) % cnt;
+}
+
+
 // --------------------------------- SERIALIZATION -----------------------------------------
 
 // ---------------------------------------- Testing ------------------------------------------

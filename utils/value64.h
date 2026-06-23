@@ -18,6 +18,7 @@
 #include "error.h"
 #include "checker.h"
 #include "fs.h"
+#include "numeric_ops.h"
 
 // --------------------------------- CONSTANTS AND GLOBALS --------------------------
 
@@ -246,7 +247,7 @@ static inline value64              *value64_move_fs(value64 *restrict target, va
     return value64_move(target, source, VALUE64_FS);
 }
 
-
+extern unsigned long               get_lhash(unsigned cnt, value64 value, value64_type typ);
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
