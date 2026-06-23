@@ -227,13 +227,16 @@ value64                 convert_value(value64 v, value64_type from, value64_type
             break;
         case VALUE64_STR:
             char *sval = value64_str(v);
-            if (to == VALUE64_INT)
-                result.ival = atoi(sval);
-            else if (to == VALUE64_LNG)
-                result.lval = atol(sval);
-            else if (to == VALUE64_DBL)
-                result.dval = atof(sval);
-            else if (to == VALUE64_STR)
+            if (to == VALUE64_INT){
+                if (!try_parse_int(sval, &result.ival) )
+                    userraiseint(ERR_INVALID_CONVERSION, "Invalid int string: %s", sval);
+            } else if (to == VALUE64_LNG){
+                if (!try_parse_int(sval, &result.ival) )
+                    userraiseint(ERR_INVALID_CONVERSION, "Invalid long string: %s", sval);
+            } else if (to == VALUE64_DBL){
+                if (!try_parse_double(sval, &result.dval) )
+                    userraiseint(ERR_INVALID_CONVERSION, "Invalid double string: %s", sval);
+            } else if (to == VALUE64_STR)
                 // use constructor
                 result = value64_createstr(sval);
             else if (to == VALUE64_FS){
