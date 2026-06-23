@@ -53,6 +53,7 @@ typedef struct {
     const char  *name;
     size_t       size;
     bool         is_valid;
+    const char  *type_desc;
 } value64_typeinfo;
 
 extern const                        value64_typeinfo* value64_info_get(value64_type typ);
@@ -61,13 +62,13 @@ static inline bool                  value64_checktype(value64_type typ) {
     return value64_info_get(typ) != NULL;
 }
 
-static inline const char            *value64_type_name(value64_type t) {
+static inline const char            *value64_typename(value64_type t) {
     const value64_typeinfo* info = value64_info_get(t);
     if (!info)
         return userraise(NULL, ERR_UNSUPPORTED_TYPE, "Type %d not supported", t);
     return info->name;
 }
-
+extern  value64_type                 value64_gettype(const char *str);
 // only zero for now
 #define                 VALUE64_ZERO      (value64) {.u64 = 0L }
 

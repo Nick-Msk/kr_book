@@ -9,14 +9,14 @@
 
 // Вся информация о типах в одном месте!
 static const value64_typeinfo           value64_info[] = {
-    [VALUE64_UKNOWN]     = {"INVALID",     0,              false},
-    [VALUE64_INT]        = {"INT",         sizeof(int),    true},
-    [VALUE64_LNG]        = {"LNG",         sizeof(long),   true},
-    [VALUE64_DBL]        = {"DBL",         sizeof(double), true},
-    [VALUE64_FS]         = {"FS",          sizeof(fs *),   true},
-    [VALUE64_PTR]        = {"PTR",         sizeof(void *), true},
-    [VALUE64_STR]        = {"STR",         sizeof(char *), true},
-    [VALUE64_TYPE_COUNT] = {"",            0,              false}
+    [VALUE64_UKNOWN]     = {"INVALID",     0,              false    , "VALUE64_UKNOWN"},
+    [VALUE64_INT]        = {"INT",         sizeof(int),    true     , "VALUE64_INT"},
+    [VALUE64_LNG]        = {"LNG",         sizeof(long),   true     , "VALUE64_LNG"},
+    [VALUE64_DBL]        = {"DBL",         sizeof(double), true     , "VALUE64_DBL"},
+    [VALUE64_FS]         = {"FS",          sizeof(fs *),   true     , "VALUE64_FS"},
+    [VALUE64_PTR]        = {"PTR",         sizeof(void *), true     , "VALUE64_PTR"},
+    [VALUE64_STR]        = {"STR",         sizeof(char *), true     , "VALUE64_STR"},
+    [VALUE64_TYPE_COUNT] = {"",            0,              false    , ""}
 };
 
 _Static_assert(COUNT(value64_info) == VALUE64_TYPE_COUNT + 1,
@@ -63,7 +63,7 @@ value64                   value64_pcopy_move(void *p, value64_type typ, bool mov
                 tmp = value64_createfs(p);
         break;
         default:
-            userraiseint(ERR_UNSUPPORTED_TYPE, "type %d %s isn't suppoted", typ, value64_type_name(typ) );
+            userraiseint(ERR_UNSUPPORTED_TYPE, "type %d %s isn't suppoted", typ, value64_typename(typ) );
         break;
     }
     return tmp;
@@ -97,6 +97,41 @@ unsigned long               value64_lhash(value64 value, value64_type typ){
     return hash_long(tmp.u64);
 }
 
+int                     value64_compare(value64 v1, value64 v2, value64_type typ){
+    switch (typ){
+        case VALUE64_INT:
+            return compare_int(v1.ival, v2.ival);
+        break;
+        case VALUE64_LNG:
+            return compare_long(v1.lval, v2.lval);
+        break;
+        case VALUE64_DBL:
+            return compare_dbl(v1.dval, v2.dval);
+        break;
+        case VALUE64_PTR:
+            return compare_ptr(v1.pval, v2.pval);
+        break;
+        case VALUE64_FS:
+            return fs_cmp(v1.fsval, v2.fsval);
+        break;
+        case VALUE64_STR:
+            return strcmp(v1.sval, v2.sval) == 0;
+        break;
+        default:
+            userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
+            return 0;
+    }
+}
+
+value64_type            value64_gettype(const char *str){
+    if (!str)
+        return VALUE64_UKNOWN;
+    for (size_t i = 0; i < COUNT(value64_info); i++) {
+        if (strcmp(str, value64_info_get(i)->name) == 0)
+            return (value64_type) i;
+   }
+   return VALUE64_UKNOWN;
+}
 
 // --------------------------------- SERIALIZATION -----------------------------------------
 
