@@ -106,6 +106,40 @@ int                             pdbl_revcmp(const void *d1, const void *d2){
         return 0;
 }
 
+
+bool                            try_parse_int(const char *restrict str, int *restrict res) {
+    if (!str) return false;
+    char *endptr;
+    long val = strtol(str, &endptr, 10);
+    if (str == endptr || *endptr != '\0' || val > INT_MAX || val < INT_MIN) {
+        return false;
+    }
+    *res = (int) val;
+    return true;
+}
+bool                            try_parse_long(const char *restrict str, long *restrict res) {
+    if (!str)
+        return false;
+    char *endptr;
+    long val = strtol(str, &endptr, 10);
+    if (str == endptr || *endptr != '\0') {
+        return false;
+    }
+    *res = val;
+    return true;
+}
+bool                            try_parse_double(const char *restrict str, double *restrict res) {
+    if (!str)
+        return false;
+    char *endptr;
+    double val = strtold(str, &endptr);
+    if (str == endptr || *endptr != '\0') {
+        return false;
+    }
+    *res = val;
+    return true;
+}
+
 // -------------------------------Testing --------------------------
 
 #ifdef COMMONTESTING

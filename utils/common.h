@@ -470,37 +470,8 @@ static inline bool              int__in(int val, const int *arr){
 #define                         int_notin(val, ...) int_not_in( (val),  (const int []) { __VA_ARGS__, INT_MIN} )
 #define                         int_in(val, ...)    int__in( (val),     (const int []) { __VA_ARGS__, INT_MIN} )
 
-static inline bool              try_parse_int(const char *restrict str, int *restrict res) {
-    if (!str) return false;
-    char *endptr;
-    long val = strtol(str, &endptr, 10);
-    if (str == endptr || *endptr != '\0' || val > INT_MAX || val < INT_MIN) {
-        return false;
-    }
-    *res = (int) val;
-    return true;
-}
-static inline bool              try_parse_long(const char *restrict str, long *restrict res) {
-    if (!str)
-        return false;
-    char *endptr;
-    long val = strtol(str, &endptr, 10);
-    if (str == endptr || *endptr != '\0') {
-        return false;
-    }
-    *res = val;
-    return true;
-}
-bool                            try_parse_double(const char *restrict str, double *restrict res) {
-    if (!str)
-        return false;
-    char *endptr;
-    double val = strtold(str, &endptr);
-    if (str == endptr || *endptr != '\0') {
-        return false;
-    }
-    *res = val;
-    return true;
-}
+extern bool              try_parse_int(const char *restrict str, int *restrict res);
+extern bool              try_parse_long(const char *restrict str, long *restrict res);
+extern bool              try_parse_double(const char *restrict str, double *restrict res);
 
 #endif /* ! _COMMON_H */
