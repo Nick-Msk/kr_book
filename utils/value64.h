@@ -247,7 +247,7 @@ static inline value64              *value64_move_fs(value64 *restrict target, va
     return value64_move(target, source, VALUE64_FS);
 }
 
-extern unsigned long               get_lhash(unsigned cnt, value64 value, value64_type typ);
+extern unsigned long               value64_lhash(value64 value, value64_type typ);
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 

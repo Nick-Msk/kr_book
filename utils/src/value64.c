@@ -69,7 +69,7 @@ value64                   value64_pcopy_move(void *p, value64_type typ, bool mov
     return tmp;
 }
 
-unsigned long               get_lhash(unsigned cnt, value64 value, value64_type typ){
+unsigned long               value64_lhash(value64 value, value64_type typ){
     // probably it's better to calc hash by u64 attr (except fs for sure)
     value64      tmp = VALUE64_ZERO;
     switch (typ){
@@ -80,21 +80,21 @@ unsigned long               get_lhash(unsigned cnt, value64 value, value64_type 
             tmp.u64 = (uint64_t) value64_long(value);
         break;
         case VALUE64_DBL:
-            tmp.u64 = value64_dbl(value);
+            tmp.dval = value64_dbl(value);
         break;
         case VALUE64_PTR:
             tmp.u64 = (uint64_t) value64_ptr(value);    // or just do nothing as for HSET_DBL
         break;
         case VALUE64_FS:
-            return  hash_djb2(fs_str(value64_fs(value) ) ) % cnt;
+            return  hash_djb2(fs_str(value64_fs(value) ) );
         break;
         case VALUE64_STR:
-            return  hash_djb2(value64_str(value) ) % cnt;
+            return  hash_djb2(value64_str(value) );
         break;
         default:
         break;
     }
-    return hash_long(tmp.u64) % cnt;
+    return hash_long(tmp.u64);
 }
 
 
@@ -766,6 +766,136 @@ tf_move(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST value64_lhash ---------------------------------
+
+static TestStatus
+tf_lhash(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. int */
+    test_sub("subtest %d: hash int", ++subnum);
+    {
+        value64 v1 = value64_createint(42);
+        value64 v2 = value64_createint(42);
+        value64 v3 = value64_createint(100);
+
+        unsigned long h1 = value64_lhash(v1, VALUE64_INT);
+        unsigned long h2 = value64_lhash(v2, VALUE64_INT);
+        unsigned long h3 = value64_lhash(v3, VALUE64_INT);
+
+        test_validate(h1 == h2, "Same ints must have same hash: %lu vs %lu", h1, h2);
+        test_validate(h1 != h3, "Different ints should differ: %lu vs %lu", h1, h3);
+    }
+
+    /* 2. long */
+    test_sub("subtest %d: hash long", ++subnum);
+    {
+        value64 v1 = value64_createlong(999999999L);
+        value64 v2 = value64_createlong(999999999L);
+        value64 v3 = value64_createlong(0L);
+
+        unsigned long h1 = value64_lhash(v1, VALUE64_LNG);
+        unsigned long h2 = value64_lhash(v2, VALUE64_LNG);
+        unsigned long h3 = value64_lhash(v3, VALUE64_LNG);
+
+        test_validate(h1 == h2, "Same longs must have same hash");
+        test_validate(h1 != h3, "Different longs should differ");
+    }
+
+    /* 3. double */
+    test_sub("subtest %d: hash double", ++subnum);
+    {
+        value64 v1 = value64_createdbl(3.1415);
+        value64 v2 = value64_createdbl(3.1415);
+        value64 v3 = value64_createdbl(2.718);
+
+        unsigned long h1 = value64_lhash(v1, VALUE64_DBL);
+        unsigned long h2 = value64_lhash(v2, VALUE64_DBL);
+        unsigned long h3 = value64_lhash(v3, VALUE64_DBL);
+
+        test_validate(h1 == h2, "Same doubles must have same hash");
+        test_validate(h1 != h3, "Different doubles should differ");
+    }
+
+    /* 4. pointer */
+    test_sub("subtest %d: hash pointer", ++subnum);
+    {
+        int x = 1, y = 2;
+        value64 v1 = value64_createptr(&x);
+        value64 v2 = value64_createptr(&x);
+        value64 v3 = value64_createptr(&y);
+
+        unsigned long h1 = value64_lhash(v1, VALUE64_PTR);
+        unsigned long h2 = value64_lhash(v2, VALUE64_PTR);
+        unsigned long h3 = value64_lhash(v3, VALUE64_PTR);
+
+        test_validate(h1 == h2, "Same pointers must have same hash");
+        test_validate(h1 != h3, "Different pointers should differ");
+    }
+
+    /* 5. C-string */
+    test_sub("subtest %d: hash str", ++subnum);
+    {
+        const char *text = "hash-me";
+        value64 v1 = value64_createstr(text);
+        value64 v2 = value64_createstr(text);
+        value64 v3 = value64_createstr("other");
+
+        unsigned long h1 = value64_lhash(v1, VALUE64_STR);
+        unsigned long h2 = value64_lhash(v2, VALUE64_STR);
+        unsigned long h3 = value64_lhash(v3, VALUE64_STR);
+
+        test_validate(h1 == h2, "Same strings must have same hash");
+        test_validate(h1 != h3, "Different strings should differ");
+
+        value64_free(v1, VALUE64_STR);
+        value64_free(v2, VALUE64_STR);
+        value64_free(v3, VALUE64_STR);
+    }
+
+    /* 6. fs (с ненулевым содержимым) */
+    test_sub("subtest %d: hash fs", ++subnum);
+    {
+        const char *text = "fs-hash";
+        fs orig = fscopy(text);
+        value64 v1 = value64_createfs(&orig);
+        value64 v2 = value64_createfs(&orig);   // ещё одна копия
+        fsfree(orig);
+
+        value64 v3 = value64_createfs(&(fs){ .v = "different", .len = 9, .sz = 0, .flags = FS_FLAG_STATIC });
+
+        unsigned long h1 = value64_lhash(v1, VALUE64_FS);
+        unsigned long h2 = value64_lhash(v2, VALUE64_FS);
+        unsigned long h3 = value64_lhash(v3, VALUE64_FS);
+
+        test_validate(h1 == h2, "Same fs must have same hash");
+        test_validate(h1 != h3, "Different fs should differ");
+
+        value64_free(v1, VALUE64_FS);
+        value64_free(v2, VALUE64_FS);
+        value64_free(v3, VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    /* 7. fs с NULL указателем (пустая строка) */
+    test_sub("subtest %d: hash fs with NULL body", ++subnum);
+    {
+        fs empty = FS();                    // v == NULL
+        value64 v = value64_createfs(&empty);
+
+        unsigned long h = value64_lhash(v, VALUE64_FS);
+        // Главное, чтобы не упало – hash_djb2 должен обработать NULL
+        test_validate(h == 5381, "Hash of empty fs (v=NULL) must be 5381, got %lu", h);
+
+        value64_free(v, VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -790,6 +920,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_point_init,       .num =  2, .name = "Simple value64_pcopy_move() test"           , .desc="", .mandatory=true)
               , testnew(.f2 = tf_clone,            .num =  3, .name = "Simple value64_clone() test"                , .desc="", .mandatory=true)
               , testnew(.f2 = tf_move,             .num =  4, .name = "Simple value64_move() test"                 , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_lhash,            .num =  5, .name = "Simple value64_lhash() test"                , .desc="", .mandatory=true)
             );
         if (runall)
             break;
