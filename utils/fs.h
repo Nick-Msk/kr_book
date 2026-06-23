@@ -98,7 +98,7 @@ static inline fs             fscopyf(const char *fmt, ...) __attribute__ (( form
 extern int                   fs_sprintf_position(fs *restrict s, int pos, const char *restrict fmt, va_list ap);
 
 #define             FSEMPTY (fs){.sz = 0, .len = 0, .flags = FS_FLAG_STATIC, .v = ""};
-
+#define             FSLITERAL(val) (fs){.sz = strlen(val) + 1, .len = strlen(val), .flags = FS_FLAG_STATIC, .v = (val) }
 #define             FSINITSTATIC(...)  (fs){.sz = 1, .len = 0, .flags = FS_FLAG_STATIC, .v = "", ##__VA_ARGS__}
 
 #define             FS(...)   (fs){.sz = 0, .len = 0, .flags = FS_FLAG_ALLOC, .v = 0, ##__VA_ARGS__}
