@@ -112,10 +112,14 @@ int                     value64_compare(value64 v1, value64 v2, value64_type typ
             return compare_ptr(v1.pval, v2.pval);
         break;
         case VALUE64_FS:
+            if (!v1.fsval || !v2.fsval)
+                userraiseint(ERR_NULLABLE_PTR, "Null pointers %p %p", v1.fsval, v2.fsval);
             return fs_cmp(v1.fsval, v2.fsval);
         break;
         case VALUE64_STR:
-            return strcmp(v1.sval, v2.sval) == 0;
+            if (!v1.sval || !v2.sval)
+                userraiseint(ERR_NULLABLE_PTR, "Null pointers %p %p", v1.sval, v2.sval);
+            return strcmp(v1.sval, v2.sval);
         break;
         default:
             userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
@@ -917,7 +921,7 @@ tf_lhash(const char *name)
     /* 7. fs с NULL указателем (пустая строка) */
     test_sub("subtest %d: hash fs with NULL body", ++subnum);
     {
-        fs empty = FS();                    // v == NULL
+        fs empty = FSLITERAL("");                    // v == NULL
         value64 v = value64_createfs(&empty);
 
         unsigned long h = value64_lhash(v, VALUE64_FS);
@@ -925,6 +929,115 @@ tf_lhash(const char *name)
         test_validate(h == 5381, "Hash of empty fs (v=NULL) must be 5381, got %lu", h);
 
         value64_free(v, VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
+// ------------------------- TEST value64_compare ---------------------------------
+
+static TestStatus
+tf_compare(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. compare int */
+    test_sub("subtest %d: compare int", ++subnum);
+    {
+        value64 v1 = value64_createint(42);
+        value64 v2 = value64_createint(42);
+        value64 v3 = value64_createint(100);
+
+        test_validate(value64_compare(v1, v2, VALUE64_INT) == 0, "Equal ints must return 0");
+        test_validate(value64_compare(v1, v3, VALUE64_INT) != 0, "Different ints must not return 0");
+    }
+
+    /* 2. compare long */
+    test_sub("subtest %d: compare long", ++subnum);
+    {
+        value64 v1 = value64_createlong(999999999L);
+        value64 v2 = value64_createlong(999999999L);
+        value64 v3 = value64_createlong(0L);
+
+        test_validate(value64_compare(v1, v2, VALUE64_LNG) == 0, "Equal longs must return 0");
+        test_validate(value64_compare(v1, v3, VALUE64_LNG) != 0, "Different longs must not return 0");
+    }
+
+    /* 3. compare double */
+    test_sub("subtest %d: compare double", ++subnum);
+    {
+        value64 v1 = value64_createdbl(3.1415);
+        value64 v2 = value64_createdbl(3.1415);
+        value64 v3 = value64_createdbl(2.718);
+
+        test_validate(value64_compare(v1, v2, VALUE64_DBL) == 0, "Equal doubles must return 0");
+        test_validate(value64_compare(v1, v3, VALUE64_DBL) != 0, "Different doubles must not return 0");
+    }
+
+    /* 4. compare pointer */
+    test_sub("subtest %d: compare pointer", ++subnum);
+    {
+        int x = 1, y = 2;
+        value64 v1 = value64_createptr(&x);
+        value64 v2 = value64_createptr(&x);
+        value64 v3 = value64_createptr(&y);
+
+        test_validate(value64_compare(v1, v2, VALUE64_PTR) == 0, "Same pointers must return 0");
+        test_validate(value64_compare(v1, v3, VALUE64_PTR) != 0, "Different pointers must not return 0");
+    }
+
+    /* 5. compare C-string (returns bool) */
+    test_sub("subtest %d: compare str", ++subnum);
+    {
+        const char *text = "compare-me";
+        value64 v1 = value64_createstr(text);
+        value64 v2 = value64_createstr(text);
+        value64 v3 = value64_createstr("other");
+
+        // value64_compare для строк возвращает true/false
+        test_validate(value64_compare(v1, v2, VALUE64_STR) == 0, "Equal strings must return true");
+        test_validate(value64_compare(v1, v3, VALUE64_STR) != 0, "Different strings must return false");
+
+        value64_free(v1, VALUE64_STR);
+        value64_free(v2, VALUE64_STR);
+        value64_free(v3, VALUE64_STR);
+    }
+
+    /* 6. compare fs */
+    test_sub("subtest %d: compare fs", ++subnum);
+    {
+        const char *text = "fs-cmp";
+        fs orig = fscopy(text);
+        value64 v1 = value64_createfs(&orig);
+        value64 v2 = value64_createfs(&orig);
+        fsfree(orig);
+
+        value64 v3 = value64_createfs( &FSLITERAL("different") );
+
+        test_validate(value64_compare(v1, v2, VALUE64_FS) == 0, "Equal fs must return 0");
+        test_validate(value64_compare(v1, v3, VALUE64_FS) != 0, "Different fs must not return 0");
+
+        value64_free(v1, VALUE64_FS);
+        value64_free(v2, VALUE64_FS);
+        value64_free(v3, VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    /* 7. compare fs with empty (0-len string "") */
+    test_sub("subtest %d: compare fs empty", ++subnum);
+    {
+        fs empty1 = FSLITERAL("");
+        fs empty2 = FSLITERAL("");
+
+        value64 v1 = value64_createfs(&empty1);
+        value64 v2 = value64_createfs(&empty2);
+
+        test_validate(value64_compare(v1, v2, VALUE64_FS) == 0, "Empty fs must be equal");
+
+        value64_free(v1, VALUE64_FS);
+        value64_free(v2, VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -956,6 +1069,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_clone,            .num =  3, .name = "Simple value64_clone() test"                , .desc="", .mandatory=true)
               , testnew(.f2 = tf_move,             .num =  4, .name = "Simple value64_move() test"                 , .desc="", .mandatory=true)
               , testnew(.f2 = tf_lhash,            .num =  5, .name = "Simple value64_lhash() test"                , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_compare,          .num =  6, .name = "Simple value64_compare() test"              , .desc="", .mandatory=true)
             );
         if (runall)
             break;
