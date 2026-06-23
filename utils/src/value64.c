@@ -29,6 +29,16 @@ const                   value64_typeinfo* value64_info_get(value64_type typ) {
     return &value64_info[typ];
 }
 
+static inline bool      is_long_int_range(long v) {
+    return v >= INT_MIN && v <= INT_MAX;
+}
+static inline bool      is_dbl_long_range(double v) {
+    return v >= (double) LONG_MIN && v <= (double) LONG_MAX;
+}
+static inline bool      is_dbl_int_range(double v) {
+    return v >= (double) INT_MIN && v <= (double) INT_MAX;
+}
+
 // the part of mass creation API, probably'll be changed
 // create value from pointer, value64 constructor ANY type, MOVE semantic
 value64                   value64_pcopy_move(void *p, value64_type typ, bool move){
@@ -137,13 +147,13 @@ value64_type            value64_gettype(const char *str){
    return VALUE64_UKNOWN;
 }
 
-// converted, COPY semantic
+// converted, COPY semantic, TODO: refactoring is required!
 value64                 convert_value(value64 v, value64_type from, value64_type to){
-    if (from == to && from != VALUE64_FS)  // криво конечно
+    if (from == to && from != VALUE64_FS && from != VALUE64_STR)  // криво конечно
         return v;
 
     value64     result = VALUE64_ZERO; // обнуляем u64
-    char        buf[50];
+    char        buf[100];   // more that l;angth of printf double
     int         ival;
     long        lval;
     double      dval;
@@ -166,9 +176,11 @@ value64                 convert_value(value64 v, value64_type from, value64_type
         break;
         case VALUE64_LNG:
             lval = value64_long(v);
-            if (to == VALUE64_INT)
+            if (to == VALUE64_INT){
+                if (!is_long_int_range(lval))
+                    userraiseint(ERR_OUT_OF_RANGE, "Long->int overflow (%ld)", lval);
                 result.ival = (int) lval;
-            else if (to == VALUE64_DBL)
+            } else if (to == VALUE64_DBL)
                 result.dval = (double) lval;
             else if (to == VALUE64_FS) {
                     fs tmp = fscopyf("%ld", lval);
@@ -181,11 +193,15 @@ value64                 convert_value(value64 v, value64_type from, value64_type
             break;
         case VALUE64_DBL:
             dval = value64_dbl(v);
-            if (to == VALUE64_INT)
+            if (to == VALUE64_INT) {
+                if (!is_dbl_int_range(dval))
+                    userraiseint(ERR_OUT_OF_RANGE, "Long->int overflow (%lf)", dval);
                 result.ival = (int) dval;
-            else if (to == VALUE64_LNG)
+            } else if (to == VALUE64_LNG) {
+                if (!is_dbl_long_range(dval))
+                    userraiseint(ERR_OUT_OF_RANGE, "Long->int overflow (%lf)", dval);
                 result.lval = (long) dval;
-            else if (to == VALUE64_FS) {
+            } else if (to == VALUE64_FS) {
                     fs tmp = fscopyf("%g", dval);
                     result.fsval = fs_moveto_heap(&tmp);
             } else if (to == VALUE64_STR) {
