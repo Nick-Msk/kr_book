@@ -250,6 +250,9 @@ static inline value64              *value64_move_fs(value64 *restrict target, va
 
 extern unsigned long               value64_lhash(value64 value, value64_type typ);
 
+extern value64                     convert_value(value64 v, value64_type from, value64_type to);
+extern value64                     convert_value_move(value64 *source, value64_type from, value64_type to);
+
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
 static inline void                  value64_fprint(FILE *restrict out, const char *restrict msg, value64 val, value64_type typ){

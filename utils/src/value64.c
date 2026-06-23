@@ -137,6 +137,109 @@ value64_type            value64_gettype(const char *str){
    return VALUE64_UKNOWN;
 }
 
+// converted, COPY semantic
+value64                 convert_value(value64 v, value64_type from, value64_type to){
+    if (from == to && from != VALUE64_FS)  // криво конечно
+        return v;
+
+    value64     result = VALUE64_ZERO; // обнуляем u64
+    char        buf[50];
+    int         ival;
+    long        lval;
+    double      dval;
+
+    switch (from) {
+        case VALUE64_INT:
+            ival = value64_int(v);
+            if (to == VALUE64_LNG)
+                result.lval = (long) ival;
+            else if (to == VALUE64_DBL)
+                result.dval = (double) ival;
+            else if (to == VALUE64_FS) {
+                fs tmp = fscopyf("%d", ival);       // TODO: fs_heapcopyf() is required! like fs_heapcopy
+                result.fsval = fs_moveto_heap(&tmp);
+            } else if (to == VALUE64_STR) {
+                snprintf(buf, sizeof(buf) - 1, "%d", ival );
+                result = value64_createstr(buf);
+            } else
+                userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, value64_typename(from), to, value64_typename(to) );
+        break;
+        case VALUE64_LNG:
+            lval = value64_long(v);
+            if (to == VALUE64_INT)
+                result.ival = (int) lval;
+            else if (to == VALUE64_DBL)
+                result.dval = (double) lval;
+            else if (to == VALUE64_FS) {
+                    fs tmp = fscopyf("%ld", lval);
+                    result.fsval = fs_moveto_heap(&tmp);
+            } else if (to == VALUE64_STR) {
+                snprintf(buf, sizeof(buf) - 1, "%ld", lval );
+                result = value64_createstr(buf);
+            } else
+                userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, value64_typename(from), to, value64_typename(to) );
+            break;
+        case VALUE64_DBL:
+            dval = value64_dbl(v);
+            if (to == VALUE64_INT)
+                result.ival = (int) dval;
+            else if (to == VALUE64_LNG)
+                result.lval = (long) dval;
+            else if (to == VALUE64_FS) {
+                    fs tmp = fscopyf("%g", dval);
+                    result.fsval = fs_moveto_heap(&tmp);
+            } else if (to == VALUE64_STR) {
+                snprintf(buf, sizeof(buf) - 1, "%lf", dval );
+                result = value64_createstr(buf);
+            } else
+                userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, value64_typename(from), to, value64_typename(to) );
+            break;
+        case VALUE64_FS:
+            fs *fsval = value64_fs(v);
+            if (to == VALUE64_INT)
+                result.ival = fs_getint(fsval);
+            else if (to == VALUE64_LNG)
+                result.lval = fs_getlong(fsval);
+            else if (to == VALUE64_DBL)
+                result.dval = fs_getdouble(fsval);
+            else if (to == VALUE64_FS)
+                result.fsval = fs_heapcreate(fsval); // body in heap too!!!
+            else if (to == VALUE64_STR) {
+                result = value64_createstr(fsval->v);
+            } else
+                userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, value64_typename(from), to, value64_typename(to) );
+            break;
+        case VALUE64_STR:
+            char *sval = value64_str(v);
+            if (to == VALUE64_INT)
+                result.ival = atoi(sval);
+            else if (to == VALUE64_LNG)
+                result.lval = atol(sval);
+            else if (to == VALUE64_DBL)
+                result.dval = atof(sval);
+            else if (to == VALUE64_STR)
+                // use constructor
+                result = value64_createstr(sval);
+            else if (to == VALUE64_FS){
+                /*fs tmp = fscopy(sval);
+                result.fsval = fs_moveto_heap(&tmp); */
+                result.fsval = fs_heapcopy(sval);
+            } else
+                userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, value64_typename(from), to, value64_typename(to) );
+            break;
+        default:
+            break; // неподдерживаемые типы — останется нулевое значение
+    }
+    return result;
+}
+
+// TODO: only FS <-> STR conversion with move semantic
+value64                 convert_value_move(value64 *source, value64_type from, value64_type to){
+    value64     result = VALUE64_ZERO; // обнуляем u64 
+    return result;
+}
+
+
 // --------------------------------- SERIALIZATION -----------------------------------------
 
 // ---------------------------------------- Testing ------------------------------------------
