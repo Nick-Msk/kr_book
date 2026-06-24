@@ -136,7 +136,7 @@ int                     value64_compare(value64 v1, value64 v2, value64_type typ
             return 0;
     }
 }
-
+с
 value64_type            value64_gettype(const char *str){
     if (!str)
         return VALUE64_UKNOWN;
@@ -252,11 +252,41 @@ value64                 value64_convert(value64 v, value64_type from, value64_ty
     return result;
 }
 
+// TODO: refactor is required
 // TODO: only FS <-> STR conversion with move semantic
 value64                 value64_convert_move(value64 *source, value64_type from, value64_type to){
-    value64     result = VALUE64_ZERO; // обнуляем u64 
+    invraisecode(source != NULL, ERR_NULL_POINTER, "Null pointer");
+
+    if (from == VALUE64_FS || from == VALUE64_STR && (to == VALUE64_FS || to == VALUE64_STR) )
+        return *source;  // nothing to do
+    value64     result = VALUE64_ZERO;
+
+    switch (from) {
+        case VALUE64_STR:
+            char *sval = value64_str(source);
+            if (to == VALUE64_STR) {
+                result.sval = sval;
+            } else { // VALUE64_FS
+                result.sval = fs_create();
+                fs_attach_str(&result, sval);   // TODO:
+            }
+            source->sval = NULL;
+        break;
+        case VALUE64_FS:
+            fs *fsval = value64_fs(source);
+            if (to == VALUE64_STR){
+                result.sval = fs_str(fsval);
+                fs_free(source->fsval);
+            } else {    // VALUE64_FS
+                result.fsval = fsval;   // just a move!!!
+                source->fsval = 0;  // NO FREE HERE
+            }
+        break;
+    }
+
     return result;
 }
+
 
 
 

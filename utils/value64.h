@@ -251,9 +251,17 @@ static inline value64              *value64_move_fs(value64 *restrict target, va
 extern unsigned long               value64_lhash(value64 value, value64_type typ);
 
 extern value64                     value64_convert(value64 v, value64_type from, value64_type to);
+/* TODO: via dispatcher func
+static inline value64              value64_convert(value64 v, value64_type from, value64_type to){
+    value64_convert_check(v, from, to, true);
+}
+static inline bool                 value64_is_convertable(value64 v, value64_type from, value64_type to){
+    value64_convert_check(v, from, to, false);
+}*/
+// TODO:
 extern value64                     value64_convert_move(value64 *source, value64_type from, value64_type to);
 
-// SQL in low level
+// SQL in low level TODO:
 extern bool                        value64_in   (value64 val, value64_type typ, const value64 *arr, int sz);
 extern bool                        value64_notin(value64 val, value64_type typ, const value64 *arr, int sz);
 
