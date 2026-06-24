@@ -22,11 +22,17 @@ typedef int(*Comparator)(const void *, const void *);
 
 #define 			COUNT(arr) (int)(sizeof arr/sizeof(typeof(*arr)) )
 
-static inline int   countstrings(const char * const *p){
+static inline int               countstrings(const char * const *p){
     const char * const *t = p;
     while (*t)
         t++;
     return t - p;
+}
+
+static inline const char        *skip_leading_spaces(const char *str) {
+    while (*str == ' ' || *str == '\t')
+        str++;
+    return str;
 }
 
 static const char 	NULLSTR[] = "(null)";
@@ -450,7 +456,7 @@ static inline int               calcnewsize(Tincrease t, int n){
     }
     return sz; //logsimpleret(sz, "newsz = %d", sz);
 }
-
+// TODO: refactor that
 // int comparators
 static inline bool              int_not_in(int val, const int *arr){
     while(*arr != INT_MIN)
