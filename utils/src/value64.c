@@ -148,7 +148,7 @@ value64_type            value64_gettype(const char *str){
 }
 
 // converted, COPY semantic, TODO: refactoring is required!
-value64                 convert_value(value64 v, value64_type from, value64_type to){
+value64                 value64_convert(value64 v, value64_type from, value64_type to){
     if (from == to && from != VALUE64_FS && from != VALUE64_STR)  // криво конечно
         return v;
 
@@ -231,7 +231,7 @@ value64                 convert_value(value64 v, value64_type from, value64_type
                 if (!try_parse_int(sval, &result.ival) )
                     userraiseint(ERR_INVALID_CONVERSION, "Invalid int string: %s", sval);
             } else if (to == VALUE64_LNG){
-                if (!try_parse_int(sval, &result.ival) )
+                if (!try_parse_long(sval, &result.lval) )
                     userraiseint(ERR_INVALID_CONVERSION, "Invalid long string: %s", sval);
             } else if (to == VALUE64_DBL){
                 if (!try_parse_double(sval, &result.dval) )
@@ -253,10 +253,11 @@ value64                 convert_value(value64 v, value64_type from, value64_type
 }
 
 // TODO: only FS <-> STR conversion with move semantic
-value64                 convert_value_move(value64 *source, value64_type from, value64_type to){
+value64                 value64_convert_move(value64 *source, value64_type from, value64_type to){
     value64     result = VALUE64_ZERO; // обнуляем u64 
     return result;
 }
+
 
 
 // --------------------------------- SERIALIZATION -----------------------------------------
@@ -1166,6 +1167,387 @@ tf_compare(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST value64_convert ---------------------------------
+
+static TestStatus
+tf_convert(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== 1. INT → LONG ========== */
+    test_sub("subtest %d: INT -> LONG", ++subnum);
+    {
+        value64 src = value64_createint(42);
+        value64 dst = value64_convert(src, VALUE64_INT, VALUE64_LNG);
+        test_validate(value64_long(dst) == 42L,
+            "INT->LONG: expected 42, got %ld", value64_long(dst));
+    }
+
+    /* ========== 2. INT → DBL ========== */
+    test_sub("subtest %d: INT -> DBL", ++subnum);
+    {
+        value64 src = value64_createint(42);
+        value64 dst = value64_convert(src, VALUE64_INT, VALUE64_DBL);
+        test_validate(fabs(value64_dbl(dst) - 42.0) < 0.0001,
+            "INT->DBL: expected 42.0, got %f", value64_dbl(dst));
+    }
+
+    /* ========== 3. INT → FS ========== */
+    test_sub("subtest %d: INT -> FS", ++subnum);
+    {
+        value64 src = value64_createint(42);
+        value64 dst = value64_convert(src, VALUE64_INT, VALUE64_FS);
+        fs *dst_fs = value64_fs(dst);
+        test_validatefree(
+            strcmp(fs_str(dst_fs), "42") == 0,
+            value64_free(dst, VALUE64_FS),
+            "INT->FS: expected '42', got '%s'", fs_str(dst_fs)
+        );
+        value64_free(dst, VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    /* ========== 4. INT → STR ========== */
+    test_sub("subtest %d: INT -> STR", ++subnum);
+    {
+        value64 src = value64_createint(42);
+        value64 dst = value64_convert(src, VALUE64_INT, VALUE64_STR);
+        test_validatefree(
+            strcmp(value64_str(dst), "42") == 0,
+            value64_free(dst, VALUE64_STR),
+            "INT->STR: expected '42', got '%s'", value64_str(dst)
+        );
+        value64_free(dst, VALUE64_STR);
+    }
+
+    /* ========== 5. LONG → INT (в пределах) ========== */
+    test_sub("subtest %d: LONG -> INT (in range)", ++subnum);
+    {
+        value64 src = value64_createlong(123456L);
+        value64 dst = value64_convert(src, VALUE64_LNG, VALUE64_INT);
+        test_validate(value64_int(dst) == 123456,
+            "LONG->INT: expected 123456, got %d", value64_int(dst));
+    }
+
+    /* ========== 6. LONG → INT (переполнение) ========== */
+    test_sub("subtest %d: LONG -> INT (overflow)", ++subnum);
+    {
+        value64 src = value64_createlong(2147483648L);  // > INT_MAX
+        if (!try()) {
+            value64 dst = value64_convert(src, VALUE64_LNG, VALUE64_INT);
+            test_validate(false, "LONG->INT overflow must raise error, but returned %d", value64_int(dst));
+        } else {
+            test_validate(true, "LONG->INT overflow correctly raised error");
+        }
+    }
+
+    /* ========== 7. LONG → DBL ========== */
+    test_sub("subtest %d: LONG -> DBL", ++subnum);
+    {
+        value64 src = value64_createlong(999999999L);
+        value64 dst = value64_convert(src, VALUE64_LNG, VALUE64_DBL);
+        test_validate(fabs(value64_dbl(dst) - 999999999.0) < 0.0001,
+            "LONG->DBL: expected 999999999.0, got %f", value64_dbl(dst));
+    }
+
+    /* ========== 8. LONG → FS ========== */
+    test_sub("subtest %d: LONG -> FS", ++subnum);
+    {
+        value64 src = value64_createlong(-123456789L);
+        value64 dst = value64_convert(src, VALUE64_LNG, VALUE64_FS);
+        fs *dst_fs = value64_fs(dst);
+        test_validatefree(
+            strcmp(fs_str(dst_fs), "-123456789") == 0,
+            value64_free(dst, VALUE64_FS),
+            "LONG->FS: expected '-123456789', got '%s'", fs_str(dst_fs)
+        );
+        value64_free(dst, VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    /* ========== 9. LONG → STR ========== */
+    test_sub("subtest %d: LONG -> STR", ++subnum);
+    {
+        value64 src = value64_createlong(0L);
+        value64 dst = value64_convert(src, VALUE64_LNG, VALUE64_STR);
+        test_validatefree(
+            strcmp(value64_str(dst), "0") == 0,
+            value64_free(dst, VALUE64_STR),
+            "LONG->STR: expected '0', got '%s'", value64_str(dst)
+        );
+        value64_free(dst, VALUE64_STR);
+    }
+
+    /* ========== 10. DBL → INT (в пределах) ========== */
+    test_sub("subtest %d: DBL -> INT (in range)", ++subnum);
+    {
+        value64 src = value64_createdbl(3.14);
+        value64 dst = value64_convert(src, VALUE64_DBL, VALUE64_INT);
+        test_validate(value64_int(dst) == 3,
+            "DBL->INT: expected 3, got %d", value64_int(dst));
+    }
+
+    /* ========== 11. DBL → INT (переполнение) ========== */
+    test_sub("subtest %d: DBL -> INT (overflow)", ++subnum);
+    {
+        value64 src = value64_createdbl(1.0e30);
+        if (!try()) {
+            value64 dst = value64_convert(src, VALUE64_DBL, VALUE64_INT);
+            test_validate(false, "DBL->INT overflow must raise error, but returned %d", value64_int(dst));
+        } else {
+            test_validate(true, "DBL->INT overflow correctly raised error");
+        }
+    }
+
+    /* ========== 12. DBL → LONG (в пределах) ========== */
+    test_sub("subtest %d: DBL -> LONG (in range)", ++subnum);
+    {
+        value64 src = value64_createdbl(2.71828);
+        value64 dst = value64_convert(src, VALUE64_DBL, VALUE64_LNG);
+        test_validate(value64_long(dst) == 2L,
+            "DBL->LONG: expected 2, got %ld", value64_long(dst));
+    }
+
+    /* ========== 13. DBL → LONG (переполнение) ========== */
+    test_sub("subtest %d: DBL -> LONG (overflow)", ++subnum);
+    {
+        value64 src = value64_createdbl(1.0e30);
+        if (!try()) {
+            value64 dst = value64_convert(src, VALUE64_DBL, VALUE64_LNG);
+            test_validate(false, "DBL->LONG overflow must raise error, but returned %ld", value64_long(dst));
+        } else {
+            test_validate(true, "DBL->LONG overflow correctly raised error");
+        }
+    }
+
+    /* ========== 14. DBL → FS ========== */
+    test_sub("subtest %d: DBL -> FS", ++subnum);
+    {
+        value64 src = value64_createdbl(3.14159265);
+        value64 dst = value64_convert(src, VALUE64_DBL, VALUE64_FS);
+        fs *dst_fs = value64_fs(dst);
+        // %g убирает лишние нули, проверяем, что строка начинается с "3.14159"
+        test_validatefree(
+            strncmp(fs_str(dst_fs), "3.14159", 7) == 0,
+            value64_free(dst, VALUE64_FS),
+            "DBL->FS: expected prefix '3.14159', got '%s'", fs_str(dst_fs)
+        );
+        value64_free(dst, VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    /* ========== 15. DBL → STR ========== */
+    test_sub("subtest %d: DBL -> STR", ++subnum);
+    {
+        value64 src = value64_createdbl(2.5);
+        value64 dst = value64_convert(src, VALUE64_DBL, VALUE64_STR);
+        // snprintf с "%lf" даст "2.500000"
+        test_validatefree(
+            strcmp(value64_str(dst), "2.500000") == 0,
+            value64_free(dst, VALUE64_STR),
+            "DBL->STR: expected '2.500000', got '%s'", value64_str(dst)
+        );
+        value64_free(dst, VALUE64_STR);
+    }
+
+    /* ========== 16. FS → INT (корректная строка) ========== */
+    test_sub("subtest %d: FS -> INT (valid)", ++subnum);
+    {
+        fs tmp = fscopy("123");
+        value64 src = value64_createfs(&tmp);
+        fsfree(tmp);
+        value64 dst = value64_convert(src, VALUE64_FS, VALUE64_INT);
+        test_validatefree(
+            value64_int(dst) == 123,
+            value64_free(src, VALUE64_FS),
+            "FS->INT: expected 123, got %d", value64_int(dst)
+        );
+        value64_free(src, VALUE64_FS);
+    }
+
+    /* ========== 17. FS → INT (некорректная строка) ========== */
+    test_sub("subtest %d: FS -> INT (invalid)", ++subnum);
+    {
+        fs tmp = fscopy("abc");
+        value64 src = value64_createfs(&tmp);
+        fsfree(tmp);
+        if (!try()) {
+            value64 dst = value64_convert(src, VALUE64_FS, VALUE64_INT);
+            test_validatefree(false, value64_free(src, VALUE64_FS),
+                "FS->INT invalid must raise error, but returned %d", value64_int(dst));
+        } else {
+            test_validatefree(true, value64_free(src, VALUE64_FS),
+                "FS->INT invalid correctly raised error");
+        }
+        value64_free(src, VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    /* ========== 18. FS → LONG ========== */
+    test_sub("subtest %d: FS -> LONG", ++subnum);
+    {
+        fs tmp = fscopy("-999999999");
+        value64 src = value64_createfs(&tmp);
+        fsfree(tmp);
+        value64 dst = value64_convert(src, VALUE64_FS, VALUE64_LNG);
+        test_validatefree(
+            value64_long(dst) == -999999999L,
+            value64_free(src, VALUE64_FS),
+            "FS->LONG: expected -999999999, got %ld", value64_long(dst)
+        );
+        value64_free(src, VALUE64_FS);
+    }
+
+    /* ========== 19. FS → DBL ========== */
+    test_sub("subtest %d: FS -> DBL", ++subnum);
+    {
+        fs tmp = fscopy("3.1415");
+        value64 src = value64_createfs(&tmp);
+        fsfree(tmp);
+        value64 dst = value64_convert(src, VALUE64_FS, VALUE64_DBL);
+        test_validatefree(
+            fabs(value64_dbl(dst) - 3.1415) < 0.0001,
+            value64_free(src, VALUE64_FS),
+            "FS->DBL: expected ~3.1415, got %f", value64_dbl(dst)
+        );
+        value64_free(src, VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    /* ========== 20. FS → FS (копирование) ========== */
+    test_sub("subtest %d: FS -> FS (copy)", ++subnum);
+    {
+        fs tmp = fscopy("clone-me");
+        value64 src = value64_createfs(&tmp);
+        fsfree(tmp);
+        value64 dst = value64_convert(src, VALUE64_FS, VALUE64_FS);
+        fs *src_fs = value64_fs(src);
+        fs *dst_fs = value64_fs(dst);
+        test_validatefree(
+            strcmp(fs_str(src_fs), fs_str(dst_fs)) == 0 && src_fs != dst_fs,
+            (value64_free(src, VALUE64_FS), value64_free(dst, VALUE64_FS)),
+            "FS->FS: copy must have same content but different pointer"
+        );
+        value64_free(src, VALUE64_FS);
+        value64_free(dst, VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    /* ========== 21. FS → STR ========== */
+    test_sub("subtest %d: FS -> STR", ++subnum);
+    {
+        fs tmp = fscopy("to-string");
+        value64 src = value64_createfs(&tmp);
+        fsfree(tmp);
+        value64 dst = value64_convert(src, VALUE64_FS, VALUE64_STR);
+        test_validatefree(
+            strcmp(value64_str(dst), "to-string") == 0,
+            (value64_free(src, VALUE64_FS), value64_free(dst, VALUE64_STR)),
+            "FS->STR: expected 'to-string', got '%s'", value64_str(dst)
+        );
+        value64_free(src, VALUE64_FS);
+        value64_free(dst, VALUE64_STR);
+    }
+
+    /* ========== 22. STR → INT (корректная) ========== */
+    test_sub("subtest %d: STR -> INT (valid)", ++subnum);
+    {
+        value64 src = value64_createstr("42");
+        value64 dst = value64_convert(src, VALUE64_STR, VALUE64_INT);
+        test_validatefree(
+            value64_int(dst) == 42,
+            value64_free(src, VALUE64_STR),
+            "STR->INT: expected 42, got %d", value64_int(dst)
+        );
+        value64_free(src, VALUE64_STR);
+    }
+
+    /* ========== 23. STR → INT (некорректная) ========== */
+    test_sub("subtest %d: STR -> INT (invalid)", ++subnum);
+    {
+        value64 src = value64_createstr("not-a-number");
+        if (!try()) {
+            value64 dst = value64_convert(src, VALUE64_STR, VALUE64_INT);
+            test_validatefree(false, value64_free(src, VALUE64_STR),
+                "STR->INT invalid must raise error, but returned %d", value64_int(dst));
+        } else {
+            test_validatefree(true, value64_free(src, VALUE64_STR),
+                "STR->INT invalid correctly raised error");
+        }
+        value64_free(src, VALUE64_STR);
+    }
+
+    /* ========== 24. STR → LONG (корректная) ========== */
+    test_sub("subtest %d: STR -> LONG (valid)", ++subnum);
+    {
+        value64 src = value64_createstr("-123456789");
+        value64 dst = value64_convert(src, VALUE64_STR, VALUE64_LNG);
+        test_validatefree(
+            value64_long(dst) == -123456789L,
+            value64_free(src, VALUE64_STR),
+            "STR->LONG: expected -123456789, got %ld", value64_long(dst)
+        );
+        value64_free(src, VALUE64_STR);
+    }
+
+    /* ========== 25. STR → DBL (корректная) ========== */
+    test_sub("subtest %d: STR -> DBL (valid)", ++subnum);
+    {
+        value64 src = value64_createstr("2.71828");
+        value64 dst = value64_convert(src, VALUE64_STR, VALUE64_DBL);
+        test_validatefree(
+            fabs(value64_dbl(dst) - 2.71828) < 0.00001,
+            value64_free(src, VALUE64_STR),
+            "STR->DBL: expected ~2.71828, got %f", value64_dbl(dst)
+        );
+        value64_free(src, VALUE64_STR);
+    }
+
+    /* ========== 26. STR → STR (копирование) ========== */
+    test_sub("subtest %d: STR -> STR (copy)", ++subnum);
+    {
+        value64 src = value64_createstr("copy-string");
+        value64 dst = value64_convert(src, VALUE64_STR, VALUE64_STR);
+        test_validatefree(
+            strcmp(value64_str(src), value64_str(dst)) == 0 && value64_str(src) != value64_str(dst),
+            (value64_free(src, VALUE64_STR), value64_free(dst, VALUE64_STR)),
+            "STR->STR: copy must have same content but different pointer"
+        );
+        value64_free(src, VALUE64_STR);
+        value64_free(dst, VALUE64_STR);
+    }
+
+    /* ========== 27. STR → FS ========== */
+    test_sub("subtest %d: STR -> FS", ++subnum);
+    {
+        value64 src = value64_createstr("hello-fs");
+        value64 dst = value64_convert(src, VALUE64_STR, VALUE64_FS);
+        fs *dst_fs = value64_fs(dst);
+        test_validatefree(
+            strcmp(fs_str(dst_fs), "hello-fs") == 0,
+            (value64_free(src, VALUE64_STR), value64_free(dst, VALUE64_FS)),
+            "STR->FS: expected 'hello-fs', got '%s'", fs_str(dst_fs)
+        );
+        value64_free(src, VALUE64_STR);
+        value64_free(dst, VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    /* ========== 28. Граничные значения: INT_MAX → LONG → DBL → STR → FS и обратно ========== */
+    test_sub("subtest %d: round-trip INT_MAX", ++subnum);
+    {
+        value64 src = value64_createint(INT_MAX);
+        value64 tmp = value64_convert(src, VALUE64_INT, VALUE64_LNG);
+        test_validate(value64_long(tmp) == (long)INT_MAX, "INT_MAX -> LONG mismatch");
+        tmp = value64_convert(tmp, VALUE64_LNG, VALUE64_DBL);
+        test_validate(fabs(value64_dbl(tmp) - (double)INT_MAX) < 10.0, "INT_MAX -> DBL mismatch");
+        // дальше можно в STR и обратно, но не будем усложнять
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -1192,6 +1574,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_move,             .num =  4, .name = "Simple value64_move() test"                 , .desc="", .mandatory=true)
               , testnew(.f2 = tf_lhash,            .num =  5, .name = "Simple value64_lhash() test"                , .desc="", .mandatory=true)
               , testnew(.f2 = tf_compare,          .num =  6, .name = "Simple value64_compare() test"              , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_convert,          .num =  7, .name = "Simple value64_convert() test"              , .desc="", .mandatory=true)
             );
         if (runall)
             break;
