@@ -1,5 +1,6 @@
 #include "common.h"
 #include "log.h"
+#include <sys/errno.h>
 
 /********************************************************************
                  COOMON MODULE IMPLEMENTATION
@@ -106,37 +107,48 @@ int                             pdbl_revcmp(const void *d1, const void *d2){
         return 0;
 }
 
+static inline bool              is_long_overflow(long val){
+    return errno == ERANGE && (val == LONG_MAX || val == LONG_MIN);
+}
+static inline bool              is_double_overflow(double val){
+    return errno == ERANGE && isinf(val);
+}
 
 bool                            try_parse_int(const char *restrict str, int *restrict res) {
-    if (!str) return false;
-    char *endptr;
+    if (!str)
+        return logsimpleerr(false, "Null pointer str");
+    errno = 0;
+    char    *endptr;
     long val = strtol(str, &endptr, 10);
-    if (str == endptr || *endptr != '\0' || val > INT_MAX || val < INT_MIN) {
-        return false;
-    }
-    *res = (int) val;
+    if (str == endptr || *endptr != '\0' || val > INT_MAX || val < INT_MIN)
+        return logsimpleerr(false, "Unable to parse int %ld, errno %d", val, errno);
+    if (res)
+        *res = (int) val;
     return true;
 }
 bool                            try_parse_long(const char *restrict str, long *restrict res) {
     if (!str)
-        return false;
-    char *endptr;
+        return logsimpleerr(false, "Null pointer str");
+    errno = 0;
+    char    *endptr;
     long val = strtol(str, &endptr, 10);
-    if (str == endptr || *endptr != '\0') {
-        return false;
-    }
-    *res = val;
+    if (str == endptr || *endptr != '\0' || is_long_overflow(val) )
+        return logsimpleerr(false, "Unable to parse long %ld, errno %d", val, errno);
+    if (res)
+        *res = val;
     return true;
 }
 bool                            try_parse_double(const char *restrict str, double *restrict res) {
     if (!str)
-        return false;
-    char *endptr;
+        return logsimpleerr(false, "Null pointer str");
+    errno = 0;
+    char    *endptr;
     double val = strtold(str, &endptr);
-    if (str == endptr || *endptr != '\0') {
-        return false;
+    if (str == endptr || *endptr != '\0' || is_double_overflow(val) ) {
+        return logsimpleerr(false, "Unable to parse double %lg, errno %d", val, errno);
     }
-    *res = val;
+    if (res)
+        *res = val;
     return true;
 }
 
@@ -148,42 +160,196 @@ bool                            try_parse_double(const char *restrict str, doubl
 #include "test.h"
 #include "checker.h"
 
-// ------------------------- TEST 1 ---------------------------------
+// ------------------------- TEST try_parse ---------------------------------
 
 static TestStatus
-tf1(const char *name)
+tf_try_parse(const char *name)
 {
     logenter("%s", name);
-    TFILE   tf;
-    int         subnum = 0;
+    int subnum = 0;
+
+    /* ========== try_parse_int ========== */
+
+    /* 1. Успешный парсинг обычного int */
+    test_sub("subtest %d: try_parse_int valid", ++subnum);
     {
-        test_sub("subtest %d", ++subnum);
-        // TODO: 
-        return logactret(test_fclose(tf), TEST_FAILED, "Array is'nt freed");
+        const char     *valid[] = {"0", "123", "-456", "2147483647", "-2147483648"};
+        int             expected[] = {0, 123, -456, 2147483647, -2147483648};
+        for (int i = 0; i < COUNT(valid); i++) {
+            int     result;
+            bool    ok;
+            test_validate(
+                (ok = try_parse_int(valid[i], &result) ) && result == expected[i],
+                "try_parse_int('%s'): expected %d, got %d (ok=%s)",
+                valid[i], expected[i], result, bool_str(ok));
+        }
     }
 
-    test_fclose(tf);
-    return logret(TEST_PASSED, "done"); // TEST_FAILED
+    /* 2. Неудачи: пустая строка, буквы, частичный парсинг, переполнение, пробелы */
+    test_sub("subtest %d: try_parse_int invalid", ++subnum);
+    {
+        const char *invalid[] = {
+            "", "abc", "123abc", /* "  123", */ "123  ", "9999999999", "-9999999999"
+        };
+        for (int i = 0; i < COUNT(invalid); i++) {
+            int     result;
+            bool    ok;
+            test_validate(
+                !(ok = try_parse_int(invalid[i], &result) ),
+                "try_parse_int('%s'): must fail, got ok=%s, result=%d",
+                invalid[i], bool_str(ok), result);
+        }
+    }
+
+    /* 3. NULL-указатель */
+    test_sub("subtest %d: try_parse_int NULL", ++subnum);
+    {
+        int     result;
+        bool    ok;
+        test_validate(
+            !(ok = try_parse_int(NULL, &result) ),
+            "try_parse_int(NULL) must return false");
+    }
+
+    /* ========== try_parse_long ========== */
+
+    /* 4. Успешный парсинг long */
+    test_sub("subtest %d: try_parse_long valid", ++subnum);
+    {
+        const char *valid[] = {"0", "123", "-456",
+                               "9223372036854775807", "-9223372036854775808"};
+        long        expected[] = {0L, 123L, -456L, 9223372036854775807L, LONG_MIN};
+        bool        ok;
+        for (int i = 0; i < COUNT(valid); i++) {
+            long    result;
+            test_validate(
+                (ok = try_parse_long(valid[i], &result) ) && result == expected[i],
+                "try_parse_long('%s'): expected %ld, got %ld (ok=%s)",
+                valid[i], expected[i], result, bool_str(ok));
+        }
+    }
+
+    /* 5. Неудачи для long */
+    test_sub("subtest %d: try_parse_long invalid", ++subnum);
+    {
+        const char *invalid[] = {
+            "", "abc", "123abc", /* "  123", */ "123  ",
+            "99999999999999999999", "-99999999999999999999"
+        };
+        for (int i = 0; i < COUNT(invalid); i++) {
+            long    result;
+            bool    ok;
+            test_validate(
+                !(ok = try_parse_long(invalid[i], &result) ),
+                "try_parse_long('%s'): must fail, got ok=%s, result=%ld",
+                invalid[i], bool_str(ok), result);
+        }
+    }
+
+    /* 6. NULL */
+    test_sub("subtest %d: try_parse_long NULL", ++subnum);
+    {
+        long result;
+        test_validate(
+            !try_parse_long(NULL, &result),
+            "try_parse_long(NULL) must return false");
+    }
+
+    /* ========== try_parse_double ========== */
+
+    /* 7. Успешный парсинг double (обычные числа) */
+    test_sub("subtest %d: try_parse_double valid", ++subnum);
+    {
+        struct { const char *s; double d; } tests[] = {
+            {"0.0", 0.0}, {"3.1415", 3.1415}, {"-2.718", -2.718},
+            {"1.0e10", 1.0e10}, {"-1.0e-10", -1.0e-10}
+        };
+        for (int i = 0; i < COUNT(tests); i++) {
+            double      result;
+            bool        ok;
+            test_validate(
+                (ok = try_parse_double(tests[i].s, &result) ) && fabs(result - tests[i].d) < 1e-12 * fabs(tests[i].d + 1.0),
+                "try_parse_double('%s'): expected %g, got %g (ok=%s)",
+                tests[i].s, tests[i].d, result, bool_str(ok));
+        }
+    }
+
+    /* 8. Специальные значения double: inf, -inf, nan (если разрешены) */
+    test_sub("subtest %d: try_parse_double special", ++subnum);
+    {
+        // inf и -inf обычно парсятся без ошибки, nan тоже, проверим
+        const char *special[] = {"inf", "-inf", "nan"};
+        for (int i = 0; i < COUNT(special); i++) {
+            double      result;
+            bool        ok = try_parse_double(special[i], &result);
+            // Проверяем, что парсинг успешен и значение соответствует ожидаемому
+            if (strcmp(special[i], "inf") == 0) {
+                test_validate(ok && isinf(result) && result > 0,
+                    "try_parse_double('inf'): expected +inf, got ok=%s, result=%g", bool_str(ok), result);
+            } else if (strcmp(special[i], "-inf") == 0) {
+                test_validate(ok && isinf(result) && result < 0,
+                    "try_parse_double('-inf'): expected -inf, got ok=%s, result=%g", bool_str(ok), result);
+            } else if (strcmp(special[i], "nan") == 0) {
+                test_validate(ok && isnan(result),
+                    "try_parse_double('nan'): expected NaN, got ok=%s, result=%g", bool_str(ok), result);
+            }
+        }
+    }
+
+    /* 9. Неудачи для double (пустая строка, буквы, пробелы, переполнение) */
+    test_sub("subtest %d: try_parse_double invalid", ++subnum);
+    {
+        const char *invalid[] = {
+            "", "abc", "123abc", /*"  123" ,*/ "123  ",
+            "1e9999", "-1e9999"
+        };
+        for (int i = 0; i < COUNT(invalid); i++) {
+            double      result;
+            bool        ok;
+            test_validate(
+                !(ok = try_parse_double(invalid[i], &result) ),
+                "try_parse_double('%s'): must fail, got ok=%s, result=%g",
+                invalid[i], bool_str(ok), result);
+        }
+    }
+
+    /* 10. NULL */
+    test_sub("subtest %d: try_parse_double NULL", ++subnum);
+    {
+        double result;
+        test_validate(
+            !try_parse_double(NULL, &result),
+            "try_parse_double(NULL) must return false");
+    }
+
+    return logret(TEST_PASSED, "done");
 }
 
 // -------------------------------------------------------------------
-
 int
-main(int argc, char *argv[])
+main(int argc, const char *argv[])
 {
-    const char *logfilename = "log/common.log";
 
-    if (argc > 1)
-        logfilename = argv[1];
+    logsimpleinit("Start");
+    bool    runall = argc == 1;
 
-    loginit(logfilename, false, 0, "Starting");
-
-    testenginestd(  // TODO:
-        testnew(.f2 = tf1, .num = 1, .name = "SOMETHING simple test",                .desc = "", .mandatory=true)
-    );
-
-    logclose("end...");
-    return 0;
+    while (runall || *++argv){
+        int     num = INT_MAX;    // INT_MAX for all test
+        if (!runall){
+            num = atoi(*argv);
+            if (num < 0){
+                fprintf(stderr,"Invalid test num %d\n", num);
+                continue;
+            }
+        }
+        printf("Num %d\n", num);
+            testenginestd_run(num,
+                testnew(.f2 = tf_try_parse,        .num =  1, .name = "Simple try_parse_<type> test"              , .desc="", .mandatory=true)
+            );
+        if (runall)
+            break;
+    }
+    return logret(0, "end...");  // as replace of logclose()
 }
 
 #endif /* COMMONTESTING */

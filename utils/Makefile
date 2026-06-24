@@ -29,6 +29,9 @@ log.o:	src/log.c
 	$(CC) $(CFLAGS) $^ -c
 	@mv $@ lib/
 
+common: src/common.c lib/test.o lib/error.o lib/log.o
+	$(CC) $(CFLAGS) -DCOMMONTESTING $^ -o test/$@_test
+
 common.o: src/common.c
 	$(CC) $(CFLAGS) $^ -c
 	@mv $@ lib
