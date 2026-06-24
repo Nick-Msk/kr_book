@@ -2048,7 +2048,7 @@ tf22(const char *name)
     test_sub("subtest %d: getint simple", ++subnum);
     {
         int     ival = 2347890;
-        fssprintf(s, "%s%d%s", shift, ival, shift);
+        fssprintf(s, "%s%d", shift, ival);
 
         int     ires = fsgetintpos(s, sizeof(shift) - 1);
 
@@ -2058,7 +2058,7 @@ tf22(const char *name)
     test_sub("subtest %d: getlong simple", ++subnum);
     {
         long    lval = 987654321099887;
-        fssprintf(s, "%s%ld%s", shift, lval, shift);
+        fssprintf(s, "%s%ld", shift, lval);
 
         fstechfprint(logfile, s);
         long    lres = fsgetlongpos(s, sizeof(shift) - 1);
@@ -2069,7 +2069,7 @@ tf22(const char *name)
     test_sub("subtest %d: getdouble simple", ++subnum);
     {
         double  dval = 12.345;
-        fssprintf(s, "%s%lf%s", shift, dval, shift);
+        fssprintf(s, "%s%lf", shift, dval);
 
         double  dres = fsgetdoublepos(s, sizeof(shift) - 1);
 

@@ -548,38 +548,42 @@ static inline bool           fs_iin(fs s, const char *strs[]){
     return false;
 }
 
+// TODO: ordered version, via binsearch
+
 // try to parse value
 static inline int            fs_getintpos(const fs *ps, int pos){
-    invraise(ps != 0, "Null pointer");
-    return atoi(ps->v + pos);
+    int     res;
+    if (!try_parse_int(ps->v + pos, &res) )
+        userraiseint(ERR_INVALID_CONVERSION, "Unablew to convert to int %.50s", ps->v + pos);            // this must be configurable! 
+    return res;
 }
 //
 static inline int            fs_getint(const fs *ps){
-    invraise(ps != 0, "Null pointer");
     return fs_getintpos(ps, 0);
 }
 
 // try to parse value
 static inline long           fs_getlongpos(const fs *ps, int pos){
-    invraise(ps != 0, "Null pointer");
-    return atol(ps->v + pos);
+    long     res;
+    if (!try_parse_long(ps->v + pos, &res) )
+        userraiseint(ERR_INVALID_CONVERSION, "Unablew to convert to long %.50s", ps->v + pos);            // this must be configurable! 
+    return res;
 }
 //
 static inline long            fs_getlong(const fs *ps){
-    invraise(ps != 0, "Null pointer");
     return fs_getlongpos(ps, 0);
 }
 // try to parse value
 static inline double          fs_getdoublepos(const fs *ps, int pos){
-    invraise(ps != 0, "Null pointer");
-    return atof(ps->v + pos);
+    double     res;
+    if (!try_parse_double(ps->v + pos, &res) )
+        userraiseint(ERR_INVALID_CONVERSION, "Unablew to convert to double %.50s", ps->v + pos);            // this must be configurable!
+    return res;
 }
 //
 static inline double          fs_getdouble(const fs *ps){
-    invraise(ps != 0, "Null pointer");
     return fs_getdoublepos(ps, 0);
 }
-// TODO: ordered version, via binsearch
 
 #define                      get(s, pos) *fs_get(&(s), (pos) )
 #define                      getv(s) (s.v)
