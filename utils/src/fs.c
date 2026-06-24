@@ -2078,6 +2078,206 @@ tf22(const char *name)
     }
     fsfree(s);
     check_leak(true);
+
+    // additional
+    /* ========== fs_getint ========== */
+
+    /* 1. Обычное число */
+    test_sub("subtest %d: fs_getint normal", ++subnum);
+    {
+        fs s = fscopy("42");
+        test_validatefree(
+            fs_getint(&s) == 42,
+            fsfree(s),
+            "fs_getint('42') must return 42"
+        );
+        fsfree(s);
+    }
+
+    /* 2. Отрицательное число */
+    test_sub("subtest %d: fs_getint negative", ++subnum);
+    {
+        fs s = fscopy("-123");
+        test_validatefree(
+            fs_getint(&s) == -123,
+            fsfree(s),
+            "fs_getint('-123') must return -123"
+        );
+        fsfree(s);
+    }
+
+    /* 3. Нечисловая строка – должна упасть (перехватываем сигнал) */
+    test_sub("subtest %d: fs_getint non‑numeric", ++subnum);
+    {
+        fs s = fscopy("abc");
+        if (!try()) {
+            int val = fs_getint(&s);   // должно вызвать userraiseint
+            test_validatefree(
+                false,
+                fsfree(s),
+                "fs_getint('abc') must raise error, but returned %d", val
+            );
+        } else {
+            test_validatefree(
+                true,
+                fsfree(s),
+                "fs_getint('abc') correctly raised error"
+            );
+        }
+        fsfree(s);
+    }
+
+    /* 4. Пустая строка – должна упасть */
+    test_sub("subtest %d: fs_getint empty", ++subnum);
+    {
+        fs s = FS();   // пустая строка, v == NULL
+        if (!try()) {
+            fs_getint(&s);
+            test_validatefree(false, fsfree(s), "fs_getint(empty) must raise error");
+        } else {
+            test_validatefree(true, fsfree(s), "fs_getint(empty) correctly raised error");
+        }
+        fsfree(s);
+    }
+
+    /* 5. Работа с позицией: fs_getintpos */
+    test_sub("subtest %d: fs_getintpos", ++subnum);
+    {
+        fs s = fscopy("abc 123");
+        test_validatefree(
+            fs_getintpos(&s, 4) == 123,
+            fsfree(s),
+            "fs_getintpos('abc 123', 4) must return 123"
+        );
+        fsfree(s);
+    }
+
+    /* ========== fs_getlong ========== */
+
+    /* 6. Обычное значение */
+    test_sub("subtest %d: fs_getlong normal", ++subnum);
+    {
+        fs s = fscopy("9999999999");
+        test_validatefree(
+            fs_getlong(&s) == 9999999999L,
+            fsfree(s),
+            "fs_getlong('9999999999') must return 9999999999"
+        );
+        fsfree(s);
+    }
+
+    /* 7. Нечисловая строка */
+    test_sub("subtest %d: fs_getlong non‑numeric", ++subnum);
+    {
+        fs s = fscopy("xyz");
+        if (!try()) {
+            fs_getlong(&s);
+            test_validatefree(false, fsfree(s), "fs_getlong('xyz') must raise error");
+        } else {
+            test_validatefree(true, fsfree(s), "fs_getlong('xyz') correctly raised error");
+        }
+        fsfree(s);
+    }
+
+    /* 8. Пустая строка */
+    test_sub("subtest %d: fs_getlong empty", ++subnum);
+    {
+        fs s = FS();
+        if (!try()) {
+            fs_getlong(&s);
+            test_validatefree(false, fsfree(s), "fs_getlong(empty) must raise error");
+        } else {
+            test_validatefree(true, fsfree(s), "fs_getlong(empty) correctly raised error");
+        }
+        fsfree(s);
+    }
+
+    /* 9. Позиционное чтение */
+    test_sub("subtest %d: fs_getlongpos", ++subnum);
+    {
+        fs s = fscopy("--- -777");
+        test_validatefree(
+            fs_getlongpos(&s, 4) == -777L,
+            fsfree(s),
+            "fs_getlongpos('--- -777', 4) must return -777"
+        );
+        fsfree(s);
+    }
+
+    /* ========== fs_getdouble ========== */
+
+    /* 10. Обычное число */
+    test_sub("subtest %d: fs_getdouble normal", ++subnum);
+    {
+        fs s = fscopy("3.1415");
+        test_validatefree(
+            fabs(fs_getdouble(&s) - 3.1415) < 0.0001,
+            fsfree(s),
+            "fs_getdouble('3.1415') must return ~3.1415"
+        );
+        fsfree(s);
+    }
+
+    /* 11. Специальные значения (inf, nan) */
+    test_sub("subtest %d: fs_getdouble special", ++subnum);
+    {
+        fs s_inf = fscopy("inf");
+        double val = fs_getdouble(&s_inf);
+        test_validatefree(
+            isinf(val) && val > 0,
+            fsfree(s_inf),
+            "fs_getdouble('inf') must be +inf"
+        );
+        fsfree(s_inf);
+
+        fs s_nan = fscopy("nan");
+        val = fs_getdouble(&s_nan);
+        test_validatefree(
+            isnan(val),
+            fsfree(s_nan),
+            "fs_getdouble('nan') must be NaN"
+        );
+        fsfree(s_nan);
+    }
+
+    /* 12. Нечисловая строка – должна упасть */
+    test_sub("subtest %d: fs_getdouble non‑numeric", ++subnum);
+    {
+        fs s = fscopy("not_a_number");
+        if (!try()) {
+            fs_getdouble(&s);
+            test_validatefree(false, fsfree(s), "fs_getdouble('not_a_number') must raise error");
+        } else {
+            test_validatefree(true, fsfree(s), "fs_getdouble('not_a_number') correctly raised error");
+        }
+        fsfree(s);
+    }
+
+    /* 13. Пустая строка – должна упасть */
+    test_sub("subtest %d: fs_getdouble empty", ++subnum);
+    {
+        fs s = FS();
+        if (!try()) {
+            fs_getdouble(&s);
+            test_validatefree(false, fsfree(s), "fs_getdouble(empty) must raise error");
+        } else {
+            test_validatefree(true, fsfree(s), "fs_getdouble(empty) correctly raised error");
+        }
+        fsfree(s);
+    }
+
+    /* 14. Позиционное чтение double */
+    test_sub("subtest %d: fs_getdoublepos", ++subnum);
+    {
+        fs s = fscopy("val: 2.71828");
+        test_validatefree(
+            fabs(fs_getdoublepos(&s, 5) - 2.71828) < 0.00001,
+            fsfree(s),
+            "fs_getdoublepos('val: 2.71828', 5) must return ~2.71828"
+        );
+        fsfree(s);
+    }
+
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
 
