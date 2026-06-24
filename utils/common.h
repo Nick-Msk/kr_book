@@ -479,5 +479,7 @@ static inline bool              int__in(int val, const int *arr){
 extern bool              try_parse_int(const char *restrict str, int *restrict res);
 extern bool              try_parse_long(const char *restrict str, long *restrict res);
 extern bool              try_parse_double(const char *restrict str, double *restrict res);
+extern bool              try_parse_uint(const char *restrict str, unsigned *restrict res);
+extern bool              try_parse_ulong(const char *restrict str, unsigned long *restrict res);
 
 #endif /* ! _COMMON_H */

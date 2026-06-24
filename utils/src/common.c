@@ -110,6 +110,9 @@ int                             pdbl_revcmp(const void *d1, const void *d2){
 static inline bool              is_long_overflow(long val){
     return errno == ERANGE && (val == LONG_MAX || val == LONG_MIN);
 }
+static inline bool              is_ulong_overflow(unsigned long val){
+    return errno == ERANGE && val == ULONG_MAX;
+}
 static inline bool              is_double_overflow(double val){
     return errno == ERANGE && isinf(val);
 }
@@ -120,6 +123,7 @@ bool                            try_parse_int(const char *restrict str, int *res
     errno = 0;
     char    *endptr;
     long val = strtol(str, &endptr, 10);
+
     if (str == endptr || *endptr != '\0' || val > INT_MAX || val < INT_MIN)
         return logsimpleerr(false, "Unable to parse int %ld, errno %d", val, errno);
     if (res)
@@ -132,6 +136,7 @@ bool                            try_parse_long(const char *restrict str, long *r
     errno = 0;
     char    *endptr;
     long val = strtol(str, &endptr, 10);
+
     if (str == endptr || *endptr != '\0' || is_long_overflow(val) )
         return logsimpleerr(false, "Unable to parse long %ld, errno %d", val, errno);
     if (res)
@@ -151,7 +156,42 @@ bool                            try_parse_double(const char *restrict str, doubl
         *res = val;
     return true;
 }
+bool                            try_parse_uint(const char *restrict str, unsigned *restrict res) {
+    if (!str)
+        return logsimpleerr(false, "Null pointer str");
+    str = skip_leading_spaces(str);
+    if (*str == '-')
+        return logsimpleerr(false, "Negative value not allowed");
+    errno = 0;
+    char           *endptr;
+    unsigned long   val = strtoul(str, &endptr, 10);
 
+    if (str == endptr || *endptr != '\0' || *str == '-' || is_ulong_overflow(val) || val > UINT_MAX) {
+        return logsimpleerr(false, "Unable to parse uint %lu, errno %d", val, errno);
+    }
+
+    if (res)
+        *res = (unsigned int)val;
+    return true;
+}
+
+bool                            try_parse_ulong(const char *restrict str, unsigned long *restrict res) {
+    if (!str)
+        return logsimpleerr(false, "Null pointer str");
+    str = skip_leading_spaces(str);
+    if (*str == '-')
+        return logsimpleerr(false, "Negative value not allowed");
+    errno = 0;
+    char            *endptr;
+    unsigned long    val = strtoul(str, &endptr, 10);
+
+    if (str == endptr || *endptr != '\0' || *str == '-' || is_ulong_overflow(val))
+        return logsimpleerr(false, "Unable to parse ulong %lu, errno %d", val, errno);
+
+    if (res)
+        *res = val;
+    return true;
+}
 // -------------------------------Testing --------------------------
 
 #ifdef COMMONTESTING
@@ -321,7 +361,88 @@ tf_try_parse(const char *name)
             !try_parse_double(NULL, &result),
             "try_parse_double(NULL) must return false");
     }
+    /* 11. try_parse_uint – корректные значения */
+    test_sub("subtest %d: try_parse_uint valid", ++subnum);
+    {
+        const char *valid[] = {"0", "123", "  456", "4294967295"};
+        unsigned int expected[] = {0, 123, 456, UINT_MAX};
+        for (int i = 0; i < COUNT(valid); i++) {
+            unsigned int res;
+            test_validate(
+                try_parse_uint(valid[i], &res) && res == expected[i],
+                "try_parse_uint('%s'): expected %u, got %u",
+                valid[i], expected[i], res
+            );
+        }
+    }
 
+    /* 12. try_parse_uint – некорректные строки */
+    test_sub("subtest %d: try_parse_uint invalid", ++subnum);
+    {
+        const char *invalid[] = {
+            "", "abc", "123abc", "123 ", " 123 ",
+            "-1", "-0", "   -123", "  -1",
+            "4294967296", "9999999999"
+        };
+        for (int i = 0; i < COUNT(invalid); i++) {
+            unsigned int res;
+            test_validate(
+                !try_parse_uint(invalid[i], &res),
+                "try_parse_uint('%s'): must fail, got %u", invalid[i], res
+            );
+        }
+    }
+
+    /* 13. try_parse_uint – NULL */
+    test_sub("subtest %d: try_parse_uint NULL", ++subnum);
+    {
+        unsigned int res;
+        test_validate(
+            !try_parse_uint(NULL, &res),
+            "try_parse_uint(NULL) must return false"
+        );
+    }
+
+    /* 14. try_parse_ulong – корректные значения */
+    test_sub("subtest %d: try_parse_ulong valid", ++subnum);
+    {
+        const char *valid[] = {"0", "123", "  456", "18446744073709551615"};
+        unsigned long expected[] = {0UL, 123UL, 456UL, ULONG_MAX};
+        for (int i = 0; i < COUNT(valid); i++) {
+            unsigned long res;
+            test_validate(
+                try_parse_ulong(valid[i], &res) && res == expected[i],
+                "try_parse_ulong('%s'): expected %lu, got %lu", valid[i], expected[i], res
+            );
+        }
+    }
+
+    /* 15. try_parse_ulong – некорректные строки */
+    test_sub("subtest %d: try_parse_ulong invalid", ++subnum);
+    {
+        const char *invalid[] = {
+            "", "abc", "123abc", "123 ", " 123 ",
+            "-1", "-0", "   -123", "  -1",
+            "18446744073709551616", "99999999999999999999"
+        };
+        for (int i = 0; i < COUNT(invalid); i++) {
+            unsigned long res;
+            test_validate(
+                !try_parse_ulong(invalid[i], &res),
+                "try_parse_ulong('%s'): must fail, got %lu", invalid[i], res
+            );
+        }
+    }
+
+    /* 16. try_parse_ulong – NULL */
+    test_sub("subtest %d: try_parse_ulong NULL", ++subnum);
+    {
+        unsigned long res;
+        test_validate(
+            !try_parse_ulong(NULL, &res),
+            "try_parse_ulong(NULL) must return false"
+        );
+    }
     return logret(TEST_PASSED, "done");
 }
 
