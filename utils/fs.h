@@ -161,9 +161,9 @@ static inline fs            fscopy(const char *str){
     fs         tmp = fsliteral(str);
     return  fs_clone(&tmp);
 }
-//  fs HEAP copy creator !  TODO: tests!!!
+//  fs HEAP copy creator !
 static inline  fs          *fs_heapcopy(const char *str){
-    fs         tmp = fsliteral(str);
+    fs         tmp = fsliteral(str);    // FSLITERAL ??? TODO:
     return fs_heapcreate(&tmp);
 }
 
