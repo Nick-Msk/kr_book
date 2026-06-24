@@ -20,7 +20,8 @@ static const int    G_GLOB_AVERAGE = INT_MAX;
 // universale comparator (for simple type cast in qsort)
 typedef int(*Comparator)(const void *, const void *);
 
-#define 			COUNT(arr) (int)(sizeof arr/sizeof(typeof(*arr)) )
+//#define 			COUNT(arr) (int)(sizeof arr/sizeof(typeof(*arr)) )
+#define             COUNT(arr) (int)(sizeof(arr) / sizeof((arr)[0]))
 
 static inline int               countstrings(const char * const *p){
     const char * const *t = p;
@@ -456,25 +457,47 @@ static inline int               calcnewsize(Tincrease t, int n){
     }
     return sz; //logsimpleret(sz, "newsz = %d", sz);
 }
-// TODO: refactor that
-// int comparators
-static inline bool              int_not_in(int val, const int *arr){
-    while(*arr != INT_MIN)
+// int SQL not in ver2 (with size)
+static inline bool              common_int_notin2(int val, const int *arr, int sz){
+    const int *iter = arr;
+    while (iter - arr < sz)
+        if (*iter++ == val)
+            return false;
+    return true;
+}
+// int SQL in ver2 (with size)
+static inline bool              common_int_in2(int val, const int *arr, int sz){
+    const int *iter = arr;
+    while (iter - arr < sz)
+        if (*iter++ == val)
+            return true;
+    return false;
+}
+#define int_in(val, ...)    common_int_in2   ( (val), (const int []) { __VA_ARGS__ }, COUNT(((const int[]){__VA_ARGS__})) )
+#define int_notin(val, ...) common_int_notin2( (val), (const int []) { __VA_ARGS__ }, COUNT(((const int[]){__VA_ARGS__})) )
+
+//#define int_notin(val, ...) common_int_notin2( (val), (const int []) { __VA_ARGS__ }, COUNT((const int[]){__VA_ARGS__}) )
+//#define int_in(val, ...)    common_int_in2   ( (val), (const int []) { __VA_ARGS__ }, COUNT((const int[]){__VA_ARGS__}) )
+
+// int SQL not in
+static inline bool              common_int_notin(int val, const int *arr){
+    while (*arr != val)
         if (val == *arr++)
             return false;
     return true;
 }
-
-static inline bool              int__in(int val, const int *arr){
-    while(*arr != INT_MIN)
+// int SQL in
+static inline bool              common_int_in(int val, const int *arr){
+    while (*arr != INT_MIN)
         if (val == *arr++)
             return true;
     return false;
 }
-
+/*
 // TODO: think about typeof
-#define                         int_notin(val, ...) int_not_in( (val),  (const int []) { __VA_ARGS__, INT_MIN} )
-#define                         int_in(val, ...)    int__in( (val),     (const int []) { __VA_ARGS__, INT_MIN} )
+#define                         int_notin(val, ...) common_int_notin( (val),  (const int []) { __VA_ARGS__, INT_MIN} )
+#define                         int_in(val, ...)    common_int_in( (val),     (const int []) { __VA_ARGS__, INT_MIN} )
+*/
 
 extern bool              try_parse_int(const char *restrict str, int *restrict res);
 extern bool              try_parse_long(const char *restrict str, long *restrict res);

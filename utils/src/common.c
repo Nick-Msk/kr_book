@@ -446,6 +446,126 @@ tf_try_parse(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST tf_int_(not)in ---------------------------------
+
+static TestStatus
+tf_int_in(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. int_in: значение присутствует в начале */
+    test_sub("subtest %d: int_in – found at start", ++subnum);
+    test_validate(
+        int_in(10, 10, 20, 30),
+        "10 must be in {10,20,30}"
+    );
+
+    /* 2. int_in: значение присутствует в середине */
+    test_sub("subtest %d: int_in – found in middle", ++subnum);
+    test_validate(
+        int_in(20, 10, 20, 30),
+        "20 must be in {10,20,30}"
+    );
+
+    /* 3. int_in: значение присутствует в конце */
+    test_sub("subtest %d: int_in – found at end", ++subnum);
+    test_validate(
+        int_in(30, 10, 20, 30),
+        "30 must be in {10,20,30}"
+    );
+
+    /* 4. int_in: значение отсутствует */
+    test_sub("subtest %d: int_in – not found", ++subnum);
+    test_validate(
+        !int_in(99, 10, 20, 30),
+        "99 must NOT be in {10,20,30}"
+    );
+
+    /* 5. int_notin: значение отсутствует → true */
+    test_sub("subtest %d: int_notin – not found", ++subnum);
+    test_validate(
+        int_notin(99, 10, 20, 30),
+        "99 must be NOT in {10,20,30}"
+    );
+
+    /* 6. int_notin: значение присутствует → false */
+    test_sub("subtest %d: int_notin – found", ++subnum);
+    test_validate(
+        !int_notin(10, 10, 20, 30),
+        "10 must be in {10,20,30} (notin=false)"
+    );
+
+    /* 7. Пустой список: int_in должно вернуть false */
+    test_sub("subtest %d: int_in with empty list", ++subnum);
+    test_validate(
+        !int_in(42),
+        "42 must NOT be found in empty list"
+    );
+
+    /* 8. Пустой список: int_notin должно вернуть true */
+    test_sub("subtest %d: int_notin with empty list", ++subnum);
+    test_validate(
+        int_notin(42),
+        "42 must be NOT in empty list"
+    );
+
+    /* 9. Один элемент в списке, совпадает */
+    test_sub("subtest %d: int_in – single element match", ++subnum);
+    test_validate(
+        int_in(7, 7),
+        "7 must be in {7}"
+    );
+
+    /* 10. Один элемент в списке, не совпадает */
+    test_sub("subtest %d: int_in – single element no match", ++subnum);
+    test_validate(
+        !int_in(8, 7),
+        "8 must NOT be in {7}"
+    );
+
+    /* 11. Повторяющиеся значения в списке */
+    test_sub("subtest %d: int_in with duplicates", ++subnum);
+    test_validate(
+        int_in(5, 5, 5, 5),
+        "5 must be found in {5,5,5}"
+    );
+
+    /* 12. Граничные значения (INT_MAX, INT_MIN) */
+    test_sub("subtest %d: int_in with INT_MAX", ++subnum);
+    test_validate(
+        int_in(INT_MAX, INT_MIN, 0, INT_MAX),
+        "INT_MAX must be found"
+    );
+
+    /* 13. int_in с очень большим списком (проверка быстродействия) */
+    test_sub("subtest %d: int_in – large list", ++subnum);
+    // Максимально допустимый список – около 100 элементов, проверим, что макрос не падает
+    test_validate(
+        int_in(100,
+            1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,
+            21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,
+            41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,
+            61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,
+            81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100),
+        "100 must be in the large list"
+    );
+
+    /* 14. int_notin с большим списком */
+    test_sub("subtest %d: int_notin – large list", ++subnum);
+    test_validate(
+        int_notin(0,
+            1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,
+            21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,
+            41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,
+            61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,
+            81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100),
+        "0 must NOT be in the large list"
+    );
+
+    return logret(TEST_PASSED, "done");
+}
+
 // -------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -466,6 +586,7 @@ main(int argc, const char *argv[])
         printf("Num %d\n", num);
             testenginestd_run(num,
                 testnew(.f2 = tf_try_parse,        .num =  1, .name = "Simple try_parse_<type> test"              , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_int_in,           .num =  2, .name = "Simple tf_int_(not)in test"                , .desc="", .mandatory=true)
             );
         if (runall)
             break;
