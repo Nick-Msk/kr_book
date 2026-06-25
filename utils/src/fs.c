@@ -3449,7 +3449,7 @@ tf_movefrom_heapstr(const char *name)
     /* 3. NULL-указатель на fs* (pfs == NULL) – должен упасть */
     test_sub("subtest %d: NULL pfs", ++subnum);
     {
-        char    *str;
+        char    *str = NULL;
         if (!try()) {
             str = fs_movefrom_heapstr(NULL);
             test_validate(
@@ -3473,7 +3473,7 @@ tf_movefrom_heapstr(const char *name)
     /* 4. *pfs == NULL – должен упасть */
     test_sub("subtest %d: *pfs == NULL", ++subnum);
     {
-        char    *str;
+        char    *str = NULL;
         fs     *fs_ptr = NULL;
         if (!try()) {
             str = fs_movefrom_heapstr(&fs_ptr);
