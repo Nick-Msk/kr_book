@@ -201,7 +201,19 @@ fs                                      *fs_moveto_heap(fs *orig){
     fs_free(orig);  // orig->v is null, so won't be freed, but orig can be FS_FLAG_BODYALLOC too
     return tmp;
 }
-
+// actually this is MOVE CONSTRUCTOR, *orig MUST be heap allocated c-str
+// move to heap fs (FS_FLAG_BODYALLOC) whole c-str
+fs                                      *fs_moveto_heapstr(char **orig){
+    invraisecode(orig != NULL && *orig != NULL, ERR_NULLABLE_PTR, "Null pointer");
+    fs  *tmp = fs_create();  // FS_FLAG_BODYALLOC here
+    tmp->v = *orig;  // MOVE as pointer
+    ++g_alloc_cnt;      // refactoring is required TODO:
+    tmp->flags |= FS_FLAG_ALLOC;
+    tmp->len = strlen(tmp->v);
+    tmp->sz = tmp->len + 1;
+    *orig = NULL;  // clear orig
+    return tmp;
+}
 fs                                      *fs_shrink(fs *s){
     if (fs_alloc(s)){
         int     newsz = s->len + 1; // final '\0' is assumed!
@@ -3238,6 +3250,140 @@ tf_fs_heapcopy(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST fs_moveto_heapstr ---------------------------------
+
+static TestStatus
+tf_moveto_heapstr(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Обычная строка */
+    test_sub("subtest %d: move normal string", ++subnum);
+    {
+        const char   pt[] = "hello world";
+        char        *orig = strdup(pt);
+        fs          *moved = fs_moveto_heapstr(&orig);
+
+        //fstechprint(*moved);
+
+        test_validatefree(
+            moved != NULL && strcmp(fs_str(moved), pt) == 0 && fs_len(moved) == sizeof(pt) - 1,
+            fs_free(moved),
+            "Moved string mismatch: got '%s', len %d, expected '%s', %lu",
+            fs_str(moved), fs_len(moved), pt, sizeof(pt) - 1
+        );
+        test_validatefree(
+            fs_bodyalloc(moved),
+            fs_free(moved),
+            "Moved fs must have FS_FLAG_BODYALLOC"
+        );
+        test_validate(
+            orig == NULL,
+            "Original pointer must be NULL after move"
+        );
+
+        fs_free(moved);
+        // orig уже NULL, free не нужен
+        fs_alloc_check(true);
+    }
+
+    /* 2. Пустая строка (только '\0') */
+    test_sub("subtest %d: move empty string", ++subnum);
+    {
+        char *orig = strdup("");
+        fs *moved = fs_moveto_heapstr(&orig);
+
+        test_validatefree(
+            moved != NULL && fs_len(moved) == 0 && fs_str(moved)[0] == '\0',
+            fs_free(moved),
+            "Empty string must have len=0, got %d, str='%s'", fs_len(moved), fs_str(moved)
+        );
+        test_validatefree(
+            fs_bodyalloc(moved),
+            fs_free(moved),
+            "Empty moved fs must have FS_FLAG_BODYALLOC"
+        );
+        test_validate(
+            orig == NULL, 
+            "Original pointer must be NULL after move"
+        );
+
+        fs_free(moved);
+        fs_alloc_check(true);
+    }
+
+    /* 3. NULL-указатель orig (сам char** == NULL) – должен упасть */
+    test_sub("subtest %d: move with NULL orig", ++subnum);
+    {
+        if (!try()) {
+            fs *moved = fs_moveto_heapstr(NULL);
+            test_validate(
+                false,
+                "fs_moveto_heapstr(NULL) must raise error, but returned %p",
+                (void*)moved
+            );
+            if (moved)
+                fs_free(moved);
+        } else {
+            test_validate(
+                true,
+                "fs_moveto_heapstr(NULL) correctly raised error"
+            );
+        }
+        fs_alloc_check(true);
+    }
+
+    /* 4. *orig == NULL – должен упасть */
+    test_sub("subtest %d: move with *orig == NULL", ++subnum);
+    {
+        char *orig = NULL;
+        if (!try()) {
+            fs *moved = fs_moveto_heapstr(&orig);
+            test_validate(
+                false,
+                "fs_moveto_heapstr(&orig) with *orig==NULL must raise error"
+            );
+            if (moved)
+                fs_free(moved);
+        } else {
+            test_validate(
+                true,
+                "fs_moveto_heapstr(&orig) with *orig==NULL correctly raised error"
+            );
+        }
+        fs_alloc_check(true);
+    }
+
+    /* 5. Последовательные вызовы и проверка утечек */
+    test_sub("subtest %d: multiple moves (leak check)", ++subnum);
+    {
+        const char  *words[] = {"one", "two", "three"};
+        fs          *moved[3] = { NULL, NULL, NULL };
+
+        for (int i = 0; i < COUNT(words); i++) {
+            char *orig = strdup(words[i]);
+            moved[i] = fs_moveto_heapstr(&orig);
+            test_validate(
+                orig == NULL,
+                "orig must be NULL after move %d", i
+            );
+        }
+
+        for (int i = 0; i < COUNT(words); i++) {
+            test_validatefree(
+                strcmp(fs_str(moved[i]), words[i]) == 0,
+                (fs_free(moved[0]), fs_free(moved[1]), fs_free(moved[2])),
+                "Mismatch at %d: expected '%s', got '%s'", i, words[i], fs_str(moved[i])
+            );
+            fs_free(moved[i]);
+        }
+        fs_alloc_check(true);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -3276,6 +3422,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf27,             .num = 28, .name = "fs_rpad()/lpad() simple tests"              , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf28,             .num = 29, .name = "fs_heapcreate() simple tests"               , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf_fs_heapcopy,   .num = 30, .name = "fs_heapcopy() simple tests"                 , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf_moveto_heapstr,.num = 31, .name = "fs_moveto_heapstr() simple tests"           , .desc=""                , .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()

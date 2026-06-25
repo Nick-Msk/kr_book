@@ -196,6 +196,10 @@ static inline int            fs_sprintf_concat(fs *restrict s, const char *restr
 extern fs                    fs_move(fs *orig);
 // move whole fs (body and string)
 extern fs                   *fs_moveto_heap(fs *orig);
+// actually this is MOVE CONSTRUCTOR, *orig MUST be heap allocated c-str
+// move to heap fs (FS_FLAG_BODYALLOC) whole c-str
+fs                           *fs_moveto_heapstr(char **orig);
+
 // direct access, NO change len or sz, position MUST be < sz
 static inline char          *fs_get(const fs *s, int pos){
     //return logsimpleret(s->v + pos, "Getting %p[%c]", s->v + pos, s->v[pos]);
