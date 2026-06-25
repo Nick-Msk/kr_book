@@ -400,8 +400,8 @@ int                                     fs_fprint_arr(FILE *restrict out, const 
 int                                     fs_techfprint(FILE *restrict out, const fs *restrict s, const char *restrict name){
     // technical print, statis attributes for now
     int     cnt = 0;
-    int     len = MIN(FS_TECH_PRINT_COUNT, s->len);
-    if (s){
+    if (s && out){
+        int     len = MIN(FS_TECH_PRINT_COUNT, s->len);
         cnt += fprintf(out, "FS: %s: len [%d], sz [%d], flags [%d], s [%.*s", name, s->len, s->sz, s->flags, len, s->v);
         if (FS_TECH_PRINT_COUNT < s->len)
             cnt += fprintf(out, "...");
