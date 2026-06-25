@@ -136,7 +136,7 @@ int                     value64_compare(value64 v1, value64 v2, value64_type typ
             return 0;
     }
 }
-с
+
 value64_type            value64_gettype(const char *str){
     if (!str)
         return VALUE64_UKNOWN;
@@ -255,32 +255,32 @@ value64                 value64_convert(value64 v, value64_type from, value64_ty
 // TODO: refactor is required
 // TODO: only FS <-> STR conversion with move semantic
 value64                 value64_convert_move(value64 *source, value64_type from, value64_type to){
-    invraisecode(source != NULL, ERR_NULL_POINTER, "Null pointer");
+    invraisecode(source != NULL, ERR_NULLABLE_PTR, "Null pointer");
 
-    if (from == VALUE64_FS || from == VALUE64_STR && (to == VALUE64_FS || to == VALUE64_STR) )
-        return *source;  // nothing to do
+    if ( ! ( (from == VALUE64_FS || from == VALUE64_STR) && (to == VALUE64_FS || to == VALUE64_STR) ) )
+        userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, value64_typename(from), to, value64_typename(to) );
+
     value64     result = VALUE64_ZERO;
 
     switch (from) {
         case VALUE64_STR:
-            char *sval = value64_str(source);
+            char     *sval = value64_str(*source);
             if (to == VALUE64_STR) {
                 result.sval = sval;
             } else { // VALUE64_FS
-                result.sval = fs_create();
-                fs_attach_str(&result, sval);   // TODO:
+                result.fsval = fs_moveto_heapstr(&source->sval);   //
             }
             source->sval = NULL;
         break;
         case VALUE64_FS:
-            fs *fsval = value64_fs(source);
             if (to == VALUE64_STR){
-                result.sval = fs_str(fsval);
-                fs_free(source->fsval);
+                result.sval = fs_movefrom_heapstr(&source->fsval);
             } else {    // VALUE64_FS
-                result.fsval = fsval;   // just a move!!!
+                result.fsval = source->fsval;   // just a move!!!
                 source->fsval = 0;  // NO FREE HERE
             }
+        break;
+        default:    // TODO: not sure, probably better to allow work as value64_convert() is that case
         break;
     }
 
@@ -1578,6 +1578,154 @@ tf_convert(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST value64_convert_move -----------------------------
+
+static TestStatus
+tf_convert_move(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. STR -> STR (move) */
+    test_sub("subtest %d: STR -> STR (move)", ++subnum);
+    {
+        value64 src = value64_createstr("hello");
+        value64 dst = value64_convert_move(&src, VALUE64_STR, VALUE64_STR);
+        test_validatefree(
+            strcmp(value64_str(dst), "hello") == 0 && value64_str(src) == NULL,
+            value64_free(dst, VALUE64_STR),
+            "STR->STR: dst='%s', src must be NULL (got %p)",
+            value64_str(dst), (void*)value64_str(src)
+        );
+        // Безопасно освобождаем пустой src
+        value64_free(src, VALUE64_STR);
+        value64_free(dst, VALUE64_STR);
+    }
+
+    /* 2. STR -> FS (move) */
+    test_sub("subtest %d: STR -> FS (move)", ++subnum);
+    {
+        value64 src = value64_createstr("world");
+        value64 dst = value64_convert_move(&src, VALUE64_STR, VALUE64_FS);
+        fs *dst_fs = value64_fs(dst);
+        test_validatefree(
+            strcmp(fs_str(dst_fs), "world") == 0 && fs_bodyalloc(dst_fs),
+            value64_free(dst, VALUE64_FS),
+            "STR->FS: dst='%s', src.sval must be NULL (got %p)",
+            fs_str(dst_fs), (void*)value64_str(src)
+        );
+        test_validate(value64_str(src) == NULL, "After move, src.sval must be NULL");
+        value64_free(dst, VALUE64_FS);
+        value64_free(src, VALUE64_STR);   // src уже пуст, безопасно
+        fs_alloc_check(true);
+    }
+
+    /* 3. FS -> STR (move) */
+    test_sub("subtest %d: FS -> STR (move)", ++subnum);
+    {
+        fs tmp = fscopy("fs-string");
+        value64 src = value64_createfs(&tmp);
+        //fstechprint(*value64_fs(src) );
+
+        fsfree(tmp);
+        value64 dst = value64_convert_move(&src, VALUE64_FS, VALUE64_STR);
+
+        test_validatefree(
+            strcmp(value64_str(dst), "fs-string") == 0,
+            value64_free(dst, VALUE64_STR),
+            "FS->STR: dst='%s', src.fsval must be NULL or emptied",
+            value64_str(dst)
+        );
+        test_validate(
+            value64_fs(src) == NULL || fs_len(value64_fs(src)) == 0,
+            "src.fsval must be empty after move"
+        );
+        value64_free(dst, VALUE64_STR);
+        value64_free(src, VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    /* 4. FS -> FS (move) */
+    test_sub("subtest %d: FS -> FS (move)", ++subnum);
+    {
+        fs tmp = fscopy("move-fs");
+        value64 src = value64_createfs(&tmp);
+        fsfree(tmp);
+        value64 dst = value64_convert_move(&src, VALUE64_FS, VALUE64_FS);
+        fs *dst_fs = value64_fs(dst);
+        test_validatefree(
+            strcmp(fs_str(dst_fs), "move-fs") == 0 && fs_bodyalloc(dst_fs) &&
+            value64_fs(src) == NULL,
+            value64_free(dst, VALUE64_FS),
+            "FS->FS: dst='%s', src.fsval must be NULL (got %p)",
+            fs_str(dst_fs), (void*)value64_fs(src)
+        );
+        value64_free(dst, VALUE64_FS);
+        value64_free(src, VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    /* 5. INT -> STR (неподдерживаемая комбинация, должна упасть) */
+    test_sub("subtest %d: INT -> STR (must raise error)", ++subnum);
+    {
+        value64 src = value64_createint(42);
+        if (!try()) {
+            value64 dst = value64_convert_move(&src, VALUE64_INT, VALUE64_STR);
+            test_validate(
+                false,
+                "INT->STR must raise error, but returned %p",
+                (void*)value64_str(dst)
+            );
+        } else {
+            test_validate(
+                true,
+                "INT->STR correctly raised error"
+            );
+        }
+        // src не изменился, освобождать не нужно
+    }
+
+    /* 6. STR -> INT (неподдерживаемая комбинация) */
+    test_sub("subtest %d: STR -> INT (must raise error)", ++subnum);
+    {
+        value64 src = value64_createstr("123");
+        if (!try()) {
+            value64 dst = value64_convert_move(&src, VALUE64_STR, VALUE64_INT);
+            test_validatefree(
+                false,
+                value64_free(src, VALUE64_STR),
+                "STR->INT must raise error, but returned %d", value64_int(dst)
+            );
+        } else {
+            test_validatefree(
+                true,
+                value64_free(src, VALUE64_STR),
+                "STR->INT correctly raised error"
+            );
+        }
+        value64_free(src, VALUE64_STR);
+    }
+
+    /* 7. NULL source (должен упасть) */
+    test_sub("subtest %d: NULL source", ++subnum);
+    {
+        if (!try()) {
+            value64_convert_move(NULL, VALUE64_STR, VALUE64_FS);
+            test_validate(
+                false,
+                "convert_move(NULL) must raise error"
+            );
+        } else {
+            test_validate(
+                true,
+                "convert_move(NULL) correctly raised error"
+            );
+        }
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -1605,6 +1753,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_lhash,            .num =  5, .name = "Simple value64_lhash() test"                , .desc="", .mandatory=true)
               , testnew(.f2 = tf_compare,          .num =  6, .name = "Simple value64_compare() test"              , .desc="", .mandatory=true)
               , testnew(.f2 = tf_convert,          .num =  7, .name = "Simple value64_convert() test"              , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_convert_move,     .num =  8, .name = "Simple value64_convert_move() test"         , .desc="", .mandatory=true)
             );
         if (runall)
             break;
