@@ -209,26 +209,7 @@ static inline fs                   *value64_fs(value64 v){
 
 // move to EXISTING object, thart is NOT a constructor
 // move switcher to EXISTING object
-static inline value64              *value64_move(value64 *restrict target, value64 *restrict source, value64_type typ){
-    invraisecode(target && source,  ERR_NULLABLE_PTR, "Null pointers %p %p", target, source);
-
-    switch (typ){
-        case VALUE64_FS:    // note: this's NOT the same as value64_movefs!
-            target->fsval = fs_moveto_heap(source->fsval);  // no need to null source, fs_moveto_heap'll do that
-            if (!target->fsval)
-                userraiseint(ERR_UNABLE_ALLOCATE, "Unable to alloc new fs body");
-        break;
-        case VALUE64_DBL:
-            target->dval = source->dval;
-            source->dval = 0.0;
-        break;
-        default:    // ALL others type even VALUE64_STR follows the same logic!
-            target->u64 = source->u64;
-            source->u64 = 0L;   // u64 cover all types
-        break;
-    }
-    return target;
-}
+extern value64                     *value64_move(value64 *restrict target, value64 *restrict source, value64_type typ);
 static inline value64              *value64_move_int(value64 *restrict target, value64 *restrict source){
     return value64_move(target, source, VALUE64_INT);
 }

@@ -254,7 +254,7 @@ value64                 value64_convert(value64 v, value64_type from, value64_ty
 
 // TODO: refactor is required
 // TODO: only FS <-> STR conversion with move semantic
-value64                 value64_convert_move(value64 *source, value64_type from, value64_type to){
+value64                     value64_convert_move(value64 *source, value64_type from, value64_type to){
     invraisecode(source != NULL, ERR_NULLABLE_PTR, "Null pointer");
 
     if ( ! ( (from == VALUE64_FS || from == VALUE64_STR) && (to == VALUE64_FS || to == VALUE64_STR) ) )
@@ -287,10 +287,32 @@ value64                 value64_convert_move(value64 *source, value64_type from,
     return result;
 }
 
+// move to EXISTING object, thart is NOT a constructor
+// move switcher to EXISTING object
+value64                     *value64_move(value64 *restrict target, value64 *restrict source, value64_type typ){
+    invraisecode(target && source,  ERR_NULLABLE_PTR, "Null pointers %p %p", target, source);
+
+    switch (typ){
+        case VALUE64_FS:    // note: this's NOT the same as value64_movefs!
+            target->fsval = fs_moveto_heap(source->fsval);  // no need to null source, fs_moveto_heap'll do that
+            if (!target->fsval)
+                userraiseint(ERR_UNABLE_ALLOCATE, "Unable to alloc new fs body");
+        break;
+        case VALUE64_DBL:
+            target->dval = source->dval;
+            source->dval = 0.0;
+        break;
+        default:    // ALL others type even VALUE64_STR follows the same logic!
+            target->u64 = source->u64;
+            source->u64 = 0L;   // u64 cover all types
+        break;
+    }
+    return target;
+}
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
-void                  value64_fprint(FILE *restrict out, const char *restrict msg, value64 val, value64_type typ){
+void                        value64_fprint(FILE *restrict out, const char *restrict msg, value64 val, value64_type typ){
     if (out){
         if (msg)
             fprintf(out, "%s ", msg);
