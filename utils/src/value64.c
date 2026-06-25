@@ -288,7 +288,37 @@ value64                 value64_convert_move(value64 *source, value64_type from,
 }
 
 
+// ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
+void                  value64_fprint(FILE *restrict out, const char *restrict msg, value64 val, value64_type typ){
+    if (out){
+        if (msg)
+            fprintf(out, "%s ", msg);
+        switch (typ){
+            case VALUE64_INT:
+                fprintf(out, "%d", val.ival);
+            break;
+            case VALUE64_LNG:
+                fprintf(out, "%ld", val.lval);
+            break;
+            case VALUE64_DBL:
+                fprintf(out, "%lf", val.dval);
+            break;
+            case VALUE64_PTR:
+                fprintf(out, "%p", val.pval);
+            break;
+            case VALUE64_STR:
+                fprintf(out, "%s", val.sval);
+            break;
+            case VALUE64_FS:
+                fs_fprint(out, val.fsval, 0);
+            break;
+            default:
+                fprintf(out, "Unsupported %d!\n", typ);
+            break;
+        }
+    }
+}
 
 // --------------------------------- SERIALIZATION -----------------------------------------
 
