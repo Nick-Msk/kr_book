@@ -79,6 +79,41 @@ value64                   value64_pcopy_move(void *p, value64_type typ, bool mov
     return tmp;
 }
 
+value64_ConverterFunc conv_matrix[7][7] = {
+    [VALUE64_INT] = {
+        [VALUE64_LNG] = value64_convert_int_to_lng,
+        [VALUE64_DBL] = value64_convert_int_to_dbl,
+        [VALUE64_FS]  = value64_convert_int_to_fs,
+        [VALUE64_STR] = value64_convert_int_to_str
+    },
+    [VALUE64_LNG] = {
+        [VALUE64_INT] = value64_convert_lng_to_int,
+        [VALUE64_DBL] = value64_convert_lng_to_dbl,
+        [VALUE64_FS]  = value64_convert_lng_to_fs,
+        [VALUE64_STR] = value64_convert_lng_to_str
+    },
+    [VALUE64_DBL] = {
+        [VALUE64_INT] = value64_convert_dbl_to_int,
+        [VALUE64_LNG] = value64_convert_dbl_to_lng,
+        [VALUE64_FS]  = value64_convert_dbl_to_fs,
+        [VALUE64_STR] = value64_convert_dbl_to_str
+    },
+    [VALUE64_FS] = {
+        [VALUE64_INT] = value64_convert_fs_to_int,
+        [VALUE64_LNG] = value64_convert_fs_to_lng,
+        [VALUE64_DBL] = value64_convert_fs_to_dbl,
+        [VALUE64_STR] = value64_convert_fs_to_str,
+        [VALUE64_FS]  = value64_convert_fs_to_fs
+    },
+    [VALUE64_STR] = {
+        [VALUE64_INT] = value64_convert_str_to_int,
+        [VALUE64_LNG] = value64_convert_str_to_lng,
+        [VALUE64_DBL] = value64_convert_str_to_dbl,
+        [VALUE64_FS]  = value64_convert_str_to_fs,
+        [VALUE64_STR] = value64_convert_str_to_str
+    }
+};
+
 unsigned long               value64_lhash(value64 value, value64_type typ){
     // probably it's better to calc hash by u64 attr (except fs for sure)
     value64      tmp = VALUE64_ZERO;
@@ -136,7 +171,7 @@ int                     value64_compare(value64 v1, value64 v2, value64_type typ
             return 0;
     }
 }
-
+// search type id by type name
 value64_type            value64_gettype(const char *str){
     if (!str)
         return VALUE64_UKNOWN;
@@ -146,7 +181,7 @@ value64_type            value64_gettype(const char *str){
    }
    return VALUE64_UKNOWN;
 }
-
+/*
 // converted, COPY semantic, TODO: refactoring is required!
 value64                 value64_convert(value64 v, value64_type from, value64_type to){
     if (from == to && from != VALUE64_FS && from != VALUE64_STR)  // криво конечно
@@ -240,8 +275,6 @@ value64                 value64_convert(value64 v, value64_type from, value64_ty
                 // use constructor
                 result = value64_createstr(sval);
             else if (to == VALUE64_FS){
-                /*fs tmp = fscopy(sval);
-                result.fsval = fs_moveto_heap(&tmp); */
                 result.fsval = fs_heapcopy(sval);
             } else
                 userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, value64_typename(from), to, value64_typename(to) );
@@ -250,7 +283,40 @@ value64                 value64_convert(value64 v, value64_type from, value64_ty
             break; // неподдерживаемые типы — останется нулевое значение
     }
     return result;
+} */
+
+// move to EXISTING object, that is NOT a constructor
+// move switcher to EXISTING object
+value64                     *value64_move(value64 *restrict target, value64 *restrict source, value64_type typ){
+    invraisecode(target && source,  ERR_NULLABLE_PTR, "Null pointers %p %p", target, source);
+
+    switch (typ){
+        case VALUE64_FS:    // note: this's NOT the same as value64_movefs!
+            target->fsval = fs_moveto_heap(source->fsval);  // no need to null source, fs_moveto_heap'll do that
+            if (!target->fsval)
+                userraiseint(ERR_UNABLE_ALLOCATE, "Unable to alloc new fs body");
+        break;
+        case VALUE64_DBL:
+            target->dval = source->dval;
+            source->dval = 0.0;
+        break;
+        default:    // ALL others type even VALUE64_STR follows the same logic!
+            target->u64 = source->u64;
+            source->u64 = 0L;   // u64 cover all types
+        break;
+    }
+    return target;
 }
+
+// SQL in low level TODO:
+bool                        value64_in   (value64 val, value64_type typ, const value64 *arr, int sz){
+   return true; // just a stub
+}
+bool                        value64_notin(value64 val, value64_type typ, const value64 *arr, int sz){
+    return true;    // just a stub
+}
+
+// ----------------------------- CONVERTERS ----------------------------------------
 
 // TODO: refactor is required
 // TODO: only FS <-> STR conversion with move semantic
@@ -286,28 +352,135 @@ value64                     value64_convert_move(value64 *source, value64_type f
 
     return result;
 }
+// converted, COPY semantic
+value64                     value64_convert(value64 v, value64_type from, value64_type to) {
+    if (from == to && from != VALUE64_FS && from != VALUE64_STR)    // TODO: probably refactor that
+        return v;
 
-// move to EXISTING object, thart is NOT a constructor
-// move switcher to EXISTING object
-value64                     *value64_move(value64 *restrict target, value64 *restrict source, value64_type typ){
-    invraisecode(target && source,  ERR_NULLABLE_PTR, "Null pointers %p %p", target, source);
-
-    switch (typ){
-        case VALUE64_FS:    // note: this's NOT the same as value64_movefs!
-            target->fsval = fs_moveto_heap(source->fsval);  // no need to null source, fs_moveto_heap'll do that
-            if (!target->fsval)
-                userraiseint(ERR_UNABLE_ALLOCATE, "Unable to alloc new fs body");
-        break;
-        case VALUE64_DBL:
-            target->dval = source->dval;
-            source->dval = 0.0;
-        break;
-        default:    // ALL others type even VALUE64_STR follows the same logic!
-            target->u64 = source->u64;
-            source->u64 = 0L;   // u64 cover all types
-        break;
+    value64_ConverterFunc func = conv_matrix[from][to];
+    if (func != NULL) {
+        return logsimpleret(func(v), "Converted from %s to %s", value64_typename(from), value64_typename(to) );
     }
-    return target;
+    userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s",
+                 from, value64_typename(from), to, value64_typename(to));
+    return VALUE64_ZERO;
+}
+// --- Группа INT ---
+value64                     value64_convert_int_to_lng(value64 v) {
+    return  value64_createlong((long) value64_int(v) );
+}
+value64                     value64_convert_int_to_dbl(value64 v) {
+    return  value64_createdbl((double) value64_int(v) );
+}
+value64                     value64_convert_int_to_fs(value64 v) {
+    value64     result = VALUE64_ZERO;
+    fs          tmp = fscopyf("%d", value64_int(v));
+    result.fsval = fs_moveto_heap(&tmp);
+    return result;
+}
+value64                     value64_convert_int_to_str(value64 v) {
+    char        buf[100];       // CAn't use fs in STR
+    snprintf(buf, sizeof(buf) - 1, "%d", value64_int(v));
+    return value64_createstr(buf);
+}
+// --- Группа LNG ---
+value64                     value64_convert_lng_to_int(value64 v) {
+    if (!is_long_int_range(value64_long(v)) )
+        userraiseint(ERR_OUT_OF_RANGE, "Long->int overflow");
+    return value64_createint( (int) value64_long(v) );
+}
+value64                     value64_convert_lng_to_dbl(value64 v) {
+    return value64_createdbl((double) value64_long(v) );
+}
+value64                     value64_convert_lng_to_fs(value64 v) {
+    value64     result = VALUE64_ZERO;
+    fs          tmp = fscopyf("%ld", value64_long(v) );
+    result.fsval = fs_moveto_heap(&tmp);
+    return result;
+}
+value64                     value64_convert_lng_to_str(value64 v) {
+    char        buf[100];
+    snprintf(buf, sizeof(buf) - 1, "%ld", value64_long(v) );
+    return value64_createstr(buf);
+}
+
+// --- Группа DBL ---
+value64                     value64_convert_dbl_to_int(value64 v) {
+    if (!is_dbl_int_range(value64_dbl(v)))
+        userraiseint(ERR_OUT_OF_RANGE, "Dbl->int overflow");
+    return value64_createint((int) value64_dbl(v) );
+}
+value64                     value64_convert_dbl_to_lng(value64 v) {
+    if (!is_dbl_long_range(value64_dbl(v)))
+        userraiseint(ERR_OUT_OF_RANGE, "Dbl->long overflow");
+    return value64_createlong((long) value64_dbl(v) );
+}
+value64                     value64_convert_dbl_to_fs(value64 v) {
+    value64     result = VALUE64_ZERO;
+    fs tmp = fscopyf("%g", value64_dbl(v) );       // context must be used! TODO:
+    result.fsval = fs_moveto_heap(&tmp);
+    return result;
+}
+value64                     value64_convert_dbl_to_str(value64 v) {
+    char        buf[100];
+    snprintf(buf, sizeof(buf), "%lf", value64_dbl(v));    // // context must be used! TODO:
+    return value64_createstr(buf);
+}
+
+// --- Группа FS ---
+value64                     value64_convert_fs_to_int(value64 v) {
+    fs          *fsval = value64_fs(v);
+    return value64_createint(fs_getint(fsval) );
+}
+value64                     value64_convert_fs_to_lng(value64 v) {
+    fs          *fsval = value64_fs(v);
+    return value64_createlong(fs_getlong(fsval) );
+}
+value64                     value64_convert_fs_to_dbl(value64 v) {
+    fs          *fsval = value64_fs(v);
+    return value64_createdbl(fs_getdouble(fsval) );
+}
+value64                     value64_convert_fs_to_str(value64 v) {
+    fs          *fsval = value64_fs(v);
+    return value64_createstr(fsval->v);
+}
+value64                     value64_convert_fs_to_fs(value64 v){
+    fs          *fsval = value64_fs(v);
+    return value64_createfs(fsval);
+}
+// --- Группа STR ---
+value64                     value64_convert_str_to_int(value64 v) {
+    char        *sval = value64_str(v);
+    value64     result = VALUE64_ZERO;
+    if (!try_parse_int(sval, &result.ival))
+        userraiseint(ERR_INVALID_CONVERSION, "str->int fail");
+    return result;
+}
+value64                     value64_convert_str_to_lng(value64 v) {
+    char        *sval = value64_str(v);
+    value64     result = VALUE64_ZERO;
+    if (!try_parse_long(sval, &result.lval))
+        userraiseint(ERR_INVALID_CONVERSION, "str->long fail");
+    return result;
+}
+value64                     value64_convert_str_to_dbl(value64 v) {
+    char        *sval = value64_str(v);
+    value64     result = VALUE64_ZERO;
+    if (!try_parse_double(sval, &result.dval))
+        userraiseint(ERR_INVALID_CONVERSION, "str->double fail");
+    return result;
+}
+value64                     value64_convert_str_to_fs(value64 v) {
+    char        *sval = value64_str(v);
+    value64     result = VALUE64_ZERO;
+    result.fsval = fs_heapcopy(sval);
+    return result;
+}
+value64                     value64_convert_str_to_str(value64 v) {
+    char        *sval = value64_str(v);
+    value64     result = VALUE64_ZERO;
+    result = value64_createstr(sval);
+    return result;
 }
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------

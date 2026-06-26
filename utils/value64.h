@@ -72,6 +72,7 @@ extern  value64_type                 value64_gettype(const char *str);
 // only zero for now
 #define                 VALUE64_ZERO      (value64) {.u64 = 0L }
 
+typedef value64                     (*value64_ConverterFunc)(value64 v);
 
 /*#define                 VALUE64_INT(val)  (value64) {.u64 = 0L, .ival = val }
 #define                 VALUE64_LONG(val) (value64) {.u64 = 0L, .lval = val }
@@ -231,6 +232,12 @@ static inline value64              *value64_move_fs(value64 *restrict target, va
 
 extern unsigned long               value64_lhash(value64 value, value64_type typ);
 
+// SQL in low level TODO:
+extern bool                        value64_in   (value64 val, value64_type typ, const value64 *arr, int sz);
+extern bool                        value64_notin(value64 val, value64_type typ, const value64 *arr, int sz);
+
+// ----------------------------- CONVERTERS ----------------------------------------
+
 extern value64                     value64_convert(value64 v, value64_type from, value64_type to);
 /* TODO: via dispatcher func
 static inline value64              value64_convert(value64 v, value64_type from, value64_type to){
@@ -239,12 +246,35 @@ static inline value64              value64_convert(value64 v, value64_type from,
 static inline bool                 value64_is_convertable(value64 v, value64_type from, value64_type to){
     value64_convert_check(v, from, to, false);
 }*/
-// TODO:
 extern value64                     value64_convert_move(value64 *source, value64_type from, value64_type to);
 
-// SQL in low level TODO:
-extern bool                        value64_in   (value64 val, value64_type typ, const value64 *arr, int sz);
-extern bool                        value64_notin(value64 val, value64_type typ, const value64 *arr, int sz);
+// --- Группа INT ---
+extern value64                     value64_convert_int_to_lng(value64 v);
+extern value64                     value64_convert_int_to_dbl(value64 v);
+extern value64                     value64_convert_int_to_fs(value64 v);
+extern value64                     value64_convert_int_to_str(value64 v);
+// --- Группа LNG ---
+extern value64                     value64_convert_lng_to_int(value64 v);
+extern value64                     value64_convert_lng_to_dbl(value64 v);
+extern value64                     value64_convert_lng_to_fs(value64 v);
+extern value64                     value64_convert_lng_to_str(value64 v);
+// --- Группа DBL ---
+extern value64                     value64_convert_dbl_to_int(value64 v);
+extern value64                     value64_convert_dbl_to_lng(value64 v);
+extern value64                     value64_convert_dbl_to_fs(value64 v);
+extern value64                     value64_convert_dbl_to_str(value64 v);
+// --- Группа FS ---
+extern value64                     value64_convert_fs_to_fs(value64 v);
+extern value64                     value64_convert_fs_to_int(value64 v);
+extern value64                     value64_convert_fs_to_lng(value64 v);
+extern value64                     value64_convert_fs_to_dbl(value64 v);
+extern value64                     value64_convert_fs_to_str(value64 v);
+// --- Группа STR ---
+extern value64                     value64_convert_str_to_str(value64 v);
+extern value64                     value64_convert_str_to_int(value64 v);
+extern value64                     value64_convert_str_to_lng(value64 v);
+extern value64                     value64_convert_str_to_dbl(value64 v);
+extern value64                     value64_convert_str_to_fs(value64 v);
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
