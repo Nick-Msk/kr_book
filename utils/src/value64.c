@@ -79,7 +79,7 @@ value64                   value64_pcopy_move(void *p, value64_type typ, bool mov
     return tmp;
 }
 
-value64_ConverterFunc conv_matrix[7][7] = {
+value64_ConverterFunc conv_matrix[VALUE64_TYPE_COUNT][VALUE64_TYPE_COUNT] = {
     [VALUE64_INT] = {
         [VALUE64_LNG] = value64_convert_int_to_lng,
         [VALUE64_DBL] = value64_convert_int_to_dbl,
