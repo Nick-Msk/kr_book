@@ -1,0 +1,6 @@
+# pg_printf extension
+comment = 'Real printf() using snprintf per specifier'
+default_version = '1.0'
+module_pathname = '$libdir/pg_printf'
+relocatable = true
+
