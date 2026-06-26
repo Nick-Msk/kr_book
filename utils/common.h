@@ -161,6 +161,14 @@ rnddbl(double dmax)
 }
 // ----------------------------------- Comparators ----------------------------
 
+static inline int               compare_char(unsigned char v1, unsigned char v2){
+    if (v1 > v2)
+        return 1;
+    else if (v1 < v2)
+        return -1;
+    else
+        return 0;
+}
 static inline int               compare_int(int v1, int v2){
     if (v1 > v2)
         return 1;
@@ -169,7 +177,23 @@ static inline int               compare_int(int v1, int v2){
     else
         return 0;
 }
+static inline int               compare_uint(unsigned v1, unsigned v2){
+    if (v1 > v2)
+        return 1;
+    else if (v1 < v2)
+        return -1;
+    else
+        return 0;
+}
 static inline int               compare_long(long v1, long v2){
+    if (v1 > v2)
+        return 1;
+    else if (v1 < v2)
+        return -1;
+    else
+        return 0;
+}
+static inline int               compare_ulong(unsigned long v1, unsigned long v2){
     if (v1 > v2)
         return 1;
     else if (v1 < v2)
