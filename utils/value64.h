@@ -73,6 +73,7 @@ extern  value64_type                 value64_gettype(const char *str);
 #define                 VALUE64_ZERO      (value64) {.u64 = 0L }
 
 typedef value64                     (*value64_ConverterFunc)(value64 v);
+typedef value64                     (*value64_ConverterMoveFunc)(value64 *v);
 
 /*#define                 VALUE64_INT(val)  (value64) {.u64 = 0L, .ival = val }
 #define                 VALUE64_LONG(val) (value64) {.u64 = 0L, .lval = val }
@@ -239,14 +240,7 @@ extern bool                        value64_notin(value64 val, value64_type typ, 
 // ----------------------------- CONVERTERS ----------------------------------------
 
 extern value64                     value64_convert(value64 v, value64_type from, value64_type to);
-/* TODO: via dispatcher func
-static inline value64              value64_convert(value64 v, value64_type from, value64_type to){
-    value64_convert_check(v, from, to, true);
-}
-static inline bool                 value64_is_convertable(value64 v, value64_type from, value64_type to){
-    value64_convert_check(v, from, to, false);
-}*/
-extern value64                     value64_convert_move(value64 *source, value64_type from, value64_type to);
+extern bool                        value64_is_convertable(value64 v, value64_type from, value64_type to);
 
 // --- Группа INT ---
 extern value64                     value64_convert_int_to_lng(value64 v);
@@ -276,6 +270,13 @@ extern value64                     value64_convert_str_to_lng(value64 v);
 extern value64                     value64_convert_str_to_dbl(value64 v);
 extern value64                     value64_convert_str_to_fs(value64 v);
 
+// MOVE semantic
+extern value64                     value64_convert_move(value64 *source, value64_type from, value64_type to);
+
+extern value64                     value64_convert_move_fs_to_str(value64 *v);
+extern value64                     value64_convert_move_fs_to_fs(value64 *v);
+extern value64                     value64_convert_move_str_to_fs(value64 *v);
+extern value64                     value64_convert_move_str_to_str(value64 *v);
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
 extern void                        value64_fprint(FILE *restrict out, const char *restrict msg, value64 val, value64_type typ);

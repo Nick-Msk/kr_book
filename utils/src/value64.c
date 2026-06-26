@@ -114,6 +114,17 @@ value64_ConverterFunc conv_matrix[VALUE64_TYPE_COUNT][VALUE64_TYPE_COUNT] = {
     }
 };
 
+value64_ConverterMoveFunc conv_move_matrix[VALUE64_TYPE_COUNT][VALUE64_TYPE_COUNT] = {
+    [VALUE64_FS] = {
+        [VALUE64_STR] = value64_convert_move_fs_to_str,
+        [VALUE64_FS]  = value64_convert_move_fs_to_fs
+    },
+    [VALUE64_STR] = {
+        [VALUE64_FS]  = value64_convert_move_str_to_fs,
+        [VALUE64_STR] = value64_convert_move_str_to_str
+    }
+};
+
 unsigned long               value64_lhash(value64 value, value64_type typ){
     // probably it's better to calc hash by u64 attr (except fs for sure)
     value64      tmp = VALUE64_ZERO;
@@ -217,6 +228,7 @@ bool                        value64_notin(value64 val, value64_type typ, const v
 
 // TODO: refactor is required
 // TODO: only FS <-> STR conversion with move semantic
+/*
 value64                     value64_convert_move(value64 *source, value64_type from, value64_type to){
     invraisecode(source != NULL, ERR_NULLABLE_PTR, "Null pointer");
 
@@ -248,7 +260,21 @@ value64                     value64_convert_move(value64 *source, value64_type f
     }
 
     return result;
+}*/
+
+// using exception for now
+bool                        value64_is_convertable(value64 v, value64_type from, value64_type to){
+    bool res = true;
+    if (!try()) {
+        value64 dst = value64_convert(v, from, to);
+        (void) dst;
+    } else {
+        res = false;
+        logsimple("Conversion failed from %d:%s to %d:%s", from, value64_typename(from), to, value64_typename(to) );
+    }
+    return res;
 }
+
 // converted, COPY semantic
 value64                     value64_convert(value64 v, value64_type from, value64_type to) {
     if (from == to && from != VALUE64_FS && from != VALUE64_STR)    // TODO: probably refactor that
@@ -380,6 +406,41 @@ value64                     value64_convert_str_to_str(value64 v) {
     return result;
 }
 
+// converter, MOVE semantic
+value64                     value64_convert_move(value64 *v, value64_type from, value64_type to) {
+    value64_ConverterMoveFunc func = conv_move_matrix[from][to];
+    if (func != NULL) {
+        return logsimpleret(func(v), "Move converted from %s to %s", value64_typename(from), value64_typename(to) );
+    } else
+        userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s",
+                 from, value64_typename(from), to, value64_typename(to));
+    return VALUE64_ZERO;
+}
+// FS
+value64                     value64_convert_move_fs_to_str(value64 *v){
+    value64     result = VALUE64_ZERO;
+    result.sval = fs_movefrom_heapstr(&v->fsval);
+    return result;
+}
+value64                     value64_convert_move_fs_to_fs(value64 *v){
+    value64     result = VALUE64_ZERO;
+    result.fsval = v->fsval;
+    v->fsval = 0;  // NO FREE HERE
+    return result;
+}
+// STR
+value64                     value64_convert_move_str_to_fs(value64 *v){
+    value64     result = VALUE64_ZERO;
+    result.fsval = fs_moveto_heapstr(&v->sval);
+    v->sval = NULL;
+    return result;
+}
+value64                     value64_convert_move_str_to_str(value64 *v){
+    value64     result = VALUE64_ZERO;
+    result.sval = v->sval;
+    v->sval = NULL;
+    return result;
+}
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
 void                        value64_fprint(FILE *restrict out, const char *restrict msg, value64 val, value64_type typ){
