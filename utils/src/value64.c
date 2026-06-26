@@ -226,55 +226,35 @@ bool                        value64_notin(value64 val, value64_type typ, const v
 
 // ----------------------------- CONVERTERS ----------------------------------------
 
-// TODO: refactor is required
-// TODO: only FS <-> STR conversion with move semantic
+// using exception for now TODO: try() ref is required
 /*
-value64                     value64_convert_move(value64 *source, value64_type from, value64_type to){
-    invraisecode(source != NULL, ERR_NULLABLE_PTR, "Null pointer");
-
-    if ( ! ( (from == VALUE64_FS || from == VALUE64_STR) && (to == VALUE64_FS || to == VALUE64_STR) ) )
-        userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, value64_typename(from), to, value64_typename(to) );
-
-    value64     result = VALUE64_ZERO;
-
-    switch (from) {
-        case VALUE64_STR:
-            char     *sval = value64_str(*source);
-            if (to == VALUE64_STR) {
-                result.sval = sval;
-            } else { // VALUE64_FS
-                result.fsval = fs_moveto_heapstr(&source->sval);   //
-            }
-            source->sval = NULL;
-        break;
-        case VALUE64_FS:
-            if (to == VALUE64_STR){
-                result.sval = fs_movefrom_heapstr(&source->fsval);
-            } else {    // VALUE64_FS
-                result.fsval = source->fsval;   // just a move!!!
-                source->fsval = 0;  // NO FREE HERE
-            }
-        break;
-        default:    // TODO: not sure, probably better to allow work as value64_convert() is that case
-        break;
-    }
-
-    return result;
-}*/
-
-// using exception for now
 bool                        value64_is_convertable(value64 v, value64_type from, value64_type to){
     bool res = true;
-    if (!try()) {
-        value64 dst = value64_convert(v, from, to);
-        (void) dst;
-    } else {
-        res = false;
-        logsimple("Conversion failed from %d:%s to %d:%s", from, value64_typename(from), to, value64_typename(to) );
+    // this is WA to avoid allocation in fs/str
+    if ( (from == VALUE64_LNG ||from == VALUE64_DBL) && (to == VALUE64_LNG || to == VALUE64_INT) ) {
+        if (!try()) {
+            value64 dst = value64_convert(v, from, to);
+            (void) dst;
+        } else {
+            res = false;
+            logsimple("Conversion failed from %d:%s to %d:%s", from, value64_typename(from), to, value64_typename(to) );
+            value64_log(v, from);
+        }
     }
     return res;
-}
+} */
+// TODO: hardcoding, refactoring is required!!!
+bool                        value64_is_convertable(value64 v, value64_type from, value64_type to) {
+    if (from == VALUE64_LNG && to == VALUE64_INT)
+        return is_long_int_range(value64_long(v));
 
+    if (from == VALUE64_DBL && to == VALUE64_INT)
+        return is_dbl_int_range(value64_dbl(v));
+
+    if (from == VALUE64_DBL && to == VALUE64_LNG)
+        return is_dbl_long_range(value64_dbl(v));
+    return true;
+}
 // converted, COPY semantic
 value64                     value64_convert(value64 v, value64_type from, value64_type to) {
     if (from == to && from != VALUE64_FS && from != VALUE64_STR)    // TODO: probably refactor that
@@ -1909,6 +1889,136 @@ tf_convert_move(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST value64_is_convertable -----------------------------
+static TestStatus
+tf_is_convertable(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. INT -> LONG: допустимо */
+    test_sub("subtest %d: INT->LNG (allowed)", ++subnum);
+    {
+        value64 v = value64_createint(42);
+        test_validate(
+            value64_is_convertable(v, VALUE64_INT, VALUE64_LNG),
+            "INT->LNG must be convertable"
+        );
+    }
+
+    /* 2. INT -> DBL: допустимо */
+    test_sub("subtest %d: INT->DBL (allowed)", ++subnum);
+    {
+        value64 v = value64_createint(42);
+        test_validate(
+            value64_is_convertable(v, VALUE64_INT, VALUE64_DBL),
+            "INT->DBL must be convertable"
+        );
+    }
+
+    /* 3. INT -> INT: допустимо (identity) */
+    test_sub("subtest %d: INT->INT (allowed)", ++subnum);
+    {
+        value64 v = value64_createint(42);
+        test_validate(
+            value64_is_convertable(v, VALUE64_INT, VALUE64_INT),
+            "INT->INT must be convertable"
+        );
+    }
+
+    /* 4. LONG -> INT (в пределах) – допустимо */
+    test_sub("subtest %d: LNG->INT (in range)", ++subnum);
+    {
+        value64 v = value64_createlong(123456L);
+        test_validate(
+            value64_is_convertable(v, VALUE64_LNG, VALUE64_INT),
+            "LNG->INT (in range) must be convertable"
+        );
+    }
+
+    /* 5. LONG -> INT (переполнение) – НЕ допустимо */
+    test_sub("subtest %d: LNG->INT (overflow)", ++subnum);
+    {
+        value64 v = value64_createlong(2147483648L);
+        test_validate(
+            !value64_is_convertable(v, VALUE64_LNG, VALUE64_INT),
+            "LNG->INT overflow must NOT be convertable"
+        );
+    }
+
+    /* 6. DBL -> INT (в пределах) – допустимо */
+    test_sub("subtest %d: DBL->INT (in range)", ++subnum);
+    {
+        value64 v = value64_createdbl(3.14);
+        test_validate(
+            value64_is_convertable(v, VALUE64_DBL, VALUE64_INT),
+            "DBL->INT (in range) must be convertable"
+        );
+    }
+
+    /* 7. DBL -> INT (переполнение) – НЕ допустимо */
+    test_sub("subtest %d: DBL->INT (overflow)", ++subnum);
+    {
+        value64 v = value64_createdbl(1.0e30);
+        test_validate(
+            !value64_is_convertable(v, VALUE64_DBL, VALUE64_INT),
+            "DBL->INT overflow must NOT be convertable"
+        );
+    }
+
+    /* 8. DBL -> INT (NaN) – НЕ допустимо */
+    test_sub("subtest %d: DBL->INT (NaN)", ++subnum);
+    {
+        value64 v = value64_createdbl(NAN);
+        test_validate(
+            !value64_is_convertable(v, VALUE64_DBL, VALUE64_INT),
+            "DBL->INT NaN must NOT be convertable"
+        );
+    }
+
+    /* 9. DBL -> LONG (переполнение) – НЕ допустимо */
+    test_sub("subtest %d: DBL->LNG (overflow)", ++subnum);
+    {
+        value64 v = value64_createdbl(1.0e30);
+        test_validate(
+            !value64_is_convertable(v, VALUE64_DBL, VALUE64_LNG),
+            "DBL->LNG overflow must NOT be convertable"
+        );
+    }
+
+    /* 10. FS -> INT: неизвестно, но не должно падать */
+    test_sub("subtest %d: FS->INT (must not crash)", ++subnum);
+    {
+        fs tmp = fscopy("123");
+        value64 v = value64_createfs(&tmp);
+        fsfree(tmp);
+        // Просто вызываем, результат не проверяем, но убеждаемся, что не упали
+        test_validatefree(
+            true,   // основное условие — дошли до этой точки
+            value64_free(v, VALUE64_FS),
+            "FS->INT must not crash (result was %s)",
+            bool_str(value64_is_convertable(v, VALUE64_FS, VALUE64_INT))
+        );
+        value64_free(v, VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    /* 11. STR -> DBL: не должно падать */
+    test_sub("subtest %d: STR->DBL (must not crash)", ++subnum);
+    {
+        value64 v = value64_createstr("3.14");
+        test_validatefree(
+            true,
+            value64_free(v, VALUE64_STR),
+            "STR->DBL must not crash (result was %s)",
+            bool_str(value64_is_convertable(v, VALUE64_STR, VALUE64_DBL))
+        );
+        value64_free(v, VALUE64_STR);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -1937,6 +2047,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_compare,          .num =  6, .name = "Simple value64_compare() test"              , .desc="", .mandatory=true)
               , testnew(.f2 = tf_convert,          .num =  7, .name = "Simple value64_convert() test"              , .desc="", .mandatory=true)
               , testnew(.f2 = tf_convert_move,     .num =  8, .name = "Simple value64_convert_move() test"         , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_is_convertable,   .num =  9, .name = "Simple value64_is_convertable() test"       , .desc="", .mandatory=true)
             );
         if (runall)
             break;
