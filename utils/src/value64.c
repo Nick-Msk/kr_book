@@ -218,10 +218,33 @@ value64                     *value64_move(value64 *restrict target, value64 *res
 
 // SQL in low level TODO:
 bool                        value64_in   (value64 val, value64_type typ, const value64 *arr, int sz){
-   return true; // just a stub
+    
+    return true; // just a stub
 }
 bool                        value64_notin(value64 val, value64_type typ, const value64 *arr, int sz){
     return true;    // just a stub
+}
+// basic comparator
+bool                        value64_cmp(value64 v1, value64 v2, value64_type typ){
+    int res = 0;
+    switch (typ){
+        case VALUE64_INT:
+            return compare_int(value64_int(v1), value64_int(v2) );
+        case VALUE64_LNG:
+            return compare_long(value64_long(v1), value64_long(v2) );
+        case VALUE64_DBL:
+            return compare_dbl(value64_dbl(v1), value64_dbl(v2) );
+        case VALUE64_FS:
+            return fs_cmp(value64_fs(v1), value64_fs(v2) );
+        case VALUE64_STR:
+            return strcmp(value64_str(v1), value64_str(v2) );
+        case VALUE64_PTR:
+            return compare_ptr(value64_ptr(v1), value64_ptr(v2) );
+        default:
+            userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "No comparator for %d:%s",
+                 typ, value64_typename(typ) ); 
+    }
+    return res;
 }
 
 // ----------------------------- CONVERTERS ----------------------------------------
@@ -2019,6 +2042,197 @@ tf_is_convertable(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST value64_is_convertable -----------------------------
+static TestStatus
+tf_cmp(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ---------- INT ---------- */
+    test_sub("subtest %d: cmp INT equal", ++subnum);
+    {
+        value64 a = value64_createint(42);
+        value64 b = value64_createint(42);
+        test_validate(
+            value64_cmp(a, b, VALUE64_INT) == 0, 
+            "42 must equal 42"
+        );
+    }
+
+    test_sub("subtest %d: cmp INT less / greater", ++subnum);
+    {
+        value64 a = value64_createint(10);
+        value64 b = value64_createint(20);
+        test_validate(
+            value64_cmp(a, b, VALUE64_INT) < 0, 
+            "10 must be less than 20"
+        );
+        test_validate(value64_cmp(b, a, VALUE64_INT) > 0, "20 must be greater than 10");
+    }
+
+    /* ---------- LONG ---------- */
+    test_sub("subtest %d: cmp LONG equal", ++subnum);
+    {
+        value64 a = value64_createlong(-999999L);
+        value64 b = value64_createlong(-999999L);
+        test_validate(
+            value64_cmp(a, b, VALUE64_LNG) == 0, 
+            "-999999L must equal -999999L"
+        );
+    }
+
+    test_sub("subtest %d: cmp LONG less / greater", ++subnum);
+    {
+        value64 a = value64_createlong(100L);
+        value64 b = value64_createlong(200L);
+        test_validate(
+            value64_cmp(a, b, VALUE64_LNG) < 0,
+            "100L must be less than 200L"
+        );
+        test_validate(
+            value64_cmp(b, a, VALUE64_LNG) > 0, 
+            "200L must be greater than 100L"
+        );
+    }
+
+    /* ---------- DBL ---------- */
+    test_sub("subtest %d: cmp DBL equal", ++subnum);
+    {
+        value64 a = value64_createdbl(3.1415);
+        value64 b = value64_createdbl(3.1415);
+        test_validate(
+            value64_cmp(a, b, VALUE64_DBL) == 0, 
+            "3.1415 must equal 3.1415"
+        );
+    }
+
+    test_sub("subtest %d: cmp DBL less / greater", ++subnum);
+    {
+        value64 a = value64_createdbl(1.0);
+        value64 b = value64_createdbl(2.0);
+        test_validate(value64_cmp(a, b, VALUE64_DBL) < 0, "1.0 must be less than 2.0");
+        test_validate(value64_cmp(b, a, VALUE64_DBL) > 0, "2.0 must be greater than 1.0");
+    }
+
+    test_sub("subtest %d: cmp DBL special (NaN, inf)", ++subnum);
+    {
+        value64 a = value64_createdbl(NAN);
+        value64 b = value64_createdbl(NAN);
+        // NaN != NaN, но compare_dbl считает их равными? Согласно реализации compare_dbl – да, 0.
+        test_validate(value64_cmp(a, b, VALUE64_DBL) == 0, "NaN must equal NaN (by implementation)");
+
+        value64 inf1 = value64_createdbl(INFINITY);
+        value64 inf2 = value64_createdbl(INFINITY);
+        test_validate(value64_cmp(inf1, inf2, VALUE64_DBL) == 0, "+inf must equal +inf");
+
+        value64 ninf = value64_createdbl(-INFINITY);
+        test_validate(value64_cmp(inf1, ninf, VALUE64_DBL) > 0, "+inf must be greater than -inf");
+    }
+
+    /* ---------- PTR ---------- */
+    test_sub("subtest %d: cmp PTR equal / not equal", ++subnum);
+    {
+        int x = 1, y = 2;
+        value64 a = value64_createptr(&x);
+        value64 b = value64_createptr(&x);
+        value64 c = value64_createptr(&y);
+
+        test_validate(value64_cmp(a, b, VALUE64_PTR) == 0, "same address must be equal");
+        test_validate(value64_cmp(a, c, VALUE64_PTR) != 0, "different addresses must not be equal");
+    }
+
+    /* ---------- STR ---------- */
+    test_sub("subtest %d: cmp STR equal", ++subnum);
+    {
+        value64 a = value64_createstr("hello");
+        value64 b = value64_createstr("hello");
+        test_validatefree(
+            value64_cmp(a, b, VALUE64_STR) == 0,
+            (value64_free(a, VALUE64_STR), value64_free(b, VALUE64_STR)),
+            "'hello' must equal 'hello'"
+        );
+        value64_free(a, VALUE64_STR);
+        value64_free(b, VALUE64_STR);
+    }
+
+    test_sub("subtest %d: cmp STR not equal", ++subnum);
+    {
+        value64 a = value64_createstr("abc");
+        value64 b = value64_createstr("xyz");
+        test_validatefree(
+            value64_cmp(a, b, VALUE64_STR) != 0,
+            (value64_free(a, VALUE64_STR), value64_free(b, VALUE64_STR)),
+            "'abc' must not equal 'xyz'"
+        );
+        value64_free(a, VALUE64_STR);
+        value64_free(b, VALUE64_STR);
+    }
+
+    /* ---------- FS ---------- */
+    test_sub("subtest %d: cmp FS equal", ++subnum);
+    {
+        fs tmp = fscopy("fs-data");
+        value64 a = value64_createfs(&tmp);
+        value64 b = value64_createfs(&tmp);   // ещё одна копия
+        fsfree(tmp);
+
+        test_validatefree(
+            value64_cmp(a, b, VALUE64_FS) == 0,
+            (value64_free(a, VALUE64_FS), value64_free(b, VALUE64_FS)),
+            "fs 'fs-data' must equal itself"
+        );
+        value64_free(a, VALUE64_FS);
+        value64_free(b, VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: cmp FS not equal", ++subnum);
+    {
+        fs tmp1 = fscopy("alpha");
+        fs tmp2 = fscopy("beta");
+        value64 a = value64_createfs(&tmp1);
+        value64 b = value64_createfs(&tmp2);
+        fsfree(tmp1);
+        fsfree(tmp2);
+
+        test_validatefree(
+            value64_cmp(a, b, VALUE64_FS) != 0,
+            (value64_free(a, VALUE64_FS), value64_free(b, VALUE64_FS)),
+            "fs 'alpha' must not equal 'beta'"
+        );
+        value64_free(a, VALUE64_FS);
+        value64_free(b, VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: cmp FS empty vs non-empty", ++subnum);
+    {
+        fs tmp = FS();
+        value64 empty = value64_createfs(&tmp);      // пустая строка с v==NULL – будет отвергнута? У вас есть проверка в createfs, но мы используем FSLITERAL("")
+        // Заменим на корректную пустую строку:
+        fs empty_str = fscopy("");
+        value64 a = value64_createfs(&empty_str);
+        fsfree(empty_str);
+
+        (void) empty;
+        fs tmp2 = fscopy("non-empty");
+        value64 b = value64_createfs(&tmp2);
+        fsfree(tmp2);
+
+        test_validatefree(
+            value64_cmp(a, b, VALUE64_FS) != 0,
+            (value64_free(a, VALUE64_FS), value64_free(b, VALUE64_FS)),
+            "empty fs must not equal non-empty"
+        );
+        value64_free(a, VALUE64_FS);
+        value64_free(b, VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -2048,6 +2262,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_convert,          .num =  7, .name = "Simple value64_convert() test"              , .desc="", .mandatory=true)
               , testnew(.f2 = tf_convert_move,     .num =  8, .name = "Simple value64_convert_move() test"         , .desc="", .mandatory=true)
               , testnew(.f2 = tf_is_convertable,   .num =  9, .name = "Simple value64_is_convertable() test"       , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_cmp,              .num =  10, .name = "Simple value64_cmp() test"                 , .desc="", .mandatory=true)
             );
         if (runall)
             break;
