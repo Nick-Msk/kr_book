@@ -216,13 +216,26 @@ value64                     *value64_move(value64 *restrict target, value64 *res
     return target;
 }
 
-// SQL in low level TODO:
-bool                        value64_in   (value64 val, value64_type typ, const value64 *arr, int sz){
-    
-    return true; // just a stub
+// finders
+int                         value64_search(value64 val, value64_type typ, const value64 *arr, int sz){
+    invraisecode(arr || sz == 0, ERR_NULLABLE_PTR, "Null pointer while sz > 0 %p %d", arr, sz);
+    // iterator!
+    for (int i = 0; i < sz; i++)
+        if (value64_cmp(val, arr[i], typ) == 0)
+            return logsimpleret(i, "Found %d", i);
+    return logsimpleerr(-1, "Not found"); // just a stub
 }
-bool                        value64_notin(value64 val, value64_type typ, const value64 *arr, int sz){
-    return true;    // just a stub
+int                         value64_revsearch(value64 val, value64_type typ, const value64 *arr, int sz){
+    invraisecode(arr || sz == 0, ERR_NULLABLE_PTR, "Null pointer while sz > 0 %p %d", arr, sz);
+    // iterator!
+    for (int i = sz; i > 0; i--)
+        if (value64_cmp(val, arr[i - 1], typ) == 0)
+            return logsimpleret(i - 1, "Found reverse %d", i - 1); 
+    return logsimpleerr(-1, "Not found"); // just a stub
+}
+// TODO:
+int                         value64_binsearch(value64 val, value64_type typ, const value64 *arr, int sz){
+    return -1;
 }
 // basic comparator, switch fow now, but probably table-function is required
 int                         value64_cmp(value64 v1, value64 v2, value64_type typ){
@@ -2235,6 +2248,183 @@ tf_cmp(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST value64_(rev)search -----------------------------
+
+static TestStatus
+tf_search(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ---------- INT ---------- */
+    test_sub("subtest %d: search INT – first", ++subnum);
+    {
+        value64 arr[] = { value64_createint(10), value64_createint(20), value64_createint(30) };
+        test_validate(
+            value64_search(value64_createint(10), VALUE64_INT, arr, COUNT(arr)) == 0,
+            "10 must be at index 0"
+        );
+    }
+
+    test_sub("subtest %d: search INT – middle", ++subnum);
+    {
+        value64 arr[] = { value64_createint(10), value64_createint(20), value64_createint(30) };
+        test_validate(
+            value64_search(value64_createint(20), VALUE64_INT, arr, COUNT(arr)) == 1,
+            "20 must be at index 1"
+        );
+    }
+
+    test_sub("subtest %d: search INT – last", ++subnum);
+    {
+        value64 arr[] = { value64_createint(10), value64_createint(20), value64_createint(30) };
+        test_validate(
+            value64_search(value64_createint(30), VALUE64_INT, arr, COUNT(arr)) == 2,
+            "30 must be at index 2"
+        );
+    }
+
+    test_sub("subtest %d: search INT – not found", ++subnum);
+    {
+        value64 arr[] = { value64_createint(10), value64_createint(20), value64_createint(30) };
+        test_validate(
+            value64_search(value64_createint(99), VALUE64_INT, arr, COUNT(arr)) == -1,
+            "99 must not be found, return -1"
+        );
+    }
+
+    test_sub("subtest %d: revsearch INT – last", ++subnum);
+    {
+        value64 arr[] = { value64_createint(10), value64_createint(20), value64_createint(30) };
+        test_validate(
+            value64_revsearch(value64_createint(30), VALUE64_INT, arr, COUNT(arr)) == 2,
+            "30 must be at index 2 (reverse)"
+        );
+    }
+
+    test_sub("subtest %d: revsearch INT – not found", ++subnum);
+    {
+        value64 arr[] = { value64_createint(10), value64_createint(20), value64_createint(30) };
+        test_validate(
+            value64_revsearch(value64_createint(99), VALUE64_INT, arr, COUNT(arr)) == -1,
+            "99 must not be found (reverse), return -1"
+        );
+    }
+
+    /* ---------- LONG ---------- */
+    test_sub("subtest %d: search LONG – middle", ++subnum);
+    {
+        value64 arr[] = { value64_createlong(100L), value64_createlong(200L), value64_createlong(300L) };
+        test_validate(
+            value64_search(value64_createlong(200L), VALUE64_LNG, arr, COUNT(arr)) == 1,
+            "200L must be at index 1"
+        );
+    }
+
+    /* ---------- DBL ---------- */
+    test_sub("subtest %d: search DBL – equal", ++subnum);
+    {
+        value64 arr[] = { value64_createdbl(1.5), value64_createdbl(2.5), value64_createdbl(3.5) };
+        test_validate(
+            value64_search(value64_createdbl(2.5), VALUE64_DBL, arr, COUNT(arr)) == 1,
+            "2.5 must be at index 1"
+        );
+    }
+
+    /* ---------- STR ---------- */
+    test_sub("subtest %d: search STR – found", ++subnum);
+    {
+        value64 arr[] = { value64_createstr("apple"), value64_createstr("banana"), value64_createstr("cherry") };
+        value64 key = value64_createstr("banana");
+        int pos;
+        test_validate(
+            (pos = value64_search(key, VALUE64_STR, arr, COUNT(arr) ) ) == 1, 
+            "'banana' must be at index 1, got %d", pos
+        );
+        value64_free(key, VALUE64_STR);
+        for (int i = 0; i < COUNT(arr); i++) value64_free(arr[i], VALUE64_STR);
+    }
+
+    test_sub("subtest %d: revsearch STR – last", ++subnum);
+    {
+        value64 arr[] = { value64_createstr("apple"), value64_createstr("banana"), value64_createstr("cherry") };
+        value64 key = value64_createstr("cherry");
+        int pos;
+        test_validate(
+            (pos = value64_revsearch(key, VALUE64_STR, arr, COUNT(arr) ) ) == 2,
+            "'cherry' must be at index 2 (reverse), got %d", pos
+        );
+        value64_free(key, VALUE64_STR);
+        for (int i = 0; i < COUNT(arr); i++)
+            value64_free(arr[i], VALUE64_STR);
+    }
+
+    /* ---------- FS ---------- */
+    test_sub("subtest %d: search FS – found", ++subnum);
+    {
+        fs tmp1 = fscopy("alpha"), tmp2 = fscopy("beta"), tmp3 = fscopy("gamma");
+        value64 arr[] = { value64_createfs(&tmp1), value64_createfs(&tmp2), value64_createfs(&tmp3) };
+        fsfree(tmp1); fsfree(tmp2); fsfree(tmp3);
+
+        fs key_fs = fscopy("beta");
+        value64 key = value64_createfs(&key_fs);
+        fsfree(key_fs);
+
+        int pos;
+        test_validate(
+            (pos = value64_search(key, VALUE64_FS, arr, COUNT(arr) ) ) == 1,
+            "'beta' must be at index 1, got %d", pos
+        );
+
+        value64_free(key, VALUE64_FS);
+        for (int i = 0; i < COUNT(arr); i++)
+            value64_free(arr[i], VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: revsearch FS – first", ++subnum);
+    {
+        fs tmp1 = fscopy("alpha"), tmp2 = fscopy("beta"), tmp3 = fscopy("gamma");
+        value64 arr[] = { value64_createfs(&tmp1), value64_createfs(&tmp2), value64_createfs(&tmp3) };
+        fsfree(tmp1); fsfree(tmp2); fsfree(tmp3);
+
+        fs key_fs = fscopy("alpha");
+        value64 key = value64_createfs(&key_fs);
+        fsfree(key_fs);
+
+        int pos;
+        test_validate(
+            (pos = value64_revsearch(key, VALUE64_FS, arr, COUNT(arr) ) ) == 0,
+            "'alpha' must be at index 0 (reverse), got %d", pos
+        );
+
+        value64_free(key, VALUE64_FS);
+        for (int i = 0; i < COUNT(arr); i++) value64_free(arr[i], VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    /* ---------- empty / edge ---------- */
+    test_sub("subtest %d: search – empty array", ++subnum);
+    {
+        value64 key = value64_createint(1);
+        test_validate(
+            value64_search(key, VALUE64_INT, NULL, 0) == -1, 
+            "empty array must return -1"
+        );
+    }
+
+    test_sub("subtest %d: revsearch – empty array", ++subnum);
+    {
+        value64 key = value64_createint(1);
+        test_validate(
+            value64_revsearch(key, VALUE64_INT, NULL, 0) == -1,
+            "empty array must return -1 (reverse)"
+        );
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -2264,7 +2454,8 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_convert,          .num =  7, .name = "Simple value64_convert() test"              , .desc="", .mandatory=true)
               , testnew(.f2 = tf_convert_move,     .num =  8, .name = "Simple value64_convert_move() test"         , .desc="", .mandatory=true)
               , testnew(.f2 = tf_is_convertable,   .num =  9, .name = "Simple value64_is_convertable() test"       , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_cmp,              .num =  10, .name = "Simple value64_cmp() test"                 , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_cmp,              .num = 10, .name = "Simple value64_cmp() test"                  , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_search,           .num = 11, .name = "Simple value64_(rev)search test"            , .desc="", .mandatory=true)
             );
         if (runall)
             break;
