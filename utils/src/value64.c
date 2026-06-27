@@ -252,23 +252,6 @@ int                         value64_cmp(value64 v1, value64 v2, value64_type typ
 
 // ----------------------------- CONVERTERS ----------------------------------------
 
-// using exception for now TODO: try() ref is required
-/*
-bool                        value64_is_convertable(value64 v, value64_type from, value64_type to){
-    bool res = true;
-    // this is WA to avoid allocation in fs/str
-    if ( (from == VALUE64_LNG ||from == VALUE64_DBL) && (to == VALUE64_LNG || to == VALUE64_INT) ) {
-        if (!try()) {
-            value64 dst = value64_convert(v, from, to);
-            (void) dst;
-        } else {
-            res = false;
-            logsimple("Conversion failed from %d:%s to %d:%s", from, value64_typename(from), to, value64_typename(to) );
-            value64_log(v, from);
-        }
-    }
-    return res;
-} */
 // TODO: hardcoding, refactoring is required!!!
 bool                        value64_is_convertable(value64 v, value64_type from, value64_type to) {
     if (from == VALUE64_LNG && to == VALUE64_INT)
@@ -283,16 +266,12 @@ bool                        value64_is_convertable(value64 v, value64_type from,
 }
 // converted, COPY semantic
 value64                     value64_convert(value64 v, value64_type from, value64_type to) {
-    if (from == to && from != VALUE64_FS && from != VALUE64_STR)    // TODO: probably refactor that
-        return v;
 
     value64_ConverterFunc func = conv_matrix[from][to];
     if (func != NULL) {
         return logsimpleret(func(v), "Converted from %s to %s", value64_typename(from), value64_typename(to) );
-    }
-    userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s",
-                 from, value64_typename(from), to, value64_typename(to));
-    return VALUE64_ZERO;
+    } else
+        return logsimpleret(v, "No conv is required for %s -> %s", value64_typename(from), value64_typename(to) );
 }
 // --- Группа INT ---
 value64                     value64_convert_int_to_lng(value64 v) {
