@@ -185,12 +185,32 @@ value64                     *value64_move(value64 *restrict target, value64 *res
     }
     return target;
 }
-
+//  exchanger, low-level, no check
+void                        value64_exch(value64 *v1, value64 *v2){
+    value64 tmp = *v1;
+    *v1 = *v2;
+    *v2 = tmp;
+}
+extern void                 value64_sort(value64_type typ, value64 *arr, int sz){
+    value64_PComparator pcomp = value64_getPComparator(typ);
+    if (!pcomp)
+         userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s: %d", value64_typename(typ), typ);
+    qsort(arr, sz, sizeof(value64), pcomp);
+}
+extern void                 value64_rsort(value64_type typ, value64 *arr, int sz){ 
+    value64_PRevComparator revpcomp = value64_getPRevComparator(typ);
+    if (!revpcomp)
+         userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s: %d", value64_typename(typ), typ);
+    qsort(arr, sz, sizeof(value64), revpcomp);
+}
 // finders
 int                         value64_search(value64 val, value64_type typ, const value64 *arr, int sz){
     invraisecode(arr || sz == 0, ERR_NULLABLE_PTR, "Null pointer while sz > 0 %p %d", arr, sz);
 
     value64_Comparator comp = value64_getComparator(typ);
+    if (!comp)
+         userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s: %d", value64_typename(typ), typ);
+
     for (int i = 0; i < sz; i++)
         if (comp(val, arr[i]) == 0)
             return logsimpleret(i, "Found %d", i);
@@ -200,6 +220,9 @@ int                         value64_revsearch(value64 val, value64_type typ, con
     invraisecode(arr || sz == 0, ERR_NULLABLE_PTR, "Null pointer while sz > 0 %p %d", arr, sz);
 
     value64_Comparator comp = value64_getComparator(typ);
+    if (!comp)
+        userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s: %d", value64_typename(typ), typ);
+
     for (int i = sz; i > 0; i--)
         if (comp(val, arr[i - 1]) == 0)
             return logsimpleret(i - 1, "Found reverse %d", i - 1); 

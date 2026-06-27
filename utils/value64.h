@@ -77,6 +77,7 @@ typedef value64                     (*value64_ConverterFunc)(value64 v);
 typedef value64                     (*value64_ConverterMoveFunc)(value64 *v);
 // getter for comparators
 typedef int                         (*value64_Comparator)(value64, value64);
+    //TODO: remove
 typedef int                         (*value64_RevComparator)(value64, value64);
 // as void *, TODO: think if possible to be value *
 typedef int                         (*value64_PComparator)(const void *restrict, const void *restrict);
@@ -188,6 +189,7 @@ static inline void                  value64_free(value64 v, value64_type typ){
         break;
     }
 }
+// destructor
 static inline void                  value64_freefs(value64 v){
     return value64_free(v, VALUE64_FS);
 }
@@ -240,6 +242,11 @@ static inline value64              *value64_move_fs(value64 *restrict target, va
 
 extern unsigned long               value64_lhash(value64 value, value64_type typ);
 
+// exchanger
+extern void                        value64_exch(value64 *v1, value64 *v2);
+
+extern void                        value64_sort(value64_type typ, value64 *arr, int sz);
+extern void                        value64_rsort(value64_type typ, value64 *arr, int sz);
 
 extern int                         value64_search(value64 val, value64_type typ, const value64 *arr, int sz);
 extern int                         value64_revsearch(value64 val, value64_type typ, const value64 *arr, int sz);
