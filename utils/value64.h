@@ -39,7 +39,7 @@ _Static_assert(sizeof(value64) == sizeof(uint64_t),
                "value64 must be exactly as uint64_t");
 
 typedef enum value64_type {
-    VALUE64_UKNOWN = 0,
+    VALUE64_UNKNOWN = 0,
     VALUE64_INT = 1,
     VALUE64_LNG,
     VALUE64_DBL,
@@ -337,7 +337,7 @@ static inline value64_Comparator    value64_getComparator(value64_type typ){
         case VALUE64_FS:
             return value64_fs_comp;
         case VALUE64_PTR:
-            return value64_str_comp;
+            return value64_ptr_comp;
         case VALUE64_STR:
             return value64_str_comp;
         default:
@@ -357,7 +357,7 @@ static inline value64_RevComparator  value64_getRevComparator(value64_type typ){
         case VALUE64_FS:
             return value64_fs_rev_comp;
         case VALUE64_PTR:
-            return value64_str_rev_comp;
+            return value64_ptr_rev_comp;
         case VALUE64_STR:
             return value64_str_rev_comp;
         default:

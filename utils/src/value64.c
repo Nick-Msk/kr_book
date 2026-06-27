@@ -9,7 +9,7 @@
 
 // Вся информация о типах в одном месте!
 static const value64_typeinfo           value64_info[] = {
-    [VALUE64_UKNOWN]     = {"INVALID",     0,              false    , "VALUE64_UKNOWN"},
+    [VALUE64_UNKNOWN]    = {"INVALID",     0,              false    , "VALUE64_UNKNOWN"},
     [VALUE64_INT]        = {"INT",         sizeof(int),    true     , "VALUE64_INT"},
     [VALUE64_LNG]        = {"LNG",         sizeof(long),   true     , "VALUE64_LNG"},
     [VALUE64_DBL]        = {"DBL",         sizeof(double), true     , "VALUE64_DBL"},
@@ -154,13 +154,13 @@ unsigned long               value64_lhash(value64 value, value64_type typ){
 }
 // search type id by type name
 value64_type            value64_gettype(const char *str){
-    if (!str)
-        return VALUE64_UKNOWN; 
-    for (size_t i = 0; i < COUNT(value64_info); i++) {
-        if (strcmp(str, value64_info_get(i)->name) == 0)
-            return (value64_type) i;
-   }
-   return VALUE64_UKNOWN;
+    if (str){
+        for (size_t i = 0; i < COUNT(value64_info); i++) {
+            if (strcmp(str, value64_info_get(i)->name) == 0)
+                return (value64_type) i;
+         }
+    }
+    return VALUE64_UNKNOWN;
 }
 
 // move to EXISTING object, that is NOT a constructor
@@ -2598,6 +2598,206 @@ tf_search(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST value64_get(Rev)Comparator -----------------------------
+
+static TestStatus
+tf_getComparator(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. INT comparator */
+    test_sub("subtest %d: getComparator INT", ++subnum);
+    {
+        value64_Comparator cmp = value64_getComparator(VALUE64_INT);
+        test_validate(cmp != NULL, "INT comparator must not be NULL");
+
+        value64 a = value64_createint(10);
+        value64 b = value64_createint(20);
+        test_validate(cmp(a, b) < 0, "10 < 20 must be negative");
+        test_validate(cmp(b, a) > 0, "20 > 10 must be positive");
+        test_validate(cmp(a, a) == 0, "10 == 10 must be zero");
+    }
+
+    /* 2. INT rev comparator */
+    test_sub("subtest %d: getRevComparator INT", ++subnum);
+    {
+        value64_RevComparator rcmp = value64_getRevComparator(VALUE64_INT);
+        test_validate(rcmp != NULL, "INT rev comparator must not be NULL");
+
+        value64 a = value64_createint(10);
+        value64 b = value64_createint(20);
+        test_validate(rcmp(a, b) > 0, "rev: 10 < 20 must give >0");
+        test_validate(rcmp(b, a) < 0, "rev: 20 > 10 must give <0");
+        test_validate(rcmp(a, a) == 0, "rev: 10 == 10 must be 0");
+    }
+
+    /* 3. LONG comparator */
+    test_sub("subtest %d: getComparator LONG", ++subnum);
+    {
+        value64_Comparator cmp = value64_getComparator(VALUE64_LNG);
+        test_validate(cmp != NULL, "LONG comparator must not be NULL");
+
+        value64 a = value64_createlong(100L);
+        value64 b = value64_createlong(200L);
+        test_validate(cmp(a, b) < 0, "100 < 200 must be negative");
+        test_validate(cmp(a, a) == 0, "100 == 100 must be zero");
+    }
+
+    /* 4. LONG rev comparator */
+    test_sub("subtest %d: getRevComparator LONG", ++subnum);
+    {
+        value64_RevComparator rcmp = value64_getRevComparator(VALUE64_LNG);
+        test_validate(rcmp != NULL, "LONG rev comparator must not be NULL");
+
+        value64 a = value64_createlong(100L);
+        value64 b = value64_createlong(200L);
+        test_validate(rcmp(a, b) > 0, "rev: 100 < 200 must give >0");
+    }
+
+    /* 5. DBL comparator */
+    test_sub("subtest %d: getComparator DBL", ++subnum);
+    {
+        value64_Comparator cmp = value64_getComparator(VALUE64_DBL);
+        test_validate(cmp != NULL, "DBL comparator must not be NULL");
+
+        value64 a = value64_createdbl(1.5);
+        value64 b = value64_createdbl(2.5);
+        test_validate(cmp(a, b) < 0, "1.5 < 2.5 must be negative");
+        test_validate(cmp(a, a) == 0, "1.5 == 1.5 must be zero");
+    }
+
+    /* 6. DBL rev comparator */
+    test_sub("subtest %d: getRevComparator DBL", ++subnum);
+    {
+        value64_RevComparator rcmp = value64_getRevComparator(VALUE64_DBL);
+        test_validate(rcmp != NULL, "DBL rev comparator must not be NULL");
+
+        value64 a = value64_createdbl(1.5);
+        value64 b = value64_createdbl(2.5);
+        test_validate(rcmp(a, b) > 0, "rev: 1.5 < 2.5 must give >0");
+    }
+
+    /* 7. FS comparator */
+    test_sub("subtest %d: getComparator FS", ++subnum);
+    {
+        value64_Comparator cmp = value64_getComparator(VALUE64_FS);
+        test_validate(cmp != NULL, "FS comparator must not be NULL");
+
+        fs tmp1 = fscopy("alpha"), tmp2 = fscopy("beta");
+        value64 a = value64_createfs(&tmp1), b = value64_createfs(&tmp2);
+        fsfree(tmp1); fsfree(tmp2);
+
+        test_validatefree(
+            cmp(a, b) < 0,
+            (value64_free(a, VALUE64_FS), value64_free(b, VALUE64_FS)),
+            "FS: 'alpha' < 'beta' must be negative"
+        );
+        // проверка равенства
+        fs tmp3 = fscopy("alpha");
+        value64 a2 = value64_createfs(&tmp3);
+        fsfree(tmp3);
+        test_validatefree(
+            cmp(a, a2) == 0,
+            (value64_free(a, VALUE64_FS), value64_free(a2, VALUE64_FS)),
+            "FS: 'alpha' == 'alpha' must be zero"
+        );
+        value64_free(a, VALUE64_FS); value64_free(b, VALUE64_FS); value64_free(a2, VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    /* 8. FS rev comparator */
+    test_sub("subtest %d: getRevComparator FS", ++subnum);
+    {
+        value64_RevComparator rcmp = value64_getRevComparator(VALUE64_FS);
+        test_validate(rcmp != NULL, "FS rev comparator must not be NULL");
+
+        fs tmp1 = fscopy("alpha"), tmp2 = fscopy("beta");
+        value64 a = value64_createfs(&tmp1), b = value64_createfs(&tmp2);
+        fsfree(tmp1); fsfree(tmp2);
+
+        test_validatefree(
+            rcmp(a, b) > 0,
+            (value64_free(a, VALUE64_FS), value64_free(b, VALUE64_FS)),
+            "FS rev: 'alpha' < 'beta' must give >0"
+        );
+        value64_free(a, VALUE64_FS); value64_free(b, VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    /* 9. STR comparator */
+    test_sub("subtest %d: getComparator STR", ++subnum);
+    {
+        value64_Comparator cmp = value64_getComparator(VALUE64_STR);
+        test_validate(cmp != NULL, "STR comparator must not be NULL");
+
+        value64 a = value64_createstr("hello");
+        value64 b = value64_createstr("world");
+        test_validatefree(
+            cmp(a, b) < 0,
+            (value64_free(a, VALUE64_STR), value64_free(b, VALUE64_STR)),
+            "STR: 'hello' < 'world' must be negative"
+        );
+        value64_free(a, VALUE64_STR); value64_free(b, VALUE64_STR);
+    }
+
+    /* 10. STR rev comparator */
+    test_sub("subtest %d: getRevComparator STR", ++subnum);
+    {
+        value64_RevComparator rcmp = value64_getRevComparator(VALUE64_STR);
+        test_validate(rcmp != NULL, "STR rev comparator must not be NULL");
+
+        value64 a = value64_createstr("hello");
+        value64 b = value64_createstr("world");
+        test_validatefree(
+            rcmp(a, b) > 0,
+            (value64_free(a, VALUE64_STR), value64_free(b, VALUE64_STR)),
+            "STR rev: 'hello' < 'world' must give >0"
+        );
+        value64_free(a, VALUE64_STR); value64_free(b, VALUE64_STR);
+    }
+
+    /* 11. PTR comparator (требуется исправление getComparator) */
+    test_sub("subtest %d: getComparator PTR", ++subnum);
+    {
+        // Предполагаем, что вы исправили VALUE64_PTR -> value64_ptr_comp
+        value64_Comparator cmp = value64_getComparator(VALUE64_PTR);
+        test_validate(cmp != NULL, "PTR comparator must not be NULL");
+
+        int x = 1, y = 2;
+        value64 a = value64_createptr(&x);
+        value64 b = value64_createptr(&y);
+        test_validate(cmp(a, b) != 0, "different addresses must not be zero");
+        test_validate(cmp(a, a) == 0, "same address must be zero");
+    }
+
+    /* 12. PTR rev comparator */
+    test_sub("subtest %d: getRevComparator PTR", ++subnum);
+    {
+        value64_RevComparator rcmp = value64_getRevComparator(VALUE64_PTR);
+        test_validate(rcmp != NULL, "PTR rev comparator must not be NULL");
+
+        int x = 1, y = 2;
+        value64 a = value64_createptr(&x);
+        value64 b = value64_createptr(&y);
+        int direct = value64_getComparator(VALUE64_PTR)(a, b);
+        test_validate(rcmp(a, b) == -direct, "PTR rev must negate direct result");
+    }
+
+    /* 13. Неподдерживаемый тип */
+    test_sub("subtest %d: unsupported type (must raise error)", ++subnum);
+    {
+        if (!try()) {
+            value64_Comparator cmp = value64_getComparator(VALUE64_UNKNOWN);
+            test_validate(false, "Unsupported type must raise error, but returned %p", (void*)cmp);
+        } else {
+            test_validate(true, "Unsupported type correctly raised error");
+        }
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -2627,8 +2827,9 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_convert,          .num =  7, .name = "Simple value64_convert() test"              , .desc="", .mandatory=true)
               , testnew(.f2 = tf_convert_move,     .num =  8, .name = "Simple value64_convert_move() test"         , .desc="", .mandatory=true)
               , testnew(.f2 = tf_is_convertable,   .num =  9, .name = "Simple value64_is_convertable() test"       , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_pt_compare,       .num = 10, .name = "Simple value64_pt_compare() test"             , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_pt_compare,       .num = 10, .name = "Simple value64_pt_compare() test"           , .desc="", .mandatory=true)
               , testnew(.f2 = tf_search,           .num = 11, .name = "Simple value64_(rev)search test"            , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_getComparator,    .num = 12, .name = "Simple value64_get(Rev)Comparator test"     , .desc="", .mandatory=true)
             );
         if (runall)
             break;
