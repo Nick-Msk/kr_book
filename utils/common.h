@@ -225,39 +225,23 @@ static inline int               compare_ptr(const void *restrict v1, const void 
         return 0;
 }
 
-// ------------------- Pointer -------------------
+// ------------------- Pointer comparators -------------------
 // simple char comparator
-static inline int               pchar_cmp(const void *restrict s1, const void *restrict s2){
-    return compare_char( *(const unsigned char *) s1, *(const unsigned char *) s2);
-}
+extern int                      pchar_cmp(const void *restrict s1, const void *restrict s2);
 // simple char reverse comparator
-static inline int               pchar_revcmp(const void *s1, const void *s2){
-    return -pchar_cmp(s1, s2);
-}
+extern int                      pchar_revcmp(const void *s1, const void *s2);
 // simple comparator pointer int
-static inline int               pint_cmp(const void *restrict i1, const void *restrict i2){
-    return compare_int( *(const int *) i1, *(const int *) i2);
-}
+extern int                      pint_cmp(const void *restrict i1, const void *restrict i2);
 // simple reverse comparator pointer int
-static inline int               pint_revcmp(const void *i1, const void *i2){
-    return -pint_cmp(i1, i2);
-}
+extern int                      pint_revcmp(const void *i1, const void *i2);
 // simple comparator pointer long
-static inline int               plong_cmp(const void *l1, const void *l2){
-    return compare_long( *(const int *) l1, *(const int *) l2);
-}
+extern inline int               plong_cmp(const void *l1, const void *l2);
 // simple reverse comparator pointer long
-static inline int               plong_revcmp(const void *l1, const void *l2){
-    return -plong_cmp(l1, l2);
-}
+extern int                      plong_revcmp(const void *l1, const void *l2);
 // simple comparator pointer to pointer TODO: remove???
-static inline int               pptr_cmp(const void *p1, const void *p2){
-    return compare_ptr(p1, p2);
-}
+extern int                      pptr_cmp(const void *p1, const void *p2);
 // simple reverse comparator pointer to pointer
-static inline int               pptr_revcmp(const void *p1, const void *p2){
-    return -pptr_cmp(p1, p2);
-}
+extern int                      pptr_revcmp(const void *p1, const void *p2);
 // simple comparator pointer double
 extern int                      pdbl_cmp(const void *d1, const void *d2);
 // simple reverse comparator pointer double

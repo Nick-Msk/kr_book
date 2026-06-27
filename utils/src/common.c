@@ -75,7 +75,7 @@ char*                           reverse(char *s, int len){
         char_exch(s + i++, s + j--);
     return s;
 }
-
+// a stupid one
 int                             fprintn(FILE *f, const char *str, int sz){
     char c;
     int i = 0;
@@ -85,26 +85,49 @@ int                             fprintn(FILE *f, const char *str, int sz){
     return i;
 }
 
+// ------------------- Pointer comparators -------------------
+// simple char comparator
+int                             pchar_cmp(const void *restrict s1, const void *restrict s2){
+    return compare_char( *(const unsigned char *) s1, *(const unsigned char *) s2);
+}
+// simple char reverse comparator
+int                             pchar_revcmp(const void *s1, const void *s2){
+    return -compare_char( *(const unsigned char *) s1, *(const unsigned char *) s2);
+}
+// simple comparator pointer int
+int                             pint_cmp(const void *restrict i1, const void *restrict i2){
+    return compare_int( *(const int *) i1, *(const int *) i2);
+}
+// simple reverse comparator pointer int
+int                             pint_revcmp(const void *i1, const void *i2){
+    return -compare_int( *(const int *) i1, *(const int *) i2);
+}
+// simple comparator pointer long
+int                              plong_cmp(const void *l1, const void *l2){
+    return compare_long( *(const long *) l1, *(const long *) l2);
+}
+// simple reverse comparator pointer long
+int                             plong_revcmp(const void *l1, const void *l2){
+    return -compare_long( *(const long *) l1, *(const long *) l2);
+}
+// simple comparator pointer to pointer
+int                             pptr_cmp(const void *p1, const void *p2){
+    return compare_ptr(p1, p2);
+}
+// simple reverse comparator pointer to pointer
+int                             pptr_revcmp(const void *p1, const void *p2){
+    return -compare_ptr(p1, p2);
+}
 // simple comparator pointer double
 int                             pdbl_cmp(const void *d1, const void *d2){
-    if ( *(double *) d1 > *(double *) d2)
-        return 1;
-    else if ( *(double *) d1 < *(double *) d2)
-        return -1;
-    else
-        return 0;
+    return compare_dbl( *(const double *) d1, *(const double *) d2);
 }
-
 // simple reverse comparator pointer double
 int                             pdbl_revcmp(const void *d1, const void *d2){
-    if ( *(double *) d1 < *(double *) d2)
-        return 1;
-    else if ( *(double *) d1 > *(double *) d2)
-        return -1;
-    else
-        return 0;
+    return -compare_dbl( *(const double *) d1, *(const double *) d2);
 }
 
+// ------------------------------ Parsers -----------------------------------
 static inline bool              is_long_overflow(long val){
     return errno == ERANGE && (val == LONG_MAX || val == LONG_MIN);
 }
@@ -114,7 +137,7 @@ static inline bool              is_ulong_overflow(unsigned long val){
 static inline bool              is_double_overflow(double val){
     return errno == ERANGE && isinf(val);
 }
-
+//
 bool                            try_parse_int(const char *restrict str, int *restrict res) {
     if (!str)
         return logsimpleerr(false, "Null pointer str");
@@ -565,7 +588,6 @@ tf_int_in(const char *name)
 }
 
 // ------------------------- TEST comparators ---------------------------------
-
 static TestStatus
 tf_comparators(const char *name)
 {
@@ -664,6 +686,133 @@ tf_comparators(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST pointer comparators ---------------------------------
+static TestStatus
+tf_comparators_ptr(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ---------- pchar_cmp ---------- */
+    test_sub("subtest %d: pchar_cmp equal", ++subnum);
+    {
+        unsigned char a = 'X', b = 'X';
+        test_validate(pchar_cmp(&a, &b) == 0, "'X' must equal 'X'");
+    }
+
+    test_sub("subtest %d: pchar_cmp less / greater", ++subnum);
+    {
+        unsigned char a = 'A', b = 'B';
+        test_validate(pchar_cmp(&a, &b) < 0, "'A' must be less than 'B'");
+        test_validate(pchar_cmp(&b, &a) > 0, "'B' must be greater than 'A'");
+    }
+
+    test_sub("subtest %d: pchar_revcmp", ++subnum);
+    {
+        unsigned char a = 'A', b = 'B';
+        test_validate(pchar_revcmp(&a, &b) > 0, "reverse: 'A' must be greater than 'B'");
+        test_validate(pchar_revcmp(&b, &a) < 0, "reverse: 'B' must be less than 'A'");
+    }
+
+    /* ---------- pint_cmp ---------- */
+    test_sub("subtest %d: pint_cmp equal", ++subnum);
+    {
+        int a = 42, b = 42;
+        test_validate(pint_cmp(&a, &b) == 0, "42 must equal 42");
+    }
+
+    test_sub("subtest %d: pint_cmp less / greater", ++subnum);
+    {
+        int a = 10, b = 20;
+        test_validate(pint_cmp(&a, &b) < 0, "10 must be less than 20");
+        test_validate(pint_cmp(&b, &a) > 0, "20 must be greater than 10");
+    }
+
+    test_sub("subtest %d: pint_revcmp", ++subnum);
+    {
+        int a = 10, b = 20;
+        test_validate(pint_revcmp(&a, &b) > 0, "reverse: 10 must be greater than 20");
+        test_validate(pint_revcmp(&b, &a) < 0, "reverse: 20 must be less than 10");
+    }
+
+    /* ---------- plong_cmp ---------- */
+    test_sub("subtest %d: plong_cmp equal", ++subnum);
+    {
+        long a = 999999999L, b = 999999999L;
+        // ВНИМАНИЕ: в plong_cmp сейчас ошибка – аргументы приводятся как const int*, а не const long*
+        // После исправления этот тест будет работать. Пока он может дать неверный результат.
+        test_validate(plong_cmp(&a, &b) == 0, "999999999L must equal 999999999L");
+    }
+
+    test_sub("subtest %d: plong_cmp less / greater", ++subnum);
+    {
+        long a = -100L, b = 0L;
+        test_validate(plong_cmp(&a, &b) < 0, "-100L must be less than 0L");
+        test_validate(plong_cmp(&b, &a) > 0, "0L must be greater than -100L");
+    }
+
+    test_sub("subtest %d: plong_revcmp", ++subnum);
+    {
+        long a = 10L, b = 20L;
+        test_validate(plong_revcmp(&a, &b) > 0, "reverse: 10L must be greater than 20L");
+        test_validate(plong_revcmp(&b, &a) < 0, "reverse: 20L must be less than 10L");
+    }
+
+    /* ---------- pdbl_cmp ---------- */
+    test_sub("subtest %d: pdbl_cmp equal", ++subnum);
+    {
+        double a = 3.1415, b = 3.1415;
+        test_validate(pdbl_cmp(&a, &b) == 0, "3.1415 must equal 3.1415");
+    }
+
+    test_sub("subtest %d: pdbl_cmp less / greater", ++subnum);
+    {
+        double a = 1.0, b = 2.0;
+        test_validate(pdbl_cmp(&a, &b) < 0, "1.0 must be less than 2.0");
+        test_validate(pdbl_cmp(&b, &a) > 0, "2.0 must be greater than 1.0");
+    }
+
+    test_sub("subtest %d: pdbl_cmp special (NaN, inf)", ++subnum);
+    {
+        double nan1 = NAN, nan2 = NAN;
+        test_validate(pdbl_cmp(&nan1, &nan2) == 0, "NaN must equal NaN (by implementation)");
+
+        double inf = INFINITY, ninf = -INFINITY;
+        test_validate(pdbl_cmp(&inf, &ninf) > 0, "+inf must be greater than -inf");
+        test_validate(pdbl_cmp(&ninf, &inf) < 0, "-inf must be less than +inf");
+    }
+
+    test_sub("subtest %d: pdbl_revcmp", ++subnum);
+    {
+        double a = 1.0, b = 2.0;
+        test_validate(pdbl_revcmp(&a, &b) > 0, "reverse: 1.0 must be greater than 2.0");
+        test_validate(pdbl_revcmp(&b, &a) < 0, "reverse: 2.0 must be less than 1.0");
+    }
+
+    /* ---------- pptr_cmp ---------- */
+    test_sub("subtest %d: pptr_cmp equal", ++subnum);
+    {
+        int x = 0;
+        test_validate(pptr_cmp(&x, &x) == 0, "same address must be equal");
+    }
+
+    test_sub("subtest %d: pptr_cmp not equal", ++subnum);
+    {
+        int a = 1, b = 2;
+        // Порядок адресов на стеке не гарантирован, но результат должен быть ненулевым
+        test_validate(pptr_cmp(&a, &b) != 0, "different addresses must not be equal");
+    }
+
+    test_sub("subtest %d: pptr_revcmp", ++subnum);
+    {
+        int a = 1, b = 2;
+        int cmp = pptr_cmp(&a, &b);
+        test_validate(pptr_revcmp(&a, &b) == -cmp, "reverse must negate the result");
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // -------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -686,6 +835,7 @@ main(int argc, const char *argv[])
                 testnew(.f2 = tf_try_parse,        .num =  1, .name = "Simple try_parse_<type> test"              , .desc="", .mandatory=true)
               , testnew(.f2 = tf_int_in,           .num =  2, .name = "Simple tf_int_(not)in test"                , .desc="", .mandatory=true)
               , testnew(.f2 = tf_comparators,      .num =  3, .name = "Simple compare_<type> test"                , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_comparators_ptr,  .num =  4, .name = "Simple pointer compare_<type> test"        , .desc="", .mandatory=true)
             );
         if (runall)
             break;
