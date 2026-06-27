@@ -238,7 +238,7 @@ extern int                      pint_revcmp(const void *i1, const void *i2);
 extern inline int               plong_cmp(const void *l1, const void *l2);
 // simple reverse comparator pointer long
 extern int                      plong_revcmp(const void *l1, const void *l2);
-// simple comparator pointer to pointer TODO: remove???
+// simple comparator pointer to pointer
 extern int                      pptr_cmp(const void *p1, const void *p2);
 // simple reverse comparator pointer to pointer
 extern int                      pptr_revcmp(const void *p1, const void *p2);
