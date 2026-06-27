@@ -285,7 +285,7 @@ extern int                         value64_pptr_rev_comp (const void *restrict v
 extern int                         value64_pstr_rev_comp (const void *restrict v1, const void *restrict v2);
 extern int                         value64_pfs_rev_comp  (const void *restrict v1, const void *restrict v2);
 
-// now using switch, w/o table
+// pointer version, now using switch, w/o table
 static inline value64_PComparator  value64_getPComparator(value64_type typ){
     switch (typ){
         case VALUE64_INT:
@@ -305,7 +305,7 @@ static inline value64_PComparator  value64_getPComparator(value64_type typ){
             return NULL;
     }
 }
-// now using switch, w/o table
+// reverse, pointer, now using switch, w/o table
 static inline value64_PRevComparator  value64_getPRevComparator(value64_type typ){
     switch (typ){
         case VALUE64_INT:
@@ -325,7 +325,7 @@ static inline value64_PRevComparator  value64_getPRevComparator(value64_type typ
             return NULL;
     }
 }
-// now using switch, w/o table
+// value, now using switch, w/o table
 static inline value64_Comparator    value64_getComparator(value64_type typ){
     switch (typ){
         case VALUE64_INT:
@@ -345,7 +345,7 @@ static inline value64_Comparator    value64_getComparator(value64_type typ){
             return NULL;
     }
 }
-// now using switch, w/o table
+// value, now using switch, w/o table
 static inline value64_RevComparator  value64_getRevComparator(value64_type typ){
     switch (typ){
         case VALUE64_INT:
