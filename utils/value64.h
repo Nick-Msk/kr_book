@@ -243,8 +243,10 @@ extern unsigned long               value64_lhash(value64 value, value64_type typ
 
 extern int                         value64_search(value64 val, value64_type typ, const value64 *arr, int sz);
 extern int                         value64_revsearch(value64 val, value64_type typ, const value64 *arr, int sz);
-// must be sorted! TODO:
+// must be sorted acs
 extern int                         value64_binsearch(value64 val, value64_type typ, const value64 *arr, int sz);
+// order desc
+extern int                         value64_rev_binsearch(value64 val, value64_type typ, const value64 *arr, int sz);
 // SQL in low level
 static inline bool                 value64_notin(value64 val, value64_type typ, const value64 *arr, int sz){
     return value64_search(val, typ, arr, sz) == -1;

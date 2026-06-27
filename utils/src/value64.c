@@ -205,14 +205,37 @@ int                         value64_revsearch(value64 val, value64_type typ, con
             return logsimpleret(i - 1, "Found reverse %d", i - 1); 
     return logsimpleerr(-1, "Not found"); // just a stub
 }
-// arr MUST be ordered
+// arr MUST be ordered acs
 int                         value64_binsearch(value64 val, value64_type typ, const value64 *arr, int sz){
     //bsearch(const void *key, const void *base, size_t nel, size_t width, int (*compar) (const void *, const void *));
     invraisecode(arr || sz == 0, ERR_NULLABLE_PTR, "Null pointer while sz > 0 %p %d", arr, sz);
     if (sz == 0)
         return logsimpleerr(-1, "Noting to find, sz == 0");
-    // const value64 *find = bsearch(&val, arr, 
-    return -1;
+
+    value64_PComparator pcomp = value64_getPComparator(typ);
+    if (!pcomp)
+        userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s: %d", value64_typename(typ), typ);
+    const value64 *find = bsearch(&val, arr, sz, sizeof(value64), pcomp);
+    if (!find)
+        return logsimpleerr(-1, "Not found");
+    else
+        return logsimpleret(find - arr, "Found %lu", find - arr);
+}
+// arr MUST be ordered desc
+int                         value64_rev_binsearch(value64 val, value64_type typ, const value64 *arr, int sz){
+    //bsearch(const void *key, const void *base, size_t nel, size_t width, int (*compar) (const void *, const void *));
+    invraisecode(arr || sz == 0, ERR_NULLABLE_PTR, "Null pointer while sz > 0 %p %d", arr, sz);
+    if (sz == 0)
+        return logsimpleerr(-1, "Noting to find, sz == 0");
+
+    value64_PRevComparator revpcomp = value64_getPRevComparator(typ);
+    if (!revpcomp)
+        userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s: %d", value64_typename(typ), typ);
+    const value64 *find = bsearch(&val, arr, sz, sizeof(value64), revpcomp);
+    if (!find)
+        return logsimpleerr(-1, "Not found");
+    else
+        return logsimpleret(find - arr, "Found %lu", find - arr);
 }
 // value comparators, low-level, no checking
 int                         value64_int_comp(value64 v1, value64 v2) {
@@ -2799,7 +2822,6 @@ tf_getComparator(const char *name)
 }
 
 // ------------------------- TEST value64_getP(Rev)Comparator -----------------------------
-
 static TestStatus
 tf_getPComparator(const char *name)
 {
@@ -2997,6 +3019,227 @@ tf_getPComparator(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST value64_(rev_)binsearch -----------------------------
+
+static TestStatus
+tf_binsearch(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ---------- INT ascending (value64_binsearch) ---------- */
+    test_sub("subtest %d: binsearch INT – found", ++subnum);
+    {
+        // массив строго по возрастанию
+        value64 arr[] = {
+            value64_createint(10),
+            value64_createint(20),
+            value64_createint(30),
+            value64_createint(40),
+            value64_createint(50)
+        };
+        value64 key = value64_createint(30);
+        test_validate(
+            value64_binsearch(key, VALUE64_INT, arr, COUNT(arr)) == 2,
+            "30 must be at index 2"
+        );
+    }
+
+    test_sub("subtest %d: binsearch INT – not found", ++subnum);
+    {
+        value64 arr[] = {
+            value64_createint(10),
+            value64_createint(20),
+            value64_createint(30)
+        };
+        value64 key = value64_createint(25);
+        test_validate(
+            value64_binsearch(key, VALUE64_INT, arr, COUNT(arr)) == -1,
+            "25 must not be found"
+        );
+    }
+
+    test_sub("subtest %d: binsearch INT – first element", ++subnum);
+    {
+        value64 arr[] = {
+            value64_createint(10),
+            value64_createint(20),
+            value64_createint(30)
+        };
+        value64 key = value64_createint(10);
+        test_validate(
+            value64_binsearch(key, VALUE64_INT, arr, COUNT(arr)) == 0,
+            "10 must be at index 0"
+        );
+    }
+
+    test_sub("subtest %d: binsearch INT – last element", ++subnum);
+    {
+        value64 arr[] = {
+            value64_createint(10),
+            value64_createint(20),
+            value64_createint(30)
+        };
+        value64 key = value64_createint(30);
+        test_validate(
+            value64_binsearch(key, VALUE64_INT, arr, COUNT(arr)) == 2,
+            "30 must be at index 2"
+        );
+    }
+
+    /* ---------- INT descending (value64_rev_binsearch) ---------- */
+    test_sub("subtest %d: rev_binsearch INT – found", ++subnum);
+    {
+        // массив строго по убыванию
+        value64 arr[] = {
+            value64_createint(50),
+            value64_createint(40),
+            value64_createint(30),
+            value64_createint(20),
+            value64_createint(10)
+        };
+        value64 key = value64_createint(30);
+        test_validate(
+            value64_rev_binsearch(key, VALUE64_INT, arr, COUNT(arr)) == 2,
+            "30 must be at index 2 (descending)"
+        );
+    }
+
+    test_sub("subtest %d: rev_binsearch INT – not found", ++subnum);
+    {
+        value64 arr[] = {
+            value64_createint(50),
+            value64_createint(40),
+            value64_createint(30)
+        };
+        value64 key = value64_createint(35);
+        test_validate(
+            value64_rev_binsearch(key, VALUE64_INT, arr, COUNT(arr)) == -1,
+            "35 must not be found in descending array"
+        );
+    }
+
+    /* ---------- STR ascending ---------- */
+    test_sub("subtest %d: binsearch STR – found", ++subnum);
+    {
+        value64 arr[] = {
+            value64_createstr("apple"),
+            value64_createstr("banana"),
+            value64_createstr("cherry")
+        };
+        value64 key = value64_createstr("banana");
+        test_validatefree(
+            value64_binsearch(key, VALUE64_STR, arr, COUNT(arr)) == 1,
+            (value64_free(key, VALUE64_STR),
+             value64_free(arr[0], VALUE64_STR),
+             value64_free(arr[1], VALUE64_STR),
+             value64_free(arr[2], VALUE64_STR)),
+            "'banana' must be at index 1"
+        );
+        value64_free(key, VALUE64_STR);
+        for (int i = 0; i < COUNT(arr); i++)
+            value64_free(arr[i], VALUE64_STR);
+    }
+
+    /* ---------- STR descending ---------- */
+    test_sub("subtest %d: rev_binsearch STR – found", ++subnum);
+    {
+        value64 arr[] = {
+            value64_createstr("cherry"),
+            value64_createstr("banana"),
+            value64_createstr("apple")
+        };
+        value64 key = value64_createstr("banana");
+        test_validatefree(
+            value64_rev_binsearch(key, VALUE64_STR, arr, COUNT(arr)) == 1,
+            (value64_free(key, VALUE64_STR),
+             value64_free(arr[0], VALUE64_STR),
+             value64_free(arr[1], VALUE64_STR),
+             value64_free(arr[2], VALUE64_STR)),
+            "'banana' must be at index 1 (descending)"
+        );
+        value64_free(key, VALUE64_STR);
+        for (int i = 0; i < COUNT(arr); i++)
+            value64_free(arr[i], VALUE64_STR);
+    }
+
+    /* ---------- FS ascending ---------- */
+    test_sub("subtest %d: binsearch FS – found", ++subnum);
+    {
+        fs t1 = fscopy("alpha"), t2 = fscopy("beta"), t3 = fscopy("gamma");
+        value64 arr[] = { value64_createfs(&t1), value64_createfs(&t2), value64_createfs(&t3) };
+        fsfree(t1); fsfree(t2); fsfree(t3);
+
+        fs key_fs = fscopy("beta");
+        value64 key = value64_createfs(&key_fs);
+        fsfree(key_fs);
+
+        test_validatefree(
+            value64_binsearch(key, VALUE64_FS, arr, COUNT(arr)) == 1,
+            (value64_free(key, VALUE64_FS),
+             value64_free(arr[0], VALUE64_FS),
+             value64_free(arr[1], VALUE64_FS),
+             value64_free(arr[2], VALUE64_FS)),
+            "'beta' must be at index 1 (ascending)"
+        );
+        value64_free(key, VALUE64_FS);
+        for (int i = 0; i < COUNT(arr); i++) value64_free(arr[i], VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    /* ---------- FS descending ---------- */
+    test_sub("subtest %d: rev_binsearch FS – found", ++subnum);
+    {
+        fs t1 = fscopy("gamma"), t2 = fscopy("beta"), t3 = fscopy("alpha");
+        value64 arr[] = { value64_createfs(&t1), value64_createfs(&t2), value64_createfs(&t3) };
+        fsfree(t1); fsfree(t2); fsfree(t3);
+
+        fs key_fs = fscopy("beta");
+        value64 key = value64_createfs(&key_fs);
+        fsfree(key_fs);
+
+        test_validatefree(
+            value64_rev_binsearch(key, VALUE64_FS, arr, COUNT(arr)) == 1,
+            (value64_free(key, VALUE64_FS),
+             value64_free(arr[0], VALUE64_FS),
+             value64_free(arr[1], VALUE64_FS),
+             value64_free(arr[2], VALUE64_FS)),
+            "'beta' must be at index 1 (descending)"
+        );
+        value64_free(key, VALUE64_FS);
+        for (int i = 0; i < COUNT(arr); i++) value64_free(arr[i], VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    /* ---------- empty array ---------- */
+    test_sub("subtest %d: binsearch – empty array", ++subnum);
+    {
+        value64 key = value64_createint(1);
+        test_validate(
+            value64_binsearch(key, VALUE64_INT, NULL, 0) == -1,
+            "empty array must return -1"
+        );
+        test_validate(
+            value64_rev_binsearch(key, VALUE64_INT, NULL, 0) == -1,
+            "empty array must return -1 (reverse)"
+        );
+    }
+
+    /* ---------- unsupported type (must raise error) ----------
+    test_sub("subtest %d: binsearch – unsupported type", ++subnum);
+    {
+        value64 key = value64_createint(1);
+        if (!try()) {
+            value64_binsearch(key, VALUE64_UNKNOWN, NULL, 0);
+            test_validate(false, "Unsupported type must raise error, but didn't");
+        } else {
+            test_validate(true, "Unsupported type correctly raised error");
+        }
+    }*/
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -3030,6 +3273,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_search,           .num = 11, .name = "Simple value64_(rev)search test"            , .desc="", .mandatory=true)
               , testnew(.f2 = tf_getComparator,    .num = 12, .name = "Simple value64_get(Rev)Comparator test"     , .desc="", .mandatory=true)
               , testnew(.f2 = tf_getPComparator,   .num = 13, .name = "Simple value64_getP(Rev)Comparator test"    , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_binsearch,        .num = 14, .name = "Simple value64_(rev_)binsearch test"        , .desc="", .mandatory=true)
             );
         if (runall)
             break;
