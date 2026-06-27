@@ -2158,9 +2158,9 @@ tf_is_convertable(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
-// ------------------------- TEST value64_is_convertable -----------------------------
+// ------------------------- TEST value64_value64_pt_compare -----------------------------
 static TestStatus
-tf_cmp(const char *name)
+tf_pt_compare(const char *name)
 {
     logenter("%s", name);
     int subnum = 0;
@@ -2171,7 +2171,7 @@ tf_cmp(const char *name)
         value64 a = value64_createint(42);
         value64 b = value64_createint(42);
         test_validate(
-            value64_cmp(a, b, VALUE64_INT) == 0, 
+            value64_pt_compare(&a, &b, VALUE64_INT) == 0, 
             "42 must equal 42"
         );
     }
@@ -2181,11 +2181,11 @@ tf_cmp(const char *name)
         value64 a = value64_createint(10);
         value64 b = value64_createint(20);
         test_validate(
-            value64_cmp(a, b, VALUE64_INT) < 0,
+            value64_pt_compare(&a, &b, VALUE64_INT) < 0,
             "10 must be less than 20"
         );
         test_validate(
-            value64_cmp(b, a, VALUE64_INT) > 0,
+            value64_pt_compare(&b, &a, VALUE64_INT) > 0,
             "20 must be greater than 10"
         );
     }
@@ -2196,7 +2196,7 @@ tf_cmp(const char *name)
         value64 a = value64_createlong(-999999L);
         value64 b = value64_createlong(-999999L);
         test_validate(
-            value64_cmp(a, b, VALUE64_LNG) == 0,
+            value64_pt_compare(&a, &b, VALUE64_LNG) == 0,
             "-999999L must equal -999999L"
         );
     }
@@ -2206,11 +2206,11 @@ tf_cmp(const char *name)
         value64 a = value64_createlong(100L);
         value64 b = value64_createlong(200L);
         test_validate(
-            value64_cmp(a, b, VALUE64_LNG) < 0,
+            value64_pt_compare(&a, &b, VALUE64_LNG) < 0,
             "100L must be less than 200L"
         );
         test_validate(
-            value64_cmp(b, a, VALUE64_LNG) > 0,
+            value64_pt_compare(&b, &a, VALUE64_LNG) > 0,
             "200L must be greater than 100L"
         );
     }
@@ -2221,7 +2221,7 @@ tf_cmp(const char *name)
         value64 a = value64_createdbl(3.1415);
         value64 b = value64_createdbl(3.1415);
         test_validate(
-            value64_cmp(a, b, VALUE64_DBL) == 0,
+            value64_pt_compare(&a, &b, VALUE64_DBL) == 0,
             "3.1415 must equal 3.1415"
         );
     }
@@ -2231,11 +2231,11 @@ tf_cmp(const char *name)
         value64 a = value64_createdbl(1.0);
         value64 b = value64_createdbl(2.0);
         test_validate(
-            value64_cmp(a, b, VALUE64_DBL) < 0,
+            value64_pt_compare(&a, &b, VALUE64_DBL) < 0,
             "1.0 must be less than 2.0"
         );
         test_validate(
-            value64_cmp(b, a, VALUE64_DBL) > 0,
+            value64_pt_compare(&b, &a, VALUE64_DBL) > 0,
             "2.0 must be greater than 1.0"
         );
     }
@@ -2245,20 +2245,20 @@ tf_cmp(const char *name)
         value64 a = value64_createdbl(NAN);
         value64 b = value64_createdbl(NAN);
         test_validate(
-            value64_cmp(a, b, VALUE64_DBL) == 0,
+            value64_pt_compare(&a, &b, VALUE64_DBL) == 0,
             "NaN must equal NaN (by implementation)"
         );
 
         value64 inf1 = value64_createdbl(INFINITY);
         value64 inf2 = value64_createdbl(INFINITY);
         test_validate(
-            value64_cmp(inf1, inf2, VALUE64_DBL) == 0,
+            value64_pt_compare(&inf1, &inf2, VALUE64_DBL) == 0,
             "+inf must equal +inf"
         );
 
         value64 ninf = value64_createdbl(-INFINITY);
         test_validate(
-            value64_cmp(inf1, ninf, VALUE64_DBL) > 0,
+            value64_pt_compare(&inf1, &ninf, VALUE64_DBL) > 0,
             "+inf must be greater than -inf"
         );
     }
@@ -2272,11 +2272,11 @@ tf_cmp(const char *name)
         value64 c = value64_createptr(&y);
 
         test_validate(
-            value64_cmp(a, b, VALUE64_PTR) == 0,
+            value64_pt_compare(&a, &b, VALUE64_PTR) == 0,
             "same address must be equal"
         );
         test_validate(
-            value64_cmp(a, c, VALUE64_PTR) != 0,
+            value64_pt_compare(&a, &c, VALUE64_PTR) != 0,
             "different addresses must not be equal"
         );
     }
@@ -2287,7 +2287,7 @@ tf_cmp(const char *name)
         value64 a = value64_createstr("hello");
         value64 b = value64_createstr("hello");
         test_validatefree(
-            value64_cmp(a, b, VALUE64_STR) == 0,
+            value64_pt_compare(&a, &b, VALUE64_STR) == 0,
             (value64_free(a, VALUE64_STR), value64_free(b, VALUE64_STR)),
             "'hello' must equal 'hello'"
         );
@@ -2300,7 +2300,7 @@ tf_cmp(const char *name)
         value64 a = value64_createstr("abc");
         value64 b = value64_createstr("xyz");
         test_validatefree(
-            value64_cmp(a, b, VALUE64_STR) != 0,
+            value64_pt_compare(&a, &b, VALUE64_STR) != 0,
             (value64_freestr(a), value64_freestr(b) ),
             "'abc' must not equal 'xyz'"
         );
@@ -2317,7 +2317,7 @@ tf_cmp(const char *name)
         fsfree(tmp);
 
         test_validatefree(
-            value64_cmp(a, b, VALUE64_FS) == 0,
+            value64_pt_compare(&a, &b, VALUE64_FS) == 0,
             (value64_freefs(a), value64_freefs(b)),
             "fs 'fs-data' must equal itself"
         );
@@ -2336,7 +2336,7 @@ tf_cmp(const char *name)
         fsfree(tmp2);
 
         test_validatefree(
-            value64_cmp(a, b, VALUE64_FS) != 0,
+            value64_pt_compare(&a, &b, VALUE64_FS) != 0,
             (value64_freefs(a), value64_freefs(b)),
             "fs 'alpha' must not equal 'beta'"
         );
@@ -2356,7 +2356,7 @@ tf_cmp(const char *name)
         fsfree(tmp2);
 
         test_validatefree(
-            value64_cmp(a, b, VALUE64_FS) != 0,
+            value64_pt_compare(&a, &b, VALUE64_FS) != 0,
             (value64_freestr(a), value64_freestr(b)),
             "empty fs must not equal non-empty"
         );
@@ -2627,7 +2627,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_convert,          .num =  7, .name = "Simple value64_convert() test"              , .desc="", .mandatory=true)
               , testnew(.f2 = tf_convert_move,     .num =  8, .name = "Simple value64_convert_move() test"         , .desc="", .mandatory=true)
               , testnew(.f2 = tf_is_convertable,   .num =  9, .name = "Simple value64_is_convertable() test"       , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_pcompare,         .num = 10, .name = "Simple value64_pcompare() test"             , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_pt_compare,       .num = 10, .name = "Simple value64_pt_compare() test"             , .desc="", .mandatory=true)
               , testnew(.f2 = tf_search,           .num = 11, .name = "Simple value64_(rev)search test"            , .desc="", .mandatory=true)
             );
         if (runall)
