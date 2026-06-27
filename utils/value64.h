@@ -236,7 +236,8 @@ extern unsigned long               value64_lhash(value64 value, value64_type typ
 // SQL in low level TODO:
 extern bool                        value64_in   (value64 val, value64_type typ, const value64 *arr, int sz);
 extern bool                        value64_notin(value64 val, value64_type typ, const value64 *arr, int sz);
-extern bool                        value64_cmp(value64 v1, value64 v2, value64_type typ);
+// basic comparator
+extern int                         value64_cmp(value64 v1, value64 v2, value64_type typ);
 
 // ----------------------------- CONVERTERS ----------------------------------------
 
