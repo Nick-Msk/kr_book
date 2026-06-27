@@ -72,8 +72,15 @@ extern  value64_type                 value64_gettype(const char *str);
 // only zero for now
 #define                 VALUE64_ZERO      (value64) {.u64 = 0L }
 
+// getter for converters
 typedef value64                     (*value64_ConverterFunc)(value64 v);
 typedef value64                     (*value64_ConverterMoveFunc)(value64 *v);
+// getter for comparators
+typedef int                         (*value64_Comparator)(value64, value64);
+typedef int                         (*value64_RevComparator)(value64, value64);
+// as void *, TODO: think if possible to be value *
+typedef int                         (*value64_PComparator)(const void *restrict, const void *restrict);
+typedef int                         (*value64_PRevComparator)(const void *restrict, const void *restrict);
 
 /*#define                 VALUE64_INT(val)  (value64) {.u64 = 0L, .ival = val }
 #define                 VALUE64_LONG(val) (value64) {.u64 = 0L, .lval = val }
@@ -245,9 +252,119 @@ static inline bool                 value64_notin(value64 val, value64_type typ, 
 static inline bool                 value64_in(value64 val, value64_type typ, const value64 *arr, int sz){
     return value64_search(val, typ, arr, sz) >= 0;
 }
-// basic comparator
-extern int                         value64_cmp(value64 v1, value64 v2, value64_type typ);
+// value comparator
+extern int                         value64_compare(value64 v1, value64 v2, value64_type typ);
+// value
+extern int                         value64_int_comp(value64 v1, value64 v2);
+extern int                         value64_long_comp(value64 v1, value64 v2);
+extern int                         value64_dbl_comp(value64 v1, value64 v2);
+extern int                         value64_fs_comp(value64 v1, value64 v2);
+extern int                         value64_str_comp(value64 v1, value64 v2);
+extern int                         value64_ptr_comp(value64 v1, value64 v2);
+// reverse
+extern int                         value64_int_rev_comp(value64 v1, value64 v2);
+extern int                         value64_long_rev_comp(value64 v1, value64 v2);
+extern int                         value64_dbl_rev_comp(value64 v1, value64 v2);
+extern int                         value64_fs_rev_comp(value64 v1, value64 v2);
+extern int                         value64_str_rev_comp(value64 v1, value64 v2);
+extern int                         value64_ptr_rev_comp(value64 v1, value64 v2);
+// pointer comparator
+extern int                         value64_pt_compare(const value64 *restrict v1, const value64 *restrict v2, value64_type typ);
+// pointer comparators, for qsort, bsearch etc...
+extern int                         value64_pint_comp (const void *restrict v1, const void *restrict v2);
+extern int                         value64_plong_comp(const void *restrict v1, const void *restrict v2);
+extern int                         value64_pdbl_comp (const void *restrict v1, const void *restrict v2);
+extern int                         value64_pptr_comp (const void *restrict v1, const void *restrict v2);
+extern int                         value64_pstr_comp (const void *restrict v1, const void *restrict v2);
+extern int                         value64_pfs_comp  (const void *restrict v1, const void *restrict v2);
+// rev
+extern int                         value64_pint_rev_comp (const void *restrict v1, const void *restrict v2);
+extern int                         value64_plong_rev_comp(const void *restrict v1, const void *restrict v2);
+extern int                         value64_pdbl_rev_comp (const void *restrict v1, const void *restrict v2);
+extern int                         value64_pptr_rev_comp (const void *restrict v1, const void *restrict v2);
+extern int                         value64_pstr_rev_comp (const void *restrict v1, const void *restrict v2);
+extern int                         value64_pfs_rev_comp  (const void *restrict v1, const void *restrict v2);
 
+// now using switch, w/o table
+static inline value64_PComparator  value64_getPComparator(value64_type typ){
+    switch (typ){
+        case VALUE64_INT:
+            return value64_pint_comp;
+        case VALUE64_LNG:
+            return value64_plong_comp;
+        case VALUE64_DBL:
+            return value64_pdbl_comp;
+        case VALUE64_FS:
+            return value64_pfs_comp;
+        case VALUE64_PTR:
+            return value64_pptr_comp;
+        case VALUE64_STR:
+            return value64_pstr_comp;
+        default:
+            userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
+            return NULL;
+    }
+}
+// now using switch, w/o table
+static inline value64_PRevComparator  value64_getPRevComparator(value64_type typ){
+    switch (typ){
+        case VALUE64_INT:
+            return value64_pint_rev_comp;
+        case VALUE64_LNG:
+            return value64_plong_rev_comp;
+        case VALUE64_DBL:
+            return value64_pdbl_rev_comp;
+        case VALUE64_FS:
+            return value64_pfs_rev_comp;
+        case VALUE64_PTR:
+            return value64_pptr_rev_comp;
+        case VALUE64_STR:
+            return value64_pstr_rev_comp;
+        default:
+            userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
+            return NULL;
+    }
+}
+// now using switch, w/o table
+static inline value64_Comparator    value64_getComparator(value64_type typ){
+    switch (typ){
+        case VALUE64_INT:
+            return value64_int_comp;
+        case VALUE64_LNG:
+            return value64_long_comp;
+        case VALUE64_DBL:
+            return value64_dbl_comp;
+        case VALUE64_FS:
+            return value64_fs_comp;
+        case VALUE64_PTR:
+            return value64_str_comp;
+        case VALUE64_STR:
+            return value64_str_comp;
+        default:
+            userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
+            return NULL;
+    }
+}
+// now using switch, w/o table
+static inline value64_RevComparator  value64_getRevComparator(value64_type typ){
+    switch (typ){
+        case VALUE64_INT:
+            return value64_int_rev_comp;
+        case VALUE64_LNG:
+            return value64_long_rev_comp;
+        case VALUE64_DBL:
+            return value64_dbl_rev_comp;
+        case VALUE64_FS:
+            return value64_fs_rev_comp;
+        case VALUE64_PTR:
+            return value64_str_rev_comp;
+        case VALUE64_STR:
+            return value64_str_rev_comp;
+        default:
+            userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
+            return NULL;
+    }
+}
 // ----------------------------- CONVERTERS ----------------------------------------
 
 extern value64                     value64_convert(value64 v, value64_type from, value64_type to);

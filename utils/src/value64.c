@@ -152,40 +152,10 @@ unsigned long               value64_lhash(value64 value, value64_type typ){
     }
     return hash_long(tmp.u64);
 }
-
-int                     value64_compare(value64 v1, value64 v2, value64_type typ){
-    switch (typ){
-        case VALUE64_INT:
-            return compare_int(v1.ival, v2.ival);
-        break;
-        case VALUE64_LNG:
-            return compare_long(v1.lval, v2.lval);
-        break;
-        case VALUE64_DBL:
-            return compare_dbl(v1.dval, v2.dval);
-        break;
-        case VALUE64_PTR:
-            return compare_ptr(v1.pval, v2.pval);
-        break;
-        case VALUE64_FS:
-            if (!v1.fsval || !v2.fsval)
-                userraiseint(ERR_NULLABLE_PTR, "Null pointers %p %p", v1.fsval, v2.fsval);
-            return fs_cmp(v1.fsval, v2.fsval);
-        break;
-        case VALUE64_STR:
-            if (!v1.sval || !v2.sval)
-                userraiseint(ERR_NULLABLE_PTR, "Null pointers %p %p", v1.sval, v2.sval);
-            return strcmp(v1.sval, v2.sval);
-        break;
-        default:
-            userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
-            return 0;
-    }
-}
 // search type id by type name
 value64_type            value64_gettype(const char *str){
     if (!str)
-        return VALUE64_UKNOWN;
+        return VALUE64_UKNOWN; 
     for (size_t i = 0; i < COUNT(value64_info); i++) {
         if (strcmp(str, value64_info_get(i)->name) == 0)
             return (value64_type) i;
@@ -219,49 +189,200 @@ value64                     *value64_move(value64 *restrict target, value64 *res
 // finders
 int                         value64_search(value64 val, value64_type typ, const value64 *arr, int sz){
     invraisecode(arr || sz == 0, ERR_NULLABLE_PTR, "Null pointer while sz > 0 %p %d", arr, sz);
-    // iterator!
+
+    value64_Comparator comp = value64_getComparator(typ);
     for (int i = 0; i < sz; i++)
-        if (value64_cmp(val, arr[i], typ) == 0)
+        if (comp(val, arr[i]) == 0)
             return logsimpleret(i, "Found %d", i);
     return logsimpleerr(-1, "Not found"); // just a stub
 }
 int                         value64_revsearch(value64 val, value64_type typ, const value64 *arr, int sz){
     invraisecode(arr || sz == 0, ERR_NULLABLE_PTR, "Null pointer while sz > 0 %p %d", arr, sz);
-    // iterator!
+
+    value64_Comparator comp = value64_getComparator(typ);
     for (int i = sz; i > 0; i--)
-        if (value64_cmp(val, arr[i - 1], typ) == 0)
+        if (comp(val, arr[i - 1]) == 0)
             return logsimpleret(i - 1, "Found reverse %d", i - 1); 
     return logsimpleerr(-1, "Not found"); // just a stub
 }
-// TODO:
+// arr MUST be ordered
 int                         value64_binsearch(value64 val, value64_type typ, const value64 *arr, int sz){
+    //bsearch(const void *key, const void *base, size_t nel, size_t width, int (*compar) (const void *, const void *));
+    invraisecode(arr || sz == 0, ERR_NULLABLE_PTR, "Null pointer while sz > 0 %p %d", arr, sz);
+    if (sz == 0)
+        return logsimpleerr(-1, "Noting to find, sz == 0");
+    // const value64 *find = bsearch(&val, arr, 
     return -1;
 }
-// basic comparator, switch fow now, but probably table-function is required
-int                         value64_cmp(value64 v1, value64 v2, value64_type typ){
+// value comparators, low-level, no checking
+int                         value64_int_comp(value64 v1, value64 v2) {
+    return compare_int(v1.ival, v2.ival);
+}
+
+int                         value64_long_comp(value64 v1, value64 v2) {
+    return compare_long(v1.lval, v2.lval);
+}
+
+int                         value64_dbl_comp(value64 v1, value64 v2) {
+    return compare_dbl(v1.dval, v2.dval);
+}
+
+int                         value64_fs_comp(value64 v1, value64 v2) {
+    return fs_cmp(v1.fsval, v2.fsval);
+}
+
+int                         value64_str_comp(value64 v1, value64 v2) {
+    return strcmp(v1.sval, v2.sval);
+}
+
+int                         value64_ptr_comp(value64 v1, value64 v2) {
+    return compare_ptr(v1.pval, v2.pval);
+}
+// value, reverse, low-level, no checking
+int                         value64_int_rev_comp(value64 v1, value64 v2) {
+    return -compare_int(v1.ival, v2.ival);
+}
+
+int                         value64_long_rev_comp(value64 v1, value64 v2) {
+    return -compare_long(v1.lval, v2.lval);
+}
+
+int                         value64_dbl_rev_comp(value64 v1, value64 v2) {
+    return -compare_dbl(v1.dval, v2.dval);
+}
+
+int                         value64_fs_rev_comp(value64 v1, value64 v2) {
+    return -fs_cmp(v1.fsval, v2.fsval);
+}
+
+int                         value64_str_rev_comp(value64 v1, value64 v2) {
+    return -strcmp(v1.sval, v2.sval);
+}
+
+int                         value64_ptr_rev_comp(value64 v1, value64 v2) {
+    return -compare_ptr(v1.pval, v2.pval);
+}
+
+// common value comparator (slow, for single-use), NULL checking
+int                     value64_compare(value64 v1, value64 v2, value64_type typ){
     switch (typ){
         case VALUE64_INT:
-            return compare_int(value64_int(v1), value64_int(v2) );
+            return compare_int(v1.ival, v2.ival);
+        break;
         case VALUE64_LNG:
-            return compare_long(value64_long(v1), value64_long(v2) );
+            return compare_long(v1.lval, v2.lval);
+        break;
         case VALUE64_DBL:
-            return compare_dbl(value64_dbl(v1), value64_dbl(v2) );
-        case VALUE64_FS:
-            invraisecode(value64_fs(v1) != NULL && value64_fs(v2) != NULL, ERR_NULLABLE_PTR, 
-                "Null pointers %p %p", value64_fs(v1), value64_fs(v2) );
-            return fs_cmp(value64_fs(v1), value64_fs(v2) );
-        case VALUE64_STR:
-            invraisecode(value64_str(v1) != NULL && value64_str(v2) != NULL, ERR_NULLABLE_PTR, 
-                "Null pointers %p %p", value64_str(v1), value64_str(v2) );
-            return strcmp(value64_str(v1), value64_str(v2) );
+            return compare_dbl(v1.dval, v2.dval);
+        break;
         case VALUE64_PTR:
-            return compare_ptr(value64_ptr(v1), value64_ptr(v2) );
+            return compare_ptr(v1.pval, v2.pval);
+        break;
+        case VALUE64_FS:
+            if (!v1.fsval || !v2.fsval)
+                userraiseint(ERR_NULLABLE_PTR, "Null pointers %p %p", v1.fsval, v2.fsval);
+            return fs_cmp(v1.fsval, v2.fsval);
+        break;
+        case VALUE64_STR:
+            if (!v1.sval || !v2.sval)
+                userraiseint(ERR_NULLABLE_PTR, "Null pointers %p %p", v1.sval, v2.sval);
+            return strcmp(v1.sval, v2.sval);
+        break;
+        default:
+            userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
+            return 0;
+    }
+}
+// pointer comparator, switch fow now, but probably table-function is required
+// slow, for single-use, with NUL-check
+int                         value64_pt_compare(const value64* restrict v1, const value64 *restrict v2, value64_type typ){
+    invraisecode(v1 != NULL && v2 != NULL, ERR_NULLABLE_PTR, "Null pointers %p %p", v1, v2);
+    switch (typ){
+        case VALUE64_INT:
+            return value64_pint_comp(v1, v2); //compare_pint(&val1->ival, &val2->ival);
+        case VALUE64_LNG:
+            return value64_plong_comp(v1, v2);  //compare_plong(&val1->lval, &val2->lval);
+        case VALUE64_DBL:
+            return value64_pdbl_comp(v1, v2);   //compare_pdbl(&val1->dval, &val2->dval);
+        case VALUE64_FS:
+            invraisecode(v1->fsval != NULL && v2->fsval != NULL, ERR_NULLABLE_PTR, "Null pointers %p %p", v1->fsval, v2->fsval);
+            return value64_pfs_comp(v1, v2);     //compare_fs(val1->fsval, val2->fsval);
+        case VALUE64_STR:
+            invraisecode(v1->sval != NULL && v2->sval != NULL, ERR_NULLABLE_PTR, "Null pointers %p %p", v1->sval, v2->sval);
+            return value64_pstr_comp(v1, v2);   // compare_str(val1->strval, val2->strval);
+        case VALUE64_PTR:
+            return value64_pptr_comp(v1, v2); //compare_pptr(&val1->pval, &val2->pval);
         default:
             userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "No comparator for %d:%s",
                  typ, value64_typename(typ) );
     }
     return 0;
 }
+// pointer comparators, for qsort, bsearch etc...  LOW LEVEL, no checking for NULL
+// just a wrapper over imline pointer comparators with (const void *,...
+// They must use comparators from common.h and fs.h (for FS)
+int                         value64_pint_comp(const void *restrict v1, const void *restrict v2){
+    const value64 *val1 = (const value64 *) v1;
+    const value64 *val2 = (const value64 *) v2;
+    return compare_int(val1->ival, val2->ival); // from common.h
+}
+int                         value64_plong_comp(const void *restrict v1, const void *restrict v2){
+    const value64 *val1 = (const value64 *) v1;
+    const value64 *val2 = (const value64 *) v2;
+    return compare_long(val1->lval, val2->lval);
+}
+int                         value64_pdbl_comp(const void *restrict v1, const void *restrict v2){
+    const value64 *val1 = (const value64 *) v1;
+    const value64 *val2 = (const value64 *) v2;
+    return compare_dbl(val1->dval, val2->dval);
+}
+int                         value64_pptr_comp(const void *restrict v1, const void *restrict v2){
+    const value64 *val1 = (const value64 *) v1;
+    const value64 *val2 = (const value64 *) v2;
+    return compare_ptr(&val1->pval, &val2->pval);
+}
+int                         value64_pstr_comp(const void *restrict v1, const void *restrict v2){
+    const value64 *val1 = (const value64 *) v1;
+    const value64 *val2 = (const value64 *) v2;
+    return strcmp(val1->sval, val2->sval);
+}
+int                         value64_pfs_comp(const void *restrict v1, const void *restrict v2){
+    const value64 *val1 = (const value64 *) v1;
+    const value64 *val2 = (const value64 *) v2;
+    return fs_cmp(val1->fsval, val2->fsval);
+}
+// reverse pointer comparators
+int                         value64_pint_rev_comp(const void *restrict v1, const void *restrict v2){
+    const value64 *val1 = (const value64 *) v1;
+    const value64 *val2 = (const value64 *) v2;
+    return -compare_int(val1->ival, val2->ival); // from common.h
+}
+int                         value64_plong_rev_comp(const void *restrict v1, const void *restrict v2){
+    const value64 *val1 = (const value64 *) v1;
+    const value64 *val2 = (const value64 *) v2;
+    return -compare_long(val1->lval, val2->lval);
+}
+int                         value64_pdbl_rev_comp(const void *restrict v1, const void *restrict v2){
+    const value64 *val1 = (const value64 *) v1;
+    const value64 *val2 = (const value64 *) v2;
+    return -compare_dbl(val1->dval, val2->dval);
+}
+int                         value64_pptr_rev_comp(const void *restrict v1, const void *restrict v2){
+    const value64 *val1 = (const value64 *) v1;
+    const value64 *val2 = (const value64 *) v2;
+    return -compare_ptr(&val1->pval, &val2->pval);
+}
+int                         value64_pstr_rev_comp(const void *restrict v1, const void *restrict v2){
+    const value64 *val1 = (const value64 *) v1;
+    const value64 *val2 = (const value64 *) v2;
+    return -strcmp(val1->sval, val2->sval);
+}
+int                         value64_pfs_rev_comp(const void *restrict v1, const void *restrict v2){
+    const value64 *val1 = (const value64 *) v1;
+    const value64 *val2 = (const value64 *) v2;
+    return -fs_cmp(val1->fsval, val2->fsval);
+}
+
 
 // ----------------------------- CONVERTERS ----------------------------------------
 
@@ -2506,7 +2627,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_convert,          .num =  7, .name = "Simple value64_convert() test"              , .desc="", .mandatory=true)
               , testnew(.f2 = tf_convert_move,     .num =  8, .name = "Simple value64_convert_move() test"         , .desc="", .mandatory=true)
               , testnew(.f2 = tf_is_convertable,   .num =  9, .name = "Simple value64_is_convertable() test"       , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_cmp,              .num = 10, .name = "Simple value64_cmp() test"                  , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_pcompare,         .num = 10, .name = "Simple value64_pcompare() test"             , .desc="", .mandatory=true)
               , testnew(.f2 = tf_search,           .num = 11, .name = "Simple value64_(rev)search test"            , .desc="", .mandatory=true)
             );
         if (runall)
