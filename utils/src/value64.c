@@ -2421,6 +2421,58 @@ tf_search(const char *name)
             "empty array must return -1 (reverse)"
         );
     }
+    /* 1. INT: присутствует */
+    test_sub("subtest %d: value64_in – found", ++subnum);
+    {
+        value64 arr[] = { value64_createint(1), value64_createint(2), value64_createint(3) };
+        test_validate(
+            value64_in(value64_createint(2), VALUE64_INT, arr, COUNT(arr)),
+            "2 must be in {1,2,3}"
+        );
+    }
+
+    /* 2. INT: отсутствует */
+    test_sub("subtest %d: value64_in – not found", ++subnum);
+    {
+        value64 arr[] = { value64_createint(1), value64_createint(2), value64_createint(3) };
+        test_validate(
+            !value64_in(value64_createint(99), VALUE64_INT, arr, COUNT(arr)),
+            "99 must NOT be in {1,2,3}"
+        );
+    }
+
+    /* 3. INT: notin (должно быть true) */
+    test_sub("subtest %d: value64_notin – true", ++subnum);
+    {
+        value64 arr[] = { value64_createint(1), value64_createint(2), value64_createint(3) };
+        test_validate(
+            value64_notin(value64_createint(99), VALUE64_INT, arr, COUNT(arr)),
+            "99 must be NOT in {1,2,3}"
+        );
+    }
+
+    /* 4. INT: notin (должно быть false) */
+    test_sub("subtest %d: value64_notin – false", ++subnum);
+    {
+        value64 arr[] = { value64_createint(1), value64_createint(2), value64_createint(3) };
+        test_validate(
+            !value64_notin(value64_createint(1), VALUE64_INT, arr, COUNT(arr)),
+            "1 must be in {1,2,3}, so notin must be false"
+        );
+    }
+
+    /* 5. Пустой массив – in возвращает false, notin возвращает true */
+    test_sub("subtest %d: empty array", ++subnum);
+    {
+        test_validate(
+            !value64_in(value64_createint(42), VALUE64_INT, NULL, 0),
+            "in must be false for empty array"
+        );
+        test_validate(
+            value64_notin(value64_createint(42), VALUE64_INT, NULL, 0),
+            "notin must be true for empty array"
+        );
+    }
 
     return logret(TEST_PASSED, "done");
 }
