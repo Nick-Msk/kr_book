@@ -339,7 +339,7 @@ int                         value64_pdbl_comp(const void *restrict v1, const voi
 int                         value64_pptr_comp(const void *restrict v1, const void *restrict v2){
     const value64 *val1 = (const value64 *) v1;
     const value64 *val2 = (const value64 *) v2;
-    return compare_ptr(&val1->pval, &val2->pval);
+    return compare_ptr(val1->pval, val2->pval);
 }
 int                         value64_pstr_comp(const void *restrict v1, const void *restrict v2){
     const value64 *val1 = (const value64 *) v1;
@@ -370,7 +370,7 @@ int                         value64_pdbl_rev_comp(const void *restrict v1, const
 int                         value64_pptr_rev_comp(const void *restrict v1, const void *restrict v2){
     const value64 *val1 = (const value64 *) v1;
     const value64 *val2 = (const value64 *) v2;
-    return -compare_ptr(&val1->pval, &val2->pval);
+    return -compare_ptr(val1->pval, val2->pval);
 }
 int                         value64_pstr_rev_comp(const void *restrict v1, const void *restrict v2){
     const value64 *val1 = (const value64 *) v1;
