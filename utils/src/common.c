@@ -32,8 +32,6 @@ void                            fill_float(float *arr, int cnt, float value){
         arr[i] = value;
 }
 
-
-
 char                            *uniq_str(char *s, int *p_len){
     bool    hash[256] = {false};
     int     j = 0, i = 0;
@@ -446,7 +444,7 @@ tf_try_parse(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
-// ------------------------- TEST tf_int_(not)in ---------------------------------
+// ------------------------- TEST int_(not)in ---------------------------------
 
 static TestStatus
 tf_int_in(const char *name)
@@ -566,6 +564,106 @@ tf_int_in(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST comparators ---------------------------------
+
+static TestStatus
+tf_comparators(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ---------- compare_int ---------- */
+    test_sub("subtest %d: compare_int equal", ++subnum);
+    test_validate(compare_int(42, 42) == 0, "42 must equal 42");
+
+    test_sub("subtest %d: compare_int less", ++subnum);
+    test_validate(compare_int(10, 20) < 0, "10 must be less than 20");
+
+    test_sub("subtest %d: compare_int greater", ++subnum);
+    test_validate(compare_int(30, 20) > 0, "30 must be greater than 20");
+
+    /* ---------- compare_long ---------- */
+    test_sub("subtest %d: compare_long equal", ++subnum);
+    test_validate(compare_long(999999999L, 999999999L) == 0, "999999999L must equal 999999999L");
+
+    test_sub("subtest %d: compare_long less", ++subnum);
+    test_validate(compare_long(-100L, 0L) < 0, "-100L must be less than 0L");
+
+    test_sub("subtest %d: compare_long greater", ++subnum);
+    test_validate(compare_long(0L, -100L) > 0, "0L must be greater than -100L");
+
+    /* ---------- compare_dbl ---------- */
+    test_sub("subtest %d: compare_dbl equal", ++subnum);
+    test_validate(compare_dbl(3.1415, 3.1415) == 0, "3.1415 must equal 3.1415");
+
+    test_sub("subtest %d: compare_dbl less", ++subnum);
+    test_validate(compare_dbl(1.0, 2.0) < 0, "1.0 must be less than 2.0");
+
+    test_sub("subtest %d: compare_dbl greater", ++subnum);
+    test_validate(compare_dbl(2.0, 1.0) > 0, "2.0 must be greater than 1.0");
+
+    test_sub("subtest %d: compare_dbl NaN equal", ++subnum);
+    test_validate(compare_dbl(NAN, NAN) == 0, "NaN must equal NaN (by implementation)");
+
+    test_sub("subtest %d: compare_dbl NaN less", ++subnum);
+    test_validate(compare_dbl(NAN, 1.0) < 0, "NaN must be less than any number (by implementation)");
+
+    test_sub("subtest %d: compare_dbl +inf greater", ++subnum);
+    test_validate(compare_dbl(INFINITY, 1.0) > 0, "+inf must be greater than 1.0");
+
+    test_sub("subtest %d: compare_dbl -inf less", ++subnum);
+    test_validate(compare_dbl(-INFINITY, 1.0) < 0, "-inf must be less than 1.0");
+
+    test_sub("subtest %d: compare_dbl +inf vs -inf", ++subnum);
+    test_validate(compare_dbl(INFINITY, -INFINITY) > 0, "+inf must be greater than -inf");
+
+    /* ---------- compare_ptr ---------- */
+    test_sub("subtest %d: compare_ptr equal", ++subnum);
+    {
+        int x = 0;
+        test_validate(compare_ptr(&x, &x) == 0, "same address must be equal");
+    }
+
+    test_sub("subtest %d: compare_ptr not equal", ++subnum);
+    {
+        int a = 1, b = 2;
+        // Порядок адресов на стеке не определён, поэтому просто проверяем, что результат не 0
+        test_validate(compare_ptr(&a, &b) != 0, "different addresses must not be equal");
+    }
+
+    /* ---------- compare_char ---------- */
+    test_sub("subtest %d: compare_char equal", ++subnum);
+    test_validate(compare_char('A', 'A') == 0, "'A' must equal 'A'");
+
+    test_sub("subtest %d: compare_char less", ++subnum);
+    test_validate(compare_char('A', 'B') < 0, "'A' must be less than 'B'");
+
+    test_sub("subtest %d: compare_char greater", ++subnum);
+    test_validate(compare_char('B', 'A') > 0, "'B' must be greater than 'A'");
+
+    /* ---------- compare_uint ---------- */
+    test_sub("subtest %d: compare_uint equal", ++subnum);
+    test_validate(compare_uint(123u, 123u) == 0, "123u must equal 123u");
+
+    test_sub("subtest %d: compare_uint less", ++subnum);
+    test_validate(compare_uint(10u, 20u) < 0, "10u must be less than 20u");
+
+    test_sub("subtest %d: compare_uint greater", ++subnum);
+    test_validate(compare_uint(20u, 10u) > 0, "20u must be greater than 10u");
+
+    /* ---------- compare_ulong ---------- */
+    test_sub("subtest %d: compare_ulong equal", ++subnum);
+    test_validate(compare_ulong(999999999UL, 999999999UL) == 0, "999999999UL must equal 999999999UL");
+
+    test_sub("subtest %d: compare_ulong less", ++subnum);
+    test_validate(compare_ulong(1UL, 100UL) < 0, "1UL must be less than 100UL");
+
+    test_sub("subtest %d: compare_ulong greater", ++subnum);
+    test_validate(compare_ulong(100UL, 1UL) > 0, "100UL must be greater than 1UL");
+
+    return logret(TEST_PASSED, "done");
+}
+
 // -------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -587,6 +685,7 @@ main(int argc, const char *argv[])
             testenginestd_run(num,
                 testnew(.f2 = tf_try_parse,        .num =  1, .name = "Simple try_parse_<type> test"              , .desc="", .mandatory=true)
               , testnew(.f2 = tf_int_in,           .num =  2, .name = "Simple tf_int_(not)in test"                , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_comparators,      .num =  3, .name = "Simple compare_<type> test"                , .desc="", .mandatory=true)
             );
         if (runall)
             break;
