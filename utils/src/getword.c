@@ -51,6 +51,17 @@ static int               skip_cl(void){
     return logsimpleret(c, "[%c], comments %d", c, cnt);
 }
 
+static inline int       charconv(int c){
+    switch (c) {
+        case 'n':  return '\n'; break;
+        case 'r':  return '\r'; break;
+        case 't':  return '\t'; break;
+        case '"':  return '"';  break;
+        case '\\': return '\\'; break;
+        default:   return c;    break;
+    }
+}
+
 // str must have heap alloc
 fs                      getword(fs str, bool lower, bool comments, bool get_newline){
 
@@ -95,7 +106,25 @@ bool                    getpurestring(FILE *restrict in, fs *restrict str){
     else
         return logsimpleret(true, "line %d [%10s]", fs_len(str), fs_str(str) );
 }
+// not using buffer.c, VERY simple, empty line is OK, just "" empty fs
+bool                    getconvstring(FILE *restrict in, fs *restrict str){
+    invraisecode(in != NULL && str != NULL, ERR_NULLABLE_PTR, "%p - %p", in, str);
 
+    int     c;
+    fsnew   iter = fsinew(str);
+    while ( (c = getc(in)) != EOF && c != '\n') {
+        if (c == '\\') {
+            c = getc(in);
+            c = charconv(c);
+        }
+        elemnext(iter) = c;
+    }
+    elemend(iter);
+    if (c == EOF && fs_len(str) == 0)   // no data at all
+        return logsimpleret(false, "EOF");
+    else
+        return logsimpleret(true, "line %d [%10s]", fs_len(str), fs_str(str) );
+}
 // parse only LEXEM_STR or LEXEM_CMD!
 bool                    getstring(Lexem *lex){
 
@@ -323,6 +352,167 @@ tf2(const char *name)
     }
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
 }
+
+// ------------------------- TEST getconvstring ---------------------------------
+
+static TestStatus
+tf_getconvstring(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Обычная строка без escape-символов */
+    test_sub("subtest %d: plain string", ++subnum);
+    {
+        const char      fname[] = "res/getword/conv_plain.txt";
+        FILE           *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for writing", fname);
+        fprintf(f, "hello world\n");
+        fclose(f);
+
+        f = fopen(fname, "r");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for reading", fname);
+
+        fs s = FS();
+        test_validatefree(
+            getconvstring(f, &s) && strcmp(fs_str(&s), "hello world") == 0,
+            (fsfree(s), fclose(f)),
+            "Plain string mismatch: got '%s', expected 'hello world'", fs_str(&s)
+        );
+        fsfree(s);
+        fclose(f);
+    }
+
+    /* 2. Строка с escape-последовательностями (\\n, \\t, \\\", \\\\) */
+    test_sub("subtest %d: escaped string", ++subnum);
+    {
+        const char      fname[] = "res/getword/conv_escaped.txt";
+        FILE           *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for writing", fname);
+        // Записываем строку, содержащую символы, которые будут выглядеть как escape-последовательности в файле
+        // В файле мы должны записать "line1\\nline2\\tend\\\"quote\\\\"
+        fprintf(f, "line1\\nline2\\tend\\\"quote\\\\\n");
+        fclose(f);
+
+        f = fopen(fname, "r");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for reading", fname);
+
+        fs s = FS();
+        // После getconvstring должны получить: "line1\nline2\tend\"quote\\"
+        test_validatefree(
+            getconvstring(f, &s) && strcmp(fs_str(&s), "line1\nline2\tend\"quote\\") == 0,
+            (fsfree(s), fclose(f)),
+            "Escaped string mismatch: got '%s'", fs_str(&s)
+        );
+        fsfree(s);
+        fclose(f);
+    }
+
+    /* 3. Пустая строка (только \\n) */
+    test_sub("subtest %d: empty string (just newline)", ++subnum);
+    {
+        const char fname[] = "res/getword/conv_empty.txt";
+        FILE *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for writing", fname);
+        fprintf(f, "\n");
+        fclose(f);
+
+        f = fopen(fname, "r");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for reading", fname);
+
+        fs s = FS();
+        test_validatefree(
+            getconvstring(f, &s) && fs_len(&s) == 0,
+            (fsfree(s), fclose(f)),
+            "Empty string mismatch: len=%d, expected 0, str='%s'", fs_len(&s), fs_str(&s)
+        );
+        fsfree(s);
+        fclose(f);
+    }
+
+    /* 4. Неизвестная escape-последовательность (например, \\x) */
+    test_sub("subtest %d: unknown escape", ++subnum);
+    {
+        const char fname[] = "res/getword/conv_unknown_esc.txt";
+        FILE *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for writing", fname);
+        fprintf(f, "hello\\xworld\n");
+        fclose(f);
+
+        f = fopen(fname, "r");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for reading", fname);
+
+        fs s = FS();
+        // Поскольку 'x' не является известной escape-последовательностью, charconv вернёт 'x',
+        // и в строке должно остаться "helloxworld"
+        test_validatefree(
+            getconvstring(f, &s) && strcmp(fs_str(&s), "helloxworld") == 0,
+            (fsfree(s), fclose(f)),
+            "Unknown escape mismatch: got '%s', expected 'helloxworld'", fs_str(&s)
+        );
+        fsfree(s);
+        fclose(f);
+    }
+
+    /* 5. Строка без завершающего \\n в конце файла (последняя строка) */
+    test_sub("subtest %d: last line without newline", ++subnum);
+    {
+        const char fname[] = "res/getword/conv_last_line.txt";
+        FILE *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for writing", fname);
+        // Записываем строку без \n в конце
+        fprintf(f, "final line");
+        fclose(f);
+
+        f = fopen(fname, "r");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for reading", fname);
+
+        fs s = FS();
+        test_validatefree(
+            getconvstring(f, &s) && strcmp(fs_str(&s), "final line") == 0,
+            (fsfree(s), fclose(f)),
+            "Last line mismatch: got '%s', expected 'final line'", fs_str(&s)
+        );
+        fsfree(s);
+        fclose(f);
+    }
+
+    /* 6. EOF без данных (пустой файл) */
+    test_sub("subtest %d: eof on empty file", ++subnum);
+    {
+        const char fname[] = "res/getword/conv_eof.txt";
+        FILE *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for writing", fname);
+        fclose(f);   // создали пустой файл
+
+        f = fopen(fname, "r");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for reading", fname);
+
+        fs s = FS();
+        test_validatefree(
+            !getconvstring(f, &s),   // должно вернуть false (EOF)
+            (fsfree(s), fclose(f)),
+            "EOF on empty file must return false"
+        );
+        fsfree(s);
+        fclose(f);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -330,9 +520,9 @@ main( /* int argc, const char *argv[] */)
     logsimpleinit("Start");
 
     testenginestd(
-        testnew(.f2 = tf1,  .num =  1, .name = "getstring() simple file test"                     , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf2,  .num =  2, .name = "getpurestring() simple file test"                 , .desc=""                , .mandatory=true)
-
+        testnew(.f2 = tf1,                  .num =  1, .name = "getstring() simple file test"                     , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf2,                  .num =  2, .name = "getpurestring() simple file test"                 , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf_getconvstring,     .num =  3, .name = "getconvstring() simple file test"                 , .desc=""                , .mandatory=true)
 );
 
     return logret(0, "end...");  // as replace of logclose()

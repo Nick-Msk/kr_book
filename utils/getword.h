@@ -79,7 +79,9 @@ static inline void          lexem_free(Lexem *l){
 #define                     lexemfree(l) lexem_free( &(l) )
 
 // not using buffer.c, VERY simple, empty line is OK, just "" empty fs
-bool                    getpurestring(FILE *restrict in, fs *restrict str);
+extern bool                 getpurestring(FILE *restrict in, fs *restrict str);
+// conversion
+extern bool                 getconvstring(FILE *restrict in, fs *restrict str);
 // parse only LEXEM_STR or LEXEM_CMD!
 extern bool                 getstring(Lexem *lex);
 
