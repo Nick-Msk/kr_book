@@ -383,6 +383,7 @@ tf_getconvstring(const char *name)
         );
         fsfree(s);
         fclose(f);
+        fs_alloc_check(true);
     }
 
     /* 2. Строка с escape-последовательностями (\\n, \\t, \\\", \\\\) */
@@ -410,6 +411,7 @@ tf_getconvstring(const char *name)
         );
         fsfree(s);
         fclose(f);
+        fs_alloc_check(true);
     }
 
     /* 3. Пустая строка (только \\n) */
@@ -434,6 +436,7 @@ tf_getconvstring(const char *name)
         );
         fsfree(s);
         fclose(f);
+        fs_alloc_check(true);
     }
 
     /* 4. Неизвестная escape-последовательность (например, \\x) */
@@ -460,6 +463,7 @@ tf_getconvstring(const char *name)
         );
         fsfree(s);
         fclose(f);
+        fs_alloc_check(true);
     }
 
     /* 5. Строка без завершающего \\n в конце файла (последняя строка) */
@@ -485,6 +489,7 @@ tf_getconvstring(const char *name)
         );
         fsfree(s);
         fclose(f);
+        fs_alloc_check(true);
     }
 
     /* 6. EOF без данных (пустой файл) */
@@ -508,6 +513,7 @@ tf_getconvstring(const char *name)
         );
         fsfree(s);
         fclose(f);
+        fs_alloc_check(true);
     }
 
     return logret(TEST_PASSED, "done");
