@@ -77,11 +77,8 @@ typedef value64                     (*value64_ConverterFunc)(value64 v);
 typedef value64                     (*value64_ConverterMoveFunc)(value64 *v);
 // getter for comparators
 typedef int                         (*value64_Comparator)(value64, value64);
-    //TODO: remove
-typedef int                         (*value64_RevComparator)(value64, value64);
 // as void *, TODO: think if possible to be value *
 typedef int                         (*value64_PComparator)(const void *restrict, const void *restrict);
-typedef int                         (*value64_PRevComparator)(const void *restrict, const void *restrict);
 
 /*#define                 VALUE64_INT(val)  (value64) {.u64 = 0L, .ival = val }
 #define                 VALUE64_LONG(val) (value64) {.u64 = 0L, .lval = val }
@@ -246,7 +243,7 @@ extern unsigned long               value64_lhash(value64 value, value64_type typ
 extern void                        value64_exch(value64 *v1, value64 *v2);
 
 extern void                        value64_sort(value64_type typ, value64 *arr, int sz);
-extern void                        value64_rsort(value64_type typ, value64 *arr, int sz);
+extern void                        value64_revsort(value64_type typ, value64 *arr, int sz);
 
 extern int                         value64_search(value64 val, value64_type typ, const value64 *arr, int sz);
 extern int                         value64_revsearch(value64 val, value64_type typ, const value64 *arr, int sz);
@@ -315,7 +312,7 @@ static inline value64_PComparator  value64_getPComparator(value64_type typ){
     }
 }
 // reverse, pointer, now using switch, w/o table
-static inline value64_PRevComparator  value64_getPRevComparator(value64_type typ){
+static inline value64_PComparator  value64_getPRevComparator(value64_type typ){
     switch (typ){
         case VALUE64_INT:
             return value64_pint_rev_comp;
@@ -355,7 +352,7 @@ static inline value64_Comparator    value64_getComparator(value64_type typ){
     }
 }
 // value, now using switch, w/o table
-static inline value64_RevComparator  value64_getRevComparator(value64_type typ){
+static inline value64_Comparator  value64_getRevComparator(value64_type typ){
     switch (typ){
         case VALUE64_INT:
             return value64_int_rev_comp;

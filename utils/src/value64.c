@@ -191,14 +191,14 @@ void                        value64_exch(value64 *v1, value64 *v2){
     *v1 = *v2;
     *v2 = tmp;
 }
-extern void                 value64_sort(value64_type typ, value64 *arr, int sz){
+void                        value64_sort(value64_type typ, value64 *arr, int sz){
     value64_PComparator pcomp = value64_getPComparator(typ);
     if (!pcomp)
          userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s: %d", value64_typename(typ), typ);
     qsort(arr, sz, sizeof(value64), pcomp);
 }
-extern void                 value64_rsort(value64_type typ, value64 *arr, int sz){ 
-    value64_PRevComparator revpcomp = value64_getPRevComparator(typ);
+void                        value64_revsort(value64_type typ, value64 *arr, int sz){ 
+    value64_PComparator revpcomp = value64_getPRevComparator(typ);
     if (!revpcomp)
          userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s: %d", value64_typename(typ), typ);
     qsort(arr, sz, sizeof(value64), revpcomp);
@@ -251,7 +251,7 @@ int                         value64_rev_binsearch(value64 val, value64_type typ,
     if (sz == 0)
         return logsimpleerr(-1, "Noting to find, sz == 0");
 
-    value64_PRevComparator revpcomp = value64_getPRevComparator(typ);
+    value64_PComparator revpcomp = value64_getPRevComparator(typ);
     if (!revpcomp)
         userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s: %d", value64_typename(typ), typ);
     const value64 *find = bsearch(&val, arr, sz, sizeof(value64), revpcomp);
@@ -2668,7 +2668,7 @@ tf_getComparator(const char *name)
     /* 2. INT rev comparator */
     test_sub("subtest %d: getRevComparator INT", ++subnum);
     {
-        value64_RevComparator rcmp = value64_getRevComparator(VALUE64_INT);
+        value64_Comparator rcmp = value64_getRevComparator(VALUE64_INT);
         test_validate(rcmp != NULL, "INT rev comparator must not be NULL");
 
         value64 a = value64_createint(10);
@@ -2693,7 +2693,7 @@ tf_getComparator(const char *name)
     /* 4. LONG rev comparator */
     test_sub("subtest %d: getRevComparator LONG", ++subnum);
     {
-        value64_RevComparator rcmp = value64_getRevComparator(VALUE64_LNG);
+        value64_Comparator rcmp = value64_getRevComparator(VALUE64_LNG);
         test_validate(rcmp != NULL, "LONG rev comparator must not be NULL");
 
         value64 a = value64_createlong(100L);
@@ -2716,7 +2716,7 @@ tf_getComparator(const char *name)
     /* 6. DBL rev comparator */
     test_sub("subtest %d: getRevComparator DBL", ++subnum);
     {
-        value64_RevComparator rcmp = value64_getRevComparator(VALUE64_DBL);
+        value64_Comparator rcmp = value64_getRevComparator(VALUE64_DBL);
         test_validate(rcmp != NULL, "DBL rev comparator must not be NULL");
 
         value64 a = value64_createdbl(1.5);
@@ -2755,7 +2755,7 @@ tf_getComparator(const char *name)
     /* 8. FS rev comparator */
     test_sub("subtest %d: getRevComparator FS", ++subnum);
     {
-        value64_RevComparator rcmp = value64_getRevComparator(VALUE64_FS);
+        value64_Comparator rcmp = value64_getRevComparator(VALUE64_FS);
         test_validate(rcmp != NULL, "FS rev comparator must not be NULL");
 
         fs tmp1 = fscopy("alpha"), tmp2 = fscopy("beta");
@@ -2790,7 +2790,7 @@ tf_getComparator(const char *name)
     /* 10. STR rev comparator */
     test_sub("subtest %d: getRevComparator STR", ++subnum);
     {
-        value64_RevComparator rcmp = value64_getRevComparator(VALUE64_STR);
+        value64_Comparator rcmp = value64_getRevComparator(VALUE64_STR);
         test_validate(rcmp != NULL, "STR rev comparator must not be NULL");
 
         value64 a = value64_createstr("hello");
@@ -2820,7 +2820,7 @@ tf_getComparator(const char *name)
     /* 12. PTR rev comparator */
     test_sub("subtest %d: getRevComparator PTR", ++subnum);
     {
-        value64_RevComparator rcmp = value64_getRevComparator(VALUE64_PTR);
+        value64_Comparator rcmp = value64_getRevComparator(VALUE64_PTR);
         test_validate(rcmp != NULL, "PTR rev comparator must not be NULL");
 
         int x = 1, y = 2;
@@ -2867,7 +2867,7 @@ tf_getPComparator(const char *name)
     /* 2. P_INT rev comparator */
     test_sub("subtest %d: getPRevComparator INT", ++subnum);
     {
-        value64_PRevComparator rcmp = value64_getPRevComparator(VALUE64_INT);
+        value64_PComparator rcmp = value64_getPRevComparator(VALUE64_INT);
         test_validate(rcmp != NULL, "INT P-rev-comparator must not be NULL");
 
         value64 a = value64_createint(10);
@@ -2892,7 +2892,7 @@ tf_getPComparator(const char *name)
     /* 4. P_LONG rev comparator */
     test_sub("subtest %d: getPRevComparator LONG", ++subnum);
     {
-        value64_PRevComparator rcmp = value64_getPRevComparator(VALUE64_LNG);
+        value64_PComparator rcmp = value64_getPRevComparator(VALUE64_LNG);
         test_validate(rcmp != NULL, "LONG P-rev-comparator must not be NULL");
 
         value64 a = value64_createlong(100L);
@@ -2915,7 +2915,7 @@ tf_getPComparator(const char *name)
     /* 6. P_DBL rev comparator */
     test_sub("subtest %d: getPRevComparator DBL", ++subnum);
     {
-        value64_PRevComparator rcmp = value64_getPRevComparator(VALUE64_DBL);
+        value64_PComparator rcmp = value64_getPRevComparator(VALUE64_DBL);
         test_validate(rcmp != NULL, "DBL P-rev-comparator must not be NULL");
 
         value64 a = value64_createdbl(1.5);
@@ -2954,7 +2954,7 @@ tf_getPComparator(const char *name)
     /* 8. P_FS rev comparator */
     test_sub("subtest %d: getPRevComparator FS", ++subnum);
     {
-        value64_PRevComparator rcmp = value64_getPRevComparator(VALUE64_FS);
+        value64_PComparator rcmp = value64_getPRevComparator(VALUE64_FS);
         test_validate(rcmp != NULL, "FS P-rev-comparator must not be NULL");
 
         fs tmp1 = fscopy("alpha"), tmp2 = fscopy("beta");
@@ -2989,7 +2989,7 @@ tf_getPComparator(const char *name)
     /* 10. P_STR rev comparator */
     test_sub("subtest %d: getPRevComparator STR", ++subnum);
     {
-        value64_PRevComparator rcmp = value64_getPRevComparator(VALUE64_STR);
+        value64_PComparator rcmp = value64_getPRevComparator(VALUE64_STR);
         test_validate(rcmp != NULL, "STR P-rev-comparator must not be NULL");
 
         value64 a = value64_createstr("hello");
@@ -3018,7 +3018,7 @@ tf_getPComparator(const char *name)
     /* 12. P_PTR rev comparator */
     test_sub("subtest %d: getPRevComparator PTR", ++subnum);
     {
-        value64_PRevComparator rcmp = value64_getPRevComparator(VALUE64_PTR);
+        value64_PComparator rcmp = value64_getPRevComparator(VALUE64_PTR);
         test_validate(rcmp != NULL, "PTR P-rev-comparator must not be NULL");
 
         int x = 1, y = 2;
@@ -3263,6 +3263,200 @@ tf_binsearch(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST value64_(rev_)sort -----------------------------
+
+static TestStatus
+tf_sort(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ---------- 1. INT ascending ---------- */
+    test_sub("subtest %d: sort INT asc", ++subnum);
+    {
+        value64 arr[] = {
+            value64_createint(30),
+            value64_createint(10),
+            value64_createint(20)
+        };
+        value64_sort(VALUE64_INT, arr, COUNT(arr));
+
+        test_validate(
+            arr[0].ival == 10,
+            "arr[0] must be 10, got %d", arr[0].ival
+        );
+        test_validate(
+            arr[1].ival == 20,
+            "arr[1] must be 20, got %d", arr[1].ival
+        );
+        test_validate(
+            arr[2].ival == 30,
+            "arr[2] must be 30, got %d", arr[2].ival
+        );
+    }
+
+    /* 2. INT descending */
+    test_sub("subtest %d: sort INT desc", ++subnum);
+    {
+        value64 arr[] = {
+            value64_createint(10),
+            value64_createint(30),
+            value64_createint(20)
+        };
+        value64_revsort(VALUE64_INT, arr, COUNT(arr));
+
+        test_validate(
+            arr[0].ival == 30,
+            "arr[0] must be 30, got %d", arr[0].ival
+        );
+        test_validate(
+            arr[1].ival == 20,
+            "arr[1] must be 20, got %d", arr[1].ival
+        );
+        test_validate(
+            arr[2].ival == 10,
+            "arr[2] must be 10, got %d", arr[2].ival
+        );
+    }
+
+    /* ---------- 3. STR ascending ---------- */
+    test_sub("subtest %d: sort STR asc", ++subnum);
+    {
+        value64 arr[] = {
+            value64_createstr("cherry"),
+            value64_createstr("apple"),
+            value64_createstr("banana")
+        };
+        value64_sort(VALUE64_STR, arr, COUNT(arr));
+
+        test_validatefree(
+            strcmp(value64_str(arr[0]), "apple") == 0 &&
+            strcmp(value64_str(arr[1]), "banana") == 0 &&
+            strcmp(value64_str(arr[2]), "cherry") == 0,
+            (value64_free(arr[0], VALUE64_STR),
+             value64_free(arr[1], VALUE64_STR),
+             value64_free(arr[2], VALUE64_STR)),
+            "STR asc order mismatch: got [%s, %s, %s]",
+            value64_str(arr[0]), value64_str(arr[1]), value64_str(arr[2])
+        );
+        for (int i = 0; i < COUNT(arr); i++)
+            value64_free(arr[i], VALUE64_STR);
+    }
+
+    /* 4. STR descending */
+    test_sub("subtest %d: sort STR desc", ++subnum);
+    {
+        value64 arr[] = {
+            value64_createstr("apple"),
+            value64_createstr("cherry"),
+            value64_createstr("banana")
+        };
+        value64_revsort(VALUE64_STR, arr, COUNT(arr));
+
+        test_validatefree(
+            strcmp(value64_str(arr[0]), "cherry") == 0 &&
+            strcmp(value64_str(arr[1]), "banana") == 0 &&
+            strcmp(value64_str(arr[2]), "apple") == 0,
+            (value64_free(arr[0], VALUE64_STR),
+             value64_free(arr[1], VALUE64_STR),
+             value64_free(arr[2], VALUE64_STR)),
+            "STR desc order mismatch: got [%s, %s, %s]",
+            value64_str(arr[0]), value64_str(arr[1]), value64_str(arr[2])
+        );
+        for (int i = 0; i < COUNT(arr); i++)
+            value64_free(arr[i], VALUE64_STR);
+    }
+
+    /* ---------- 5. FS ascending ---------- */
+    test_sub("subtest %d: sort FS asc", ++subnum);
+    {
+        fs t1 = fscopy("gamma"), t2 = fscopy("alpha"), t3 = fscopy("beta");
+        value64 arr[] = { value64_createfs(&t1), value64_createfs(&t2), value64_createfs(&t3) };
+        fsfree(t1); fsfree(t2); fsfree(t3);
+
+        value64_sort(VALUE64_FS, arr, COUNT(arr));
+
+        test_validatefree(
+            strcmp(fs_str(value64_fs(arr[0])), "alpha") == 0 &&
+            strcmp(fs_str(value64_fs(arr[1])), "beta") == 0 &&
+            strcmp(fs_str(value64_fs(arr[2])), "gamma") == 0,
+            (value64_free(arr[0], VALUE64_FS),
+             value64_free(arr[1], VALUE64_FS),
+             value64_free(arr[2], VALUE64_FS)),
+            "FS asc order mismatch"
+        );
+        for (int i = 0; i < COUNT(arr); i++)
+            value64_free(arr[i], VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    /* 6. FS descending */
+    test_sub("subtest %d: sort FS desc", ++subnum);
+    {
+        fs t1 = fscopy("alpha"), t2 = fscopy("gamma"), t3 = fscopy("beta");
+        value64 arr[] = { value64_createfs(&t1), value64_createfs(&t2), value64_createfs(&t3) };
+        fsfree(t1); fsfree(t2); fsfree(t3);
+
+        value64_revsort(VALUE64_FS, arr, COUNT(arr));
+
+        test_validatefree(
+            strcmp(fs_str(value64_fs(arr[0])), "gamma") == 0 &&
+            strcmp(fs_str(value64_fs(arr[1])), "beta") == 0 &&
+            strcmp(fs_str(value64_fs(arr[2])), "alpha") == 0,
+            (value64_free(arr[0], VALUE64_FS),
+             value64_free(arr[1], VALUE64_FS),
+             value64_free(arr[2], VALUE64_FS)),
+            "FS desc order mismatch"
+        );
+        for (int i = 0; i < COUNT(arr); i++)
+            value64_free(arr[i], VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    /* ---------- 7. empty array (must not crash) ---------- */
+    test_sub("subtest %d: sort empty array", ++subnum);
+    {
+        value64_sort(VALUE64_INT, NULL, 0);
+        value64_revsort(VALUE64_INT, NULL, 0);
+        test_validate(
+            true,
+            "empty sort must not crash"
+        );
+    }
+    /* ---------- 8. large array (1000 INT) ---------- */
+    test_sub("subtest %d: sort large INT array (1000 elements)", ++subnum);
+    {
+        enum { N = 1000, MAX = 100000 };
+        value64 arr[N];
+        // заполняем случайными числами
+        for (int i = 0; i < N; i++)
+            arr[i] = value64_createint(rand() % MAX);
+
+        value64_sort(VALUE64_INT, arr, N);
+
+        // проверяем неубывание
+        for (int i = 1; i < N; i++)
+            test_validate(
+                arr[i - 1].ival <= arr[i].ival,
+                "%d elem = %d must be <= that %d elem = %d", i - 1, arr[i - 1].ival, i, arr[i].ival
+            );
+
+        // теперь тестируем обратную сортировку: перемешаем заново
+        for (int i = 0; i < N; i++)
+            arr[i] = value64_createint(rand() % MAX);
+
+        value64_revsort(VALUE64_INT, arr, N);
+
+        for (int i = 1; i < N; i++)
+            test_validate(
+                arr[i - 1].ival >= arr[i].ival,
+                "%d elem = %d must be >= that %d elem = %d", i - 1, arr[i - 1].ival, i, arr[i].ival
+            );
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -3297,6 +3491,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_getComparator,    .num = 12, .name = "Simple value64_get(Rev)Comparator test"     , .desc="", .mandatory=true)
               , testnew(.f2 = tf_getPComparator,   .num = 13, .name = "Simple value64_getP(Rev)Comparator test"    , .desc="", .mandatory=true)
               , testnew(.f2 = tf_binsearch,        .num = 14, .name = "Simple value64_(rev_)binsearch test"        , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_sort,             .num = 15, .name = "Simple value64_(rev_)sort test"             , .desc="", .mandatory=true)
             );
         if (runall)
             break;
