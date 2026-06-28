@@ -241,9 +241,48 @@ extern unsigned long               value64_lhash(value64 value, value64_type typ
 
 // exchanger
 extern void                        value64_exch(value64 *v1, value64 *v2);
-
+// -------------------------------- Sorting/searching ------------------------------------------------
 extern void                        value64_sort(value64_type typ, value64 *arr, int sz);
 extern void                        value64_revsort(value64_type typ, value64 *arr, int sz);
+
+// Сортировка по возрастанию для конкретных типов
+static inline void value64_sort_int(value64 *arr, int sz) {
+    value64_sort(VALUE64_INT, arr, sz);
+}
+static inline void value64_sort_long(value64 *arr, int sz) {
+    value64_sort(VALUE64_LNG, arr, sz);
+}
+static inline void value64_sort_dbl(value64 *arr, int sz) {
+    value64_sort(VALUE64_DBL, arr, sz);
+}
+static inline void value64_sort_str(value64 *arr, int sz) {
+    value64_sort(VALUE64_STR, arr, sz);
+}
+static inline void value64_sort_fs(value64 *arr, int sz) {
+    value64_sort(VALUE64_FS, arr, sz);
+}
+static inline void value64_sort_ptr(value64 *arr, int sz) {
+    value64_sort(VALUE64_PTR, arr, sz);
+}
+// Сортировка по убыванию для конкретных типов
+static inline void value64_revsort_int(value64 *arr, int sz) {
+    value64_revsort(VALUE64_INT, arr, sz);
+}
+static inline void value64_revsort_long(value64 *arr, int sz) {
+    value64_revsort(VALUE64_LNG, arr, sz);
+}
+static inline void value64_revsort_dbl(value64 *arr, int sz) {
+    value64_revsort(VALUE64_DBL, arr, sz);
+}
+static inline void value64_revsort_str(value64 *arr, int sz) {
+    value64_revsort(VALUE64_STR, arr, sz);
+}
+static inline void value64_revsort_fs(value64 *arr, int sz) {
+    value64_revsort(VALUE64_FS, arr, sz);
+}
+static inline void value64_revsort_ptr(value64 *arr, int sz) {
+    value64_revsort(VALUE64_PTR, arr, sz);
+}
 
 extern int                         value64_search(value64 val, value64_type typ, const value64 *arr, int sz);
 extern int                         value64_revsearch(value64 val, value64_type typ, const value64 *arr, int sz);
