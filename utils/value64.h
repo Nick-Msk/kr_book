@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <math.h>
+#include <float.h>
 //
 #include "bool.h"
 #include "log.h"
@@ -484,9 +485,9 @@ extern bool                         value64_sreadval_dbl(value64 *restrict val, 
 extern bool                         value64_readval_fs(FILE *restrict f, value64 *restrict val, fs *restrict buf);
 
 // generic reader
-extern bool                         value64_readval(FILE *restrict out, value64_type typ, value64 *restrict val, fs *restrict buf);
+extern bool                         value64_freadval(FILE *restrict out, value64_type typ, value64 *restrict val, fs *restrict buf);
 extern int                          value64_fsave(FILE *out, value64 val, value64_type typ, bool savetypeinfo);
-extern bool                         value64_load(FILE *restrict out, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf);
+extern bool                         value64_fload(FILE *restrict out, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf);
 
 // ------------------------------------ ETC. ----------------------------------------
 

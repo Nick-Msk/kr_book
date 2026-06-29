@@ -156,7 +156,7 @@ unsigned long               value64_lhash(value64 value, value64_type typ){
 value64_type            value64_gettype(const char *str){
     if (str){
         for (size_t i = 0; i < COUNT(value64_info); i++) {
-            if (strcmp(str, value64_info_get(i)->name) == 0)
+            if (value64_info_get(i) && strcmp(str, value64_info_get(i)->name) == 0)
                 return (value64_type) i;
          }
     }
@@ -635,7 +635,7 @@ static int                  value64_fprint_long(FILE *restrict out, value64 val)
     return fprintf(out, "%ld", value64_long(val) );
 }
 static int                  value64_fprint_dbl(FILE *restrict out, value64 val) {
-    return fprintf(out, "%lf", value64_dbl(val) );
+    return fprintf(out, "%.*g", DBL_DECIMAL_DIG, value64_dbl(val) );
 }
 static int                  value64_fprint_ptr(FILE *restrict out, value64 val) {
     return fprintf(out, "%p", value64_ptr(val) );
@@ -681,7 +681,6 @@ int                         value64_fprint(FILE *restrict out, const char *restr
 int                         value64_fsave(FILE *out, value64 val, value64_type typ, bool savetypeinfo) {
     invraisecode(out != NULL, ERR_NULLABLE_PTR,
         "Null pointer");
-
     int cnt = 0;
     if (savetypeinfo)
         cnt += fprintf(out, "VALUE64(%s):", value64_typename(typ) );
@@ -751,7 +750,7 @@ bool                         value64_sreadval_fs(value64 *restrict pval, fs *res
 
 //  switcher, cab be implement via distatcher table
 // val != NULL here
-bool                         value64_readval(FILE *restrict in, value64_type typ, value64 *restrict val, fs *restrict buf){
+bool                         value64_freadval(FILE *restrict in, value64_type typ, value64 *restrict val, fs *restrict buf){
     if (!getconvstring(in, buf, true) )
         return logsimpleerr(false, "EOF or wrong format");
     //fs_resize(buf, 100);    // 100 is magic number to make buf capcatle to accept double and others simple types
@@ -773,7 +772,7 @@ bool                         value64_readval(FILE *restrict in, value64_type typ
      }
 }
 // format checker, then exec generic reader
-bool                        value64_load(FILE *restrict in, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf) {
+bool                        value64_fload(FILE *restrict in, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf) {
     invraisecode(in != NULL, ERR_NULLABLE_PTR,
         "Null pointers %p", in);
 
@@ -793,15 +792,16 @@ bool                        value64_load(FILE *restrict in, value64 *restrict va
     if (loadtypeinfo) {
         if (fscanf(in, "(%31[^)])", fs_str(buf) ) != 1) // not sure
             return logsimpleerr(false, "Missing type in parentheses");
+
         typ = value64_gettype(fs_str(buf) );
     } else
         freadpattern(in, " ()");
 
-    if (!freadpattern(in, " :") )
+    if (!freadpattern(in, ":") )
         return logsimpleerr(false, "Missing ':' after type");
 
     // Generic reader
-    if (!value64_readval(in, typ, val, buf))
+    if (!value64_freadval(in, typ, val, buf))
         return logsimpleerr(false, "Failed to read value");
 
     if (localalloc)
@@ -3636,7 +3636,7 @@ tf_fsave(const char *name)
     test_sub("subtest %d: save INT", ++subnum);
     {
         value64     v = value64_createint(42);
-        const char  fname[] = "res/values64/int_save.txt";
+        const char  fname[] = "res/values64/int_save.dat";
         FILE       *f = fopen(fname, "w");
         if (!f)
             return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
@@ -3648,7 +3648,7 @@ tf_fsave(const char *name)
     test_sub("subtest %d: save LONG", ++subnum);
     {
         value64     v = value64_createlong(1234567890123L);
-        const char  fname[] = "res/values64/long_save.txt";
+        const char  fname[] = "res/values64/long_save.dat";
         FILE       *f = fopen(fname, "w");
         if (!f)
             return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
@@ -3660,7 +3660,7 @@ tf_fsave(const char *name)
     test_sub("subtest %d: save DBL", ++subnum);
     {
         value64     v = value64_createdbl(3.14159265358979);
-        const char  fname[] = "res/values64/dbl_save.txt";
+        const char  fname[] = "res/values64/dbl_save.dat";
         FILE       *f = fopen(fname, "w");
         if (!f)
             return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
@@ -3672,7 +3672,7 @@ tf_fsave(const char *name)
     test_sub("subtest %d: save STR", ++subnum);
     {
         value64     v = value64_createstr("hello world");
-        const char  fname[] = "res/values64/str_save.txt";
+        const char  fname[] = "res/values64/str_save.dat";
         FILE       *f = fopen(fname, "w");
         if (!f)
             return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
@@ -3685,13 +3685,13 @@ tf_fsave(const char *name)
     test_sub("subtest %d: save STR empty", ++subnum);
     {
         value64     v = value64_createstr("");
-        const char  fname[] = "res/values64/str_empty_save.txt";
+        const char  fname[] = "res/values64/str_empty_save.dat";
         FILE       *f = fopen(fname, "w");
         if (!f)
             return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
         int         written = value64_fsave(f, v, VALUE64_STR, true);
         fclose(f);
-        value64_freefs(v);
+        value64_freestr(v);
         logmsg("Saved empty STR to '%s', written=%d", fname, written);
     }
 
@@ -3700,7 +3700,7 @@ tf_fsave(const char *name)
         fs          tmp = fscopy("fs-data");
         value64     v = value64_createfs(&tmp);
         fsfree(tmp);
-        const char  fname[] = "res/values64/fs_save.txt";
+        const char  fname[] = "res/values64/fs_save.dat";
         FILE       *f = fopen(fname, "w");
         if (!f)
             return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
@@ -3715,7 +3715,7 @@ tf_fsave(const char *name)
     {
         int         x = 77;
         value64     v = value64_createptr(&x);
-        const char  fname[] = "res/values64/ptr_save.txt";
+        const char  fname[] = "res/values64/ptr_save.dat";
         FILE       *f = fopen(fname, "w");
         if (!f)
             return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
@@ -3727,7 +3727,7 @@ tf_fsave(const char *name)
     test_sub("subtest %d: save without type info (INT)", ++subnum);
     {
         value64     v = value64_createint(99);
-        const char  fname[] = "res/values/int_notype.txt";
+        const char  fname[] = "res/values64/int_notype.dat";
         FILE       *f = fopen(fname, "w");
         if (!f)
             return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
@@ -3737,6 +3737,226 @@ tf_fsave(const char *name)
     }
 
     return logret(TEST_MANUAL, "PLEASE CHECK");
+}
+
+// ------------------------- TEST value64_fsave/fload -----------------------------
+static TestStatus
+tf_fsave_fload(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. INT */
+    test_sub("subtest %d: INT save/load", ++subnum);
+    {
+        const char fname[] = "res/values64/save_int.dat";
+        value64 orig = value64_createint(42);
+
+        FILE *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for writing", fname);
+        value64_fsave(f, orig, VALUE64_INT, true);
+        fclose(f);
+
+        f = fopen(fname, "r");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for reading", fname);
+        value64 loaded;
+        test_validate(
+            value64_fload(f, &loaded, VALUE64_UNKNOWN, true, NULL) == 1,
+            "INT load must return 1"
+        );
+        fclose(f);
+
+        test_validate(
+            value64_compare(orig, loaded, VALUE64_INT) == 0,
+            "INT save/load mismatch: original %d, loaded %d", orig.ival, loaded.ival
+        );
+    }
+
+    /* 2. LONG */
+    test_sub("subtest %d: LONG save/load", ++subnum);
+    {
+        const char fname[] = "res/values64/save_long.dat";
+        value64 orig = value64_createlong(1234567890123L);
+
+        FILE *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for writing", fname);
+        value64_fsave(f, orig, VALUE64_LNG, true);
+        fclose(f);
+
+        f = fopen(fname, "r");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for reading", fname);
+        value64 loaded;
+        test_validate(
+            value64_fload(f, &loaded, VALUE64_UNKNOWN, true, NULL) == 1,
+            "LONG load must return 1"
+        );
+        fclose(f);
+
+        test_validate(
+            value64_compare(orig, loaded, VALUE64_LNG) == 0,
+            "LONG save/load mismatch: original %ld, loaded %ld", orig.lval, loaded.lval
+        );
+    }
+
+    /* 3. DBL */
+    test_sub("subtest %d: DBL save/load", ++subnum);
+    {
+        const char fname[] = "res/values64/save_dbl.dat";
+        value64 orig = value64_createdbl(3.14159265358979);
+
+        FILE *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for writing", fname);
+        value64_fsave(f, orig, VALUE64_DBL, true);
+        fclose(f);
+
+        f = fopen(fname, "r");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for reading", fname);
+        value64 loaded;
+        test_validate(
+            value64_fload(f, &loaded, VALUE64_UNKNOWN, true, NULL) == 1,
+            "DBL load must return 1"
+        );
+        fclose(f);
+
+        test_validate(
+            value64_compare(orig, loaded, VALUE64_DBL) == 0,
+            "DBL save/load mismatch: original %g, loaded %g", orig.dval, loaded.dval
+        );
+    }
+
+    /* 4. STR (обычная) */
+    test_sub("subtest %d: STR save/load normal", ++subnum);
+    {
+        const char fname[] = "res/values64/save_str.dat";
+        value64 orig = value64_createstr("hello world");
+
+        FILE *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for writing", fname);
+        value64_fsave(f, orig, VALUE64_STR, true);
+        fclose(f);
+
+        f = fopen(fname, "r");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for reading", fname);
+        value64 loaded;
+        test_validate(
+            value64_fload(f, &loaded, VALUE64_UNKNOWN, true, NULL) == 1,
+            "STR normal load must return 1"
+        );
+        fclose(f);
+
+        test_validate(
+            value64_compare(orig, loaded, VALUE64_STR) == 0,
+            "STR normal save/load mismatch: original '%s', loaded '%s'",
+            value64_str(orig), value64_str(loaded)
+        );
+
+        value64_free(orig, VALUE64_STR);
+        value64_free(loaded, VALUE64_STR);
+    }
+
+    /* 5. STR (пустая) */
+    test_sub("subtest %d: STR save/load empty", ++subnum);
+    {
+        const char fname[] = "res/values64/save_str_empty.dat";
+        value64 orig = value64_createstr("");
+
+        FILE *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for writing", fname);
+        value64_fsave(f, orig, VALUE64_STR, true);
+        fclose(f);
+
+        f = fopen(fname, "r");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for reading", fname);
+        value64 loaded;
+        test_validate(
+            value64_fload(f, &loaded, VALUE64_UNKNOWN, true, NULL) == 1,
+            "STR empty load must return 1"
+        );
+        fclose(f);
+
+        test_validate(
+            value64_compare(orig, loaded, VALUE64_STR) == 0,
+            "STR empty save/load mismatch: original '', loaded '%s'",
+            value64_str(loaded)
+        );
+
+        value64_free(orig, VALUE64_STR);
+        value64_free(loaded, VALUE64_STR);
+    }
+
+    /* 6. FS */
+    test_sub("subtest %d: FS save/load", ++subnum);
+    {
+        const char fname[] = "res/values64/save_fs.dat";
+        fs tmp = fscopy("fs-data");
+        value64 orig = value64_createfs(&tmp);
+        fsfree(tmp);
+
+        FILE *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for writing", fname);
+        value64_fsave(f, orig, VALUE64_FS, true);
+        fclose(f);
+
+        f = fopen(fname, "r");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for reading", fname);
+        value64 loaded;
+        test_validate(
+            value64_fload(f, &loaded, VALUE64_UNKNOWN, true, NULL) == 1,
+            "FS load must return 1"
+        );
+        fclose(f);
+
+        test_validatefree(
+            value64_compare(orig, loaded, VALUE64_FS) == 0,
+            (value64_free(orig, VALUE64_FS), value64_free(loaded, VALUE64_FS)),
+            "FS save/load mismatch"
+        );
+        value64_free(orig, VALUE64_FS);
+        value64_free(loaded, VALUE64_FS);
+        fs_alloc_check(true);
+    }
+
+    /* 7. Сохранение без информации о типе (INT) */
+    test_sub("subtest %d: INT save/load without type info", ++subnum);
+    {
+        const char fname[] = "res/values64/save_int_notype.dat";
+        value64 orig = value64_createint(99);
+
+        FILE *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for writing", fname);
+        value64_fsave(f, orig, VALUE64_INT, false);
+        fclose(f);
+
+        f = fopen(fname, "r");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for reading", fname);
+        value64 loaded;
+        test_validate(
+            value64_fload(f, &loaded, VALUE64_INT, false, NULL) == 1,
+            "INT no-type load must return 1"
+        );
+        fclose(f);
+
+        test_validate(
+            value64_compare(orig, loaded, VALUE64_INT) == 0,
+            "INT no-type save/load mismatch: original %d, loaded %d", orig.ival, loaded.ival
+        );
+    }
+
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------------------------------------------------------------------------------------------------------------
@@ -3775,6 +3995,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_binsearch,        .num = 14, .name = "Simple value64_(rev_)binsearch test"        , .desc="", .mandatory=true)
               , testnew(.f2 = tf_sort,             .num = 15, .name = "Simple value64_(rev_)sort test"             , .desc="", .mandatory=true)
               , testnew(.f2 = tf_fsave,            .num = 16, .name = "Simple value64_fsave manual test"           , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_fsave_fload,      .num = 17, .name = "Simple value64_fsave/fload test"            , .desc="", .mandatory=true)
             );
         if (runall)
             break;
