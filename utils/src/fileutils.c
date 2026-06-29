@@ -203,7 +203,7 @@ bool                            fread_pattern_printf(FILE *restrict f, const cha
     va_list     ap;
     va_start(ap, fmt);
     vsnprintf(buf, G_FU_PRINT_CNT - 1, fmt, ap);
-    logsimple("processed pattern [%s]", buf);
+    //logsimple("processed pattern [%s]", buf);
     va_end(ap);
     return fread_pattern(f, buf, strlen(buf) );
 }
