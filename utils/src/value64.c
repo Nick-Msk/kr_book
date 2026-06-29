@@ -608,37 +608,200 @@ value64                     value64_convert_move_str_to_str(value64 *v){
 }
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
-void                        value64_fprint(FILE *restrict out, const char *restrict msg, value64 val, value64_type typ){
+// TODO: all of that must be in str_value64_adapter.c!!! refactor
+static int                  print_str_escaped(FILE *restrict out, const char *restrict s) {
+    int     cnt = 0;
+    if (out && s) {
+        cnt = fprintf(out, "\"");
+        for (const char *p = s; *p; p++) {
+            switch (*p) {
+                case '"':  cnt += fprintf(out, "\\\""); break;
+                case '\\': cnt += fprintf(out, "\\\\"); break;
+                case '\n': cnt += fprintf(out, "\\n");  break;
+                case '\r': cnt += fprintf(out, "\\r");  break;
+                case '\t': cnt += fprintf(out, "\\t");  break;
+                default:   cnt += fprintf(out, "%c", *p);
+            }
+        }
+        cnt += fprintf(out, "\"");
+    }
+    return cnt;
+}
+// print adapters
+static int                  value64_fprint_int(FILE *restrict out, value64 val) {
+    return fprintf(out, "%d", value64_int(val) );
+}
+static int                  value64_fprint_long(FILE *restrict out, value64 val) {
+    return fprintf(out, "%ld", value64_long(val) );
+}
+static int                  value64_fprint_dbl(FILE *restrict out, value64 val) {
+    return fprintf(out, "%lf", value64_dbl(val) );
+}
+static int                  value64_fprint_ptr(FILE *restrict out, value64 val) {
+    return fprintf(out, "%p", value64_ptr(val) );
+}
+static int                  value64_fprint_str(FILE *restrict out, value64 val) {
+    return print_str_escaped(out, value64_str(val) );
+}
+static int                  value64_fprint_fs(FILE *restrict out, value64 val) {
+    return fs_fprint(out, value64_fs(val), 0);
+}
+
+// TODO: refactor via adaptor value64_fprint_<type>(out, val)
+int                         value64_fprint(FILE *restrict out, const char *restrict msg, value64 val, value64_type typ){
+    int     cnt = 0;
     if (out){
-        if (msg)
-            fprintf(out, "%s ", msg);
+        if (msg)    // TODO: remove that as not very usefull
+            cnt += fprintf(out, "%s ", msg);
         switch (typ){
             case VALUE64_INT:
-                fprintf(out, "%d", val.ival);
-            break;
+                return value64_fprint_int(out, val) + cnt;
             case VALUE64_LNG:
-                fprintf(out, "%ld", val.lval);
-            break;
+                return value64_fprint_long(out, val) + cnt;
             case VALUE64_DBL:
-                fprintf(out, "%lf", val.dval);
-            break;
+                return value64_fprint_dbl(out, val) + cnt;
             case VALUE64_PTR:
-                fprintf(out, "%p", val.pval);
-            break;
+                return value64_fprint_ptr(out, val) + cnt;
             case VALUE64_STR:
-                fprintf(out, "%s", val.sval);
-            break;
+                return value64_fprint_str(out, val) + cnt;
             case VALUE64_FS:
-                fs_fprint(out, val.fsval, 0);
-            break;
+                return value64_fprint_fs(out, val) + cnt;
             default:
-                fprintf(out, "Unsupported %d!\n", typ);
-            break;
+                return fprintf(out, "Unsupported %d!\n", typ) + cnt;
         }
     }
+    return cnt;
 }
 
 // --------------------------------- SERIALIZATION -----------------------------------------
+
+
+
+int                         value64_fsave(FILE *out, value64 val, value64_type typ, bool savetypeinfo) {
+    invraisecode(out != NULL, ERR_NULLABLE_PTR,
+        "Null pointer");
+
+    int cnt = 0;
+    if (savetypeinfo)
+        cnt += fprintf(out, "VALUE64(%s):", value64_typename(typ) );
+    else
+        cnt += fprintf(out, "VALUE64:");
+
+    cnt += value64_fprint(out, NULL, val, typ);
+    cnt += fprintf(out, "\n");
+    return logsimpleret(cnt, "Saved 1 value");
+}
+// string readers
+// fs must be initialized, val can be NULL, it means just check
+bool                         value64_sreadval_str(value64 *restrict pval, fs *restrict buf) {
+    invraisecode(buf != NULL, ERR_NULLABLE_PTR,
+        "Null pointers %p", buf);
+
+    value64 v = value64_createstr(fs_str(buf) );    // strdup here
+    if (pval)
+        *pval = v;
+    return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );
+}
+bool                         value64_sreadval_int(value64 *restrict pval, fs *restrict buf){
+    invraisecode(buf != NULL, ERR_NULLABLE_PTR,
+        "Null pointers %p", buf);
+
+    int     ival;
+    if (!try_parse_int(fs_str(buf), &ival))
+         return logsimpleerr(false, "Invalid int string: '%.20s'", fs_str(buf) );
+    value64 v = value64_createint(ival);
+    if (pval)
+        *pval = v;
+    return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );
+}
+bool                         value64_sreadval_lng( value64 *restrict pval, fs *restrict buf){
+    invraisecode(buf != NULL, ERR_NULLABLE_PTR,
+        "Null pointers %p", buf);
+
+    long    lval;
+    if (!try_parse_long(fs_str(buf), &lval))
+        return logsimpleerr(false, "Invalid long string: '%.30s'", fs_str(buf) );
+    value64 v = value64_createlong(lval);
+    if (pval)
+        *pval = v;
+    return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );
+}
+bool                         value64_sreadval_dbl(value64 *restrict pval, fs *restrict buf){
+    invraisecode(buf != NULL, ERR_NULLABLE_PTR,
+        "Null pointers %p", buf);
+    double  dval;
+    if (!try_parse_double(fs_str(buf), &dval))
+        return logsimpleerr(false, "Invalid double string: '%.50s'", fs_str(buf) );
+    value64 v = value64_createdbl(dval);
+    if (pval)
+        *pval = v;
+    return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );
+}
+// not supported!
+// extern bool                         value64_readval_ptr(FILE *restrict f, value64 *restrict val, fs *restrict buf);
+bool                         value64_sreadval_fs(value64 *restrict pval, fs *restrict buf){
+    invraisecode(buf != NULL, ERR_NULLABLE_PTR,
+        "Null pointers %p", buf);
+    fs      *s = fs_heapcreate(buf);     // body and string in heap
+    value64  v = value64_createfs(s);  // just a copy
+    if (pval)
+         *pval = v;
+    return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );
+}
+
+
+//  switcher, cab be implement via distatcher table
+// val != NULL here
+bool                         value64_readval(FILE *restrict in, value64_type typ, value64 *restrict val, fs *restrict buf){
+    if (!getconvstring(in, buf) )
+        return logsimpleerr(false, "EOF or wrong format");
+    fs_resize(buf, 100);    // 100 is magic number to make buf capcatle to accept double and others simple types
+    switch (typ) {
+        case VALUE64_INT:
+            return value64_sreadval_int(val, buf);
+        case VALUE64_LNG:
+            return value64_sreadval_lng(val, buf);
+        case VALUE64_DBL:
+            return value64_sreadval_dbl(val, buf);
+        case VALUE64_PTR:
+            return userraise(false, ERR_UNSUPPORTED_TYPE, "Reading of %s isn't supported", value64_typename(typ) );
+        case VALUE64_STR:
+            return value64_sreadval_str(val, buf);
+        case VALUE64_FS:
+            return value64_sreadval_fs(val, buf);
+        default:
+            return userraise(false, ERR_UNSUPPORTED_TYPE, "Type %d isn't supported", typ);
+     }
+}
+// format checker, then exec generic reader
+bool                        value64_load(FILE *restrict in, value64 *restrict val, value64_type typ, bool loadtypeinfo) {
+    invraisecode(in != NULL, ERR_NULLABLE_PTR,
+        "Null pointers %p", in);
+
+    // Проверяем заголовок "VALUE64"
+    if (fscanf(in, " VALUE64") != 0)
+        return logsimpleerr(false, "Missing 'VALUE64' header");
+
+    // Temporary fs, will be ref here to avoid allocation and free
+    fs tmp = fsinit(32);
+
+    if (loadtypeinfo) {
+        if (fscanf(in, "(%31[^)])", fsstr(tmp) ) != 1) // not sure
+            return logsimpleerr(false, "Missing type in parentheses");
+        typ = value64_gettype(fsstr(tmp) );
+    } else
+        fscanf(in, " ()");
+
+    // Читаем двоеточие
+    if (fscanf(in, " :") != 0)
+        return logsimpleerr(false, "Missing ':' after type");
+
+    // Generic reader
+    if (!value64_readval(in, typ, val, &tmp))
+        return logsimpleerr(false, "Failed to read value");
+
+    return logsimpleret(true, "Loaded 1 value");
+}
 
 // ---------------------------------------- Testing ------------------------------------------
 #ifdef VALUE64TESTING
@@ -3457,6 +3620,119 @@ tf_sort(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST value64_fsave -----------------------------
+static TestStatus
+tf_fsave(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: save INT", ++subnum);
+    {
+        value64     v = value64_createint(42);
+        const char  fname[] = "res/values64/int_save.txt";
+        FILE       *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
+        int         written = value64_fsave(f, v, VALUE64_INT, true);
+        fclose(f);
+        logmsg("Saved INT to '%s', written=%d", fname, written);
+    }
+
+    test_sub("subtest %d: save LONG", ++subnum);
+    {
+        value64     v = value64_createlong(1234567890123L);
+        const char  fname[] = "res/values64/long_save.txt";
+        FILE       *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
+        int         written = value64_fsave(f, v, VALUE64_LNG, true);
+        fclose(f);
+        logmsg("Saved LONG to '%s', written=%d", fname, written);
+    }
+
+    test_sub("subtest %d: save DBL", ++subnum);
+    {
+        value64     v = value64_createdbl(3.14159265358979);
+        const char  fname[] = "res/values64/dbl_save.txt";
+        FILE       *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
+        int         written = value64_fsave(f, v, VALUE64_DBL, true);
+        fclose(f);
+        logmsg("Saved DBL to '%s', written=%d", fname, written);
+    }
+
+    test_sub("subtest %d: save STR", ++subnum);
+    {
+        value64     v = value64_createstr("hello world");
+        const char  fname[] = "res/values64/str_save.txt";
+        FILE       *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
+        int         written = value64_fsave(f, v, VALUE64_STR, true);
+        fclose(f);
+        value64_freestr(v);
+        logmsg("Saved STR to '%s', written=%d", fname, written);
+    }
+
+    test_sub("subtest %d: save STR empty", ++subnum);
+    {
+        value64     v = value64_createstr("");
+        const char  fname[] = "res/values64/str_empty_save.txt";
+        FILE       *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
+        int         written = value64_fsave(f, v, VALUE64_STR, true);
+        fclose(f);
+        value64_freefs(v);
+        logmsg("Saved empty STR to '%s', written=%d", fname, written);
+    }
+
+    test_sub("subtest %d: save FS", ++subnum);
+    {
+        fs          tmp = fscopy("fs-data");
+        value64     v = value64_createfs(&tmp);
+        fsfree(tmp);
+        const char  fname[] = "res/values64/fs_save.txt";
+        FILE       *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
+        int         written = value64_fsave(f, v, VALUE64_FS, true);
+        fclose(f);
+        value64_free(v, VALUE64_FS);
+        logmsg("Saved FS to '%s', written=%d", fname, written);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: save PTR", ++subnum);
+    {
+        int         x = 77;
+        value64     v = value64_createptr(&x);
+        const char  fname[] = "res/values64/ptr_save.txt";
+        FILE       *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
+        int         written = value64_fsave(f, v, VALUE64_PTR, true);
+        fclose(f);
+        logmsg("Saved PTR to '%s', written=%d", fname, written);
+    }
+
+    test_sub("subtest %d: save without type info (INT)", ++subnum);
+    {
+        value64     v = value64_createint(99);
+        const char  fname[] = "res/values/int_notype.txt";
+        FILE       *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
+        int         written = value64_fsave(f, v, VALUE64_INT, false);
+        fclose(f);
+        logmsg("Saved INT (no type) to '%s', written=%d", fname, written);
+    }
+
+    return logret(TEST_MANUAL, "PLEASE CHECK");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -3492,6 +3768,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_getPComparator,   .num = 13, .name = "Simple value64_getP(Rev)Comparator test"    , .desc="", .mandatory=true)
               , testnew(.f2 = tf_binsearch,        .num = 14, .name = "Simple value64_(rev_)binsearch test"        , .desc="", .mandatory=true)
               , testnew(.f2 = tf_sort,             .num = 15, .name = "Simple value64_(rev_)sort test"             , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_fsave,            .num = 16, .name = "Simple value64_fsave manual test"           , .desc="", .mandatory=true)
             );
         if (runall)
             break;

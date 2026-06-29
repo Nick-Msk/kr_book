@@ -19,6 +19,7 @@
 #include "checker.h"
 #include "fs.h"
 #include "numeric_ops.h"
+#include "getword.h"
 
 // --------------------------------- CONSTANTS AND GLOBALS --------------------------
 
@@ -137,7 +138,7 @@ static inline value64               value64_createstr(const char *sval){
         userraiseint(ERR_NULLABLE_PTR, "Null pointer");
     value64 tmp = VALUE64_ZERO;
     if ( (tmp.sval = strdup(sval) ) == NULL)
-        userraiseint(ERR_UNABLE_ALLOCATE, "Unable to dup string");
+        userraiseint(ERR_UNABLE_ALLOCATE, "Unable to dup c-string (%.20s)", sval);
     return tmp;
 }
 static inline value64               value64_createfs(const fs *fsval){
@@ -452,7 +453,7 @@ extern value64                     value64_convert_move_str_to_fs(value64 *v);
 extern value64                     value64_convert_move_str_to_str(value64 *v);
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
-extern void                        value64_fprint(FILE *restrict out, const char *restrict msg, value64 val, value64_type typ);
+extern int                         value64_fprint(FILE *restrict out, const char *restrict msg, value64 val, value64_type typ);
 static inline void                 value64_log(value64 val, value64_type typ){
     value64_fprint(logfile, 0, val, typ);
 }
@@ -461,6 +462,29 @@ static inline void                 value64_print(value64 val, value64_type typ){
 }
 
 // --------------------------------- SERIALIZATION ----------------------------------
+
+// file readers
+// f must be open for read, fs must be initialized, val can be NULL, it means just check
+extern bool                         value64_readval_str(FILE *restrict f, value64 *restrict val, fs *restrict buf);
+extern bool                         value64_readval_int(FILE *restrict f, value64 *restrict val, fs *restrict buf);
+extern bool                         value64_readval_lng(FILE *restrict f, value64 *restrict val, fs *restrict buf);
+extern bool                         value64_readval_dbl(FILE *restrict f, value64 *restrict val, fs *restrict buf);
+// not supported!
+// extern bool                         value64_readval_ptr(FILE *restrict f, value64 *restrict val, fs *restrict buf);
+extern bool                         value64_sreadval_fs(value64 *restrict val, fs *restrict buf);
+// string readers!
+// fs must be initialized, val can be NULL, it means just check
+extern bool                         value64_sreadval_str(value64 *restrict val, fs *restrict buf);
+extern bool                         value64_sreadval_int(value64 *restrict val, fs *restrict buf);
+extern bool                         value64_sreadval_lng(value64 *restrict val, fs *restrict buf);
+extern bool                         value64_sreadval_dbl(value64 *restrict val, fs *restrict buf);
+// not supported!
+// extern bool                         value64_readval_ptr(FILE *restrict f, value64 *restrict val, fs *restrict buf);
+extern bool                         value64_readval_fs(FILE *restrict f, value64 *restrict val, fs *restrict buf);
+// generic reader
+extern bool                         value64_readval(FILE *restrict out, value64_type typ, value64 *restrict val, fs *restrict buf);
+extern int                          value64_fsave(FILE *out, value64 val, value64_type typ, bool savetypeinfo);
+extern bool                         value64_load(FILE *restrict out, value64 *restrict val, value64_type typ, bool loadtypeinfo);
 
 // ------------------------------------ ETC. ----------------------------------------
 
