@@ -627,7 +627,7 @@ static int                  print_str_escaped(FILE *restrict out, const char *re
     }
     return cnt;
 }
-// print adapters
+// print adapters, actually format must be configurable in context.c
 static int                  value64_fprint_int(FILE *restrict out, value64 val) {
     return fprintf(out, "%d", value64_int(val) );
 }
@@ -644,7 +644,8 @@ static int                  value64_fprint_str(FILE *restrict out, value64 val) 
     return print_str_escaped(out, value64_str(val) );
 }
 static int                  value64_fprint_fs(FILE *restrict out, value64 val) {
-    return fs_fprint(out, value64_fs(val), 0);
+    return print_str_escaped(out, fs_str(value64_fs(val) ) ); // till fs_fprint isn'y support escaping
+    //fs_fprint(out, value64_fs(val), 0);
 }
 
 // TODO: refactor via adaptor value64_fprint_<type>(out, val)
@@ -737,13 +738,11 @@ bool                         value64_sreadval_dbl(value64 *restrict pval, fs *re
         *pval = v;
     return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );
 }
-// not supported!
 // extern bool                         value64_readval_ptr(FILE *restrict f, value64 *restrict val, fs *restrict buf);
 bool                         value64_sreadval_fs(value64 *restrict pval, fs *restrict buf){
     invraisecode(buf != NULL, ERR_NULLABLE_PTR,
         "Null pointers %p", buf);
-    fs      *s = fs_heapcreate(buf);     // body and string in heap
-    value64  v = value64_createfs(s);  // just a copy
+    value64  v = value64_createfs(buf);
     if (pval)
          *pval = v;
     return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );
@@ -753,9 +752,9 @@ bool                         value64_sreadval_fs(value64 *restrict pval, fs *res
 //  switcher, cab be implement via distatcher table
 // val != NULL here
 bool                         value64_readval(FILE *restrict in, value64_type typ, value64 *restrict val, fs *restrict buf){
-    if (!getconvstring(in, buf) )
+    if (!getconvstring(in, buf, true) )
         return logsimpleerr(false, "EOF or wrong format");
-    fs_resize(buf, 100);    // 100 is magic number to make buf capcatle to accept double and others simple types
+    //fs_resize(buf, 100);    // 100 is magic number to make buf capcatle to accept double and others simple types
     switch (typ) {
         case VALUE64_INT:
             return value64_sreadval_int(val, buf);
@@ -779,7 +778,7 @@ bool                        value64_load(FILE *restrict in, value64 *restrict va
         "Null pointers %p", in);
 
     // Проверяем заголовок "VALUE64"
-    if (fscanf(in, " VALUE64") != 0)
+    if (!freadpattern(in, "VALUE64") )
         return logsimpleerr(false, "Missing 'VALUE64' header");
 
     // Temporary fs, will be ref here to avoid allocation and free
@@ -792,8 +791,7 @@ bool                        value64_load(FILE *restrict in, value64 *restrict va
     } else
         fscanf(in, " ()");
 
-    // Читаем двоеточие
-    if (fscanf(in, " :") != 0)
+    if (!freadpattern(in, " :") )
         return logsimpleerr(false, "Missing ':' after type");
 
     // Generic reader

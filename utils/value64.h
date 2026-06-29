@@ -20,6 +20,7 @@
 #include "fs.h"
 #include "numeric_ops.h"
 #include "getword.h"
+#include "fileutils.h"
 
 // --------------------------------- CONSTANTS AND GLOBALS --------------------------
 
