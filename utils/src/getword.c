@@ -107,18 +107,24 @@ bool                    getpurestring(FILE *restrict in, fs *restrict str){
         return logsimpleret(true, "line %d [%10s]", fs_len(str), fs_str(str) );
 }
 // not using buffer.c, VERY simple, empty line is OK, just "" empty fs
-bool                    getconvstring(FILE *restrict in, fs *restrict str){
+bool                    getconvstring(FILE *restrict in, fs *restrict str, bool removequot){
     invraisecode(in != NULL && str != NULL, ERR_NULLABLE_PTR, "%p - %p", in, str);
 
     int     c;
     fsnew   iter = fsinew(str);
     while ( (c = getc(in)) != EOF && c != '\n') {
+        // skip first '"' if removequot 
+        if (removequot && c == '"' && iter.pos == 0)
+            continue;
         if (c == '\\') {
             c = getc(in);
             c = charconv(c);
         }
         elemnext(iter) = c;
     }
+    // skip last '"' if removequot
+    if (removequot && iter.pos > 0 && str->v[iter.pos - 1] == '"')
+        iter.pos--;
     elemend(iter);
     if (c == EOF && fs_len(str) == 0)   // no data at all
         return logsimpleret(false, "EOF");
@@ -377,7 +383,7 @@ tf_getconvstring(const char *name)
 
         fs s = FS();
         test_validatefree(
-            getconvstring(f, &s) && strcmp(fs_str(&s), "hello world") == 0,
+            getconvstring(f, &s, false) && strcmp(fs_str(&s), "hello world") == 0,
             (fsfree(s), fclose(f)),
             "Plain string mismatch: got '%s', expected 'hello world'", fs_str(&s)
         );
@@ -405,7 +411,7 @@ tf_getconvstring(const char *name)
         fs s = FS();
         // После getconvstring должны получить: "line1\nline2\tend\"quote\\"
         test_validatefree(
-            getconvstring(f, &s) && strcmp(fs_str(&s), "line1\nline2\tend\"quote\\") == 0,
+            getconvstring(f, &s, false) && strcmp(fs_str(&s), "line1\nline2\tend\"quote\\") == 0,
             (fsfree(s), fclose(f)),
             "Escaped string mismatch: got '%s'", fs_str(&s)
         );
@@ -430,7 +436,7 @@ tf_getconvstring(const char *name)
 
         fs s = FS();
         test_validatefree(
-            getconvstring(f, &s) && fs_len(&s) == 0,
+            getconvstring(f, &s, false) && fs_len(&s) == 0,
             (fsfree(s), fclose(f)),
             "Empty string mismatch: len=%d, expected 0, str='%s'", fs_len(&s), fs_str(&s)
         );
@@ -457,7 +463,7 @@ tf_getconvstring(const char *name)
         // Поскольку 'x' не является известной escape-последовательностью, charconv вернёт 'x',
         // и в строке должно остаться "helloxworld"
         test_validatefree(
-            getconvstring(f, &s) && strcmp(fs_str(&s), "helloxworld") == 0,
+            getconvstring(f, &s, false) && strcmp(fs_str(&s), "helloxworld") == 0,
             (fsfree(s), fclose(f)),
             "Unknown escape mismatch: got '%s', expected 'helloxworld'", fs_str(&s)
         );
@@ -483,7 +489,7 @@ tf_getconvstring(const char *name)
 
         fs s = FS();
         test_validatefree(
-            getconvstring(f, &s) && strcmp(fs_str(&s), "final line") == 0,
+            getconvstring(f, &s, false) && strcmp(fs_str(&s), "final line") == 0,
             (fsfree(s), fclose(f)),
             "Last line mismatch: got '%s', expected 'final line'", fs_str(&s)
         );
@@ -507,7 +513,7 @@ tf_getconvstring(const char *name)
 
         fs s = FS();
         test_validatefree(
-            !getconvstring(f, &s),   // должно вернуть false (EOF)
+            !getconvstring(f, &s, false),   // должно вернуть false (EOF)
             (fsfree(s), fclose(f)),
             "EOF on empty file must return false"
         );
