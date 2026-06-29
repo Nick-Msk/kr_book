@@ -111,11 +111,19 @@ bool                    getconvstring(FILE *restrict in, fs *restrict str, bool 
     invraisecode(in != NULL && str != NULL, ERR_NULLABLE_PTR, "%p - %p", in, str);
 
     int     c;
+    bool    skipped_first = false;
     fsnew   iter = fsinew(str);
     while ( (c = getc(in)) != EOF && c != '\n') {
-        // skip first '"' if removequot 
-        if (removequot && c == '"' && iter.pos == 0)
-            continue;
+        // skip first '"' if removequot
+        if (removequot && !skipped_first) {
+            if (c == '"'){
+                skipped_first = true;
+                continue;
+            } else {
+                elemend(iter);
+                return userraise(false, ERR_WRONG_INPUT_FORMAT, "No initital \" found, instead '%c'", c);
+            }
+        }
         if (c == '\\') {
             c = getc(in);
             c = charconv(c);
@@ -123,8 +131,14 @@ bool                    getconvstring(FILE *restrict in, fs *restrict str, bool 
         elemnext(iter) = c;
     }
     // skip last '"' if removequot
-    if (removequot && iter.pos > 0 && str->v[iter.pos - 1] == '"')
-        iter.pos--;
+    if (removequot && iter.pos > 0) {
+        if ( (c = str->v[iter.pos - 1] ) == '"')
+            iter.pos--;
+        else {
+            elemend(iter);
+            return userraise(false, ERR_WRONG_INPUT_FORMAT, "No trailed \" found, instead '%c'", c);
+        }
+    }
     elemend(iter);
     if (c == EOF && fs_len(str) == 0)   // no data at all
         return logsimpleret(false, "EOF");
@@ -525,6 +539,167 @@ tf_getconvstring(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST getconvstring removequot==true ---------------------------------
+
+static TestStatus
+tf_getconvstring_removequot(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Парные кавычки – успех */
+    test_sub("subtest %d: paired quotes", ++subnum);
+    {
+        const char fname[] = "res/getword/conv_rmq_paired.txt";
+        FILE *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s", fname);
+        fprintf(f, "\"hello world\"\n");
+        fclose(f);
+
+        f = fopen(fname, "r");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s", fname);
+
+        int first_char = fgetc(f);
+        logmsg("DEBUG first char: '%c' (code %d)", first_char, first_char);
+        ungetc(first_char, f);   // возвращаем символ обратно в поток
+
+        fs s = FS();
+        test_validatefree(
+            getconvstring(f, &s, true) && strcmp(fs_str(&s), "hello world") == 0,
+            (fsfree(s), fclose(f)),
+            "Paired quotes: got '%s', expected 'hello world'", fs_str(&s)
+        );
+        fsfree(s);
+        fclose(f);
+    }
+
+    /* 2. Пустая строка "" – успех */
+    test_sub("subtest %d: empty quoted", ++subnum);
+    {
+        const char fname[] = "res/getword/conv_rmq_empty.txt";
+        FILE *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s", fname);
+        fprintf(f, "\"\"\n");
+        fclose(f);
+
+        f = fopen(fname, "r");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s", fname);
+
+        fs s = FS();
+        test_validatefree(
+            getconvstring(f, &s, true) && fs_len(&s) == 0,
+            (fsfree(s), fclose(f)),
+            "Empty quoted: len=%d, expected 0", fs_len(&s)
+        );
+        fsfree(s);
+        fclose(f);
+    }
+
+    /* 3. Escape-последовательности внутри кавычек – успех */
+    test_sub("subtest %d: escaped inside quotes", ++subnum);
+    {
+        const char fname[] = "res/getword/conv_rmq_esc.txt";
+        FILE *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s", fname);
+        fprintf(f, "\"line1\\nline2\\tend\\\"quote\\\\\"\n");
+        fclose(f);
+
+        f = fopen(fname, "r");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s", fname);
+
+        fs s = FS();
+        test_validatefree(
+            getconvstring(f, &s, true) &&
+            strcmp(fs_str(&s), "line1\nline2\tend\"quote\\") == 0,
+            (fsfree(s), fclose(f)),
+            "Escaped inside quotes: got '%s'", fs_str(&s)
+        );
+        fsfree(s);
+        fclose(f);
+    }
+
+    /* 4. Нет начальной кавычки – ошибка формата (возвращает false) */
+    test_sub("subtest %d: missing opening quote", ++subnum);
+    {
+        const char fname[] = "res/getword/conv_rmq_no_open.txt";
+        FILE *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s", fname);
+        fprintf(f, "no opening\"\n");
+        fclose(f);
+
+        f = fopen(fname, "r");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s", fname);
+
+        fs s = FS();
+        test_validatefree(
+            !getconvstring(f, &s, true),   // должно вернуть false
+            (fsfree(s), fclose(f)),
+            "Missing opening quote must return false"
+        );
+        fsfree(s);
+        fclose(f);
+    }
+
+    /* 5. Нет конечной кавычки – ошибка формата (возвращает false) */
+    test_sub("subtest %d: missing closing quote", ++subnum);
+    {
+        const char fname[] = "res/getword/conv_rmq_no_close.txt";
+        FILE *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s", fname);
+        fprintf(f, "\"no closing\n");
+        fclose(f);
+
+        f = fopen(fname, "r");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s", fname);
+
+        fs s = FS();
+        test_validatefree(
+            !getconvstring(f, &s, true),
+            (fsfree(s), fclose(f)),
+            "Missing closing quote must return false"
+        );
+        fsfree(s);
+        fclose(f);
+    }
+
+    /* 6. Вообще без кавычек – ошибка формата (возвращает false) */
+    test_sub("subtest %d: no quotes at all", ++subnum);
+    {
+        const char fname[] = "res/getword/conv_rmq_no_quotes.txt";
+        FILE *f = fopen(fname, "w");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s", fname);
+        fprintf(f, "plain string\n");
+        fclose(f);
+
+        f = fopen(fname, "r");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s", fname);
+
+        fs s = FS();
+        test_validatefree(
+            !getconvstring(f, &s, true),
+            (fsfree(s), fclose(f)),
+            "No quotes must return false"
+        );
+        fsfree(s);
+        fclose(f);
+    }
+
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -532,9 +707,10 @@ main( /* int argc, const char *argv[] */)
     logsimpleinit("Start");
 
     testenginestd(
-        testnew(.f2 = tf1,                  .num =  1, .name = "getstring() simple file test"                     , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf2,                  .num =  2, .name = "getpurestring() simple file test"                 , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf_getconvstring,     .num =  3, .name = "getconvstring() simple file test"                 , .desc=""                , .mandatory=true)
+        testnew(.f2 = tf1,                              .num =  1, .name = "getstring() simple file test"                       , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf2,                              .num =  2, .name = "getpurestring() simple file test"                   , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf_getconvstring,                 .num =  3, .name = "getconvstring() simple file test"                   , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf_getconvstring_removequot,      .num =  4, .name = "getconvstring() removequot==true  simple file test" , .desc=""                , .mandatory=true)
 );
 
     return logret(0, "end...");  // as replace of logclose()
