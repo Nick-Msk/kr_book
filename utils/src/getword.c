@@ -111,22 +111,23 @@ bool                    getconvstring(FILE *restrict in, fs *restrict str, bool 
     invraisecode(in != NULL && str != NULL, ERR_NULLABLE_PTR, "%p - %p", in, str);
 
     int     c;
-    bool    skipped_first = false;
+    bool    skipped_first = false, first_found = false;
     fsnew   iter = fsinew(str);
     while ( (c = getc(in)) != EOF && c != '\n') {
         // skip first '"' if removequot
-        if (removequot && !skipped_first) {
+        if (removequot && !skipped_first && iter.pos == 0) {
             if (c == '"'){
                 skipped_first = true;
+                first_found = true;
                 continue;
-            } else {
-                elemend(iter);
-                return userraise(false, ERR_WRONG_INPUT_FORMAT, "No initital \" found, instead '%c'", c);
             }
         }
         if (c == '\\') {
-            c = getc(in);
-            c = charconv(c);
+            int tmp = getc(in);
+            if (tmp != EOF)
+                c = charconv(c);
+            else
+                break; // EOF after /с
         }
         elemnext(iter) = c;
     }
@@ -134,7 +135,7 @@ bool                    getconvstring(FILE *restrict in, fs *restrict str, bool 
     if (removequot && iter.pos > 0) {
         if ( (c = str->v[iter.pos - 1] ) == '"')
             iter.pos--;
-        else if (skipped_first) {
+        else if (first_found) {
             elemend(iter);
             return userraise(false, ERR_WRONG_INPUT_FORMAT, "No trailed \" found, instead '%c'", c);
         }
@@ -143,7 +144,7 @@ bool                    getconvstring(FILE *restrict in, fs *restrict str, bool 
     if (c == EOF && fs_len(str) == 0)   // no data at all
         return logsimpleret(false, "EOF");
     else
-        return logsimpleret(true, "line %d [%10s]", fs_len(str), fs_str(str) );
+        return logsimpleret(true, "line %d [%.10s]", fs_len(str), fs_str(str) );
 }
 // parse only LEXEM_STR or LEXEM_CMD!
 bool                    getstring(Lexem *lex){
