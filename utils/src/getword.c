@@ -134,7 +134,7 @@ bool                    getconvstring(FILE *restrict in, fs *restrict str, bool 
     if (removequot && iter.pos > 0) {
         if ( (c = str->v[iter.pos - 1] ) == '"')
             iter.pos--;
-        else {
+        else if (skipped_first) {
             elemend(iter);
             return userraise(false, ERR_WRONG_INPUT_FORMAT, "No trailed \" found, instead '%c'", c);
         }
