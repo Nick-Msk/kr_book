@@ -561,10 +561,6 @@ tf_getconvstring_removequot(const char *name)
         if (!f)
             return logerr(TEST_FAILED, "Cannot open %s", fname);
 
-        int first_char = fgetc(f);
-        logmsg("DEBUG first char: '%c' (code %d)", first_char, first_char);
-        ungetc(first_char, f);   // возвращаем символ обратно в поток
-
         fs s = FS();
         test_validatefree(
             getconvstring(f, &s, true) && strcmp(fs_str(&s), "hello world") == 0,
