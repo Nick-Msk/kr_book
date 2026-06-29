@@ -773,7 +773,7 @@ bool                         value64_readval(FILE *restrict in, value64_type typ
      }
 }
 // format checker, then exec generic reader
-bool                        value64_load(FILE *restrict in, value64 *restrict val, value64_type typ, bool loadtypeinfo) {
+bool                        value64_load(FILE *restrict in, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf) {
     invraisecode(in != NULL, ERR_NULLABLE_PTR,
         "Null pointers %p", in);
 
@@ -782,22 +782,30 @@ bool                        value64_load(FILE *restrict in, value64 *restrict va
         return logsimpleerr(false, "Missing 'VALUE64' header");
 
     // Temporary fs, will be ref here to avoid allocation and free
-    fs tmp = fsinit(32);
+    fs      tmp = FS();
+    bool    localalloc = false;
+    if (!buf) {
+        tmp = fsinit(32);
+        buf = &tmp;
+        localalloc = true;
+    }
 
     if (loadtypeinfo) {
-        if (fscanf(in, "(%31[^)])", fsstr(tmp) ) != 1) // not sure
+        if (fscanf(in, "(%31[^)])", fs_str(buf) ) != 1) // not sure
             return logsimpleerr(false, "Missing type in parentheses");
-        typ = value64_gettype(fsstr(tmp) );
+        typ = value64_gettype(fs_str(buf) );
     } else
-        fscanf(in, " ()");
+        freadpattern(in, " ()");
 
     if (!freadpattern(in, " :") )
         return logsimpleerr(false, "Missing ':' after type");
 
     // Generic reader
-    if (!value64_readval(in, typ, val, &tmp))
+    if (!value64_readval(in, typ, val, buf))
         return logsimpleerr(false, "Failed to read value");
 
+    if (localalloc)
+        fsfree(tmp);
     return logsimpleret(true, "Loaded 1 value");
 }
 
