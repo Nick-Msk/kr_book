@@ -12,7 +12,7 @@
 ********************************************************************/
 
 static const int                G_FU_LINE_CNT     = 100;
-static const int                G_FU_PRINT_CNT    = 256;
+static const int                G_FU_PRINT_CNT    = 1024;
 
 // ------------------------ Utilities ------------------------------
 
@@ -186,30 +186,42 @@ char                           *read_from_file(FILE *f, int *p_cnt){
 }
 
 // read simple pattern
-bool                            fread_pattern(FILE *restrict f, const char *restrict pattern, int sz){
+bool                            fread_pattern(FILE *restrict in, const char *restrict pattern, int sz){
+    invraisecode(in != NULL && pattern != NULL, ERR_NULLABLE_PTR, "Null pointers %p %p", in, pattern);
     logenter("pt [%s], sz %d", pattern, sz);
+
+    // save the stream pointer
+    long start_pos = ftell(in);
+
     char    buf[sz + 1];
-    buf[sz] = '\0';
-    if ( fread(buf, 1, sz, f) != (unsigned) sz)
+    buf[sz] = '\0';     // just to be sure
+    if ( fread(buf, 1, sz, in) != (unsigned) sz)
         return userraise(false, ERR_NOT_ENOGH_VALUES, "Unable to read %d bytes from stream (%s)", sz, buf);
 
     bool res = memcmp(buf, pattern, sz) == 0;
+
+    if (!res)
+        if (fseek(in, start_pos, SEEK_SET) != 0)
+            sysraiseint("fseek failed, stream is broken");
+
     return logret(res, "%s", bool_str(res) );
 }
 
 // format vai printf then read pattern
-bool                            fread_pattern_printf(FILE *restrict f, const char *restrict fmt, ...){
-    char buf[G_FU_PRINT_CNT];
+bool                            fread_pattern_printf(FILE *restrict in, const char *restrict fmt, ...){
+    invraisecode(fmt != NULL, ERR_NULLABLE_PTR, "Null pointers %p", fmt);
+    char buf[G_FU_PRINT_CNT];   // TODO: rework that!
     va_list     ap;
     va_start(ap, fmt);
     vsnprintf(buf, G_FU_PRINT_CNT - 1, fmt, ap);
     //logsimple("processed pattern [%s]", buf);
     va_end(ap);
-    return fread_pattern(f, buf, strlen(buf) );
+    return fread_pattern(in, buf, strlen(buf) );
 }
 
 // universal strict scanf, current version for int, double, long, char *.
 int                             fstrict_scanf(FILE * restrict in, const char *restrict fmt, ...){
+    invraisecode(in != NULL && fmt != NULL, ERR_NULLABLE_PTR, "Null pointers %p %p", in, fmt);
     logenter("fmt %s", fmt);
     int         cnt = 0;
     bool        breakflag = false;
@@ -438,23 +450,31 @@ tf3(const char *name)
         // write
         fwritelines(tfile(tf), pts, COUNT(pts) );
         test_freset(tf);
-        freelines(pts, COUNT(pts) );    // that is useless (because of literals) but it must work!
 
         // read
-        fs *pts2;
-        int cnt = freadlines(tfile(tf), &pts2);
-        if (cnt != COUNT(pts))
-            return logacterr( (freelines(pts2, cnt), test_fclose(tf) ), TEST_FAILED,  "Count = %d but it should be %d", cnt, COUNT(pts));
+        fs     *pts2;
+        int     cnt = freadlines(tfile(tf), &pts2);
 
-        test_fclose(tf);
+        if (cnt != COUNT(pts))
+            return logacterr(
+                (freelines(pts2, cnt), test_fclose(tf), freelines(pts, COUNT(pts) ) ),
+                TEST_FAILED,
+                "Count = %d but it should be %d", cnt, COUNT(pts));
+
         test_sub("subtest %d", ++subnum);
         for (int i = 0; i < COUNT(pts); i++){
-            fstechfprint(logfile, pts[i]);
-            fstechfprint(logfile, pts2[i]);
+            //fstechfprint(logfile, pts[i]);
+            //fstechfprint(logfile, pts2[i]);
             if (fscmp(pts[i], pts2[i]) != 0)
-                return logacterr( (freelines(pts2, cnt), test_fclose(tf) ), TEST_FAILED,  "Line %d = [%s] but it should be [%s]", i, pts2[i].v, pts[i].v);
+                return logacterr(
+                    (freelines(pts2, cnt), test_fclose(tf), freelines(pts, COUNT(pts) ) ),
+                        TEST_FAILED,
+                        "Line %d = [%s] but it should be [%s]", i, pts2[i].v, pts[i].v
+                    );
         }
         freelines(pts2, cnt);
+        freelines(pts, COUNT(pts) );    // that is useless (because of literals) but it must work!
+        test_fclose(tf);
     }
 
     return logret(TEST_PASSED, "done"); // TEST_FAILED
@@ -496,7 +516,7 @@ tf5(const char *name)
     test_sub("subtest %d: fread_pattern from test file", ++subnum);
     {
 
-        const char fname[] = "res/fileutils_read_pattern1.dat";
+        const char fname[] = "res/fileutils/fileutils_read_pattern1.dat";
         const char pattern[] = "qwertyu12345";
         FILE *f = fopen(fname, "w+");
         if (!f)
@@ -510,6 +530,78 @@ tf5(const char *name)
                 return logacterr(fclose(f), TEST_FAILED, "iter %d - pattern read is failed", i);
         fclose(f);
     }
+    /* 2. Несовпадение – позиция возвращается */
+    test_sub("subtest %d: fread_pattern mismatch restores position", ++subnum);
+    {
+        const char fname[] = "res/fileutils/fread_pattern_mismatch.dat";
+        FILE *f = fopen(fname, "w+");
+        if (!f)
+            return logerr(TEST_FAILED, "Unable to open %s for w+", fname);
+        fprintf(f, "hello");
+        fflush(f);
+        rewind(f);
+
+        long pos_before = ftell(f);
+        test_validate(
+            !freadpattern(f, "world"),   // должно вернуть false
+            "Mismatch must return false"
+        );
+        test_validate(
+            ftell(f) == pos_before,
+            "Position must be restored (before=%ld, after=%ld)", pos_before, ftell(f)
+        );
+        fclose(f);
+    }
+
+    /* 3. После несовпадения можно прочитать другой шаблон */
+    test_sub("subtest %d: fread_pattern after mismatch reads next", ++subnum);
+    {
+        const char fname[] = "res/fileutils/fread_pattern_next.dat";
+        FILE *f = fopen(fname, "w+");
+        if (!f)
+            return logerr(TEST_FAILED, "Unable to open %s for w+", fname);
+        fprintf(f, "HELLO:42");
+        fflush(f);
+        rewind(f);
+
+        test_validate(
+            !freadpattern(f, "WORLD"),
+            "Mismatch must return false"
+        );
+        test_validate(
+            freadpattern(f, "HELLO"),
+            "After mismatch, correct pattern must be found"
+        );
+        test_validate(
+            fgetc(f) == ':',
+            "After 'HELLO' must be ':'"
+        );
+        fclose(f);
+    }
+
+    /* 4. Пустой шаблон (sz == 0) – должен возвращать true и не двигать позицию */
+    test_sub("subtest %d: fread_pattern empty pattern", ++subnum);
+    {
+        const char fname[] = "res/fileutils/fread_pattern_empty.dat";
+        FILE *f = fopen(fname, "w+");
+        if (!f)
+            return logerr(TEST_FAILED, "Unable to open %s for w+", fname);
+        fprintf(f, "data");
+        fflush(f);
+        rewind(f);
+
+        long pos_before = ftell(f);
+        test_validate(
+            fread_pattern(f, "", 0),   // явная длина 0
+            "Empty pattern must return true"
+        );
+        test_validate(
+            ftell(f) == pos_before,
+            "Empty pattern must not move position"
+        );
+        fclose(f);
+    }
+
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 

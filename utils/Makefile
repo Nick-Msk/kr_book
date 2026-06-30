@@ -89,7 +89,7 @@ fileutils.o: src/fileutils.c
 	$(CC) $(CFLAGS)  $^ -c
 	@mv $@ lib/
 
-fileutils: src/fileutils.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fs.o
+fileutils: src/fileutils.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fs.o lib/getword.o lib/buffer.o
 	 $(CC) $(CFLAGS) -DFILEUTILSTESTING $^ -o test/$@_test
 
 getword.o: src/getword.c
