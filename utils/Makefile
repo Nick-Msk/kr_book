@@ -6,140 +6,143 @@ CFLAGS= -I./ -Wall -Wextra -g -O0 -Wno-initializer-overrides -Wno-gnu-folding-co
 LDFLAGS=
 LDLIBS=
 
-all:
-
-checker: src/checker.c lib/log.o lib/test.o lib/error.o
-	$(CC) $(CFLAGS) -DCHECKERTESTING $^ -o test/$@_test
-
-checker.o: src/checker.c
-	$(CC) $(CFLAGS) $^ -c
-	@mv $@ lib/
-
-error: src/error.c lib/log.o lib/common.o lib/test.o
-	$(CC) $(CFLAGS) -DERRORTESTING $^ -o test/$@_test
-
-error.o: src/error.c
-	$(CC) $(CFLAGS)  $^ -c
-	@mv $@ lib/
-
-log: src/log.c test.o error.o
-	$(CC) $(CFLAGS) -DLOGTESTING $^ -o test/$@_test
-
-log.o:	src/log.c
-	$(CC) $(CFLAGS) $^ -c
-	@mv $@ lib/
-
-common: src/common.c lib/test.o lib/error.o lib/log.o
-	$(CC) $(CFLAGS) -DCOMMONTESTING $^ -o test/$@_test
-
-common.o: src/common.c
-	$(CC) $(CFLAGS) $^ -c
-	@mv $@ lib
-
-test.o:	src/test.c
-	$(CC) $(CFLAGS) $^ -c
-	@mv $@ lib/
-
-test: src/test.c lib/error.o lib/log.o
-	$(CC) $(CFLAGS) -DTESTTESTING $^ -o test/$@_test
-
-metric: src/metric.c lib/log.o lib/test.o lib/error.o
-	$(CC) $(CFLAGS) -DMETRICTESTING $^ -o test/$@_test
-
-metric.o: src/metric.c
-	$(CC) $(CFLAGS) $^ -c
-	@mv $@ lib/
-
-array.o: src/array.c
-	$(CC) $(CFLAGS) $^ -c
-	@mv $@ lib/
-
-array: src/array.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o
-	$(CC) $(CFLAGS) -DARRAYTESTING $^ -o test/$@_test
-
-buffer:	src/buffer.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o
-	$(CC) $(CFLAGS) -DBUFFERTESTING $^ -o test/$@_test
-
-buffer.o: src/buffer.c
-	$(CC) $(CFLAGS)  $^ -c
-	@mv $@ lib/
-
-fs:	src/fs.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fileutils.o lib/getword.o lib/buffer.o
-	$(CC) $(CFLAGS) -DFSTESTING $^ -o test/$@_test
-
-fs.o: 	src/fs.c
-	$(CC) $(CFLAGS)  $^ -c
-	@mv $@ lib/
-
-fs_iter: src/fs_iter.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fs.o
-	$(CC) $(CFLAGS) -DFSITERTESTING $^ -o test/$@_test
-
-fs_iter.o: src/fs_iter.c
-	$(CC) $(CFLAGS)  $^ -c
-	@mv $@ lib/
-
-fs_array: src/fs_array.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fs.o lib/fileutils.o
-	$(CC) $(CFLAGS) -DFSARRAYTESTING $^ -o test/$@_test
-
-fs_array.o: src/fs_array.c
-	$(CC) $(CFLAGS) $^ -c
-	@mv $@ lib/
-
-fileutils.o: src/fileutils.c
-	$(CC) $(CFLAGS)  $^ -c
-	@mv $@ lib/
-
-fileutils: src/fileutils.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fs.o lib/getword.o lib/buffer.o
-	 $(CC) $(CFLAGS) -DFILEUTILSTESTING $^ -o test/$@_test
-
-getword.o: src/getword.c
-	$(CC) $(CFLAGS)  $^ -c
-	@mv $@ lib/
-
-getword: src/getword.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fs.o lib/buffer.o lib/fs_array.o lib/fileutils.o
-	 $(CC) $(CFLAGS) -DGETWORDTESTING $^ -o test/$@_test
-
-command_executor.o: src/command_executor.c
-	$(CC) $(CFLAGS)  $^ -c
-	@mv $@ lib/
-
-systemutils.o: src/systemutils.c
-	$(CC) $(CFLAGS)  $^ -c
-	@mv $@ lib/
-
-systemutils: src/systemutils.c lib/log.o lib/test.o lib/error.o lib/checker.o
-	 $(CC) $(CFLAGS) -DSYSTEMUTILSTESTING $^ -o test/$@_test
-
-numeric_ops.o: src/numeric_ops.c
-	$(CC) $(CFLAGS)  $^ -c
-	@mv $@ lib/
-
-numeric_ops: src/numeric_ops.c lib/log.o lib/test.o lib/error.o
-	 $(CC) $(CFLAGS) -DNUMERIC_OPS_TESTING $^ -o test/$@_test
-
-context.o: src/context.c
-	$(CC) $(CFLAGS)  $^ -c
-	@mv $@ lib/
-
-context: src/context.c lib/log.o lib/test.o lib/error.o lib/numeric_ops.o
-	 $(CC) $(CFLAGS) -DCONTEXTTESTING $^ -o test/$@_test
-
-
-hashset.o: src/hashset.c
-	$(CC) $(CFLAGS)  $^ -c
-	@mv $@ lib/
-
-hashset: src/hashset.c lib/log.o lib/test.o lib/error.o lib/numeric_ops.o lib/fs.o lib/fileutils.o lib/array.o lib/common.o lib/getword.o lib/buffer.o
-	 $(CC) $(CFLAGS) -DHSETTESTING $^ -o test/$@_test
-
-value64.o: src/value64.c
-	$(CC) $(CFLAGS)  $^ -c
-	@mv $@ lib/
-
-value64: src/value64.c lib/log.o lib/test.o lib/error.o lib/common.o lib/fs.o lib/fileutils.o lib/getword.o lib/buffer.o lib/numeric_ops.o lib/common.o
-	$(CC) $(CFLAGS) -DVALUE64TESTING $^ -o test/$@_test
-
 .PHONY: clean cleanlog cleanall no_targets__ list
+.PHONY: checker error log common test metric numeric_ops context hashset value64 array buffer fs fs_iter fs_array
+.PHONY: getword systemutils command_executor fileutils
+
+lib/checker.o: src/checker.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/error.o: src/error.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/log.o: src/log.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/common.o: src/common.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/test.o: src/test.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/metric.o: src/metric.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/numeric_ops.o: src/numeric_ops.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/context.o: src/context.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/hashset.o: src/hashset.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/value64.o: src/value64.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/array.o: src/array.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/buffer.o: src/buffer.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/fs.o: src/fs.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/fs_iter.o: src/fs_iter.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/fs_array.o: src/fs_array.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/fileutils.o: src/fileutils.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/getword.o: src/getword.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/command_executor.o: src/command_executor.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/systemutils.o: src/systemutils.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+test/checker_test: src/checker.c lib/log.o lib/test.o lib/error.o
+	$(CC) $(CFLAGS) -DCHECKERTESTING $^ -o $@ $(LDLIBS)
+
+test/error_test: src/error.c lib/log.o lib/common.o lib/test.o
+	$(CC) $(CFLAGS) -DERRORTESTING $^ -o $@ $(LDLIBS)
+
+test/log_test: src/log.c test.o error.o
+	$(CC) $(CFLAGS) -DLOGTESTING $^ -o $@ $(LDLIBS)
+
+test/common_test: src/common.c lib/test.o lib/error.o lib/log.o
+	$(CC) $(CFLAGS) -DCOMMONTESTING $^ -o $@ $(LDLIBS)
+
+test/test_test: src/test.c lib/error.o lib/log.o
+	$(CC) $(CFLAGS) -DTESTTESTING $^ -o $@ $(LDLIBS)
+
+test/metric_test: src/metric.c lib/log.o lib/test.o lib/error.o
+	$(CC) $(CFLAGS) -DMETRICTESTING $^ -o $@ $(LDLIBS)
+
+test/array_test: src/array.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o
+	$(CC) $(CFLAGS) -DARRAYTESTING $^ -o $@ $(LDLIBS)
+
+test/buffer_test:       src/buffer.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o
+	$(CC) $(CFLAGS) -DBUFFERTESTING $^ -o $@ $(LDLIBS)
+
+test/fs_test:   src/fs.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fileutils.o lib/getword.o lib/buffer.o
+	$(CC) $(CFLAGS) -DFSTESTING $^ -o $@ $(LDLIBS)
+
+test/fs_iter_test: src/fs_iter.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fs.o
+	$(CC) $(CFLAGS) -DFSITERTESTING $^ -o $@ $(LDLIBS)
+
+test/fs_array_test: src/fs_array.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fs.o lib/fileutils.o
+	$(CC) $(CFLAGS) -DFSARRAYTESTING $^ -o $@ $(LDLIBS)
+
+test/fileutils_test: src/fileutils.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fs.o lib/getword.o lib/buffer.o
+	 $(CC) $(CFLAGS) -DFILEUTILSTESTING $^ -o $@ $(LDLIBS)
+
+test/getword_test: src/getword.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fs.o lib/buffer.o lib/fs_array.o lib/fileutils.o
+	 $(CC) $(CFLAGS) -DGETWORDTESTING $^ -o $@ $(LDLIBS)
+
+test/systemutils_test: src/systemutils.c lib/log.o lib/test.o lib/error.o lib/checker.o
+	 $(CC) $(CFLAGS) -DSYSTEMUTILSTESTING $^ -o $@ $(LDLIBS)
+
+test/numeric_ops_test: src/numeric_ops.c lib/log.o lib/test.o lib/error.o
+	 $(CC) $(CFLAGS) -DNUMERIC_OPS_TESTING $^ -o $@ $(LDLIBS)
+
+test/context_test: src/context.c lib/log.o lib/test.o lib/error.o lib/numeric_ops.o
+	 $(CC) $(CFLAGS) -DCONTEXTTESTING $^ -o $@ $(LDLIBS)
+
+test/hashset_test: src/hashset.c lib/log.o lib/test.o lib/error.o lib/numeric_ops.o lib/fs.o lib/fileutils.o lib/array.o lib/common.o lib/getword.o lib/buffer.o
+	 $(CC) $(CFLAGS) -DHSETTESTING $^ -o $@ $(LDLIBS)
+
+test/value64_test: src/value64.c lib/log.o lib/test.o lib/error.o lib/common.o lib/fs.o lib/fileutils.o\
+			 lib/getword.o lib/buffer.o lib/numeric_ops.o lib/common.o | lib/value64.o
+	$(CC) $(CFLAGS) -DVALUE64TESTING $^ -o $@ $(LDLIBS)
+
+# faked targets
+checker: test/checker_test
+error:   test/error_test
+log:     test/log_test
+common:  test/common_test
+test:    test/test_test
+metric:  test/metric_test
+numeric_ops: test/numeric_ops_test
+context: test/context_test
+hashset: test/hashset_test
+value64: test/value64_test
+systemutils: test/systemutils_test
+getword: test/getword_test
+fileutils: test/fileutils_test
+fs_array: test/fs_array_test
+fs_iter: test/fs_iter_test
+fs: test/fs_test
+buffer: test/buffer_test
+array: test/array_test
+
+
 clean:
 	@rm *.o
 	@rm *_test
