@@ -235,7 +235,7 @@ extern int                      pint_cmp(const void *restrict i1, const void *re
 // simple reverse comparator pointer int
 extern int                      pint_revcmp(const void *i1, const void *i2);
 // simple comparator pointer long
-extern inline int               plong_cmp(const void *l1, const void *l2);
+extern int                      plong_cmp(const void *l1, const void *l2);
 // simple reverse comparator pointer long
 extern int                      plong_revcmp(const void *l1, const void *l2);
 // simple comparator pointer to pointer
