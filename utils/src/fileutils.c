@@ -491,7 +491,7 @@ tf4(const char *name)
     test_sub("subtest %d", ++subnum);
 
     {
-        const char outname[] = "res/fileutils_test_fprint_file.dat";
+        const char outname[] = "res/fileutils/test_fprint_file.dat";
         FILE *f = fopen(__FILE__, "r"); // read this source
         if (!f)
             return logerr(TEST_FAILED, "Unable to open %s for write", __FILE__);
@@ -616,7 +616,7 @@ tf6(const char *name)
 
     test_sub("subtest %d: one line read", ++subnum);
     {
-        const char fname[] = "res/strict_scanf1.dat";
+        const char fname[] = "res/fileutils/strict_scanf1.dat";
         int             orig_i  = -123;
         unsigned        orig_u  = 456;
         long            orig_l  = -999999999999999;
@@ -657,7 +657,7 @@ tf6(const char *name)
     }
     test_sub("subtest %d: multiple line read", ++subnum);
     {
-        const char fname[] = "res/strict_scanf2.dat";
+        const char fname[] = "res/fileutils/strict_scanf2.dat";
         long            orig_l  = 1;
         double          orig_d  = 1.01234;
         int             cnt = 500;
@@ -691,7 +691,7 @@ tf6(const char *name)
     }
     test_sub("subtest %d: multiple string line read", ++subnum);
     {
-        const char fname[] = "res/strict_scanf3.dat";
+        const char fname[] = "res/fileutils/strict_scanf3.dat";
 
         const char      fmt[] = "QWERTY num %s-%d\n";
         FILE           *in = fopen(fname, "w+");
@@ -723,7 +723,7 @@ tf6(const char *name)
     }
     test_sub("subtest %d: multiple LIMIT string line read", ++subnum);
     {
-        const char fname[] = "res/strict_scanf4.dat";
+        const char fname[] = "res/fileutils/strict_scanf4.dat";
 
         const char      fmt[] = "QWERTY num %d-%s\n";
         FILE           *in = fopen(fname, "w+");
