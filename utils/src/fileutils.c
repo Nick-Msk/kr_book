@@ -805,8 +805,123 @@ tf7(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
-// -------------------------------------------------------------------
+// ------------------------- TEST tf_fread_pattern_printf ---------------------------------
+static TestStatus
+tf_fread_pattern_printf(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
 
+    /* 1. Успешное совпадение простого шаблона */
+    test_sub("subtest %d: simple match", ++subnum);
+    {
+        const char fname[] = "res/fileutils/fread_printf_simple.dat";
+        FILE *f = fopen(fname, "w+");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for w+", fname);
+        fprintf(f, "HELLO WORLD");
+        fflush(f);
+        rewind(f);
+
+        test_validate(
+            fread_pattern_printf(f, "HELLO %s", "WORLD"),
+            "Simple pattern with %%s must match"
+        );
+        fclose(f);
+    }
+
+    /* 2. Несовпадение – позиция восстанавливается */
+    test_sub("subtest %d: mismatch restores position", ++subnum);
+    {
+        const char fname[] = "res/fileutils/fread_printf_mismatch.dat";
+        FILE *f = fopen(fname, "w+");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for w+", fname);
+        fprintf(f, "foo");
+        fflush(f);
+        rewind(f);
+
+        long pos_before = ftell(f);
+        test_validate(
+            !fread_pattern_printf(f, "bar"),
+            "Mismatch must return false"
+        );
+        test_validate(
+            ftell(f) == pos_before,
+            "Position must be restored (before=%ld, after=%ld)", pos_before, ftell(f)
+        );
+        fclose(f);
+    }
+
+    /* 3. После несовпадения можно прочитать другой шаблон */
+    test_sub("subtest %d: after mismatch reads next", ++subnum);
+    {
+        const char fname[] = "res/fileutils/fread_printf_next.dat";
+        FILE *f = fopen(fname, "w+");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for w+", fname);
+        fprintf(f, "VALUE64(INT):42");
+        fflush(f);
+        rewind(f);
+
+        // Пробуем неверный формат
+        test_validate(
+            !fread_pattern_printf(f, "VALUE64(DBL):"),
+            "Mismatch must return false"
+        );
+        // Теперь правильный шаблон
+        test_validate(
+            fread_pattern_printf(f, "VALUE64(%s):", "INT"),
+            "After mismatch, correct pattern must be found"
+        );
+        fclose(f);
+    }
+
+    /* 4. Пустой шаблон (fmt == "") */
+    test_sub("subtest %d: empty pattern", ++subnum);
+    {
+        const char fname[] = "res/fileutils/fread_printf_empty.dat";
+        FILE *f = fopen(fname, "w+");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for w+", fname);
+        fprintf(f, "data");
+        fflush(f);
+        rewind(f);
+
+        long pos_before = ftell(f);
+        test_validate(
+            fread_pattern_printf(f, ""),
+            "Empty pattern must return true"
+        );
+        test_validate(
+            ftell(f) == pos_before,
+            "Empty pattern must not move position"
+        );
+        fclose(f);
+    }
+
+    /* 5. Совпадение с числовым форматом */
+    test_sub("subtest %d: match with %%d", ++subnum);
+    {
+        const char fname[] = "res/fileutils/fread_printf_int.dat";
+        FILE *f = fopen(fname, "w+");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for w+", fname);
+        fprintf(f, "INDEX 42");
+        fflush(f);
+        rewind(f);
+
+        test_validate(
+            fread_pattern_printf(f, "INDEX %d", 42),
+            "Pattern with %%d must match"
+        );
+        fclose(f);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
+// -------------------------------------------------------------------
 int
 main( /*int argc, const char *argv[] */ )
 {
@@ -818,13 +933,14 @@ main( /*int argc, const char *argv[] */ )
     loginit(logfilename, false, 0, "Starting"); */
 
     testenginestd(
-        testnew(.f2 = tf1, .num = 1, .name = "Getline_fs() simple test",                .desc = "", .mandatory=true)
-      , testnew(.f2 = tf2, .num = 2, .name = "Readfs_file() simple test",               .desc = "", .mandatory=true)
-      , testnew(.f2 = tf3, .num = 3, .name = "Realline/writeline simple test",          .desc = "", .mandatory=true)
-      , testnew(.f2 = tf4, .num = 4, .name = "Fprint_file test",                        .desc = "", .mandatory=true)
-      , testnew(.f2 = tf5, .num = 5, .name = "fread_pattern test",                      .desc = "", .mandatory=true)
-      , testnew(.f2 = tf6, .num = 6, .name = "strict_scanf() test",                     .desc = "", .mandatory=true)
-      , testnew(.f2 = tf7, .num = 7, .name = "(f)getslim_fs simple test",               .desc = "", .mandatory=true)
+        testnew(.f2 = tf1,                      .num = 1, .name = "Getline_fs() simple test",                .desc = "", .mandatory=true)
+      , testnew(.f2 = tf2,                      .num = 2, .name = "Readfs_file() simple test",               .desc = "", .mandatory=true)
+      , testnew(.f2 = tf3,                      .num = 3, .name = "Realline/writeline simple test",          .desc = "", .mandatory=true)
+      , testnew(.f2 = tf4,                      .num = 4, .name = "Fprint_file test",                        .desc = "", .mandatory=true)
+      , testnew(.f2 = tf5,                      .num = 5, .name = "fread_pattern test",                      .desc = "", .mandatory=true)
+      , testnew(.f2 = tf6,                      .num = 6, .name = "strict_scanf() test",                     .desc = "", .mandatory=true)
+      , testnew(.f2 = tf7,                      .num = 7, .name = "(f)getslim_fs simple test",               .desc = "", .mandatory=true)
+      , testnew(.f2 = tf_fread_pattern_printf,  .num = 8, .name = "fread_pattern_printf simple test",        .desc = "", .mandatory=true)
     );
 
     logclose("end...");
