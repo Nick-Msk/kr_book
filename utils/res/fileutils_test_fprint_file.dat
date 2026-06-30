@@ -1,0 +1,951 @@
+Origin:
+#include <sys/errno.h>
+#include <stdarg.h>
+
+#include "log.h"
+#include "common.h"
+#include "fs.h"
+#include "fileutils.h"
+#include "checker.h"
+
+/********************************************************************
+                 FILEUTILS MODULE IMPLEMENTATION
+********************************************************************/
+
+static const int                G_FU_LINE_CNT     = 100;
+static const int                G_FU_PRINT_CNT    = 1024;
+
+// ------------------------ Utilities ------------------------------
+
+static inline bool              get_int(FILE *restrict f, int *restrict res){
+    return fscanf(f, "%d", res) == 1;
+}
+static inline bool              get_uint(FILE *restrict f, unsigned *restrict res){
+    return fscanf(f, "%u", res) == 1;
+}
+static inline bool              get_long(FILE *restrict f, long *restrict res){
+    return fscanf(f, "%ld", res) == 1;
+}
+static inline bool              get_ulong(FILE *restrict f, unsigned long *restrict res){
+    return fscanf(f, "%lu", res) == 1;
+}
+static inline bool              get_double(FILE *restrict f, double *restrict res){
+    return fscanf(f, "%lf", res) == 1;
+}
+static inline bool              get_float(FILE *restrict f, float *restrict res){
+    return fscanf(f, "%f", res) == 1;
+}
+static inline bool              get_str(FILE *restrict f, char *restrict str, int len, bool lastzero){
+    int     c, cnt = 0;
+    while ( (c = getc(f) ) != EOF && c != '\n')
+        if (--len > 0)
+            *str++ = c, cnt++;
+
+    if (lastzero && cnt > 0)        // for %s lastzero is true
+        *str = '\0';
+    if (c != EOF)
+        ungetc(c, f);
+    return cnt > 0;
+}
+
+// --------------------------- API ---------------------------------
+
+// for now in common.c, then will be moved out
+int                             get_line(char *line, int lim){
+    int     c, i;
+    for (i = 0; i < lim - 1 && (c = getchar()) != EOF && c != '\n'; i++)
+        line[i] = c;
+    if (c == '\n')
+        line[i++] = c;
+    line[i] = '\0';
+    return i;
+}
+
+// internal, main fs getline
+int                             fgetline_cmn_fs(FILE *restrict in, fs *restrict s, bool newline){
+    int     c, i;
+    for (i = 0; (c = fgetc(in)) != EOF && c != '\n'; i++){
+        elem(*s, i) = c;
+    }
+    if (newline && c == '\n')
+        elem(*s, i++) = c;
+    if (i > 0 || c != EOF){
+        fsetlen(*s, i);    // fix length and set '\0'!
+        return i;
+    } else
+        return EOF; // return EOF if end of file
+}
+
+// return fs for WHOLE file!
+fs                              readfs_file(FILE *f){
+    logenter("%p", f);
+    int     len, cnt = 1024;   // just piece of data
+    long    pos = 0L;
+    fs      str = fsinit(cnt);
+    while ( (len = fread(fsstr(str) + pos, 1, cnt - 1, f) ) > 0){
+        pos += len;
+        logsimple("pos %ld, len %d sz %d", pos, fslen(str), fssz(str) );
+        fsincrease(str, cnt);
+    }
+    fsetlen(str, pos);
+    return logret(str, "%ld bytes were read", pos);
+}
+
+// read all (if maxline == -1 or maxline) lines separately into fs[]
+int                             freadlines(FILE *restrict f, fs **restrict ptr){
+    invraise(f && ptr, "file and fs pointer must exists"); // raise if result false
+
+    logenter("file: %p, fs **: %p", ptr, ptr);
+
+    int     nlines = 0, len, maxlines = G_FU_LINE_CNT;
+    fs      line = fsempty();
+    fs     *lines = malloc(maxlines * sizeof(fs));  // 
+    if (!lines){
+        perror("Unable to allocated");      // sysraisesig? TODO:
+        return logerr(-1, "Unable to allocated %lu", maxlines * sizeof(fs) );
+    }
+
+    while ( (len = fgetline_fs(f, &line) ) > 0){
+        if (nlines >= maxlines - 1){    // is for the last empry fs
+            maxlines += G_FU_LINE_CNT;
+            fs *tmp = lines;
+            if ( (tmp = realloc(tmp, maxlines * sizeof(fs) ) ) == 0){
+                perror("Unable to allocated");      // sysraisesig? TODO:
+                *ptr = lines;
+                return logret(nlines, "Return Only %d lines, because unable to allocate more", nlines);
+            } else
+                lines = tmp;
+        }
+        lines[nlines++] = line;   // move to array
+        line = fsempty();
+    }
+    // setup end of array as empty fs
+    lines[nlines] = fsempty();
+    // no need to free fs line, it's .v=0 after last cycle (or if no one cycle)
+    *ptr = lines;
+    return logret(nlines, "Total %d", nlines);
+}
+
+// write cnt fs into stream
+int                             fwritelines(FILE *restrict f, const fs *restrict lines, int max){
+    int     cnt = 0;
+    while (max-- > 0){
+        const fs *pt = lines++;
+        cnt += fprintf(f, "%s", pt->v);
+    }
+    return cnt;
+}
+
+void                            freelines(fs *lineptr, int nlines){
+    while (nlines-- > 0)
+        fs_free(lineptr++);
+}
+
+int                             fprint_file(FILE *restrict out, FILE *restrict f){
+
+    int     cnt = 0, i = 0;
+    fs     *strs;   // no need to init!
+    if (freadlines(f, &strs) <= 0)     // TODO: use fs_array instread
+        return logsimpleerr(-1, "Unable to read source");
+
+    cnt += fprintf(out, "Origin:\n");
+    while (strs[i].v != 0){
+        cnt += fprintf(out, "%s", fsstr(strs[i]) );
+        fs_free(&strs[i++]);
+    }
+
+    return logsimpleret(cnt, "Read %d", cnt);
+}
+
+char                           *read_from_file(FILE *f, int *p_cnt){
+    logenter("read from input (%p)", f);
+    int      sz = 1024, len, pos = 0, cnt = sz;
+    char    *s = 0;        // string to store
+    s = malloc(sz);
+    if (!s){
+        fprintf(stderr, "Unable to acclocate %d\n", sz);
+        return 0;
+    }
+    while ((len = fread(s + pos, 1, cnt - 1, f)) > 0){
+        pos += len;
+        logmsg("pos %d, len %d, sz %d", pos, len, sz);
+        // check if next cnt bytes is available
+        if (pos + cnt > sz - 1){
+            s = realloc(s, sz *= 2);
+            if (!s){
+                fprintf(stderr, "Unable to acclocate %d\n", sz);
+                free(s);
+                return 0;
+            }
+            logmsg("new sz = %d", sz);
+        }
+    }
+    s[pos] = '\0';      // to make a normal c-string
+    if (p_cnt)
+        *p_cnt = pos;
+    return logret(s, "%d bytes were read", pos);
+}
+
+// read simple pattern
+bool                            fread_pattern(FILE *restrict in, const char *restrict pattern, int sz){
+    invraisecode(in != NULL && pattern != NULL, ERR_NULLABLE_PTR, "Null pointers %p %p", in, pattern);
+    logenter("pt [%s], sz %d", pattern, sz);
+
+    // save the stream pointer
+    long start_pos = ftell(in);
+
+    char    buf[sz + 1];
+    buf[sz] = '\0';     // just to be sure
+    if ( fread(buf, 1, sz, in) != (unsigned) sz)
+        return userraise(false, ERR_NOT_ENOGH_VALUES, "Unable to read %d bytes from stream (%s)", sz, buf);
+
+    bool res = memcmp(buf, pattern, sz) == 0;
+
+    if (!res)
+        if (fseek(in, start_pos, SEEK_SET) != 0)
+            sysraiseint("fseek failed, stream is broken");
+
+    return logret(res, "%s", bool_str(res) );
+}
+
+// format vai printf then read pattern
+bool                            fread_pattern_printf(FILE *restrict in, const char *restrict fmt, ...){
+    invraisecode(fmt != NULL, ERR_NULLABLE_PTR, "Null pointers %p", fmt);
+    char buf[G_FU_PRINT_CNT];   // TODO: rework that!
+    va_list     ap;
+    va_start(ap, fmt);
+    vsnprintf(buf, G_FU_PRINT_CNT - 1, fmt, ap);
+    //logsimple("processed pattern [%s]", buf);
+    va_end(ap);
+    return fread_pattern(in, buf, strlen(buf) );
+}
+
+// universal strict scanf, current version for int, double, long, char *.
+int                             fstrict_scanf(FILE * restrict in, const char *restrict fmt, ...){
+    invraisecode(in != NULL && fmt != NULL, ERR_NULLABLE_PTR, "Null pointers %p %p", in, fmt);
+    logenter("fmt %s", fmt);
+    int         cnt = 0;
+    bool        breakflag = false;
+
+    va_list     ap;
+    va_start(ap, fmt);
+
+    for (const char *p = fmt; !breakflag && *p != '\0'; p++){
+        char            c, sym = *p;
+        int            *i;
+        unsigned       *ui;
+        long           *l;
+        unsigned long  *ul;
+        double         *d;
+        float          *f;
+        char           *s;
+        int             len = 0; // now only!!! for %s, eg: %100s
+
+        if (sym != '%'){
+            if ( (c = getc(in)) != sym)  // then strict follow the pattern
+                return logerr(cnt, "Pattern mismatch [%c] while expected [%c]", c, sym);
+            else
+                continue;
+        } // %
+        while (isdigit(*++p) ) {
+            sym = *p;
+            len = len * 10 + ctoi(sym);
+        }
+        sym = *p;
+        //logauto(len);
+        switch (sym) {
+            case 'd':   // TODO: now we'll use regular scanf, probably it's better to parse manually
+                i = va_arg(ap, int *);
+                if (!get_int(in, i) )
+                    return logret(cnt, "Unalble to parse next int");
+                else
+                    cnt++;
+            break;
+            case 's':
+                s = va_arg(ap, char *);
+                if (!get_str(in, s, len ? len : INT_MAX, true) )
+                    return logret(cnt, "Unalble to parse next char *");
+                else
+                    cnt++;
+            break;
+            case 'c':
+                s = va_arg(ap, char *);
+                if (!get_str(in, s, 2, false) )
+                    return logret(cnt, "Unalble to parse next one char *");
+                else
+                    cnt++;
+            break;
+            case 'l':
+                p++;
+                switch (*p){
+                    case 'f':
+                        d = va_arg(ap, double *);
+                        if (!get_double(in, d) )
+                            return logret(cnt, "Unalble to parse next double");
+                        else
+                            cnt++;
+                    break;
+                    case 'd':
+                        l = va_arg(ap, long *);
+                        if (!get_long(in, l) )
+                            return logret(cnt, "Unalble to parse next long");
+                        else
+                            cnt++;
+                    break;
+                    case 'u':
+                        ul = va_arg(ap, unsigned long *);
+                        if (!get_ulong(in, ul) )
+                             return logret(cnt, "Unalble to parse next unsigned long");
+                        else
+                            cnt++;
+                    break;
+                    default:
+                        return logerr(cnt, "Incorrect pattern %%%c%c", sym, *p);
+                }
+            break;
+            case 'f':
+                f = va_arg(ap, float *);
+                if (!get_float(in, f) )
+                    return logret(cnt, "Unalble to parse next double");
+                else
+                    cnt++;
+            break;
+            case 'u':
+                ui = va_arg(ap, unsigned *);
+                if (!get_uint(in, ui) )
+                    return logret(cnt, "Unalble to parse next double");
+                else
+                    cnt++;
+            break;
+            default:
+                breakflag = true;
+                logmsg("Unsupported parameted [%c]", sym);
+            break;
+        }
+    }
+    va_end(ap);
+    return logret(cnt, "Parsed %d", cnt);
+}
+
+// -------------------------------Testing --------------------------
+
+#ifdef FILEUTILSTESTING
+
+#include <float.h>
+#include <math.h>
+
+#include "test.h"
+#include "checker.h"
+
+// ------------------------- TEST 1 ---------------------------------
+
+static TestStatus
+tf1(const char *name)
+{
+    logenter("%s", name);
+    TFILE   tf;
+    fs      s = fsempty();
+    int         subnum = 0;
+    {
+        test_sub("subtest %d", ++subnum);
+
+        char    pattern1[] = "Test pattern ^&*()!@\n";
+        char    pattern2[] = "second";
+        tf = test_fopen("/tmp/");
+
+        if (tfile(tf) == 0)
+            return logerr(TEST_SKIPPED, "Unable to create temporary file");
+
+        if (fprintf(tfile(tf), "%s", pattern1) < 0 || fprintf(tfile(tf), "%s", pattern2) < 0){
+            perror("Unable to printf...");
+            return logacterr( test_fclose(tf), TEST_FAILED, "Unable to printf...");
+        }
+        fflush(tfile(tf));
+        test_freset(tf);
+
+        fgetline_fs(tfile(tf), &s);
+        if (s.len + 1 != sizeof(pattern1))
+            return logacterr( (fsfree(s), test_fclose(tf) ), TEST_FAILED, "Fs Len should be %lu but not %d", sizeof(pattern1) - 1, s.len);
+
+        if (strcmp(pattern1, s.v) != 0)
+            return logacterr( (fsfree(s), test_fclose(tf) ), TEST_FAILED, "Must be [%s] but not [%s]", pattern1, s.v);
+
+        fgetline_fs(tfile(tf), &s);
+        if (s.len + 1 != sizeof(pattern2))
+            return logacterr( (fsfree(s), test_fclose(tf) ), TEST_FAILED, "Fs Len should be %lu but not %d", sizeof(pattern2) - 1, s.len);
+
+        if (strcmp(pattern2, s.v) != 0)
+            return logacterr( (fsfree(s), test_fclose(tf) ), TEST_FAILED, "Must be [%s] but not [%s]", pattern2, s.v);
+    }
+
+    fsfree(s);
+    test_fclose(tf);
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
+// ------------------------- TEST 2 ---------------------------------
+
+static TestStatus
+tf2(const char *name)
+{
+    logenter("%s", name);
+    TFILE   tf;
+    fs      s = fsempty();
+    const char *fname = "res/fileutils_test_Readfs_file.out";
+
+    int         subnum = 0;
+    {
+        test_sub("subtest %d", ++subnum);
+
+        char    pattern1[] = "Test pattern ^&*()!@";
+        char    pattern2[] = "second";
+
+        tf = test_fopen("/tmp/");
+
+        for (int i = 0; i < 50; i++){
+            fprintf(tfile(tf), "%d\t: %s\n", i, pattern1);
+            fprintf(tfile(tf), "%d\t: %s\n", i, pattern2);
+        }
+        test_freset(tf);
+        s = readfs_file(tfile(tf));
+        if (!fs_validate(stdout, &s) ){
+            return logacterr( (fsfree(s), test_fclose(tf) ), TEST_FAILED, "Validation failed");
+        }
+        {
+            FILE *f = fopen(fname, "w+");
+            if (!f){
+                return logacterr( (fsfree(s), test_fclose(tf) ), TEST_FAILED,  "Unable to open %s, please check perms", fname);
+            }
+            FS_TECH_PRINT_COUNT = 200;  // for fs_techfprint
+            fstechfprint(f, s);
+            fwrite(fsstr(s), 1, s.len, f);
+            fclose(f);
+        }
+    }
+
+    fsfree(s);
+    test_fclose(tf);
+    printf("Please check output file %s\n", fname);
+    return logret(TEST_MANUAL, "Please check output file %s", fname); // TEST_FAILED
+}
+
+// ------------------------- TEST 3 ---------------------------------
+
+static TestStatus
+tf3(const char *name)
+{
+    logenter("%s", name);
+    TFILE   tf;
+
+    int         subnum = 0;
+    {
+        test_sub("subtest %d", ++subnum);
+
+        fs      pt1 = fsliteral("Test pattern ^&*()!@\n");
+        fs      pt2 = fsliteral("second\n");
+        fs      pt3 = fsliteral("thrid...\n");
+        fs      pt4 = fsliteral("4........\n");
+        fs      pts[] = {pt1, pt2, pt3, pt4};
+
+        tf = test_fopen("/tmp/");
+        // write
+        fwritelines(tfile(tf), pts, COUNT(pts) );
+        test_freset(tf);
+
+        // read
+        fs     *pts2;
+        int     cnt = freadlines(tfile(tf), &pts2);
+
+        if (cnt != COUNT(pts))
+            return logacterr(
+                (freelines(pts2, cnt), test_fclose(tf), freelines(pts, COUNT(pts) ) ),
+                TEST_FAILED,
+                "Count = %d but it should be %d", cnt, COUNT(pts));
+
+        test_sub("subtest %d", ++subnum);
+        for (int i = 0; i < COUNT(pts); i++){
+            //fstechfprint(logfile, pts[i]);
+            //fstechfprint(logfile, pts2[i]);
+            if (fscmp(pts[i], pts2[i]) != 0)
+                return logacterr(
+                    (freelines(pts2, cnt), test_fclose(tf), freelines(pts, COUNT(pts) ) ),
+                        TEST_FAILED,
+                        "Line %d = [%s] but it should be [%s]", i, pts2[i].v, pts[i].v
+                    );
+        }
+        freelines(pts2, cnt);
+        freelines(pts, COUNT(pts) );    // that is useless (because of literals) but it must work!
+        test_fclose(tf);
+    }
+
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
+// ------------------------- TEST 4 ---------------------------------
+
+static TestStatus
+tf4(const char *name)
+{
+    logenter("%s", name);
+
+    int         subnum = 0;
+    test_sub("subtest %d", ++subnum);
+
+    {
+        const char outname[] = "res/fileutils_test_fprint_file.dat";
+        FILE *f = fopen(__FILE__, "r"); // read this source
+        if (!f)
+            return logerr(TEST_FAILED, "Unable to open %s for write", __FILE__);
+        FILE *out = fopen(outname, "w");
+        if (!out)
+            return logacterr(fclose(f), TEST_FAILED, "Unable to open %s for write", outname);
+        fprint_file(out, f);
+        fclose(f);
+        fclose(out);
+    }
+    return logret(TEST_MANUAL, "done"); // TEST_FAILED TEST_MANUAL ???
+}
+
+// ------------------------- TEST 5 ---------------------------------
+
+static TestStatus
+tf5(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: fread_pattern from test file", ++subnum);
+    {
+
+        const char fname[] = "res/fileutils/fileutils_read_pattern1.dat";
+        const char pattern[] = "qwertyu12345";
+        FILE *f = fopen(fname, "w+");
+        if (!f)
+            return logerr(TEST_FAILED, "Unable to open %s for write", fname);
+        for (int i = 0; i < 3; i++)
+            fwrite(pattern, strlen(pattern), 1, f);  // 3 times
+        // try to read
+        rewind(f);
+        for (int i = 0; i < 3; i++)
+            if (!freadpattern(f, pattern) )
+                return logacterr(fclose(f), TEST_FAILED, "iter %d - pattern read is failed", i);
+        fclose(f);
+    }
+    /* 2. Несовпадение – позиция возвращается */
+    test_sub("subtest %d: fread_pattern mismatch restores position", ++subnum);
+    {
+        const char fname[] = "res/fileutils/fread_pattern_mismatch.dat";
+        FILE *f = fopen(fname, "w+");
+        if (!f)
+            return logerr(TEST_FAILED, "Unable to open %s for w+", fname);
+        fprintf(f, "hello");
+        fflush(f);
+        rewind(f);
+
+        long pos_before = ftell(f);
+        test_validate(
+            !freadpattern(f, "world"),   // должно вернуть false
+            "Mismatch must return false"
+        );
+        test_validate(
+            ftell(f) == pos_before,
+            "Position must be restored (before=%ld, after=%ld)", pos_before, ftell(f)
+        );
+        fclose(f);
+    }
+
+    /* 3. После несовпадения можно прочитать другой шаблон */
+    test_sub("subtest %d: fread_pattern after mismatch reads next", ++subnum);
+    {
+        const char fname[] = "res/fileutils/fread_pattern_next.dat";
+        FILE *f = fopen(fname, "w+");
+        if (!f)
+            return logerr(TEST_FAILED, "Unable to open %s for w+", fname);
+        fprintf(f, "HELLO:42");
+        fflush(f);
+        rewind(f);
+
+        test_validate(
+            !freadpattern(f, "WORLD"),
+            "Mismatch must return false"
+        );
+        test_validate(
+            freadpattern(f, "HELLO"),
+            "After mismatch, correct pattern must be found"
+        );
+        test_validate(
+            fgetc(f) == ':',
+            "After 'HELLO' must be ':'"
+        );
+        fclose(f);
+    }
+
+    /* 4. Пустой шаблон (sz == 0) – должен возвращать true и не двигать позицию */
+    test_sub("subtest %d: fread_pattern empty pattern", ++subnum);
+    {
+        const char fname[] = "res/fileutils/fread_pattern_empty.dat";
+        FILE *f = fopen(fname, "w+");
+        if (!f)
+            return logerr(TEST_FAILED, "Unable to open %s for w+", fname);
+        fprintf(f, "data");
+        fflush(f);
+        rewind(f);
+
+        long pos_before = ftell(f);
+        test_validate(
+            fread_pattern(f, "", 0),   // явная длина 0
+            "Empty pattern must return true"
+        );
+        test_validate(
+            ftell(f) == pos_before,
+            "Empty pattern must not move position"
+        );
+        fclose(f);
+    }
+
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
+
+// ------------------------- TEST 6 ---------------------------------
+
+static TestStatus
+tf6(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+
+    test_sub("subtest %d: one line read", ++subnum);
+    {
+        const char fname[] = "res/strict_scanf1.dat";
+        int             orig_i  = -123;
+        unsigned        orig_u  = 456;
+        long            orig_l  = -999999999999999;
+        unsigned long   orig_ul = 11111111111111;
+        float           orig_f  = 23.456789;
+        double          orig_d  = 1111.0123456789;
+        char            orig_c  = 'a';
+
+        const char      fmt[] = "QWERTY[%d][%ld][%u][%lu][%f]---[%.10lf][%c]";
+        FILE           *in = fopen(fname, "w+");
+        if (!in)
+            return logerr(TEST_FAILED, "Unable to open %s for write", fname);
+
+        fs              s = FS();
+        fssprintf(s, fmt, orig_i, orig_l, orig_u, orig_ul, orig_f, orig_d, orig_c);
+        fwrite(fsstr(s), fslen(s), 1, in);
+        fsfree(s);
+
+        rewind(in);
+
+        {
+            int             i;
+            long            l;
+            unsigned        ui;
+            unsigned long   ul;
+            float           f;
+            double          d;
+            char            c;
+            int             retval;
+            test_validatefree( (retval = fstrict_scanf(in, "QWERTY[%d][%ld][%u][%lu][%f]---[%lf][%c]", &i, &l, &ui, &ul, &f, &d, &c) ) == 7,
+                                        fclose(in),
+                                        "Must return 6 but not %d",  retval);
+            test_validatefree(i == orig_i && l == orig_l && ui == orig_u && ul == orig_ul && f == orig_f && d == orig_d,
+                                fclose(in), "Violation: %d - %d, %ld - %ld, %u - %u, %lu - %lu, %f - %f, %lf - %lf, %c - %c",
+                                           i, orig_i, l, orig_l, ui, orig_u, ul, orig_ul, f, orig_f, d, orig_d, c, orig_c);
+        }
+        fclose(in);
+    }
+    test_sub("subtest %d: multiple line read", ++subnum);
+    {
+        const char fname[] = "res/strict_scanf2.dat";
+        long            orig_l  = 1;
+        double          orig_d  = 1.01234;
+        int             cnt = 500;
+
+        const char      fmt[] = "QWERTY num %ld %lf\n";
+        FILE           *in = fopen(fname, "w+");
+        if (!in)
+            return logerr(TEST_FAILED, "Unable to open %s for write", fname);
+
+        fs              s = FS();
+        for (int i = 0; i < cnt; i++){
+            fssprintf(s, fmt, orig_l + i, orig_d + i);
+            fwrite(fsstr(s), fslen(s), 1, in);
+        }
+        fsfree(s);
+        rewind(in);
+
+        {
+            long        l;
+            double      d;
+            int         retval;
+
+            for (int i = 0; i < cnt; i++){
+                test_validatefree( (retval = fstrict_scanf(in, fmt, &l, &d) ) == 2,
+                                    fclose(in), "Must return 2 but not %d",  retval);
+                test_validatefree(l == orig_l + i && (fabs(orig_d + i - d) < DBL_EPSILON * 100),
+                                    fclose(in), "Violation (%d): %ld - %ld, %lf - %lf, (fasb = %le)",
+                                i, l, orig_l + i, d, orig_d + i, fabs(orig_d + i - d) * 100);
+            }
+        }
+    }
+    test_sub("subtest %d: multiple string line read", ++subnum);
+    {
+        const char fname[] = "res/strict_scanf3.dat";
+
+        const char      fmt[] = "QWERTY num %s-%d\n";
+        FILE           *in = fopen(fname, "w+");
+        int             cnt = 5;
+        const char     *value = "test string";
+
+        if (!in)
+            return logerr(TEST_FAILED, "Unable to open %s for write", fname);
+
+        fs              s = FS();
+        for (int i = 0; i < cnt; i++){
+            fssprintf(s, fmt, value, i);
+            fwrite(fsstr(s), fslen(s), 1, in);
+        }
+        rewind(in);
+
+        {
+            int     retval;
+            char    buf[1024];  // more that enough
+            for (int i = 0; i < cnt; i++){
+                fssprintf(s, "%s-%d", value, i);    // create the same line
+                test_validatefree( (retval = fstrict_scanf(in, "QWERTY num %s\n", buf) ) == 1,
+                                    (fclose(in), fsfree(s) ), "Must return 1 but not %d",  retval);
+                test_validatefree(strcmp(buf, fsstr(s)) == 0, (fclose(in), fsfree(s) ),  "Violation (%d): [%s] - [%s]", i, buf, fsstr(s) );
+            }
+        }
+        fsfree(s);
+        fclose(in);
+    }
+    test_sub("subtest %d: multiple LIMIT string line read", ++subnum);
+    {
+        const char fname[] = "res/strict_scanf4.dat";
+
+        const char      fmt[] = "QWERTY num %d-%s\n";
+        FILE           *in = fopen(fname, "w+");
+        int             cnt = 5;
+        const char     *value = "test string";
+
+        if (!in)
+            return logerr(TEST_FAILED, "Unable to open %s for write", fname);
+
+        fs              s = FS();
+        for (int i = 0; i < cnt; i++){
+            fssprintf(s, fmt, i, value);
+            fwrite(fsstr(s), fslen(s), 1, in);
+        }
+        rewind(in);
+
+        {
+            int     retval;
+            int     lim = 6;        // LIMIT!
+            char    buf[lim];
+            for (int i = 0; i < cnt; i++){
+                fssprintf(s, "%d-%s", i, value);    // create the same line
+                test_validatefree( (retval = fstrict_scanf(in, "QWERTY num %6s\n", buf) ) == 1,
+                                (fclose(in), fsfree(s) ), "Must return 1 but not %d",  retval);
+                test_validatefree(strncmp(buf, fsstr(s), lim - 1) == 0, (fclose(in), fsfree(s) ),  "Violation (%d): [%s] - [%s]", i, buf, fsstr(s) );
+            }
+        }
+        fsfree(s);
+        fclose(in);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
+// ------------------------- TEST 7 ---------------------------------
+
+static TestStatus
+tf7(const char *name)
+{
+    logenter("%s", name);
+    int         subnum = 0;
+    TFILE       tf;
+
+    test_sub("subtest %d: ", ++subnum);
+    {
+        char    pattern1[] = "Test pattern ^&*()!@123\n";
+        char    pattern2[] = "second line\n";
+        fs      s = FS();
+
+        tf = test_fopen("/tmp/");
+        if (tfile(tf) == 0)
+            return logerr(TEST_SKIPPED, "Unable to create temporary file");
+
+        if (fprintf(tfile(tf), "%s", pattern1) < 0 || fprintf(tfile(tf), "%s", pattern2) < 0){
+            perror("Unable to printf...");
+            return logacterr( test_fclose(tf), TEST_FAILED, "Unable to printf...");
+        }
+        fflush(tfile(tf));
+        test_freset(tf);
+
+        fgetslim_fs(tfile(tf), &s);
+        test_validatefree( (int) strlen(pattern1) - 1 == s.len,        // without last \n
+                                (fsfree(s), test_fclose(tf) ),
+                                "Fs Len should be %lu but not %d", strlen(pattern1) - 1, s.len);
+        test_validatefree(strncmp(pattern1, fsstr(s), strlen(pattern1) - 1) == 0,
+                                (fsfree(s), test_fclose(tf) ),
+                                "Must be [%s] but not [%s]", pattern1, fsstr(s) );
+
+        fgetslim_fs(tfile(tf), &s);
+        test_validatefree( (int) strlen(pattern2) - 1 == s.len,        // without last \n
+                                (fsfree(s), test_fclose(tf) ),
+                                "Fs Len should be %lu but not %d", strlen(pattern2) - 1, s.len);
+        test_validatefree(strncmp(pattern2, fsstr(s), strlen(pattern2) - 1) == 0,
+                                (fsfree(s), test_fclose(tf) ),
+                                "Must be [%s] but not [%s]", pattern2, fsstr(s) );
+
+        fsfree(s);
+        test_fclose(tf);
+    }
+    return logret(TEST_PASSED, "done"); // TEST_FAILED
+}
+
+// ------------------------- TEST tf_fread_pattern_printf ---------------------------------
+static TestStatus
+tf_fread_pattern_printf(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Успешное совпадение простого шаблона */
+    test_sub("subtest %d: simple match", ++subnum);
+    {
+        const char fname[] = "res/fileutils/fread_printf_simple.dat";
+        FILE *f = fopen(fname, "w+");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for w+", fname);
+        fprintf(f, "HELLO WORLD");
+        fflush(f);
+        rewind(f);
+
+        test_validate(
+            fread_pattern_printf(f, "HELLO %s", "WORLD"),
+            "Simple pattern with %%s must match"
+        );
+        fclose(f);
+    }
+
+    /* 2. Несовпадение – позиция восстанавливается */
+    test_sub("subtest %d: mismatch restores position", ++subnum);
+    {
+        const char fname[] = "res/fileutils/fread_printf_mismatch.dat";
+        FILE *f = fopen(fname, "w+");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for w+", fname);
+        fprintf(f, "foo");
+        fflush(f);
+        rewind(f);
+
+        long pos_before = ftell(f);
+        test_validate(
+            !fread_pattern_printf(f, "bar"),
+            "Mismatch must return false"
+        );
+        test_validate(
+            ftell(f) == pos_before,
+            "Position must be restored (before=%ld, after=%ld)", pos_before, ftell(f)
+        );
+        fclose(f);
+    }
+
+    /* 3. После несовпадения можно прочитать другой шаблон */
+    test_sub("subtest %d: after mismatch reads next", ++subnum);
+    {
+        const char fname[] = "res/fileutils/fread_printf_next.dat";
+        FILE *f = fopen(fname, "w+");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for w+", fname);
+        fprintf(f, "VALUE64(INT):42");
+        fflush(f);
+        rewind(f);
+
+        // Пробуем неверный формат
+        test_validate(
+            !fread_pattern_printf(f, "VALUE64(DBL):"),
+            "Mismatch must return false"
+        );
+        // Теперь правильный шаблон
+        test_validate(
+            fread_pattern_printf(f, "VALUE64(%s):", "INT"),
+            "After mismatch, correct pattern must be found"
+        );
+        fclose(f);
+    }
+
+    /* 4. Пустой шаблон (fmt == "") */
+    test_sub("subtest %d: empty pattern", ++subnum);
+    {
+        const char fname[] = "res/fileutils/fread_printf_empty.dat";
+        FILE *f = fopen(fname, "w+");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for w+", fname);
+        fprintf(f, "data");
+        fflush(f);
+        rewind(f);
+
+        long pos_before = ftell(f);
+        test_validate(
+            fread_pattern_printf(f, ""),
+            "Empty pattern must return true"
+        );
+        test_validate(
+            ftell(f) == pos_before,
+            "Empty pattern must not move position"
+        );
+        fclose(f);
+    }
+
+    /* 5. Совпадение с числовым форматом */
+    test_sub("subtest %d: match with %%d", ++subnum);
+    {
+        const char fname[] = "res/fileutils/fread_printf_int.dat";
+        FILE *f = fopen(fname, "w+");
+        if (!f)
+            return logerr(TEST_FAILED, "Cannot open %s for w+", fname);
+        fprintf(f, "INDEX 42");
+        fflush(f);
+        rewind(f);
+
+        test_validate(
+            fread_pattern_printf(f, "INDEX %d", 42),
+            "Pattern with %%d must match"
+        );
+        fclose(f);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
+// -------------------------------------------------------------------
+int
+main( /*int argc, const char *argv[] */ )
+{
+    logsimpleinit("Start");
+
+    /* const char *logfilename = "log/fileutils.log";
+    if (argc > 1)
+        logfilename = argv[1];
+    loginit(logfilename, false, 0, "Starting"); */
+
+    testenginestd(
+        testnew(.f2 = tf1,                      .num = 1, .name = "Getline_fs() simple test",                .desc = "", .mandatory=true)
+      , testnew(.f2 = tf2,                      .num = 2, .name = "Readfs_file() simple test",               .desc = "", .mandatory=true)
+      , testnew(.f2 = tf3,                      .num = 3, .name = "Realline/writeline simple test",          .desc = "", .mandatory=true)
+      , testnew(.f2 = tf4,                      .num = 4, .name = "Fprint_file test",                        .desc = "", .mandatory=true)
+      , testnew(.f2 = tf5,                      .num = 5, .name = "fread_pattern test",                      .desc = "", .mandatory=true)
+      , testnew(.f2 = tf6,                      .num = 6, .name = "strict_scanf() test",                     .desc = "", .mandatory=true)
+      , testnew(.f2 = tf7,                      .num = 7, .name = "(f)getslim_fs simple test",               .desc = "", .mandatory=true)
+      , testnew(.f2 = tf_fread_pattern_printf,  .num = 8, .name = "fread_pattern_printf simple test",        .desc = "", .mandatory=true)
+    );
+
+    logclose("end...");
+    return 0;
+}
+
+#endif /* FILEUTILSTESTING */
