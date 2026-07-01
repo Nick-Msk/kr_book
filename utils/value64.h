@@ -52,6 +52,11 @@ typedef enum value64_type {
     VALUE64_TYPE_COUNT
 } value64_type;
 
+typedef enum value64_serialize_type {
+    VALUE64_2STR,
+    VALUE64_2JSON       // not implemented
+} value64_serialize_type;
+
 typedef struct {
     const char  *name;
     size_t       size;
@@ -455,13 +460,21 @@ extern value64                     value64_convert_move_str_to_fs(value64 *v);
 extern value64                     value64_convert_move_str_to_str(value64 *v);
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
-extern int                         value64_fprint(FILE *restrict out, const char *restrict msg, value64 val, value64_type typ);
-static inline void                 value64_log(value64 val, value64_type typ){
+// generic file serilization!!
+extern int                          value64_fprint(FILE *restrict out, const char *restrict msg, value64 val, value64_type typ);
+static inline void                  value64_log(value64 val, value64_type typ){
     value64_fprint(logfile, 0, val, typ);
 }
-static inline void                 value64_print(value64 val, value64_type typ){
+static inline void                  value64_print(value64 val, value64_type typ){
     value64_fprint(stdout, 0, val, typ);
 }
+// typed
+extern int                          value64_fprint_str(FILE *restrict out, value64 val);
+extern int                          value64_fprint_int(FILE *restrict out, value64 val);
+extern int                          value64_fprint_lng(FILE *restrict out, value64 val);
+extern int                          value64_fprint_dbl(FILE *restrict out, value64 val);
+extern int                          value64_fprint_fs(FILE *restrict out, value64 val);
+extern int                          value64_fprint_ptr(FILE *restrict out, value64 val);
 
 // --------------------------------- SERIALIZATION ----------------------------------
 
@@ -471,8 +484,8 @@ extern bool                         value64_readval_str(FILE *restrict f, value6
 extern bool                         value64_readval_int(FILE *restrict f, value64 *restrict val, fs *restrict buf);
 extern bool                         value64_readval_lng(FILE *restrict f, value64 *restrict val, fs *restrict buf);
 extern bool                         value64_readval_dbl(FILE *restrict f, value64 *restrict val, fs *restrict buf);
-// not supported!
-// extern bool                         value64_readval_ptr(FILE *restrict f, value64 *restrict val, fs *restrict buf);
+// extern bool                         value64_readval_ptr(FILE *restrict f, value64 *restrict val, fs *restrict buf); // not supported!
+
 extern bool                         value64_sreadval_fs(value64 *restrict val, fs *restrict buf);
 // string readers!
 // fs must be initialized, val can be NULL, it means just check
@@ -480,14 +493,23 @@ extern bool                         value64_sreadval_str(value64 *restrict val, 
 extern bool                         value64_sreadval_int(value64 *restrict val, fs *restrict buf);
 extern bool                         value64_sreadval_lng(value64 *restrict val, fs *restrict buf);
 extern bool                         value64_sreadval_dbl(value64 *restrict val, fs *restrict buf);
-// not supported!
-// extern bool                         value64_readval_ptr(FILE *restrict f, value64 *restrict val, fs *restrict buf);
+
 extern bool                         value64_readval_fs(FILE *restrict f, value64 *restrict val, fs *restrict buf);
 
 // generic reader
 extern bool                         value64_freadval(FILE *restrict out, value64_type typ, value64 *restrict val, fs *restrict buf);
+// generic save/load
 extern int                          value64_fsave(FILE *out, value64 val, value64_type typ, bool savetypeinfo);
 extern bool                         value64_fload(FILE *restrict out, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf);
+
+// generic to string TODO: fs MUST be initialized
+extern bool                         value64_tostr(fs *target, value64 val, value64_type typ, value64_serialize_type serit);
+// type to string TODO:
+extern bool                         value64_tostr_str(fs *target, value64 val, value64_serialize_type serit);
+extern bool                         value64_tostr_int(fs *target, value64 val, value64_serialize_type serit);
+extern bool                         value64_tostr_lng(fs *target, value64 val, value64_serialize_type serit);
+extern bool                         value64_tostr_dbl(fs *target, value64 val, value64_serialize_type serit);
+extern bool                         value64_tostr_fs(fs *target, value64 val, value64_serialize_type serit);
 
 // ------------------------------------ ETC. ----------------------------------------
 

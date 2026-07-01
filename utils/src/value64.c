@@ -628,22 +628,22 @@ static int                  print_str_escaped(FILE *restrict out, const char *re
     return cnt;
 }
 // print adapters, actually format must be configurable in context.c
-static int                  value64_fprint_int(FILE *restrict out, value64 val) {
+int                         value64_fprint_int(FILE *restrict out, value64 val) {
     return fprintf(out, "%d", value64_int(val) );
 }
-static int                  value64_fprint_long(FILE *restrict out, value64 val) {
+int                         value64_fprint_long(FILE *restrict out, value64 val) {
     return fprintf(out, "%ld", value64_long(val) );
 }
-static int                  value64_fprint_dbl(FILE *restrict out, value64 val) {
+int                         value64_fprint_dbl(FILE *restrict out, value64 val) {
     return fprintf(out, "%.*g", DBL_DECIMAL_DIG, value64_dbl(val) );
 }
-static int                  value64_fprint_ptr(FILE *restrict out, value64 val) {
+int                         value64_fprint_ptr(FILE *restrict out, value64 val) {
     return fprintf(out, "%p", value64_ptr(val) );
 }
-static int                  value64_fprint_str(FILE *restrict out, value64 val) {
+int                         value64_fprint_str(FILE *restrict out, value64 val) {
     return print_str_escaped(out, value64_str(val) );
 }
-static int                  value64_fprint_fs(FILE *restrict out, value64 val) {
+int                         value64_fprint_fs(FILE *restrict out, value64 val) {
     return print_str_escaped(out, fs_str(value64_fs(val) ) ); // till fs_fprint isn'y support escaping
     //fs_fprint(out, value64_fs(val), 0);
 }
