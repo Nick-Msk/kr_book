@@ -480,6 +480,7 @@ extern int                          value64_fprint_ptr(FILE *restrict out, value
 
 // file readers
 // f must be open for read, fs must be initialized, val can be NULL, it means just check
+/* NOT IMPLEMENTE YET, value64_freadval call value64_sreadval_<type>
 extern bool                         value64_readval_str(FILE *restrict f, value64 *restrict val, fs *restrict buf);
 extern bool                         value64_readval_int(FILE *restrict f, value64 *restrict val, fs *restrict buf);
 extern bool                         value64_readval_lng(FILE *restrict f, value64 *restrict val, fs *restrict buf);
@@ -487,6 +488,7 @@ extern bool                         value64_readval_dbl(FILE *restrict f, value6
 // extern bool                         value64_readval_ptr(FILE *restrict f, value64 *restrict val, fs *restrict buf); // not supported!
 
 extern bool                         value64_sreadval_fs(value64 *restrict val, fs *restrict buf);
+*/
 // string readers!
 // fs must be initialized, val can be NULL, it means just check
 extern bool                         value64_sreadval_str(value64 *restrict val, fs *restrict buf);
@@ -494,9 +496,7 @@ extern bool                         value64_sreadval_int(value64 *restrict val, 
 extern bool                         value64_sreadval_lng(value64 *restrict val, fs *restrict buf);
 extern bool                         value64_sreadval_dbl(value64 *restrict val, fs *restrict buf);
 
-extern bool                         value64_readval_fs(FILE *restrict f, value64 *restrict val, fs *restrict buf);
-
-// generic reader
+// generic reader, NOTE: it calls value64_sreadval_<type>
 extern bool                         value64_freadval(FILE *restrict out, value64_type typ, value64 *restrict val, fs *restrict buf);
 // generic save/load
 extern int                          value64_fsave(FILE *out, value64 val, value64_type typ, bool savetypeinfo);
