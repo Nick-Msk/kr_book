@@ -154,19 +154,19 @@ extern hset                 hset_from_anyarr(const void *arr, int sz, hset_type 
 static inline hset          hset_from_intarr(const int *iarr, int sz){
     return hset_from_anyarr(iarr, sz, HSET_INT);
 }
-// not SURE TODO:
-static inline hset          hset_from_fssarr(/*fs_array iarr*/ const fs *fsarr, int sz){
+static inline hset          hset_from_fssarr(const fs *fsarr, int sz){
     return hset_from_anyarr(fsarr, sz, HSET_FS);
 }
-static inline hset          hset_fromlarr(const long *larr, int sz){
+static inline hset          hset_from_longarr(const long *larr, int sz){
     return hset_from_anyarr(larr, sz, HSET_LONG);
 }
-static inline hset          hset_fromdarr(const double *darr, int sz){
+static inline hset          hset_from_dblarr(const double *darr, int sz){
     return hset_from_anyarr(darr, sz, HSET_DBL);
 }
-extern hset                 hset_fromparr(const void **parr, int sz){
+extern hset                 hset_from_ptrarr(const void **parr, int sz){
     return hset_from_anyarr(parr, sz, HSET_PTR);
 }
+// generic code
 // just intersect with construct
 extern hset                 hset_init_intersect(const hset *restrict se1, const hset *restrict se2);
 // minus with construct with construct

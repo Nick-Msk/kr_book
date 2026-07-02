@@ -1691,7 +1691,7 @@ tf4(const char *name)
     {
         rndinit();
         Array   arr = DArray_create(500, ARRAY_ASC);
-        hset    se2 = hset_fromdarr(arr.dv, arr.len);
+        hset    se2 = hset_from_dblarr(arr.dv, arr.len);
         int     res;
         // hset_techprint(&se2, 5);
         //Array_print(arr, 5);
@@ -3853,7 +3853,7 @@ tf16(const char *name)
     test_sub("subtest %d: resize with double", ++subnum);
     {
         double dvals[] = {1.5, 2.5, 3.5};
-        hset se = hset_fromdarr(dvals, COUNT(dvals));
+        hset se = hset_from_dblarr(dvals, COUNT(dvals));
         int old_cnt = hset_cnt(&se);
         hset_init_resize(&se, 50);
 
@@ -4518,7 +4518,7 @@ tf20(const char *name)
     test_sub("subtest %d: long save/load new", ++subnum);
     {
         long    vals[] = {100L, 200L, 300L, 400L, 500L};
-        hset    se = hset_fromlarr(vals, COUNT(vals));
+        hset    se = hset_from_longarr(vals, COUNT(vals));
         int     save_ret = hset_save("res/hashset/long.hset", &se);
 
         test_validatefree(
@@ -4560,7 +4560,7 @@ tf20(const char *name)
     test_sub("subtest %d: double save/load new", ++subnum);
     {
         double  vals[] = {1.1, 2.2, 3.3, 4.4, 5.5};
-        hset    se = hset_fromdarr(vals, COUNT(vals));
+        hset    se = hset_from_dblarr(vals, COUNT(vals));
         int     save_ret = hset_save("res/hashset/double.hset", &se);
 
         test_validatefree(
@@ -4802,7 +4802,7 @@ tf23(const char *name)
     test_sub("subtest %d: sum double", ++subnum);
     {
         double  vals[] = {1.5, 2.5, 3.5};
-        hset    se = hset_fromdarr(vals, COUNT(vals));
+        hset    se = hset_from_dblarr(vals, COUNT(vals));
         hset_accum res = hset_initreduce(&se, HSET_ACCUM_DBL_ZERO, hset_sum_dbl);
 
         test_validatefree(
@@ -4822,7 +4822,7 @@ tf23(const char *name)
     test_sub("subtest %d: count double", ++subnum);
     {
         double  vals[] = {10.0, 20.0, 30.0};
-        hset    se = hset_fromdarr(vals, COUNT(vals));
+        hset    se = hset_from_dblarr(vals, COUNT(vals));
         hset_accum res = hset_initreduce(&se, HSET_ACCUM_DBL_ZERO, hset_count_dbl);
 
         test_validatefree(
@@ -4842,7 +4842,7 @@ tf23(const char *name)
     test_sub("subtest %d: max double", ++subnum);
     {
         double  vals[] = {5.2, 2.3, 9.8, 1.0, 7.4};
-        hset    se = hset_fromdarr(vals, COUNT(vals));
+        hset    se = hset_from_dblarr(vals, COUNT(vals));
         hset_accum res = hset_initreduce(&se, HSET_ACCUM_DBL_ZERO, hset_max_dbl);
 
         test_validatefree(
@@ -4862,7 +4862,7 @@ tf23(const char *name)
     test_sub("subtest %d: min double (all negative)", ++subnum);
     {
         double  vals[] = {-5.0, -2.5, -9.1, -1.0};
-        hset    se = hset_fromdarr(vals, COUNT(vals));
+        hset    se = hset_from_dblarr(vals, COUNT(vals));
         hset_accum res = hset_initreduce(&se, HSET_ACCUM_DBL_ZERO, hset_min_dbl);
 
         test_validatefree(
@@ -4915,7 +4915,7 @@ tf23(const char *name)
     test_sub("subtest %d: sum double with large value", ++subnum);
     {
         double  vals[] = {1e10, 2e10, 3e10};
-        hset    se = hset_fromdarr(vals, COUNT(vals));
+        hset    se = hset_from_dblarr(vals, COUNT(vals));
         hset_accum res = hset_initreduce(&se, HSET_ACCUM_DBL_ZERO, hset_sum_dbl);
 
         test_validatefree(
@@ -5168,7 +5168,7 @@ tf25(const char *name)
     test_sub("subtest %d: macro sum double", ++subnum);
     {
         double  vals[] = {1.1, 2.2, 3.3, 4.4, 5.5};
-        hset    se = hset_fromdarr(vals, COUNT(vals));
+        hset    se = hset_from_dblarr(vals, COUNT(vals));
         double  sum = 0.0;
         HSET_FOREACH_DBL(&se, v)
             sum += v;
@@ -5184,7 +5184,7 @@ tf25(const char *name)
     test_sub("subtest %d: macro break double", ++subnum);
     {
         double  vals[] = {1.1, 2.2, 3.3, 4.4, 5.5};
-        hset    se = hset_fromdarr(vals, COUNT(vals));
+        hset    se = hset_from_dblarr(vals, COUNT(vals));
         int     found = 0;
         HSET_FOREACH_DBL(&se, v) {
             if (fabs(v - 3.3) < 0.0001) {
@@ -5205,7 +5205,7 @@ tf25(const char *name)
     test_sub("subtest %d: macro sum long", ++subnum);
     {
         long    vals[] = {100L, 200L, 300L, 400L, 500L};
-        hset    se = hset_fromlarr(vals, COUNT(vals));
+        hset    se = hset_from_longarr(vals, COUNT(vals));
         long    sum = 0;
         HSET_FOREACH_LONG(&se, v) sum += v;
 
@@ -5221,7 +5221,7 @@ tf25(const char *name)
     test_sub("subtest %d: macro break long", ++subnum);
     {
         long    vals[] = {10L, 20L, 30L, 40L, 50L};
-        hset    se = hset_fromlarr(vals, COUNT(vals));
+        hset    se = hset_from_longarr(vals, COUNT(vals));
         int     found = 0;
         HSET_FOREACH_LONG(&se, v) {
             if (v == 30L) {
@@ -5244,7 +5244,7 @@ tf25(const char *name)
         // Создадим множество указателей с тремя элементами
         int     a = 1, b = 2, c = 3;
         void   *vals[] = {&a, &b, &c};
-        hset    se = hset_fromparr( (const void **) vals, COUNT(vals));
+        hset    se = hset_from_ptrarr( (const void **) vals, COUNT(vals));
         int     count = 0;
         HSET_FOREACH_PTR(&se, v) {
             count++;
