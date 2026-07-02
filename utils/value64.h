@@ -461,13 +461,16 @@ extern value64                     value64_convert_move_str_to_fs(value64 *v);
 extern value64                     value64_convert_move_str_to_str(value64 *v);
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
+extern int                          value64_fprint_msg(FILE *restrict out, const char *restrict msg, value64 val, value64_type typ);
 // generic file serilization!!
-extern int                          value64_fprint(FILE *restrict out, const char *restrict msg, value64 val, value64_type typ);
+static inline  int                  value64_fprint(FILE *restrict out, value64 val, value64_type typ){
+    return value64_fprint_msg(out, NULL, val, typ);
+}
 static inline void                  value64_log(value64 val, value64_type typ){
-    value64_fprint(logfile, 0, val, typ);
+    value64_fprint(logfile, val, typ);
 }
 static inline void                  value64_print(value64 val, value64_type typ){
-    value64_fprint(stdout, 0, val, typ);
+    value64_fprint(stdout, val, typ);
 }
 // typed
 extern int                          value64_fprint_str(FILE *restrict out, value64 val);

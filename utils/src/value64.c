@@ -671,7 +671,7 @@ int                         value64_fprint_fs(FILE *restrict out, value64 val) {
     //fs_fprint(out, value64_fs(val), 0);
 }
 // genaric fprint
-int                         value64_fprint(FILE *restrict out, const char *restrict msg, value64 val, value64_type typ){
+int                         value64_fprint_msg(FILE *restrict out, const char *restrict msg, value64 val, value64_type typ){
     int     cnt = 0;
     if (out){
         if (msg)    // TODO: remove that as not very usefull
@@ -709,7 +709,7 @@ int                         value64_fsave(FILE *out, value64 val, value64_type t
     else
         cnt += fprintf(out, "VALUE64:");
 
-    cnt += value64_fprint(out, NULL, val, typ);
+    cnt += value64_fprint(out, val, typ);
     cnt += fprintf(out, "\n");
     return logsimpleret(cnt, "Saved 1 value");
 }
