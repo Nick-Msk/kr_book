@@ -627,19 +627,22 @@ static int                  fprint_str_escaped(FILE *restrict out, const char *r
     }
     return cnt;
 }
-// TODO: ref  to optimize via elem()
+// string serialization
 static int                  sprint_str_escaped(fs *restrict out, const char *restrict s) {
+    invraisecode(out != NULL && s != NULL, ERR_NULLABLE_PTR, 
+            "Null pointers %p %p", out, s);
+
     fsnew iter = fsinew(out);
 
     elemnext(iter) = '"';
-    for (const char *p = s; *p; p++) {
-        switch (*p) {
+    for (char p = *s; p; p = *++s) {
+        switch (p) {
             case '"':  elemnext(iter) = '\\'; elemnext(iter) = '"';  break;
             case '\\': elemnext(iter) = '\\'; elemnext(iter) = '\\'; break;
             case '\n': elemnext(iter) = '\\'; elemnext(iter) = 'n';  break;
             case '\r': elemnext(iter) = '\\'; elemnext(iter) = 'r';  break;
             case '\t': elemnext(iter) = '\\'; elemnext(iter) = 't';  break;
-            default:   elemnext(iter) = *p;   break;
+            default:   elemnext(iter) = p;   break;
         }
     }
     elemnext(iter) = '"';
