@@ -19,6 +19,7 @@
 #include "error.h"
 #include "checker.h"
 #include "fs.h"
+#include "fs_iter.h"
 #include "numeric_ops.h"
 #include "getword.h"
 #include "fileutils.h"
@@ -503,13 +504,13 @@ extern int                          value64_fsave(FILE *out, value64 val, value6
 extern bool                         value64_fload(FILE *restrict out, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf);
 
 // generic to string TODO: fs MUST be initialized
-extern bool                         value64_tostr(fs *target, value64 val, value64_type typ, value64_serialize_type serit);
+extern int                          value64_tostr(fs *target, value64 val, value64_type typ, value64_serialize_type serit);
 // type to string TODO:
-extern bool                         value64_tostr_str(fs *target, value64 val, value64_serialize_type serit);
-extern bool                         value64_tostr_int(fs *target, value64 val, value64_serialize_type serit);
-extern bool                         value64_tostr_lng(fs *target, value64 val, value64_serialize_type serit);
-extern bool                         value64_tostr_dbl(fs *target, value64 val, value64_serialize_type serit);
-extern bool                         value64_tostr_fs(fs *target, value64 val, value64_serialize_type serit);
+extern int                          value64_tostr_str(fs *target, value64 val);
+extern int                          value64_tostr_int(fs *target, value64 val);
+extern int                          value64_tostr_lng(fs *target, value64 val);
+extern int                          value64_tostr_dbl(fs *target, value64 val);
+extern int                          value64_tostr_fs(fs *target, value64 val);
 
 // ------------------------------------ ETC. ----------------------------------------
 

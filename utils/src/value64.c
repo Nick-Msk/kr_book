@@ -609,7 +609,7 @@ value64                     value64_convert_move_str_to_str(value64 *v){
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
 // TODO: all of that must be in str_value64_adapter.c!!! refactor
-static int                  print_str_escaped(FILE *restrict out, const char *restrict s) {
+static int                  fprint_str_escaped(FILE *restrict out, const char *restrict s) {
     int     cnt = 0;
     if (out && s) {
         cnt = fprintf(out, "\"");
@@ -627,6 +627,26 @@ static int                  print_str_escaped(FILE *restrict out, const char *re
     }
     return cnt;
 }
+// TODO: ref  to optimize via elem()
+static int                  sprint_str_escaped(fs *restrict out, const char *restrict s) {
+    fsnew iter = fsinew(out);
+
+    elemnext(iter) = '"';
+    for (const char *p = s; *p; p++) {
+        switch (*p) {
+            case '"':  elemnext(iter) = '\\'; elemnext(iter) = '"';  break;
+            case '\\': elemnext(iter) = '\\'; elemnext(iter) = '\\'; break;
+            case '\n': elemnext(iter) = '\\'; elemnext(iter) = 'n';  break;
+            case '\r': elemnext(iter) = '\\'; elemnext(iter) = 'r';  break;
+            case '\t': elemnext(iter) = '\\'; elemnext(iter) = 't';  break;
+            default:   elemnext(iter) = *p;   break;
+        }
+    }
+    elemnext(iter) = '"';
+    elemend(iter);
+
+    return fs_len(out);
+}
 // print adapters, actually format must be configurable in context.c
 int                         value64_fprint_int(FILE *restrict out, value64 val) {
     return fprintf(out, "%d", value64_int(val) );
@@ -641,14 +661,13 @@ int                         value64_fprint_ptr(FILE *restrict out, value64 val) 
     return fprintf(out, "%p", value64_ptr(val) );
 }
 int                         value64_fprint_str(FILE *restrict out, value64 val) {
-    return print_str_escaped(out, value64_str(val) );
+    return fprint_str_escaped(out, value64_str(val) );
 }
 int                         value64_fprint_fs(FILE *restrict out, value64 val) {
-    return print_str_escaped(out, fs_str(value64_fs(val) ) ); // till fs_fprint isn'y support escaping
+    return fprint_str_escaped(out, fs_str(value64_fs(val) ) ); // till fs_fprint isn'y support escaping
     //fs_fprint(out, value64_fs(val), 0);
 }
-
-// TODO: refactor via adaptor value64_fprint_<type>(out, val)
+// genaric fprint
 int                         value64_fprint(FILE *restrict out, const char *restrict msg, value64 val, value64_type typ){
     int     cnt = 0;
     if (out){
@@ -808,6 +827,52 @@ bool                        value64_fload(FILE *restrict in, value64 *restrict v
         fsfree(tmp);
     return logsimpleret(true, "Loaded 1 value");
 }
+
+// to string adapters, actually format must be configurable in context.c
+int                         value64_tostr_int(fs *target, value64 val) {
+    return fs_sprintf(target, "%d", value64_int(val) );
+}
+int                         value64_tostr_long(fs *target, value64 val) {
+    return fs_sprintf(target, "%ld", value64_long(val) );
+}
+int                         value64_tostr_dbl(fs *target, value64 val) {
+    return fs_sprintf(target, "%.*g", DBL_DECIMAL_DIG, value64_dbl(val) );
+}
+int                         value64_tostr_ptr(fs *target, value64 val) {
+    return fs_sprintf(target, "%p", value64_ptr(val) );
+}
+int                         value64_tostr_str(fs *target, value64 val) {
+    return sprint_str_escaped(target, value64_str(val) );
+}
+int                         value64_tostr_fs(fs *target, value64 val) {
+    return sprint_str_escaped(target, fs_str(value64_fs(val) ) ); // till fs_fprint isn'y support escaping
+    //fs_fprint(out, value64_fs(val), 0);
+}
+// to string : fs MUST be initialized
+int                          value64_tostr(fs *target, value64 val, value64_type typ, value64_serialize_type serit){
+    invraisecode(fs_isheapalloc(target), ERR_NULLABLE_PTR,
+        "Not heap allocated or null %p %d", target, target ? target->flags : -1);
+    if (serit != VALUE64_2STR)
+        userraiseint(ERR_UNSUPPORTED_TYPE, "Only VALUE64_2STR is suppoted (%d)", serit);
+    switch (typ) {
+        case VALUE64_INT:
+            return value64_tostr_int(target, val);
+        case VALUE64_LNG:
+            return value64_tostr_long(target, val);
+        case VALUE64_DBL:
+            return value64_tostr_dbl(target, val);
+        case VALUE64_PTR:
+            return value64_tostr_ptr(target, val);
+        case VALUE64_STR:
+            return value64_tostr_str(target, val);
+        case VALUE64_FS:
+            return value64_tostr_fs(target, val);
+        default:
+            return userraise(false, ERR_UNSUPPORTED_TYPE, "Type %d isn't supported", typ); 
+    }
+}
+
+
 
 // ---------------------------------------- Testing ------------------------------------------
 #ifdef VALUE64TESTING
@@ -3959,6 +4024,163 @@ tf_fsave_fload(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST value64_fsave/fload -----------------------------
+static TestStatus
+tf_tostr(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ---------- 1. INT ---------- */
+    test_sub("subtest %d: INT to string", ++subnum);
+    {
+        value64 v = value64_createint(42);
+        fs      buf = FS();
+        int written = value64_tostr(&buf, v, VALUE64_INT, VALUE64_2STR);
+        test_validatefree(
+            written == 2 && strcmp(fs_str(&buf), "42") == 0,
+            fsfree(buf),
+            "INT: expected '42', got '%s' (written=%d)", fs_str(&buf), written
+        );
+        fsfree(buf);
+        fs_alloc_check(true);
+    }
+
+    /* ---------- 2. LONG ---------- */
+    test_sub("subtest %d: LONG to string", ++subnum);
+    {
+        value64 v = value64_createlong(-123456789L);
+        fs buf = fsinit(32);
+        int written = value64_tostr(&buf, v, VALUE64_LNG, VALUE64_2STR);
+        test_validatefree(
+            written == 10 && strcmp(fs_str(&buf), "-123456789") == 0,
+            fsfree(buf),
+            "LONG: expected '-123456789', got '%s' (written=%d)", fs_str(&buf), written
+        );
+        fsfree(buf);
+        fs_alloc_check(true);
+    }
+
+    /* ---------- 3. DBL ---------- */
+    test_sub("subtest %d: DBL to string", ++subnum);
+    {
+        value64 v = value64_createdbl(3.141592653589793);
+        fs buf = FS();
+        int written = value64_tostr(&buf, v, VALUE64_DBL, VALUE64_2STR);
+        // DBL_DECIMAL_DIG = 17, строка будет содержать 17 значащих цифр
+        test_validatefree(
+            written > 0 && strncmp(fs_str(&buf), "3.141592653589793", DBL_DECIMAL_DIG) == 0,
+            fsfree(buf),
+            "DBL: expected '3.141592653589793', got '%s' (written=%d)", fs_str(&buf), written
+        );
+        fsfree(buf);
+        fs_alloc_check(true);
+    }
+
+    /* ---------- 4. PTR ---------- */
+    test_sub("subtest %d: PTR to string", ++subnum);
+    {
+        int x = 77;
+        value64 v = value64_createptr(&x);
+        fs buf = fsinit(32);
+        int written = value64_tostr(&buf, v, VALUE64_PTR, VALUE64_2STR);
+        // Адрес может быть любым, проверяем только что не пусто
+        test_validatefree(
+            written > 0,
+            fsfree(buf),
+            "PTR: expected non-empty string, got '%s' (written=%d)", fs_str(&buf), written
+        );
+        fsfree(buf);
+        fs_alloc_check(true);
+    }
+
+    /* ---------- 5. STR (обычная) ---------- */
+    test_sub("subtest %d: STR to string", ++subnum);
+    {
+        value64 v = value64_createstr("hello world");
+        fs buf = fsinit(32);
+        int written = value64_tostr(&buf, v, VALUE64_STR, VALUE64_2STR);
+        test_validatefree(
+            written > 0 && strcmp(fs_str(&buf), "\"hello world\"") == 0,
+            (value64_free(v, VALUE64_STR), fsfree(buf)),
+            "STR: expected '\"hello world\"', got '%s'", fs_str(&buf)
+        );
+        value64_free(v, VALUE64_STR);
+        fsfree(buf);
+        fs_alloc_check(true);
+    }
+
+    /* 6. STR (пустая) */
+    test_sub("subtest %d: STR empty", ++subnum);
+    {
+        value64 v = value64_createstr("");
+        fs buf = fsinit(16);
+        int written = value64_tostr(&buf, v, VALUE64_STR, VALUE64_2STR);
+        test_validatefree(
+            written > 0 && strcmp(fs_str(&buf), "\"\"") == 0,
+            (value64_free(v, VALUE64_STR), fsfree(buf)),
+            "STR empty: expected '\"\"', got '%s'", fs_str(&buf)
+        );
+        value64_free(v, VALUE64_STR);
+        fsfree(buf);
+        fs_alloc_check(true);
+    }
+
+    /* 7. STR (с escape-символами) */
+    test_sub("subtest %d: STR with escapes", ++subnum);
+    {
+        value64 v = value64_createstr("line1\nline2\t\"quote\"\\end");
+        fs buf = fsinit(64);
+        int written = value64_tostr(&buf, v, VALUE64_STR, VALUE64_2STR);
+        test_validatefree(
+            written > 0 && strcmp(fs_str(&buf), "\"line1\\nline2\\t\\\"quote\\\"\\\\end\"") == 0,
+            (value64_free(v, VALUE64_STR), fsfree(buf)),
+            "STR escapes: got '%s'", fs_str(&buf)
+        );
+        value64_free(v, VALUE64_STR);
+        fsfree(buf);
+        fs_alloc_check(true);
+    }
+
+    /* ---------- 8. FS ---------- */
+    test_sub("subtest %d: FS to string", ++subnum);
+    {
+        fs tmp = fscopy("fs-data");
+        value64 v = value64_createfs(&tmp);
+        fsfree(tmp);
+        fs buf = fsinit(32);
+        int written = value64_tostr(&buf, v, VALUE64_FS, VALUE64_2STR);
+        test_validatefree(
+            written > 0 && strcmp(fs_str(&buf), "\"fs-data\"") == 0,
+            (value64_free(v, VALUE64_FS), fsfree(buf)),
+            "FS: expected '\"fs-data\"', got '%s'", fs_str(&buf)
+        );
+        value64_free(v, VALUE64_FS);
+        fsfree(buf);
+        fs_alloc_check(true);
+    }
+
+    /* 9. FS с escape-символами */
+    test_sub("subtest %d: FS with escapes", ++subnum);
+    {
+        fs tmp = fscopy("tab\there");
+        value64 v = value64_createfs(&tmp);
+        fsfree(tmp);
+        fs buf = fsinit(32);
+        int written = value64_tostr(&buf, v, VALUE64_FS, VALUE64_2STR);
+        test_validatefree(
+            written > 0 && strcmp(fs_str(&buf), "\"tab\\there\"") == 0,
+            (value64_free(v, VALUE64_FS), fsfree(buf)),
+            "FS escapes: got '%s'", fs_str(&buf)
+        );
+        value64_free(v, VALUE64_FS);
+        fsfree(buf);
+        fs_alloc_check(true);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -3996,6 +4218,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_sort,             .num = 15, .name = "Simple value64_(rev_)sort test"             , .desc="", .mandatory=true)
               , testnew(.f2 = tf_fsave,            .num = 16, .name = "Simple value64_fsave manual test"           , .desc="", .mandatory=true)
               , testnew(.f2 = tf_fsave_fload,      .num = 17, .name = "Simple value64_fsave/fload test"            , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_tostr,            .num = 18, .name = "Simple value64_tostr_<type> test"           , .desc="", .mandatory=true)
             );
         if (runall)
             break;
