@@ -104,12 +104,11 @@ static inline int           compare(hset_value v1, hset_value v2, value64_type t
             userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
             return 0;
     }
-} */
+} 
 
-// TODO: to replce to value64_gettype
 static value64_type            gettype(const char *str){
     return value64_gettype(str);
-    /*if (strcmp(str, "VALUE64_INT") == 0)
+    if (strcmp(str, "VALUE64_INT") == 0)
         return  VALUE64_INT;
     else if (strcmp(str, "VALUE64_LNG") == 0)
         return  VALUE64_LNG;
@@ -182,7 +181,7 @@ static hset_value           convert_value(hset_value v, value64_type from, value
             break; // неподдерживаемые типы — останется нулевое значение
     }
     return result;
-}*/
+}
 
 static void                 printval(FILE *out, value64_type typ, value64 v){
     if (out){
@@ -206,7 +205,7 @@ static void                 printval(FILE *out, value64_type typ, value64 v){
                 break;
         }
     }
-}
+} 
 
 static bool                 readval(FILE *f, value64_type typ, value64 *v) {
     switch (typ) {
@@ -223,13 +222,14 @@ static bool                 readval(FILE *f, value64_type typ, value64 *v) {
             return v->fsval != NULL;
         default: return false;
     }
-}
+} */
 
 static inline value64_type     getype(const hset *se){
     return se->flags & 0xFF;
 }
-
-static hset_elem           *getprevelem(const hset *restrict se, value64 value, unsigned *restrict phash, hset_elem **restrict pnext, hset_elem **restrict pequal){
+// seach the value in hset!
+static hset_elem           *getprevelem(const hset *restrict se, value64 value,
+        unsigned *restrict phash, hset_elem **restrict pnext, hset_elem **restrict pequal){
 
     unsigned hash = get_lhash(se->sz, value, getype(se) );
     hset_elem *el = se->table[hash],
@@ -245,7 +245,7 @@ static hset_elem           *getprevelem(const hset *restrict se, value64 value, 
     if (pnext)
         *pnext = el;
     if (pequal){
-        if (el && compare(el->v, value, getype(se) ) == 0) //  found EXACLTY!
+        if (el && value64_compare(el->v, value, getype(se) ) == 0) //  found EXACLTY!
             *pequal = el;
         else
             *pequal = 0;        // NOT found exactly!
@@ -262,9 +262,8 @@ static hset_elem           *create_elem(value64 val, value64_type typ){
     if (!res)
         return logsimpleret( (hset_elem *) 0, "Unable to create elem");
 
-    if (typ == VALUE64_FS) {
+    if (typ == VALUE64_FS) {    // TODO: not sure about  that solution
         if (val.fsval && !fs_bodyalloc(val.fsval))
-            // Локальный или временный fs — создаём копию в куче
             val.fsval = fs_heapcreate(val.fsval);
     }
     res->v = val;
@@ -282,7 +281,7 @@ static bool                 create_or_move_elem(hset * restrict se, hset_elem *r
     bool         already_existed = false;
     unsigned     hash = 0;
     hset_elem   *equal = 0, *nextel = 0;
-    value64   value;
+    value64      value;
     if (el)
         value = el->v;
     else {
@@ -327,7 +326,7 @@ static hset_elem           *clone_elemlist(const hset_elem *el, value64_type typ
             return userraise((hset_elem *) 0, ERR_UNABLE_ALLOCATE, "Unable to create element");
         switch (typ){
             case VALUE64_FS:
-                newel->v.fsval = fs_heapcreate(el->v.fsval);
+                newel->v.fsval = fs_heapcreate(el->v.fsval);    // TODO: not sure
             break;
             /* case HSET_STR:
                 newel->v.str = strdup(el->v.str);
@@ -391,7 +390,7 @@ static int                  free_elemlist(hset_elem *el, value64_type typ){
 }
 
 static bool                 validate_elemlist(const hset_elem *el, value64_type typ, unsigned pos, unsigned sz){
-    // // TODO: check ordering too!
+   
     const hset_elem *prevel = 0;
     int              iternum = 0;
     while (el){
@@ -639,7 +638,7 @@ hset                        hset_init_symmdiff(const hset *restrict se1, const h
 }
 // union with construct
 hset                        hset_init_union(const hset *restrict se1, const hset *restrict se2){
-    invraise(se1 != 0 && se2 != 0, "Null pointers");
+    invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers");
     if (getype(se1) != getype(se2) )
          userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1)), value64_typename(getype(se2) ) );
     hset res = hset_init(MAX(se1->sz, se2->sz) - 1, se1->flags);
@@ -706,7 +705,7 @@ bool                        hset_validate(FILE *out, const hset *restrict se){
 // ---------------------------------- General functions ------------------------------------
 
 bool                        hset_set(hset *se, value64 val){
-    invraise(se != 0, "Null pointer");
+    invraisecode(ERR_NULLABLE_PTR, se != 0, "Null pointer");
 
     return create_or_move_elem(se, 0, val);
 }
@@ -718,7 +717,7 @@ bool                        hset_elem_move(hset * restrict se, hset_elem *restri
 }
 
 bool                        hset_get(const hset *se, value64 val){
-    invraise(se != 0, "Null pointer");
+    invraisecode(ERR_NULLABLE_PTR, se != 0, "Null pointer");
 
     hset_elem   *equal = 0;
     getprevelem(se, val, 0, 0, &equal);
@@ -732,7 +731,7 @@ bool                        hset_get(const hset *se, value64 val){
 }
 // try to delete elemenet, true if deleted, false if not found
 bool                        hset_del(hset *se, value64 val){
-    invraise(se != 0, "Null pointer");
+    invraisecode(ERR_NULLABLE_PTR, se != 0, "Null pointer");
 
     unsigned            hash;
     hset_elem          *el = 0;
@@ -842,7 +841,7 @@ bool                        hset_notexists(const hset *restrict se1, const hset 
         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1) ), value64_typename(getype(se2) ) );
     HSET_FOREACH(se2, val){
         if (hset_get(se1, val) ){
-            printval(logfile, getype(se2), val);
+            value64_fprint(logfile, getype(se2), val);
             return logsimpleret(false, "Found element in se1");
         }
     }
@@ -856,7 +855,7 @@ bool                        hset_any(const hset *restrict se1, const hset *restr
         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1) ), value64_typename(getype(se2) ) );
     HSET_FOREACH(se2, val){
         if (hset_get(se1, val) ){
-            printval(logfile, getype(se2), val);
+            value64_fprint(logfile, getype(se2), val);
             return logsimpleret(true, "Element of se2 Found in se1");
         }
     }
@@ -975,7 +974,7 @@ int                         hset_fsave(FILE  *restrict out, const hset *se) {
     for (int i = 0; i < se->sz; i++) {
         const hset_elem *el = se->table[i];
         while (el) {
-            printval(out, typ, el->v);
+            value64_fprint(out, typ, el->v);
             el = el->next;
             cnt++;
         }
@@ -1001,7 +1000,7 @@ int                         hset_fload(FILE *restrict in, hset *restrict se) {
     if (fscanf(in, " HSET: %" HSET_LOAD_BUF_FMT "s : %d", buf, &cnt) != 2)
         return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Invalid header");
 
-    value64_type   file_type = gettype(buf);
+    value64_type   file_type = value64_gettype(buf);
 
     if (!hset_isnoninit(se) && file_type != getype(se))
         return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Type mismatch: set %s, file %s",
@@ -1016,7 +1015,7 @@ int                         hset_fload(FILE *restrict in, hset *restrict se) {
     int addcnt = 0;
     for (int i = 0; i < cnt; i++) {
         value64 val = HSET_ZERO_VALUE;
-        if (!readval(in, file_type, &val)){
+        if (!value64_freadval(in, file_type, &val)){
             if (must_free_on_error)
                 hset_free(&res);
             return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Failed to read element %d", i);

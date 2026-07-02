@@ -86,7 +86,7 @@ static inline void          hsetval_log(hset_value val, hset_type typ){
 }
 */
 typedef struct hset_elem {
-    hset_value         v;
+    value64         v;
     struct hset_elem   *next;
 } hset_elem;
 
@@ -117,24 +117,24 @@ typedef struct hset {
 
 
 // create value from pointer
-extern hset_value           hset_createval(const void *p, value64_type typ);
+extern value64              hset_createval(const void *p, value64_type typ);
 
 //  check if in non-init state
 static inline bool          hset_isnoninit(const hset *se){
-    return se->flags & HSET_UKNOWN && se->sz == 0;
+    return se->flags & VALUE64_UKNOWN && se->sz == 0;
 }
 
 static inline value64_type     hset_getype(const hset *se){
     return se->flags & 0xFF;
 }
-
+/*
 static inline bool          hset_heap_alloc(const hset *se){
     return se->flags & HSET_HEAP_ALLOC;
 }
 
 static inline void          hset_set_heap_alloc(hset *se){
     se->flags |= HSET_HEAP_ALLOC;
-}
+}*/
 
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
@@ -152,19 +152,19 @@ extern hset                 hset_cloneas(const hset *se, value64_type typ);
 extern hset                 hset_from_anyarr(const void *arr, int sz, value64_type typ);
 // typed!!! not generic
 static inline hset          hset_from_intarr(const int *iarr, int sz){
-    return hset_from_anyarr(iarr, sz, HSET_INT);
+    return hset_from_anyarr(iarr, sz, VALUE64_INT);
 }
 static inline hset          hset_from_fssarr(const fs *fsarr, int sz){
-    return hset_from_anyarr(fsarr, sz, HSET_FS);
+    return hset_from_anyarr(fsarr, sz, VALUE64_FS);
 }
 static inline hset          hset_from_longarr(const long *larr, int sz){
-    return hset_from_anyarr(larr, sz, HSET_LONG);
+    return hset_from_anyarr(larr, sz, VALUE64_LNG);
 }
 static inline hset          hset_from_dblarr(const double *darr, int sz){
-    return hset_from_anyarr(darr, sz, HSET_DBL);
+    return hset_from_anyarr(darr, sz, VALUE64_DBL);
 }
 extern hset                 hset_from_ptrarr(const void **parr, int sz){
-    return hset_from_anyarr(parr, sz, HSET_PTR);
+    return hset_from_anyarr(parr, sz, VALUE64_PTR);
 }
 // generic code
 // just intersect with construct
@@ -197,11 +197,11 @@ static inline void         *hsetelem_getptr(const hset_elem *el){
 
 // ------------------------ Element access -----------------------------
 // true if new element is added, if exists - false
-extern bool                 hset_set(hset *se, hset_value val);
+extern bool                 hset_set(hset *se, value64 val);
 // try to delete elemenet, true if deleted, false if not found
-extern bool                 hset_del(hset *se, hset_value val);
+extern bool                 hset_del(hset *se, value64 val);
 
-extern bool                 hset_get(const hset *se, hset_value val);
+extern bool                 hset_get(const hset *se, value64 val);
 
 static inline int           hset_cnt(const hset *se){
     return se->count;
@@ -229,20 +229,20 @@ extern bool                 hset_noteq(const hset *restrict se1, const hset *res
 extern int                  hset_loadanyarr(hset *restrict se, const void *arr, int sz, value64_type typ);
 
 static inline int           hset_loadiarr(hset *restrict se, const int *iarr, int sz){
-    return hset_loadanyarr(se, iarr, sz, HSET_INT);
+    return hset_loadanyarr(se, iarr, sz, VALUE64_INT);
 }
 static inline int           hset_loadlarr(hset *restrict se, const long *larr, int sz){
-    return hset_loadanyarr(se, larr, sz, HSET_LONG);
+    return hset_loadanyarr(se, larr, sz, VALUE64_LNG);
 }
 static inline int           hset_loaddarr(hset *restrict se, const double *darr, int sz){
-    return hset_loadanyarr(se, darr, sz, HSET_DBL);
+    return hset_loadanyarr(se, darr, sz, VALUE64_DBL);
 }
 static inline int           hset_loadparr(hset *restrict se, const void * const *restrict parr, int sz){
-    return hset_loadanyarr(se, parr, sz, HSET_PTR);
+    return hset_loadanyarr(se, parr, sz, VALUE64_PTR);
 }
 // TODO: ???
 static inline int           hset_loadfsarr(hset *restrict se, const fs *restrict fsarr, int sz){
-    return hset_loadanyarr(se, fsarr, sz, HSET_FS);
+    return hset_loadanyarr(se, fsarr, sz, VALUE64_FS);
 }
 // check if all of se2 in se1 strictly or not
 extern bool                 hset_subset_check(const hset *restrict se1, const hset *restrict se2, bool strict);
@@ -289,12 +289,12 @@ extern int                  hset_save(const char *restrict fname, const hset *re
 extern int                  hset_fload(FILE *restrict in, hset *restrict se);
 extern int                  hset_load(const char *restrict fname, hset *restrict se);
 // db, TODO: to sqlite
-extern int                  hset_dbsave(const chat *restrict conn, const hset *restrict se, const char *st);
+extern int                  hset_dbsave(const char *restrict conn, const hset *restrict se, const char *st);
 extern int                  hset_dbsave(const char *restrict conn, const hset *restrict se, const char *st);
 
 // const
-typedef                     void (*hset_const_proc_t)(hset_value v);
-// change //typedef                 void (*hset_proc_t)(hset_value *v);
+typedef                     void (*hset_const_proc_t)(value64 v);
+// change //typedef                 void (*hset_proc_t)(value64 *v);
 // modift structure typedef                 void (*hset_modify_proc_t)(hset *se, hset_elem *el);
 
 typedef                     void * pointer_to_void;
@@ -324,11 +324,11 @@ extern void                 hset_const_foreach(const hset *se, hset_const_proc_t
         for (int _i_ = 0; _i_ < (se)->sz; _i_++) \
             for (const hset_elem *_el_ = (se)->table[_i_]; _el_; _el_ = _el_->next) \
                 for (int _flag_ = 1; _flag_; _flag_ = 0) \
-                    for (hset_value var  = _el_->v; _flag_; _flag_ = 0)
+                    for (value64 var  = _el_->v; _flag_; _flag_ = 0)
 
 // ----------------------------------------- REDUCE -----------------------------------------
 typedef struct              hset_accum {
-    hset_value  value;    // накопленное значение (сумма, максимум и т.п.)
+    value64  value;    // накопленное значение (сумма, максимум и т.п.)
     int         count;    // количество элементов, участвовавших в накоплении
     fs          str_agg;  // для будущей агрегации строк
 } hset_accum;
@@ -336,7 +336,7 @@ typedef struct              hset_accum {
 #define                     HSET_ACCUM(...)  (hset_accum) { .value = HSET_ZERO_VALUE, .count = 0, .str_agg = FS(), __VA_ARGS__} 
 #define                     HSET_ACCUM_DBL_ZERO  (hset_accum) { .value = HSET_DBLVALUE(0.0), .count = 0, .str_agg = FS() } 
 
-typedef                     void (*hset_reduce_func)(hset_accum *acc, hset_value v);
+typedef                     void (*hset_reduce_func)(hset_accum *acc, value64 v);
 extern hset_accum           hset_initreduce(const hset *se, hset_accum init, hset_reduce_func func);
 
 static inline hset_accum    hset_reduce(const hset *se, hset_reduce_func func){
@@ -346,21 +346,21 @@ static inline hset_accum    hset_reduce(const hset *se, hset_reduce_func func){
 // unified version! TODO:
 enum    { HSET_UNIFIED_CNT = 10; };
 typedef struct              hset_unified {
-    hset_value  value[HSET_UNIFIED_CNT];    // unified values (int, double, fs etc...)
+    value64  value[HSET_UNIFIED_CNT];    // unified values (int, double, fs etc...)
 } hset_accum;
 
 // ------------------------------------- REDUCE IMPL -----------------------------------------
-extern void                 hset_sum_int    (hset_accum *acc, hset_value v);
-extern void                 hset_count_int  (hset_accum *acc, hset_value v);
-extern void                 hset_max_int    (hset_accum *acc, hset_value v);
-extern void                 hset_min_int    (hset_accum *acc, hset_value v);
-//extern void               hset_avg_int    (hset_accum *acc, hset_value v);
+extern void                 hset_sum_int    (hset_accum *acc, value64 v);
+extern void                 hset_count_int  (hset_accum *acc, value64 v);
+extern void                 hset_max_int    (hset_accum *acc, value64 v);
+extern void                 hset_min_int    (hset_accum *acc, value64 v);
+//extern void               hset_avg_int    (hset_accum *acc, value64 v);
 
-extern void                 hset_sum_dbl    (hset_accum *acc, hset_value v);
-extern void                 hset_count_dbl  (hset_accum *acc, hset_value v);
-extern void                 hset_max_dbl    (hset_accum *acc, hset_value v);
-extern void                 hset_min_dbl    (hset_accum *acc, hset_value v);
-//extern void                 hset_avg_dbl    (hset_accum *acc, hset_value v);
+extern void                 hset_sum_dbl    (hset_accum *acc, value64 v);
+extern void                 hset_count_dbl  (hset_accum *acc, value64 v);
+extern void                 hset_max_dbl    (hset_accum *acc, value64 v);
+extern void                 hset_min_dbl    (hset_accum *acc, value64 v);
+//extern void                 hset_avg_dbl    (hset_accum *acc, value64 v);
 
 #endif /* !_HASHSET_H */
 
