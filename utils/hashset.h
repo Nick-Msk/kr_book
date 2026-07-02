@@ -8,8 +8,19 @@
 // --------------- Includes -----------------------
 
 #include <stdio.h>
+#include <stdlib.h>
 
+#include "hashset.h"
+#include "numeric_ops.h"
+#include "log.h"
+#include "bool.h"
+#include "common.h"
+#include "error.h"
+#include "checker.h"
+#include "guard.h"
+#include "fileutils.h"
 #include "fs.h"
+#include "value64.h"
 
 // ----------- CONSTANTS AND GLOBALS ---------------
 
@@ -89,6 +100,8 @@ typedef struct hset {
 // --------------------------------------- hset ----------------------------------------------
 #define                 HSET(size, typ) (hset) {.sz = (size), .flags = (typ), .table = 0 }
 #define                 HSET_NONINIT        HSET(0, HSET_UKNOWN)
+
+
 // ---------------------------- hset_value: TODO: refactor to separate value.c (Value64 type)
 #define                 HSET_ZERO_VALUE     (hset_value) {.u64 = 0L }
 #define                 HSET_INTVALUE(val)  (hset_value) {.u64 = 0L, .ival = val }
@@ -136,23 +149,23 @@ extern hset                 hset_clone(const hset *se);
 extern hset                 hset_cloneas(const hset *se, hset_type typ);
 
 // universale loader
-extern hset                 hset_fromanyarr(const void *arr, int sz, hset_type typ);
-// typed
-static inline hset          hset_fromiarr(const int *iarr, int sz){
-    return hset_fromanyarr(iarr, sz, HSET_INT);
+extern hset                 hset_from_anyarr(const void *arr, int sz, hset_type typ);
+// typed!!! not generic
+static inline hset          hset_from_intarr(const int *iarr, int sz){
+    return hset_from_anyarr(iarr, sz, HSET_INT);
 }
 // not SURE TODO:
-static inline hset          hset_fromfsarr(/*fs_array iarr*/ const fs *fsarr, int sz){
-    return hset_fromanyarr(fsarr, sz, HSET_FS);
+static inline hset          hset_from_fssarr(/*fs_array iarr*/ const fs *fsarr, int sz){
+    return hset_from_anyarr(fsarr, sz, HSET_FS);
 }
 static inline hset          hset_fromlarr(const long *larr, int sz){
-    return hset_fromanyarr(larr, sz, HSET_LONG);
+    return hset_from_anyarr(larr, sz, HSET_LONG);
 }
 static inline hset          hset_fromdarr(const double *darr, int sz){
-    return hset_fromanyarr(darr, sz, HSET_DBL);
+    return hset_from_anyarr(darr, sz, HSET_DBL);
 }
 extern hset                 hset_fromparr(const void **parr, int sz){
-    return hset_fromanyarr(parr, sz, HSET_PTR);
+    return hset_from_anyarr(parr, sz, HSET_PTR);
 }
 // just intersect with construct
 extern hset                 hset_init_intersect(const hset *restrict se1, const hset *restrict se2);

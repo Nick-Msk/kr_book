@@ -553,7 +553,7 @@ hset                        hset_cloneas(const hset *se, hset_type typ){
     return logsimpleret(res, "Cloned as %d:%s", typ, hset_type_name(typ) );
 }
 
-hset                        hset_fromanyarr(const void *arr, int sz, hset_type typ){
+hset                        hset_from_anyarr(const void *arr, int sz, hset_type typ){
     invraise(arr != 0 && sz > 0 && sz < INT_MAX / 4, "Incorrent input %p - %d", arr, sz);
     if (int_notin(typ, HSET_INT, HSET_LONG, HSET_DBL, HSET_PTR, HSET_FS) )
         userraiseint(ERR_UNSUPPORTED_TYPE, "%d", typ);
@@ -1476,7 +1476,7 @@ tf3(const char *name)
     {
         Array arr = IArray_create(200, ARRAY_RND);
 
-        hset    se1 = hset_fromiarr(arr.iv, arr.len);
+        hset    se1 = hset_from_intarr(arr.iv, arr.len);
 
         hset_tech_fprintall(logfile, se1);
 
@@ -1496,7 +1496,7 @@ tf3(const char *name)
     test_sub("subtest %d: create from int array, contained 0 value", ++subnum);
     {
         Array arr = IArray_create(10, ARRAY_ZERO);
-        hset    se1 = hset_fromiarr(arr.iv, arr.len);
+        hset    se1 = hset_from_intarr(arr.iv, arr.len);
 
         hset_tech_fprintall(stdout, se1);
 
@@ -1704,7 +1704,7 @@ tf4(const char *name)
     test_sub("subtest %d: loaded count int", ++subnum);
     {
         Array   arr = IArray_create(500, ARRAY_ASC);
-        hset    se2 = hset_fromiarr(arr.iv, arr.len);
+        hset    se2 = hset_from_intarr(arr.iv, arr.len);
         int     res;
         //hset_techprint(&se2, 0);
         test_validatefree(
@@ -1800,7 +1800,7 @@ tf5(const char *name)
     {
         Array   arr = IArray_create(200, ARRAY_RND);
 
-        hset    se1 = hset_fromiarr(arr.iv, arr.len);
+        hset    se1 = hset_from_intarr(arr.iv, arr.len);
         int     elem = arr.iv[0];   // save one
         Arrayfree(arr);
 
@@ -1829,7 +1829,7 @@ tf5(const char *name)
     {
         Array   arr = IArray_create(200, ARRAY_RND);
         // create from array
-        hset    se1 = hset_fromiarr(arr.iv, Arraylen(arr) );
+        hset    se1 = hset_from_intarr(arr.iv, Arraylen(arr) );
         // manually creating, small
         hset    se2 = hset_init(100, HSET_INT);
         hset_loadiarr(&se2, arr.iv, Arraylen(arr) );
@@ -1963,7 +1963,7 @@ tf6(const char *name)
     {
         Array   arr = IArray_create(200, ARRAY_RND);
 
-        hset    se1 = hset_fromiarr(arr.iv, arr.len);
+        hset    se1 = hset_from_intarr(arr.iv, arr.len);
         int     elem = arr.iv[0];   // save one
         Arrayfree(arr);
 
@@ -1993,7 +1993,7 @@ tf6(const char *name)
         Array   arr = IArray_create(150, ARRAY_RND);
         int     elem = arr.iv[0];   // save one
         // create from array
-        hset    se1 = hset_fromiarr(arr.iv, Arraylen(arr) );
+        hset    se1 = hset_from_intarr(arr.iv, Arraylen(arr) );
         // manually creating, small
         hset    se2 = hset_init(50, HSET_INT);
         hset_loadiarr(&se2, arr.iv, Arraylen(arr) );
@@ -2217,7 +2217,7 @@ tf7(const char *name)
     {
         Array   arr = IArray_create(/*200*/ 10, ARRAY_ASC);
 
-        hset    se1 = hset_fromiarr(arr.iv, arr.len);
+        hset    se1 = hset_from_intarr(arr.iv, arr.len);
         Arrayfree(arr);
 
         hset    se2 = hset_cloneas(&se1, HSET_LONG);
@@ -2255,7 +2255,7 @@ tf7(const char *name)
     {
         Array   arr = IArray_create(110, ARRAY_ASC);
 
-        hset    se1 = hset_fromiarr(arr.iv, arr.len);
+        hset    se1 = hset_from_intarr(arr.iv, arr.len);
         Arrayfree(arr);
 
         hset    se2 = hset_cloneas(&se1, HSET_DBL);
@@ -2295,7 +2295,7 @@ tf7(const char *name)
     {
         int     cnt = 10 /*200*/;
         Array   arr = IArray_create(cnt, ARRAY_ASC);   // 0,1,2,...,199
-        hset    se_int = hset_fromiarr(arr.iv, arr.len);
+        hset    se_int = hset_from_intarr(arr.iv, arr.len);
         Arrayfree(arr);
 
         hset    se_fs = hset_cloneas(&se_int, HSET_FS);
@@ -2532,7 +2532,7 @@ tf8(const char *name)
     {
         int vals[] = {1, 3, 5, 7, 9};
         hset empty    = hset_init(10, HSET_INT);
-        hset nonempty = hset_fromiarr(vals, COUNT(vals) );
+        hset nonempty = hset_from_intarr(vals, COUNT(vals) );
 
         test_validatefree(
             hset_validate(stdout, &empty) && hset_validate(stdout, &nonempty),
@@ -2549,7 +2549,7 @@ tf8(const char *name)
     {
         int vals[] = {1, 3, 5, 7, 9};
         hset empty    = hset_init(10, HSET_INT);
-        hset nonempty = hset_fromiarr(vals, COUNT(vals) );
+        hset nonempty = hset_from_intarr(vals, COUNT(vals) );
 
         test_validatefree(
             !hset_in(&nonempty, &empty), (hset_free(&empty), hset_free(&nonempty) ),
@@ -2562,8 +2562,8 @@ tf8(const char *name)
     {
         int all_vals[] = {1, 3, 5, 7, 9};
 
-        hset superset = hset_fromiarr(all_vals, COUNT(all_vals) );
-        hset subset   = hset_fromiarr(all_vals, COUNT(all_vals) );
+        hset superset = hset_from_intarr(all_vals, COUNT(all_vals) );
+        hset subset   = hset_from_intarr(all_vals, COUNT(all_vals) );
 
         test_validatefree(
             hset_in(&subset, &superset), (hset_free(&superset), hset_free(&subset) ),
@@ -2577,8 +2577,8 @@ tf8(const char *name)
         int all_vals[] = {1, 3, 5, 7, 9};
         int sub_vals[] = {1, 5, 9};
 
-        hset superset = hset_fromiarr(all_vals, COUNT(all_vals) );
-        hset subset   = hset_fromiarr(sub_vals, COUNT(sub_vals) );
+        hset superset = hset_from_intarr(all_vals, COUNT(all_vals) );
+        hset subset   = hset_from_intarr(sub_vals, COUNT(sub_vals) );
 
         test_validatefree(
             hset_in(&subset, &superset), (hset_free(&superset), hset_free(&subset) ),
@@ -2593,8 +2593,8 @@ tf8(const char *name)
         int all_vals[] = {1, 3, 5, 7, 9};
         int sub_vals[] = {1, 5, 9};
 
-        hset superset = hset_fromiarr(all_vals, COUNT(all_vals) );
-        hset subset   = hset_fromiarr(sub_vals, COUNT(sub_vals) );
+        hset superset = hset_from_intarr(all_vals, COUNT(all_vals) );
+        hset subset   = hset_from_intarr(sub_vals, COUNT(sub_vals) );
 
         test_validatefree(
             !hset_in(&superset, &subset), (hset_free(&superset), hset_free(&subset) ),
@@ -2607,7 +2607,7 @@ tf8(const char *name)
     test_sub("subtest %d: type mismatch raise SIGINT", ++subnum);
     {
         int int_vals[] = {1, 2, 3};
-        hset int_set = hset_fromiarr(int_vals, 3);
+        hset int_set = hset_from_intarr(int_vals, 3);
         hset dbl_set = hset_init(10, HSET_DBL);
         hset_set(&dbl_set, HSET_DBLVALUE(1.0));
         hset_set(&dbl_set, HSET_DBLVALUE(2.0));
@@ -2656,7 +2656,7 @@ tf9(const char *name)
     {
         int vals[] = {1, 3, 5, 7, 9};
         hset empty    = hset_init(10, HSET_INT);
-        hset nonempty = hset_fromiarr(vals, COUNT(vals) );
+        hset nonempty = hset_from_intarr(vals, COUNT(vals) );
 
         test_validatefree(
             hset_validate(stdout, &empty) && hset_validate(stdout, &nonempty),
@@ -2673,7 +2673,7 @@ tf9(const char *name)
     {
         int vals[] = {1, 3, 5, 7, 9};
         hset empty    = hset_init(10, HSET_INT);
-        hset nonempty = hset_fromiarr(vals, COUNT(vals) );
+        hset nonempty = hset_from_intarr(vals, COUNT(vals) );
 
         test_validatefree(
             !hset_strictin(&nonempty, &empty), (hset_free(&empty), hset_free(&nonempty) ),
@@ -2688,8 +2688,8 @@ tf9(const char *name)
         int all_vals[] = {1, 3, 5, 7, 9};
         int sub_vals[] = {1, 5, 9};
 
-        hset superset = hset_fromiarr(all_vals, COUNT(all_vals) );
-        hset subset = hset_fromiarr(sub_vals, COUNT(sub_vals) );
+        hset superset = hset_from_intarr(all_vals, COUNT(all_vals) );
+        hset subset = hset_from_intarr(sub_vals, COUNT(sub_vals) );
 
         test_validatefree(
             hset_strictin(&subset, &superset), (hset_free(&superset), hset_free(&subset) ),
@@ -2702,8 +2702,8 @@ tf9(const char *name)
     {
         int all_vals[] = {1, 3, 5, 7, 9};
 
-        hset superset = hset_fromiarr(all_vals, COUNT(all_vals) );
-        hset subset   = hset_fromiarr(all_vals, COUNT(all_vals) );
+        hset superset = hset_from_intarr(all_vals, COUNT(all_vals) );
+        hset subset   = hset_from_intarr(all_vals, COUNT(all_vals) );
 
         test_validatefree(
             hset_strictin(&subset, &superset) == false, (hset_free(&superset), hset_free(&subset) ),
@@ -2717,8 +2717,8 @@ tf9(const char *name)
         int all_vals[] = {1, 3, 5, 7, 9};
         int sub_vals[] = {1, 5, 9};
 
-        hset superset = hset_fromiarr(all_vals, COUNT(all_vals) );
-        hset subset = hset_fromiarr(sub_vals, COUNT(sub_vals) );
+        hset superset = hset_from_intarr(all_vals, COUNT(all_vals) );
+        hset subset = hset_from_intarr(sub_vals, COUNT(sub_vals) );
 
         test_validatefree(
             !hset_strictin(&superset, &subset), (hset_free(&superset), hset_free(&subset) ),
@@ -2760,7 +2760,7 @@ tf10(const char *name)
     {
         hset    empty = hset_init(10, HSET_INT);
         int     vals[] = {1, 2, 3};
-        hset    nonempty = hset_fromiarr(vals, COUNT(vals));
+        hset    nonempty = hset_from_intarr(vals, COUNT(vals));
         hset   *res = hset_minus(&empty, &nonempty);
 
         int     ok = (res == &empty) && (hset_cnt(&empty) == 0) &&
@@ -2778,7 +2778,7 @@ tf10(const char *name)
     test_sub("subtest %d: non-empty minus empty", ++subnum);
     {
         int     vals[] = {10, 20, 30};
-        hset    se1 = hset_fromiarr(vals, COUNT(vals));
+        hset    se1 = hset_from_intarr(vals, COUNT(vals));
         hset    empty = hset_init(10, HSET_INT);
         int     cnt_before = hset_cnt(&se1);
         hset   *res = hset_minus(&se1, &empty);
@@ -2801,8 +2801,8 @@ tf10(const char *name)
     test_sub("subtest %d: set minus its copy", ++subnum);
     {
         int     vals[] = {5, 10, 15, 20};
-        hset    se1 = hset_fromiarr(vals, COUNT(vals));
-        hset    se2 = hset_fromiarr(vals, COUNT(vals));
+        hset    se1 = hset_from_intarr(vals, COUNT(vals));
+        hset    se2 = hset_from_intarr(vals, COUNT(vals));
         /*hset    se2 = hset_init(10, HSET_INT);
         for (int i = 0; i < COUNT(vals); i++)
             hset_set(&se2, HSET_INTVALUE(vals[i])); */
@@ -2826,8 +2826,8 @@ tf10(const char *name)
     {
         int     all_vals[] = {1, 2, 3, 4, 5, 6};
         int     sub_vals[] = {2, 5};
-        hset    se1 = hset_fromiarr(all_vals, COUNT(all_vals));
-        hset    se2 = hset_fromiarr(sub_vals, COUNT(sub_vals));
+        hset    se1 = hset_from_intarr(all_vals, COUNT(all_vals));
+        hset    se2 = hset_from_intarr(sub_vals, COUNT(sub_vals));
         /* hset    se2 = hset_init(10, HSET_INT);
         for (int i = 0; i < COUNT(sub_vals); i++)
             hset_set(&se2, HSET_INTVALUE(sub_vals[i])); */
@@ -2856,8 +2856,8 @@ tf10(const char *name)
     {
         int     vals1[] = {7, 8, 9};
         int     vals2[] = {1, 2, 3};
-        hset    se1 = hset_fromiarr(vals1, COUNT(vals1));
-        hset    se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset    se1 = hset_from_intarr(vals1, COUNT(vals1));
+        hset    se2 = hset_from_intarr(vals2, COUNT(vals2));
 
         int     cnt_before = hset_cnt(&se1);
         hset   *res = hset_minus(&se1, &se2);
@@ -2880,8 +2880,8 @@ tf10(const char *name)
     {
         int     vals1[] = {100, 200, 300};
         int     vals2[] = {200, 400, 500};
-        hset    se1 = hset_fromiarr(vals1, COUNT(vals1));
-        hset    se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset    se1 = hset_from_intarr(vals1, COUNT(vals1));
+        hset    se2 = hset_from_intarr(vals2, COUNT(vals2));
 
         hset   *res = hset_minus(&se1, &se2);
 
@@ -2907,7 +2907,7 @@ tf10(const char *name)
     test_sub("subtest %d: type mismatch raises SIGINT", ++subnum);
     {
         int int_vals[] = {1, 2, 3};
-        hset int_set = hset_fromiarr(int_vals, COUNT(int_vals) );
+        hset int_set = hset_from_intarr(int_vals, COUNT(int_vals) );
         hset dbl_set = hset_init(10, HSET_DBL);
         hset_set(&dbl_set, HSET_DBLVALUE(1.0));
 
@@ -2955,7 +2955,7 @@ tf11(const char *name)
     test_sub("subtest %d: non-empty minus empty", ++subnum);
     {
         int vals[] = {3, 7, 11, 42};
-        hset se1 = hset_fromiarr(vals, COUNT(vals));
+        hset se1 = hset_from_intarr(vals, COUNT(vals));
         hset empty = hset_init(10, HSET_INT);
         hset res = hset_init_minus(&se1, &empty);
 
@@ -2978,7 +2978,7 @@ tf11(const char *name)
     {
         int vals[] = {100, 200};
         hset empty = hset_init(10, HSET_INT);
-        hset se2 = hset_fromiarr(vals, COUNT(vals));
+        hset se2 = hset_from_intarr(vals, COUNT(vals));
         hset res = hset_init_minus(&empty, &se2);
 
         int ok = (hset_cnt(&res) == 0);
@@ -2996,7 +2996,7 @@ tf11(const char *name)
     test_sub("subtest %d: set minus its copy", ++subnum);
     {
         int vals[] = {5, 10, 15, 20};
-        hset se1 = hset_fromiarr(vals, COUNT(vals));
+        hset se1 = hset_from_intarr(vals, COUNT(vals));
         hset se2 = hset_clone(&se1);  // или ручное заполнение, но clone уже проверен
         hset res = hset_init_minus(&se1, &se2);
 
@@ -3016,7 +3016,7 @@ tf11(const char *name)
     {
         int vals1[] = {1, 2, 3, 4, 5, 6};
         int vals2[] = {2, 5};
-        hset se1 = hset_fromiarr(vals1, COUNT(vals1));
+        hset se1 = hset_from_intarr(vals1, COUNT(vals1));
         hset se2 = hset_init(10, HSET_INT);
         for (int i = 0; i < COUNT(vals2); i++)
             hset_set(&se2, HSET_INTVALUE(vals2[i]));
@@ -3050,8 +3050,8 @@ tf11(const char *name)
     {
         int vals1[] = {7, 8, 9};
         int vals2[] = {1, 2, 3};
-        hset se1 = hset_fromiarr(vals1, COUNT(vals1));
-        hset se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset se1 = hset_from_intarr(vals1, COUNT(vals1));
+        hset se2 = hset_from_intarr(vals2, COUNT(vals2));
         hset res = hset_init_minus(&se1, &se2);
 
         int ok = (hset_cnt(&res) == COUNT(vals1));
@@ -3100,7 +3100,7 @@ tf12(const char *name)
     test_sub("subtest %d: non-empty intersect empty", ++subnum);
     {
         int     vals[] = {1, 2, 3};
-        hset    se1 = hset_fromiarr(vals, COUNT(vals));
+        hset    se1 = hset_from_intarr(vals, COUNT(vals));
         hset    empty = hset_init(10, HSET_INT);
         hset   *res = hset_intersect(&se1, &empty);
 
@@ -3120,7 +3120,7 @@ tf12(const char *name)
     {
         int     vals[] = {10, 20};
         hset    empty = hset_init(10, HSET_INT);
-        hset    se2 = hset_fromiarr(vals, COUNT(vals));
+        hset    se2 = hset_from_intarr(vals, COUNT(vals));
         hset   *res = hset_intersect(&empty, &se2);
 
         int     ok = (res == &empty) && (hset_cnt(&empty) == 0) &&
@@ -3138,8 +3138,8 @@ tf12(const char *name)
     test_sub("subtest %d: identical sets", ++subnum);
     {
         int     vals[] = {7, 8, 9};
-        hset    se1 = hset_fromiarr(vals, COUNT(vals));
-        hset    se2 = hset_fromiarr(vals, COUNT(vals));
+        hset    se1 = hset_from_intarr(vals, COUNT(vals));
+        hset    se2 = hset_from_intarr(vals, COUNT(vals));
         int     cnt_before = hset_cnt(&se1);
 
         hset   *res = hset_intersect(&se1, &se2);
@@ -3162,8 +3162,8 @@ tf12(const char *name)
     {
         int     vals1[] = {1, 2, 3, 4, 5};
         int     vals2[] = {2, 4, 6};
-        hset    se1 = hset_fromiarr(vals1, COUNT(vals1));
-        hset    se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset    se1 = hset_from_intarr(vals1, COUNT(vals1));
+        hset    se2 = hset_from_intarr(vals2, COUNT(vals2));
 
         hset   *res = hset_intersect(&se1, &se2);
 
@@ -3193,8 +3193,8 @@ tf12(const char *name)
     {
         int     vals1[] = {100, 200};
         int     vals2[] = {300, 400};
-        hset    se1 = hset_fromiarr(vals1, COUNT(vals1));
-        hset    se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset    se1 = hset_from_intarr(vals1, COUNT(vals1));
+        hset    se2 = hset_from_intarr(vals2, COUNT(vals2));
 
         hset   *res = hset_intersect(&se1, &se2);
 
@@ -3244,7 +3244,7 @@ tf13(const char *name)
     test_sub("subtest %d: non-empty intersect empty", ++subnum);
     {
         int vals[] = {10, 20, 30};
-        hset se1 = hset_fromiarr(vals, COUNT(vals));
+        hset se1 = hset_from_intarr(vals, COUNT(vals));
         hset empty = hset_init(10, HSET_INT);
         hset res = hset_init_intersect(&se1, &empty);
 
@@ -3269,7 +3269,7 @@ tf13(const char *name)
     {
         int vals[] = {5, 7};
         hset empty = hset_init(10, HSET_INT);
-        hset se2 = hset_fromiarr(vals, COUNT(vals));
+        hset se2 = hset_from_intarr(vals, COUNT(vals));
         hset res = hset_init_intersect(&empty, &se2);
 
         int ok = (hset_cnt(&res) == 0) && (hset_cnt(&empty) == 0) && (hset_cnt(&se2) == COUNT(vals));
@@ -3291,8 +3291,8 @@ tf13(const char *name)
     test_sub("subtest %d: identical sets", ++subnum);
     {
         int vals[] = {1, 2, 3, 4};
-        hset se1 = hset_fromiarr(vals, COUNT(vals));
-        hset se2 = hset_fromiarr(vals, COUNT(vals));
+        hset se1 = hset_from_intarr(vals, COUNT(vals));
+        hset se2 = hset_from_intarr(vals, COUNT(vals));
         hset res = hset_init_intersect(&se1, &se2);
 
         int expected = COUNT(vals);
@@ -3316,8 +3316,8 @@ tf13(const char *name)
     {
         int vals1[] = {1, 2, 3, 4, 5};
         int vals2[] = {2, 4, 6};
-        hset se1 = hset_fromiarr(vals1, COUNT(vals1));
-        hset se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset se1 = hset_from_intarr(vals1, COUNT(vals1));
+        hset se2 = hset_from_intarr(vals2, COUNT(vals2));
         hset res = hset_init_intersect(&se1, &se2);
 
         int common_vals[] = {2, 4};
@@ -3348,8 +3348,8 @@ tf13(const char *name)
     {
         int vals1[] = {100, 200};
         int vals2[] = {300, 400};
-        hset se1 = hset_fromiarr(vals1, COUNT(vals1));
-        hset se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset se1 = hset_from_intarr(vals1, COUNT(vals1));
+        hset se2 = hset_from_intarr(vals2, COUNT(vals2));
         hset res = hset_init_intersect(&se1, &se2);
 
         int ok = (hset_cnt(&res) == 0) && (hset_cnt(&se1) == COUNT(vals1)) && (hset_cnt(&se2) == COUNT(vals2));
@@ -3403,7 +3403,7 @@ tf14(const char *name)
     test_sub("subtest %d: non-empty symm diff empty", ++subnum);
     {
         int vals[] = {3, 7, 11};
-        hset se1 = hset_fromiarr(vals, COUNT(vals));
+        hset se1 = hset_from_intarr(vals, COUNT(vals));
         hset empty = hset_init(10, HSET_INT);
         hset res = hset_init_symmdiff(&se1, &empty);
 
@@ -3428,7 +3428,7 @@ tf14(const char *name)
     {
         int vals[] = {5, 9};
         hset empty = hset_init(10, HSET_INT);
-        hset se2 = hset_fromiarr(vals, COUNT(vals));
+        hset se2 = hset_from_intarr(vals, COUNT(vals));
         hset res = hset_init_symmdiff(&empty, &se2);
 
         int expected = COUNT(vals);
@@ -3451,8 +3451,8 @@ tf14(const char *name)
     test_sub("subtest %d: identical sets", ++subnum);
     {
         int vals[] = {1, 2, 3, 4};
-        hset se1 = hset_fromiarr(vals, COUNT(vals));
-        hset se2 = hset_fromiarr(vals, COUNT(vals));
+        hset se1 = hset_from_intarr(vals, COUNT(vals));
+        hset se2 = hset_from_intarr(vals, COUNT(vals));
         hset res = hset_init_symmdiff(&se1, &se2);
 
         int expected = COUNT(vals);
@@ -3480,8 +3480,8 @@ tf14(const char *name)
     {
         int vals1[] = {1, 2, 3, 4, 5};
         int vals2[] = {2, 4, 6};
-        hset se1 = hset_fromiarr(vals1, COUNT(vals1));
-        hset se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset se1 = hset_from_intarr(vals1, COUNT(vals1));
+        hset se2 = hset_from_intarr(vals2, COUNT(vals2));
         hset res = hset_init_symmdiff(&se1, &se2);
 
         // Ожидаем {1,3,5,6}
@@ -3520,8 +3520,8 @@ tf14(const char *name)
     {
         int vals1[] = {100, 200};
         int vals2[] = {300, 400};
-        hset se1 = hset_fromiarr(vals1, COUNT(vals1));
-        hset se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset se1 = hset_from_intarr(vals1, COUNT(vals1));
+        hset se2 = hset_from_intarr(vals2, COUNT(vals2));
         hset res = hset_init_symmdiff(&se1, &se2);
 
         int expected_total = COUNT(vals1) + COUNT(vals2);
@@ -3577,7 +3577,7 @@ tf15(const char *name)
     test_sub("subtest %d: non-empty symmdiff empty", ++subnum);
     {
         int vals[] = {3, 7, 11};
-        hset se1 = hset_fromiarr(vals, COUNT(vals));
+        hset se1 = hset_from_intarr(vals, COUNT(vals));
         hset empty = hset_init(10, HSET_INT);
         int cnt_before = hset_cnt(&se1);
         hset *res = hset_symmdiff(&se1, &empty);
@@ -3601,7 +3601,7 @@ tf15(const char *name)
     {
         int vals[] = {5, 9};
         hset se1 = hset_init(10, HSET_INT);
-        hset se2 = hset_fromiarr(vals, COUNT(vals));
+        hset se2 = hset_from_intarr(vals, COUNT(vals));
         hset *res = hset_symmdiff(&se1, &se2);
 
         int expected = COUNT(vals);
@@ -3623,8 +3623,8 @@ tf15(const char *name)
     test_sub("subtest %d: identical sets", ++subnum);
     {
         int vals[] = {1, 2, 3, 4};
-        hset se1 = hset_fromiarr(vals, COUNT(vals));
-        hset se2 = hset_fromiarr(vals, COUNT(vals));
+        hset se1 = hset_from_intarr(vals, COUNT(vals));
+        hset se2 = hset_from_intarr(vals, COUNT(vals));
         hset *res = hset_symmdiff(&se1, &se2);
 
         int expected_orig = COUNT(vals);
@@ -3648,8 +3648,8 @@ tf15(const char *name)
     {
         int vals1[] = {1, 2, 3, 4, 5};
         int vals2[] = {2, 4, 6};
-        hset se1 = hset_fromiarr(vals1, COUNT(vals1));
-        hset se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset se1 = hset_from_intarr(vals1, COUNT(vals1));
+        hset se2 = hset_from_intarr(vals2, COUNT(vals2));
         hset *res = hset_symmdiff(&se1, &se2);
 
         // Ожидаем в se1: {1,3,5,6}
@@ -3683,8 +3683,8 @@ tf15(const char *name)
     {
         int vals1[] = {100, 200};
         int vals2[] = {300, 400};
-        hset se1 = hset_fromiarr(vals1, COUNT(vals1));
-        hset se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset se1 = hset_from_intarr(vals1, COUNT(vals1));
+        hset se2 = hset_from_intarr(vals2, COUNT(vals2));
         hset *res = hset_symmdiff(&se1, &se2);
 
         int expected_total = COUNT(vals1) + COUNT(vals2);
@@ -3745,7 +3745,7 @@ tf16(const char *name)
     test_sub("subtest %d: non‑empty resize larger", ++subnum);
     {
         int vals[] = {1, 2, 3, 4, 5};
-        hset se = hset_fromiarr(vals, COUNT(vals));
+        hset se = hset_from_intarr(vals, COUNT(vals));
         int old_cnt = hset_cnt(&se);
         int old_sz = se.sz;
         hset_init_resize(&se, 100);
@@ -3772,7 +3772,7 @@ tf16(const char *name)
     test_sub("subtest %d: non‑empty resize smaller", ++subnum);
     {
         int vals[] = {10, 20, 30};
-        hset se = hset_fromiarr(vals, COUNT(vals));
+        hset se = hset_from_intarr(vals, COUNT(vals));
         int old_cnt = hset_cnt(&se);
         int old_sz = se.sz;
         hset_init_resize(&se, 3);   // 3 элемента, next_prime(3) = 3
@@ -3799,7 +3799,7 @@ tf16(const char *name)
     test_sub("subtest %d: resize to same size", ++subnum);
     {
         int vals[] = {7, 8, 9};
-        hset se = hset_fromiarr(vals, COUNT(vals));
+        hset se = hset_from_intarr(vals, COUNT(vals));
         int old_sz = se.sz;
         int old_cnt = hset_cnt(&se);
         hset_init_resize(&se, old_sz - 1); // передаём sz-1, чтобы next_prime вернуло old_sz
@@ -3825,7 +3825,7 @@ tf16(const char *name)
     test_sub("subtest %d: multiple resizes", ++subnum);
     {
         int vals[] = {100, 200, 300, 400};
-        hset se = hset_fromiarr(vals, COUNT(vals));
+        hset se = hset_from_intarr(vals, COUNT(vals));
         int cnt = hset_cnt(&se);
 
         hset_init_resize(&se, 50);
@@ -3906,7 +3906,7 @@ tf17(const char *name)
     test_sub("subtest %d: non-empty union empty", ++subnum);
     {
         int     vals[] = {3, 7, 11};
-        hset    se1 = hset_fromiarr(vals, COUNT(vals));
+        hset    se1 = hset_from_intarr(vals, COUNT(vals));
         hset    empty = hset_init(10, HSET_INT);
         int     cnt_before = hset_cnt(&se1);
         hset   *res = hset_union(&se1, &empty);
@@ -3930,7 +3930,7 @@ tf17(const char *name)
     {
         int     vals[] = {5, 9};
         hset    se1 = hset_init(10, HSET_INT);
-        hset    se2 = hset_fromiarr(vals, COUNT(vals));
+        hset    se2 = hset_from_intarr(vals, COUNT(vals));
         hset   *res = hset_union(&se1, &se2);
 
         int     expected = COUNT(vals);
@@ -3952,8 +3952,8 @@ tf17(const char *name)
     test_sub("subtest %d: identical sets", ++subnum);
     {
         int     vals[] = {1, 2, 3, 4};
-        hset    se1 = hset_fromiarr(vals, COUNT(vals));
-        hset    se2 = hset_fromiarr(vals, COUNT(vals));
+        hset    se1 = hset_from_intarr(vals, COUNT(vals));
+        hset    se2 = hset_from_intarr(vals, COUNT(vals));
         int     cnt_before = hset_cnt(&se1);
         hset   *res = hset_union(&se1, &se2);
 
@@ -3977,8 +3977,8 @@ tf17(const char *name)
     {
         int     vals1[] = {1, 2, 3, 4, 5};
         int     vals2[] = {3, 5, 6, 7};
-        hset    se1 = hset_fromiarr(vals1, COUNT(vals1));
-        hset    se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset    se1 = hset_from_intarr(vals1, COUNT(vals1));
+        hset    se2 = hset_from_intarr(vals2, COUNT(vals2));
         hset   *res = hset_union(&se1, &se2);
 
         // Ожидаем {1,2,3,4,5,6,7} – 7 элементов
@@ -4003,8 +4003,8 @@ tf17(const char *name)
     {
         int     vals1[] = {100, 200};
         int     vals2[] = {300, 400};
-        hset    se1 = hset_fromiarr(vals1, COUNT(vals1));
-        hset    se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset    se1 = hset_from_intarr(vals1, COUNT(vals1));
+        hset    se2 = hset_from_intarr(vals2, COUNT(vals2));
         hset   *res = hset_union(&se1, &se2);
 
         int     expected_total = COUNT(vals1) + COUNT(vals2);
@@ -4061,7 +4061,7 @@ tf18(const char *name)
     test_sub("subtest %d: non-empty union empty", ++subnum);
     {
         int     vals[] = {3, 7, 11};
-        hset    se1 = hset_fromiarr(vals, COUNT(vals));
+        hset    se1 = hset_from_intarr(vals, COUNT(vals));
         hset    empty = hset_init(10, HSET_INT);
 
         int     cnt1_before = hset_cnt(&se1);
@@ -4093,7 +4093,7 @@ tf18(const char *name)
     {
         int     vals[] = {5, 9};
         hset    empty = hset_init(10, HSET_INT);
-        hset    se2 = hset_fromiarr(vals, COUNT(vals));
+        hset    se2 = hset_from_intarr(vals, COUNT(vals));
 
         int     cnt2_before = hset_cnt(&se2);
         hset    res = hset_init_union(&empty, &se2);
@@ -4122,8 +4122,8 @@ tf18(const char *name)
     test_sub("subtest %d: identical sets", ++subnum);
     {
         int     vals[] = {1, 2, 3, 4};
-        hset    se1 = hset_fromiarr(vals, COUNT(vals));
-        hset    se2 = hset_fromiarr(vals, COUNT(vals));
+        hset    se1 = hset_from_intarr(vals, COUNT(vals));
+        hset    se2 = hset_from_intarr(vals, COUNT(vals));
 
         int     cnt_before = hset_cnt(&se1);
         hset    res = hset_init_union(&se1, &se2);
@@ -4154,8 +4154,8 @@ tf18(const char *name)
     {
         int     vals1[] = {1, 2, 3, 4, 5};
         int     vals2[] = {3, 5, 6, 7};
-        hset    se1 = hset_fromiarr(vals1, COUNT(vals1));
-        hset    se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset    se1 = hset_from_intarr(vals1, COUNT(vals1));
+        hset    se2 = hset_from_intarr(vals2, COUNT(vals2));
 
         int     cnt1_before = hset_cnt(&se1);
         int     cnt2_before = hset_cnt(&se2);
@@ -4190,8 +4190,8 @@ tf18(const char *name)
     {
         int     vals1[] = {100, 200};
         int     vals2[] = {300, 400};
-        hset    se1 = hset_fromiarr(vals1, COUNT(vals1));
-        hset    se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset    se1 = hset_from_intarr(vals1, COUNT(vals1));
+        hset    se2 = hset_from_intarr(vals2, COUNT(vals2));
 
         int     cnt1_before = hset_cnt(&se1);
         int     cnt2_before = hset_cnt(&se2);
@@ -4334,7 +4334,7 @@ tf19(const char *name)
     test_sub("subtest %d: elements preserved after normalize", ++subnum);
     {
         int     vals[] = {5, 15, 25, 35, 45};
-        hset    se = hset_fromiarr(vals, COUNT(vals));
+        hset    se = hset_from_intarr(vals, COUNT(vals));
         hset_normalize(&se);   // после создания load factor ~5/7=0.71 – может не измениться, но проверим
 
         int     ok = (hset_cnt(&se) == COUNT(vals));
@@ -4406,7 +4406,7 @@ tf20(const char *name)
     test_sub("subtest %d: int save/load new", ++subnum);
     {
         int     vals[] = {1, 2, 3, 4, 5};
-        hset    se = hset_fromiarr(vals, COUNT(vals));
+        hset    se = hset_from_intarr(vals, COUNT(vals));
         int     save_ret = hset_save("res/hashset/int.hset", &se);
 
         test_validatefree(
@@ -4448,9 +4448,9 @@ tf20(const char *name)
     {
         int     vals1[] = {10, 20};
         int     vals2[] = {30, 40};
-        hset    se = hset_fromiarr(vals1, COUNT(vals1));
+        hset    se = hset_from_intarr(vals1, COUNT(vals1));
 
-        hset    tmp = hset_fromiarr(vals2, COUNT(vals2));
+        hset    tmp = hset_from_intarr(vals2, COUNT(vals2));
         int     save_ret = hset_save("res/hashset/append_int.hset", &tmp);
         hset_free(&tmp);
 
@@ -4468,7 +4468,7 @@ tf20(const char *name)
         );
 
         int     all_vals[] = {10, 20, 30, 40};
-        hset    expected = hset_fromiarr(all_vals, COUNT(all_vals));
+        hset    expected = hset_from_intarr(all_vals, COUNT(all_vals));
 
         test_validatefree(
             hset_cnt(&se) == COUNT(all_vals),
@@ -4632,7 +4632,7 @@ tf21(const char *name)
     test_sub("subtest %d: const_foreach read-only", ++subnum);
     {
         int     vals[] = {10, 20, 30, 40, 50};
-        hset    se = hset_fromiarr(vals, COUNT(vals) );
+        hset    se = hset_from_intarr(vals, COUNT(vals) );
         // just a printf
         hset_const_foreach(&se, print_as_int);
         hset_free(&se);
@@ -4643,7 +4643,7 @@ tf21(const char *name)
     test_sub("subtest %d: const_foreach does not modify", ++subnum);
     {
         int     vals[] = {1, 2, 3};
-        hset    se = hset_fromiarr(vals, COUNT(vals));
+        hset    se = hset_from_intarr(vals, COUNT(vals));
 
         hset_const_foreach(&se, dummy_const_proc); // ничего не делает, но гарантирует проход
 
@@ -4676,7 +4676,7 @@ tf22(const char *name)
     test_sub("subtest %d: reduce sum int", ++subnum);
     {
         int     vals[] = {1, 2, 3, 4, 5};
-        hset    se = hset_fromiarr(vals, COUNT(vals));
+        hset    se = hset_from_intarr(vals, COUNT(vals));
         hset_accum res = hset_reduce(&se, hset_sum_int);
 
         test_validatefree(
@@ -4696,7 +4696,7 @@ tf22(const char *name)
     test_sub("subtest %d: reduce count int", ++subnum);
     {
         int     vals[] = {10, 20, 30};
-        hset    se = hset_fromiarr(vals, COUNT(vals));
+        hset    se = hset_from_intarr(vals, COUNT(vals));
         hset_accum res = hset_reduce(&se, hset_count_int);
 
         test_validatefree(
@@ -4717,7 +4717,7 @@ tf22(const char *name)
     test_sub("subtest %d: reduce max int", ++subnum);
     {
         int     vals[] = {5, 2, 9, 1, 7};
-        hset    se = hset_fromiarr(vals, COUNT(vals));
+        hset    se = hset_from_intarr(vals, COUNT(vals));
         hset_accum res = hset_reduce(&se, hset_max_int);
 
         test_validatefree(
@@ -4737,7 +4737,7 @@ tf22(const char *name)
     test_sub("subtest %d: reduce min int", ++subnum);
     {
         int     vals[] = {3, 8, 1, 6, 4};
-        hset    se = hset_fromiarr(vals, COUNT(vals));
+        hset    se = hset_from_intarr(vals, COUNT(vals));
         hset_accum res = hset_reduce(&se, hset_min_int);
 
         test_validatefree(
@@ -5078,7 +5078,7 @@ tf25(const char *name)
     test_sub("subtest %d: macro sum int", ++subnum);
     {
         int     vals[] = {1, 2, 3, 4, 5, 6, 7, 8};
-        hset    se = hset_fromiarr(vals, COUNT(vals));
+        hset    se = hset_from_intarr(vals, COUNT(vals));
         //hset_techprint(&se, 0);
         int     sum = 0;
         HSET_FOREACH_INT(&se, v){
@@ -5098,7 +5098,7 @@ tf25(const char *name)
     test_sub("subtest %d: macro collect int", ++subnum);
     {
         int     vals[] = {3, 1, 4, 1, 5, 9, 2, 6};
-        hset    se = hset_fromiarr(vals, COUNT(vals)); // дубликаты будут удалены
+        hset    se = hset_from_intarr(vals, COUNT(vals)); // дубликаты будут удалены
         int     expected[] = {1, 2, 3, 4, 5, 6, 9};   // уникальные отсортированные
         int     collected[COUNT(expected)];
         int     idx = 0;
@@ -5129,7 +5129,7 @@ tf25(const char *name)
     test_sub("subtest %d: macro break int", ++subnum);
     {
         int     vals[] = {10, 20, 30, 40, 50};
-        hset    se = hset_fromiarr(vals, COUNT(vals));
+        hset    se = hset_from_intarr(vals, COUNT(vals));
         int     found = 0;
         HSET_FOREACH_INT(&se, v) {
             if (v == 30) {
@@ -5295,7 +5295,7 @@ tf26(const char *name)
     {
         int vals[] = {1, 2, 3};
         hset empty = hset_init(10, HSET_INT);
-        hset nonempty = hset_fromiarr(vals, COUNT(vals));
+        hset nonempty = hset_from_intarr(vals, COUNT(vals));
         test_validatefree(
             !hset_any(&empty, &nonempty),   // false
             (hset_free(&empty), hset_free(&nonempty)),
@@ -5309,7 +5309,7 @@ tf26(const char *name)
     {
         int vals[] = {1, 2, 3};
         hset empty = hset_init(10, HSET_INT);
-        hset nonempty = hset_fromiarr(vals, COUNT(vals));
+        hset nonempty = hset_from_intarr(vals, COUNT(vals));
         test_validatefree(
             !hset_any(&nonempty, &empty),   // false
             (hset_free(&empty), hset_free(&nonempty)),
@@ -5323,8 +5323,8 @@ tf26(const char *name)
     {
         int vals1[] = {1, 3, 5, 7};
         int vals2[] = {5, 9, 11};
-        hset se1 = hset_fromiarr(vals1, COUNT(vals1));
-        hset se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset se1 = hset_from_intarr(vals1, COUNT(vals1));
+        hset se2 = hset_from_intarr(vals2, COUNT(vals2));
         test_validatefree(
             hset_any(&se1, &se2),   // true
             (hset_free(&se1), hset_free(&se2)),
@@ -5339,8 +5339,8 @@ tf26(const char *name)
     {
         int vals1[] = {100, 200};
         int vals2[] = {300, 400};
-        hset se1 = hset_fromiarr(vals1, COUNT(vals1));
-        hset se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset se1 = hset_from_intarr(vals1, COUNT(vals1));
+        hset se2 = hset_from_intarr(vals2, COUNT(vals2));
         test_validatefree(
             !hset_any(&se1, &se2),   // false
             (hset_free(&se1), hset_free(&se2)),
@@ -5354,8 +5354,8 @@ tf26(const char *name)
     test_sub("subtest %d:hset_any  identical sets", ++subnum);
     {
         int vals[] = {7, 8, 9};
-        hset se1 = hset_fromiarr(vals, COUNT(vals));
-        hset se2 = hset_fromiarr(vals, COUNT(vals));
+        hset se1 = hset_from_intarr(vals, COUNT(vals));
+        hset se2 = hset_from_intarr(vals, COUNT(vals));
         test_validatefree(
             hset_any(&se1, &se2),   // true
             (hset_free(&se1), hset_free(&se2)),
@@ -5386,7 +5386,7 @@ tf26(const char *name)
     {
         int vals[] = {1, 2, 3};
         hset empty = hset_init(10, HSET_INT);
-        hset nonempty = hset_fromiarr(vals, COUNT(vals));
+        hset nonempty = hset_from_intarr(vals, COUNT(vals));
         test_validatefree(
             hset_notexists(&empty, &nonempty),   // true
             (hset_free(&empty), hset_free(&nonempty)),
@@ -5401,8 +5401,8 @@ tf26(const char *name)
     {
         int vals1[] = {10, 20};
         int vals2[] = {30, 40};
-        hset se1 = hset_fromiarr(vals1, COUNT(vals1));
-        hset se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset se1 = hset_from_intarr(vals1, COUNT(vals1));
+        hset se2 = hset_from_intarr(vals2, COUNT(vals2));
         test_validatefree(
             hset_notexists(&se1, &se2),   // true
             (hset_free(&se1), hset_free(&se2)),
@@ -5417,8 +5417,8 @@ tf26(const char *name)
     {
         int vals1[] = {1, 2, 3};
         int vals2[] = {3, 4, 5};
-        hset se1 = hset_fromiarr(vals1, COUNT(vals1));
-        hset se2 = hset_fromiarr(vals2, COUNT(vals2));
+        hset se1 = hset_from_intarr(vals1, COUNT(vals1));
+        hset se2 = hset_from_intarr(vals2, COUNT(vals2));
         test_validatefree(
             !hset_notexists(&se1, &se2),   // false
             (hset_free(&se1), hset_free(&se2)),
@@ -5432,8 +5432,8 @@ tf26(const char *name)
     test_sub("subtest %d: notexists identical sets", ++subnum);
     {
         int vals[] = {5, 6, 7};
-        hset se1 = hset_fromiarr(vals, COUNT(vals));
-        hset se2 = hset_fromiarr(vals, COUNT(vals));
+        hset se1 = hset_from_intarr(vals, COUNT(vals));
+        hset se2 = hset_from_intarr(vals, COUNT(vals));
         test_validatefree(
             !hset_notexists(&se1, &se2),   // false
             (hset_free(&se1), hset_free(&se2)),
