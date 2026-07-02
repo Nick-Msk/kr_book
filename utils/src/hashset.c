@@ -12,39 +12,40 @@ static double                           HSET_NORMALIZE_FACTOR        = 1.5;
 static const size_t                     hset_elem_sizes[] = {
     [VALUE64_INT]  = sizeof(int),
     [VALUE64_LNG] = sizeof(long),
-    [HSET_DBL]  = sizeof(double),
-    [HSET_PTR]  = sizeof(void*),
-    [HSET_FS]   = sizeof(fs *),
+    [VALUE64_DBL]  = sizeof(double),
+    [VALUE64_PTR]  = sizeof(void*),
+    [VALUE64_FS]   = sizeof(fs *),
     [
 };*/
 
 // ---------- pseudo-header for utility procedures -----------------
 
 // ---------------------------- (Utility) printers -----------------------------
-
+// generic
 int                         sortedlist_fprint(FILE *restrict out, const hset_elem *restrict elem, value64_type typ){
     int     cnt = 0;
     while (elem){
-        switch (typ){
-            case HSET_INT:
+        cnt += value64_fprint(value64_fprint, NULL, elem->v, typ);
+        /*switch (typ){
+            case VALUE64_INT:
                 cnt += fprintf(out, "%d", elem->v.ival);
             break;
-            case HSET_LONG:
+            case VALUE64_LNG:
                 cnt += fprintf(out, "%ld", elem->v.lval);
             break;
-            case HSET_DBL:
+            case VALUE64_DBL:
                 cnt += fprintf(out, "%lf", elem->v.dval);
             break;
-            case HSET_PTR:
+            case VALUE64_PTR:
                 cnt += fprintf(out, "%p", elem->v.pval);
             break;
-            case HSET_FS:
+            case VALUE64_FS:
                 cnt += fs_fprint(out, elem->v.fsval, NULL);
             break;
             default:
                 logsimple("Unsuported %d - %s", typ, value64_typename(typ) );
             break;
-        }
+        }*/
         cnt += fprintf(out, " -> ");
         elem = elem->next;
     }
@@ -52,122 +53,127 @@ int                         sortedlist_fprint(FILE *restrict out, const hset_ele
 }
 
 // ------------------------------------ Utilities ------------------------------------------
-
-static unsigned long       get_lhash(unsigned cnt, hset_value value, value64_type typ){
+// generic
+static unsigned long       get_lhash(unsigned cnt, value64 value, value64_type typ){
     // probably it's better to calc hash by u64 attr (except fs for sure)
+    unsigned long hash = value64_lhash(value, typ);
+    return hash % cnt;
+    /*
     hset_value      tmp = HSET_ZERO_VALUE;
     switch (typ){
-        case HSET_INT:
+        case VALUE64_INT:
             tmp.u64 = (uint64_t) value.ival;
         break;
-        case HSET_LONG:
+        case VALUE64_LNG:
             tmp.u64 = (uint64_t) value.lval;
         break;
-        case HSET_DBL:
+        case VALUE64_DBL:
             //bits = (uint64_t) value.lval;   // OMG
             tmp.u64 = value.u64;
         break;
-        case HSET_PTR:
-            tmp.u64 = (uint64_t)(uintptr_t) value.pval;    // or just do nothing as for HSET_DBL
+        case VALUE64_PTR:
+            tmp.u64 = (uint64_t)(uintptr_t) value.pval;    // or just do nothing as for VALUE64_DBL
         break;
-        case HSET_FS:
+        case VALUE64_FS:
             return hash_djb2(fs_str(value.fsval) ) % cnt;
         break;
         default:
         break;
     }
-    return tmp.u64 % cnt;
+    return tmp.u64 % cnt; */
 }
-
+/*
 static inline int           compare(hset_value v1, hset_value v2, value64_type typ){
     switch (typ){
-        case HSET_INT:
+        case VALUE64_INT:
             return compare_int(v1.ival, v2.ival);
         break;
-        case HSET_LONG:
+        case VALUE64_LNG:
             return compare_long(v1.lval, v2.lval);
         break;
-        case HSET_DBL:
+        case VALUE64_DBL:
             return compare_dbl(v1.dval, v2.dval);
         break;
-        case HSET_PTR:
+        case VALUE64_PTR:
             return compare_ptr(v1.pval, v2.pval);
         break;
-        case HSET_FS:
+        case VALUE64_FS:
             return fs_cmp(v1.fsval, v2.fsval);
         break;
         default:
             userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
             return 0;
     }
-}
+} */
 
+// TODO: to replce to value64_gettype
 static value64_type            gettype(const char *str){
-    if (strcmp(str, "HSET_INT") == 0)
-        return  HSET_INT;
-    else if (strcmp(str, "HSET_LONG") == 0)
-        return  HSET_LONG;
-    else if (strcmp(str, "HSET_DBL") == 0)
-        return  HSET_DBL;
-    else if (strcmp(str, "HSET_PTR") == 0)
-        return  HSET_PTR;
-    else if (strcmp(str, "HSET_FS") == 0)
-        return HSET_FS;
+    return value64_gettype(str);
+    /*if (strcmp(str, "VALUE64_INT") == 0)
+        return  VALUE64_INT;
+    else if (strcmp(str, "VALUE64_LNG") == 0)
+        return  VALUE64_LNG;
+    else if (strcmp(str, "VALUE64_DBL") == 0)
+        return  VALUE64_DBL;
+    else if (strcmp(str, "VALUE64_PTR") == 0)
+        return  VALUE64_PTR;
+    else if (strcmp(str, "VALUE64_FS") == 0)
+        return VALUE64_FS;
     else
-        return HSET_UKNOWN;
+        return HSET_UKNOWN; */
 }
-
+/*
 static hset_value           convert_value(hset_value v, value64_type from, value64_type to){
-    if (from == to && from != HSET_FS)  // криво конечно
+    if (from == to && from != VALUE64_FS)  // криво конечно
         return v;
 
     hset_value result = HSET_ZERO_VALUE; // обнуляем u64
 
     switch (from) {
-        case HSET_INT:
-            if (to == HSET_LONG)
+        case VALUE64_INT:
+            if (to == VALUE64_LNG)
                 result.lval = (long)v.ival;
-            else if (to == HSET_DBL)
+            else if (to == VALUE64_DBL)
                 result.dval = (double)v.ival;
-            else if (to == HSET_FS) {
+            else if (to == VALUE64_FS) {
                 fs tmp = FS();
                 fs_sprintf(&tmp, "%d", v.ival);
                 result.fsval = fs_moveto_heap(&tmp);
             } else
                 userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, value64_typename(from), to, value64_typename(to) );
         break;
-        case HSET_LONG:
-            if (to == HSET_INT)
+        case VALUE64_LNG:
+            if (to == VALUE64_INT)
                 result.ival = (int)v.lval;
-            else if (to == HSET_DBL)
+            else if (to == VALUE64_DBL)
                 result.dval = (double)v.lval;
-            else if (to == HSET_FS) {
+            else if (to == VALUE64_FS) {
                     fs tmp = FS();
                     fs_sprintf(&tmp, "%ld", v.lval);
                     result.fsval = fs_moveto_heap(&tmp);
             } else
                 userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, value64_typename(from), to, value64_typename(to) );
             break;
-        case HSET_DBL:
-            if (to == HSET_INT)
+        case VALUE64_DBL:
+            if (to == VALUE64_INT)
                 result.ival = (int)v.dval;
-            else if (to == HSET_LONG)
+            else if (to == VALUE64_LNG)
                 result.lval = (long)v.dval;
-            else if (to == HSET_FS) {
+            else if (to == VALUE64_FS) {
                     fs tmp = FS();
                     fs_sprintf(&tmp, "%g", v.dval); // TODO: context must be here!
                     result.fsval = fs_moveto_heap(&tmp);
             } else
                 userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, value64_typename(from), to, value64_typename(to) );
             break;
-        case HSET_FS:
-            if (to == HSET_INT)
+        case VALUE64_FS:
+            if (to == VALUE64_INT)
                 result.ival = fs_getint(v.fsval);
-            else if (to == HSET_LONG)
+            else if (to == VALUE64_LNG)
                 result.lval = fs_getlong(v.fsval);
-            else if (to == HSET_DBL)
+            else if (to == VALUE64_DBL)
                 result.dval = fs_getdouble(v.fsval);
-            else if (to == HSET_FS)
+            else if (to == VALUE64_FS)
                 result.fsval = fs_heapcreate(v.fsval); // body in heap too!!!
             else
                 userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, value64_typename(from), to, value64_typename(to) );
@@ -176,24 +182,24 @@ static hset_value           convert_value(hset_value v, value64_type from, value
             break; // неподдерживаемые типы — останется нулевое значение
     }
     return result;
-}
+}*/
 
-static void                 printval(FILE *out, value64_type typ, hset_value v){
+static void                 printval(FILE *out, value64_type typ, value64 v){
     if (out){
         switch (typ) {
-            case HSET_INT:
+            case VALUE64_INT:
                 fprintf(out, "%d\n", v.ival);
             break;
-            case HSET_LONG:
+            case VALUE64_LNG:
                 fprintf(out, "%ld\n", v.lval);
             break;
-            case HSET_DBL:
+            case VALUE64_DBL:
                 fprintf(out, "%.15g\n", v.dval);
             break;
-            case HSET_PTR:
+            case VALUE64_PTR:
                 fprintf(out, "%p\n", v.pval);
             break;
-            case HSET_FS:
+            case VALUE64_FS:
                 fs_fprint(out, v.fsval, NULL); fprintf(out, "\n");  // TODO: ref is required
             break;
             default:
@@ -202,17 +208,17 @@ static void                 printval(FILE *out, value64_type typ, hset_value v){
     }
 }
 
-static bool readval(FILE *f, value64_type typ, hset_value *v) {
+static bool                 readval(FILE *f, value64_type typ, value64 *v) {
     switch (typ) {
-        case HSET_INT:
+        case VALUE64_INT:
             return fscanf(f, "%d", &v->ival) == 1;
-        case HSET_LONG:
+        case VALUE64_LNG:
             return fscanf(f, "%ld", &v->lval) == 1;
-        case HSET_DBL:
+        case VALUE64_DBL:
             return fscanf(f, "%lf", &v->dval) == 1;
-        case HSET_PTR:
+        case VALUE64_PTR:
             return fscanf(f, "%p", &v->pval) == 1;
-        case HSET_FS:
+        case VALUE64_FS:
             v->fsval = fs_fscanf(f, NULL); // TODO: ref is required to make smth like return fs_fscanf(f, &v->fsval) == true;
             return v->fsval != NULL;
         default: return false;
@@ -223,12 +229,12 @@ static inline value64_type     getype(const hset *se){
     return se->flags & 0xFF;
 }
 
-static hset_elem           *getprevelem(const hset *restrict se, hset_value value, unsigned *restrict phash, hset_elem **restrict pnext, hset_elem **restrict pequal){
+static hset_elem           *getprevelem(const hset *restrict se, value64 value, unsigned *restrict phash, hset_elem **restrict pnext, hset_elem **restrict pequal){
 
     unsigned hash = get_lhash(se->sz, value, getype(se) );
     hset_elem *el = se->table[hash],
               *prevel = 0;
-    while (el != 0 && compare(value, el->v, getype(se) ) < 0){
+    while (el != 0 && value64_compare(value, el->v, getype(se) ) < 0){
         //logmsg("el %p, prevel %p", el, prevel);
         prevel = el;
         el = el->next;
@@ -251,12 +257,12 @@ static hset_elem           *alloc_elem(void){
     return malloc(sizeof(hset_elem) );
 }
 
-static hset_elem           *create_elem(hset_value val, value64_type typ){
+static hset_elem           *create_elem(value64 val, value64_type typ){
     hset_elem *res = alloc_elem();
     if (!res)
         return logsimpleret( (hset_elem *) 0, "Unable to create elem");
 
-    if (typ == HSET_FS) {
+    if (typ == VALUE64_FS) {
         if (val.fsval && !fs_bodyalloc(val.fsval))
             // Локальный или временный fs — создаём копию в куче
             val.fsval = fs_heapcreate(val.fsval);
@@ -267,21 +273,21 @@ static hset_elem           *create_elem(hset_value val, value64_type typ){
     return res;
 }
 
-static bool                 create_or_move_elem(hset * restrict se, hset_elem *restrict el, hset_value val){
-    if (getype(se) == HSET_FS)
+static bool                 create_or_move_elem(hset * restrict se, hset_elem *restrict el, value64 val){
+    if (getype(se) == VALUE64_FS)
         logsimple("%p %p", val.fsval, val.fsval ? fs_str(val.fsval) : NULL);
-    if (getype(se) == HSET_FS && (val.fsval == NULL || fs_str(val.fsval) == NULL) )
+    if (getype(se) == VALUE64_FS && (val.fsval == NULL || fs_str(val.fsval) == NULL) )
         return logsimpleret(false, "Unable to add Null FS value");
 
     bool         already_existed = false;
     unsigned     hash = 0;
     hset_elem   *equal = 0, *nextel = 0;
-    hset_value   value;
+    value64   value;
     if (el)
         value = el->v;
     else {
         // TODO: rework, shouldn't create and then free in (equal)
-        //if (getype(se) == HSET_FS && !fs_bodyalloc(val.fsval) ){
+        //if (getype(se) == VALUE64_FS && !fs_bodyalloc(val.fsval) ){
           //  val.fsval = fs_heapcreate(val.fsval);    //  clone here!
         //}
         value = val;
@@ -289,7 +295,7 @@ static bool                 create_or_move_elem(hset * restrict se, hset_elem *r
     hset_elem   *prevel = getprevelem(se, value, &hash, &nextel, &equal);
     if (equal) {
         already_existed = true;
-        //if (getype(se) == HSET_FS){
+        //if (getype(se) == VALUE64_FS){
         //    logsimple("DUPLICATE FS, freeing %p", val.fsval);
         //    fs_free(val.fsval);   // освобождаем копию, которая не понадобилась
         //}
@@ -320,7 +326,7 @@ static hset_elem           *clone_elemlist(const hset_elem *el, value64_type typ
         if (!(newel = create_elem(el->v, typ) ) )
             return userraise((hset_elem *) 0, ERR_UNABLE_ALLOCATE, "Unable to create element");
         switch (typ){
-            case HSET_FS:
+            case VALUE64_FS:
                 newel->v.fsval = fs_heapcreate(el->v.fsval);
             break;
             /* case HSET_STR:
@@ -362,7 +368,7 @@ static int                   hset_calc_cnt(const hset *se){
 
 static void                 free_elem(hset_elem *el, value64_type typ){
     switch (typ){
-        case HSET_FS:
+        case VALUE64_FS:
             fs_free(el->v.fsval);        // to free space, NO need to free(el->v.fsval)! That will do fs_free() because of FS_FLAG_MOVED
         break;
         default:
@@ -393,14 +399,14 @@ static bool                 validate_elemlist(const hset_elem *el, value64_type 
         if (hash != pos)
             return logsimpleerr(false, "iter %d: %u, but must be %u", iternum, hash, pos);
         if (prevel)
-            if (compare(el->v, prevel->v, typ) < 0)
+            if (value64_compare(el->v, prevel->v, typ) < 0)
                 return logsimpleret(false, "iter %d: ordering violation", iternum);  // TODO: valprev %s valnext %s must be here via fs
         el = el->next;
     }
     return logsimpleerr(true, "%u Ok", pos);
 }
 
-static hset_value           hset_createarrval(const void *arr, int idx, value64_type typ) {
+static value64           hset_createarrval(const void *arr, int idx, value64_type typ) {
 
     size_t elem_size = value64_info_get(typ).size; //hset_elem_sizes[typ];
     //logauto(elem_size);
@@ -428,22 +434,22 @@ static bool                 find_elems(const hset_elem *restrict el, const hset 
 // ---------------------------------- API Constructs/Destrucor  ----------------------------
 
 // value64 constructor ANY type, TODO: will be moved to value64
-hset_value                  hset_createval(const void *p, value64_type typ){
-    hset_value tmp = HSET_ZERO_VALUE;  // init
+value64                  hset_createval(const void *p, value64_type typ){
+    value64 tmp = HSET_ZERO_VALUE;  // init
     switch (typ){
-        case HSET_INT:
+        case VALUE64_INT:
             tmp.ival = *(const int *) p;
         break;
-        case HSET_LONG:
+        case VALUE64_LNG:
             tmp.lval = *(const long *) p;
         break;
-        case HSET_DBL:
+        case VALUE64_DBL:
             tmp.dval = *(const double *) p;
         break;
-        case HSET_PTR:
+        case VALUE64_PTR:
             tmp.pval = *(void * const *) p;
         break;
-        case HSET_FS:
+        case VALUE64_FS:
             tmp.fsval = *(fs * const *)p; //hset_create_fs(*(const fs * const *) p);         // FS_FLAG_MOVED is set!
         break;
         default:
@@ -456,7 +462,7 @@ hset_value                  hset_createval(const void *p, value64_type typ){
 hset                        hset_init(int sz, value64_type typ){
     logenter("init sz %d - %s", sz, value64_typename(typ) );
 
-    if (int_notin(typ, HSET_INT, HSET_LONG, HSET_DBL, HSET_FS, HSET_PTR) )
+    if (int_notin(typ, VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_FS, VALUE64_PTR) )
         userraiseint(ERR_UNSUPPORTED_TYPE, "%d", typ);
 
     if (sz <= 0)
@@ -526,7 +532,7 @@ hset                        hset_clone(const hset *se){
 hset                        hset_cloneas(const hset *se, value64_type typ){
     invraise(se != 0, "Null pointer");
 
-    if (int_notin(typ, HSET_INT, HSET_LONG, HSET_DBL, HSET_FS) && int_notin(getype(se), HSET_INT, HSET_LONG, HSET_DBL, HSET_FS))
+    if (int_notin(typ, VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_FS) && int_notin(getype(se), VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_FS))
         userraiseint(ERR_UNSUPPORTED_TYPE, "From %d:%s - to %d:%s",
             getype(se), value64_typename(getype(se) ), typ, value64_typename(typ) );
 
@@ -534,7 +540,7 @@ hset                        hset_cloneas(const hset *se, value64_type typ){
     for (int i = 0; i < se->sz; i++){
         const hset_elem *el = se->table[i];     // probably better to create separate function
         while (el){
-            if (!hset_set(&res, convert_value(el->v, getype(se), typ) ) )
+            if (!hset_set(&res, value64_convert(el->v, getype(se), typ) ) )
                 userraiseint(ERR_UNABLE_ALLOCATE, "Unable to create element");
             el = el->next;
         }
@@ -544,7 +550,7 @@ hset                        hset_cloneas(const hset *se, value64_type typ){
 
 hset                        hset_from_anyarr(const void *arr, int sz, value64_type typ){
     invraise(arr != 0 && sz > 0 && sz < INT_MAX / 4, "Incorrent input %p - %d", arr, sz);
-    if (int_notin(typ, HSET_INT, HSET_LONG, HSET_DBL, HSET_PTR, HSET_FS) )
+    if (int_notin(typ, VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_PTR, VALUE64_FS) )
         userraiseint(ERR_UNSUPPORTED_TYPE, "%d", typ);
 
     if (sz <= 0)
@@ -675,7 +681,7 @@ bool                        hset_validate(FILE *out, const hset *restrict se){
             fprintf(out, "Cnt %d not matched to calculated cnt %d", se->count, cnt);
         return logerr(false, "Cnt %d not matched to calculated cnt %d", se->count, cnt);
     }
-    if (int_notin(getype(se), HSET_INT, HSET_LONG, HSET_DBL, HSET_FS, HSET_PTR) ){
+    if (int_notin(getype(se), VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_FS, VALUE64_PTR) ){
         if (out)
             fprintf(out, "Incorrect type %d", getype(se) );
         return logerr(false, "Incorrect type %d", getype(se) );
@@ -699,7 +705,7 @@ bool                        hset_validate(FILE *out, const hset *restrict se){
 
 // ---------------------------------- General functions ------------------------------------
 
-bool                        hset_set(hset *se, hset_value val){
+bool                        hset_set(hset *se, value64 val){
     invraise(se != 0, "Null pointer");
 
     return create_or_move_elem(se, 0, val);
@@ -711,7 +717,7 @@ bool                        hset_elem_move(hset * restrict se, hset_elem *restri
     return create_or_move_elem(se, el, HSET_ZERO_VALUE);
 }
 
-bool                        hset_get(const hset *se, hset_value val){
+bool                        hset_get(const hset *se, value64 val){
     invraise(se != 0, "Null pointer");
 
     hset_elem   *equal = 0;
@@ -725,7 +731,7 @@ bool                        hset_get(const hset *se, hset_value val){
     }
 }
 // try to delete elemenet, true if deleted, false if not found
-bool                        hset_del(hset *se, hset_value val){
+bool                        hset_del(hset *se, value64 val){
     invraise(se != 0, "Null pointer");
 
     unsigned            hash;
@@ -797,7 +803,7 @@ bool                        hset_noteq(const hset *restrict se1, const hset *res
 
 int                         hset_loadanyarr(hset *restrict se, const void *arr, int sz, value64_type typ){ 
     invraise(arr != 0 && sz > 0 && sz < INT_MAX / 4, "Incorrent input %p - %d", arr, sz);
-    if (int_notin(typ, HSET_INT, HSET_LONG, HSET_DBL, HSET_PTR, HSET_FS) )
+    if (int_notin(typ, VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_PTR, VALUE64_FS) )
         userraiseint(ERR_UNSUPPORTED_TYPE, "%d - %s", typ, value64_typename(typ) );
 
     int         cnt = 0;
@@ -959,7 +965,7 @@ int                         hset_fsave(FILE  *restrict out, const hset *se) {
 
     value64_type   typ = getype(se);
 
-    invraisecode ( int_in(typ, HSET_INT, HSET_LONG, HSET_DBL, HSET_PTR),
+    invraisecode ( int_in(typ, VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_PTR),
                 ERR_UNSUPPORTED_TYPE,
                 "%d - %s", typ, value64_typename(typ) );
     int         cnt = 0;
@@ -1009,7 +1015,7 @@ int                         hset_fload(FILE *restrict in, hset *restrict se) {
 
     int addcnt = 0;
     for (int i = 0; i < cnt; i++) {
-        hset_value val = HSET_ZERO_VALUE;
+        value64 val = HSET_ZERO_VALUE;
         if (!readval(in, file_type, &val)){
             if (must_free_on_error)
                 hset_free(&res);
@@ -1100,48 +1106,48 @@ hset_accum                  hset_initreduce(const hset *se, hset_accum init, hse
     return acc;
 }
 // ------------------------------------- REDUCE IMPL -----------------------------------------
-void                        hset_sum_int(hset_accum *acc, hset_value v) {
+void                        hset_sum_int(hset_accum *acc, value64 v) {
     acc->value.ival += v.ival;
     acc->count++;
 }
 
-void                        hset_count_int(hset_accum *acc, hset_value v) {
+void                        hset_count_int(hset_accum *acc, value64 v) {
     (void) v;
     acc->count++;
 }
 
-void                        hset_max_int(hset_accum *acc, hset_value v) {
+void                        hset_max_int(hset_accum *acc, value64 v) {
     if (acc->count == 0 || v.ival > acc->value.ival) {
         acc->value.ival = v.ival;
         acc->count = 1;   // помечаем, что значение уже есть
     }
 }
 
-void                        hset_min_int(hset_accum *acc, hset_value v) {
+void                        hset_min_int(hset_accum *acc, value64 v) {
     if (acc->count == 0 || v.ival < acc->value.ival) {
         acc->value.ival = v.ival;
         acc->count = 1;
     }
 }
 
-/*void                        hset_avg_int(hset_accum *acc, hset_value v) {
+/*void                        hset_avg_int(hset_accum *acc, value64 v) {
     acc->value.ival += v.ival;
     acc->count++;
 }*/
 // double
-void                        hset_sum_dbl(hset_accum *acc, hset_value v) {
+void                        hset_sum_dbl(hset_accum *acc, value64 v) {
     if (isfinite(v.dval)) {
         acc->value.dval += v.dval;
         acc->count++;
     }
 }
 
-void                        hset_count_dbl(hset_accum *acc, hset_value v) {
+void                        hset_count_dbl(hset_accum *acc, value64 v) {
     if (isfinite(v.dval))
         acc->count++;
 }
 
-void                        hset_max_dbl(hset_accum *acc, hset_value v) {
+void                        hset_max_dbl(hset_accum *acc, value64 v) {
     if (!isfinite(v.dval))
         return;
     if (acc->count == 0 || v.dval > acc->value.dval) {
@@ -1150,7 +1156,7 @@ void                        hset_max_dbl(hset_accum *acc, hset_value v) {
     }
 }
 
-void                        hset_min_dbl(hset_accum *acc, hset_value v) {
+void                        hset_min_dbl(hset_accum *acc, value64 v) {
     if (!isfinite(v.dval))
         return;
     if (acc->count == 0 || v.dval < acc->value.dval) {
@@ -1159,7 +1165,7 @@ void                        hset_min_dbl(hset_accum *acc, hset_value v) {
     }
 }
 
-/*void                        hset_avg_dbl(hset_accum *acc, hset_value v) {
+/*void                        hset_avg_dbl(hset_accum *acc, value64 v) {
     if (isfinite(v.dval)) {
         acc->value.dval += v.dval;
         acc->count++;
@@ -1185,7 +1191,7 @@ tf1(const char *name)
 
     test_sub("subtest %d: init + free", ++subnum);
     {
-        hset se1 = hset_init(100, HSET_INT);
+        hset se1 = hset_init(100, VALUE64_INT);
         hset_tech_fprintall(logfile, se1);
         test_validatefree(
             hset_validate(stdout, &se1), hset_free(&se1), "Validation failed"
@@ -1194,7 +1200,7 @@ tf1(const char *name)
     }
     test_sub("subtest %d: init + free", ++subnum);
     {
-        hset sefs1 = hset_init(100, HSET_FS);
+        hset sefs1 = hset_init(100, VALUE64_FS);
         hset_tech_fprintall(logfile, sefs1);
         test_validatefree(
             hset_validate(stdout, &sefs1), hset_free(&sefs1), "Validation failed"
@@ -1211,18 +1217,18 @@ tf2(const char *name)
     logenter("%s", name);
     int         subnum = 0;
 
-    test_sub("subtest %d: HSET_INT init + get + free", ++subnum);
+    test_sub("subtest %d: VALUE64_INT init + get + free", ++subnum);
     {
-        hset    se1 = hset_init(100, HSET_INT);
+        hset    se1 = hset_init(100, VALUE64_INT);
         int     num = 77;
         // mustb return false
         test_validatefree(
-            hset_set(&se1, HSET_INTVALUE(num) ),
+            hset_set(&se1, VALUE64_INTVALUE(num) ),
             hset_free(&se1), "Must be true"
         );
         hset_tech_fprintall(logfile, se1);
         test_validatefree(
-            hset_set(&se1, HSET_INTVALUE(num) ) == false,
+            hset_set(&se1, VALUE64_INTVALUE(num) ) == false,
             hset_free(&se1), "Must be false because elem %d aleady in the set", num
         );
         hset_tech_fprintall(logfile, se1);
@@ -1230,53 +1236,53 @@ tf2(const char *name)
             hset_validate(stdout, &se1), hset_free(&se1), "Validation failed"
         );
         test_validatefree(
-            hset_get(&se1, HSET_INTVALUE(num) ), hset_free(&se1), "Must be true,  because already added %d", num
+            hset_get(&se1, VALUE64_INTVALUE(num) ), hset_free(&se1), "Must be true,  because already added %d", num
         );
         test_validatefree(
-            hset_get(&se1, HSET_INTVALUE(num + 1) ) == false, hset_free(&se1), "Must be false %d", num + 1
+            hset_get(&se1, VALUE64_INTVALUE(num + 1) ) == false, hset_free(&se1), "Must be false %d", num + 1
         );
         test_validatefree(
-            hset_del(&se1, HSET_INTVALUE(num) ), hset_free(&se1), "Must be true, because element %d exists", num
+            hset_del(&se1, VALUE64_INTVALUE(num) ), hset_free(&se1), "Must be true, because element %d exists", num
         );
         hset_tech_fprintall(logfile, se1);
         test_validatefree(
-            hset_del(&se1, HSET_INTVALUE(num) ) == false, hset_free(&se1), "Must be false, because element %d already deleted", num
+            hset_del(&se1, VALUE64_INTVALUE(num) ) == false, hset_free(&se1), "Must be false, because element %d already deleted", num
         );
         test_validatefree(
             hset_validate(stdout, &se1), hset_free(&se1), "Validation failed"
         );
         hset_free(&se1);
     }
-    test_sub("subtest %d: HSET_INT multiple add/del", ++subnum);
+    test_sub("subtest %d: VALUE64_INT multiple add/del", ++subnum);
     {
         int     cnt = 100, mul = 3;
-        hset    se1 = hset_init(cnt, HSET_INT);
+        hset    se1 = hset_init(cnt, VALUE64_INT);
 
         for (int i = 0; i < cnt * mul; i++)
             test_validatefree(
-                hset_set(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Already exists %d", i
+                hset_set(&se1, VALUE64_INTVALUE(i) ), hset_free(&se1), "Already exists %d", i
             );
         hset_tech_fprintall(logfile, se1);
 
         for (int i = 0; i < cnt * mul; i++)
             test_validatefree(
-                hset_get(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Unable to get %d", i
+                hset_get(&se1, VALUE64_INTVALUE(i) ), hset_free(&se1), "Unable to get %d", i
             );
 
         int     delfrom = 40, delto = 50;
         for (int i = delfrom; i < delto; i++)
             test_validatefree(
-                hset_del(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Unable to delete %d", i
+                hset_del(&se1, VALUE64_INTVALUE(i) ), hset_free(&se1), "Unable to delete %d", i
             );
 
         for (int i = 0; i < cnt * mul; i++)
             if (i >= delfrom && i < delto){
                 test_validatefree(
-                    hset_get(&se1, HSET_INTVALUE(i) ) == false, hset_free(&se1), "Element %d was deleted, but return found somehow!", i
+                    hset_get(&se1, VALUE64_INTVALUE(i) ) == false, hset_free(&se1), "Element %d was deleted, but return found somehow!", i
                 );
             } else {
                 test_validatefree(
-                    hset_get(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Element %d not found", i
+                    hset_get(&se1, VALUE64_INTVALUE(i) ), hset_free(&se1), "Element %d not found", i
                 );
             }
         test_validatefree(
@@ -1285,34 +1291,34 @@ tf2(const char *name)
 
         hset_free(&se1);
     }
-    test_sub("subtest %d: HSET_INT multiple reversed add/del", ++subnum);
+    test_sub("subtest %d: VALUE64_INT multiple reversed add/del", ++subnum);
     {
         int     cnt = 100, mul = 3;
-        hset    se1 = hset_init(cnt, HSET_INT);
+        hset    se1 = hset_init(cnt, VALUE64_INT);
 
         for (int i = cnt * mul - 1; i >= 0; i--)
             test_validatefree(
-                hset_set(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Already exists %d", i
+                hset_set(&se1, VALUE64_INTVALUE(i) ), hset_free(&se1), "Already exists %d", i
             );
 
         for (int i = 0; i < cnt * mul; i++)
             test_validatefree(
-                hset_get(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Unable to get %d", i
+                hset_get(&se1, VALUE64_INTVALUE(i) ), hset_free(&se1), "Unable to get %d", i
             );
         int     delfrom = 40, delto = 50;
         for (int i = delfrom; i < delto ; i++)
             test_validatefree(
-                hset_del(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Unable to delete %d", i
+                hset_del(&se1, VALUE64_INTVALUE(i) ), hset_free(&se1), "Unable to delete %d", i
             );
 
         for (int i = 0; i < cnt * mul; i++)
             if (i >= delfrom && i < delto){
                 test_validatefree(
-                    hset_get(&se1, HSET_INTVALUE(i) ) == false, hset_free(&se1), "Element %d was deleted, but return found somehow!", i
+                    hset_get(&se1, VALUE64_INTVALUE(i) ) == false, hset_free(&se1), "Element %d was deleted, but return found somehow!", i
                 );
             } else {
                 test_validatefree(
-                    hset_get(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Element %d not found", i
+                    hset_get(&se1, VALUE64_INTVALUE(i) ), hset_free(&se1), "Element %d not found", i
                 );
             }
 
@@ -1321,18 +1327,18 @@ tf2(const char *name)
     test_sub("subtest %d: random int add/del", ++subnum);
     {
         int     cnt = 100, mul = 3;
-        hset    se1 = hset_init(cnt, HSET_INT);
+        hset    se1 = hset_init(cnt, VALUE64_INT);
 
         for (int i = cnt * mul - 1; i >= 0; i--)
             test_validatefree(
-                hset_set(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Already exists %d", i
+                hset_set(&se1, VALUE64_INTVALUE(i) ), hset_free(&se1), "Already exists %d", i
             );
         // random del
         srand(time(NULL));
         for (int i = 0; i < cnt * mul; i += rndint(5) + 1 )
             //if (i < cnt * mul)
                 test_validatefree(
-                    hset_del(&se1, HSET_INTVALUE(i) ), hset_free(&se1), "Unable to delete [%d]", i
+                    hset_del(&se1, VALUE64_INTVALUE(i) ), hset_free(&se1), "Unable to delete [%d]", i
                 );
 
         test_validatefree(
@@ -1343,7 +1349,7 @@ tf2(const char *name)
 
     test_sub("subtest %d: FS init + add + get + free", ++subnum);
     {
-        hset se = hset_init(10, HSET_FS);
+        hset se = hset_init(10, VALUE64_FS);
 
         fs s1 = fscopy("hello");   // локальная копия строки
         fs s2 = fscopy("world");
@@ -1351,34 +1357,34 @@ tf2(const char *name)
 
         // Вставляем (hset_createval сделает свою копию)
         test_validatefree(
-            hset_set(&se, HSET_FSVALUE(s1)) == true,
+            hset_set(&se, VALUE64_FSVALUE(s1)) == true,
             hset_free(&se),
             "Failed to insert 'hello'"
         );
         test_validatefree(
-            hset_set(&se, HSET_FSVALUE(s2)) == true,
+            hset_set(&se, VALUE64_FSVALUE(s2)) == true,
             hset_free(&se),
             "Failed to insert 'world'"
         );
         test_validatefree(
-            hset_set(&se, HSET_FSVALUE(s3)) == true,
+            hset_set(&se, VALUE64_FSVALUE(s3)) == true,
             hset_free(&se),
             "Failed to insert 'foo'"
         );
 
         // Проверяем наличие (s1, s2, s3 всё ещё валидны)
         test_validatefree(
-            hset_get(&se, HSET_FSVALUE(s1)) == true,
+            hset_get(&se, VALUE64_FSVALUE(s1)) == true,
             hset_free(&se),
             "Missing 'hello'"
         );
         test_validatefree(
-            hset_get(&se, HSET_FSVALUE(s2)) == true,
+            hset_get(&se, VALUE64_FSVALUE(s2)) == true,
             hset_free(&se),
             "Missing 'world'"
         );
         test_validatefree(
-            hset_get(&se, HSET_FSVALUE(s3)) == true,
+            hset_get(&se, VALUE64_FSVALUE(s3)) == true,
             hset_free(&se),
             "Missing 'foo'"
         );
@@ -1396,22 +1402,22 @@ tf2(const char *name)
     fs_alloc_check(true);
     test_sub("subtest %d: FS empty \"\" checking", ++subnum);
     {
-        hset    se = hset_init(10, HSET_FS);
+        hset    se = hset_init(10, VALUE64_FS);
         fs      s1 = fsliteral("");
         fs      s2 = fscopy("");
         test_validatefree(
-            hset_set(&se, HSET_FSVALUE(s1)) == true,
+            hset_set(&se, VALUE64_FSVALUE(s1)) == true,
             hset_free(&se),
             "Failed to insert empty literal"
         );
         hset_clean(&se);
         test_validatefree(
-            hset_set(&se, HSET_FSVALUE(s2)) == true,
+            hset_set(&se, VALUE64_FSVALUE(s2)) == true,
             hset_free(&se),
             "Failed to insert empty fs"
         );
         test_validatefree(
-            hset_set(&se, HSET_FSVALUE(s1)) == false,
+            hset_set(&se, VALUE64_FSVALUE(s1)) == false,
             hset_free(&se),
             "Shiuld be false, because empty line again (literal)"
         );
@@ -1432,20 +1438,20 @@ tf3(const char *name)
 
     test_sub("subtest %d: clone...", ++subnum);
     {
-        hset    se1 = hset_init(10, HSET_LONG);
+        hset    se1 = hset_init(10, VALUE64_LNG);
         int     cnt = 50;
 
         for (int i = 0; i < cnt; i++)
             test_validatefree(
-                hset_set(&se1, HSET_LONGVALUE(i) ), hset_free(&se1), "Already exists %d", i
+                hset_set(&se1, VALUE64_LNGVALUE(i) ), hset_free(&se1), "Already exists %d", i
             );
         hset    se2 = hset_clone(&se1);
         hset_tech_printall(se2);
         // then compare one by one
         bool        r1, r2;
         for (int i = 0; i < cnt; i++){
-            r1 = hset_get(&se1, HSET_LONGVALUE(i) );
-            r2 = hset_get(&se2, HSET_LONGVALUE(i) );
+            r1 = hset_get(&se1, VALUE64_LNGVALUE(i) );
+            r2 = hset_get(&se2, VALUE64_LNGVALUE(i) );
             test_validatefree(
                 (r1 ^ r2) == false, (hset_free(&se1), hset_free(&se2) ),
                 "%d: Must be true all, but origin %s, clone %s", i, bool_str(r1), bool_str(r2)
@@ -1471,7 +1477,7 @@ tf3(const char *name)
 
         for (int i = 0; i < arr.len; i++)
             test_validatefree(
-                hset_get(&se1, HSET_INTVALUE(arr.iv[i]) ), (Array_free(&arr), hset_free(&se1) ),
+                hset_get(&se1, VALUE64_INTVALUE(arr.iv[i]) ), (Array_free(&arr), hset_free(&se1) ),
                 "Element %d isn't found", arr.iv[i]
             );
 
@@ -1491,23 +1497,23 @@ tf3(const char *name)
 
         for (int i = 0; i < arr.len; i++)
             test_validatefree(
-                hset_get(&se1, HSET_INTVALUE(arr.iv[i]) ), (Array_free(&arr), hset_free(&se1) ),
+                hset_get(&se1, VALUE64_INTVALUE(arr.iv[i]) ), (Array_free(&arr), hset_free(&se1) ),
                 "Element %d isn't found", arr.iv[i]
             );
 
         Array_free(&arr);
         hset_free(&se1);
     }
-    // HSET_FS
+    // VALUE64_FS
     /* ---- FS: clone set ---- */
     test_sub("subtest %d: FS clone", ++subnum);
     {
-        hset    se1 = hset_init(10, HSET_FS);
+        hset    se1 = hset_init(10, VALUE64_FS);
         const char *words[] = {"alpha", "beta", "gamma", "delta"};
         for (int i = 0; i < COUNT(words); i++) {
             fs tmp = fscopy(words[i]);
             test_validatefree(
-                hset_set(&se1, HSET_FSVALUE(tmp)),
+                hset_set(&se1, VALUE64_FSVALUE(tmp)),
                 hset_free(&se1),
                 "Failed to insert '%s'", words[i]
             );
@@ -1522,7 +1528,7 @@ tf3(const char *name)
         for (int i = 0; i < COUNT(words); i++) {
             fs tmp = fscopy(words[i]);
             test_validatefree(
-                hset_get(&se2, HSET_FSVALUE(tmp)),
+                hset_get(&se2, VALUE64_FSVALUE(tmp)),
                 (hset_free(&se1), hset_free(&se2)),
                 "Clone: missing '%s'", words[i]
             );
@@ -1551,8 +1557,8 @@ tf3(const char *name)
             parr[i] = &strings[i];
         }
 
-        hset    se = hset_init(cnt, HSET_FS);
-        int     loaded = hset_loadanyarr(&se, parr, cnt, HSET_FS);
+        hset    se = hset_init(cnt, VALUE64_FS);
+        int     loaded = hset_loadanyarr(&se, parr, cnt, VALUE64_FS);
 
         fs_alloc_check(false);
 
@@ -1571,7 +1577,7 @@ tf3(const char *name)
         for (int i = 0; i < cnt; i++) {
             fs tmp = fscopyf("item_%d", i);
             test_validatefree(
-                hset_get(&se, HSET_FSVALUE(tmp)),
+                hset_get(&se, VALUE64_FSVALUE(tmp)),
                 hset_free(&se),
                 "FS from array: missing 'item_%d'", i
             );
@@ -1599,8 +1605,8 @@ tf3(const char *name)
             parr[i] = &strings[i];
         }
 
-        hset    se = hset_init(10, HSET_FS);
-        int     loaded = hset_loadanyarr(&se, parr, COUNT(words), HSET_FS);
+        hset    se = hset_init(10, VALUE64_FS);
+        int     loaded = hset_loadanyarr(&se, parr, COUNT(words), VALUE64_FS);
 
         // loaded должно быть равно общему числу попыток, но count — только уникальные
         test_validatefree(
@@ -1629,8 +1635,8 @@ tf3(const char *name)
         parr[1] = &s1;
         parr[3] = &s2;
 
-        hset    se = hset_init(10, HSET_FS);
-        int     loaded = hset_loadanyarr(&se, parr, 5, HSET_FS);
+        hset    se = hset_init(10, VALUE64_FS);
+        int     loaded = hset_loadanyarr(&se, parr, 5, VALUE64_FS);
 
         test_validatefree(
             loaded == 5,
@@ -1645,10 +1651,10 @@ tf3(const char *name)
 
         // Проверяем, что валидные строки есть
         fs tmp = fscopy("valid1");
-        test_validatefree(hset_get(&se, HSET_FSVALUE(tmp)), hset_free(&se), "Missing valid1");
+        test_validatefree(hset_get(&se, VALUE64_FSVALUE(tmp)), hset_free(&se), "Missing valid1");
         fsfree(tmp);
         tmp = fscopy("valid2");
-        test_validatefree(hset_get(&se, HSET_FSVALUE(tmp)), hset_free(&se), "Missing valid2");
+        test_validatefree(hset_get(&se, VALUE64_FSVALUE(tmp)), hset_free(&se), "Missing valid2");
         fsfree(tmp);
 
         fsfree(s1); fsfree(s2);
@@ -1668,7 +1674,7 @@ tf4(const char *name)
 
     test_sub("subtest %d: empty count", ++subnum);
     {
-        hset    se1 = hset_init(100, HSET_LONG);
+        hset    se1 = hset_init(100, VALUE64_LNG);
         int     res;
         test_validatefree(
             (res = hset_cnt(&se1) ) == 0, hset_free(&se1), "Must be zero, but not %d", res
@@ -1708,10 +1714,10 @@ tf4(const char *name)
         Arrayfree(arr);
         hset_free(&se2);
     }
-    // HSET_FS
+    // VALUE64_FS
     test_sub("subtest %d: FS empty count", ++subnum);
     {
-        hset    se = hset_init(100, HSET_FS);
+        hset    se = hset_init(100, VALUE64_FS);
         int     res;
         test_validatefree(
             (res = hset_cnt(&se)) == 0,
@@ -1732,8 +1738,8 @@ tf4(const char *name)
             parr[i] = &strings[i];
         }
 
-        hset    se = hset_init(cnt, HSET_FS);
-        int     loaded = hset_loadanyarr(&se, parr, cnt, HSET_FS);
+        hset    se = hset_init(cnt, VALUE64_FS);
+        int     loaded = hset_loadanyarr(&se, parr, cnt, VALUE64_FS);
         int     set_cnt = hset_cnt(&se);
 
         // После загрузки исходные строки можно освободить
@@ -1760,8 +1766,8 @@ tf4(const char *name)
             parr[i] = &strings[i];
         }
 
-        hset    se = hset_init(cnt, HSET_FS);
-        hset_loadanyarr(&se, parr, cnt, HSET_FS);
+        hset    se = hset_init(cnt, VALUE64_FS);
+        hset_loadanyarr(&se, parr, cnt, VALUE64_FS);
         for (int i = 0; i < cnt; i++) fsfree(strings[i]);
 
         hset_clean(&se);
@@ -1800,13 +1806,13 @@ tf5(const char *name)
         );
         // remove one elem and check again
         test_validatefree(
-            hset_del(&se1, HSET_INTVALUE(elem) ), (hset_free(&se1), hset_free(&se2) ), "Element %d must exists in se1", elem
+            hset_del(&se1, VALUE64_INTVALUE(elem) ), (hset_free(&se1), hset_free(&se2) ), "Element %d must exists in se1", elem
         );
         test_validatefree(
             !hset_eq(&se1, &se2), (hset_free(&se1), hset_free(&se2) ), "Must be NOT equal after deleting %d!", elem
         );
         test_validatefree(
-            hset_del(&se2, HSET_INTVALUE(elem) ), (hset_free(&se1), hset_free(&se2) ), "Element %d must exists in se2", elem
+            hset_del(&se2, VALUE64_INTVALUE(elem) ), (hset_free(&se1), hset_free(&se2) ), "Element %d must exists in se2", elem
         );
         test_validatefree(
             hset_eq(&se1, &se2), (hset_free(&se1), hset_free(&se2) ), "Must be equal again!"
@@ -1820,7 +1826,7 @@ tf5(const char *name)
         // create from array
         hset    se1 = hset_from_intarr(arr.iv, Arraylen(arr) );
         // manually creating, small
-        hset    se2 = hset_init(100, HSET_INT);
+        hset    se2 = hset_init(100, VALUE64_INT);
         hset_loadiarr(&se2, arr.iv, Arraylen(arr) );
         test_validatefree(
             hset_eq(&se1, &se2), (hset_free(&se1), hset_free(&se2) ), "Must be equal!"
@@ -1834,7 +1840,7 @@ tf5(const char *name)
         hset_free(&se2);
     }
 
-    // HSET_FS
+    // VALUE64_FS
     test_sub("subtest %d: FS clone and compare", ++subnum);
     {
         const int cnt = 200;
@@ -1847,8 +1853,8 @@ tf5(const char *name)
             parr[i] = &strings[i];
         }
 
-        hset    se1 = hset_init(cnt, HSET_FS);
-        hset_loadanyarr(&se1, parr, cnt, HSET_FS);
+        hset    se1 = hset_init(cnt, VALUE64_FS);
+        hset_loadanyarr(&se1, parr, cnt, VALUE64_FS);
 
         // Сохраняем первый элемент для последующего удаления
         fs      first_elem = fscopyf("fs_str_%d", 0);   // или просто fscopyf("fs_str_0")
@@ -1866,7 +1872,7 @@ tf5(const char *name)
 
         // 2. Удаляем элемент из se1
         test_validatefree(
-            hset_del(&se1, HSET_FSVALUE(first_elem)),
+            hset_del(&se1, VALUE64_FSVALUE(first_elem)),
             (hset_free(&se1), hset_free(&se2), fsfree(first_elem)),
             "FS clone: failed to delete '%s' from se1", fsstr(first_elem)
         );
@@ -1879,7 +1885,7 @@ tf5(const char *name)
 
         // 3. Удаляем тот же элемент из se2
         test_validatefree(
-            hset_del(&se2, HSET_FSVALUE(first_elem)),
+            hset_del(&se2, VALUE64_FSVALUE(first_elem)),
             (hset_free(&se1), hset_free(&se2), fsfree(first_elem)),
             "FS clone: failed to delete '%s' from se2", fsstr(first_elem)
         );
@@ -1910,12 +1916,12 @@ tf5(const char *name)
         }
 
         // Первое множество – стандартное создание из массива
-        hset    se1 = hset_init(cnt, HSET_FS);
-        hset_loadanyarr(&se1, parr, cnt, HSET_FS);
+        hset    se1 = hset_init(cnt, VALUE64_FS);
+        hset_loadanyarr(&se1, parr, cnt, VALUE64_FS);
 
         // Второе – с заведомо меньшим начальным размером таблицы
-        hset    se2 = hset_init(cnt / 2, HSET_FS);
-        hset_loadanyarr(&se2, parr, cnt, HSET_FS);
+        hset    se2 = hset_init(cnt / 2, VALUE64_FS);
+        hset_loadanyarr(&se2, parr, cnt, VALUE64_FS);
 
         // Они должны быть равны, несмотря на разный размер таблиц
         test_validatefree(
@@ -1925,7 +1931,7 @@ tf5(const char *name)
         );
 
         // Повторная загрузка тех же данных не должна испортить равенство
-        hset_loadanyarr(&se1, parr, cnt, HSET_FS);
+        hset_loadanyarr(&se1, parr, cnt, VALUE64_FS);
         test_validatefree(
             hset_eq(&se1, &se2),
             (hset_free(&se1), hset_free(&se2)),
@@ -1963,13 +1969,13 @@ tf6(const char *name)
         );
         // remove one elem and check again
         test_validatefree(
-            hset_del(&se1, HSET_INTVALUE(elem) ), (hset_free(&se1), hset_free(&se2) ), "Element %d must exists in se1", elem
+            hset_del(&se1, VALUE64_INTVALUE(elem) ), (hset_free(&se1), hset_free(&se2) ), "Element %d must exists in se1", elem
         );
         test_validatefree(
             hset_noteq(&se1, &se2), (hset_free(&se1), hset_free(&se2) ), "Must be NOT equal (returns true) after deleting %d!", elem
         );
         test_validatefree(
-            hset_del(&se2, HSET_INTVALUE(elem) ), (hset_free(&se1), hset_free(&se2) ), "Element %d must exists in se2", elem
+            hset_del(&se2, VALUE64_INTVALUE(elem) ), (hset_free(&se1), hset_free(&se2) ), "Element %d must exists in se2", elem
         );
         test_validatefree(
             hset_noteq(&se1, &se2) == false, (hset_free(&se1), hset_free(&se2) ), "Must be equal again (returns false)!"
@@ -1984,7 +1990,7 @@ tf6(const char *name)
         // create from array
         hset    se1 = hset_from_intarr(arr.iv, Arraylen(arr) );
         // manually creating, small
-        hset    se2 = hset_init(50, HSET_INT);
+        hset    se2 = hset_init(50, VALUE64_INT);
         hset_loadiarr(&se2, arr.iv, Arraylen(arr) );
         test_validatefree(
             hset_noteq(&se1, &se2) == false, (hset_free(&se1), hset_free(&se2) ), "Must be equal (returns false)!"
@@ -1995,13 +2001,13 @@ tf6(const char *name)
             hset_noteq(&se1, &se2) == false, (hset_free(&se1), hset_free(&se2) ), "Must be equal again (return false)!"
         );
         test_validatefree(
-            hset_del(&se1, HSET_INTVALUE(elem) ), (hset_free(&se1), hset_free(&se2) ), "Element %d must exists in se1", elem
+            hset_del(&se1, VALUE64_INTVALUE(elem) ), (hset_free(&se1), hset_free(&se2) ), "Element %d must exists in se1", elem
         );
         test_validatefree(
             hset_noteq(&se1, &se2), (hset_free(&se1), hset_free(&se2) ), "Must be not equal after deleting %d (return tur)!", elem
         );
         test_validatefree(
-            hset_del(&se2, HSET_INTVALUE(elem) ), (hset_free(&se1), hset_free(&se2) ), "Element %d must exists in se2", elem
+            hset_del(&se2, VALUE64_INTVALUE(elem) ), (hset_free(&se1), hset_free(&se2) ), "Element %d must exists in se2", elem
         );
         test_validatefree(
             hset_noteq(&se1, &se2) == false, (hset_free(&se1), hset_free(&se2) ),
@@ -2012,7 +2018,7 @@ tf6(const char *name)
         hset_free(&se2);
     }
     fs_alloc_check(true);
-    // HSET_FS
+    // VALUE64_FS
     test_sub("subtest %d: FS clone and !=", ++subnum);
     {
         const int cnt = 10;
@@ -2025,8 +2031,8 @@ tf6(const char *name)
             parr[i] = &strings[i];
         }
 
-        hset    se1 = hset_init(cnt, HSET_FS);
-        hset_loadanyarr(&se1, parr, cnt, HSET_FS);
+        hset    se1 = hset_init(cnt, VALUE64_FS);
+        hset_loadanyarr(&se1, parr, cnt, VALUE64_FS);
 
         // Клонируем se1
         hset    se2 = hset_clone(&se1);
@@ -2041,7 +2047,7 @@ tf6(const char *name)
         // Удаляем первый элемент из se1 (сохраняем ссылку на него для проверки)
         fs      first_elem = fscopyf("fs_str_0");
         test_validatefree(
-            hset_del(&se1, HSET_FSVALUE(first_elem)),
+            hset_del(&se1, VALUE64_FSVALUE(first_elem)),
             (hset_free(&se1), hset_free(&se2), fsfree(first_elem)),
             "FS clone !=: failed to delete first element from se1"
         );
@@ -2055,7 +2061,7 @@ tf6(const char *name)
 
         // Удаляем тот же элемент из se2
         test_validatefree(
-            hset_del(&se2, HSET_FSVALUE(first_elem)),
+            hset_del(&se2, VALUE64_FSVALUE(first_elem)),
             (hset_free(&se1), hset_free(&se2), fsfree(first_elem)),
             "FS clone !=: failed to delete first element from se2"
         );
@@ -2088,12 +2094,12 @@ tf6(const char *name)
         }
 
         // Первое множество – создание из массива
-        hset    se1 = hset_init(cnt, HSET_FS);
-        hset_loadanyarr(&se1, parr, cnt, HSET_FS);
+        hset    se1 = hset_init(cnt, VALUE64_FS);
+        hset_loadanyarr(&se1, parr, cnt, VALUE64_FS);
 
         // Второе – с заведомо меньшим размером таблицы
-        hset    se2 = hset_init(cnt / 3, HSET_FS);
-        hset_loadanyarr(&se2, parr, cnt, HSET_FS);
+        hset    se2 = hset_init(cnt / 3, VALUE64_FS);
+        hset_loadanyarr(&se2, parr, cnt, VALUE64_FS);
 
         // 1. Должны быть равны, несмотря на разный размер таблиц
         test_validatefree(
@@ -2103,7 +2109,7 @@ tf6(const char *name)
         );
 
         // Повторная загрузка тех же данных не должна испортить равенство
-        hset_loadanyarr(&se1, parr, cnt, HSET_FS);
+        hset_loadanyarr(&se1, parr, cnt, VALUE64_FS);
         test_validatefree(
             hset_noteq(&se1, &se2) == false,
             (hset_free(&se1), hset_free(&se2)),
@@ -2113,7 +2119,7 @@ tf6(const char *name)
         // Удаляем первый элемент из se1
         fs      first_elem = fscopyf("diff_fs_0");
         test_validatefree(
-            hset_del(&se1, HSET_FSVALUE(first_elem)),
+            hset_del(&se1, VALUE64_FSVALUE(first_elem)),
             (hset_free(&se1), hset_free(&se2), fsfree(first_elem)),
             "FS diff size !=: failed to delete first element from se1"
         );
@@ -2126,7 +2132,7 @@ tf6(const char *name)
         );
         // Удаляем тот же элемент из se2
         test_validatefree(
-            hset_del(&se2, HSET_FSVALUE(first_elem)),
+            hset_del(&se2, VALUE64_FSVALUE(first_elem)),
             (hset_free(&se1), hset_free(&se2), fsfree(first_elem)),
             "FS diff size !=: failed to delete first element from se2"
         );
@@ -2147,21 +2153,21 @@ tf6(const char *name)
         hset_free(&se2);
     }
     fs_alloc_check(true);
-    /* Бонус: проверка неравенства после перемещения (HSET_FSMOVE) */
+    /* Бонус: проверка неравенства после перемещения (VALUE64_FSMOVE) */
     test_sub("subtest %d: FS != after move", ++subnum);
     {
-        hset    se1 = hset_init(10, HSET_FS);
-        hset    se2 = hset_init(10, HSET_FS);
+        hset    se1 = hset_init(10, VALUE64_FS);
+        hset    se2 = hset_init(10, VALUE64_FS);
 
         // Вставляем одну и ту же строку, но в se1 через перемещение, в se2 через копирование
         fs      orig = fscopyf("move_vs_copy");
-        hset_set(&se1, HSET_FSMOVE(&orig));          // orig опустеет
+        hset_set(&se1, VALUE64_FSMOVE(&orig));          // orig опустеет
 
-        hset_set(&se2, HSET_FSVALUE(orig));          // orig пуст, поэтому вставится пустая строка? Нет, HSET_FSVALUE передаёт &orig, а orig.v == NULL – будет пустая строка.
+        hset_set(&se2, VALUE64_FSVALUE(orig));          // orig пуст, поэтому вставится пустая строка? Нет, VALUE64_FSVALUE передаёт &orig, а orig.v == NULL – будет пустая строка.
 
         // Чтобы избежать путаницы, создадим новую строку для se2
         fs      copy = fscopyf("move_vs_copy");
-        hset_set(&se2, HSET_FSVALUE(copy));
+        hset_set(&se2, VALUE64_FSVALUE(copy));
 
         // Множества должны быть равны, потому что строки одинаковы
         test_validatefree(
@@ -2172,7 +2178,7 @@ tf6(const char *name)
 
         // Удаляем элемент из se1
         test_validatefree(
-            hset_del(&se1, HSET_FSVALUE(copy)),
+            hset_del(&se1, VALUE64_FSVALUE(copy)),
             (hset_free(&se1), hset_free(&se2), fsfree(copy)),
             "FS != after move: failed to delete from se1"
         );
@@ -2209,7 +2215,7 @@ tf7(const char *name)
         hset    se1 = hset_from_intarr(arr.iv, arr.len);
         Arrayfree(arr);
 
-        hset    se2 = hset_cloneas(&se1, HSET_LONG);
+        hset    se2 = hset_cloneas(&se1, VALUE64_LNG);
 
         test_validatefree(
             hset_validate(stdout, &se1) && hset_validate(stdout, &se2),
@@ -2232,7 +2238,7 @@ tf7(const char *name)
             while (el){
                 int val = el->v.ival;
                 test_validatefree(
-                    hset_get(&se2, HSET_LONGVALUE(val) ), (hset_free(&se1), hset_free(&se2) ), "Unable to find elem %d in se2", val
+                    hset_get(&se2, VALUE64_LNGVALUE(val) ), (hset_free(&se1), hset_free(&se2) ), "Unable to find elem %d in se2", val
                 );
                 el = el->next;
             }
@@ -2247,7 +2253,7 @@ tf7(const char *name)
         hset    se1 = hset_from_intarr(arr.iv, arr.len);
         Arrayfree(arr);
 
-        hset    se2 = hset_cloneas(&se1, HSET_DBL);
+        hset    se2 = hset_cloneas(&se1, VALUE64_DBL);
 
         int     sz1 = se1.sz, sz2 = se2.sz;
         test_validatefree(
@@ -2271,7 +2277,7 @@ tf7(const char *name)
             while (el){
                 int val = el->v.ival;
                 test_validatefree(
-                    hset_get(&se2, HSET_DBLVALUE(val) ), (hset_free(&se1), hset_free(&se2) ), "Unable to find elem %d in se2", val
+                    hset_get(&se2, VALUE64_DBLVALUE(val) ), (hset_free(&se1), hset_free(&se2) ), "Unable to find elem %d in se2", val
                 );
                 el = el->next;
             }
@@ -2287,7 +2293,7 @@ tf7(const char *name)
         hset    se_int = hset_from_intarr(arr.iv, arr.len);
         Arrayfree(arr);
 
-        hset    se_fs = hset_cloneas(&se_int, HSET_FS);
+        hset    se_fs = hset_cloneas(&se_int, VALUE64_FS);
 
         test_validatefree(
             hset_validate(stdout, &se_int) && hset_validate(stdout, &se_fs),
@@ -2313,7 +2319,7 @@ tf7(const char *name)
         HSET_FOREACH_INT(&se_int, ival) {
             fs_sprintf(&tmp, "%d", ival);
             test_validatefree(
-                hset_get(&se_fs, HSET_FSVALUE(tmp)),
+                hset_get(&se_fs, VALUE64_FSVALUE(tmp)),
                 (hset_free(&se_int), hset_free(&se_fs), fsfree(tmp)),
                 "FS set missing '%d'", ival
             );
@@ -2336,12 +2342,12 @@ tf7(const char *name)
             parr[i] = &strings[i];
         }
 
-        hset    se_fs = hset_init(cnt, HSET_FS);
-        hset_loadanyarr(&se_fs, parr, cnt, HSET_FS);
+        hset    se_fs = hset_init(cnt, VALUE64_FS);
+        hset_loadanyarr(&se_fs, parr, cnt, VALUE64_FS);
         for (int i = 0; i < cnt; i++)
             fsfree(strings[i]);
 
-        hset    se_int = hset_cloneas(&se_fs, HSET_INT);
+        hset    se_int = hset_cloneas(&se_fs, VALUE64_INT);
 
         test_validatefree(
             hset_validate(stdout, &se_fs) && hset_validate(stdout, &se_int),
@@ -2358,7 +2364,7 @@ tf7(const char *name)
 
         for (int i = 0; i < cnt; i++) {
             test_validatefree(
-                hset_get(&se_int, HSET_INTVALUE(i)),
+                hset_get(&se_int, VALUE64_INTVALUE(i)),
                 (hset_free(&se_fs), hset_free(&se_int)),
                 "Int set missing %d", i
             );
@@ -2380,12 +2386,12 @@ tf7(const char *name)
             parr[i] = &strings[i];
         }
 
-        hset    se1 = hset_init(cnt, HSET_FS);
-        hset_loadanyarr(&se1, parr, cnt, HSET_FS);
+        hset    se1 = hset_init(cnt, VALUE64_FS);
+        hset_loadanyarr(&se1, parr, cnt, VALUE64_FS);
         for (int i = 0; i < cnt; i++)
             fsfree(strings[i]);
 
-        hset    se2 = hset_cloneas(&se1, HSET_FS);
+        hset    se2 = hset_cloneas(&se1, VALUE64_FS);
 
         test_validatefree(
             hset_validate(stdout, &se1) && hset_validate(stdout, &se2),
@@ -2397,7 +2403,7 @@ tf7(const char *name)
         for (int i = 0; i < cnt; i++) {
             fs_sprintf(&tmp, "str_%d", i);
             test_validatefree(
-                hset_get(&se2, HSET_FSVALUE(tmp)),
+                hset_get(&se2, VALUE64_FSVALUE(tmp)),
                 (hset_free(&se1), hset_free(&se2), fsfree(tmp)),
                 "Clone missing 'str_%d'", i
             );
@@ -2417,11 +2423,11 @@ tf7(const char *name)
         for (int i = 0; i < cnt; i++)
             vals[i] = i * 1.5;
 
-        hset    se_dbl = hset_init(cnt, HSET_DBL);
+        hset    se_dbl = hset_init(cnt, VALUE64_DBL);
         for (int i = 0; i < cnt; i++)
-            hset_set(&se_dbl, HSET_DBLVALUE(vals[i]));
+            hset_set(&se_dbl, VALUE64_DBLVALUE(vals[i]));
 
-        hset    se_fs = hset_cloneas(&se_dbl, HSET_FS);
+        hset    se_fs = hset_cloneas(&se_dbl, VALUE64_FS);
 
         test_validatefree(
             hset_validate(stdout, &se_dbl) && hset_validate(stdout, &se_fs),
@@ -2433,7 +2439,7 @@ tf7(const char *name)
         for (int i = 0; i < cnt; i++) {
             fs_sprintf(&tmp, "%g", vals[i]);
             test_validatefree(
-                hset_get(&se_fs, HSET_FSVALUE(tmp)),
+                hset_get(&se_fs, VALUE64_FSVALUE(tmp)),
                 (hset_free(&se_dbl), hset_free(&se_fs), fsfree(tmp)),
                 "FS set missing '%g'", vals[i]
             );
@@ -2459,12 +2465,12 @@ tf7(const char *name)
             parr[i] = &strings[i];
         }
 
-        hset    se_fs = hset_init(cnt, HSET_FS);
-        hset_loadanyarr(&se_fs, parr, cnt, HSET_FS);
+        hset    se_fs = hset_init(cnt, VALUE64_FS);
+        hset_loadanyarr(&se_fs, parr, cnt, VALUE64_FS);
         for (int i = 0; i < cnt; i++)
             fsfree(strings[i]);
 
-        hset    se_dbl = hset_cloneas(&se_fs, HSET_DBL);
+        hset    se_dbl = hset_cloneas(&se_fs, VALUE64_DBL);
 
         test_validatefree(
             hset_validate(stdout, &se_fs) && hset_validate(stdout, &se_dbl),
@@ -2481,7 +2487,7 @@ tf7(const char *name)
 
         for (int i = 0; i < cnt; i++) {
             test_validatefree(
-                hset_get(&se_dbl, HSET_DBLVALUE(vals[i])),
+                hset_get(&se_dbl, VALUE64_DBLVALUE(vals[i])),
                 (hset_free(&se_fs), hset_free(&se_dbl)),
                 "Double set missing %g", vals[i]
             );
@@ -2503,8 +2509,8 @@ tf8(const char *name)
 
     test_sub("subtest %d: empty in empty", ++subnum);
     {
-        hset empty1 = hset_init(10, HSET_INT);
-        hset empty2 = hset_init(100, HSET_INT);
+        hset empty1 = hset_init(10, VALUE64_INT);
+        hset empty2 = hset_init(100, VALUE64_INT);
 
         test_validatefree(
             hset_validate(stdout, &empty1) && hset_validate(stdout, &empty1),
@@ -2520,7 +2526,7 @@ tf8(const char *name)
     test_sub("subtest %d: empty in nonempty", ++subnum);
     {
         int vals[] = {1, 3, 5, 7, 9};
-        hset empty    = hset_init(10, HSET_INT);
+        hset empty    = hset_init(10, VALUE64_INT);
         hset nonempty = hset_from_intarr(vals, COUNT(vals) );
 
         test_validatefree(
@@ -2537,7 +2543,7 @@ tf8(const char *name)
     test_sub("subtest %d: nonempty not in empty", ++subnum);
     {
         int vals[] = {1, 3, 5, 7, 9};
-        hset empty    = hset_init(10, HSET_INT);
+        hset empty    = hset_init(10, VALUE64_INT);
         hset nonempty = hset_from_intarr(vals, COUNT(vals) );
 
         test_validatefree(
@@ -2597,9 +2603,9 @@ tf8(const char *name)
     {
         int int_vals[] = {1, 2, 3};
         hset int_set = hset_from_intarr(int_vals, 3);
-        hset dbl_set = hset_init(10, HSET_DBL);
-        hset_set(&dbl_set, HSET_DBLVALUE(1.0));
-        hset_set(&dbl_set, HSET_DBLVALUE(2.0));
+        hset dbl_set = hset_init(10, VALUE64_DBL);
+        hset_set(&dbl_set, VALUE64_DBLVALUE(1.0));
+        hset_set(&dbl_set, VALUE64_DBLVALUE(2.0));
         if (!try () ){
             test_validatefree(
                 !hset_in(&int_set, &dbl_set),
@@ -2627,8 +2633,8 @@ tf9(const char *name)
 
     test_sub("subtest %d: empty strict in empty", ++subnum);
     {
-        hset empty1    = hset_init(10, HSET_INT);
-        hset empty2 = hset_init(100, HSET_INT);
+        hset empty1    = hset_init(10, VALUE64_INT);
+        hset empty2 = hset_init(100, VALUE64_INT);
 
         test_validatefree(
             hset_validate(stdout, &empty1) && hset_validate(stdout, &empty1),
@@ -2644,7 +2650,7 @@ tf9(const char *name)
     test_sub("subtest %d: empty strict in nonempty", ++subnum);
     {
         int vals[] = {1, 3, 5, 7, 9};
-        hset empty    = hset_init(10, HSET_INT);
+        hset empty    = hset_init(10, VALUE64_INT);
         hset nonempty = hset_from_intarr(vals, COUNT(vals) );
 
         test_validatefree(
@@ -2661,7 +2667,7 @@ tf9(const char *name)
     test_sub("subtest %d: nonempty not in empty", ++subnum);
     {
         int vals[] = {1, 3, 5, 7, 9};
-        hset empty    = hset_init(10, HSET_INT);
+        hset empty    = hset_init(10, VALUE64_INT);
         hset nonempty = hset_from_intarr(vals, COUNT(vals) );
 
         test_validatefree(
@@ -2730,8 +2736,8 @@ tf10(const char *name)
     /* 1. Пустое минус пустое */
     test_sub("subtest %d: empty minus empty", ++subnum);
     {
-        hset    se1 = hset_init(10, HSET_INT);
-        hset    se2 = hset_init(10, HSET_INT);
+        hset    se1 = hset_init(10, VALUE64_INT);
+        hset    se2 = hset_init(10, VALUE64_INT);
         hset   *res = hset_minus(&se1, &se2);
 
         int     ok = (res == &se1) && (hset_cnt(&se1) == 0);
@@ -2747,7 +2753,7 @@ tf10(const char *name)
     /* 2. Пустое минус непустое */
     test_sub("subtest %d: empty minus non-empty", ++subnum);
     {
-        hset    empty = hset_init(10, HSET_INT);
+        hset    empty = hset_init(10, VALUE64_INT);
         int     vals[] = {1, 2, 3};
         hset    nonempty = hset_from_intarr(vals, COUNT(vals));
         hset   *res = hset_minus(&empty, &nonempty);
@@ -2768,13 +2774,13 @@ tf10(const char *name)
     {
         int     vals[] = {10, 20, 30};
         hset    se1 = hset_from_intarr(vals, COUNT(vals));
-        hset    empty = hset_init(10, HSET_INT);
+        hset    empty = hset_init(10, VALUE64_INT);
         int     cnt_before = hset_cnt(&se1);
         hset   *res = hset_minus(&se1, &empty);
 
         int     ok = (res == &se1) && (hset_cnt(&se1) == cnt_before);
         for (int i = 0; ok && i < COUNT(vals); i++)
-            ok = hset_get(&se1, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&se1, VALUE64_INTVALUE(vals[i]));
 
         test_validatefree(
             ok,
@@ -2792,9 +2798,9 @@ tf10(const char *name)
         int     vals[] = {5, 10, 15, 20};
         hset    se1 = hset_from_intarr(vals, COUNT(vals));
         hset    se2 = hset_from_intarr(vals, COUNT(vals));
-        /*hset    se2 = hset_init(10, HSET_INT);
+        /*hset    se2 = hset_init(10, VALUE64_INT);
         for (int i = 0; i < COUNT(vals); i++)
-            hset_set(&se2, HSET_INTVALUE(vals[i])); */
+            hset_set(&se2, VALUE64_INTVALUE(vals[i])); */
 
         int     cnt_before = hset_cnt(&se1);
         hset   *res = hset_minus(&se1, &se2);
@@ -2817,20 +2823,20 @@ tf10(const char *name)
         int     sub_vals[] = {2, 5};
         hset    se1 = hset_from_intarr(all_vals, COUNT(all_vals));
         hset    se2 = hset_from_intarr(sub_vals, COUNT(sub_vals));
-        /* hset    se2 = hset_init(10, HSET_INT);
+        /* hset    se2 = hset_init(10, VALUE64_INT);
         for (int i = 0; i < COUNT(sub_vals); i++)
-            hset_set(&se2, HSET_INTVALUE(sub_vals[i])); */
+            hset_set(&se2, VALUE64_INTVALUE(sub_vals[i])); */
 
         hset   *res = hset_minus(&se1, &se2);
 
         int     expected_cnt = 4;   // {1,3,4,6}
         int     ok = (res == &se1) && (hset_cnt(&se1) == expected_cnt) &&
-                     !hset_get(&se1, HSET_INTVALUE(2)) &&
-                     !hset_get(&se1, HSET_INTVALUE(5)) &&
-                     hset_get(&se1, HSET_INTVALUE(1)) &&
-                     hset_get(&se1, HSET_INTVALUE(3)) &&
-                     hset_get(&se1, HSET_INTVALUE(4)) &&
-                     hset_get(&se1, HSET_INTVALUE(6));
+                     !hset_get(&se1, VALUE64_INTVALUE(2)) &&
+                     !hset_get(&se1, VALUE64_INTVALUE(5)) &&
+                     hset_get(&se1, VALUE64_INTVALUE(1)) &&
+                     hset_get(&se1, VALUE64_INTVALUE(3)) &&
+                     hset_get(&se1, VALUE64_INTVALUE(4)) &&
+                     hset_get(&se1, VALUE64_INTVALUE(6));
         test_validatefree(
             ok,
             (hset_free(&se1), hset_free(&se2)),
@@ -2853,7 +2859,7 @@ tf10(const char *name)
 
         int     ok = (res == &se1) && (hset_cnt(&se1) == cnt_before);
         for (int i = 0; ok && i < COUNT(vals1); i++)
-            ok = hset_get(&se1, HSET_INTVALUE(vals1[i]));
+            ok = hset_get(&se1, VALUE64_INTVALUE(vals1[i]));
 
         test_validatefree(
             ok,
@@ -2878,10 +2884,10 @@ tf10(const char *name)
         int     expected_remaining[] = {100, 300};
         int     ok = (res == &se1) && (hset_cnt(&se1) == COUNT(expected_remaining));
         for (int i = 0; ok && i < COUNT(expected_remaining); i++)
-            ok = hset_get(&se1, HSET_INTVALUE(expected_remaining[i]));
+            ok = hset_get(&se1, VALUE64_INTVALUE(expected_remaining[i]));
         // Убедимся, что 200 действительно удалён
         if (ok)
-            ok = !hset_get(&se1, HSET_INTVALUE(200));
+            ok = !hset_get(&se1, VALUE64_INTVALUE(200));
 
         test_validatefree(
             ok,
@@ -2897,8 +2903,8 @@ tf10(const char *name)
     {
         int int_vals[] = {1, 2, 3};
         hset int_set = hset_from_intarr(int_vals, COUNT(int_vals) );
-        hset dbl_set = hset_init(10, HSET_DBL);
-        hset_set(&dbl_set, HSET_DBLVALUE(1.0));
+        hset dbl_set = hset_init(10, VALUE64_DBL);
+        hset_set(&dbl_set, VALUE64_DBLVALUE(1.0));
 
         bool signal_caught = try();
         if (signal_caught) {
@@ -2925,8 +2931,8 @@ tf11(const char *name)
     /* 1. Пустое минус пустое = пустое */
     test_sub("subtest %d: empty minus empty", ++subnum);
     {
-        hset se1 = hset_init(10, HSET_INT);
-        hset se2 = hset_init(10, HSET_INT);
+        hset se1 = hset_init(10, VALUE64_INT);
+        hset se2 = hset_init(10, VALUE64_INT);
         hset res = hset_init_minus(&se1, &se2);
 
         int ok = (hset_cnt(&res) == 0);
@@ -2945,12 +2951,12 @@ tf11(const char *name)
     {
         int vals[] = {3, 7, 11, 42};
         hset se1 = hset_from_intarr(vals, COUNT(vals));
-        hset empty = hset_init(10, HSET_INT);
+        hset empty = hset_init(10, VALUE64_INT);
         hset res = hset_init_minus(&se1, &empty);
 
         int ok = (hset_cnt(&res) == COUNT(vals));
         for (int i = 0; ok && i < COUNT(vals); i++)
-            ok = hset_get(&res, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&res, VALUE64_INTVALUE(vals[i]));
 
         test_validatefree(
             ok,
@@ -2966,7 +2972,7 @@ tf11(const char *name)
     test_sub("subtest %d: empty minus non-empty", ++subnum);
     {
         int vals[] = {100, 200};
-        hset empty = hset_init(10, HSET_INT);
+        hset empty = hset_init(10, VALUE64_INT);
         hset se2 = hset_from_intarr(vals, COUNT(vals));
         hset res = hset_init_minus(&empty, &se2);
 
@@ -3006,9 +3012,9 @@ tf11(const char *name)
         int vals1[] = {1, 2, 3, 4, 5, 6};
         int vals2[] = {2, 5};
         hset se1 = hset_from_intarr(vals1, COUNT(vals1));
-        hset se2 = hset_init(10, HSET_INT);
+        hset se2 = hset_init(10, VALUE64_INT);
         for (int i = 0; i < COUNT(vals2); i++)
-            hset_set(&se2, HSET_INTVALUE(vals2[i]));
+            hset_set(&se2, VALUE64_INTVALUE(vals2[i]));
 
         hset res = hset_init_minus(&se1, &se2);
 
@@ -3016,12 +3022,12 @@ tf11(const char *name)
         int expected_vals[] = {1, 3, 4, 6};
         int ok = (hset_cnt(&res) == COUNT(expected_vals));
         for (int i = 0; ok && i < COUNT(expected_vals); i++)
-            ok = hset_get(&res, HSET_INTVALUE(expected_vals[i]));
+            ok = hset_get(&res, VALUE64_INTVALUE(expected_vals[i]));
 
         // Дополнительно убедимся, что удалённых нет
         if (ok) {
-            ok = !hset_get(&res, HSET_INTVALUE(2)) &&
-                 !hset_get(&res, HSET_INTVALUE(5));
+            ok = !hset_get(&res, VALUE64_INTVALUE(2)) &&
+                 !hset_get(&res, VALUE64_INTVALUE(5));
         }
 
         test_validatefree(
@@ -3045,7 +3051,7 @@ tf11(const char *name)
 
         int ok = (hset_cnt(&res) == COUNT(vals1));
         for (int i = 0; ok && i < COUNT(vals1); i++)
-            ok = hset_get(&res, HSET_INTVALUE(vals1[i]));
+            ok = hset_get(&res, VALUE64_INTVALUE(vals1[i]));
 
         test_validatefree(
             ok,
@@ -3070,8 +3076,8 @@ tf12(const char *name)
     /* 1. Пустое пересекается с пустым – остаётся пустое */
     test_sub("subtest %d: empty intersect empty", ++subnum);
     {
-        hset    se1 = hset_init(10, HSET_INT);
-        hset    se2 = hset_init(10, HSET_INT);
+        hset    se1 = hset_init(10, VALUE64_INT);
+        hset    se2 = hset_init(10, VALUE64_INT);
 
         hset   *res = hset_intersect(&se1, &se2);
 
@@ -3090,7 +3096,7 @@ tf12(const char *name)
     {
         int     vals[] = {1, 2, 3};
         hset    se1 = hset_from_intarr(vals, COUNT(vals));
-        hset    empty = hset_init(10, HSET_INT);
+        hset    empty = hset_init(10, VALUE64_INT);
         hset   *res = hset_intersect(&se1, &empty);
 
         int     ok = (res == &se1) && (hset_cnt(&se1) == 0) &&
@@ -3108,7 +3114,7 @@ tf12(const char *name)
     test_sub("subtest %d: empty intersect non-empty", ++subnum);
     {
         int     vals[] = {10, 20};
-        hset    empty = hset_init(10, HSET_INT);
+        hset    empty = hset_init(10, VALUE64_INT);
         hset    se2 = hset_from_intarr(vals, COUNT(vals));
         hset   *res = hset_intersect(&empty, &se2);
 
@@ -3135,7 +3141,7 @@ tf12(const char *name)
 
         int     ok = (res == &se1) && (hset_cnt(&se1) == cnt_before);
         for (int i = 0; ok && i < COUNT(vals); i++)
-            ok = hset_get(&se1, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&se1, VALUE64_INTVALUE(vals[i]));
 
         test_validatefree(
             ok,
@@ -3160,12 +3166,12 @@ tf12(const char *name)
         int     expected_cnt = COUNT(expected_vals);
         int     ok = (res == &se1) && (hset_cnt(&se1) == expected_cnt);
         for (int i = 0; ok && i < expected_cnt; i++)
-            ok = hset_get(&se1, HSET_INTVALUE(expected_vals[i]));
+            ok = hset_get(&se1, VALUE64_INTVALUE(expected_vals[i]));
         // Убедимся, что остальные отсутствуют
         if (ok) {
-            ok = !hset_get(&se1, HSET_INTVALUE(1)) &&
-                 !hset_get(&se1, HSET_INTVALUE(3)) &&
-                 !hset_get(&se1, HSET_INTVALUE(5));
+            ok = !hset_get(&se1, VALUE64_INTVALUE(1)) &&
+                 !hset_get(&se1, VALUE64_INTVALUE(3)) &&
+                 !hset_get(&se1, VALUE64_INTVALUE(5));
         }
 
         test_validatefree(
@@ -3213,8 +3219,8 @@ tf13(const char *name)
     /* 1. Пустое с пустым -> пустое */
     test_sub("subtest %d: empty intersect empty", ++subnum);
     {
-        hset se1 = hset_init(10, HSET_INT);
-        hset se2 = hset_init(10, HSET_INT);
+        hset se1 = hset_init(10, VALUE64_INT);
+        hset se2 = hset_init(10, VALUE64_INT);
         hset res = hset_init_intersect(&se1, &se2);
 
         int ok = (hset_cnt(&res) == 0) && (hset_cnt(&se1) == 0) && (hset_cnt(&se2) == 0);
@@ -3234,13 +3240,13 @@ tf13(const char *name)
     {
         int vals[] = {10, 20, 30};
         hset se1 = hset_from_intarr(vals, COUNT(vals));
-        hset empty = hset_init(10, HSET_INT);
+        hset empty = hset_init(10, VALUE64_INT);
         hset res = hset_init_intersect(&se1, &empty);
 
         int ok = (hset_cnt(&res) == 0) && (hset_cnt(&se1) == COUNT(vals)) && (hset_cnt(&empty) == 0);
         // дополнительно убедимся, что элементы se1 на месте
         for (int i = 0; ok && i < COUNT(vals); i++)
-            ok = hset_get(&se1, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&se1, VALUE64_INTVALUE(vals[i]));
 
         test_validatefree(
             ok,
@@ -3257,13 +3263,13 @@ tf13(const char *name)
     test_sub("subtest %d: empty intersect non-empty", ++subnum);
     {
         int vals[] = {5, 7};
-        hset empty = hset_init(10, HSET_INT);
+        hset empty = hset_init(10, VALUE64_INT);
         hset se2 = hset_from_intarr(vals, COUNT(vals));
         hset res = hset_init_intersect(&empty, &se2);
 
         int ok = (hset_cnt(&res) == 0) && (hset_cnt(&empty) == 0) && (hset_cnt(&se2) == COUNT(vals));
         for (int i = 0; ok && i < COUNT(vals); i++)
-            ok = hset_get(&se2, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&se2, VALUE64_INTVALUE(vals[i]));
 
         test_validatefree(
             ok,
@@ -3287,7 +3293,7 @@ tf13(const char *name)
         int expected = COUNT(vals);
         int ok = (hset_cnt(&res) == expected) && (hset_cnt(&se1) == expected) && (hset_cnt(&se2) == expected);
         for (int i = 0; ok && i < expected; i++)
-            ok = hset_get(&res, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&res, VALUE64_INTVALUE(vals[i]));
 
         test_validatefree(
             ok,
@@ -3313,12 +3319,12 @@ tf13(const char *name)
         int expected = COUNT(common_vals);
         int ok = (hset_cnt(&res) == expected) && (hset_cnt(&se1) == COUNT(vals1)) && (hset_cnt(&se2) == COUNT(vals2));
         for (int i = 0; ok && i < expected; i++)
-            ok = hset_get(&res, HSET_INTVALUE(common_vals[i]));
+            ok = hset_get(&res, VALUE64_INTVALUE(common_vals[i]));
         // убедимся, что не общих элементов нет
         if (ok) {
-            ok = !hset_get(&res, HSET_INTVALUE(1)) &&
-                 !hset_get(&res, HSET_INTVALUE(3)) &&
-                 !hset_get(&res, HSET_INTVALUE(5));
+            ok = !hset_get(&res, VALUE64_INTVALUE(1)) &&
+                 !hset_get(&res, VALUE64_INTVALUE(3)) &&
+                 !hset_get(&res, VALUE64_INTVALUE(5));
         }
 
         test_validatefree(
@@ -3344,9 +3350,9 @@ tf13(const char *name)
         int ok = (hset_cnt(&res) == 0) && (hset_cnt(&se1) == COUNT(vals1)) && (hset_cnt(&se2) == COUNT(vals2));
         // se1 и se2 не должны потерять элементы
         for (int i = 0; ok && i < COUNT(vals1); i++)
-            ok = hset_get(&se1, HSET_INTVALUE(vals1[i]));
+            ok = hset_get(&se1, VALUE64_INTVALUE(vals1[i]));
         for (int i = 0; ok && i < COUNT(vals2); i++)
-            ok = hset_get(&se2, HSET_INTVALUE(vals2[i]));
+            ok = hset_get(&se2, VALUE64_INTVALUE(vals2[i]));
 
         test_validatefree(
             ok,
@@ -3372,8 +3378,8 @@ tf14(const char *name)
     /* 1. Пустое с пустым -> пустое */
     test_sub("subtest %d: empty symm diff empty", ++subnum);
     {
-        hset se1 = hset_init(10, HSET_INT);
-        hset se2 = hset_init(10, HSET_INT);
+        hset se1 = hset_init(10, VALUE64_INT);
+        hset se2 = hset_init(10, VALUE64_INT);
         hset res = hset_init_symmdiff(&se1, &se2);
 
         int ok = (hset_cnt(&res) == 0) && (hset_cnt(&se1) == 0) && (hset_cnt(&se2) == 0);
@@ -3393,13 +3399,13 @@ tf14(const char *name)
     {
         int vals[] = {3, 7, 11};
         hset se1 = hset_from_intarr(vals, COUNT(vals));
-        hset empty = hset_init(10, HSET_INT);
+        hset empty = hset_init(10, VALUE64_INT);
         hset res = hset_init_symmdiff(&se1, &empty);
 
         int expected = COUNT(vals);
         int ok = (hset_cnt(&res) == expected) && (hset_cnt(&se1) == expected) && (hset_cnt(&empty) == 0);
         for (int i = 0; ok && i < expected; i++)
-            ok = hset_get(&res, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&res, VALUE64_INTVALUE(vals[i]));
 
         test_validatefree(
             ok,
@@ -3416,14 +3422,14 @@ tf14(const char *name)
     test_sub("subtest %d: empty symm diff non-empty", ++subnum);
     {
         int vals[] = {5, 9};
-        hset empty = hset_init(10, HSET_INT);
+        hset empty = hset_init(10, VALUE64_INT);
         hset se2 = hset_from_intarr(vals, COUNT(vals));
         hset res = hset_init_symmdiff(&empty, &se2);
 
         int expected = COUNT(vals);
         int ok = (hset_cnt(&res) == expected) && (hset_cnt(&empty) == 0) && (hset_cnt(&se2) == expected);
         for (int i = 0; ok && i < expected; i++)
-            ok = hset_get(&res, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&res, VALUE64_INTVALUE(vals[i]));
 
         test_validatefree(
             ok,
@@ -3448,8 +3454,8 @@ tf14(const char *name)
         int ok = (hset_cnt(&res) == 0) && (hset_cnt(&se1) == expected) && (hset_cnt(&se2) == expected);
         // элементы исходных множеств на месте
         for (int i = 0; ok && i < expected; i++) {
-            if (!hset_get(&se1, HSET_INTVALUE(vals[i])) ||
-                !hset_get(&se2, HSET_INTVALUE(vals[i])))
+            if (!hset_get(&se1, VALUE64_INTVALUE(vals[i])) ||
+                !hset_get(&se2, VALUE64_INTVALUE(vals[i])))
                 ok = 0;
         }
 
@@ -3481,17 +3487,17 @@ tf14(const char *name)
                  (hset_cnt(&se2) == COUNT(vals2));
         // Проверяем наличие ожидаемых
         for (int i = 0; ok && i < expected_cnt; i++)
-            ok = hset_get(&res, HSET_INTVALUE(expected_vals[i]));
+            ok = hset_get(&res, VALUE64_INTVALUE(expected_vals[i]));
         // Проверяем отсутствие общих (2 и 4)
         if (ok) {
-            ok = !hset_get(&res, HSET_INTVALUE(2)) &&
-                 !hset_get(&res, HSET_INTVALUE(4));
+            ok = !hset_get(&res, VALUE64_INTVALUE(2)) &&
+                 !hset_get(&res, VALUE64_INTVALUE(4));
         }
         // Убедимся, что исходные множества не изменились
         for (int i = 0; ok && i < COUNT(vals1); i++)
-            ok = hset_get(&se1, HSET_INTVALUE(vals1[i]));
+            ok = hset_get(&se1, VALUE64_INTVALUE(vals1[i]));
         for (int i = 0; ok && i < COUNT(vals2); i++)
-            ok = hset_get(&se2, HSET_INTVALUE(vals2[i]));
+            ok = hset_get(&se2, VALUE64_INTVALUE(vals2[i]));
 
         test_validatefree(
             ok,
@@ -3519,9 +3525,9 @@ tf14(const char *name)
                  (hset_cnt(&se2) == COUNT(vals2));
         // все элементы vals1 и vals2 должны быть в res
         for (int i = 0; ok && i < COUNT(vals1); i++)
-            ok = hset_get(&res, HSET_INTVALUE(vals1[i]));
+            ok = hset_get(&res, VALUE64_INTVALUE(vals1[i]));
         for (int i = 0; ok && i < COUNT(vals2); i++)
-            ok = hset_get(&res, HSET_INTVALUE(vals2[i]));
+            ok = hset_get(&res, VALUE64_INTVALUE(vals2[i]));
 
         test_validatefree(
             ok,
@@ -3547,8 +3553,8 @@ tf15(const char *name)
     /* 1. Пустое с пустым -> пустое */
     test_sub("subtest %d: empty symmdiff empty", ++subnum);
     {
-        hset se1 = hset_init(10, HSET_INT);
-        hset se2 = hset_init(10, HSET_INT);
+        hset se1 = hset_init(10, VALUE64_INT);
+        hset se2 = hset_init(10, VALUE64_INT);
         hset *res = hset_symmdiff(&se1, &se2);
 
         int ok = (hset_cnt(&se1) == 0) && (hset_cnt(&se2) == 0) && (res == &se1);
@@ -3567,13 +3573,13 @@ tf15(const char *name)
     {
         int vals[] = {3, 7, 11};
         hset se1 = hset_from_intarr(vals, COUNT(vals));
-        hset empty = hset_init(10, HSET_INT);
+        hset empty = hset_init(10, VALUE64_INT);
         int cnt_before = hset_cnt(&se1);
         hset *res = hset_symmdiff(&se1, &empty);
 
         int ok = (hset_cnt(&se1) == cnt_before) && (hset_cnt(&empty) == 0) && (res == &se1);
         for (int i = 0; ok && i < COUNT(vals); i++)
-            ok = hset_get(&se1, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&se1, VALUE64_INTVALUE(vals[i]));
 
         test_validatefree(
             ok,
@@ -3589,14 +3595,14 @@ tf15(const char *name)
     test_sub("subtest %d: empty symmdiff non-empty", ++subnum);
     {
         int vals[] = {5, 9};
-        hset se1 = hset_init(10, HSET_INT);
+        hset se1 = hset_init(10, VALUE64_INT);
         hset se2 = hset_from_intarr(vals, COUNT(vals));
         hset *res = hset_symmdiff(&se1, &se2);
 
         int expected = COUNT(vals);
         int ok = (hset_cnt(&se1) == expected) && (hset_cnt(&se2) == expected) && (res == &se1);
         for (int i = 0; ok && i < expected; i++)
-            ok = hset_get(&se1, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&se1, VALUE64_INTVALUE(vals[i]));
 
         test_validatefree(
             ok,
@@ -3620,7 +3626,7 @@ tf15(const char *name)
         int ok = (hset_cnt(&se1) == 0) && (hset_cnt(&se2) == expected_orig) && (res == &se1);
         // элементы se2 должны остаться на месте
         for (int i = 0; ok && i < expected_orig; i++)
-            ok = hset_get(&se2, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&se2, VALUE64_INTVALUE(vals[i]));
 
         test_validatefree(
             ok,
@@ -3647,15 +3653,15 @@ tf15(const char *name)
         int ok = (hset_cnt(&se1) == expected_cnt) && (hset_cnt(&se2) == COUNT(vals2)) && (res == &se1);
         // проверяем наличие ожидаемых
         for (int i = 0; ok && i < expected_cnt; i++)
-            ok = hset_get(&se1, HSET_INTVALUE(expected_vals[i]));
+            ok = hset_get(&se1, VALUE64_INTVALUE(expected_vals[i]));
         // проверяем отсутствие общих (2 и 4)
         if (ok) {
-            ok = !hset_get(&se1, HSET_INTVALUE(2)) &&
-                 !hset_get(&se1, HSET_INTVALUE(4));
+            ok = !hset_get(&se1, VALUE64_INTVALUE(2)) &&
+                 !hset_get(&se1, VALUE64_INTVALUE(4));
         }
         // se2 не изменился
         for (int i = 0; ok && i < COUNT(vals2); i++)
-            ok = hset_get(&se2, HSET_INTVALUE(vals2[i]));
+            ok = hset_get(&se2, VALUE64_INTVALUE(vals2[i]));
 
         test_validatefree(
             ok,
@@ -3680,12 +3686,12 @@ tf15(const char *name)
         int ok = (hset_cnt(&se1) == expected_total) && (hset_cnt(&se2) == COUNT(vals2)) && (res == &se1);
         // все элементы vals1 и vals2 должны быть в se1
         for (int i = 0; ok && i < COUNT(vals1); i++)
-            ok = hset_get(&se1, HSET_INTVALUE(vals1[i]));
+            ok = hset_get(&se1, VALUE64_INTVALUE(vals1[i]));
         for (int i = 0; ok && i < COUNT(vals2); i++)
-            ok = hset_get(&se1, HSET_INTVALUE(vals2[i]));
+            ok = hset_get(&se1, VALUE64_INTVALUE(vals2[i]));
         // se2 не изменился
         for (int i = 0; ok && i < COUNT(vals2); i++)
-            ok = hset_get(&se2, HSET_INTVALUE(vals2[i]));
+            ok = hset_get(&se2, VALUE64_INTVALUE(vals2[i]));
 
         test_validatefree(
             ok,
@@ -3711,7 +3717,7 @@ tf16(const char *name)
     /* 1. Пустое множество увеличиваем – остаётся пустым */
     test_sub("subtest %d: empty resize larger", ++subnum);
     {
-        hset se = hset_init(10, HSET_INT);          // sz станет 11
+        hset se = hset_init(10, VALUE64_INT);          // sz станет 11
         int old_sz = se.sz;
         hset new_se = hset_init_resize(&se, 30);    // запросим 30
 
@@ -3742,7 +3748,7 @@ tf16(const char *name)
         int ok = (se.sz > old_sz) && (hset_cnt(&se) == old_cnt);
         // проверяем, что все значения доступны
         for (int i = 0; ok && i < COUNT(vals); i++)
-            ok = hset_get(&se, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&se, VALUE64_INTVALUE(vals[i]));
 
         test_validatefree(
             ok,
@@ -3769,7 +3775,7 @@ tf16(const char *name)
         // Размер может стать меньше, но элементы должны остаться
         int ok = (hset_cnt(&se) == old_cnt);
         for (int i = 0; ok && i < COUNT(vals); i++)
-            ok = hset_get(&se, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&se, VALUE64_INTVALUE(vals[i]));
 
         test_validatefree(
             ok,
@@ -3795,7 +3801,7 @@ tf16(const char *name)
 
         int ok = (se.sz == old_sz) && (hset_cnt(&se) == old_cnt);
         for (int i = 0; ok && i < COUNT(vals); i++)
-            ok = hset_get(&se, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&se, VALUE64_INTVALUE(vals[i]));
 
         test_validatefree(
             ok,
@@ -3823,7 +3829,7 @@ tf16(const char *name)
 
         int ok = (hset_cnt(&se) == cnt);
         for (int i = 0; ok && i < COUNT(vals); i++)
-            ok = hset_get(&se, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&se, VALUE64_INTVALUE(vals[i]));
 
         test_validatefree(
             ok,
@@ -3846,9 +3852,9 @@ tf16(const char *name)
         int old_cnt = hset_cnt(&se);
         hset_init_resize(&se, 50);
 
-        int ok = (hset_cnt(&se) == old_cnt) && (se.flags == HSET_DBL);
+        int ok = (hset_cnt(&se) == old_cnt) && (se.flags == VALUE64_DBL);
         for (int i = 0; ok && i < COUNT(dvals); i++)
-            ok = hset_get(&se, HSET_DBLVALUE(dvals[i]));
+            ok = hset_get(&se, VALUE64_DBLVALUE(dvals[i]));
 
         test_validatefree(
             ok,
@@ -3876,8 +3882,8 @@ tf17(const char *name)
     /* 1. Пустое ∪ пустое = пустое */
     test_sub("subtest %d: empty union empty", ++subnum);
     {
-        hset    se1 = hset_init(10, HSET_INT);
-        hset    se2 = hset_init(10, HSET_INT);
+        hset    se1 = hset_init(10, VALUE64_INT);
+        hset    se2 = hset_init(10, VALUE64_INT);
         hset   *res = hset_union(&se1, &se2);
 
         int     ok = (hset_cnt(&se1) == 0) && (res == &se1);
@@ -3896,13 +3902,13 @@ tf17(const char *name)
     {
         int     vals[] = {3, 7, 11};
         hset    se1 = hset_from_intarr(vals, COUNT(vals));
-        hset    empty = hset_init(10, HSET_INT);
+        hset    empty = hset_init(10, VALUE64_INT);
         int     cnt_before = hset_cnt(&se1);
         hset   *res = hset_union(&se1, &empty);
 
         int     ok = (hset_cnt(&se1) == cnt_before) && (res == &se1);
         for (int i = 0; ok && i < COUNT(vals); i++)
-            ok = hset_get(&se1, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&se1, VALUE64_INTVALUE(vals[i]));
 
         test_validatefree(
             ok,
@@ -3918,14 +3924,14 @@ tf17(const char *name)
     test_sub("subtest %d: empty union non-empty", ++subnum);
     {
         int     vals[] = {5, 9};
-        hset    se1 = hset_init(10, HSET_INT);
+        hset    se1 = hset_init(10, VALUE64_INT);
         hset    se2 = hset_from_intarr(vals, COUNT(vals));
         hset   *res = hset_union(&se1, &se2);
 
         int     expected = COUNT(vals);
         int     ok = (hset_cnt(&se1) == expected) && (res == &se1);
         for (int i = 0; ok && i < expected; i++)
-            ok = hset_get(&se1, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&se1, VALUE64_INTVALUE(vals[i]));
 
         test_validatefree(
             ok,
@@ -3949,7 +3955,7 @@ tf17(const char *name)
         int     ok = (hset_cnt(&se1) == cnt_before) && (res == &se1);
         // все элементы должны остаться на месте
         for (int i = 0; ok && i < COUNT(vals); i++)
-            ok = hset_get(&se1, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&se1, VALUE64_INTVALUE(vals[i]));
 
         test_validatefree(
             ok,
@@ -3975,7 +3981,7 @@ tf17(const char *name)
         int     expected_cnt = COUNT(expected_vals);
         int     ok = (hset_cnt(&se1) == expected_cnt) && (res == &se1);
         for (int i = 0; ok && i < expected_cnt; i++)
-            ok = hset_get(&se1, HSET_INTVALUE(expected_vals[i]));
+            ok = hset_get(&se1, VALUE64_INTVALUE(expected_vals[i]));
 
         test_validatefree(
             ok,
@@ -4000,9 +4006,9 @@ tf17(const char *name)
         int     ok = (hset_cnt(&se1) == expected_total) && (res == &se1);
         // все элементы должны быть доступны
         for (int i = 0; ok && i < COUNT(vals1); i++)
-            ok = hset_get(&se1, HSET_INTVALUE(vals1[i]));
+            ok = hset_get(&se1, VALUE64_INTVALUE(vals1[i]));
         for (int i = 0; ok && i < COUNT(vals2); i++)
-            ok = hset_get(&se1, HSET_INTVALUE(vals2[i]));
+            ok = hset_get(&se1, VALUE64_INTVALUE(vals2[i]));
 
         test_validatefree(
             ok,
@@ -4028,8 +4034,8 @@ tf18(const char *name)
     /* 1. Пустое ∪ пустое = пустое */
     test_sub("subtest %d: empty union empty", ++subnum);
     {
-        hset    se1 = hset_init(10, HSET_INT);
-        hset    se2 = hset_init(10, HSET_INT);
+        hset    se1 = hset_init(10, VALUE64_INT);
+        hset    se2 = hset_init(10, VALUE64_INT);
         hset    res = hset_init_union(&se1, &se2);
 
         int     ok = (hset_cnt(&res) == 0) &&
@@ -4051,7 +4057,7 @@ tf18(const char *name)
     {
         int     vals[] = {3, 7, 11};
         hset    se1 = hset_from_intarr(vals, COUNT(vals));
-        hset    empty = hset_init(10, HSET_INT);
+        hset    empty = hset_init(10, VALUE64_INT);
 
         int     cnt1_before = hset_cnt(&se1);
         hset    res = hset_init_union(&se1, &empty);
@@ -4061,10 +4067,10 @@ tf18(const char *name)
                      (hset_cnt(&se1) == cnt1_before) &&
                      (hset_cnt(&empty) == 0);
         for (int i = 0; ok && i < expected; i++)
-            ok = hset_get(&res, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&res, VALUE64_INTVALUE(vals[i]));
         // se1 должен остаться без изменений
         for (int i = 0; ok && i < expected; i++)
-            ok = hset_get(&se1, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&se1, VALUE64_INTVALUE(vals[i]));
 
         test_validatefree(
             ok,
@@ -4081,7 +4087,7 @@ tf18(const char *name)
     test_sub("subtest %d: empty union non-empty", ++subnum);
     {
         int     vals[] = {5, 9};
-        hset    empty = hset_init(10, HSET_INT);
+        hset    empty = hset_init(10, VALUE64_INT);
         hset    se2 = hset_from_intarr(vals, COUNT(vals));
 
         int     cnt2_before = hset_cnt(&se2);
@@ -4092,9 +4098,9 @@ tf18(const char *name)
                      (hset_cnt(&empty) == 0) &&
                      (hset_cnt(&se2) == cnt2_before);
         for (int i = 0; ok && i < expected; i++)
-            ok = hset_get(&res, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&res, VALUE64_INTVALUE(vals[i]));
         for (int i = 0; ok && i < expected; i++)
-            ok = hset_get(&se2, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&se2, VALUE64_INTVALUE(vals[i]));
 
         test_validatefree(
             ok,
@@ -4122,9 +4128,9 @@ tf18(const char *name)
                      (hset_cnt(&se1) == cnt_before) &&
                      (hset_cnt(&se2) == cnt_before);
         for (int i = 0; ok && i < expected; i++) {
-            ok = hset_get(&res, HSET_INTVALUE(vals[i])) &&
-                 hset_get(&se1, HSET_INTVALUE(vals[i])) &&
-                 hset_get(&se2, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&res, VALUE64_INTVALUE(vals[i])) &&
+                 hset_get(&se1, VALUE64_INTVALUE(vals[i])) &&
+                 hset_get(&se2, VALUE64_INTVALUE(vals[i]));
         }
 
         test_validatefree(
@@ -4156,12 +4162,12 @@ tf18(const char *name)
                      (hset_cnt(&se1) == cnt1_before) &&
                      (hset_cnt(&se2) == cnt2_before);
         for (int i = 0; ok && i < expected_cnt; i++)
-            ok = hset_get(&res, HSET_INTVALUE(expected_vals[i]));
+            ok = hset_get(&res, VALUE64_INTVALUE(expected_vals[i]));
         // se1 и se2 не тронуты
         for (int i = 0; ok && i < COUNT(vals1); i++)
-            ok = hset_get(&se1, HSET_INTVALUE(vals1[i]));
+            ok = hset_get(&se1, VALUE64_INTVALUE(vals1[i]));
         for (int i = 0; ok && i < COUNT(vals2); i++)
-            ok = hset_get(&se2, HSET_INTVALUE(vals2[i]));
+            ok = hset_get(&se2, VALUE64_INTVALUE(vals2[i]));
 
         test_validatefree(
             ok,
@@ -4191,14 +4197,14 @@ tf18(const char *name)
                      (hset_cnt(&se1) == cnt1_before) &&
                      (hset_cnt(&se2) == cnt2_before);
         for (int i = 0; ok && i < COUNT(vals1); i++)
-            ok = hset_get(&res, HSET_INTVALUE(vals1[i]));
+            ok = hset_get(&res, VALUE64_INTVALUE(vals1[i]));
         for (int i = 0; ok && i < COUNT(vals2); i++)
-            ok = hset_get(&res, HSET_INTVALUE(vals2[i]));
+            ok = hset_get(&res, VALUE64_INTVALUE(vals2[i]));
         // исходные целы
         for (int i = 0; ok && i < COUNT(vals1); i++)
-            ok = hset_get(&se1, HSET_INTVALUE(vals1[i]));
+            ok = hset_get(&se1, VALUE64_INTVALUE(vals1[i]));
         for (int i = 0; ok && i < COUNT(vals2); i++)
-            ok = hset_get(&se2, HSET_INTVALUE(vals2[i]));
+            ok = hset_get(&se2, VALUE64_INTVALUE(vals2[i]));
 
         test_validatefree(
             ok,
@@ -4225,7 +4231,7 @@ tf19(const char *name)
     /* 1. Пустое множество: load factor = 0, должен уменьшиться до HSET_MIN_SIZE */
     test_sub("subtest %d: empty set normalized", ++subnum);
     {
-        hset    se = hset_init(100, HSET_INT);    // sz будет 101
+        hset    se = hset_init(100, VALUE64_INT);    // sz будет 101
         int     old_sz = se.sz;
         int     old_cnt = hset_cnt(&se);
         hset    res = hset_normalize(&se);
@@ -4247,7 +4253,7 @@ tf19(const char *name)
     test_sub("subtest %d: low load factor", ++subnum);
     {
         int     vals[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-        hset    se = hset_init(1000, HSET_INT);   // сразу задаём большой размер
+        hset    se = hset_init(1000, VALUE64_INT);   // сразу задаём большой размер
         hset_loadiarr(&se, vals, COUNT(vals));    // загружаем элементы
 
         int     old_sz = se.sz;
@@ -4257,7 +4263,7 @@ tf19(const char *name)
         int     ok = (res.sz == se.sz) && (hset_cnt(&se) == cnt_before) &&
                      (se.sz < old_sz);            // размер должен уменьшиться
         for (int i = 0; ok && i < COUNT(vals); i++)
-            ok = hset_get(&se, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&se, VALUE64_INTVALUE(vals[i]));
 
         test_validatefree(
             ok,
@@ -4274,7 +4280,7 @@ tf19(const char *name)
         for (int i = 0; i < COUNT(vals); i++)
             vals[i] = i;
 
-        hset    se = hset_init(100, HSET_INT);   // next_prime(100) = 101
+        hset    se = hset_init(100, VALUE64_INT);   // next_prime(100) = 101
         hset_loadiarr(&se, vals, COUNT(vals));   // 100 элементов, load factor ≈ 0.99
         int     old_sz = se.sz;
         int     cnt_before = hset_cnt(&se);
@@ -4283,7 +4289,7 @@ tf19(const char *name)
         int     ok = (res.sz == se.sz) && (hset_cnt(&se) == cnt_before) &&
                      (se.sz > old_sz);            // размер должен вырасти
         for (int i = 0; ok && i < COUNT(vals); i++)
-            ok = hset_get(&se, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&se, VALUE64_INTVALUE(vals[i]));
 
         test_validatefree(
             ok,
@@ -4300,7 +4306,7 @@ tf19(const char *name)
         for (int i = 0; i < COUNT(vals); i++)
             vals[i] = i;
 
-        hset    se = hset_init(50, HSET_INT);           // sz станет 53 (next_prime(50))
+        hset    se = hset_init(50, VALUE64_INT);           // sz станет 53 (next_prime(50))
         hset_loadiarr(&se, vals, COUNT(vals));          // 20 элементов, load factor ≈ 0.38
         int     old_sz = se.sz;
         int     cnt_before = hset_cnt(&se);
@@ -4309,7 +4315,7 @@ tf19(const char *name)
         int     ok = (res.sz == se.sz) && (hset_cnt(&se) == cnt_before) &&
                      (se.sz == old_sz);                 // размер не должен измениться
         for (int i = 0; ok && i < COUNT(vals); i++)
-            ok = hset_get(&se, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&se, VALUE64_INTVALUE(vals[i]));
 
         test_validatefree(
             ok,
@@ -4328,7 +4334,7 @@ tf19(const char *name)
 
         int     ok = (hset_cnt(&se) == COUNT(vals));
         for (int i = 0; ok && i < COUNT(vals); i++)
-            ok = hset_get(&se, HSET_INTVALUE(vals[i]));
+            ok = hset_get(&se, VALUE64_INTVALUE(vals[i]));
 
         test_validatefree(
             ok,
@@ -4353,7 +4359,7 @@ tf20(const char *name)
     /* 1. Сохранить и загрузить пустое множество */
     test_sub("subtest %d: empty save/load", ++subnum);
     {
-        hset    se = hset_init(10, HSET_INT);
+        hset    se = hset_init(10, VALUE64_INT);
 
         int     save_ret = hset_save("res/hashset/empty.hset", &se);
 
@@ -4482,10 +4488,10 @@ tf20(const char *name)
     /* 4. Несовпадение типов — возвращается -1, множество не меняется */
     test_sub("subtest %d: type mismatch returns -1", ++subnum);
     {
-        hset    se_int = hset_init(10, HSET_INT);
+        hset    se_int = hset_init(10, VALUE64_INT);
         hset_save("res/hashset/type_int.hset", &se_int);
 
-        hset    se_dbl = hset_init(10, HSET_DBL);
+        hset    se_dbl = hset_init(10, VALUE64_DBL);
         int     ret = hset_load("res/hashset/type_int.hset", &se_dbl);
 
         test_validatefree(
@@ -4590,15 +4596,15 @@ tf20(const char *name)
 
 // ------------------------- TEST 21 ---------------------------------
 
-static void             print_as_int(hset_value v){
+static void             print_as_int(value64 v){
     printf("%4d\t", v.ival);
 }
 
-static void             dummy_const_proc(hset_value v) {
+static void             dummy_const_proc(value64 v) {
     (void)v; /* ничего не делаем */
 }
 /*
-static void             multiply_by_two(hset_value *v) {
+static void             multiply_by_two(value64 *v) {
     v->ival *= 2;
 }
 
@@ -4644,7 +4650,7 @@ tf21(const char *name)
         );
         for (int i = 0; i < COUNT(vals); i++) {
             test_validatefree(
-                hset_get(&se, HSET_INTVALUE(vals[i])),
+                hset_get(&se, VALUE64_INTVALUE(vals[i])),
                 hset_free(&se),
                 "const_foreach: missing value %d", vals[i]
             );
@@ -4745,7 +4751,7 @@ tf22(const char *name)
     /* 5. Пустое множество: сумма и счётчик */
     test_sub("subtest %d: reduce on empty set", ++subnum);
     {
-        hset    se = hset_init(10, HSET_INT);
+        hset    se = hset_init(10, VALUE64_INT);
         hset_accum res = hset_reduce(&se, hset_sum_int);
 
         test_validatefree(
@@ -4764,7 +4770,7 @@ tf22(const char *name)
     /* 6. Пустое множество: max (count остаётся 0) */
     test_sub("subtest %d: reduce max on empty set", ++subnum);
     {
-        hset    se = hset_init(10, HSET_INT);
+        hset    se = hset_init(10, VALUE64_INT);
         hset_accum res = hset_reduce(&se, hset_max_int);
 
         test_validatefree(
@@ -4870,7 +4876,7 @@ tf23(const char *name)
     /* 5. Пустое множество: сумма double */
     test_sub("subtest %d: sum double on empty set", ++subnum);
     {
-        hset    se = hset_init(10, HSET_DBL);
+        hset    se = hset_init(10, VALUE64_DBL);
         hset_accum res = hset_initreduce(&se, HSET_ACCUM_DBL_ZERO, hset_sum_dbl);
 
         test_validatefree(
@@ -4889,7 +4895,7 @@ tf23(const char *name)
     /* 6. Пустое множество: max double (count должен остаться 0) */
     test_sub("subtest %d: max double on empty set", ++subnum);
     {
-        hset    se = hset_init(10, HSET_DBL);
+        hset    se = hset_init(10, VALUE64_DBL);
         hset_accum res = hset_initreduce(&se, HSET_ACCUM_DBL_ZERO, hset_max_dbl);
 
         test_validatefree(
@@ -4932,11 +4938,11 @@ tf24(const char *name)
     /* 1. Уникальность NaN, +inf, -inf и корректность поиска */
     test_sub("subtest %d: double special values uniqueness", ++subnum);
     {
-        hset    se = hset_init(10, HSET_DBL);
+        hset    se = hset_init(10, VALUE64_DBL);
 
         double  normal_vals[] = {1.0, 2.0, 3.0};
         for (int i = 0; i < COUNT(normal_vals); i++)
-            hset_set(&se, HSET_DBLVALUE(normal_vals[i]));
+            hset_set(&se, VALUE64_DBLVALUE(normal_vals[i]));
 
         int     cnt_normal = hset_cnt(&se);
         test_validatefree(
@@ -4947,7 +4953,7 @@ tf24(const char *name)
 
         /* ---- NaN ---- */
         test_validatefree(
-            hset_set(&se, HSET_DBLVALUE(NAN)),
+            hset_set(&se, VALUE64_DBLVALUE(NAN)),
             hset_free(&se),
             "First NaN was not added"
         );
@@ -4958,7 +4964,7 @@ tf24(const char *name)
         );
 
         test_validatefree(
-            !hset_set(&se, HSET_DBLVALUE(NAN)),
+            !hset_set(&se, VALUE64_DBLVALUE(NAN)),
             hset_free(&se),
             "Second NaN was added, but should be duplicate"
         );
@@ -4970,7 +4976,7 @@ tf24(const char *name)
 
         /* ---- +inf ---- */
         test_validatefree(
-            hset_set(&se, HSET_DBLVALUE(INFINITY)),
+            hset_set(&se, VALUE64_DBLVALUE(INFINITY)),
             hset_free(&se),
             "First +inf was not added"
         );
@@ -4981,7 +4987,7 @@ tf24(const char *name)
         );
 
         test_validatefree(
-            !hset_set(&se, HSET_DBLVALUE(INFINITY)),
+            !hset_set(&se, VALUE64_DBLVALUE(INFINITY)),
             hset_free(&se),
             "Second +inf was added, but should be duplicate"
         );
@@ -4993,7 +4999,7 @@ tf24(const char *name)
 
         /* ---- -inf ---- */
         test_validatefree(
-            hset_set(&se, HSET_DBLVALUE(-INFINITY)),
+            hset_set(&se, VALUE64_DBLVALUE(-INFINITY)),
             hset_free(&se),
             "First -inf was not added"
         );
@@ -5004,7 +5010,7 @@ tf24(const char *name)
         );
 
         test_validatefree(
-            !hset_set(&se, HSET_DBLVALUE(-INFINITY)),
+            !hset_set(&se, VALUE64_DBLVALUE(-INFINITY)),
             hset_free(&se),
             "Second -inf was added, but should be duplicate"
         );
@@ -5017,29 +5023,29 @@ tf24(const char *name)
         /* ---- поиск всех значений ---- */
         for (int i = 0; i < COUNT(normal_vals); i++) {
             test_validatefree(
-                hset_get(&se, HSET_DBLVALUE(normal_vals[i])),
+                hset_get(&se, VALUE64_DBLVALUE(normal_vals[i])),
                 hset_free(&se),
                 "Missing normal value %f", normal_vals[i]
             );
         }
         test_validatefree(
-            hset_get(&se, HSET_DBLVALUE(NAN)),
+            hset_get(&se, VALUE64_DBLVALUE(NAN)),
             hset_free(&se),
             "Missing NaN after insertions"
         );
         test_validatefree(
-            hset_get(&se, HSET_DBLVALUE(INFINITY)),
+            hset_get(&se, VALUE64_DBLVALUE(INFINITY)),
             hset_free(&se),
             "Missing +inf after insertions"
         );
         test_validatefree(
-            hset_get(&se, HSET_DBLVALUE(-INFINITY)),
+            hset_get(&se, VALUE64_DBLVALUE(-INFINITY)),
             hset_free(&se),
             "Missing -inf after insertions"
         );
 
         for (int i = 0; i < 15; i++)
-            hset_set(&se, HSET_DBLVALUE(i) );
+            hset_set(&se, VALUE64_DBLVALUE(i) );
         hset_tech_printall(se);
 
         /* ---- структурная целостность ---- */
@@ -5138,7 +5144,7 @@ tf25(const char *name)
     /* 4. Пустое множество: тело цикла не должно выполняться */
     test_sub("subtest %d: macro on empty set", ++subnum);
     {
-        hset    se = hset_init(10, HSET_INT);
+        hset    se = hset_init(10, VALUE64_INT);
         int     called = 0;
         HSET_FOREACH_INT(&se, v){
             called++;
@@ -5268,8 +5274,8 @@ tf26(const char *name)
     /* 1. any: пустое с пустым -> false (нет элементов для поиска) */
     test_sub("subtest %d:hset_any  empty vs empty", ++subnum);
     {
-        hset se1 = hset_init(10, HSET_INT);
-        hset se2 = hset_init(10, HSET_INT);
+        hset se1 = hset_init(10, VALUE64_INT);
+        hset se2 = hset_init(10, VALUE64_INT);
         test_validatefree(
             !hset_any(&se1, &se2),   // false
             (hset_free(&se1), hset_free(&se2)),
@@ -5283,7 +5289,7 @@ tf26(const char *name)
     test_sub("subtest %d:hset_any  empty vs non-empty", ++subnum);
     {
         int vals[] = {1, 2, 3};
-        hset empty = hset_init(10, HSET_INT);
+        hset empty = hset_init(10, VALUE64_INT);
         hset nonempty = hset_from_intarr(vals, COUNT(vals));
         test_validatefree(
             !hset_any(&empty, &nonempty),   // false
@@ -5297,7 +5303,7 @@ tf26(const char *name)
     test_sub("subtest %d: any non‑empty vs empty", ++subnum);
     {
         int vals[] = {1, 2, 3};
-        hset empty = hset_init(10, HSET_INT);
+        hset empty = hset_init(10, VALUE64_INT);
         hset nonempty = hset_from_intarr(vals, COUNT(vals));
         test_validatefree(
             !hset_any(&nonempty, &empty),   // false
@@ -5359,8 +5365,8 @@ tf26(const char *name)
     /* 7. notexists: пустое с пустым -> true (нет общих элементов) */
     test_sub("subtest %d: notexists empty vs empty", ++subnum);
     {
-        hset se1 = hset_init(10, HSET_INT);
-        hset se2 = hset_init(10, HSET_INT);
+        hset se1 = hset_init(10, VALUE64_INT);
+        hset se2 = hset_init(10, VALUE64_INT);
         test_validatefree(
             hset_notexists(&se1, &se2),   // true
             (hset_free(&se1), hset_free(&se2)),
@@ -5374,7 +5380,7 @@ tf26(const char *name)
     test_sub("subtest %d: notexists empty vs non-empty", ++subnum);
     {
         int vals[] = {1, 2, 3};
-        hset empty = hset_init(10, HSET_INT);
+        hset empty = hset_init(10, VALUE64_INT);
         hset nonempty = hset_from_intarr(vals, COUNT(vals));
         test_validatefree(
             hset_notexists(&empty, &nonempty),   // true
@@ -5445,13 +5451,13 @@ tf27(const char *name)
     /* 1. Перемещение одной строки: оригинал теряет владение */
     test_sub("subtest %d: move single string", ++subnum);
     {
-        hset        se = hset_init(10, HSET_FS);
+        hset        se = hset_init(10, VALUE64_FS);
 
         fs          s = fscopy("move_me");          // локальная копия
         //const char *orig_ptr = fsstr(s);       // запомним указатель на строку
 
         test_validatefree(
-            hset_set(&se, HSET_FSMOVE(&s)),     // перемещаем!
+            hset_set(&se, VALUE64_FSMOVE(&s)),     // перемещаем!
             hset_free(&se),
             "Failed to insert via FSMOVE"
         );
@@ -5467,7 +5473,7 @@ tf27(const char *name)
         // Проверяем, что строка во множестве
         fs      search = fsliteral("move_me");
         test_validatefree(
-            hset_get(&se, HSET_FSVALUE(search)),
+            hset_get(&se, VALUE64_FSVALUE(search)),
             hset_free(&se),
             "Moved string 'move_me' not found in set"
         );
@@ -5479,7 +5485,7 @@ tf27(const char *name)
     /* 2. Перемещение нескольких строк */
     test_sub("subtest %d: move multiple strings", ++subnum);
     {
-        hset        se = hset_init(10, HSET_FS);
+        hset        se = hset_init(10, VALUE64_FS);
         const int   cnt = 20;
         fs          strings[cnt];
 
@@ -5487,7 +5493,7 @@ tf27(const char *name)
             strings[i] = FS();
             fs_sprintf(strings + i, "str_%d", i);
             test_validatefree(
-                hset_set(&se, HSET_FSMOVE(&strings[i])),
+                hset_set(&se, VALUE64_FSMOVE(&strings[i])),
                 hset_free(&se),
                 "Failed to move 'str_%d'", i
             );
@@ -5511,7 +5517,7 @@ tf27(const char *name)
             fs search = FS();
             fs_sprintf(&search, "str_%d", i); 
             test_validatefree(
-                hset_get(&se, HSET_FSVALUE(search)),
+                hset_get(&se, VALUE64_FSVALUE(search)),
                 hset_free(&se),
                 "Moved string 'str_%d' not found", i
             );
@@ -5527,14 +5533,14 @@ tf27(const char *name)
     /* 3. Попытка переместить уже перемещённый (пустой) fs */
     test_sub("subtest %d: move already moved (empty) fs", ++subnum);
     {
-        hset    se = hset_init(10, HSET_FS);
+        hset    se = hset_init(10, VALUE64_FS);
 
         fs      s = fscopy("first_move");
-        hset_set(&se, HSET_FSMOVE(&s));         // первое перемещение
+        hset_set(&se, VALUE64_FSMOVE(&s));         // первое перемещение
 
         // s теперь пуст, попытка ещё раз переместить должна просто не добавить элемент
         // NOT SURE
-        bool    added = hset_set(&se, HSET_FSMOVE(&s));
+        bool    added = hset_set(&se, VALUE64_FSMOVE(&s));
         test_validatefree(
             added == false,                     // пустой fs не должен добавиться
             hset_free(&se),
@@ -5554,15 +5560,15 @@ tf27(const char *name)
     /* 4. Перемещение с последующим поиском через копию */
     test_sub("subtest %d: move then search by copy", ++subnum);
     {
-        hset    se = hset_init(10, HSET_FS);
+        hset    se = hset_init(10, VALUE64_FS);
 
         fs      orig = fscopy("search_me");
-        hset_set(&se, HSET_FSMOVE(&orig));
+        hset_set(&se, VALUE64_FSMOVE(&orig));
 
-        // Поиск через копию (HSET_FSVALUE делает глубокую копию)
+        // Поиск через копию (VALUE64_FSVALUE делает глубокую копию)
         fs      copy = fscopy("search_me");
         test_validatefree(
-            hset_get(&se, HSET_FSVALUE(copy)),
+            hset_get(&se, VALUE64_FSVALUE(copy)),
             hset_free(&se),
             "Moved string should be found by copy"
         );
@@ -5586,12 +5592,12 @@ tf27(const char *name)
         }
 
         // Множество, в которое будем перемещать
-        hset    se = hset_init(cnt, HSET_FS);
+        hset    se = hset_init(cnt, VALUE64_FS);
 
         // Перемещаем каждую строку (оригиналы опустеют)
         for (int i = 0; i < cnt; i++) {
             test_validatefree(
-                hset_set(&se, HSET_FSMOVE(&strings[i])) == true,
+                hset_set(&se, VALUE64_FSMOVE(&strings[i])) == true,
                 hset_free(&se),
                 "Failed to move '%s' into set", expected[i]
             );
@@ -5611,7 +5617,7 @@ tf27(const char *name)
         for (int i = 0; i < cnt; i++) {
             fs      tmp = fscopyf("%s", expected[i]);   // временный ключ для поиска
             test_validatefree(
-                hset_get(&clone, HSET_FSVALUE(tmp)),
+                hset_get(&clone, VALUE64_FSVALUE(tmp)),
                 (hset_free(&se), hset_free(&clone), fsfree(tmp)),
                 "Clone missing '%s'", expected[i]
             );
@@ -5686,7 +5692,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf24,  .num = 24, .name = "inf/nan double int simple test"             , .desc="", .mandatory=true)
               , testnew(.f2 = tf25,  .num = 25, .name = "Macro-base iterator simple test"            , .desc="", .mandatory=true)
               , testnew(.f2 = tf26,  .num = 26, .name = "hset_any(), hset_nonexists() simple test"   , .desc="", .mandatory=true)
-              , testnew(.f2 = tf27,  .num = 27, .name = "HSET_FSMOVE() macro simple test"            , .desc="", .mandatory=true)
+              , testnew(.f2 = tf27,  .num = 27, .name = "VALUE64_FSMOVE() macro simple test"            , .desc="", .mandatory=true)
             );
         if (runall)
             break;
