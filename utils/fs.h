@@ -238,6 +238,10 @@ static inline bool          fsisnull(fs s){
     return s.sz == 0 && s.v == 0;
 }
 
+static inline bool          fs_isheapalloc(const fs *s){
+    return s != NULL && fs_alloc(s);
+}
+
 static inline int           fssz(fs s){
     return s.sz;
 }
