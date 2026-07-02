@@ -503,9 +503,9 @@ extern bool                         value64_freadval(FILE *restrict out, value64
 extern int                          value64_fsave(FILE *out, value64 val, value64_type typ, bool savetypeinfo);
 extern bool                         value64_fload(FILE *restrict out, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf);
 
-// generic to string TODO: fs MUST be initialized
+// generic to string: fs MUST be initialized
 extern int                          value64_tostr(fs *target, value64 val, value64_type typ, value64_serialize_type serit);
-// type to string TODO:
+// type to string
 extern int                          value64_tostr_str(fs *target, value64 val);
 extern int                          value64_tostr_int(fs *target, value64 val);
 extern int                          value64_tostr_lng(fs *target, value64 val);
