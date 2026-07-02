@@ -2,38 +2,27 @@
                     HASH-BASED SET MODULE IMPLEMENTATION
 ********************************************************************/
 
-#include <stdio.h>
-#include <stdlib.h>
-
 #include "hashset.h"
-#include "numeric_ops.h"
-#include "log.h"
-#include "bool.h"
-#include "common.h"
-#include "error.h"
-#include "checker.h"
-#include "guard.h"
-#include "fs.h"
-#include "fileutils.h"
 
 // TODO: move that to context
 static int                              HSET_ARRAY_CREATE_MULTIPLIER = 2;
 static int                              HSET_MIN_SIZE                = 8;
 static double                           HSET_NORMALIZE_FACTOR        = 1.5;
-
+/*
 static const size_t                     hset_elem_sizes[] = {
-    [HSET_INT]  = sizeof(int),
-    [HSET_LONG] = sizeof(long),
+    [VALUE64_INT]  = sizeof(int),
+    [VALUE64_LNG] = sizeof(long),
     [HSET_DBL]  = sizeof(double),
     [HSET_PTR]  = sizeof(void*),
-    [HSET_FS]   = sizeof(fs *)
-};
+    [HSET_FS]   = sizeof(fs *),
+    [
+};*/
 
 // ---------- pseudo-header for utility procedures -----------------
 
 // ---------------------------- (Utility) printers -----------------------------
 
-int                         sortedlist_fprint(FILE *restrict out, const hset_elem *restrict elem, hset_type typ){
+int                         sortedlist_fprint(FILE *restrict out, const hset_elem *restrict elem, value64_type typ){
     int     cnt = 0;
     while (elem){
         switch (typ){
@@ -53,7 +42,7 @@ int                         sortedlist_fprint(FILE *restrict out, const hset_ele
                 cnt += fs_fprint(out, elem->v.fsval, NULL);
             break;
             default:
-                logsimple("Unsuported %d - %s", typ, hset_type_name(typ) );
+                logsimple("Unsuported %d - %s", typ, value64_typename(typ) );
             break;
         }
         cnt += fprintf(out, " -> ");
@@ -64,7 +53,7 @@ int                         sortedlist_fprint(FILE *restrict out, const hset_ele
 
 // ------------------------------------ Utilities ------------------------------------------
 
-static unsigned long       get_lhash(unsigned cnt, hset_value value, hset_type typ){
+static unsigned long       get_lhash(unsigned cnt, hset_value value, value64_type typ){
     // probably it's better to calc hash by u64 attr (except fs for sure)
     hset_value      tmp = HSET_ZERO_VALUE;
     switch (typ){
@@ -90,7 +79,7 @@ static unsigned long       get_lhash(unsigned cnt, hset_value value, hset_type t
     return tmp.u64 % cnt;
 }
 
-static inline int           compare(hset_value v1, hset_value v2, hset_type typ){
+static inline int           compare(hset_value v1, hset_value v2, value64_type typ){
     switch (typ){
         case HSET_INT:
             return compare_int(v1.ival, v2.ival);
@@ -108,12 +97,12 @@ static inline int           compare(hset_value v1, hset_value v2, hset_type typ)
             return fs_cmp(v1.fsval, v2.fsval);
         break;
         default:
-            userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", hset_type_name(typ), typ);
+            userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
             return 0;
     }
 }
 
-static hset_type            gettype(const char *str){
+static value64_type            gettype(const char *str){
     if (strcmp(str, "HSET_INT") == 0)
         return  HSET_INT;
     else if (strcmp(str, "HSET_LONG") == 0)
@@ -128,7 +117,7 @@ static hset_type            gettype(const char *str){
         return HSET_UKNOWN;
 }
 
-static hset_value           convert_value(hset_value v, hset_type from, hset_type to){
+static hset_value           convert_value(hset_value v, value64_type from, value64_type to){
     if (from == to && from != HSET_FS)  // криво конечно
         return v;
 
@@ -145,7 +134,7 @@ static hset_value           convert_value(hset_value v, hset_type from, hset_typ
                 fs_sprintf(&tmp, "%d", v.ival);
                 result.fsval = fs_moveto_heap(&tmp);
             } else
-                userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, hset_type_name(from), to, hset_type_name(to) );
+                userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, value64_typename(from), to, value64_typename(to) );
         break;
         case HSET_LONG:
             if (to == HSET_INT)
@@ -157,7 +146,7 @@ static hset_value           convert_value(hset_value v, hset_type from, hset_typ
                     fs_sprintf(&tmp, "%ld", v.lval);
                     result.fsval = fs_moveto_heap(&tmp);
             } else
-                userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, hset_type_name(from), to, hset_type_name(to) );
+                userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, value64_typename(from), to, value64_typename(to) );
             break;
         case HSET_DBL:
             if (to == HSET_INT)
@@ -169,7 +158,7 @@ static hset_value           convert_value(hset_value v, hset_type from, hset_typ
                     fs_sprintf(&tmp, "%g", v.dval); // TODO: context must be here!
                     result.fsval = fs_moveto_heap(&tmp);
             } else
-                userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, hset_type_name(from), to, hset_type_name(to) );
+                userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, value64_typename(from), to, value64_typename(to) );
             break;
         case HSET_FS:
             if (to == HSET_INT)
@@ -181,7 +170,7 @@ static hset_value           convert_value(hset_value v, hset_type from, hset_typ
             else if (to == HSET_FS)
                 result.fsval = fs_heapcreate(v.fsval); // body in heap too!!!
             else
-                userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, hset_type_name(from), to, hset_type_name(to) );
+                userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, value64_typename(from), to, value64_typename(to) );
             break;
         default:
             break; // неподдерживаемые типы — останется нулевое значение
@@ -189,7 +178,7 @@ static hset_value           convert_value(hset_value v, hset_type from, hset_typ
     return result;
 }
 
-static void                 printval(FILE *out, hset_type typ, hset_value v){
+static void                 printval(FILE *out, value64_type typ, hset_value v){
     if (out){
         switch (typ) {
             case HSET_INT:
@@ -213,7 +202,7 @@ static void                 printval(FILE *out, hset_type typ, hset_value v){
     }
 }
 
-static bool readval(FILE *f, hset_type typ, hset_value *v) {
+static bool readval(FILE *f, value64_type typ, hset_value *v) {
     switch (typ) {
         case HSET_INT:
             return fscanf(f, "%d", &v->ival) == 1;
@@ -230,7 +219,7 @@ static bool readval(FILE *f, hset_type typ, hset_value *v) {
     }
 }
 
-static inline hset_type     getype(const hset *se){
+static inline value64_type     getype(const hset *se){
     return se->flags & 0xFF;
 }
 
@@ -262,7 +251,7 @@ static hset_elem           *alloc_elem(void){
     return malloc(sizeof(hset_elem) );
 }
 
-static hset_elem           *create_elem(hset_value val, hset_type typ){
+static hset_elem           *create_elem(hset_value val, value64_type typ){
     hset_elem *res = alloc_elem();
     if (!res)
         return logsimpleret( (hset_elem *) 0, "Unable to create elem");
@@ -324,7 +313,7 @@ static bool                 create_or_move_elem(hset * restrict se, hset_elem *r
     return logsimpleret(!already_existed, "Added the value prev existing %s", bool_str(already_existed) );
 }
 
-static hset_elem           *clone_elemlist(const hset_elem *el, hset_type typ){
+static hset_elem           *clone_elemlist(const hset_elem *el, value64_type typ){
 
     hset_elem  *prev = 0, *newel = 0, *retel = 0;
     while (el){
@@ -371,7 +360,7 @@ static int                   hset_calc_cnt(const hset *se){
     return logsimpleret(cnt, "Total %d", cnt);
 }
 
-static void                 free_elem(hset_elem *el, hset_type typ){
+static void                 free_elem(hset_elem *el, value64_type typ){
     switch (typ){
         case HSET_FS:
             fs_free(el->v.fsval);        // to free space, NO need to free(el->v.fsval)! That will do fs_free() because of FS_FLAG_MOVED
@@ -383,7 +372,7 @@ static void                 free_elem(hset_elem *el, hset_type typ){
     free(el);
 }
 // return count of deleted elems
-static int                  free_elemlist(hset_elem *el, hset_type typ){
+static int                  free_elemlist(hset_elem *el, value64_type typ){
     hset_elem       *next = 0;
     int              cnt = 0;
     while (el){
@@ -395,7 +384,7 @@ static int                  free_elemlist(hset_elem *el, hset_type typ){
     return cnt;
 }
 
-static bool                 validate_elemlist(const hset_elem *el, hset_type typ, unsigned pos, unsigned sz){
+static bool                 validate_elemlist(const hset_elem *el, value64_type typ, unsigned pos, unsigned sz){
     // // TODO: check ordering too!
     const hset_elem *prevel = 0;
     int              iternum = 0;
@@ -411,9 +400,9 @@ static bool                 validate_elemlist(const hset_elem *el, hset_type typ
     return logsimpleerr(true, "%u Ok", pos);
 }
 
-static hset_value           hset_createarrval(const void *arr, int idx, hset_type typ) {
+static hset_value           hset_createarrval(const void *arr, int idx, value64_type typ) {
 
-    size_t elem_size = hset_elem_sizes[typ];
+    size_t elem_size = value64_info_get(typ).size; //hset_elem_sizes[typ];
     //logauto(elem_size);
 
     if (elem_size == 0)
@@ -439,7 +428,7 @@ static bool                 find_elems(const hset_elem *restrict el, const hset 
 // ---------------------------------- API Constructs/Destrucor  ----------------------------
 
 // value64 constructor ANY type, TODO: will be moved to value64
-hset_value                  hset_createval(const void *p, hset_type typ){
+hset_value                  hset_createval(const void *p, value64_type typ){
     hset_value tmp = HSET_ZERO_VALUE;  // init
     switch (typ){
         case HSET_INT:
@@ -464,8 +453,8 @@ hset_value                  hset_createval(const void *p, hset_type typ){
     return tmp;
 }
 // hset basic constructor
-hset                        hset_init(int sz, hset_type typ){
-    logenter("init sz %d - %s", sz, hset_type_name(typ) );
+hset                        hset_init(int sz, value64_type typ){
+    logenter("init sz %d - %s", sz, value64_typename(typ) );
 
     if (int_notin(typ, HSET_INT, HSET_LONG, HSET_DBL, HSET_FS, HSET_PTR) )
         userraiseint(ERR_UNSUPPORTED_TYPE, "%d", typ);
@@ -534,12 +523,12 @@ hset                        hset_clone(const hset *se){
     return logsimpleret(res, "Cloned");
 }
 // created with new type only (INT, LONG, DOUBLE, FS) as allowed
-hset                        hset_cloneas(const hset *se, hset_type typ){
+hset                        hset_cloneas(const hset *se, value64_type typ){
     invraise(se != 0, "Null pointer");
 
     if (int_notin(typ, HSET_INT, HSET_LONG, HSET_DBL, HSET_FS) && int_notin(getype(se), HSET_INT, HSET_LONG, HSET_DBL, HSET_FS))
         userraiseint(ERR_UNSUPPORTED_TYPE, "From %d:%s - to %d:%s",
-            getype(se), hset_type_name(getype(se) ), typ, hset_type_name(typ) );
+            getype(se), value64_typename(getype(se) ), typ, value64_typename(typ) );
 
     hset    res = hset_init(se->sz - 1, typ);
     for (int i = 0; i < se->sz; i++){
@@ -550,10 +539,10 @@ hset                        hset_cloneas(const hset *se, hset_type typ){
             el = el->next;
         }
     }
-    return logsimpleret(res, "Cloned as %d:%s", typ, hset_type_name(typ) );
+    return logsimpleret(res, "Cloned as %d:%s", typ, value64_typename(typ) );
 }
 
-hset                        hset_from_anyarr(const void *arr, int sz, hset_type typ){
+hset                        hset_from_anyarr(const void *arr, int sz, value64_type typ){
     invraise(arr != 0 && sz > 0 && sz < INT_MAX / 4, "Incorrent input %p - %d", arr, sz);
     if (int_notin(typ, HSET_INT, HSET_LONG, HSET_DBL, HSET_PTR, HSET_FS) )
         userraiseint(ERR_UNSUPPORTED_TYPE, "%d", typ);
@@ -582,7 +571,7 @@ hset             hset_init_minus(const hset *restrict se1, const hset *restrict 
     invraise(se1 != 0 && se2 != 0, "Null pointers");
 
     if (getype(se1) != getype(se2) )
-         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1)), hset_type_name(getype(se2) ) );
+         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1)), value64_typename(getype(se2) ) );
 
     // simple implementation
     hset res = hset_init(se1->sz - 1, se1->flags);
@@ -601,7 +590,7 @@ hset                        hset_init_intersect(const hset *restrict se1, const 
     invraise(se1 != 0 && se2 != 0, "Null pointers");
 
     if (getype(se1) != getype(se2) )
-          userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1)), hset_type_name(getype(se2) ) );
+          userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1)), value64_typename(getype(se2) ) );
 
     // simple implementation
     hset res = hset_init(se1->sz - 1, se1->flags);
@@ -620,7 +609,7 @@ hset                        hset_init_intersect(const hset *restrict se1, const 
 hset                        hset_init_symmdiff(const hset *restrict se1, const hset *restrict se2){
     invraise(se1 != 0 && se2 != 0, "Null pointers");
     if (getype(se1) != getype(se2) )
-         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1)), hset_type_name(getype(se2) ) );
+         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1)), value64_typename(getype(se2) ) );
     hset res = hset_init(MAX(se1->sz, se2->sz) - 1, se1->flags);
 
     for (int i = 0; i < se1->sz; i++){
@@ -646,7 +635,7 @@ hset                        hset_init_symmdiff(const hset *restrict se1, const h
 hset                        hset_init_union(const hset *restrict se1, const hset *restrict se2){
     invraise(se1 != 0 && se2 != 0, "Null pointers");
     if (getype(se1) != getype(se2) )
-         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1)), hset_type_name(getype(se2) ) );
+         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1)), value64_typename(getype(se2) ) );
     hset res = hset_init(MAX(se1->sz, se2->sz) - 1, se1->flags);
 
     for (int i = 0; i < se1->sz; i++){
@@ -769,7 +758,7 @@ bool                        hset_eq(const hset *restrict se1, const hset *restri
     invraise(se1 != 0 && se2 != 0, "Null pointers");
 
     if (getype(se1) != getype(se2) )
-        return userraise(false, ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1)), hset_type_name(getype(se2) ) );
+        return userraise(false, ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1)), value64_typename(getype(se2) ) );
 
     int     cnt1 = hset_cnt(se1);
     int     cnt2 = hset_cnt(se2);
@@ -791,7 +780,7 @@ bool                        hset_noteq(const hset *restrict se1, const hset *res
     invraise(se1 != 0 && se2 != 0, "Null pointers");
 
     if (getype(se1) != getype(se2) )
-        return userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1)), hset_type_name(getype(se2)));
+        return userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1)), value64_typename(getype(se2)));
 
     int     cnt1 = hset_cnt(se1);
     int     cnt2 = hset_cnt(se2);
@@ -806,10 +795,10 @@ bool                        hset_noteq(const hset *restrict se1, const hset *res
     return logsimpleret(res,  "Equal %s", bool_str(!res) );
 }
 
-int                         hset_loadanyarr(hset *restrict se, const void *arr, int sz, hset_type typ){ 
+int                         hset_loadanyarr(hset *restrict se, const void *arr, int sz, value64_type typ){ 
     invraise(arr != 0 && sz > 0 && sz < INT_MAX / 4, "Incorrent input %p - %d", arr, sz);
     if (int_notin(typ, HSET_INT, HSET_LONG, HSET_DBL, HSET_PTR, HSET_FS) )
-        userraiseint(ERR_UNSUPPORTED_TYPE, "%d - %s", typ, hset_type_name(typ) );
+        userraiseint(ERR_UNSUPPORTED_TYPE, "%d - %s", typ, value64_typename(typ) );
 
     int         cnt = 0;
     while (cnt < sz){
@@ -823,7 +812,7 @@ bool                        hset_subset_check(const hset *restrict se1, const hs
     invraise(se1 != 0 && se2 != 0, "Null pointers");
 
     if (getype(se1) != getype(se2) )
-        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1) ), hset_type_name(getype(se2) ) );
+        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1) ), value64_typename(getype(se2) ) );
 
     if ( (!strict && hset_cnt(se1) > hset_cnt(se2) ) ||
         (strict && hset_cnt(se1) >= hset_cnt(se2) ) )
@@ -844,7 +833,7 @@ bool                        hset_notexists(const hset *restrict se1, const hset 
     invraise(se1 != 0 && se2 != 0, "Null pointers");
     // refsctor tha to common
     if (getype(se1) != getype(se2) )
-        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1) ), hset_type_name(getype(se2) ) );
+        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1) ), value64_typename(getype(se2) ) );
     HSET_FOREACH(se2, val){
         if (hset_get(se1, val) ){
             printval(logfile, getype(se2), val);
@@ -858,7 +847,7 @@ bool                        hset_any(const hset *restrict se1, const hset *restr
     invraise(se1 != 0 && se2 != 0, "Null pointers");
     // refsctor tha to common
     if (getype(se1) != getype(se2) )
-        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1) ), hset_type_name(getype(se2) ) );
+        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1) ), value64_typename(getype(se2) ) );
     HSET_FOREACH(se2, val){
         if (hset_get(se1, val) ){
             printval(logfile, getype(se2), val);
@@ -872,7 +861,7 @@ hset                       *hset_minus(hset *restrict se1, const hset *restrict 
     invraise(se1 != 0 && se2 != 0, "Null pointers");
     // TODO: rework checkers!!! at least move that into check_it()
     if (getype(se1) != getype(se2) )
-        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1) ), hset_type_name(getype(se2) ) );
+        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1) ), value64_typename(getype(se2) ) );
 
     int     cnt = 0;
     if ( !(hset_cnt(se1) == 0 || hset_cnt(se2) == 0) ){
@@ -893,7 +882,7 @@ hset                       *hset_intersect(hset *restrict se1, const hset *restr
     invraise(se1 != 0 && se2 != 0, "Null pointers");
     // TODO: rework checkers!!! at least move that into check_it()
     if (getype(se1) != getype(se2) )
-        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1) ), hset_type_name(getype(se2) ) );
+        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1) ), value64_typename(getype(se2) ) );
 
     // foreach elements in se2 try to delete it from se1
     int     delcnt = 0;
@@ -914,7 +903,7 @@ hset                       *hset_symmdiff(hset *restrict se1, const hset *restri
     invraise(se1 != 0 && se2 != 0, "Null pointers");
     // TODO: rework checkers!!! at least move that into check_it()
     if (getype(se1) != getype(se2) )
-        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1) ), hset_type_name(getype(se2) ) );
+        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1) ), value64_typename(getype(se2) ) );
 
     // done via constructor
     hset tmp = hset_init_symmdiff(se1, se2);
@@ -926,7 +915,7 @@ hset            *hset_union(hset *restrict se1, const hset *restrict se2){
     invraise(se1 != 0 && se2 != 0, "Null pointers");
     // TODO: rework checkers!!! at least move that into check_it()
     if (getype(se1) != getype(se2) )
-        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", hset_type_name(getype(se1) ), hset_type_name(getype(se2) ) );
+        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1) ), value64_typename(getype(se2) ) );
 
     int         addcnt = 0;
     if (se2->count > 0){
@@ -950,7 +939,7 @@ int                         hset_techfprint(FILE *restrict out, const hset *se, 
     if (out){
         sz = sz ? MIN(sz, se->sz) : se->sz;
         logauto(sz);
-        cnt += fprintf(out, "HSET %s(sz %d, flags %d, typez %s)[\n", name ? name : "", se->sz, se->flags, hset_type_name(getype(se) ) );
+        cnt += fprintf(out, "HSET %s(sz %d, flags %d, typez %s)[\n", name ? name : "", se->sz, se->flags, value64_typename(getype(se) ) );
         for (int i = 0; i < sz; i++)
             if (se->table[i]){
                 cnt += fprintf(out, "%4d: ", i);
@@ -968,14 +957,14 @@ int                         hset_fsave(FILE  *restrict out, const hset *se) {
     invraisecode(se != NULL, ERR_NULLABLE_PTR,
                 "Null pointer");
 
-    hset_type   typ = getype(se);
+    value64_type   typ = getype(se);
 
     invraisecode ( int_in(typ, HSET_INT, HSET_LONG, HSET_DBL, HSET_PTR),
                 ERR_UNSUPPORTED_TYPE,
-                "%d - %s", typ, hset_type_name(typ) );
+                "%d - %s", typ, value64_typename(typ) );
     int         cnt = 0;
     if (out)
-        fprintf(out, "HSET: %s : %d\n", hset_type_name(typ), se->count);
+        fprintf(out, "HSET: %s : %d\n", value64_typename(typ), se->count);
 
     for (int i = 0; i < se->sz; i++) {
         const hset_elem *el = se->table[i];
@@ -1006,11 +995,11 @@ int                         hset_fload(FILE *restrict in, hset *restrict se) {
     if (fscanf(in, " HSET: %" HSET_LOAD_BUF_FMT "s : %d", buf, &cnt) != 2)
         return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Invalid header");
 
-    hset_type   file_type = gettype(buf);
+    value64_type   file_type = gettype(buf);
 
     if (!hset_isnoninit(se) && file_type != getype(se))
         return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Type mismatch: set %s, file %s",
-                      hset_type_name(getype(se)), buf);
+                      value64_typename(getype(se)), buf);
 
     if (hset_isnoninit(se) ){
         res = hset_init(cnt, file_type);

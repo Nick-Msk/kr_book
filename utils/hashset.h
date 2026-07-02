@@ -25,7 +25,7 @@
 // ----------- CONSTANTS AND GLOBALS ---------------
 
 // ------------------- TYPES -----------------------
-
+/*
 typedef enum hset_type
     { HSET_INT = 1, HSET_LONG, HSET_DBL, HSET_FS, HSET_PTR,
       HSET_HEAP_ALLOC = 0x101,      // hset is allocated by malloc
@@ -84,7 +84,7 @@ static inline void          hsetval_fprint(FILE *restrict out, const char *restr
 static inline void          hsetval_log(hset_value val, hset_type typ){
     hsetval_fprint(logfile, 0, val, typ);
 }
-
+*/
 typedef struct hset_elem {
     hset_value         v;
     struct hset_elem   *next;
@@ -117,14 +117,14 @@ typedef struct hset {
 
 
 // create value from pointer
-extern hset_value           hset_createval(const void *p, hset_type typ);
+extern hset_value           hset_createval(const void *p, value64_type typ);
 
 //  check if in non-init state
 static inline bool          hset_isnoninit(const hset *se){
     return se->flags & HSET_UKNOWN && se->sz == 0;
 }
 
-static inline hset_type     hset_getype(const hset *se){
+static inline value64_type     hset_getype(const hset *se){
     return se->flags & 0xFF;
 }
 
@@ -138,7 +138,7 @@ static inline void          hset_set_heap_alloc(hset *se){
 
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
-extern hset                 hset_init(int sz, hset_type typ);      // #define will be for particular type
+extern hset                 hset_init(int sz, value64_type typ);      // #define will be for particular type
 extern hset                 hset_init_resize(hset *se, int newsz);
 extern hset                 hset_normalize(hset *se);
 //
@@ -146,10 +146,10 @@ extern void                 hset_free(hset *se);
 //
 extern hset                 hset_clone(const hset *se);
 
-extern hset                 hset_cloneas(const hset *se, hset_type typ);
+extern hset                 hset_cloneas(const hset *se, value64_type typ);
 
 // universale loader
-extern hset                 hset_from_anyarr(const void *arr, int sz, hset_type typ);
+extern hset                 hset_from_anyarr(const void *arr, int sz, value64_type typ);
 // typed!!! not generic
 static inline hset          hset_from_intarr(const int *iarr, int sz){
     return hset_from_anyarr(iarr, sz, HSET_INT);
@@ -226,7 +226,7 @@ extern bool                 hset_eq(const hset *restrict se1, const hset *restri
 
 extern bool                 hset_noteq(const hset *restrict se1, const hset *restrict se2);
 // load values from array, any type
-extern int                  hset_loadanyarr(hset *restrict se, const void *arr, int sz, hset_type typ);
+extern int                  hset_loadanyarr(hset *restrict se, const void *arr, int sz, value64_type typ);
 
 static inline int           hset_loadiarr(hset *restrict se, const int *iarr, int sz){
     return hset_loadanyarr(se, iarr, sz, HSET_INT);
@@ -279,13 +279,18 @@ static inline int           hset_techprint(const hset *restrict se, int cnt, con
 #define                     hset_tech_print(se, cnt) hset_techprint( &(se), (cnt), #se)
 #define                     hset_tech_printall(se) hset_techprint( &(se), 0, #se)
 
+// common validator
 extern bool                 hset_validate(FILE *out, const hset *restrict se);
+
 // --------------------------------- SERIALIZATION -----------------------------------------
-extern int                  hset_fsave(FILE  *restrict out, const hset *se);
-extern int                  hset_save(const char *restrict fname, const hset *se);
+// file
+extern int                  hset_fsave(FILE  *restrict out, const hset *restrict se);
+extern int                  hset_save(const char *restrict fname, const hset *restrict se);
 extern int                  hset_fload(FILE *restrict in, hset *restrict se);
 extern int                  hset_load(const char *restrict fname, hset *restrict se);
-
+// db, TODO: to sqlite
+extern int                  hset_dbsave(const chat *restrict conn, const hset *restrict se, const char *st);
+extern int                  hset_dbsave(const char *restrict conn, const hset *restrict se, const char *st);
 
 // const
 typedef                     void (*hset_const_proc_t)(hset_value v);
@@ -325,7 +330,7 @@ extern void                 hset_const_foreach(const hset *se, hset_const_proc_t
 typedef struct              hset_accum {
     hset_value  value;    // накопленное значение (сумма, максимум и т.п.)
     int         count;    // количество элементов, участвовавших в накоплении
-    fs          str_agg;  // для будущей агрегации строк (пока можно не добавлять)
+    fs          str_agg;  // для будущей агрегации строк
 } hset_accum;
 
 #define                     HSET_ACCUM(...)  (hset_accum) { .value = HSET_ZERO_VALUE, .count = 0, .str_agg = FS(), __VA_ARGS__} 
@@ -337,6 +342,12 @@ extern hset_accum           hset_initreduce(const hset *se, hset_accum init, hse
 static inline hset_accum    hset_reduce(const hset *se, hset_reduce_func func){
     return hset_initreduce(se, HSET_ACCUM(), func);
 }
+
+// unified version! TODO:
+enum    { HSET_UNIFIED_CNT = 10; };
+typedef struct              hset_unified {
+    hset_value  value[HSET_UNIFIED_CNT];    // unified values (int, double, fs etc...)
+} hset_accum;
 
 // ------------------------------------- REDUCE IMPL -----------------------------------------
 extern void                 hset_sum_int    (hset_accum *acc, hset_value v);
