@@ -91,7 +91,7 @@ static inline void          hsetval_log(hset_value val, hset_type typ){
 }
 */
 typedef struct hset_elem {
-    value64         v;
+    value64             v;
     struct hset_elem   *next;
 } hset_elem;
 
@@ -129,7 +129,7 @@ static inline bool          hset_isnoninit(const hset *se){
     return se->flags & VALUE64_UNKNOWN && se->sz == 0;
 }
 
-static inline value64_type     hset_getype(const hset *se){
+static inline value64_type  hset_getype(const hset *se){
     return se->flags & 0xFF;
 }
 
@@ -185,19 +185,19 @@ extern hset                 hset_init_union(const hset *restrict a, const hset *
 
 // -------------------- hset_elem API ----------------------------------
 static inline fs           *hsetelem_getfs(const hset_elem *el){
-    return el->v.fsval;
+    return value64_fs(el->v);
 }
-static inline int          hsetelem_getint(const hset_elem *el){
-    return el->v.ival;
+static inline int           hsetelem_getint(const hset_elem *el){
+    return value64_int(el->v);
 }
-static inline long         hsetelem_getlong(const hset_elem *el){
-    return el->v.lval;
+static inline long          hsetelem_getlong(const hset_elem *el){
+    return value64_long(el->v);
 }
-static inline double       hsetelem_getdbl(const hset_elem *el){
-    return el->v.dval;
+static inline double        hsetelem_getdbl(const hset_elem *el){
+    return value64_dbl(el->v);
 }
 static inline void         *hsetelem_getptr(const hset_elem *el){
-    return el->v.pval;
+    return value64_ptr(el->v);
 }
 
 // ------------------------ Element access -----------------------------
@@ -338,7 +338,7 @@ typedef struct              hset_accum {
     fs          str_agg;  // для будущей агрегации строк
 } hset_accum;
 
-#define                     HSET_ACCUM(...)  (hset_accum) { .value = VALUE64_ZERO, .count = 0, .str_agg = FS(), __VA_ARGS__} 
+#define                     HSET_ACCUM(...)  (hset_accum) { .value = LITERAL64_ZERO, .count = 0, .str_agg = FS(), __VA_ARGS__} 
 #define                     HSET_ACCUM_DBL_ZERO  (hset_accum) { .value = VALUE64_DBL(0.0), .count = 0, .str_agg = FS() } 
 
 typedef                     void (*hset_reduce_func)(hset_accum *acc, value64 v);
