@@ -79,7 +79,6 @@ static inline const char            *value64_typename(value64_type t) {
 }
 extern  value64_type                 value64_gettype(const char *str);
 // only zero for now
-#define                 VALUE64_ZERO      (value64) {.u64 = 0L }
 
 // getter for converters
 typedef value64                     (*value64_ConverterFunc)(value64 v);
@@ -89,15 +88,15 @@ typedef int                         (*value64_Comparator)(value64, value64);
 // as void *, TODO: think if possible to be value *
 typedef int                         (*value64_PComparator)(const void *restrict, const void *restrict);
 
-#define                 VALUE64_ZERO      (value64) {.u64 = 0L }
-#define                 VALUE64_INT(val)  (value64) {.u64 = 0L, .ival = val }
-#define                 VALUE64_LNG(val)  (value64) {.u64 = 0L, .lval = val }
-#define                 VALUE64_DBL(val)  (value64) {.u64 = 0L, .dval = val }
-#define                 VALUE64_PTR(val)  (value64) {.u64 = 0L, .pval = val }
+#define                             LITERAL64_ZERO      (value64) {.u64 = 0L }
+#define                             LITERAL64_INT(val)  (value64) {.u64 = 0L, .ival = val }
+#define                             LITERAL64_LNG(val)  (value64) {.u64 = 0L, .lval = val }
+#define                             LITERAL64_DBL(val)  (value64) {.u64 = 0L, .dval = val }
+#define                             LITERAL64_PTR(val)  (value64) {.u64 = 0L, .pval = val }
 // pointer copy!!!
-#define                 VALUE64_STR(val)  (value64) {.u64 = 0L, .sval = val }
+#define                             LITERAL64_STR(val)  (value64) {.u64 = 0L, .sval = (val) }
 // local version, just a copy!
-#define                 VALUE64_FS(val)   (value64) {.u64 = 0L, .fsval = &(val) }
+#define                             LITERAL64_FS(val)   (value64) {.u64 = 0L, .fsval = &(val) }
 /*
 // pointer version TODO: not sure, commented for now
 #define                 VALUE64_FSPVALUE(pval) (hset_value) {.fsval = fs_heapcreate(pval) }
@@ -122,22 +121,22 @@ static inline value64               value64_pmove(void *p, value64_type typ){
 }
 // copy logic
 static inline value64               value64_createint(int val){
-    value64 tmp = VALUE64_ZERO;
+    value64 tmp = LITERAL64_ZERO;
     tmp.ival = val;
     return tmp;
 }
 static inline value64               value64_createlong(long lval){
-    value64 tmp = VALUE64_ZERO;
+    value64 tmp = LITERAL64_ZERO;
     tmp.lval = lval;
     return tmp;
 }
 static inline value64               value64_createdbl(double dval){
-    value64 tmp = VALUE64_ZERO;
+    value64 tmp = LITERAL64_ZERO;
     tmp.dval = dval;
     return tmp;
 }
 static inline value64               value64_createptr(void *pval){
-    value64 tmp = VALUE64_ZERO;
+    value64 tmp = LITERAL64_ZERO;
     tmp.pval = pval;
     return tmp;
 }
@@ -145,7 +144,7 @@ static inline value64               value64_createptr(void *pval){
 static inline value64               value64_createstr(const char *sval){
     if (!sval)
         userraiseint(ERR_NULLABLE_PTR, "Null pointer");
-    value64 tmp = VALUE64_ZERO;
+    value64 tmp = LITERAL64_ZERO;
     if ( (tmp.sval = strdup(sval) ) == NULL)
         userraiseint(ERR_UNABLE_ALLOCATE, "Unable to dup c-string (%.20s)", sval);
     return tmp;
@@ -153,7 +152,7 @@ static inline value64               value64_createstr(const char *sval){
 static inline value64               value64_createfs(const fs *fsval){
     if (!fsval || !fsval->v)
         userraiseint(ERR_NULLABLE_PTR, "Null pointer fs %p or fs->v %p", fsval, fsval ? fsval->v: NULL);
-    value64 tmp = VALUE64_ZERO;
+    value64 tmp = LITERAL64_ZERO;
     if ( (tmp.fsval = fs_heapcreate(fsval) ) == NULL)
         userraiseint(ERR_UNABLE_ALLOCATE, "Unable to dup fs");
     return tmp;
@@ -174,12 +173,12 @@ static inline value64               value64_clone(value64 source, value64_type t
         case VALUE64_STR:
             return value64_createstr(source.sval);
         default:
-            return VALUE64_ZERO;
+            return LITERAL64_ZERO;
     }
 }
 // move constructor
 static inline value64               value64_movefs(fs *fsval){
-    value64 tmp = VALUE64_ZERO;
+    value64 tmp = LITERAL64_ZERO;
     if ( (tmp.fsval = fs_moveto_heap( (fs *) fsval) ) == NULL)
         userraiseint(ERR_UNABLE_ALLOCATE, "Unable to dup fs");
     return tmp;

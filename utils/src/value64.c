@@ -43,7 +43,7 @@ static inline bool      is_dbl_int_range(double v) {
 // create value from pointer, value64 constructor ANY type, MOVE semantic
 value64                   value64_pcopy_move(void *p, value64_type typ, bool move){
     invraisecode(p != NULL, ERR_NULLABLE_PTR, "Null pointer");
-    value64     tmp = VALUE64_ZERO;  // init
+    value64     tmp = LITERAL64_ZERO;  // init
     switch (typ){
         case VALUE64_INT:
             tmp.ival = *(const int *) p;
@@ -127,7 +127,7 @@ value64_ConverterMoveFunc conv_move_matrix[VALUE64_TYPE_COUNT][VALUE64_TYPE_COUN
 
 unsigned long               value64_lhash(value64 value, value64_type typ){
     // probably it's better to calc hash by u64 attr (except fs for sure)
-    value64      tmp = VALUE64_ZERO;
+    value64      tmp = LITERAL64_ZERO;
     switch (typ){
         case VALUE64_INT:
             tmp.u64 = (uint64_t) value64_int(value);
@@ -461,7 +461,7 @@ value64                     value64_convert_int_to_dbl(value64 v) {
     return  value64_createdbl((double) value64_int(v) );
 }
 value64                     value64_convert_int_to_fs(value64 v) {
-    value64     result = VALUE64_ZERO;
+    value64     result = LITERAL64_ZERO;
     fs          tmp = fscopyf("%d", value64_int(v));
     result.fsval = fs_moveto_heap(&tmp);
     return result;
@@ -481,7 +481,7 @@ value64                     value64_convert_lng_to_dbl(value64 v) {
     return value64_createdbl((double) value64_long(v) );
 }
 value64                     value64_convert_lng_to_fs(value64 v) {
-    value64     result = VALUE64_ZERO;
+    value64     result = LITERAL64_ZERO;
     fs          tmp = fscopyf("%ld", value64_long(v) );
     result.fsval = fs_moveto_heap(&tmp);
     return result;
@@ -504,7 +504,7 @@ value64                     value64_convert_dbl_to_lng(value64 v) {
     return value64_createlong((long) value64_dbl(v) );
 }
 value64                     value64_convert_dbl_to_fs(value64 v) {
-    value64     result = VALUE64_ZERO;
+    value64     result = LITERAL64_ZERO;
     fs tmp = fscopyf("%g", value64_dbl(v) );       // context must be used! TODO:
     result.fsval = fs_moveto_heap(&tmp);
     return result;
@@ -539,34 +539,34 @@ value64                     value64_convert_fs_to_fs(value64 v){
 // --- Группа STR ---
 value64                     value64_convert_str_to_int(value64 v) {
     char        *sval = value64_str(v);
-    value64     result = VALUE64_ZERO;
+    value64     result = LITERAL64_ZERO;
     if (!try_parse_int(sval, &result.ival))
         userraiseint(ERR_INVALID_CONVERSION, "str->int fail");
     return result;
 }
 value64                     value64_convert_str_to_lng(value64 v) {
     char        *sval = value64_str(v);
-    value64     result = VALUE64_ZERO;
+    value64     result = LITERAL64_ZERO;
     if (!try_parse_long(sval, &result.lval))
         userraiseint(ERR_INVALID_CONVERSION, "str->long fail");
     return result;
 }
 value64                     value64_convert_str_to_dbl(value64 v) {
     char        *sval = value64_str(v);
-    value64     result = VALUE64_ZERO;
+    value64     result = LITERAL64_ZERO;
     if (!try_parse_double(sval, &result.dval))
         userraiseint(ERR_INVALID_CONVERSION, "str->double fail");
     return result;
 }
 value64                     value64_convert_str_to_fs(value64 v) {
     char        *sval = value64_str(v);
-    value64     result = VALUE64_ZERO;
+    value64     result = LITERAL64_ZERO;
     result.fsval = fs_heapcopy(sval);
     return result;
 }
 value64                     value64_convert_str_to_str(value64 v) {
     char        *sval = value64_str(v);
-    value64     result = VALUE64_ZERO;
+    value64     result = LITERAL64_ZERO;
     result = value64_createstr(sval);
     return result;
 }
@@ -579,29 +579,29 @@ value64                     value64_convert_move(value64 *v, value64_type from, 
     } else
         userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s",
                  from, value64_typename(from), to, value64_typename(to));
-    return VALUE64_ZERO;
+    return LITERAL64_ZERO;
 }
 // FS
 value64                     value64_convert_move_fs_to_str(value64 *v){
-    value64     result = VALUE64_ZERO;
+    value64     result = LITERAL64_ZERO;
     result.sval = fs_movefrom_heapstr(&v->fsval);
     return result;
 }
 value64                     value64_convert_move_fs_to_fs(value64 *v){
-    value64     result = VALUE64_ZERO;
+    value64     result = LITERAL64_ZERO;
     result.fsval = v->fsval;
     v->fsval = 0;  // NO FREE HERE
     return result;
 }
 // STR
 value64                     value64_convert_move_str_to_fs(value64 *v){
-    value64     result = VALUE64_ZERO;
+    value64     result = LITERAL64_ZERO;
     result.fsval = fs_moveto_heapstr(&v->sval);
     v->sval = NULL;
     return result;
 }
 value64                     value64_convert_move_str_to_str(value64 *v){
-    value64     result = VALUE64_ZERO;
+    value64     result = LITERAL64_ZERO;
     result.sval = v->sval;
     v->sval = NULL;
     return result;
@@ -1415,7 +1415,7 @@ tf_move(const char *name)
     test_sub("subtest %d: move int", ++subnum);
     {
         value64 src = value64_createint(42);
-        value64 dst = VALUE64_ZERO;
+        value64 dst = LITERAL64_ZERO;
         value64 *ret = value64_move_int(&dst, &src);
 
         test_validate(ret == &dst, "move_int must return &dst");
@@ -1427,7 +1427,7 @@ tf_move(const char *name)
     test_sub("subtest %d: move long", ++subnum);
     {
         value64 src = value64_createlong(123456789L);
-        value64 dst = VALUE64_ZERO;
+        value64 dst = LITERAL64_ZERO;
         value64_move_long(&dst, &src);
 
         test_validate(value64_long(dst) == 123456789L, "dst mismatch, got %ld", value64_long(dst));
@@ -1438,7 +1438,7 @@ tf_move(const char *name)
     test_sub("subtest %d: move double", ++subnum);
     {
         value64 src = value64_createdbl(3.1415);
-        value64 dst = VALUE64_ZERO;
+        value64 dst = LITERAL64_ZERO;
         value64_move_dbl(&dst, &src);
 
         test_validate(fabs(value64_dbl(dst) - 3.1415) < 0.0001, "dst mismatch, got %f", value64_dbl(dst));
@@ -1450,7 +1450,7 @@ tf_move(const char *name)
     {
         int x = 7;
         value64 src = value64_createptr(&x);
-        value64 dst = VALUE64_ZERO;
+        value64 dst = LITERAL64_ZERO;
         value64_move_ptr(&dst, &src);
 
         test_validate(value64_ptr(dst) == &x, "dst must point to x, got %p", value64_ptr(dst));
@@ -1462,7 +1462,7 @@ tf_move(const char *name)
     {
         const char *text = "movable string";
         value64 src = value64_createstr(text);
-        value64 dst = VALUE64_ZERO;
+        value64 dst = LITERAL64_ZERO;
         value64_move_str(&dst, &src);
 
         test_validatefree(
@@ -1488,7 +1488,7 @@ tf_move(const char *name)
 
         fs *src_fs_before = value64_fs(src);   // запоминаем указатель до move
 
-        value64 dst = VALUE64_ZERO;
+        value64 dst = LITERAL64_ZERO;
         value64_move_fs(&dst, &src);
 
         fs *dst_fs = value64_fs(dst);
@@ -1517,7 +1517,7 @@ tf_move(const char *name)
     test_sub("subtest %d: multiple fs moves (leak check)", ++subnum);
     {
         const char *words[] = {"first", "second", "third"};
-        value64 dst[3] = { VALUE64_ZERO, VALUE64_ZERO, VALUE64_ZERO };
+        value64 dst[3] = { LITERAL64_ZERO, LITERAL64_ZERO, LITERAL64_ZERO };
 
         for (int i = 0; i < COUNT(words); i++) {
             fs orig = fscopy(words[i]);
