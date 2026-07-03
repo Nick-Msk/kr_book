@@ -25,6 +25,11 @@
 // ----------- CONSTANTS AND GLOBALS ---------------
 
 // ------------------- TYPES -----------------------
+
+
+enum    { HSET_UNIFIED_CNT  = 0x10,
+          HSET_HEAP_ALLOC   = 0x101      // hset is allocated by malloc
+};
 /*
 typedef enum hset_type
     { HSET_INT = 1, HSET_LONG, HSET_DBL, HSET_FS, HSET_PTR,
@@ -99,9 +104,9 @@ typedef struct hset {
 
 // --------------------------------------- hset ----------------------------------------------
 #define                 HSET(size, typ) (hset) {.sz = (size), .flags = (typ), .table = 0 }
-#define                 HSET_NONINIT        HSET(0, HSET_UKNOWN)
+#define                 HSET_NONINIT        HSET(0, VALUE64_UNKNOWN)
 
-
+/*
 // ---------------------------- hset_value: TODO: refactor to separate value.c (Value64 type)
 #define                 HSET_ZERO_VALUE     (hset_value) {.u64 = 0L }
 #define                 HSET_INTVALUE(val)  (hset_value) {.u64 = 0L, .ival = val }
@@ -114,27 +119,27 @@ typedef struct hset {
 #define                 HSET_FSPVALUE(pval) (hset_value) {.fsval = fs_heapcreate(pval) }
 //move version
 #define                 HSET_FSMOVE(val)    (hset_value) {.fsval = fs_moveto_heap(val) }
-
+*/
 
 // create value from pointer
 extern value64              hset_createval(const void *p, value64_type typ);
 
 //  check if in non-init state
 static inline bool          hset_isnoninit(const hset *se){
-    return se->flags & VALUE64_UKNOWN && se->sz == 0;
+    return se->flags & VALUE64_UNKNOWN && se->sz == 0;
 }
 
 static inline value64_type     hset_getype(const hset *se){
     return se->flags & 0xFF;
 }
-/*
+
 static inline bool          hset_heap_alloc(const hset *se){
     return se->flags & HSET_HEAP_ALLOC;
 }
 
 static inline void          hset_set_heap_alloc(hset *se){
     se->flags |= HSET_HEAP_ALLOC;
-}*/
+}
 
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
@@ -333,8 +338,8 @@ typedef struct              hset_accum {
     fs          str_agg;  // для будущей агрегации строк
 } hset_accum;
 
-#define                     HSET_ACCUM(...)  (hset_accum) { .value = HSET_ZERO_VALUE, .count = 0, .str_agg = FS(), __VA_ARGS__} 
-#define                     HSET_ACCUM_DBL_ZERO  (hset_accum) { .value = HSET_DBLVALUE(0.0), .count = 0, .str_agg = FS() } 
+#define                     HSET_ACCUM(...)  (hset_accum) { .value = VALUE64_ZERO, .count = 0, .str_agg = FS(), __VA_ARGS__} 
+#define                     HSET_ACCUM_DBL_ZERO  (hset_accum) { .value = VALUE64_DBL(0.0), .count = 0, .str_agg = FS() } 
 
 typedef                     void (*hset_reduce_func)(hset_accum *acc, value64 v);
 extern hset_accum           hset_initreduce(const hset *se, hset_accum init, hset_reduce_func func);
@@ -344,10 +349,9 @@ static inline hset_accum    hset_reduce(const hset *se, hset_reduce_func func){
 }
 
 // unified version! TODO:
-enum    { HSET_UNIFIED_CNT = 10; };
 typedef struct              hset_unified {
     value64  value[HSET_UNIFIED_CNT];    // unified values (int, double, fs etc...)
-} hset_accum;
+} hset_unified;
 
 // ------------------------------------- REDUCE IMPL -----------------------------------------
 extern void                 hset_sum_int    (hset_accum *acc, value64 v);
