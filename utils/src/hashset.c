@@ -276,7 +276,7 @@ static hset_elem           *create_elem(value64 val, value64_type typ){
 static bool                 create_or_move_elem(hset * restrict se, hset_elem *restrict el, value64 val){
     if (getype(se) == VALUE64_FS)
         logsimple("%p %p", val.fsval, val.fsval ? fs_str(val.fsval) : NULL);
-    if (getype(se) == VALUE64_FS && (val.fsval == NULL || fs_str(val.fsval) == NULL) )
+    if (getype(se) == VALUE64_FS && (val.fsval == NULL) ) // || fs_str(val.fsval) == NULL) ), FS() is valid fs, buf fs.v == NULL
         return logsimpleret(false, "Unable to add Null FS value");
 
     bool         already_existed = false;
@@ -295,9 +295,10 @@ static bool                 create_or_move_elem(hset * restrict se, hset_elem *r
     hset_elem   *prevel = getprevelem(se, value, &hash, &nextel, &equal);
     if (equal) {
         already_existed = true;
+        // TODO: not sure about that sln
         //if (getype(se) == VALUE64_FS){
-        //    logsimple("DUPLICATE FS, freeing %p", val.fsval);
-        //    fs_free(val.fsval);   // освобождаем копию, которая не понадобилась
+        //    logsimple("DUPLICATE FS, freeing %p [%s]", val.fsval, val.fsval ? val.fsval->v : "");
+        //    value64_freefs(val);
         //}
     }
     else {
@@ -391,7 +392,7 @@ static int                  free_elemlist(hset_elem *el, value64_type typ){
 }
 
 static bool                 validate_elemlist(const hset_elem *el, value64_type typ, unsigned pos, unsigned sz){
-   
+    invraisecode(ERR_NULLABLE_PTR, el != NULL, "Null pointer");
     const hset_elem *prevel = 0;
     int              iternum = 0;
     while (el){
@@ -407,8 +408,12 @@ static bool                 validate_elemlist(const hset_elem *el, value64_type 
 }
 
 static value64           hset_createarrval(void *arr, int idx, value64_type typ) {
-
-    size_t elem_size = value64_info_get(typ)->size; //hset_elem_sizes[typ];
+    invraisecode(ERR_NULLABLE_PTR, arr != NULL, "Null pointer");
+    size_t elem_size;
+    if (typ != VALUE64_FS)
+        elem_size = value64_info_get(typ)->size; //hset_elem_sizes[typ];
+    else
+        elem_size = sizeof(fs); // befause for fs it's fs[], so size of element is sizeof(fs), but not sizeof(fs *)
 
     if (elem_size == 0)
         userraiseint(ERR_UNSUPPORTED_TYPE, "type %d", typ);
@@ -477,7 +482,7 @@ hset                        hset_init(int sz, value64_type typ){
 }
 // construct via new hash table size
 hset             hset_init_resize(hset *se, int newsz){
-    invraise(se != 0, "Null pointer");
+    invraisecode(ERR_NULLABLE_PTR, se != 0, "Null pointer");
 
     if (next_prime(newsz) == (unsigned) se->sz)
         return logsimpleret(*se, "No change");
@@ -809,7 +814,14 @@ int                         hset_loadanyarr(hset *restrict se, void *arr, int sz
 
     int         cnt = 0;
     while (cnt < sz){
-        hset_set(se, hset_createarrval(arr, cnt, typ) );
+        // created a simple element from arr
+        value64 val = hset_createarrval(arr, cnt, typ);
+        if (!hset_set(se, val) )
+            if (typ == VALUE64_FS) {
+                // currently avoiding dupl only for fs
+                logsimple("DUPLICATE freeing %p [%s]", val.fsval, val.fsval ? val.fsval->v : "");
+                value64_freefs(val);
+            }
         cnt++;
     }
     return logsimpleret(cnt, "Loaded total %d", cnt);
@@ -1554,16 +1566,17 @@ tf3(const char *name)
     {
         const int cnt = 30;
         fs      strings[cnt];   // локальные fs
-        fs     *parr[cnt];      // массив указателей для hset_loadanyarr
+        //fs     *parr[cnt];      // массив указателей для hset_loadanyarr
 
         for (int i = 0; i < cnt; i++) {
             strings[i] = fscopyf("item_%d", i);   // если fscopyf ещё нет, используйте fscopy + snprintf
-            parr[i] = &strings[i];
+            // parr[i] = &strings[i];
         }
 
         hset    se = hset_init(cnt, VALUE64_FS);
-        // TODO: it should be hset_loadanyarr(&se, string, cnt, VALUE64_FS)
-        int     loaded = hset_loadanyarr(&se, parr, cnt, VALUE64_FS);
+        // TODO: it should be from fs[]!
+        int       loaded = hset_loadanyarr(&se, strings, cnt, VALUE64_FS);
+        //int     loaded = hset_loadanyarr(&se, parr, cnt, VALUE64_FS);
 
         fs_alloc_check(false);
 
@@ -1590,28 +1603,28 @@ tf3(const char *name)
         }
 
         // Освобождаем исходные строки (множество владеет копиями)
-        for (int i = 0; i < cnt; i++){
+        /*for (int i = 0; i < cnt; i++){
             //fstechprint(strings[i] );
             fsfree(strings[i]);
-        }
+        }*/
         hset_free(&se);
     }
     fs_alloc_check(true);
     /* ---- FS: array with duplicates ---- */
     test_sub("subtest %d: FS from array with duplicates", ++subnum);
     {
-        const char *words[] = {"one", "two", "two", "three", "three", "three", "two", "two"};
-        const int uniq = 3;   // one, two, three
+        const char *words[] = {"one", "two", "two", "three", "three", "three", "two", "two", "yyyyyy", "two"};
+        const int uniq = 4;   // one, two, three, yyyyyy
         fs      strings[COUNT(words)];
-        fs     *parr[COUNT(words)];
+        //fs     *parr[COUNT(words)];
 
         for (int i = 0; i < COUNT(words); i++) {
             strings[i] = fscopy(words[i]);
-            parr[i] = &strings[i];
+            //parr[i] = &strings[i];
         }
 
         hset    se = hset_init(10, VALUE64_FS);
-        int     loaded = hset_loadanyarr(&se, parr, COUNT(words), VALUE64_FS);
+        int     loaded = hset_loadanyarr(&se, strings, COUNT(words), VALUE64_FS);
 
         // loaded должно быть равно общему числу попыток, но count — только уникальные
         test_validatefree(
@@ -1625,8 +1638,8 @@ tf3(const char *name)
             "Duplicates: count = %d, expected %d", hset_cnt(&se), uniq
         );
 
-        for (int i = 0; i < COUNT(words); i++)
-            fsfree(strings[i]);
+        //for (int i = 0; i < COUNT(words); i++)
+        //    fsfree(strings[i]);
         hset_free(&se);
     }
     fs_alloc_check(true);
