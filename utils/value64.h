@@ -178,7 +178,7 @@ static inline value64               value64_clone(value64 source, value64_type t
     }
 }
 // move constructor
-static inline value64               value64_movefs(const fs *fsval){
+static inline value64               value64_movefs(fs *fsval){
     value64 tmp = VALUE64_ZERO;
     if ( (tmp.fsval = fs_moveto_heap( (fs *) fsval) ) == NULL)
         userraiseint(ERR_UNABLE_ALLOCATE, "Unable to dup fs");
