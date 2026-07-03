@@ -406,15 +406,16 @@ static bool                 validate_elemlist(const hset_elem *el, value64_type 
     return logsimpleerr(true, "%u Ok", pos);
 }
 
-static value64           hset_createarrval(const void *arr, int idx, value64_type typ) {
+static value64           hset_createarrval(void *arr, int idx, value64_type typ) {
 
     size_t elem_size = value64_info_get(typ)->size; //hset_elem_sizes[typ];
 
     if (elem_size == 0)
         userraiseint(ERR_UNSUPPORTED_TYPE, "type %d", typ);
 
-    const char *base = (const char *) arr;
-    return hset_createval(base + idx * elem_size, typ);
+    char *base = (char *) arr;
+    // caculate a real offset
+    return value64_pmove(base + idx * elem_size, typ);     // hset_createval(base + idx * elem_size, typ);
 }
 
 
@@ -433,7 +434,7 @@ static bool                 find_elems(const hset_elem *restrict el, const hset 
 // ---------------------------------- API Constructs/Destrucor  ----------------------------
 
 // value64 constructor ANY type, TODO: will be moved to value64
-value64                  hset_createval(const void *p, value64_type typ){
+/*value64                  hset_createval(const void *p, value64_type typ){
     value64 tmp = LITERAL64_ZERO;  // init
     switch (typ){
         case VALUE64_INT:
@@ -456,7 +457,7 @@ value64                  hset_createval(const void *p, value64_type typ){
         break;
     }
     return tmp;
-}
+}*/
 // hset basic constructor
 hset                        hset_init(int sz, value64_type typ){
     logenter("init sz %d - %s", sz, value64_typename(typ) );
@@ -548,14 +549,15 @@ hset                        hset_cloneas(const hset *se, value64_type typ){
 }
 
 hset                        hset_from_anyarr(const void *arr, int sz, value64_type typ){
-    invraise(arr != 0 && sz > 0 && sz < INT_MAX / 4, "Incorrent input %p - %d", arr, sz);
+    invraisecode(ERR_NULLABLE_PTR, arr != 0 && sz > 0 && sz < INT_MAX / 4, 
+            "Incorrent input %p - %d", arr, sz);
     if (int_notin(typ, VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_PTR, VALUE64_FS) )
         userraiseint(ERR_UNSUPPORTED_TYPE, "%d", typ);
 
     if (sz <= 0)
         sz = 1;     // to avoid 0 initializing
     hset        res = hset_init(sz * HSET_ARRAY_CREATE_MULTIPLIER, typ);
-    int         cnt = hset_loadanyarr(&res, arr, sz, typ);
+    int         cnt = hset_loadanyarr(&res, (void *) arr, sz, typ);     // (void *) because of fs
     return logsimpleret(res, "Created hest with sz %u, loaded %d", res.sz, cnt);
 }
 
@@ -573,7 +575,7 @@ void                        hset_free(hset *se){
 }
 // return new hset se1 - se2
 hset             hset_init_minus(const hset *restrict se1, const hset *restrict se2){
-    invraise(se1 != 0 && se2 != 0, "Null pointers");
+    invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers %p %p", se1, se2);
 
     if (getype(se1) != getype(se2) )
          userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1)), value64_typename(getype(se2) ) );
@@ -592,7 +594,7 @@ hset             hset_init_minus(const hset *restrict se1, const hset *restrict 
 }
 // just intersect with construct
 hset                        hset_init_intersect(const hset *restrict se1, const hset *restrict se2){
-    invraise(se1 != 0 && se2 != 0, "Null pointers");
+    invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers %p %p", se1, se2);
 
     if (getype(se1) != getype(se2) )
           userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1)), value64_typename(getype(se2) ) );
@@ -612,7 +614,7 @@ hset                        hset_init_intersect(const hset *restrict se1, const 
 }
 // simm diff with construct
 hset                        hset_init_symmdiff(const hset *restrict se1, const hset *restrict se2){
-    invraise(se1 != 0 && se2 != 0, "Null pointers");
+    invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers %p %p", se1, se2);
     if (getype(se1) != getype(se2) )
          userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1)), value64_typename(getype(se2) ) );
     hset res = hset_init(MAX(se1->sz, se2->sz) - 1, se1->flags);
@@ -782,7 +784,7 @@ bool                        hset_eq(const hset *restrict se1, const hset *restri
 
 // check NOT equality as SET
 bool                        hset_noteq(const hset *restrict se1, const hset *restrict se2){
-    invraise(se1 != 0 && se2 != 0, "Null pointers");
+    invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers %p %p", se1, se2);
 
     if (getype(se1) != getype(se2) )
         return userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1)), value64_typename(getype(se2)));
@@ -800,8 +802,8 @@ bool                        hset_noteq(const hset *restrict se1, const hset *res
     return logsimpleret(res,  "Equal %s", bool_str(!res) );
 }
 
-int                         hset_loadanyarr(hset *restrict se, const void *arr, int sz, value64_type typ){ 
-    invraise(arr != 0 && sz > 0 && sz < INT_MAX / 4, "Incorrent input %p - %d", arr, sz);
+int                         hset_loadanyarr(hset *restrict se, void *arr, int sz, value64_type typ){ 
+    invraisecode(ERR_NULLABLE_PTR, arr != 0 && sz > 0 && sz < INT_MAX / 4, "Incorrent input %p - %d", arr, sz);
     if (int_notin(typ, VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_PTR, VALUE64_FS) )
         userraiseint(ERR_UNSUPPORTED_TYPE, "%d - %s", typ, value64_typename(typ) );
 
@@ -810,11 +812,11 @@ int                         hset_loadanyarr(hset *restrict se, const void *arr, 
         hset_set(se, hset_createarrval(arr, cnt, typ) );
         cnt++;
     }
-    return logsimpleret(cnt, "Loaded %d", cnt);
+    return logsimpleret(cnt, "Loaded total %d", cnt);
 }
 // check if all of se2 in se1 strictly or not
 bool                        hset_subset_check(const hset *restrict se1, const hset *restrict se2, bool strict){
-    invraise(se1 != 0 && se2 != 0, "Null pointers");
+    invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers %p %p", se1, se2);
 
     if (getype(se1) != getype(se2) )
         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1) ), value64_typename(getype(se2) ) );
@@ -835,7 +837,7 @@ bool                        hset_subset_check(const hset *restrict se1, const hs
 }
 // if not exists se2 in se1
 bool                        hset_notexists(const hset *restrict se1, const hset *restrict se2){
-    invraise(se1 != 0 && se2 != 0, "Null pointers");
+    invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers %p %p", se1, se2);
     // refsctor tha to common
     if (getype(se1) != getype(se2) )
         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1) ), value64_typename(getype(se2) ) );
@@ -849,7 +851,7 @@ bool                        hset_notexists(const hset *restrict se1, const hset 
 }
 // if exists any of se2 in se1
 bool                        hset_any(const hset *restrict se1, const hset *restrict se2){
-    invraise(se1 != 0 && se2 != 0, "Null pointers");
+    invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers %p %p", se1, se2);
     // refsctor tha to common
     if (getype(se1) != getype(se2) )
         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1) ), value64_typename(getype(se2) ) );
@@ -863,7 +865,7 @@ bool                        hset_any(const hset *restrict se1, const hset *restr
 }
 // se1 -= se2 as SET, returns count of deleted element
 hset                       *hset_minus(hset *restrict se1, const hset *restrict se2){
-    invraise(se1 != 0 && se2 != 0, "Null pointers");
+    invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers %p %p", se1, se2);
     // TODO: rework checkers!!! at least move that into check_it()
     if (getype(se1) != getype(se2) )
         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1) ), value64_typename(getype(se2) ) );
@@ -884,7 +886,7 @@ hset                       *hset_minus(hset *restrict se1, const hset *restrict 
 
 // se1 insersect= se2 as SET
 hset                       *hset_intersect(hset *restrict se1, const hset *restrict se2){
-    invraise(se1 != 0 && se2 != 0, "Null pointers");
+    invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers %p %p", se1, se2);
     // TODO: rework checkers!!! at least move that into check_it()
     if (getype(se1) != getype(se2) )
         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1) ), value64_typename(getype(se2) ) );
@@ -905,7 +907,7 @@ hset                       *hset_intersect(hset *restrict se1, const hset *restr
 
 // se1 symmdiff= se2 as SET
 hset                       *hset_symmdiff(hset *restrict se1, const hset *restrict se2){
-    invraise(se1 != 0 && se2 != 0, "Null pointers");
+    invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers %p %p", se1, se2);
     // TODO: rework checkers!!! at least move that into check_it()
     if (getype(se1) != getype(se2) )
         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1) ), value64_typename(getype(se2) ) );
@@ -917,7 +919,7 @@ hset                       *hset_symmdiff(hset *restrict se1, const hset *restri
 }
 // union= as SET
 hset            *hset_union(hset *restrict se1, const hset *restrict se2){ 
-    invraise(se1 != 0 && se2 != 0, "Null pointers");
+    invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers %p %p", se1, se2);
     // TODO: rework checkers!!! at least move that into check_it()
     if (getype(se1) != getype(se2) )
         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1) ), value64_typename(getype(se2) ) );
@@ -938,7 +940,7 @@ hset            *hset_union(hset *restrict se1, const hset *restrict se2){
 // ------------------------------------- (API) printers ------------------------------------
 
 int                         hset_techfprint(FILE *restrict out, const hset *se, int sz, const char *restrict name){
-    invraise(se != 0, "Null pointer");
+    invraisecode(ERR_NULLABLE_PTR, se != 0, "Null pointer %p", se);
 
     int     cnt = 0;
     if (out){
@@ -1560,6 +1562,7 @@ tf3(const char *name)
         }
 
         hset    se = hset_init(cnt, VALUE64_FS);
+        // TODO: it should be hset_loadanyarr(&se, string, cnt, VALUE64_FS)
         int     loaded = hset_loadanyarr(&se, parr, cnt, VALUE64_FS);
 
         fs_alloc_check(false);

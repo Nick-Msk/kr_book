@@ -231,22 +231,23 @@ extern bool                 hset_eq(const hset *restrict se1, const hset *restri
 
 extern bool                 hset_noteq(const hset *restrict se1, const hset *restrict se2);
 // load values from array, any type
-extern int                  hset_loadanyarr(hset *restrict se, const void *arr, int sz, value64_type typ);
+extern int                  hset_loadanyarr(hset *restrict se, void *arr, int sz, value64_type typ);
 
 static inline int           hset_loadiarr(hset *restrict se, const int *iarr, int sz){
-    return hset_loadanyarr(se, iarr, sz, VALUE64_INT);
+    return hset_loadanyarr(se, (void *) iarr, sz, VALUE64_INT);
 }
 static inline int           hset_loadlarr(hset *restrict se, const long *larr, int sz){
-    return hset_loadanyarr(se, larr, sz, VALUE64_LNG);
+    return hset_loadanyarr(se, (void *) larr, sz, VALUE64_LNG);
 }
 static inline int           hset_loaddarr(hset *restrict se, const double *darr, int sz){
-    return hset_loadanyarr(se, darr, sz, VALUE64_DBL);
+    return hset_loadanyarr(se, (void *) darr, sz, VALUE64_DBL);
 }
+// TODO: not sure about const here
 static inline int           hset_loadparr(hset *restrict se, const void * const *restrict parr, int sz){
-    return hset_loadanyarr(se, parr, sz, VALUE64_PTR);
+    return hset_loadanyarr(se, (void *) parr, sz, VALUE64_PTR);
 }
 // TODO: ???
-static inline int           hset_loadfsarr(hset *restrict se, const fs *restrict fsarr, int sz){
+static inline int           hset_loadfsarr(hset *restrict se, fs *restrict fsarr, int sz){
     return hset_loadanyarr(se, fsarr, sz, VALUE64_FS);
 }
 // check if all of se2 in se1 strictly or not
