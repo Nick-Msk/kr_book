@@ -89,15 +89,15 @@ typedef int                         (*value64_Comparator)(value64, value64);
 // as void *, TODO: think if possible to be value *
 typedef int                         (*value64_PComparator)(const void *restrict, const void *restrict);
 
-#define                 VALUE64_ZERO        (value64) {.u64 = 0L }
+#define                 VALUE64_ZERO      (value64) {.u64 = 0L }
 #define                 VALUE64_INT(val)  (value64) {.u64 = 0L, .ival = val }
-#define                 VALUE64_LONG(val) (value64) {.u64 = 0L, .lval = val }
+#define                 VALUE64_LNG(val)  (value64) {.u64 = 0L, .lval = val }
 #define                 VALUE64_DBL(val)  (value64) {.u64 = 0L, .dval = val }
 #define                 VALUE64_PTR(val)  (value64) {.u64 = 0L, .pval = val }
 // pointer copy!!!
 #define                 VALUE64_STR(val)  (value64) {.u64 = 0L, .sval = val }
 // local version, just a copy!
-#define                 VALUE64_FSVALUE(val) (value64) {.u64 = 0L, .fsval = &(val) }
+#define                 VALUE64_FS(val)   (value64) {.u64 = 0L, .fsval = &(val) }
 /*
 // pointer version TODO: not sure, commented for now
 #define                 VALUE64_FSPVALUE(pval) (hset_value) {.fsval = fs_heapcreate(pval) }
