@@ -5459,7 +5459,7 @@ tf27(const char *name)
         //const char *orig_ptr = fsstr(s);       // запомним указатель на строку
 
         test_validatefree(
-            hset_set(&se, VALUE64_FSMOVE(&s)),     // перемещаем!
+            hset_set(&se, value64_movefs(&s)),     // перемещаем!
             hset_free(&se),
             "Failed to insert via FSMOVE"
         );
@@ -5495,7 +5495,7 @@ tf27(const char *name)
             strings[i] = FS();
             fs_sprintf(strings + i, "str_%d", i);
             test_validatefree(
-                hset_set(&se, VALUE64_FSMOVE(&strings[i])),
+                hset_set(&se, value64_movefs(&strings[i])),
                 hset_free(&se),
                 "Failed to move 'str_%d'", i
             );
@@ -5538,11 +5538,11 @@ tf27(const char *name)
         hset    se = hset_init(10, VALUE64_FS);
 
         fs      s = fscopy("first_move");
-        hset_set(&se, VALUE64_FSMOVE(&s));         // первое перемещение
+        hset_set(&se, value64_movefs(&s));         // первое перемещение
 
         // s теперь пуст, попытка ещё раз переместить должна просто не добавить элемент
         // NOT SURE
-        bool    added = hset_set(&se, VALUE64_FSMOVE(&s));
+        bool    added = hset_set(&se, value64_movefs(&s));
         test_validatefree(
             added == false,                     // пустой fs не должен добавиться
             hset_free(&se),
@@ -5565,7 +5565,7 @@ tf27(const char *name)
         hset    se = hset_init(10, VALUE64_FS);
 
         fs      orig = fscopy("search_me");
-        hset_set(&se, VALUE64_FSMOVE(&orig));
+        hset_set(&se, value64_movefs(&orig));
 
         // Поиск через копию (VALUE64_FS делает глубокую копию)
         fs      copy = fscopy("search_me");
@@ -5599,7 +5599,7 @@ tf27(const char *name)
         // Перемещаем каждую строку (оригиналы опустеют)
         for (int i = 0; i < cnt; i++) {
             test_validatefree(
-                hset_set(&se, VALUE64_FSMOVE(&strings[i])) == true,
+                hset_set(&se, value64_movefs(&strings[i])) == true,
                 hset_free(&se),
                 "Failed to move '%s' into set", expected[i]
             );
@@ -5694,7 +5694,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf24,  .num = 24, .name = "inf/nan double int simple test"             , .desc="", .mandatory=true)
               , testnew(.f2 = tf25,  .num = 25, .name = "Macro-base iterator simple test"            , .desc="", .mandatory=true)
               , testnew(.f2 = tf26,  .num = 26, .name = "hset_any(), hset_nonexists() simple test"   , .desc="", .mandatory=true)
-              , testnew(.f2 = tf27,  .num = 27, .name = "VALUE64_FSMOVE() macro simple test"            , .desc="", .mandatory=true)
+              , testnew(.f2 = tf27,  .num = 27, .name = "value64_movefs() simple test"               , .desc="", .mandatory=true)
             );
         if (runall)
             break;

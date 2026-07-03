@@ -117,7 +117,7 @@ test/context_test: src/context.c lib/log.o lib/test.o lib/error.o lib/numeric_op
 	$(CC) $(CFLAGS) -DCONTEXTTESTING $^ -o $@ $(LDLIBS)
 
 test/hashset_test: src/hashset.c lib/log.o lib/test.o lib/error.o lib/numeric_ops.o\
-			lib/fs.o lib/fileutils.o lib/array.o lib/common.o lib/getword.o lib/buffer.o | lib/hashset.o
+			lib/fs.o lib/fileutils.o lib/array.o lib/common.o lib/getword.o lib/buffer.o lib/value64.o | lib/hashset.o
 	$(CC) $(CFLAGS) -DHSETTESTING $^ -o $@ $(LDLIBS)
 
 test/value64_test: src/value64.c lib/log.o lib/test.o lib/error.o lib/common.o lib/fs.o lib/fileutils.o\
@@ -129,7 +129,7 @@ UTIL_OBJS = lib/log.o lib/test.o lib/error.o lib/common.o lib/checker.o \
 	lib/fs_iter.o lib/fs_array.o lib/command_executor.o \
 	lib/numeric_ops.o lib/hashset.o lib/value64.o \
 	lib/context.o lib/systemutils.o\
-	lib/fs.o lib/fileutils.o lib/array.o lib/metric.o  
+	lib/fs.o lib/fileutils.o lib/array.o lib/metric.o
 
 lib/cmutils.a: $(UTIL_OBJS)
 	ar rcs $@ $^
