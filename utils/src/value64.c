@@ -4185,6 +4185,79 @@ tf_tostr(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST value64_createfs_asstr -----------------------------
+
+static TestStatus
+tf_createfs_asstr(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: create FS from valid string", ++subnum);
+    {
+        value64 v = value64_createfs_asstr("/tmp/test_fs");
+        // Проверяем, что поле fsval не NULL и внутренний указатель v тоже не NULL
+        test_validatefree(
+            v.fsval != NULL && v.fsval->v != NULL,
+            value64_freefs(v),
+            "FS from string: fsval or fsval->v is NULL"
+        );
+        value64_freefs(v);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: create FS from empty string", ++subnum);
+    {
+        value64 v = value64_createfs_asstr("");
+        test_validatefree(
+            v.fsval != NULL,
+            value64_freefs(v),
+            "FS from empty string: fsval is NULL"
+        )
+        value64_freefs(v);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: create FS from long path", ++subnum);
+    {
+        const char *longpath = "/very/long/path/that/goes/on/and/on/and/on/and/on";
+        value64 v = value64_createfs_asstr(longpath);
+        test_validatefree(
+            v.fsval != NULL,
+            value64_freefs(v),
+            "FS from long path: fsval is NULL"
+        );
+        value64_freefs(v);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: create FS from NULL string (must raise)", ++subnum);
+    {
+        if (!try()) {
+            // try-блок: внутри исключение превращается в переход к else
+            value64 v = value64_createfs_asstr(NULL); // должно вызвать ERR_NULLABLE_PTR
+            (void) v;
+            // если мы здесь, исключения не было → тест провален
+            test_validate(false, "NULL input should have raised SIGINT");
+        } else {
+            // исключение перехвачено, всё корректно
+            logmsg("Exception correctly raised on NULL input");
+        }
+    }
+    fs_alloc_check(true);  // убеждаемся, что неудачная попытка не оставила утечек
+
+    test_sub("subtest %d: double free safety check", ++subnum);
+    {
+        value64 v = value64_createfs_asstr("/tmp/some");
+        value64_freefs(v);
+        value64_freefs(v);  // повторный вызов не должен упасть
+        // Если дошли сюда – ОК, value64_free идемпотентен
+    }
+    fs_alloc_check(true);
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -4223,6 +4296,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_fsave,            .num = 16, .name = "Simple value64_fsave manual test"           , .desc="", .mandatory=true)
               , testnew(.f2 = tf_fsave_fload,      .num = 17, .name = "Simple value64_fsave/fload test"            , .desc="", .mandatory=true)
               , testnew(.f2 = tf_tostr,            .num = 18, .name = "Simple value64_tostr_<type> test"           , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_createfs_asstr,   .num = 19, .name = "Simple value64_createfs_asstr test"         , .desc="", .mandatory=true)
             );
         if (runall)
             break;

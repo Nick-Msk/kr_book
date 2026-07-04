@@ -88,6 +88,9 @@ typedef int                         (*value64_Comparator)(value64, value64);
 // as void *, TODO: think if possible to be value *
 typedef int                         (*value64_PComparator)(const void *restrict, const void *restrict);
 
+extern value64                     value64_convert_str_to_fs(value64 v);
+
+// Init
 #define                             LITERAL64_ZERO      (value64) {.u64 = 0L }
 #define                             LITERAL64_INT(val)  (value64) {.u64 = 0L, .ival = val }
 #define                             LITERAL64_LNG(val)  (value64) {.u64 = 0L, .lval = val }
@@ -97,14 +100,6 @@ typedef int                         (*value64_PComparator)(const void *restrict,
 #define                             LITERAL64_STR(val)  (value64) {.u64 = 0L, .sval = (val) }
 // local version, just a copy!
 #define                             LITERAL64_FS(val)   (value64) {.u64 = 0L, .fsval = &(val) }
-/*
-// pointer version TODO: not sure, commented for now
-#define                 VALUE64_FSPVALUE(pval) (hset_value) {.fsval = fs_heapcreate(pval) }
-//move version
-#define                 VALUE64_FSMOVE(val)    (hset_value) {.fsval = fs_moveto_heap(val) } */
-
-
-
 
 // ------------------------- CONSTRUCTOTS/DESTRUCTORS -------------------------------
 
@@ -156,6 +151,11 @@ static inline value64               value64_createfs(const fs *fsval){
     if ( (tmp.fsval = fs_heapcreate(fsval) ) == NULL)
         userraiseint(ERR_UNABLE_ALLOCATE, "Unable to dup fs");
     return tmp;
+}
+// create fs from c-str
+static inline value64               value64_createfs_asstr(const char *str) {
+    value64 v = value64_createstr(str);
+    return value64_convert_str_to_fs(v);
 }
 // just switch over the types!
 static inline value64               value64_clone(value64 source, value64_type typ){
