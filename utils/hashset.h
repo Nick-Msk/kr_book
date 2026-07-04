@@ -28,7 +28,9 @@
 
 
 enum    { HSET_UNIFIED_CNT  = 0x10,
-          HSET_HEAP_ALLOC   = 0x101      // hset is allocated by malloc
+          HSET_HEAP_ALLOC   = 0x101,      // hset is allocated by malloc
+          HSET_FS_LOAD_STR  = 0x102,       // for array loaded for const char *
+          HSET_FS_LOAD_FS   = 0x103
 };
 /*
 typedef enum hset_type
@@ -242,14 +244,17 @@ static inline int           hset_loadlarr(hset *restrict se, const long *larr, i
 static inline int           hset_loaddarr(hset *restrict se, const double *darr, int sz){
     return hset_loadanyarr(se, (void *) darr, sz, VALUE64_DBL);
 }
-// TODO: not sure about const here
+// not sure about const here
 static inline int           hset_loadparr(hset *restrict se, const void * const *restrict parr, int sz){
     return hset_loadanyarr(se, (void *) parr, sz, VALUE64_PTR);
 }
-// TODO: ???
 static inline int           hset_loadfsarr(hset *restrict se, fs *restrict fsarr, int sz){
     return hset_loadanyarr(se, fsarr, sz, VALUE64_FS);
 }
+extern int                  hset_loadfs_str(hset *restrict se, char *strings[]);
+// only static literals!
+extern int                  hset_loadfs_literal(hset *restrict se, const char *lits[]);
+
 // check if all of se2 in se1 strictly or not
 extern bool                 hset_subset_check(const hset *restrict se1, const hset *restrict se2, bool strict);
 // check if all of se2 in se1

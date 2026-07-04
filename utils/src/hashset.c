@@ -806,7 +806,7 @@ bool                        hset_noteq(const hset *restrict se1, const hset *res
         }
     return logsimpleret(res,  "Equal %s", bool_str(!res) );
 }
-
+// for array mass loading
 int                         hset_loadanyarr(hset *restrict se, void *arr, int sz, value64_type typ){ 
     invraisecode(ERR_NULLABLE_PTR, arr != 0 && sz > 0 && sz < INT_MAX / 4, "Incorrent input %p - %d", arr, sz);
     if (int_notin(typ, VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_PTR, VALUE64_FS) )
@@ -826,6 +826,34 @@ int                         hset_loadanyarr(hset *restrict se, void *arr, int sz
     }
     return logsimpleret(cnt, "Loaded total %d", cnt);
 }
+// TODO:
+// fs loading, heap allocated => MOVE semantic!
+int                         hset_loadfs_str(hset *restrict se, char *strings[]){
+    int     cnt = 0;
+    while (*strings) {
+        // convent c-str into fs * (heap allocated body)
+        fs      *s = fs_moveto_heapstr(strings);
+        value64  val = value64_movefs(s);
+        hset_set(se, val);
+        strings++;
+        cnt++;
+    }
+    return logsimpleret(cnt, "Loaded(moved) c-str total %d", cnt);
+}
+/*
+// only static literals!
+int                         hset_loadfs_literal(hset *restrict se, const char *lits[]){
+    int     cnt = 0;
+    while (*lits) {
+        fs l = FSLITERAL( (char *) *lits); // no allocatopn here
+        value64 val = ???? somehow create fs_create() and link lits with static alloc
+        hset_set(se, val);
+        lits++;
+        cnt++;
+    }
+    return logsimpleret(cnt, "Loaded literal total %d", cnt);
+} */
+
 // check if all of se2 in se1 strictly or not
 bool                        hset_subset_check(const hset *restrict se1, const hset *restrict se2, bool strict){
     invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers %p %p", se1, se2);
@@ -2638,6 +2666,152 @@ tf8(const char *name)
         }
         return logret(TEST_FAILED, "done");
     }
+    // fs
+    test_sub("subtest %d: empty FS in empty FS", ++subnum);
+    {
+        hset empty1 = hset_init(10, VALUE64_FS);
+        hset empty2 = hset_init(100, VALUE64_FS);
+
+        test_validatefree(
+            hset_validate(stdout, &empty1) && hset_validate(stdout, &empty2),
+            (hset_free(&empty1), hset_free(&empty2) ),
+            "Validation failed empty FS"
+        );
+        test_validatefree(
+            hset_in(&empty1, &empty2), (hset_free(&empty1), hset_free(&empty2) ),
+            "Empty FS set should be subset of empty FS set"
+        );
+        hset_free(&empty1);
+        hset_free(&empty2);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: empty FS in nonempty FS", ++subnum);
+    {
+        hset empty    = hset_init(10, VALUE64_FS);
+        hset nonempty = hset_init(10, VALUE64_FS);
+
+        hset_loadfs_str(&nonempty, (char *[]){"/tmp/a", "/tmp/b"} );
+
+        test_validatefree(
+            hset_validate(stdout, &empty) && hset_validate(stdout, &nonempty),
+            (hset_free(&empty), hset_free(&nonempty) ),
+            "Validation failed empty FS vs nonempty FS"
+        );
+        test_validatefree(
+            hset_in(&empty, &nonempty), (hset_free(&empty), hset_free(&nonempty) ),
+            "Empty FS set should be subset of any FS set"
+        );
+        hset_free(&empty);
+        hset_free(&nonempty);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: nonempty FS not in empty FS", ++subnum);
+    {
+        hset empty    = hset_init(10, VALUE64_FS);
+        hset nonempty = hset_init(10, VALUE64_FS);
+        hset_set(&nonempty, value64_createfs("/tmp/x"));
+
+        test_validatefree(
+            !hset_in(&nonempty, &empty), (hset_free(&empty), hset_free(&nonempty) ),
+            "Non-empty FS set should NOT be subset of empty FS set"
+        );
+        hset_free(&empty);
+        hset_free(&nonempty);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: equal FS sets", ++subnum);
+    {
+        hset superset = hset_init(10, VALUE64_FS);
+        hset subset   = hset_init(10, VALUE64_FS);
+
+        value64 f1 = value64_createfs("/tmp/1");
+        value64 f2 = value64_createfs("/tmp/2");
+        hset_set(&superset, f1);
+        hset_set(&superset, f2);
+        hset_set(&subset,   f1);
+        hset_set(&subset,   f2);
+
+        test_validatefree(
+            hset_in(&subset, &superset), (hset_free(&superset), hset_free(&subset) ),
+            "Equal FS sets: subset should be in superset"
+        );
+        hset_free(&superset);
+        hset_free(&subset);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: FS subset in FS superset", ++subnum);
+    {
+        hset superset = hset_init(10, VALUE64_FS);
+        hset subset   = hset_init(10, VALUE64_FS);
+
+        value64 f1 = value64_createfs("/tmp/a");
+        value64 f2 = value64_createfs("/tmp/b");
+        value64 f3 = value64_createfs("/tmp/c");
+        hset_set(&superset, f1);
+        hset_set(&superset, f2);
+        hset_set(&superset, f3);
+
+        hset_set(&subset, f1);
+        hset_set(&subset, f3);
+
+        test_validatefree(
+            hset_in(&subset, &superset), (hset_free(&superset), hset_free(&subset) ),
+            "Subset should be in superset"
+        );
+        hset_free(&superset);
+        hset_free(&subset);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: FS superset not in FS subset", ++subnum);
+    {
+        hset superset = hset_init(10, VALUE64_FS);
+        hset subset   = hset_init(10, VALUE64_FS);
+
+        value64 f1 = value64_createfs("/tmp/a");
+        value64 f2 = value64_createfs("/tmp/b");
+        value64 f3 = value64_createfs("/tmp/c");
+        hset_set(&superset, f1);
+        hset_set(&superset, f2);
+        hset_set(&superset, f3);
+
+        hset_set(&subset, f1);
+        hset_set(&subset, f3);
+
+        test_validatefree(
+            !hset_in(&superset, &subset), (hset_free(&superset), hset_free(&subset) ),
+            "Superset should NOT be in subset"
+        );
+        hset_free(&superset);
+        hset_free(&subset);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: FS vs INT type mismatch raise SIGINT", ++subnum);
+    {
+        hset fs_set  = hset_init(10, VALUE64_FS);
+        hset int_set = hset_init(10, VALUE64_INT);
+        hset_set(&fs_set, value64_createfs("/tmp/z"));
+        hset_set(&int_set, LITERAL64_INT(42));
+
+        if (!try()) {
+            test_validatefree(
+                !hset_in(&fs_set, &int_set),
+                (hset_free(&fs_set), hset_free(&int_set)),
+                "FS set should not be subset of INT set (type mismatch)"
+            );
+        } else {
+            hset_free(&fs_set);
+            hset_free(&int_set);
+            return logret(TEST_PASSED, "done");
+        }
+        return logret(TEST_FAILED, "done");
+    }
+    fs_alloc_check(true);
 
     return logret(TEST_PASSED, "done");
 }
