@@ -55,9 +55,9 @@ value64                   value64_pcopy_move(void *p, value64_type typ, bool mov
             tmp.dval = *(const double *) p;
         break;
         case VALUE64_PTR:
-            if (move)
-                userraiseint(ERR_UNSUPPORTED_TYPE, "VALUE64_PTR can't be moved");
             tmp.pval = *(void * const *) p;
+            if (move)
+                *(void **)p = NULL;
         break;
         case VALUE64_STR:
             if (move)
@@ -690,7 +690,8 @@ int                         value64_fprint_msg(FILE *restrict out, const char *r
             case VALUE64_FS:
                 return value64_fprint_fs(out, val) + cnt;
             default:
-                return fprintf(out, "Unsupported %d!\n", typ) + cnt;
+                fprintf(out, "Unsupported %d!\n", typ);
+                return logsimpleerr(-1, "Unsupported %d!\n", typ);
         }
     }
     return cnt;

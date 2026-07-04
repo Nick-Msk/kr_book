@@ -276,7 +276,7 @@ static hset_elem           *create_elem(value64 val, value64_type typ){
 static bool                 create_or_move_elem(hset * restrict se, hset_elem *restrict el, value64 val){
     if (getype(se) == VALUE64_FS)
         logsimple("%p %p", val.fsval, val.fsval ? fs_str(val.fsval) : NULL);
-    if (getype(se) == VALUE64_FS && (val.fsval == NULL) ) // || fs_str(val.fsval) == NULL) ), FS() is valid fs, buf fs.v == NULL
+    if (getype(se) == VALUE64_FS && (val.fsval == NULL || fs_str(val.fsval) == NULL) )
         return logsimpleret(false, "Unable to add Null FS value");
 
     bool         already_existed = false;
@@ -991,6 +991,7 @@ int                         hset_fsave(FILE  *restrict out, const hset *se) {
             value64_fprint(out, el->v, typ);
             el = el->next;
             cnt++;
+            fputc('\n', out);
         }
     }
     if (out)
@@ -1011,10 +1012,12 @@ int                         hset_fload(FILE *restrict in, hset *restrict se) {
     bool        must_free_on_error = false;
 
     //  TODO: rework!!! via fs_fscanf()
-    if (fscanf(in, " HSET: %" HSET_LOAD_BUF_FMT "s : %d", buf, &cnt) != 2)
+    if (fscanf(in, " HSET: %" HSET_LOAD_BUF_FMT "s : %d ", buf, &cnt) != 2)
         return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Invalid header");
 
+    logsimple("[%s]", buf);
     value64_type   file_type = value64_gettype(buf);
+    logauto(file_type);
 
     if (!hset_isnoninit(se) && file_type != getype(se))
         return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Type mismatch: set %s, file %s",
@@ -1536,9 +1539,7 @@ tf3(const char *name)
             fsfree(tmp);
         }
 
-        logauto(se1.sz);
         hset    se2 = hset_clone(&se1);
-        logauto(se1.sz);
 
         // Проверяем, что клон содержит те же элементы
         for (int i = 0; i < COUNT(words); i++) {
@@ -1647,35 +1648,43 @@ tf3(const char *name)
     test_sub("subtest %d: FS array with NULL pointers", ++subnum);
     {
         // Создадим массив, где некоторые указатели NULL (пустые fs)
-        fs     *parr[5] = { NULL };
-        fs      s1 = fscopy("valid1");
-        fs      s2 = fscopy("valid2");
-        parr[1] = &s1;
-        parr[3] = &s2;
+        fs      arr[5] = { FS(), fscopy("valid1"), fscopy("valid2"), FS(), FS() };
 
         hset    se = hset_init(10, VALUE64_FS);
-        int     loaded = hset_loadanyarr(&se, parr, 5, VALUE64_FS);
+        int     loaded = hset_loadanyarr(&se, arr, COUNT(arr), VALUE64_FS);
+        logauto(loaded);
 
         test_validatefree(
-            loaded == 5,
+            loaded == COUNT(arr),
             hset_free(&se),
             "NULL array: loaded %d, expected 5", loaded
         );
         test_validatefree(
-            hset_cnt(&se) == 2,
+            hset_cnt(&se) == 2, // FS() rejected for now
             hset_free(&se),
-            "NULL array: count = %d, expected 2", hset_cnt(&se)
+            "NULL array: count = %d, expected 3", hset_cnt(&se)
         );
-
+        hset_tech_fprintall(logfile, se);
         // Проверяем, что валидные строки есть
         fs tmp = fscopy("valid1");
-        test_validatefree(hset_get(&se, LITERAL64_FS(tmp)), hset_free(&se), "Missing valid1");
+        test_validatefree(
+            hset_get(&se, LITERAL64_FS(tmp)),
+            hset_free(&se),
+            "Missing valid1"
+        );
         fsfree(tmp);
         tmp = fscopy("valid2");
-        test_validatefree(hset_get(&se, LITERAL64_FS(tmp)), hset_free(&se), "Missing valid2");
+        test_validatefree(
+            hset_get(&se, LITERAL64_FS(tmp)),
+            hset_free(&se),
+            "Missing valid2"
+        );
         fsfree(tmp);
 
-        fsfree(s1); fsfree(s2);
+        // iterator musr be here
+        for(int i = 0; i < COUNT(arr); i++)
+            fsfree(arr[i]);
+
         hset_free(&se);
     }
     fs_alloc_check(true);
@@ -1749,20 +1758,19 @@ tf4(const char *name)
     {
         const int cnt = 500;
         fs      strings[cnt];
-        fs     *parr[cnt];
 
         for (int i = 0; i < cnt; i++) {
             strings[i] = fscopyf("str_%d", i);   // уникальные строки
-            parr[i] = &strings[i];
+            //parr[i] = &strings[i];
         }
 
         hset    se = hset_init(cnt, VALUE64_FS);
-        int     loaded = hset_loadanyarr(&se, parr, cnt, VALUE64_FS);
+        int     loaded = hset_loadanyarr(&se, strings, cnt, VALUE64_FS);
         int     set_cnt = hset_cnt(&se);
 
-        // После загрузки исходные строки можно освободить
-        for (int i = 0; i < cnt; i++)
-            fsfree(strings[i]);
+        // Пdосле загрузки исходные строки можно освободить
+        //for (int i = 0; i < cnt; i++)
+          //  fsfree(strings[i]);
 
         test_validatefree(
             loaded == cnt && set_cnt == cnt,
@@ -1777,15 +1785,15 @@ tf4(const char *name)
     {
         const int cnt = 200;
         fs      strings[cnt];
-        fs     *parr[cnt];
+        //fs     *parr[cnt];
 
         for (int i = 0; i < cnt; i++) {
             strings[i] = fscopyf("clean_%d", i);
-            parr[i] = &strings[i];
+            //parr[i] = &strings[i];
         }
 
         hset    se = hset_init(cnt, VALUE64_FS);
-        hset_loadanyarr(&se, parr, cnt, VALUE64_FS);
+        hset_loadanyarr(&se, strings, cnt, VALUE64_FS);
         for (int i = 0; i < cnt; i++) fsfree(strings[i]);
 
         hset_clean(&se);
@@ -1863,16 +1871,16 @@ tf5(const char *name)
     {
         const int cnt = 200;
         fs      strings[cnt];
-        fs     *parr[cnt];
+       // fs     *parr[cnt];
 
         // Создаём массив уникальных строк
         for (int i = 0; i < cnt; i++) {
             strings[i] = fscopyf("fs_str_%d", i);
-            parr[i] = &strings[i];
+            //parr[i] = &strings[i];
         }
 
         hset    se1 = hset_init(cnt, VALUE64_FS);
-        hset_loadanyarr(&se1, parr, cnt, VALUE64_FS);
+        hset_loadanyarr(&se1, strings, cnt, VALUE64_FS);
 
         // Сохраняем первый элемент для последующего удаления
         fs      first_elem = fscopyf("fs_str_%d", 0);   // или просто fscopyf("fs_str_0")
@@ -1915,8 +1923,8 @@ tf5(const char *name)
         );
 
         // Освобождаем исходные строки (множества владеют копиями)
-        for (int i = 0; i < cnt; i++)
-            fsfree(strings[i]);
+        //for (int i = 0; i < cnt; i++)
+          //  fsfree(strings[i]);
         fsfree(first_elem);
         hset_free(&se1);
         hset_free(&se2);
@@ -1926,20 +1934,23 @@ tf5(const char *name)
     {
         const int cnt = 200;
         fs      strings[cnt];
-        fs     *parr[cnt];
+        //fs     *parr[cnt];
 
         for (int i = 0; i < cnt; i++) {
             strings[i] = fscopyf("diff_%d", i);
-            parr[i] = &strings[i];
+            //parr[i] = &strings[i];
         }
 
         // Первое множество – стандартное создание из массива
         hset    se1 = hset_init(cnt, VALUE64_FS);
-        hset_loadanyarr(&se1, parr, cnt, VALUE64_FS);
+        hset_loadanyarr(&se1, strings, cnt, VALUE64_FS);
+
+        for (int i = 0; i < cnt; i++)
+            strings[i] = fscopyf("diff_%d", i);
 
         // Второе – с заведомо меньшим начальным размером таблицы
         hset    se2 = hset_init(cnt / 2, VALUE64_FS);
-        hset_loadanyarr(&se2, parr, cnt, VALUE64_FS);
+        hset_loadanyarr(&se2, strings, cnt, VALUE64_FS);
 
         // Они должны быть равны, несмотря на разный размер таблиц
         test_validatefree(
@@ -1948,16 +1959,19 @@ tf5(const char *name)
             "FS diff size: sets must be equal after initial load"
         );
 
+        for (int i = 0; i < cnt; i++)
+            strings[i] = fscopyf("diff_%d", i);
+
         // Повторная загрузка тех же данных не должна испортить равенство
-        hset_loadanyarr(&se1, parr, cnt, VALUE64_FS);
+        hset_loadanyarr(&se1, strings, cnt, VALUE64_FS);
         test_validatefree(
             hset_eq(&se1, &se2),
             (hset_free(&se1), hset_free(&se2)),
             "FS diff size: sets must be equal after reloading duplicates"
         );
 
-        for (int i = 0; i < cnt; i++)
-            fsfree(strings[i]);
+        //for (int i = 0; i < cnt; i++)
+          //  fsfree(strings[i]);
         hset_free(&se1);
         hset_free(&se2);
     }
@@ -2041,16 +2055,14 @@ tf6(const char *name)
     {
         const int cnt = 10;
         fs      strings[cnt];
-        fs     *parr[cnt];
 
         // Создаём массив уникальных строк
         for (int i = 0; i < cnt; i++) {
             strings[i] = fscopyf("fs_str_%d", i);
-            parr[i] = &strings[i];
         }
 
         hset    se1 = hset_init(cnt, VALUE64_FS);
-        hset_loadanyarr(&se1, parr, cnt, VALUE64_FS);
+        hset_loadanyarr(&se1, strings, cnt, VALUE64_FS);
 
         // Клонируем se1
         hset    se2 = hset_clone(&se1);
@@ -2092,8 +2104,8 @@ tf6(const char *name)
         );
 
         // Освобождаем исходные строки (множества владеют копиями)
-        for (int i = 0; i < cnt; i++)
-            fsfree(strings[i]);
+        //for (int i = 0; i < cnt; i++)
+          //  fsfree(strings[i]);
 
         fsfree(first_elem);
         hset_free(&se1);
@@ -2104,20 +2116,19 @@ tf6(const char *name)
     {
         const int cnt = 15;
         fs      strings[cnt];
-        fs     *parr[cnt];
 
-        for (int i = 0; i < cnt; i++) {
+        for (int i = 0; i < cnt; i++)
             strings[i] = fscopyf("diff_fs_%d", i);
-            parr[i] = &strings[i];
-        }
 
         // Первое множество – создание из массива
         hset    se1 = hset_init(cnt, VALUE64_FS);
-        hset_loadanyarr(&se1, parr, cnt, VALUE64_FS);
+        hset_loadanyarr(&se1, strings, cnt, VALUE64_FS);
 
         // Второе – с заведомо меньшим размером таблицы
         hset    se2 = hset_init(cnt / 3, VALUE64_FS);
-        hset_loadanyarr(&se2, parr, cnt, VALUE64_FS);
+        for (int i = 0; i < cnt; i++)
+            strings[i] = fscopyf("diff_fs_%d", i);
+        hset_loadanyarr(&se2, strings, cnt, VALUE64_FS);
 
         // 1. Должны быть равны, несмотря на разный размер таблиц
         test_validatefree(
@@ -2127,7 +2138,9 @@ tf6(const char *name)
         );
 
         // Повторная загрузка тех же данных не должна испортить равенство
-        hset_loadanyarr(&se1, parr, cnt, VALUE64_FS);
+        for (int i = 0; i < cnt; i++)
+            strings[i] = fscopyf("diff_fs_%d", i);
+        hset_loadanyarr(&se1, strings, cnt, VALUE64_FS);
         test_validatefree(
             hset_noteq(&se1, &se2) == false,
             (hset_free(&se1), hset_free(&se2)),
@@ -2162,10 +2175,7 @@ tf6(const char *name)
             "FS diff size !=: sets must be equal after both deletions"
         );
 
-        for (int i = 0; i < cnt; i++)
-            fsfree(strings[i]);
         fsfree(first_elem);
-
 
         hset_free(&se1);
         hset_free(&se2);
@@ -2353,17 +2363,13 @@ tf7(const char *name)
     {
         const int   cnt = 50;
         fs          strings[cnt];
-        fs         *parr[cnt];
 
         for (int i = 0; i < cnt; i++) {
             strings[i] = fscopyf("%d", i);
-            parr[i] = &strings[i];
         }
 
         hset    se_fs = hset_init(cnt, VALUE64_FS);
-        hset_loadanyarr(&se_fs, parr, cnt, VALUE64_FS);
-        for (int i = 0; i < cnt; i++)
-            fsfree(strings[i]);
+        hset_loadanyarr(&se_fs, strings, cnt, VALUE64_FS);
 
         hset    se_int = hset_cloneas(&se_fs, VALUE64_INT);
 
@@ -2397,17 +2403,13 @@ tf7(const char *name)
     {
         const int cnt = 5;
         fs      strings[cnt];
-        fs     *parr[cnt];
 
         for (int i = 0; i < cnt; i++) {
             strings[i] = fscopyf("str_%d", i);
-            parr[i] = &strings[i];
         }
 
         hset    se1 = hset_init(cnt, VALUE64_FS);
-        hset_loadanyarr(&se1, parr, cnt, VALUE64_FS);
-        for (int i = 0; i < cnt; i++)
-            fsfree(strings[i]);
+        hset_loadanyarr(&se1, strings, cnt, VALUE64_FS);
 
         hset    se2 = hset_cloneas(&se1, VALUE64_FS);
 
@@ -2474,17 +2476,15 @@ tf7(const char *name)
         const int cnt = 30;
         double  vals[cnt];
         fs      strings[cnt];
-        fs     *parr[cnt];
 
         // TODO: replace to macro DArray_create( {iter * 1.5} )
         for (int i = 0; i < cnt; i++) {
             vals[i] = i * 1.5;
             strings[i] = fscopyf("%g", vals[i]);
-            parr[i] = &strings[i];
         }
 
         hset    se_fs = hset_init(cnt, VALUE64_FS);
-        hset_loadanyarr(&se_fs, parr, cnt, VALUE64_FS);
+        hset_loadanyarr(&se_fs, strings, cnt, VALUE64_FS);
         for (int i = 0; i < cnt; i++)
             fsfree(strings[i]);
 
@@ -4418,7 +4418,7 @@ tf20(const char *name)
     /* 2. Сохранить и загрузить непустое множество (int) — создание нового */
     test_sub("subtest %d: int save/load new", ++subnum);
     {
-        int     vals[] = {1, 2, 3, 4, 5};
+        int     vals[] = {19, 21, 13, 4555, 5678};
         hset    se = hset_from_intarr(vals, COUNT(vals));
         int     save_ret = hset_save("res/hashset/int.hset", &se);
 
@@ -5258,6 +5258,7 @@ tf25(const char *name)
         int     a = 1, b = 2, c = 3;
         void   *vals[] = {&a, &b, &c};
         hset    se = hset_from_ptrarr( (const void **) vals, COUNT(vals));
+        logauto(se.count);
         int     count = 0;
         HSET_FOREACH_PTR(&se, v) {
             count++;

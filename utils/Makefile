@@ -156,13 +156,12 @@ array: test/array_test
 
 
 clean:
-	@rm *.o
-	@rm *_test
-	@rm -r *.dSYM
-	@rm *.gch
-	@rm test/*
-	@rm lib/*
-	find . -perm -u=x -type f -ls -maxdepth 1 -exec rm {} \;
+	@rm -f lib/*.o
+	@rm -rf test/*.dSYM
+	@rm -f *.gch
+	@rm -f test/*
+	@rm -f lib/*
+	@find . -perm -u=x -type f -ls -maxdepth 1 -exec rm {} \;
 
 cleanlog:
 	-rm *.log

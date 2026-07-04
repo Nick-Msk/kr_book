@@ -126,7 +126,7 @@ extern value64              hset_createval(const void *p, value64_type typ);
 
 //  check if in non-init state
 static inline bool          hset_isnoninit(const hset *se){
-    return se->flags & VALUE64_UNKNOWN && se->sz == 0;
+    return se->flags == 0 && se->sz == 0;
 }
 
 static inline value64_type  hset_getype(const hset *se){
