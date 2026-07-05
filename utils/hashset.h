@@ -146,6 +146,22 @@ static inline void          hset_set_heap_alloc(hset *se){
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
 
 extern hset                 hset_init(int sz, value64_type typ);      // #define will be for particular type
+static inline hset          hset_init_int(int sz){
+    return hset_init(sz, VALUE64_INT);
+}
+static inline hset          hset_init_long(int sz){
+    return hset_init(sz, VALUE64_LNG);
+}
+static inline hset          hset_init_dbl(int sz){
+    return hset_init(sz, VALUE64_DBL);
+}
+static inline hset          hset_init_fs(int sz){
+    return hset_init(sz, VALUE64_FS);
+}
+static inline hset          hset_init_ptr(int sz){
+    return hset_init(sz, VALUE64_PTR);
+}
+
 extern hset                 hset_init_resize(hset *se, int newsz);
 extern hset                 hset_normalize(hset *se);
 //
@@ -184,11 +200,28 @@ extern hset                 hset_init_symmdiff(const hset *restrict a, const hse
 extern hset                 hset_init_union(const hset *restrict a, const hset *restrict b);
 
 // Simplified macroses
+#define HSET_CREATE_INT(...)\
+    ({ \
+        int sz = sizeof((int []){__VA_ARGS__}) / sizeof(int); \
+        hset _tmp = hset_from_intarr( (int []) {__VA_ARGS__},  sz > 10 ? sz : 10); \
+        _tmp; \
+    })
+#define HSET_CREATE_LONG(...)\
+    ({ \
+        int sz = sizeof((long []){__VA_ARGS__}) / sizeof(long); \
+        hset _tmp = hset_from_longarr( (long []) {__VA_ARGS__},  sz > 10 ? sz : 10); \
+        _tmp; \
+    })
+#define HSET_CREATE_DBL(...)\
+    ({ \
+        int sz = sizeof((double []){__VA_ARGS__}) / sizeof(double); \
+        hset _tmp = hset_from_dblarr( (double []) {__VA_ARGS__},  sz > 10 ? sz : 10); \
+        _tmp; \
+    })
 #define HSET_CREATEFS_ASSTR(...) \
     ({ \
-        /* Вычисляем количество аргументов через compound literal */ \
         int _n = sizeof((const char *[]){__VA_ARGS__, NULL}) / sizeof(const char *) - 1; \
-        hset _tmp = hset_init(_n > 0 ? _n + 1 : 10, VALUE64_FS); \
+        hset _tmp = hset_init(_n > 10 ? _n : 10, VALUE64_FS); \
         HSET_LOADFS_STR(_tmp, __VA_ARGS__); \
         _tmp; \
     })

@@ -2765,18 +2765,20 @@ tf8(const char *name)
         return logret(TEST_FAILED, "done");
     }
     /* // fs
+    */
     test_sub("subtest %d: empty FS in empty FS", ++subnum);
     {
-        hset empty1 = hset_init(10, VALUE64_FS);
-        hset empty2 = hset_init(100, VALUE64_FS);
+        hset empty1 = hset_init_fs(10);
+        hset empty2 = hset_init_fs(10);
 
         test_validatefree(
             hset_validate(stdout, &empty1) && hset_validate(stdout, &empty2),
-            (hset_free(&empty1), hset_free(&empty2) ),
+            (hset_free(&empty1), hset_free(&empty2)),
             "Validation failed empty FS"
         );
         test_validatefree(
-            hset_in(&empty1, &empty2), (hset_free(&empty1), hset_free(&empty2) ),
+            hset_in(&empty1, &empty2),
+            (hset_free(&empty1), hset_free(&empty2)),
             "Empty FS set should be subset of empty FS set"
         );
         hset_free(&empty1);
@@ -2786,18 +2788,17 @@ tf8(const char *name)
 
     test_sub("subtest %d: empty FS in nonempty FS", ++subnum);
     {
-        hset empty    = hset_init(10, VALUE64_FS);
-        hset nonempty = hset_init(10, VALUE64_FS);
-
-        hset_loadfs_str(&nonempty, (char *[]){"/tmp/a", "/tmp/b", NULL} );
+        hset empty    = hset_init_fs(10);
+        hset nonempty = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/b");
 
         test_validatefree(
             hset_validate(stdout, &empty) && hset_validate(stdout, &nonempty),
-            (hset_free(&empty), hset_free(&nonempty) ),
+            (hset_free(&empty), hset_free(&nonempty)),
             "Validation failed empty FS vs nonempty FS"
         );
         test_validatefree(
-            hset_in(&empty, &nonempty), (hset_free(&empty), hset_free(&nonempty) ),
+            hset_in(&empty, &nonempty),
+            (hset_free(&empty), hset_free(&nonempty)),
             "Empty FS set should be subset of any FS set"
         );
         hset_free(&empty);
@@ -2807,14 +2808,12 @@ tf8(const char *name)
 
     test_sub("subtest %d: nonempty FS not in empty FS", ++subnum);
     {
-        hset empty    = hset_init(10, VALUE64_FS);
-        hset nonempty = hset_init(10, VALUE64_FS);
-
-        hset_loadfs_str(&nonempty, (char *[]){"/tmp/x", NULL} );
-        // hset_set(&nonempty, value64_createfs("/tmp/x"));
+        hset empty    = hset_init_fs(10);
+        hset nonempty = HSET_CREATEFS_ASSTR("/tmp/x");
 
         test_validatefree(
-            !hset_in(&nonempty, &empty), (hset_free(&empty), hset_free(&nonempty) ),
+            !hset_in(&nonempty, &empty),
+            (hset_free(&empty), hset_free(&nonempty)),
             "Non-empty FS set should NOT be subset of empty FS set"
         );
         hset_free(&empty);
@@ -2824,18 +2823,12 @@ tf8(const char *name)
 
     test_sub("subtest %d: equal FS sets", ++subnum);
     {
-        hset superset = hset_init(10, VALUE64_FS);
-        hset subset   = hset_init(10, VALUE64_FS);
-
-        value64 f1 = value64_createfs("/tmp/1");
-        value64 f2 = value64_createfs("/tmp/2");
-        hset_set(&superset, f1);
-        hset_set(&superset, f2);
-        hset_set(&subset,   f1);
-        hset_set(&subset,   f2);
+        hset superset = HSET_CREATEFS_ASSTR("/tmp/1", "/tmp/2");
+        hset subset   = HSET_CREATEFS_ASSTR("/tmp/1", "/tmp/2");
 
         test_validatefree(
-            hset_in(&subset, &superset), (hset_free(&superset), hset_free(&subset) ),
+            hset_in(&subset, &superset),
+            (hset_free(&superset), hset_free(&subset)),
             "Equal FS sets: subset should be in superset"
         );
         hset_free(&superset);
@@ -2845,22 +2838,13 @@ tf8(const char *name)
 
     test_sub("subtest %d: FS subset in FS superset", ++subnum);
     {
-        hset superset = hset_init(10, VALUE64_FS);
-        hset subset   = hset_init(10, VALUE64_FS);
-
-        value64 f1 = value64_createfs("/tmp/a");
-        value64 f2 = value64_createfs("/tmp/b");
-        value64 f3 = value64_createfs("/tmp/c");
-        hset_set(&superset, f1);
-        hset_set(&superset, f2);
-        hset_set(&superset, f3);
-
-        hset_set(&subset, f1);
-        hset_set(&subset, f3);
+        hset superset = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/b", "/tmp/c");
+        hset subset   = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/c");
 
         test_validatefree(
-            hset_in(&subset, &superset), (hset_free(&superset), hset_free(&subset) ),
-            "Subset should be in superset"
+            hset_in(&subset, &superset),
+            (hset_free(&superset), hset_free(&subset)),
+            "FS subset should be in superset"
         );
         hset_free(&superset);
         hset_free(&subset);
@@ -2869,22 +2853,13 @@ tf8(const char *name)
 
     test_sub("subtest %d: FS superset not in FS subset", ++subnum);
     {
-        hset superset = hset_init(10, VALUE64_FS);
-        hset subset   = hset_init(10, VALUE64_FS);
-
-        value64 f1 = value64_createfs("/tmp/a");
-        value64 f2 = value64_createfs("/tmp/b");
-        value64 f3 = value64_createfs("/tmp/c");
-        hset_set(&superset, f1);
-        hset_set(&superset, f2);
-        hset_set(&superset, f3);
-
-        hset_set(&subset, f1);
-        hset_set(&subset, f3);
+        hset superset = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/b", "/tmp/c");
+        hset subset   = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/c");
 
         test_validatefree(
-            !hset_in(&superset, &subset), (hset_free(&superset), hset_free(&subset) ),
-            "Superset should NOT be in subset"
+            !hset_in(&superset, &subset),
+            (hset_free(&superset), hset_free(&subset)),
+            "FS superset should NOT be in subset"
         );
         hset_free(&superset);
         hset_free(&subset);
@@ -2893,10 +2868,8 @@ tf8(const char *name)
 
     test_sub("subtest %d: FS vs INT type mismatch raise SIGINT", ++subnum);
     {
-        hset fs_set  = hset_init(10, VALUE64_FS);
-        hset int_set = hset_init(10, VALUE64_INT);
-        hset_set(&fs_set, value64_createfs("/tmp/z"));
-        hset_set(&int_set, LITERAL64_INT(42));
+        hset fs_set  = HSET_CREATEFS_ASSTR("/tmp/z");
+        hset int_set = HSET_CREATE_INT(42);
 
         if (!try()) {
             test_validatefree(
@@ -2912,7 +2885,7 @@ tf8(const char *name)
         return logret(TEST_FAILED, "done");
     }
     fs_alloc_check(true);
-    */
+
     return logret(TEST_PASSED, "done");
 }
 
