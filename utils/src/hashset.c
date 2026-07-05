@@ -826,7 +826,6 @@ int                         hset_loadanyarr(hset *restrict se, void *arr, int sz
     }
     return logsimpleret(cnt, "Loaded total %d", cnt);
 }
-// TODO:
 // fs loading, heap allocated => MOVE semantic!
 int                         hset_loadfs_str(hset *restrict se, const char *strings[]){
     invraisecode(ERR_NULLABLE_PTR, strings != NULL && se != NULL, 
@@ -836,7 +835,7 @@ int                         hset_loadfs_str(hset *restrict se, const char *strin
         // convent c-str into fs * (heap allocated body)
         value64  val = value64_createfs_asstr(*strings);
         if (!hset_set(se, val) )
-            value64_freefs(&val);
+            value64_freefs(&val);   // TODO: that need's to be reworked to avoid useless alloc/free when dublicate
         strings++;
         cnt++;
     }
