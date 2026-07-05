@@ -899,16 +899,16 @@ tf_init_free(const char *name)
         value64 v = value64_createint(42);
         test_validatefree(
             v.ival == 42,
-            value64_free(v, VALUE64_INT),
+            value64free(v, VALUE64_INT),
             "Int value mismatch: got %d, expected 42", v.ival
         );
         test_validatefree(
             value64_int(v) == 42,
-            value64_free(v, VALUE64_INT),
+            value64free(v, VALUE64_INT),
             "Int value mismatch: got %d, expected 42", v.ival
         );
         // для int освобождение не требуется
-        value64_free(v, VALUE64_INT);
+        value64free(v, VALUE64_INT);
     }
 
     /* 2. long */
@@ -978,7 +978,7 @@ tf_init_free(const char *name)
         );
 
         fsfree(orig);
-        value64_freefs(v);
+        value64freefs(v);
         fs_alloc_check(true);
     }
 
@@ -991,27 +991,27 @@ tf_init_free(const char *name)
 
         test_validatefree(
             strcmp(fs_str(v.fsval), text) == 0,
-            value64_freefs(v),
+            value64freefs(v),
             "Moved fs value mismatch: got '%s', expected '%s'", fs_str(v.fsval), text
         );
         test_validatefree(
             strcmp(fs_str(value64_fs(v) ), text) == 0,
-            value64_freefs(v),
+            value64freefs(v),
             "Moved fs value mismatch: got '%s', expected '%s'", fs_str(v.fsval), text
         );
         test_validatefree(
             fs_bodyalloc(v.fsval),
-            value64_freefs(v),
+            value64freefs(v),
             "Moved fs must have FS_FLAG_BODYALLOC flag"
         );
         // Проверяем, что оригинал действительно опустошён
         test_validatefree(
             fslen(orig) == 0 && fsstr(orig) == NULL,
-            value64_freefs(v),
+            value64freefs(v),
             "After move, original fs must be empty (len=%d, str=%p)", fslen(orig), (void*)fsstr(orig)
         );
 
-        value64_freefs(v);
+        value64freefs(v);
         fsfree(orig);   // orig пуст, но fsfree безопасен
         fs_alloc_check(true);
     }
@@ -1031,13 +1031,13 @@ tf_init_free(const char *name)
         for (int i = 0; i < COUNT(words); i++) {
             test_validatefree(
                 strcmp(fs_str(vals[i].fsval), words[i]) == 0,
-                (value64_freefs(vals[0]), value64_freefs(vals[1]), value64_freefs(vals[2])),
+                (value64freefs(vals[0]), value64freefs(vals[1]), value64freefs(vals[2])),
                 "FS %d mismatch: got '%s', expected '%s'", i, fs_str(vals[i].fsval), words[i]
             );
         }
 
         for (int i = 0; i < COUNT(words); i++)
-            value64_freefs(vals[i]);
+            value64freefs(vals[i]);
         fs_alloc_check(true);
     }
     test_sub("subtest %d: value64 str", ++subnum);
@@ -1047,12 +1047,12 @@ tf_init_free(const char *name)
 
         test_validatefree(
             strcmp(v.sval, text) == 0,
-            value64_freestr(v),
+            value64freestr(v),
             "Str copy mismatch: got '%s', expected '%s'", v.sval, text
         );
         test_validatefree(
             strcmp(value64_str(v), text) == 0,
-            value64_freestr(v),
+            value64freestr(v),
             "Str copy mismatch: got '%s', expected '%s'", v.sval, text
         );
 
@@ -1113,15 +1113,15 @@ tf_point_init(const char *name)
         value64 v = value64_pinit(text, VALUE64_STR);
         test_validatefree(
             strcmp(v.sval, text) == 0,
-            value64_freestr(v),
+            value64freestr(v),
             "Copy str: got '%s', expected '%s'", v.sval, text
         );
         test_validatefree(
             v.sval != text,
-            value64_freestr(v),
+            value64freestr(v),
             "Copy str must have different address from original"
         );
-        value64_freestr(v);
+        value64freestr(v);
     }
 
     /* 6. copy fs */
@@ -1133,17 +1133,17 @@ tf_point_init(const char *name)
 
         test_validatefree(
             strcmp(fs_str(v.fsval), text) == 0,
-            (fsfree(orig), value64_freefs(v)),
+            (fsfree(orig), value64freefs(v)),
             "Copy fs: got '%s', expected '%s'", fs_str(v.fsval), text
         );
         test_validatefree(
             fs_bodyalloc(v.fsval),
-            (fsfree(orig), value64_freefs(v)),
+            (fsfree(orig), value64freefs(v)),
             "Copy fs must have FS_FLAG_BODYALLOC"
         );
 
         fsfree(orig);
-        value64_freefs(v);
+        value64freefs(v);
         fs_alloc_check(true);
     }
 
@@ -1278,15 +1278,15 @@ tf_clone(const char *name)
 
         test_validatefree(
             strcmp(v.sval, text) == 0,
-            value64_free(v, VALUE64_STR),
+            value64free(v, VALUE64_STR),
             "Create str: got '%s', expected '%s'", v.sval, text
         );
         test_validatefree(
             v.sval != text,
-            value64_free(v, VALUE64_STR),
+            value64free(v, VALUE64_STR),
             "Create str must have its own memory"
         );
-        value64_free(v, VALUE64_STR);
+        value64free(v, VALUE64_STR);
     }
 
     /* 6. fs (копирование) */
@@ -1298,17 +1298,17 @@ tf_clone(const char *name)
 
         test_validatefree(
             strcmp(fs_str(v.fsval), text) == 0,
-            (fsfree(orig), value64_free(v, VALUE64_FS)),
+            (fsfree(orig), value64free(v, VALUE64_FS)),
             "Create fs: got '%s', expected '%s'", fs_str(v.fsval), text
         );
         test_validatefree(
             fs_bodyalloc(v.fsval),
-            (fsfree(orig), value64_free(v, VALUE64_FS)),
+            (fsfree(orig), value64free(v, VALUE64_FS)),
             "Create fs must have FS_FLAG_BODYALLOC"
         );
 
         fsfree(orig);
-        value64_free(v, VALUE64_FS);
+        value64free(v, VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -1358,17 +1358,17 @@ tf_clone(const char *name)
 
         test_validatefree(
             strcmp(copy.sval, text) == 0,
-            (value64_free(orig, VALUE64_STR), value64_free(copy, VALUE64_STR)),
+            (value64free(orig, VALUE64_STR), value64free(copy, VALUE64_STR)),
             "Clone str: got '%s', expected '%s'", copy.sval, text
         );
         test_validatefree(
             copy.sval != orig.sval,
-            (value64_free(orig, VALUE64_STR), value64_free(copy, VALUE64_STR)),
+            (value64free(orig, VALUE64_STR), value64free(copy, VALUE64_STR)),
             "Clone str must have different address"
         );
 
-        value64_free(orig, VALUE64_STR);
-        value64_free(copy, VALUE64_STR);
+        value64free(orig, VALUE64_STR);
+        value64free(copy, VALUE64_STR);
     }
 
     /* 12. clone fs */
@@ -1381,23 +1381,23 @@ tf_clone(const char *name)
 
         test_validatefree(
             strcmp(fs_str(copy.fsval), text) == 0,
-            (fsfree(orig_fs), value64_free(orig, VALUE64_FS), value64_free(copy, VALUE64_FS)),
+            (fsfree(orig_fs), value64free(orig, VALUE64_FS), value64free(copy, VALUE64_FS)),
             "Clone fs: got '%s', expected '%s'", fs_str(copy.fsval), text
         );
         test_validatefree(
             fs_bodyalloc(copy.fsval),
-            (fsfree(orig_fs), value64_free(orig, VALUE64_FS), value64_free(copy, VALUE64_FS)),
+            (fsfree(orig_fs), value64free(orig, VALUE64_FS), value64free(copy, VALUE64_FS)),
             "Clone fs must have FS_FLAG_BODYALLOC"
         );
         test_validatefree(
             copy.fsval != orig.fsval,
-            (fsfree(orig_fs), value64_free(orig, VALUE64_FS), value64_free(copy, VALUE64_FS)),
+            (fsfree(orig_fs), value64free(orig, VALUE64_FS), value64free(copy, VALUE64_FS)),
             "Clone fs must have different pointer"
         );
 
         fsfree(orig_fs);
-        value64_free(orig, VALUE64_FS);
-        value64_free(copy, VALUE64_FS);
+        value64free(orig, VALUE64_FS);
+        value64free(copy, VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -1468,15 +1468,15 @@ tf_move(const char *name)
 
         test_validatefree(
             value64_str(dst) != NULL && strcmp(value64_str(dst), text) == 0,
-            value64_free(dst, VALUE64_STR),
+            value64free(dst, VALUE64_STR),
             "dst must be '%s', got '%s'", text, value64_str(dst)
         );
         test_validatefree(
             value64_str(src) == NULL,
-            value64_free(dst, VALUE64_STR),
+            value64free(dst, VALUE64_STR),
             "src must be NULL after move, got %p", value64_str(src)
         );
-        value64_free(dst, VALUE64_STR);
+        value64free(dst, VALUE64_STR);
     }
 
     /* 6. move fs */
@@ -1496,21 +1496,21 @@ tf_move(const char *name)
 
         test_validatefree(
             dst_fs != NULL && strcmp(fs_str(dst_fs), text) == 0,
-            value64_free(dst, VALUE64_FS),
+            value64free(dst, VALUE64_FS),
             "dst must be '%s', got '%s'", text, fs_str(dst_fs)
         );
         test_validatefree(
             fs_bodyalloc(dst_fs),
-            value64_free(dst, VALUE64_FS),
+            value64free(dst, VALUE64_FS),
             "dst fs must have FS_FLAG_BODYALLOC"
         );
        // Убеждаемся, что dst получил новую память (не ту, что была у src)
         test_validatefree(
             dst_fs != src_fs_before,
-            value64_free(dst, VALUE64_FS),
+            value64free(dst, VALUE64_FS),
             "dst fs pointer must differ from original src pointer"
         );
-        value64_free(dst, VALUE64_FS);
+        value64free(dst, VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -1531,12 +1531,12 @@ tf_move(const char *name)
             fs *dst_fs = value64_fs(dst[i]);
             test_validatefree(
                 strcmp(fs_str(dst_fs), words[i]) == 0,
-                (value64_free(dst[0], VALUE64_FS), value64_free(dst[1], VALUE64_FS), value64_free(dst[2], VALUE64_FS)),
+                (value64free(dst[0], VALUE64_FS), value64free(dst[1], VALUE64_FS), value64free(dst[2], VALUE64_FS)),
                 "dst[%d] must be '%s', got '%s'", i, words[i], fs_str(dst_fs)
             );
         }
         for (int i = 0; i < COUNT(words); i++) {
-            value64_free(dst[i], VALUE64_FS);
+            value64free(dst[i], VALUE64_FS);
         }
         fs_alloc_check(true);
     }
@@ -1628,9 +1628,9 @@ tf_lhash(const char *name)
         test_validate(h1 == h2, "Same strings must have same hash");
         test_validate(h1 != h3, "Different strings should differ");
 
-        value64_free(v1, VALUE64_STR);
-        value64_free(v2, VALUE64_STR);
-        value64_free(v3, VALUE64_STR);
+        value64free(v1, VALUE64_STR);
+        value64free(v2, VALUE64_STR);
+        value64free(v3, VALUE64_STR);
     }
 
     /* 6. fs (с ненулевым содержимым) */
@@ -1651,9 +1651,9 @@ tf_lhash(const char *name)
         test_validate(h1 == h2, "Same fs must have same hash");
         test_validate(h1 != h3, "Different fs should differ");
 
-        value64_free(v1, VALUE64_FS);
-        value64_free(v2, VALUE64_FS);
-        value64_free(v3, VALUE64_FS);
+        value64free(v1, VALUE64_FS);
+        value64free(v2, VALUE64_FS);
+        value64free(v3, VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -1667,7 +1667,7 @@ tf_lhash(const char *name)
         // Главное, чтобы не упало – hash_djb2 должен обработать NULL
         test_validate(h == 5381, "Hash of empty fs (v=NULL) must be 5381, got %lu", h);
 
-        value64_free(v, VALUE64_FS);
+        value64free(v, VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -1739,9 +1739,9 @@ tf_compare(const char *name)
         test_validate(value64_compare(v1, v2, VALUE64_STR) == 0, "Equal strings must return true");
         test_validate(value64_compare(v1, v3, VALUE64_STR) != 0, "Different strings must return false");
 
-        value64_free(v1, VALUE64_STR);
-        value64_free(v2, VALUE64_STR);
-        value64_free(v3, VALUE64_STR);
+        value64free(v1, VALUE64_STR);
+        value64free(v2, VALUE64_STR);
+        value64free(v3, VALUE64_STR);
     }
 
     /* 6. compare fs */
@@ -1758,9 +1758,9 @@ tf_compare(const char *name)
         test_validate(value64_compare(v1, v2, VALUE64_FS) == 0, "Equal fs must return 0");
         test_validate(value64_compare(v1, v3, VALUE64_FS) != 0, "Different fs must not return 0");
 
-        value64_free(v1, VALUE64_FS);
-        value64_free(v2, VALUE64_FS);
-        value64_free(v3, VALUE64_FS);
+        value64free(v1, VALUE64_FS);
+        value64free(v2, VALUE64_FS);
+        value64free(v3, VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -1775,8 +1775,8 @@ tf_compare(const char *name)
 
         test_validate(value64_compare(v1, v2, VALUE64_FS) == 0, "Empty fs must be equal");
 
-        value64_free(v1, VALUE64_FS);
-        value64_free(v2, VALUE64_FS);
+        value64free(v1, VALUE64_FS);
+        value64free(v2, VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -1817,10 +1817,10 @@ tf_convert(const char *name)
         fs *dst_fs = value64_fs(dst);
         test_validatefree(
             strcmp(fs_str(dst_fs), "42") == 0,
-            value64_free(dst, VALUE64_FS),
+            value64free(dst, VALUE64_FS),
             "INT->FS: expected '42', got '%s'", fs_str(dst_fs)
         );
-        value64_free(dst, VALUE64_FS);
+        value64free(dst, VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -1831,10 +1831,10 @@ tf_convert(const char *name)
         value64 dst = value64_convert(src, VALUE64_INT, VALUE64_STR);
         test_validatefree(
             strcmp(value64_str(dst), "42") == 0,
-            value64_free(dst, VALUE64_STR),
+            value64free(dst, VALUE64_STR),
             "INT->STR: expected '42', got '%s'", value64_str(dst)
         );
-        value64_free(dst, VALUE64_STR);
+        value64free(dst, VALUE64_STR);
     }
 
     /* ========== 5. LONG → INT (в пределах) ========== */
@@ -1875,10 +1875,10 @@ tf_convert(const char *name)
         fs *dst_fs = value64_fs(dst);
         test_validatefree(
             strcmp(fs_str(dst_fs), "-123456789") == 0,
-            value64_free(dst, VALUE64_FS),
+            value64free(dst, VALUE64_FS),
             "LONG->FS: expected '-123456789', got '%s'", fs_str(dst_fs)
         );
-        value64_free(dst, VALUE64_FS);
+        value64free(dst, VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -1889,10 +1889,10 @@ tf_convert(const char *name)
         value64 dst = value64_convert(src, VALUE64_LNG, VALUE64_STR);
         test_validatefree(
             strcmp(value64_str(dst), "0") == 0,
-            value64_free(dst, VALUE64_STR),
+            value64free(dst, VALUE64_STR),
             "LONG->STR: expected '0', got '%s'", value64_str(dst)
         );
-        value64_free(dst, VALUE64_STR);
+        value64free(dst, VALUE64_STR);
     }
 
     /* ========== 10. DBL → INT (в пределах) ========== */
@@ -1946,10 +1946,10 @@ tf_convert(const char *name)
         // %g убирает лишние нули, проверяем, что строка начинается с "3.14159"
         test_validatefree(
             strncmp(fs_str(dst_fs), "3.14159", 7) == 0,
-            value64_free(dst, VALUE64_FS),
+            value64free(dst, VALUE64_FS),
             "DBL->FS: expected prefix '3.14159', got '%s'", fs_str(dst_fs)
         );
-        value64_free(dst, VALUE64_FS);
+        value64free(dst, VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -1961,10 +1961,10 @@ tf_convert(const char *name)
         // snprintf с "%lf" даст "2.500000"
         test_validatefree(
             strcmp(value64_str(dst), "2.500000") == 0,
-            value64_free(dst, VALUE64_STR),
+            value64free(dst, VALUE64_STR),
             "DBL->STR: expected '2.500000', got '%s'", value64_str(dst)
         );
-        value64_free(dst, VALUE64_STR);
+        value64free(dst, VALUE64_STR);
     }
 
     /* ========== 16. FS → INT (корректная строка) ========== */
@@ -1976,10 +1976,10 @@ tf_convert(const char *name)
         value64 dst = value64_convert(src, VALUE64_FS, VALUE64_INT);
         test_validatefree(
             value64_int(dst) == 123,
-            value64_free(src, VALUE64_FS),
+            value64free(src, VALUE64_FS),
             "FS->INT: expected 123, got %d", value64_int(dst)
         );
-        value64_free(src, VALUE64_FS);
+        value64free(src, VALUE64_FS);
     }
 
     /* ========== 17. FS → INT (некорректная строка) ========== */
@@ -1990,13 +1990,13 @@ tf_convert(const char *name)
         fsfree(tmp);
         if (!try()) {
             value64 dst = value64_convert(src, VALUE64_FS, VALUE64_INT);
-            test_validatefree(false, value64_free(src, VALUE64_FS),
+            test_validatefree(false, value64free(src, VALUE64_FS),
                 "FS->INT invalid must raise error, but returned %d", value64_int(dst));
         } else {
-            test_validatefree(true, value64_free(src, VALUE64_FS),
+            test_validatefree(true, value64free(src, VALUE64_FS),
                 "FS->INT invalid correctly raised error");
         }
-        value64_free(src, VALUE64_FS);
+        value64free(src, VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -2009,10 +2009,10 @@ tf_convert(const char *name)
         value64 dst = value64_convert(src, VALUE64_FS, VALUE64_LNG);
         test_validatefree(
             value64_long(dst) == -999999999L,
-            value64_free(src, VALUE64_FS),
+            value64free(src, VALUE64_FS),
             "FS->LONG: expected -999999999, got %ld", value64_long(dst)
         );
-        value64_free(src, VALUE64_FS);
+        value64free(src, VALUE64_FS);
     }
 
     /* ========== 19. FS → DBL ========== */
@@ -2024,10 +2024,10 @@ tf_convert(const char *name)
         value64 dst = value64_convert(src, VALUE64_FS, VALUE64_DBL);
         test_validatefree(
             fabs(value64_dbl(dst) - 3.1415) < 0.0001,
-            value64_free(src, VALUE64_FS),
+            value64free(src, VALUE64_FS),
             "FS->DBL: expected ~3.1415, got %f", value64_dbl(dst)
         );
-        value64_free(src, VALUE64_FS);
+        value64free(src, VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -2042,11 +2042,11 @@ tf_convert(const char *name)
         fs *dst_fs = value64_fs(dst);
         test_validatefree(
             strcmp(fs_str(src_fs), fs_str(dst_fs)) == 0 && src_fs != dst_fs,
-            (value64_free(src, VALUE64_FS), value64_free(dst, VALUE64_FS)),
+            (value64free(src, VALUE64_FS), value64free(dst, VALUE64_FS)),
             "FS->FS: copy must have same content but different pointer"
         );
-        value64_free(src, VALUE64_FS);
-        value64_free(dst, VALUE64_FS);
+        value64free(src, VALUE64_FS);
+        value64free(dst, VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -2059,11 +2059,11 @@ tf_convert(const char *name)
         value64 dst = value64_convert(src, VALUE64_FS, VALUE64_STR);
         test_validatefree(
             strcmp(value64_str(dst), "to-string") == 0,
-            (value64_free(src, VALUE64_FS), value64_free(dst, VALUE64_STR)),
+            (value64free(src, VALUE64_FS), value64free(dst, VALUE64_STR)),
             "FS->STR: expected 'to-string', got '%s'", value64_str(dst)
         );
-        value64_free(src, VALUE64_FS);
-        value64_free(dst, VALUE64_STR);
+        value64free(src, VALUE64_FS);
+        value64free(dst, VALUE64_STR);
     }
 
     /* ========== 22. STR → INT (корректная) ========== */
@@ -2073,10 +2073,10 @@ tf_convert(const char *name)
         value64 dst = value64_convert(src, VALUE64_STR, VALUE64_INT);
         test_validatefree(
             value64_int(dst) == 42,
-            value64_free(src, VALUE64_STR),
+            value64free(src, VALUE64_STR),
             "STR->INT: expected 42, got %d", value64_int(dst)
         );
-        value64_free(src, VALUE64_STR);
+        value64free(src, VALUE64_STR);
     }
 
     /* ========== 23. STR → INT (некорректная) ========== */
@@ -2085,13 +2085,13 @@ tf_convert(const char *name)
         value64 src = value64_createstr("not-a-number");
         if (!try()) {
             value64 dst = value64_convert(src, VALUE64_STR, VALUE64_INT);
-            test_validatefree(false, value64_free(src, VALUE64_STR),
+            test_validatefree(false, value64free(src, VALUE64_STR),
                 "STR->INT invalid must raise error, but returned %d", value64_int(dst));
         } else {
-            test_validatefree(true, value64_free(src, VALUE64_STR),
+            test_validatefree(true, value64free(src, VALUE64_STR),
                 "STR->INT invalid correctly raised error");
         }
-        value64_free(src, VALUE64_STR);
+        value64free(src, VALUE64_STR);
     }
 
     /* ========== 24. STR → LONG (корректная) ========== */
@@ -2101,10 +2101,10 @@ tf_convert(const char *name)
         value64 dst = value64_convert(src, VALUE64_STR, VALUE64_LNG);
         test_validatefree(
             value64_long(dst) == -123456789L,
-            value64_free(src, VALUE64_STR),
+            value64free(src, VALUE64_STR),
             "STR->LONG: expected -123456789, got %ld", value64_long(dst)
         );
-        value64_free(src, VALUE64_STR);
+        value64free(src, VALUE64_STR);
     }
 
     /* ========== 25. STR → DBL (корректная) ========== */
@@ -2114,10 +2114,10 @@ tf_convert(const char *name)
         value64 dst = value64_convert(src, VALUE64_STR, VALUE64_DBL);
         test_validatefree(
             fabs(value64_dbl(dst) - 2.71828) < 0.00001,
-            value64_free(src, VALUE64_STR),
+            value64free(src, VALUE64_STR),
             "STR->DBL: expected ~2.71828, got %f", value64_dbl(dst)
         );
-        value64_free(src, VALUE64_STR);
+        value64free(src, VALUE64_STR);
     }
 
     /* ========== 26. STR → STR (копирование) ========== */
@@ -2127,11 +2127,11 @@ tf_convert(const char *name)
         value64 dst = value64_convert(src, VALUE64_STR, VALUE64_STR);
         test_validatefree(
             strcmp(value64_str(src), value64_str(dst)) == 0 && value64_str(src) != value64_str(dst),
-            (value64_free(src, VALUE64_STR), value64_free(dst, VALUE64_STR)),
+            (value64free(src, VALUE64_STR), value64free(dst, VALUE64_STR)),
             "STR->STR: copy must have same content but different pointer"
         );
-        value64_free(src, VALUE64_STR);
-        value64_free(dst, VALUE64_STR);
+        value64free(src, VALUE64_STR);
+        value64free(dst, VALUE64_STR);
     }
 
     /* ========== 27. STR → FS ========== */
@@ -2142,11 +2142,11 @@ tf_convert(const char *name)
         fs *dst_fs = value64_fs(dst);
         test_validatefree(
             strcmp(fs_str(dst_fs), "hello-fs") == 0,
-            (value64_free(src, VALUE64_STR), value64_free(dst, VALUE64_FS)),
+            (value64free(src, VALUE64_STR), value64free(dst, VALUE64_FS)),
             "STR->FS: expected 'hello-fs', got '%s'", fs_str(dst_fs)
         );
-        value64_free(src, VALUE64_STR);
-        value64_free(dst, VALUE64_FS);
+        value64free(src, VALUE64_STR);
+        value64free(dst, VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -2179,13 +2179,13 @@ tf_convert_move(const char *name)
         value64 dst = value64_convert_move(&src, VALUE64_STR, VALUE64_STR);
         test_validatefree(
             strcmp(value64_str(dst), "hello") == 0 && value64_str(src) == NULL,
-            value64_free(dst, VALUE64_STR),
+            value64free(dst, VALUE64_STR),
             "STR->STR: dst='%s', src must be NULL (got %p)",
             value64_str(dst), (void*)value64_str(src)
         );
         // Безопасно освобождаем пустой src
-        value64_free(src, VALUE64_STR);
-        value64_free(dst, VALUE64_STR);
+        value64free(src, VALUE64_STR);
+        value64free(dst, VALUE64_STR);
     }
 
     /* 2. STR -> FS (move) */
@@ -2196,13 +2196,13 @@ tf_convert_move(const char *name)
         fs *dst_fs = value64_fs(dst);
         test_validatefree(
             strcmp(fs_str(dst_fs), "world") == 0 && fs_bodyalloc(dst_fs),
-            value64_free(dst, VALUE64_FS),
+            value64free(dst, VALUE64_FS),
             "STR->FS: dst='%s', src.sval must be NULL (got %p)",
             fs_str(dst_fs), (void*)value64_str(src)
         );
         test_validate(value64_str(src) == NULL, "After move, src.sval must be NULL");
-        value64_free(dst, VALUE64_FS);
-        value64_free(src, VALUE64_STR);   // src уже пуст, безопасно
+        value64free(dst, VALUE64_FS);
+        value64free(src, VALUE64_STR);   // src уже пуст, безопасно
         fs_alloc_check(true);
     }
 
@@ -2218,7 +2218,7 @@ tf_convert_move(const char *name)
 
         test_validatefree(
             strcmp(value64_str(dst), "fs-string") == 0,
-            value64_free(dst, VALUE64_STR),
+            value64free(dst, VALUE64_STR),
             "FS->STR: dst='%s', src.fsval must be NULL or emptied",
             value64_str(dst)
         );
@@ -2226,8 +2226,8 @@ tf_convert_move(const char *name)
             value64_fs(src) == NULL || fs_len(value64_fs(src)) == 0,
             "src.fsval must be empty after move"
         );
-        value64_free(dst, VALUE64_STR);
-        value64_free(src, VALUE64_FS);
+        value64free(dst, VALUE64_STR);
+        value64free(src, VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -2242,12 +2242,12 @@ tf_convert_move(const char *name)
         test_validatefree(
             strcmp(fs_str(dst_fs), "move-fs") == 0 && fs_bodyalloc(dst_fs) &&
             value64_fs(src) == NULL,
-            value64_free(dst, VALUE64_FS),
+            value64free(dst, VALUE64_FS),
             "FS->FS: dst='%s', src.fsval must be NULL (got %p)",
             fs_str(dst_fs), (void*)value64_fs(src)
         );
-        value64_free(dst, VALUE64_FS);
-        value64_free(src, VALUE64_FS);
+        value64free(dst, VALUE64_FS);
+        value64free(src, VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -2279,17 +2279,17 @@ tf_convert_move(const char *name)
             value64 dst = value64_convert_move(&src, VALUE64_STR, VALUE64_INT);
             test_validatefree(
                 false,
-                value64_free(src, VALUE64_STR),
+                value64free(src, VALUE64_STR),
                 "STR->INT must raise error, but returned %d", value64_int(dst)
             );
         } else {
             test_validatefree(
                 true,
-                value64_free(src, VALUE64_STR),
+                value64free(src, VALUE64_STR),
                 "STR->INT correctly raised error"
             );
         }
-        value64_free(src, VALUE64_STR);
+        value64free(src, VALUE64_STR);
     }
 
     /* 7. NULL source (должен упасть) */
@@ -2418,11 +2418,11 @@ tf_is_convertable(const char *name)
         // Просто вызываем, результат не проверяем, но убеждаемся, что не упали
         test_validatefree(
             true,   // основное условие — дошли до этой точки
-            value64_free(v, VALUE64_FS),
+            value64free(v, VALUE64_FS),
             "FS->INT must not crash (result was %s)",
             bool_str(value64_is_convertable(v, VALUE64_FS, VALUE64_INT))
         );
-        value64_free(v, VALUE64_FS);
+        value64free(v, VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -2432,11 +2432,11 @@ tf_is_convertable(const char *name)
         value64 v = value64_createstr("3.14");
         test_validatefree(
             true,
-            value64_free(v, VALUE64_STR),
+            value64free(v, VALUE64_STR),
             "STR->DBL must not crash (result was %s)",
             bool_str(value64_is_convertable(v, VALUE64_STR, VALUE64_DBL))
         );
-        value64_free(v, VALUE64_STR);
+        value64free(v, VALUE64_STR);
     }
 
     return logret(TEST_PASSED, "done");
@@ -2572,11 +2572,11 @@ tf_pt_compare(const char *name)
         value64 b = value64_createstr("hello");
         test_validatefree(
             value64_pt_compare(&a, &b, VALUE64_STR) == 0,
-            (value64_free(a, VALUE64_STR), value64_free(b, VALUE64_STR)),
+            (value64free(a, VALUE64_STR), value64free(b, VALUE64_STR)),
             "'hello' must equal 'hello'"
         );
-        value64_freestr(a);
-        value64_freestr(b);
+        value64freestr(a);
+        value64freestr(b);
     }
 
     test_sub("subtest %d: cmp STR not equal", ++subnum);
@@ -2585,11 +2585,11 @@ tf_pt_compare(const char *name)
         value64 b = value64_createstr("xyz");
         test_validatefree(
             value64_pt_compare(&a, &b, VALUE64_STR) != 0,
-            (value64_freestr(a), value64_freestr(b) ),
+            (value64freestr(a), value64freestr(b) ),
             "'abc' must not equal 'xyz'"
         );
-        value64_freestr(a);
-        value64_freestr(b);
+        value64freestr(a);
+        value64freestr(b);
     }
 
     /* ---------- FS ---------- */
@@ -2602,11 +2602,11 @@ tf_pt_compare(const char *name)
 
         test_validatefree(
             value64_pt_compare(&a, &b, VALUE64_FS) == 0,
-            (value64_freefs(a), value64_freefs(b)),
+            (value64freefs(a), value64freefs(b)),
             "fs 'fs-data' must equal itself"
         );
-        value64_freefs(a);
-        value64_freefs(b);
+        value64freefs(a);
+        value64freefs(b);
         fs_alloc_check(true);
     }
 
@@ -2621,11 +2621,11 @@ tf_pt_compare(const char *name)
 
         test_validatefree(
             value64_pt_compare(&a, &b, VALUE64_FS) != 0,
-            (value64_freefs(a), value64_freefs(b)),
+            (value64freefs(a), value64freefs(b)),
             "fs 'alpha' must not equal 'beta'"
         );
-        value64_freefs(a);
-        value64_freefs(b);
+        value64freefs(a);
+        value64freefs(b);
         fs_alloc_check(true);
     }
 
@@ -2641,11 +2641,11 @@ tf_pt_compare(const char *name)
 
         test_validatefree(
             value64_pt_compare(&a, &b, VALUE64_FS) != 0,
-            (value64_freestr(a), value64_freestr(b)),
+            (value64freestr(a), value64freestr(b)),
             "empty fs must not equal non-empty"
         );
-        value64_freefs(a);
-        value64_freefs(b);
+        value64freefs(a);
+        value64freefs(b);
         fs_alloc_check(true);
     }
 
@@ -2746,8 +2746,8 @@ tf_search(const char *name)
             (pos = value64_search(key, VALUE64_STR, arr, COUNT(arr) ) ) == 1, 
             "'banana' must be at index 1, got %d", pos
         );
-        value64_free(key, VALUE64_STR);
-        for (int i = 0; i < COUNT(arr); i++) value64_free(arr[i], VALUE64_STR);
+        value64free(key, VALUE64_STR);
+        for (int i = 0; i < COUNT(arr); i++) value64free(arr[i], VALUE64_STR);
     }
 
     test_sub("subtest %d: revsearch STR – last", ++subnum);
@@ -2759,9 +2759,9 @@ tf_search(const char *name)
             (pos = value64_revsearch(key, VALUE64_STR, arr, COUNT(arr) ) ) == 2,
             "'cherry' must be at index 2 (reverse), got %d", pos
         );
-        value64_free(key, VALUE64_STR);
+        value64free(key, VALUE64_STR);
         for (int i = 0; i < COUNT(arr); i++)
-            value64_free(arr[i], VALUE64_STR);
+            value64free(arr[i], VALUE64_STR);
     }
 
     /* ---------- FS ---------- */
@@ -2781,9 +2781,9 @@ tf_search(const char *name)
             "'beta' must be at index 1, got %d", pos
         );
 
-        value64_free(key, VALUE64_FS);
+        value64free(key, VALUE64_FS);
         for (int i = 0; i < COUNT(arr); i++)
-            value64_free(arr[i], VALUE64_FS);
+            value64free(arr[i], VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -2803,8 +2803,8 @@ tf_search(const char *name)
             "'alpha' must be at index 0 (reverse), got %d", pos
         );
 
-        value64_free(key, VALUE64_FS);
-        for (int i = 0; i < COUNT(arr); i++) value64_free(arr[i], VALUE64_FS);
+        value64free(key, VALUE64_FS);
+        for (int i = 0; i < COUNT(arr); i++) value64free(arr[i], VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -2974,7 +2974,7 @@ tf_getComparator(const char *name)
 
         test_validatefree(
             cmp(a, b) < 0,
-            (value64_free(a, VALUE64_FS), value64_free(b, VALUE64_FS)),
+            (value64free(a, VALUE64_FS), value64free(b, VALUE64_FS)),
             "FS: 'alpha' < 'beta' must be negative"
         );
         // проверка равенства
@@ -2983,10 +2983,10 @@ tf_getComparator(const char *name)
         fsfree(tmp3);
         test_validatefree(
             cmp(a, a2) == 0,
-            (value64_free(a, VALUE64_FS), value64_free(a2, VALUE64_FS)),
+            (value64free(a, VALUE64_FS), value64free(a2, VALUE64_FS)),
             "FS: 'alpha' == 'alpha' must be zero"
         );
-        value64_free(a, VALUE64_FS); value64_free(b, VALUE64_FS); value64_free(a2, VALUE64_FS);
+        value64free(a, VALUE64_FS); value64free(b, VALUE64_FS); value64free(a2, VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -3002,10 +3002,10 @@ tf_getComparator(const char *name)
 
         test_validatefree(
             rcmp(a, b) > 0,
-            (value64_free(a, VALUE64_FS), value64_free(b, VALUE64_FS)),
+            (value64free(a, VALUE64_FS), value64free(b, VALUE64_FS)),
             "FS rev: 'alpha' < 'beta' must give >0"
         );
-        value64_free(a, VALUE64_FS); value64_free(b, VALUE64_FS);
+        value64free(a, VALUE64_FS); value64free(b, VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -3019,10 +3019,10 @@ tf_getComparator(const char *name)
         value64 b = value64_createstr("world");
         test_validatefree(
             cmp(a, b) < 0,
-            (value64_free(a, VALUE64_STR), value64_free(b, VALUE64_STR)),
+            (value64free(a, VALUE64_STR), value64free(b, VALUE64_STR)),
             "STR: 'hello' < 'world' must be negative"
         );
-        value64_free(a, VALUE64_STR); value64_free(b, VALUE64_STR);
+        value64free(a, VALUE64_STR); value64free(b, VALUE64_STR);
     }
 
     /* 10. STR rev comparator */
@@ -3035,10 +3035,10 @@ tf_getComparator(const char *name)
         value64 b = value64_createstr("world");
         test_validatefree(
             rcmp(a, b) > 0,
-            (value64_free(a, VALUE64_STR), value64_free(b, VALUE64_STR)),
+            (value64free(a, VALUE64_STR), value64free(b, VALUE64_STR)),
             "STR rev: 'hello' < 'world' must give >0"
         );
-        value64_free(a, VALUE64_STR); value64_free(b, VALUE64_STR);
+        value64free(a, VALUE64_STR); value64free(b, VALUE64_STR);
     }
 
     /* 11. PTR comparator (требуется исправление getComparator) */
@@ -3173,7 +3173,7 @@ tf_getPComparator(const char *name)
 
         test_validatefree(
             cmp(&a, &b) < 0,
-            (value64_free(a, VALUE64_FS), value64_free(b, VALUE64_FS)),
+            (value64free(a, VALUE64_FS), value64free(b, VALUE64_FS)),
             "FS P-comparator: 'alpha' < 'beta' must be negative"
         );
 
@@ -3182,10 +3182,10 @@ tf_getPComparator(const char *name)
         fsfree(tmp3);
         test_validatefree(
             cmp(&a, &a2) == 0,
-            (value64_free(a, VALUE64_FS), value64_free(a2, VALUE64_FS)),
+            (value64free(a, VALUE64_FS), value64free(a2, VALUE64_FS)),
             "FS P-comparator: 'alpha' == 'alpha' must be zero"
         );
-        value64_free(a, VALUE64_FS); value64_free(b, VALUE64_FS); value64_free(a2, VALUE64_FS);
+        value64free(a, VALUE64_FS); value64free(b, VALUE64_FS); value64free(a2, VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -3201,10 +3201,10 @@ tf_getPComparator(const char *name)
 
         test_validatefree(
             rcmp(&a, &b) > 0,
-            (value64_free(a, VALUE64_FS), value64_free(b, VALUE64_FS)),
+            (value64free(a, VALUE64_FS), value64free(b, VALUE64_FS)),
             "FS P-rev: 'alpha' < 'beta' must give >0"
         );
-        value64_free(a, VALUE64_FS); value64_free(b, VALUE64_FS);
+        value64free(a, VALUE64_FS); value64free(b, VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -3218,10 +3218,10 @@ tf_getPComparator(const char *name)
         value64 b = value64_createstr("world");
         test_validatefree(
             cmp(&a, &b) < 0,
-            (value64_free(a, VALUE64_STR), value64_free(b, VALUE64_STR)),
+            (value64free(a, VALUE64_STR), value64free(b, VALUE64_STR)),
             "STR P-comparator: 'hello' < 'world' must be negative"
         );
-        value64_free(a, VALUE64_STR); value64_free(b, VALUE64_STR);
+        value64free(a, VALUE64_STR); value64free(b, VALUE64_STR);
     }
 
     /* 10. P_STR rev comparator */
@@ -3234,10 +3234,10 @@ tf_getPComparator(const char *name)
         value64 b = value64_createstr("world");
         test_validatefree(
             rcmp(&a, &b) > 0,
-            (value64_free(a, VALUE64_STR), value64_free(b, VALUE64_STR)),
+            (value64free(a, VALUE64_STR), value64free(b, VALUE64_STR)),
             "STR P-rev: 'hello' < 'world' must give >0"
         );
-        value64_free(a, VALUE64_STR); value64_free(b, VALUE64_STR);
+        value64free(a, VALUE64_STR); value64free(b, VALUE64_STR);
     }
 
     /* ---------- 11. P_PTR comparator ---------- */
@@ -3391,15 +3391,15 @@ tf_binsearch(const char *name)
         value64 key = value64_createstr("banana");
         test_validatefree(
             value64_binsearch(key, VALUE64_STR, arr, COUNT(arr)) == 1,
-            (value64_free(key, VALUE64_STR),
-             value64_free(arr[0], VALUE64_STR),
-             value64_free(arr[1], VALUE64_STR),
-             value64_free(arr[2], VALUE64_STR)),
+            (value64free(key, VALUE64_STR),
+             value64free(arr[0], VALUE64_STR),
+             value64free(arr[1], VALUE64_STR),
+             value64free(arr[2], VALUE64_STR)),
             "'banana' must be at index 1"
         );
-        value64_free(key, VALUE64_STR);
+        value64free(key, VALUE64_STR);
         for (int i = 0; i < COUNT(arr); i++)
-            value64_free(arr[i], VALUE64_STR);
+            value64free(arr[i], VALUE64_STR);
     }
 
     /* ---------- STR descending ---------- */
@@ -3413,15 +3413,15 @@ tf_binsearch(const char *name)
         value64 key = value64_createstr("banana");
         test_validatefree(
             value64_rev_binsearch(key, VALUE64_STR, arr, COUNT(arr)) == 1,
-            (value64_free(key, VALUE64_STR),
-             value64_free(arr[0], VALUE64_STR),
-             value64_free(arr[1], VALUE64_STR),
-             value64_free(arr[2], VALUE64_STR)),
+            (value64free(key, VALUE64_STR),
+             value64free(arr[0], VALUE64_STR),
+             value64free(arr[1], VALUE64_STR),
+             value64free(arr[2], VALUE64_STR)),
             "'banana' must be at index 1 (descending)"
         );
-        value64_free(key, VALUE64_STR);
+        value64free(key, VALUE64_STR);
         for (int i = 0; i < COUNT(arr); i++)
-            value64_free(arr[i], VALUE64_STR);
+            value64free(arr[i], VALUE64_STR);
     }
 
     /* ---------- FS ascending ---------- */
@@ -3437,14 +3437,14 @@ tf_binsearch(const char *name)
 
         test_validatefree(
             value64_binsearch(key, VALUE64_FS, arr, COUNT(arr)) == 1,
-            (value64_free(key, VALUE64_FS),
-             value64_free(arr[0], VALUE64_FS),
-             value64_free(arr[1], VALUE64_FS),
-             value64_free(arr[2], VALUE64_FS)),
+            (value64free(key, VALUE64_FS),
+             value64free(arr[0], VALUE64_FS),
+             value64free(arr[1], VALUE64_FS),
+             value64free(arr[2], VALUE64_FS)),
             "'beta' must be at index 1 (ascending)"
         );
-        value64_free(key, VALUE64_FS);
-        for (int i = 0; i < COUNT(arr); i++) value64_free(arr[i], VALUE64_FS);
+        value64free(key, VALUE64_FS);
+        for (int i = 0; i < COUNT(arr); i++) value64free(arr[i], VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -3461,14 +3461,14 @@ tf_binsearch(const char *name)
 
         test_validatefree(
             value64_rev_binsearch(key, VALUE64_FS, arr, COUNT(arr)) == 1,
-            (value64_free(key, VALUE64_FS),
-             value64_free(arr[0], VALUE64_FS),
-             value64_free(arr[1], VALUE64_FS),
-             value64_free(arr[2], VALUE64_FS)),
+            (value64free(key, VALUE64_FS),
+             value64free(arr[0], VALUE64_FS),
+             value64free(arr[1], VALUE64_FS),
+             value64free(arr[2], VALUE64_FS)),
             "'beta' must be at index 1 (descending)"
         );
-        value64_free(key, VALUE64_FS);
-        for (int i = 0; i < COUNT(arr); i++) value64_free(arr[i], VALUE64_FS);
+        value64free(key, VALUE64_FS);
+        for (int i = 0; i < COUNT(arr); i++) value64free(arr[i], VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -3571,14 +3571,14 @@ tf_sort(const char *name)
             strcmp(value64_str(arr[0]), "apple") == 0 &&
             strcmp(value64_str(arr[1]), "banana") == 0 &&
             strcmp(value64_str(arr[2]), "cherry") == 0,
-            (value64_free(arr[0], VALUE64_STR),
-             value64_free(arr[1], VALUE64_STR),
-             value64_free(arr[2], VALUE64_STR)),
+            (value64free(arr[0], VALUE64_STR),
+             value64free(arr[1], VALUE64_STR),
+             value64free(arr[2], VALUE64_STR)),
             "STR asc order mismatch: got [%s, %s, %s]",
             value64_str(arr[0]), value64_str(arr[1]), value64_str(arr[2])
         );
         for (int i = 0; i < COUNT(arr); i++)
-            value64_free(arr[i], VALUE64_STR);
+            value64free(arr[i], VALUE64_STR);
     }
 
     /* 4. STR descending */
@@ -3595,14 +3595,14 @@ tf_sort(const char *name)
             strcmp(value64_str(arr[0]), "cherry") == 0 &&
             strcmp(value64_str(arr[1]), "banana") == 0 &&
             strcmp(value64_str(arr[2]), "apple") == 0,
-            (value64_free(arr[0], VALUE64_STR),
-             value64_free(arr[1], VALUE64_STR),
-             value64_free(arr[2], VALUE64_STR)),
+            (value64free(arr[0], VALUE64_STR),
+             value64free(arr[1], VALUE64_STR),
+             value64free(arr[2], VALUE64_STR)),
             "STR desc order mismatch: got [%s, %s, %s]",
             value64_str(arr[0]), value64_str(arr[1]), value64_str(arr[2])
         );
         for (int i = 0; i < COUNT(arr); i++)
-            value64_free(arr[i], VALUE64_STR);
+            value64free(arr[i], VALUE64_STR);
     }
 
     /* ---------- 5. FS ascending ---------- */
@@ -3618,13 +3618,13 @@ tf_sort(const char *name)
             strcmp(fs_str(value64_fs(arr[0])), "alpha") == 0 &&
             strcmp(fs_str(value64_fs(arr[1])), "beta") == 0 &&
             strcmp(fs_str(value64_fs(arr[2])), "gamma") == 0,
-            (value64_free(arr[0], VALUE64_FS),
-             value64_free(arr[1], VALUE64_FS),
-             value64_free(arr[2], VALUE64_FS)),
+            (value64free(arr[0], VALUE64_FS),
+             value64free(arr[1], VALUE64_FS),
+             value64free(arr[2], VALUE64_FS)),
             "FS asc order mismatch"
         );
         for (int i = 0; i < COUNT(arr); i++)
-            value64_free(arr[i], VALUE64_FS);
+            value64free(arr[i], VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -3641,13 +3641,13 @@ tf_sort(const char *name)
             strcmp(fs_str(value64_fs(arr[0])), "gamma") == 0 &&
             strcmp(fs_str(value64_fs(arr[1])), "beta") == 0 &&
             strcmp(fs_str(value64_fs(arr[2])), "alpha") == 0,
-            (value64_free(arr[0], VALUE64_FS),
-             value64_free(arr[1], VALUE64_FS),
-             value64_free(arr[2], VALUE64_FS)),
+            (value64free(arr[0], VALUE64_FS),
+             value64free(arr[1], VALUE64_FS),
+             value64free(arr[2], VALUE64_FS)),
             "FS desc order mismatch"
         );
         for (int i = 0; i < COUNT(arr); i++)
-            value64_free(arr[i], VALUE64_FS);
+            value64free(arr[i], VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -3747,7 +3747,7 @@ tf_fsave(const char *name)
             return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
         int         written = value64_fsave(f, v, VALUE64_STR, true);
         fclose(f);
-        value64_freestr(v);
+        value64freestr(v);
         logmsg("Saved STR to '%s', written=%d", fname, written);
     }
 
@@ -3760,7 +3760,7 @@ tf_fsave(const char *name)
             return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
         int         written = value64_fsave(f, v, VALUE64_STR, true);
         fclose(f);
-        value64_freestr(v);
+        value64freestr(v);
         logmsg("Saved empty STR to '%s', written=%d", fname, written);
     }
 
@@ -3775,7 +3775,7 @@ tf_fsave(const char *name)
             return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
         int         written = value64_fsave(f, v, VALUE64_FS, true);
         fclose(f);
-        value64_free(v, VALUE64_FS);
+        value64free(v, VALUE64_FS);
         logmsg("Saved FS to '%s', written=%d", fname, written);
         fs_alloc_check(true);
     }
@@ -3927,8 +3927,8 @@ tf_fsave_fload(const char *name)
             value64_str(orig), value64_str(loaded)
         );
 
-        value64_free(orig, VALUE64_STR);
-        value64_free(loaded, VALUE64_STR);
+        value64free(orig, VALUE64_STR);
+        value64free(loaded, VALUE64_STR);
     }
 
     /* 5. STR (пустая) */
@@ -3959,8 +3959,8 @@ tf_fsave_fload(const char *name)
             value64_str(loaded)
         );
 
-        value64_free(orig, VALUE64_STR);
-        value64_free(loaded, VALUE64_STR);
+        value64free(orig, VALUE64_STR);
+        value64free(loaded, VALUE64_STR);
     }
 
     /* 6. FS */
@@ -3989,11 +3989,11 @@ tf_fsave_fload(const char *name)
 
         test_validatefree(
             value64_compare(orig, loaded, VALUE64_FS) == 0,
-            (value64_free(orig, VALUE64_FS), value64_free(loaded, VALUE64_FS)),
+            (value64free(orig, VALUE64_FS), value64free(loaded, VALUE64_FS)),
             "FS save/load mismatch"
         );
-        value64_free(orig, VALUE64_FS);
-        value64_free(loaded, VALUE64_FS);
+        value64free(orig, VALUE64_FS);
+        value64free(loaded, VALUE64_FS);
         fs_alloc_check(true);
     }
 
@@ -4106,10 +4106,10 @@ tf_tostr(const char *name)
         int written = value64_tostr(&buf, v, VALUE64_STR, VALUE64_2STR);
         test_validatefree(
             written > 0 && strcmp(fs_str(&buf), "\"hello world\"") == 0,
-            (value64_free(v, VALUE64_STR), fsfree(buf)),
+            (value64free(v, VALUE64_STR), fsfree(buf)),
             "STR: expected '\"hello world\"', got '%s'", fs_str(&buf)
         );
-        value64_free(v, VALUE64_STR);
+        value64free(v, VALUE64_STR);
         fsfree(buf);
         fs_alloc_check(true);
     }
@@ -4122,10 +4122,10 @@ tf_tostr(const char *name)
         int written = value64_tostr(&buf, v, VALUE64_STR, VALUE64_2STR);
         test_validatefree(
             written > 0 && strcmp(fs_str(&buf), "\"\"") == 0,
-            (value64_free(v, VALUE64_STR), fsfree(buf)),
+            (value64free(v, VALUE64_STR), fsfree(buf)),
             "STR empty: expected '\"\"', got '%s'", fs_str(&buf)
         );
-        value64_free(v, VALUE64_STR);
+        value64free(v, VALUE64_STR);
         fsfree(buf);
         fs_alloc_check(true);
     }
@@ -4138,10 +4138,10 @@ tf_tostr(const char *name)
         int written = value64_tostr(&buf, v, VALUE64_STR, VALUE64_2STR);
         test_validatefree(
             written > 0 && strcmp(fs_str(&buf), "\"line1\\nline2\\t\\\"quote\\\"\\\\end\"") == 0,
-            (value64_free(v, VALUE64_STR), fsfree(buf)),
+            (value64free(v, VALUE64_STR), fsfree(buf)),
             "STR escapes: got '%s'", fs_str(&buf)
         );
-        value64_free(v, VALUE64_STR);
+        value64free(v, VALUE64_STR);
         fsfree(buf);
         fs_alloc_check(true);
     }
@@ -4156,10 +4156,10 @@ tf_tostr(const char *name)
         int written = value64_tostr(&buf, v, VALUE64_FS, VALUE64_2STR);
         test_validatefree(
             written > 0 && strcmp(fs_str(&buf), "\"fs-data\"") == 0,
-            (value64_free(v, VALUE64_FS), fsfree(buf)),
+            (value64free(v, VALUE64_FS), fsfree(buf)),
             "FS: expected '\"fs-data\"', got '%s'", fs_str(&buf)
         );
-        value64_free(v, VALUE64_FS);
+        value64free(v, VALUE64_FS);
         fsfree(buf);
         fs_alloc_check(true);
     }
@@ -4174,10 +4174,10 @@ tf_tostr(const char *name)
         int written = value64_tostr(&buf, v, VALUE64_FS, VALUE64_2STR);
         test_validatefree(
             written > 0 && strcmp(fs_str(&buf), "\"tab\\there\"") == 0,
-            (value64_free(v, VALUE64_FS), fsfree(buf)),
+            (value64free(v, VALUE64_FS), fsfree(buf)),
             "FS escapes: got '%s'", fs_str(&buf)
         );
-        value64_free(v, VALUE64_FS);
+        value64free(v, VALUE64_FS);
         fsfree(buf);
         fs_alloc_check(true);
     }
@@ -4199,10 +4199,10 @@ tf_createfs_asstr(const char *name)
         // Проверяем, что поле fsval не NULL и внутренний указатель v тоже не NULL
         test_validatefree(
             v.fsval != NULL && v.fsval->v != NULL,
-            value64_freefs(v),
+            value64freefs(v),
             "FS from string: fsval or fsval->v is NULL"
         );
-        value64_freefs(v);
+        value64freefs(v);
     }
     fs_alloc_check(true);
 
@@ -4211,10 +4211,10 @@ tf_createfs_asstr(const char *name)
         value64 v = value64_createfs_asstr("");
         test_validatefree(
             v.fsval != NULL,
-            value64_freefs(v),
+            value64freefs(v),
             "FS from empty string: fsval is NULL"
         )
-        value64_freefs(v);
+        value64freefs(v);
     }
     fs_alloc_check(true);
 
@@ -4224,10 +4224,10 @@ tf_createfs_asstr(const char *name)
         value64 v = value64_createfs_asstr(longpath);
         test_validatefree(
             v.fsval != NULL,
-            value64_freefs(v),
+            value64freefs(v),
             "FS from long path: fsval is NULL"
         );
-        value64_freefs(v);
+        value64freefs(v);
     }
     fs_alloc_check(true);
 
@@ -4249,9 +4249,9 @@ tf_createfs_asstr(const char *name)
     test_sub("subtest %d: double free safety check", ++subnum);
     {
         value64 v = value64_createfs_asstr("/tmp/some");
-        value64_freefs(v);
-        value64_freefs(v);  // повторный вызов не должен упасть
-        // Если дошли сюда – ОК, value64_free идемпотентен
+        value64freefs(v);
+        value64freefs(v);  // повторный вызов не должен упасть
+        // Если дошли сюда – ОК, value64free идемпотентен
     }
     fs_alloc_check(true);
 

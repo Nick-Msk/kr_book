@@ -183,25 +183,32 @@ static inline value64               value64_movefs(fs *fsval){
         userraiseint(ERR_UNABLE_ALLOCATE, "Unable to dup fs");
     return tmp;
 }
-static inline void                  value64_free(value64 v, value64_type typ){
+// destructor
+static inline void                  value64_freefs(value64 *v){
+    fs_free(v->fsval);
+    v->fsval = 0;
+}
+static inline void                  value64_freestr(value64 *v){
+    free(v->sval);
+    v->sval = NULL;
+}
+// generic
+static inline void                  value64_free(value64 *v, value64_type typ){
     switch (typ){
         case VALUE64_STR:
-            free(v.sval);   // even if NULL
+            value64_freestr(v);
         break;
         case VALUE64_FS:
-            fs_free(v.fsval);   // even if NULL
+            value64_freefs(v);   // even if NULL
         break;
         default:
         break;
     }
 }
-// destructor
-static inline void                  value64_freefs(value64 v){
-    return value64_free(v, VALUE64_FS);
-}
-static inline void                  value64_freestr(value64 v){
-    return value64_free(v, VALUE64_STR);
-}
+
+#define value64freefs(v)        value64_freefs(&(v))
+#define value64freestr(v)       value64_freestr(&(v))
+#define value64free(v, typ)     value64_free(&(v), typ)
 
 // -------------------- ACCESS AND MODIFICATORS -------------------------------------
 // just get
