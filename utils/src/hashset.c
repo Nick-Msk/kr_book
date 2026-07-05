@@ -1227,7 +1227,15 @@ void                        hset_min_dbl(hset_accum *acc, value64 v) {
 #include "array.h"
 #include <time.h>
 
-//types for testing
+//types, macro for testing
+
+#define HSET_HAS_FS(se, path) \
+    ({ \
+        value64 _v = value64_createfs_asstr(path); \
+        bool _res = hset_get((se), _v); \
+        value64_freefs(&_v); \
+        _res; \
+    })
 
 // ------------------------- TEST 1 ---------------------------------
 
@@ -3303,6 +3311,133 @@ tf10(const char *name)
             return logerr(TEST_FAILED, "Expected signal for type mismatch, but none was raised");
         }
     }
+    // fs
+    test_sub("subtest %d: empty minus empty", ++subnum);
+    {
+        hset a = hset_init_fs(10);
+        hset b = hset_init_fs(10);
+        hset *res = hset_minus(&a, &b);   // res == &a, a изменён
+
+        test_validatefree(
+            res->count == 0,
+            (hset_free(res), hset_free(&b)),
+            "Empty minus empty should be empty"
+        );
+        hset_free(res);
+        hset_free(&b);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: empty minus nonempty", ++subnum);
+    {
+        hset a = hset_init_fs(10);
+        hset b = HSET_CREATEFS_ASSTR("/tmp/x", "/tmp/y");
+        hset *res = hset_minus(&a, &b);
+
+        test_validatefree(
+            res->count == 0,
+            (hset_free(res), hset_free(&b)),
+            "Empty minus nonempty should be empty"
+        );
+        hset_free(res);
+        hset_free(&b);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: nonempty minus empty", ++subnum);
+    {
+        hset a = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/b", "/tmp/c");
+        hset b = hset_init_fs(10);
+        hset *res = hset_minus(&a, &b);
+
+        test_validatefree(
+            res->count == 3 &&
+            HSET_HAS_FS(res, "/tmp/a") &&
+            HSET_HAS_FS(res, "/tmp/b") &&
+            HSET_HAS_FS(res, "/tmp/c"),
+            (hset_free(res), hset_free(&b)),
+            "A minus empty should equal A"
+        );
+        hset_free(res);
+        hset_free(&b);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: minus with common elements", ++subnum);
+    {
+        hset a = HSET_CREATEFS_ASSTR("/tmp/1", "/tmp/2", "/tmp/3", "/tmp/4");
+        hset b = HSET_CREATEFS_ASSTR("/tmp/3", "/tmp/4", "/tmp/5");
+        hset *res = hset_minus(&a, &b);
+
+        test_validatefree(
+            res->count == 2 &&
+            HSET_HAS_FS(res, "/tmp/1") &&
+            HSET_HAS_FS(res, "/tmp/2") &&
+            !HSET_HAS_FS(res, "/tmp/3") &&
+            !HSET_HAS_FS(res, "/tmp/4") &&
+            !HSET_HAS_FS(res, "/tmp/5"),
+            (hset_free(res), hset_free(&b)),
+            "A \\ B should contain only /tmp/1 and /tmp/2"
+        );
+        hset_free(res);
+        hset_free(&b);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: minus with no common elements", ++subnum);
+    {
+        hset a = HSET_CREATEFS_ASSTR("/tmp/1", "/tmp/2");
+        hset b = HSET_CREATEFS_ASSTR("/tmp/3", "/tmp/4");
+        hset *res = hset_minus(&a, &b);
+
+        test_validatefree(
+            res->count == 2 &&
+            HSET_HAS_FS(res, "/tmp/1") &&
+            HSET_HAS_FS(res, "/tmp/2"),
+            (hset_free(res), hset_free(&b)),
+            "A \\ B with no overlap should equal A"
+        );
+        hset_free(res);
+        hset_free(&b);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: minus results in empty set", ++subnum);
+    {
+        hset a = HSET_CREATEFS_ASSTR("/tmp/x", "/tmp/y");
+        hset b = HSET_CREATEFS_ASSTR("/tmp/x", "/tmp/y");
+        hset *res = hset_minus(&a, &b);
+
+        test_validatefree(
+            res->count == 0,
+            (hset_free(res), hset_free(&b)),
+            "A \\ B when A == B should be empty"
+        );
+        hset_free(res);
+        hset_free(&b);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: FS vs INT type mismatch raises SIGINT", ++subnum);
+    {
+        hset fs_set  = HSET_CREATEFS_ASSTR("/tmp/z");
+        hset int_set = hset_init_int(10);
+        hset_set(&int_set, LITERAL64_INT(42));
+
+        if (!try()) {
+            hset *res = hset_minus(&fs_set, &int_set);   // должно вызвать ошибку
+            hset_free(res);
+            hset_free(&int_set);
+            test_validate(false, 
+                "Type mismatch should have raised SIGINT"
+            );
+        } else {
+            hset_free(&fs_set);
+            hset_free(&int_set);
+            logmsg("Exception correctly raised on type mismatch");
+        }
+    }
+    fs_alloc_check(true);
 
     return logret(TEST_PASSED, "done");
 }
