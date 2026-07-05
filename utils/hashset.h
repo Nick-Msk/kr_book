@@ -251,8 +251,9 @@ static inline int           hset_loadparr(hset *restrict se, const void * const 
 static inline int           hset_loadfsarr(hset *restrict se, fs *restrict fsarr, int sz){
     return hset_loadanyarr(se, fsarr, sz, VALUE64_FS);
 }
-extern int                  hset_loadfs_str(hset *restrict se, char *strings[]);
-// only static literals!
+// fs creation from c-str[]
+extern int                  hset_loadfs_str(hset *restrict se, const char *strings[]);
+// only static literals! NOT implemented yet
 extern int                  hset_loadfs_literal(hset *restrict se, const char *lits[]);
 
 // check if all of se2 in se1 strictly or not

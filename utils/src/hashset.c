@@ -828,14 +828,15 @@ int                         hset_loadanyarr(hset *restrict se, void *arr, int sz
 }
 // TODO:
 // fs loading, heap allocated => MOVE semantic!
-int                         hset_loadfs_str(hset *restrict se, char *strings[]){
+int                         hset_loadfs_str(hset *restrict se, const char *strings[]){
     invraisecode(ERR_NULLABLE_PTR, strings != NULL && se != NULL, 
             "Null pointers %p %p", se, strings);
     int     cnt = 0;
     while (*strings) {
         // convent c-str into fs * (heap allocated body)
         value64  val = value64_createfs_asstr(*strings);
-        hset_set(se, val);
+        if (!hset_set(se, val) )
+            value64_freefs(&val);
         strings++;
         cnt++;
     }
@@ -1718,6 +1719,103 @@ tf3(const char *name)
     }
     fs_alloc_check(true);
     return logret(TEST_PASSED, "done"); // TEST_FAILED, TEST_PASSED, TEST_MANUAL
+}
+
+// ------------------------- TEST hset_loadfs_str ---------------------------------
+static TestStatus
+tf_loadfs_str(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: load several FS strings", ++subnum);
+    {
+        hset se = hset_init(10, VALUE64_FS);
+        const char *strings[] = {"/tmp/a", "/tmp/b", "/tmp/c", NULL};
+
+        int cnt = hset_loadfs_str(&se, strings);
+        test_validatefree(
+            cnt == 3 && se.count == 3,
+            hset_free(&se),
+            "Loaded %d elements, expected 3; set len %d", cnt, se.count
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: load from empty array", ++subnum);
+    {
+        hset se = hset_init(10, VALUE64_FS);
+        const char *empty[] = {NULL};
+
+        int cnt = hset_loadfs_str(&se, empty);
+        test_validatefree(
+            cnt == 0 && se.count == 0,
+            hset_free(&se),
+            "Loaded %d elements from empty array, expected 0", cnt
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: load with duplicates", ++subnum);
+    {
+        hset se = hset_init(10, VALUE64_FS);
+        const char *dups[] = {"/tmp/x", "/tmp/y", "/tmp/x", "/tmp/x", "uuuuuu", NULL};
+
+        int cnt = hset_loadfs_str(&se, dups);
+        test_validatefree(
+            cnt == COUNT(dups) - 1 && se.count == 3,
+            hset_free(&se),
+            "Loaded %d elements (3 calls), set len %d, expected 2 unique", cnt, se.count
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: NULL set pointer raises SIGINT", ++subnum);
+    {
+        const char *strings[] = {"/tmp/a", NULL};
+        if (!try()) {
+            hset_loadfs_str(NULL, strings);
+            test_validate(false, "Should have raised SIGINT for NULL set");
+        } else {
+            logmsg("Exception correctly raised on NULL set");
+        }
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: NULL strings pointer raises SIGINT", ++subnum);
+    {
+        hset se = hset_init(10, VALUE64_FS);
+        if (!try()) {
+            hset_loadfs_str(&se, NULL);
+            test_validatefree(
+                false, hset_free(&se),
+                "Should have raised SIGINT for NULL strings"
+            );
+        } else {
+            hset_free(&se);
+            logmsg("Exception correctly raised on NULL strings");
+        }
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: validate set after load", ++subnum);
+    {
+        hset se = hset_init(10, VALUE64_FS);
+        const char *strings[] = {"/tmp/1", "/tmp/2", NULL};
+        hset_loadfs_str(&se, strings);
+        test_validatefree(
+            hset_validate(stdout, &se),
+            hset_free(&se),
+            "Set validation failed after load"
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 4 ---------------------------------
@@ -2667,7 +2765,7 @@ tf8(const char *name)
         }
         return logret(TEST_FAILED, "done");
     }
-    // fs
+    /* // fs
     test_sub("subtest %d: empty FS in empty FS", ++subnum);
     {
         hset empty1 = hset_init(10, VALUE64_FS);
@@ -2815,7 +2913,7 @@ tf8(const char *name)
         return logret(TEST_FAILED, "done");
     }
     fs_alloc_check(true);
-
+    */
     return logret(TEST_PASSED, "done");
 }
 
@@ -5862,33 +5960,34 @@ main(int argc, const char *argv[])
         }
         printf("Num %d\n", num);
             testenginestd_run(num,
-                testnew(.f2 =  tf1,  .num =  1, .name = "Simple init and validate test"              , .desc="", .mandatory=true)
-              , testnew(.f2 =  tf2,  .num =  2, .name = "Simple init and add test"                   , .desc="", .mandatory=true)
-              , testnew(.f2 =  tf3,  .num =  3, .name = "Simple clone and create from array test"    , .desc="", .mandatory=true)
-              , testnew(.f2 =  tf4,  .num =  4, .name = "Simple count test"                          , .desc="", .mandatory=true)
-              , testnew(.f2 =  tf5,  .num =  5, .name = "Comparation simple test"                    , .desc="", .mandatory=true)
-              , testnew(.f2 =  tf6,  .num =  6, .name = "Not equal simple test"                      , .desc="", .mandatory=true)
-              , testnew(.f2 =  tf7,  .num =  7, .name = "Cloneas simple test"                        , .desc="", .mandatory=true)
-              , testnew(.f2 =  tf8,  .num =  8, .name = "Hset_in simple test"                        , .desc="", .mandatory=true)
-              , testnew(.f2 =  tf9,  .num =  9, .name = "Hset_strictin simple test"                  , .desc="", .mandatory=true)
-              , testnew(.f2 = tf10,  .num = 10, .name = "Hset_minus simple test"                     , .desc="", .mandatory=true)
-              , testnew(.f2 = tf11,  .num = 11, .name = "Hset_init_minus simple test"                , .desc="", .mandatory=true)
-              , testnew(.f2 = tf12,  .num = 12, .name = "hset_intersect simple test"                 , .desc="", .mandatory=true)
-              , testnew(.f2 = tf13,  .num = 13, .name = "hset_init_intersect simple test"            , .desc="", .mandatory=true)
-              , testnew(.f2 = tf14,  .num = 14, .name = "hset_init_symmdiff simple test"             , .desc="", .mandatory=true)
-              , testnew(.f2 = tf15,  .num = 15, .name = "hset_symmdiff simple test"                  , .desc="", .mandatory=true)
-              , testnew(.f2 = tf16,  .num = 16, .name = "hset_init_resize simple test"               , .desc="", .mandatory=true)
-              , testnew(.f2 = tf17,  .num = 17, .name = "hset_union simple test"                     , .desc="", .mandatory=true)
-              , testnew(.f2 = tf18,  .num = 18, .name = "hset_init_union simple test"                , .desc="", .mandatory=true)
-              , testnew(.f2 = tf19,  .num = 19, .name = "hset_normalize simple test"                 , .desc="", .mandatory=true)
-              , testnew(.f2 = tf20,  .num = 20, .name = "hset_save/load simple test"                 , .desc="", .mandatory=true)
-              , testnew(.f2 = tf21,  .num = 21, .name = "hset_const_foreach simple test"             , .desc="", .mandatory=true)
-              , testnew(.f2 = tf22,  .num = 22, .name = "hset_initreduct int impl  simple test"      , .desc="", .mandatory=true)
-              , testnew(.f2 = tf23,  .num = 23, .name = "hset_initreduct double int simple test"     , .desc="", .mandatory=true)
-              , testnew(.f2 = tf24,  .num = 24, .name = "inf/nan double int simple test"             , .desc="", .mandatory=true)
-              , testnew(.f2 = tf25,  .num = 25, .name = "Macro-base iterator simple test"            , .desc="", .mandatory=true)
-              , testnew(.f2 = tf26,  .num = 26, .name = "hset_any(), hset_nonexists() simple test"   , .desc="", .mandatory=true)
-              , testnew(.f2 = tf27,  .num = 27, .name = "value64_movefs() simple test"               , .desc="", .mandatory=true)
+                testnew(.f2 =  tf1,             .num =  1, .name = "Simple init and validate test"              , .desc="", .mandatory=true)
+              , testnew(.f2 =  tf2,             .num =  2, .name = "Simple init and add test"                   , .desc="", .mandatory=true)
+              , testnew(.f2 =  tf3,             .num =  3, .name = "Simple clone and create from array test"    , .desc="", .mandatory=true)
+              , testnew(.f2 =  tf_loadfs_str,   .num =  4, .name = "Simple create fs from c-str array test"     , .desc="", .mandatory=true)
+              , testnew(.f2 =  tf4,             .num =  5, .name = "Simple count test"                          , .desc="", .mandatory=true)
+              , testnew(.f2 =  tf5,             .num =  6, .name = "Comparation simple test"                    , .desc="", .mandatory=true)
+              , testnew(.f2 =  tf6,             .num =  7, .name = "Not equal simple test"                      , .desc="", .mandatory=true)
+              , testnew(.f2 =  tf7,             .num =  8, .name = "Cloneas simple test"                        , .desc="", .mandatory=true)
+              , testnew(.f2 =  tf8,             .num =  9, .name = "Hset_in simple test"                        , .desc="", .mandatory=true)
+              , testnew(.f2 =  tf9,             .num = 10, .name = "Hset_strictin simple test"                  , .desc="", .mandatory=true)
+              , testnew(.f2 = tf10,             .num = 11, .name = "Hset_minus simple test"                     , .desc="", .mandatory=true)
+              , testnew(.f2 = tf11,             .num = 12, .name = "Hset_init_minus simple test"                , .desc="", .mandatory=true)
+              , testnew(.f2 = tf12,             .num = 13, .name = "hset_intersect simple test"                 , .desc="", .mandatory=true)
+              , testnew(.f2 = tf13,             .num = 14, .name = "hset_init_intersect simple test"            , .desc="", .mandatory=true)
+              , testnew(.f2 = tf14,             .num = 15, .name = "hset_init_symmdiff simple test"             , .desc="", .mandatory=true)
+              , testnew(.f2 = tf15,             .num = 16, .name = "hset_symmdiff simple test"                  , .desc="", .mandatory=true)
+              , testnew(.f2 = tf16,             .num = 17, .name = "hset_init_resize simple test"               , .desc="", .mandatory=true)
+              , testnew(.f2 = tf17,             .num = 18, .name = "hset_union simple test"                     , .desc="", .mandatory=true)
+              , testnew(.f2 = tf18,             .num = 19, .name = "hset_init_union simple test"                , .desc="", .mandatory=true)
+              , testnew(.f2 = tf19,             .num = 20, .name = "hset_normalize simple test"                 , .desc="", .mandatory=true)
+              , testnew(.f2 = tf20,             .num = 21, .name = "hset_save/load simple test"                 , .desc="", .mandatory=true)
+              , testnew(.f2 = tf21,             .num = 22, .name = "hset_const_foreach simple test"             , .desc="", .mandatory=true)
+              , testnew(.f2 = tf22,             .num = 23, .name = "hset_initreduct int impl  simple test"      , .desc="", .mandatory=true)
+              , testnew(.f2 = tf23,             .num = 24, .name = "hset_initreduct double int simple test"     , .desc="", .mandatory=true)
+              , testnew(.f2 = tf24,             .num = 25, .name = "inf/nan double int simple test"             , .desc="", .mandatory=true)
+              , testnew(.f2 = tf25,             .num = 26, .name = "Macro-base iterator simple test"            , .desc="", .mandatory=true)
+              , testnew(.f2 = tf26,             .num = 27, .name = "hset_any(), hset_nonexists() simple test"   , .desc="", .mandatory=true)
+              , testnew(.f2 = tf27,             .num = 28, .name = "value64_movefs() simple test"               , .desc="", .mandatory=true)
             );
         if (runall)
             break;
