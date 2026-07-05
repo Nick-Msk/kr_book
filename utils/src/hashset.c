@@ -2987,6 +2987,127 @@ tf9(const char *name)
         hset_free(&superset);
         hset_free(&subset);
     }
+    // fs
+    test_sub("subtest %d: empty strict in empty", ++subnum);
+    {
+        hset empty1 = hset_init_fs(10);
+        hset empty2 = hset_init_fs(100);
+
+        test_validatefree(
+            hset_validate(stdout, &empty1) && hset_validate(stdout, &empty2),
+            (hset_free(&empty1), hset_free(&empty2)),
+            "Validation failed empty FS"
+        );
+        test_validatefree(
+            hset_strictin(&empty1, &empty2) == false,
+            (hset_free(&empty1), hset_free(&empty2)),
+            "Empty FS set should NOT be strict subset of empty FS set"
+        );
+        hset_free(&empty1);
+        hset_free(&empty2);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: empty strict in nonempty", ++subnum);
+    {
+        hset empty    = hset_init_fs(10);
+        hset nonempty = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/b");
+
+        test_validatefree(
+            hset_validate(stdout, &empty) && hset_validate(stdout, &nonempty),
+            (hset_free(&empty), hset_free(&nonempty)),
+            "Validation failed empty FS vs nonempty FS"
+        );
+        test_validatefree(
+            hset_strictin(&empty, &nonempty),
+            (hset_free(&empty), hset_free(&nonempty)),
+            "Empty FS set should be strict subset of any non‑empty FS set"
+        );
+        hset_free(&empty);
+        hset_free(&nonempty);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: nonempty not strict in empty", ++subnum);
+    {
+        hset empty    = hset_init_fs(10);
+        hset nonempty = HSET_CREATEFS_ASSTR("/tmp/x");
+
+        test_validatefree(
+            !hset_strictin(&nonempty, &empty),
+            (hset_free(&empty), hset_free(&nonempty)),
+            "Non‑empty FS set should NOT be strict subset of empty FS set"
+        );
+        hset_free(&empty);
+        hset_free(&nonempty);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: strict subset in superset", ++subnum);
+    {
+        hset superset = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/b", "/tmp/c");
+        hset subset   = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/c");
+
+        test_validatefree(
+            hset_strictin(&subset, &superset),
+            (hset_free(&superset), hset_free(&subset)),
+            "Proper subset should be strict in superset"
+        );
+        hset_free(&superset);
+        hset_free(&subset);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: equal sets (not strict)", ++subnum);
+    {
+        hset set1 = HSET_CREATEFS_ASSTR("/tmp/1", "/tmp/2");
+        hset set2 = HSET_CREATEFS_ASSTR("/tmp/1", "/tmp/2");
+
+        test_validatefree(
+            hset_strictin(&set1, &set2) == false,
+            (hset_free(&set1), hset_free(&set2)),
+            "Equal FS sets should NOT be strict subsets of each other"
+        );
+        hset_free(&set1);
+        hset_free(&set2);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: superset not strict in subset", ++subnum);
+    {
+        hset superset = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/b", "/tmp/c");
+        hset subset   = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/c");
+
+        test_validatefree(
+            !hset_strictin(&superset, &subset),
+            (hset_free(&superset), hset_free(&subset)),
+            "Superset should NOT be strict in its proper subset"
+        );
+        hset_free(&superset);
+        hset_free(&subset);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: FS vs INT type mismatch raise SIGINT", ++subnum);
+    {
+        hset fs_set  = HSET_CREATEFS_ASSTR("/tmp/z");
+        hset int_set = hset_init_int(10);
+        hset_set(&int_set, LITERAL64_INT(42));
+
+        if (!try()) {
+            test_validatefree(
+                !hset_strictin(&fs_set, &int_set),
+                (hset_free(&fs_set), hset_free(&int_set)),
+                "FS set should not be strict subset of INT set (type mismatch)"
+            );
+        } else {
+            hset_free(&fs_set);
+            hset_free(&int_set);
+            return logret(TEST_PASSED, "done");
+        }
+        return logret(TEST_FAILED, "done");
+    }
+    fs_alloc_check(true);
 
     return logret(TEST_PASSED, "done");
 }
