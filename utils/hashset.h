@@ -183,6 +183,16 @@ extern hset                 hset_init_symmdiff(const hset *restrict a, const hse
 // union with construct
 extern hset                 hset_init_union(const hset *restrict a, const hset *restrict b);
 
+// Simplified macroses
+#define HSET_CREATEFS_ASSTR(...) \
+    ({ \
+        /* Вычисляем количество аргументов через compound literal */ \
+        int _n = sizeof((const char *[]){__VA_ARGS__, NULL}) / sizeof(const char *) - 1; \
+        hset _tmp = hset_init(_n > 0 ? _n + 1 : 10, VALUE64_FS); \
+        HSET_LOADFS_STR(_tmp, __VA_ARGS__); \
+        _tmp; \
+    })
+
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
 // -------------------- hset_elem API ----------------------------------
@@ -253,6 +263,9 @@ static inline int           hset_loadfsarr(hset *restrict se, fs *restrict fsarr
 }
 // fs creation from c-str[]
 extern int                  hset_loadfs_str(hset *restrict se, const char *strings[]);
+
+#define                     HSET_LOADFS_STR(se,...) hset_loadfs_str(&(se), (const char *[]) {__VA_ARGS__, NULL} )
+
 // only static literals! NOT implemented yet
 extern int                  hset_loadfs_literal(hset *restrict se, const char *lits[]);
 
@@ -286,10 +299,10 @@ static inline int           hset_techprint(const hset *restrict se, int cnt, con
     return hset_techfprint(stdout, se, cnt, name);
 }
 
-#define                     hset_tech_fprint(out, se, cnt) hset_techfprint( (out), &(se), (cnt), #se)
-#define                     hset_tech_fprintall(out, se) hset_techfprint( (out), &(se), 0, #se)
-#define                     hset_tech_print(se, cnt) hset_techprint( &(se), (cnt), #se)
-#define                     hset_tech_printall(se) hset_techprint( &(se), 0, #se)
+#define                     HSET_TECH_FPRINT(out, se, cnt) hset_techfprint( (out), &(se), (cnt), #se)
+#define                     HSET_TECH_FPRINTALL(out, se) hset_techfprint( (out), &(se), 0, #se)
+#define                     HSET_TECH_PRINT(se, cnt) hset_techprint( &(se), (cnt), #se)
+#define                     HSET_TECH_PRINTALL(se) hset_techprint( &(se), 0, #se)
 
 // common validator
 extern bool                 hset_validate(FILE *out, const hset *restrict se);

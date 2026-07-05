@@ -1240,7 +1240,7 @@ tf1(const char *name)
     test_sub("subtest %d: init + free", ++subnum);
     {
         hset se1 = hset_init(100, VALUE64_INT);
-        hset_tech_fprintall(logfile, se1);
+        HSET_TECH_FPRINTALL(logfile, se1);
         test_validatefree(
             hset_validate(stdout, &se1), hset_free(&se1), "Validation failed"
         );
@@ -1249,7 +1249,7 @@ tf1(const char *name)
     test_sub("subtest %d: init + free", ++subnum);
     {
         hset sefs1 = hset_init(100, VALUE64_FS);
-        hset_tech_fprintall(logfile, sefs1);
+        HSET_TECH_FPRINTALL(logfile, sefs1);
         test_validatefree(
             hset_validate(stdout, &sefs1), hset_free(&sefs1), "Validation failed"
         );
@@ -1274,12 +1274,12 @@ tf2(const char *name)
             hset_set(&se1, LITERAL64_INT(num) ),
             hset_free(&se1), "Must be true"
         );
-        hset_tech_fprintall(logfile, se1);
+        HSET_TECH_FPRINTALL(logfile, se1);
         test_validatefree(
             hset_set(&se1, LITERAL64_INT(num) ) == false,
             hset_free(&se1), "Must be false because elem %d aleady in the set", num
         );
-        hset_tech_fprintall(logfile, se1);
+        HSET_TECH_FPRINTALL(logfile, se1);
         test_validatefree(
             hset_validate(stdout, &se1), hset_free(&se1), "Validation failed"
         );
@@ -1292,7 +1292,7 @@ tf2(const char *name)
         test_validatefree(
             hset_del(&se1, LITERAL64_INT(num) ), hset_free(&se1), "Must be true, because element %d exists", num
         );
-        hset_tech_fprintall(logfile, se1);
+        HSET_TECH_FPRINTALL(logfile, se1);
         test_validatefree(
             hset_del(&se1, LITERAL64_INT(num) ) == false, hset_free(&se1), "Must be false, because element %d already deleted", num
         );
@@ -1310,7 +1310,7 @@ tf2(const char *name)
             test_validatefree(
                 hset_set(&se1, LITERAL64_INT(i) ), hset_free(&se1), "Already exists %d", i
             );
-        hset_tech_fprintall(logfile, se1);
+        HSET_TECH_FPRINTALL(logfile, se1);
 
         for (int i = 0; i < cnt * mul; i++)
             test_validatefree(
@@ -1494,7 +1494,7 @@ tf3(const char *name)
                 hset_set(&se1, LITERAL64_LNG(i) ), hset_free(&se1), "Already exists %d", i
             );
         hset    se2 = hset_clone(&se1);
-        hset_tech_printall(se2);
+        HSET_TECH_PRINTALL(se2);
         // then compare one by one
         bool        r1, r2;
         for (int i = 0; i < cnt; i++){
@@ -1508,7 +1508,7 @@ tf3(const char *name)
 
         hset_free(&se1);
 
-        hset_tech_fprintall(logfile, se2);
+        HSET_TECH_FPRINTALL(logfile, se2);
         test_validatefree(
             hset_validate(stdout, &se2), hset_free(&se2), "Validation failed"
         );
@@ -1521,7 +1521,7 @@ tf3(const char *name)
 
         hset    se1 = hset_from_intarr(arr.iv, arr.len);
 
-        hset_tech_fprintall(logfile, se1);
+        HSET_TECH_FPRINTALL(logfile, se1);
 
         for (int i = 0; i < arr.len; i++)
             test_validatefree(
@@ -1541,7 +1541,7 @@ tf3(const char *name)
         Array arr = IArray_create(10, ARRAY_ZERO);
         hset    se1 = hset_from_intarr(arr.iv, arr.len);
 
-        hset_tech_fprintall(stdout, se1);
+        HSET_TECH_FPRINTALL(stdout, se1);
 
         for (int i = 0; i < arr.len; i++)
             test_validatefree(
@@ -1693,7 +1693,7 @@ tf3(const char *name)
             hset_free(&se),
             "NULL array: count = %d, expected 3", hset_cnt(&se)
         );
-        hset_tech_fprintall(logfile, se);
+        HSET_TECH_FPRINTALL(logfile, se);
         // Проверяем, что валидные строки есть
         fs tmp = fscopy("valid1");
         test_validatefree(
@@ -2345,8 +2345,8 @@ tf6(const char *name)
         fs_fprint_checker_cnt(stdout, "V");
 
         fsfree(copy);
-        hset_tech_printall(se1);
-        hset_tech_printall(se2);
+        HSET_TECH_PRINTALL(se1);
+        HSET_TECH_PRINTALL(se2);
 
         hset_free(&se1);
         hset_free(&se2);
@@ -5338,7 +5338,7 @@ tf24(const char *name)
 
         for (int i = 0; i < 15; i++)
             hset_set(&se, LITERAL64_DBL(i) );
-        hset_tech_printall(se);
+        HSET_TECH_PRINTALL(se);
 
         /* ---- структурная целостность ---- */
         test_validatefree(
