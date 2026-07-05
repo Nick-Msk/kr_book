@@ -298,7 +298,7 @@ static bool                 create_or_move_elem(hset * restrict se, hset_elem *r
         // TODO: not sure about that sln
         //if (getype(se) == VALUE64_FS){
         //    logsimple("DUPLICATE FS, freeing %p [%s]", val.fsval, val.fsval ? val.fsval->v : "");
-        //    value64_freefs(val);
+        //    value64freefs(val);
         //}
     }
     else {
@@ -820,7 +820,7 @@ int                         hset_loadanyarr(hset *restrict se, void *arr, int sz
             if (typ == VALUE64_FS) {
                 // currently avoiding dupl only for fs
                 logsimple("DUPLICATE freeing %p [%s]", val.fsval, val.fsval ? val.fsval->v : "");
-                value64_freefs(val);
+                value64freefs(val);
             }
         cnt++;
     }
@@ -829,11 +829,12 @@ int                         hset_loadanyarr(hset *restrict se, void *arr, int sz
 // TODO:
 // fs loading, heap allocated => MOVE semantic!
 int                         hset_loadfs_str(hset *restrict se, char *strings[]){
+    invraisecode(ERR_NULLABLE_PTR, strings != NULL && se != NULL, 
+            "Null pointers %p %p", se, strings);
     int     cnt = 0;
     while (*strings) {
         // convent c-str into fs * (heap allocated body)
-        fs      *s = fs_moveto_heapstr(strings);
-        value64  val = value64_movefs(s);
+        value64  val = value64_createfs_asstr(*strings);
         hset_set(se, val);
         strings++;
         cnt++;
@@ -2691,7 +2692,7 @@ tf8(const char *name)
         hset empty    = hset_init(10, VALUE64_FS);
         hset nonempty = hset_init(10, VALUE64_FS);
 
-        hset_loadfs_str(&nonempty, (char *[]){"/tmp/a", "/tmp/b"} );
+        hset_loadfs_str(&nonempty, (char *[]){"/tmp/a", "/tmp/b", NULL} );
 
         test_validatefree(
             hset_validate(stdout, &empty) && hset_validate(stdout, &nonempty),
@@ -2711,7 +2712,9 @@ tf8(const char *name)
     {
         hset empty    = hset_init(10, VALUE64_FS);
         hset nonempty = hset_init(10, VALUE64_FS);
-        hset_set(&nonempty, value64_createfs("/tmp/x"));
+
+        hset_loadfs_str(&nonempty, (char *[]){"/tmp/x", NULL} );
+        // hset_set(&nonempty, value64_createfs("/tmp/x"));
 
         test_validatefree(
             !hset_in(&nonempty, &empty), (hset_free(&empty), hset_free(&nonempty) ),
