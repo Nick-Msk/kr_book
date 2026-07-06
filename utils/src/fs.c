@@ -636,14 +636,13 @@ fs                                     *fs_create(void){
     }
     return new_fs;
 }
-
+// full clone (str + body in heap)
 fs                                     *fs_heapcreate(const fs *orig) {
     fs      *new_fs = fs_create();       // выделяет fs в куче, ставит FS_FLAG_BODYALLOC
     *new_fs = fs_clone(orig);       // копирует строку и поля
     new_fs->flags |= FS_FLAG_BODYALLOC; // гарантируем флаг перемещения
     return new_fs;
 }
-
 // clone as body local
 fs                                      fs_clone(const fs *s){
     fs tmp = FS();
