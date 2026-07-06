@@ -88,7 +88,7 @@ typedef int                         (*value64_Comparator)(value64, value64);
 // as void *, TODO: think if possible to be value *
 typedef int                         (*value64_PComparator)(const void *restrict, const void *restrict);
 
-extern value64                     value64_convert_str_to_fs(value64 v);
+extern value64                      value64_convert_str_to_fs(value64 v);
 
 // Init
 #define                             LITERAL64_ZERO      (value64) {.u64 = 0L }
@@ -97,9 +97,19 @@ extern value64                     value64_convert_str_to_fs(value64 v);
 #define                             LITERAL64_DBL(val)  (value64) {.u64 = 0L, .dval = val }
 #define                             LITERAL64_PTR(val)  (value64) {.u64 = 0L, .pval = val }
 // pointer copy!!!
-#define                             LITERAL64_STR(val)  (value64) {.u64 = 0L, .sval = (val) }
+// #define                             LITERAL64_STR(val)  (value64) {.u64 = 0L, .sval = (val) }
 // local version, just a copy!
-#define                             LITERAL64_FS(val)   (value64) {.u64 = 0L, .fsval = &(val) }
+// #define                             LITERAL64_FS(val)   (value64) {.u64 = 0L, .fsval = &(val) }
+
+// no checking here!!!
+static inline value64               value64_setzero(value64 *pv, value64_type typ){
+    switch (typ){
+        case VALUE64_DBL:
+            return *pv = LITERAL64_DBL(0.0);
+        default:
+            return *pv = LITERAL64_ZERO;
+    }
+}
 
 // ------------------------- CONSTRUCTOTS/DESTRUCTORS -------------------------------
 

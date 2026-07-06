@@ -4258,6 +4258,85 @@ tf_createfs_asstr(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST value64_setzero ---------------------------------
+static TestStatus
+tf_setzero(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: setzero INT", ++subnum);
+    {
+        value64 v = LITERAL64_INT(42);
+        value64_setzero(&v, VALUE64_INT);
+        test_validate(
+            v.ival == 0,
+            "INT should be 0 after setzero"
+        );
+    }
+
+    test_sub("subtest %d: setzero LNG", ++subnum);
+    {
+        value64 v = LITERAL64_LNG(123456789L);
+        value64_setzero(&v, VALUE64_LNG);
+        test_validate(
+            v.lval == 0L,
+            "LONG should be 0 after setzero"
+        );
+    }
+
+    test_sub("subtest %d: setzero DBL", ++subnum);
+    {
+        value64 v = LITERAL64_DBL(3.14159);
+        value64_setzero(&v, VALUE64_DBL);
+        test_validate(
+            v.dval == 0.0,
+            "DOUBLE should be 0.0 after setzero"
+        );
+    }
+
+    test_sub("subtest %d: setzero PTR", ++subnum);
+    {
+        int dummy = 10;
+        value64 v = LITERAL64_PTR(&dummy);
+        value64_setzero(&v, VALUE64_PTR);
+        test_validate(
+            v.pval == NULL,
+            "PTR should be NULL after setzero"
+        );
+    }
+
+    test_sub("subtest %d: setzero STR (ownership not transferred)", ++subnum);
+    {
+        value64 v = value64_createstr("hello");
+        char *str_ptr = v.sval;          // запоминаем, чтобы вручную освободить
+        value64_setzero(&v, VALUE64_STR);
+        test_validatefree(
+            v.sval == NULL,
+            free(str_ptr),
+            "STR sval should be NULL after setzero"
+        );
+        free(str_ptr);                   // очищаем старую строку
+    }
+    fs_alloc_check(true);  // STR не связан с FS, но на всякий случай
+
+    test_sub("subtest %d: setzero FS (ownership not transferred)", ++subnum);
+    {
+        value64 v = value64_createfs_asstr("/tmp/test");
+        fs *fs_ptr = v.fsval;            // сохраняем, чтобы освободить отдельно
+        value64_setzero(&v, VALUE64_FS);
+        test_validatefree(
+            v.fsval == NULL,
+            fs_free(fs_ptr),
+            "FS fsval should be NULL after setzero"
+        );
+        fs_free(fs_ptr);                 // освобождаем старый объект
+    }
+    fs_alloc_check(true);
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -4297,6 +4376,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_fsave_fload,      .num = 17, .name = "Simple value64_fsave/fload test"            , .desc="", .mandatory=true)
               , testnew(.f2 = tf_tostr,            .num = 18, .name = "Simple value64_tostr_<type> test"           , .desc="", .mandatory=true)
               , testnew(.f2 = tf_createfs_asstr,   .num = 19, .name = "Simple value64_createfs_asstr test"         , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_setzero,          .num = 20, .name = "Simple value64_setzero test"                , .desc="", .mandatory=true)
             );
         if (runall)
             break;
