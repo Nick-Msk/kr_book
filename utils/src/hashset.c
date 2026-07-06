@@ -8,15 +8,6 @@
 static int                              HSET_ARRAY_CREATE_MULTIPLIER = 2;
 static int                              HSET_MIN_SIZE                = 8;
 static double                           HSET_NORMALIZE_FACTOR        = 1.5;
-/*
-static const size_t                     hset_elem_sizes[] = {
-    [VALUE64_INT]  = sizeof(int),
-    [VALUE64_LNG] = sizeof(long),
-    [VALUE64_DBL]  = sizeof(double),
-    [VALUE64_PTR]  = sizeof(void*),
-    [VALUE64_FS]   = sizeof(fs *),
-    [
-};*/
 
 // ---------- pseudo-header for utility procedures -----------------
 
@@ -27,26 +18,6 @@ static int                 sortedlist_fprint(FILE *restrict out, const hset_elem
     int     cnt = 0;
     while (elem){
         cnt += value64_fprint(out, elem->v, typ);
-        /*switch (typ){
-            case VALUE64_INT:
-                cnt += fprintf(out, "%d", elem->v.ival);
-            break;
-            case VALUE64_LNG:
-                cnt += fprintf(out, "%ld", elem->v.lval);
-            break;
-            case VALUE64_DBL:
-                cnt += fprintf(out, "%lf", elem->v.dval);
-            break;
-            case VALUE64_PTR:
-                cnt += fprintf(out, "%p", elem->v.pval);
-            break;
-            case VALUE64_FS:
-                cnt += fs_fprint(out, elem->v.fsval, NULL);
-            break;
-            default:
-                logsimple("Unsuported %d - %s", typ, value64_typename(typ) );
-            break;
-        }*/
         cnt += fprintf(out, " -> ");
         elem = elem->next;
     }
@@ -59,171 +30,7 @@ static unsigned long       get_lhash(unsigned cnt, value64 value, value64_type t
     // probably it's better to calc hash by u64 attr (except fs for sure)
     unsigned long hash = value64_lhash(value, typ);
     return hash % cnt;
-    /*
-    hset_value      tmp = HSET_ZERO_VALUE;
-    switch (typ){
-        case VALUE64_INT:
-            tmp.u64 = (uint64_t) value.ival;
-        break;
-        case VALUE64_LNG:
-            tmp.u64 = (uint64_t) value.lval;
-        break;
-        case VALUE64_DBL:
-            //bits = (uint64_t) value.lval;   // OMG
-            tmp.u64 = value.u64;
-        break;
-        case VALUE64_PTR:
-            tmp.u64 = (uint64_t)(uintptr_t) value.pval;    // or just do nothing as for VALUE64_DBL
-        break;
-        case VALUE64_FS:
-            return hash_djb2(fs_str(value.fsval) ) % cnt;
-        break;
-        default:
-        break;
-    }
-    return tmp.u64 % cnt; */
 }
-/*
-static inline int           compare(hset_value v1, hset_value v2, value64_type typ){
-    switch (typ){
-        case VALUE64_INT:
-            return compare_int(v1.ival, v2.ival);
-        break;
-        case VALUE64_LNG:
-            return compare_long(v1.lval, v2.lval);
-        break;
-        case VALUE64_DBL:
-            return compare_dbl(v1.dval, v2.dval);
-        break;
-        case VALUE64_PTR:
-            return compare_ptr(v1.pval, v2.pval);
-        break;
-        case VALUE64_FS:
-            return fs_cmp(v1.fsval, v2.fsval);
-        break;
-        default:
-            userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
-            return 0;
-    }
-} 
-
-static value64_type            gettype(const char *str){
-    return value64_gettype(str);
-    if (strcmp(str, "VALUE64_INT") == 0)
-        return  VALUE64_INT;
-    else if (strcmp(str, "VALUE64_LNG") == 0)
-        return  VALUE64_LNG;
-    else if (strcmp(str, "VALUE64_DBL") == 0)
-        return  VALUE64_DBL;
-    else if (strcmp(str, "VALUE64_PTR") == 0)
-        return  VALUE64_PTR;
-    else if (strcmp(str, "VALUE64_FS") == 0)
-        return VALUE64_FS;
-    else
-        return HSET_UKNOWN; 
-}*/
-/*
-static hset_value           convert_value(hset_value v, value64_type from, value64_type to){
-    if (from == to && from != VALUE64_FS)  // криво конечно
-        return v;
-
-    hset_value result = HSET_ZERO_VALUE; // обнуляем u64
-
-    switch (from) {
-        case VALUE64_INT:
-            if (to == VALUE64_LNG)
-                result.lval = (long)v.ival;
-            else if (to == VALUE64_DBL)
-                result.dval = (double)v.ival;
-            else if (to == VALUE64_FS) {
-                fs tmp = FS();
-                fs_sprintf(&tmp, "%d", v.ival);
-                result.fsval = fs_moveto_heap(&tmp);
-            } else
-                userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, value64_typename(from), to, value64_typename(to) );
-        break;
-        case VALUE64_LNG:
-            if (to == VALUE64_INT)
-                result.ival = (int)v.lval;
-            else if (to == VALUE64_DBL)
-                result.dval = (double)v.lval;
-            else if (to == VALUE64_FS) {
-                    fs tmp = FS();
-                    fs_sprintf(&tmp, "%ld", v.lval);
-                    result.fsval = fs_moveto_heap(&tmp);
-            } else
-                userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, value64_typename(from), to, value64_typename(to) );
-            break;
-        case VALUE64_DBL:
-            if (to == VALUE64_INT)
-                result.ival = (int)v.dval;
-            else if (to == VALUE64_LNG)
-                result.lval = (long)v.dval;
-            else if (to == VALUE64_FS) {
-                    fs tmp = FS();
-                    fs_sprintf(&tmp, "%g", v.dval); // TODO: context must be here!
-                    result.fsval = fs_moveto_heap(&tmp);
-            } else
-                userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, value64_typename(from), to, value64_typename(to) );
-            break;
-        case VALUE64_FS:
-            if (to == VALUE64_INT)
-                result.ival = fs_getint(v.fsval);
-            else if (to == VALUE64_LNG)
-                result.lval = fs_getlong(v.fsval);
-            else if (to == VALUE64_DBL)
-                result.dval = fs_getdouble(v.fsval);
-            else if (to == VALUE64_FS)
-                result.fsval = fs_heapcreate(v.fsval); // body in heap too!!!
-            else
-                userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s", from, value64_typename(from), to, value64_typename(to) );
-            break;
-        default:
-            break; // неподдерживаемые типы — останется нулевое значение
-    }
-    return result;
-}
-
-static void                 printval(FILE *out, value64_type typ, value64 v){
-    if (out){
-        switch (typ) {
-            case VALUE64_INT:
-                fprintf(out, "%d\n", v.ival);
-            break;
-            case VALUE64_LNG:
-                fprintf(out, "%ld\n", v.lval);
-            break;
-            case VALUE64_DBL:
-                fprintf(out, "%.15g\n", v.dval);
-            break;
-            case VALUE64_PTR:
-                fprintf(out, "%p\n", v.pval);
-            break;
-            case VALUE64_FS:
-                fs_fprint(out, v.fsval, NULL); fprintf(out, "\n");  // TODO: ref is required
-            break;
-            default:
-                break;
-        }
-    }
-} 
-
-static bool                 readval(FILE *f, value64_type typ, value64 *v) {
-    switch (typ) {
-        case VALUE64_INT:
-            return fscanf(f, "%d", &v->ival) == 1;
-        case VALUE64_LNG:
-            return fscanf(f, "%ld", &v->lval) == 1;
-        case VALUE64_DBL:
-            return fscanf(f, "%lf", &v->dval) == 1;
-        case VALUE64_PTR:
-            return fscanf(f, "%p", &v->pval) == 1;
-        case VALUE64_FS:
-            v->fsval = fs_fscanf(f, NULL); // TODO: ref is required to make smth like return fs_fscanf(f, &v->fsval) == true;
-            return v->fsval != NULL;
-        default: return false;
-    }
-} */
 
 static inline value64_type     getype(const hset *se){
     return se->flags & 0xFF;
@@ -240,7 +47,6 @@ static hset_elem           *getprevelem(const hset *restrict se, value64 value,
         prevel = el;
         el = el->next;
     }
-    // logmsg("after: el %p", el);
     if (phash)
         *phash = hash;
     if (pnext)
@@ -274,6 +80,7 @@ static hset_elem           *create_elem(value64 val, value64_type typ){
 }
 
 static bool                 create_or_move_elem(hset * restrict se, hset_elem *restrict el, value64 val){
+    // temporary logging
     if (getype(se) == VALUE64_FS)
         logsimple("%p %p", val.fsval, val.fsval ? fs_str(val.fsval) : NULL);
     if (getype(se) == VALUE64_FS && (val.fsval == NULL || fs_str(val.fsval) == NULL) )
@@ -282,24 +89,13 @@ static bool                 create_or_move_elem(hset * restrict se, hset_elem *r
     bool         already_existed = false;
     unsigned     hash = 0;
     hset_elem   *equal = 0, *nextel = 0;
-    value64      value;
-    if (el)
-        value = el->v;
-    else {
-        // TODO: rework, shouldn't create and then free in (equal)
-        //if (getype(se) == VALUE64_FS && !fs_bodyalloc(val.fsval) ){
-          //  val.fsval = fs_heapcreate(val.fsval);    //  clone here!
-        //}
-        value = val;
-    }
+    value64      value = el ? el->v : val;
+
     hset_elem   *prevel = getprevelem(se, value, &hash, &nextel, &equal);
     if (equal) {
         already_existed = true;
-        // TODO: not sure about that sln
-        //if (getype(se) == VALUE64_FS){
-        //    logsimple("DUPLICATE FS, freeing %p [%s]", val.fsval, val.fsval ? val.fsval->v : "");
-        //    value64freefs(val);
-        //}
+        if (!el)
+            value64_free(&val, getype(se));  // освобождает память для FS/STR
     }
     else {
         hset_elem *newel;
@@ -373,7 +169,7 @@ static void                 free_elem(hset_elem *el, value64_type typ){
             fs_free(el->v.fsval);        // to free space, NO need to free(el->v.fsval)! That will do fs_free() because of FS_FLAG_MOVED
         break;
         default:
-            // nothing here
+            // nothing here VALUE64_STR isn't supported now
         break;
     }
     free(el);
@@ -438,31 +234,6 @@ static bool                 find_elems(const hset_elem *restrict el, const hset 
 
 // ---------------------------------- API Constructs/Destrucor  ----------------------------
 
-// value64 constructor ANY type, TODO: will be moved to value64
-/*value64                  hset_createval(const void *p, value64_type typ){
-    value64 tmp = LITERAL64_ZERO;  // init
-    switch (typ){
-        case VALUE64_INT:
-            tmp.ival = *(const int *) p;
-        break;
-        case VALUE64_LNG:
-            tmp.lval = *(const long *) p;
-        break;
-        case VALUE64_DBL:
-            tmp.dval = *(const double *) p;
-        break;
-        case VALUE64_PTR:
-            tmp.pval = *(void * const *) p;
-        break;
-        case VALUE64_FS:
-            tmp.fsval = *(fs * const *)p; //hset_create_fs(*(const fs * const *) p);         // FS_FLAG_MOVED is set!
-        break;
-        default:
-            userraiseint(ERR_UNSUPPORTED_TYPE, "type %d isn't suppoted", typ);
-        break;
-    }
-    return tmp;
-}*/
 // hset basic constructor
 hset                        hset_init(int sz, value64_type typ){
     logenter("init sz %d - %s", sz, value64_typename(typ) );
@@ -504,7 +275,7 @@ hset             hset_init_resize(hset *se, int newsz){
 }
 // normalization
 hset                        hset_normalize(hset *se){
-    invraise(se != 0, "Null pointer");
+    invraisecode(ERR_NULLABLE_PTR, se != 0, "Null pointer");
 
     double load_factor = (double)se->count / se->sz;
     // Изменяем размер только при выходе из желаемого диапазона
@@ -518,7 +289,7 @@ hset                        hset_normalize(hset *se){
 }
 // cloning
 hset                        hset_clone(const hset *se){
-    invraise(se != 0, "Null pointer");
+    invraisecode(ERR_NULLABLE_PTR, se != 0, "Null pointer");
 
     int     newsz = se->sz;
     hset    res = hset_init(newsz - 1, getype(se) );
@@ -545,8 +316,10 @@ hset                        hset_cloneas(const hset *se, value64_type typ){
     for (int i = 0; i < se->sz; i++){
         const hset_elem *el = se->table[i];     // probably better to create separate function
         while (el){
-            if (!hset_set(&res, value64_convert(el->v, getype(se), typ) ) )
+            if (!hset_set(&res, value64_convert(el->v, getype(se), typ) ) ) {
+                hset_free(&res);
                 userraiseint(ERR_UNABLE_ALLOCATE, "Unable to create element");
+            }
             el = el->next;
         }
     }
@@ -754,7 +527,7 @@ bool                        hset_del(hset *se, value64 val){
 }
 
 void                        hset_clean(hset *se){
-    invraise(se != 0, "Null pointer");
+    invraisecode(ERR_NULLABLE_PTR, se != 0, "Null pointer");
 
     for (int i = 0; i < se->sz; i++)
         if (se->table[i] ){
@@ -764,7 +537,7 @@ void                        hset_clean(hset *se){
 }
 // check the equality as SET!
 bool                        hset_eq(const hset *restrict se1, const hset *restrict se2){
-    invraise(se1 != 0 && se2 != 0, "Null pointers");
+    invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers %p %p", se1, se2);
 
     if (getype(se1) != getype(se2) )
         return userraise(false, ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1)), value64_typename(getype(se2) ) );
@@ -813,12 +586,7 @@ int                         hset_loadanyarr(hset *restrict se, void *arr, int sz
     while (cnt < sz){
         // created a simple element from arr
         value64 val = hset_createarrval(arr, cnt, typ);
-        if (!hset_set(se, val) )
-            if (typ == VALUE64_FS) {
-                // currently avoiding dupl only for fs
-                logsimple("DUPLICATE freeing %p [%s]", val.fsval, val.fsval ? val.fsval->v : "");
-                value64freefs(val);
-            }
+        hset_move(se, &val); // ok even return false (dublicate)
         cnt++;
     }
     return logsimpleret(cnt, "Loaded total %d", cnt);
@@ -831,8 +599,7 @@ int                         hset_loadfs_str(hset *restrict se, const char *strin
     while (*strings) {
         // convent c-str into fs * (heap allocated body)
         value64  val = value64_createfs_asstr(*strings);
-        if (!hset_set(se, val) )
-            value64_freefs(&val);   // TODO: that need's to be reworked to avoid useless alloc/free when dublicate
+        hset_move(se, &val);
         strings++;
         cnt++;
     }

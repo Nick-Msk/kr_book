@@ -32,66 +32,6 @@ enum    { HSET_UNIFIED_CNT  = 0x10,
           HSET_FS_LOAD_STR  = 0x102,       // for array loaded for const char *
           HSET_FS_LOAD_FS   = 0x103
 };
-/*
-typedef enum hset_type
-    { HSET_INT = 1, HSET_LONG, HSET_DBL, HSET_FS, HSET_PTR,
-      HSET_HEAP_ALLOC = 0x101,      // hset is allocated by malloc
-      HSET_UKNOWN = -1 }
-hset_type;
-
-static inline const char            *hset_type_name(hset_type t){
-    switch (t){
-        CASE_RETURN(HSET_INT);
-        CASE_RETURN(HSET_LONG);
-        CASE_RETURN(HSET_DBL);
-        CASE_RETURN(HSET_FS);
-        CASE_RETURN(HSET_PTR);
-        default: return "";
-    }
-}
-
-typedef union hset_value {
-        int                 ival;
-        long                lval;    // can be ANY type
-        double              dval;
-        fs                 *fsval;
-        void               *pval;
-        uint64_t            u64;    // for hash
-} hset_value;
-
-_Static_assert(sizeof(hset_value) == sizeof(uint64_t),
-               "hset_value must be exactly 8 bytes");
-
-static inline void          hsetval_fprint(FILE *restrict out, const char *restrict msg, hset_value val, hset_type typ){
-    if (out){
-        if (msg)
-            fprintf(out, "%s ", msg);
-        switch (typ){
-            case HSET_INT:
-                fprintf(out, "%d", val.ival);
-            break;
-            case HSET_LONG:
-                fprintf(out, "%ld", val.lval);
-            break;
-            case HSET_DBL:
-                fprintf(out, "%lf", val.dval);
-            break;
-            case HSET_PTR:
-                fprintf(out, "%p", val.pval);
-            break;
-            case HSET_FS:
-                fs_fprint(out, val.fsval, 0);
-            break;
-            default:
-            break;
-        }
-    }
-}
-
-static inline void          hsetval_log(hset_value val, hset_type typ){
-    hsetval_fprint(logfile, 0, val, typ);
-}
-*/
 typedef struct hset_elem {
     value64             v;
     struct hset_elem   *next;
@@ -107,21 +47,6 @@ typedef struct hset {
 // --------------------------------------- hset ----------------------------------------------
 #define                 HSET(size, typ) (hset) {.sz = (size), .flags = (typ), .table = 0 }
 #define                 HSET_NONINIT        HSET(0, VALUE64_UNKNOWN)
-
-/*
-// ---------------------------- hset_value: TODO: refactor to separate value.c (Value64 type)
-#define                 HSET_ZERO_VALUE     (hset_value) {.u64 = 0L }
-#define                 HSET_INTVALUE(val)  (hset_value) {.u64 = 0L, .ival = val }
-#define                 HSET_LONGVALUE(val) (hset_value) {.u64 = 0L, .lval = val }
-#define                 HSET_DBLVALUE(val)  (hset_value) {.u64 = 0L, .dval = val }
-#define                 HSET_PTRVALUE(val)  (hset_value) {.u64 = 0L, .pval = val }
-// local version
-#define                 HSET_FSVALUE(val)   (hset_value) {.fsval = &(val) }
-// pointer version
-#define                 HSET_FSPVALUE(pval) (hset_value) {.fsval = fs_heapcreate(pval) }
-//move version
-#define                 HSET_FSMOVE(val)    (hset_value) {.fsval = fs_moveto_heap(val) }
-*/
 
 // create value from pointer
 extern value64              hset_createval(const void *p, value64_type typ);
