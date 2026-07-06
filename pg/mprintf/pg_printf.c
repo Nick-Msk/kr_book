@@ -7,7 +7,6 @@
 
 PG_MODULE_MAGIC;
 
-/* Форматирует один аргумент, преобразуя строку arg_text в нужный тип по спецификатору */
 static void format_one_arg(const char *spec, const char *arg_text, char *out_buf, size_t out_size)
 {
     char spec_type = spec[strlen(spec) - 1];
@@ -47,13 +46,13 @@ PG_FUNCTION_INFO_V1(_printf_core);
 Datum
 _printf_core(PG_FUNCTION_ARGS)
 {
-    /* 0-й аргумент — форматная строка */
-    char *format_str = text_to_cstring(PG_GETARG_TEXT_PP(0));
-    int nargs = PG_NARGS();  // общее количество аргументов, включая формат
+    /* Аргумент 0 – форматная строка */
+    char *fmt = text_to_cstring(PG_GETARG_TEXT_PP(0));
+    int nargs = PG_NARGS();            /* общее число аргументов, включая формат */
     StringInfoData buf;
-    const char *p = format_str;
-    const char *literal_start = p;
-    int arg_idx = 1;  // начинаем с первого аргумента после формата
+    const char *p = fmt;
+    const char *lit = p;
+    int idx = 1;                       /* следующий аргумент после формата */
 
     initStringInfo(&buf);
 
@@ -61,19 +60,16 @@ _printf_core(PG_FUNCTION_ARGS)
     {
         if (*p == '%')
         {
-            /* Копируем предшествующий литерал */
-            appendBinaryStringInfo(&buf, literal_start, p - literal_start);
+            appendBinaryStringInfo(&buf, lit, p - lit);
 
-            /* Обрабатываем %% */
             if (*(p + 1) == '%')
             {
                 appendStringInfoChar(&buf, '%');
                 p += 2;
-                literal_start = p;
+                lit = p;
                 continue;
             }
 
-            /* Выделяем спецификатор */
             const char *spec_start = p;
             p++;
             while (*p && !strchr("diouxXeEfFgGaAcsCpmn", *p))
@@ -86,36 +82,30 @@ _printf_core(PG_FUNCTION_ARGS)
             memcpy(spec, spec_start, spec_len);
             spec[spec_len] = '\0';
 
-            /* Если есть аргумент, форматируем его */
-            if (arg_idx < nargs)
+            if (idx < nargs)
             {
-                /* Получаем тип аргумента */
-                Oid argtypid = get_fn_expr_argtype(fcinfo->flinfo, arg_idx);
-                Datum d = PG_GETARG_DATUM(arg_idx);
-                /* Преобразуем значение в строку (textout) */
+                Oid argtypid = get_fn_expr_argtype(fcinfo->flinfo, idx);
+                Datum d = PG_GETARG_DATUM(idx);
                 char *str = DatumGetCString(DirectFunctionCall1(textout, d));
-                char formatted[256];
-                format_one_arg(spec, str, formatted, sizeof(formatted));
-                appendStringInfoString(&buf, formatted);
+                char tmp[256];
+                format_one_arg(spec, str, tmp, sizeof(tmp));
+                appendStringInfoString(&buf, tmp);
                 pfree(str);
-                arg_idx++;
+                idx++;
             }
             else
             {
-                /* Недостаточно аргументов — вставляем спецификатор как есть */
                 appendStringInfoString(&buf, spec);
             }
 
-            literal_start = p;
+            lit = p;
         }
         else
-        {
             p++;
-        }
     }
 
-    /* Дописываем остаток строки */
-    appendBinaryStringInfo(&buf, literal_start, p - literal_start);
+    appendBinaryStringInfo(&buf, lit, p - lit);
 
     PG_RETURN_TEXT_P(cstring_to_text(buf.data));
 }
+
