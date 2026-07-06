@@ -711,10 +711,13 @@ bool                        hset_validate(FILE *out, const hset *restrict se){
 
 // ---------------------------------- General functions ------------------------------------
 
-bool                        hset_set(hset *se, value64 val){
-    invraisecode(ERR_NULLABLE_PTR, se != 0, "Null pointer");
+//  move and fill with ZERO 0
+bool                        hset_move(hset *restrict se, value64 *restrict pval){
+    invraisecode(ERR_NULLABLE_PTR, se != NULL && pval != NULL, "Null pointers %p %p", se, pval);
 
-    return create_or_move_elem(se, 0, val);
+    bool added = create_or_move_elem(se, NULL, *pval);
+    *pval = LITERAL64_ZERO;
+    return added;; 
 }
 // move el from one hset to target se
 bool                        hset_elem_move(hset * restrict se, hset_elem *restrict el){
@@ -728,13 +731,7 @@ bool                        hset_get(const hset *se, value64 val){
 
     hset_elem   *equal = 0;
     getprevelem(se, val, 0, 0, &equal);
-    if (equal){
-        //hsetval_log(val, getype(se) );
-        return true;
-    } else {
-        //hsetval_log(val, getype(se) );
-        return false;
-    }
+    return equal;
 }
 // try to delete elemenet, true if deleted, false if not found
 bool                        hset_del(hset *se, value64 val){
@@ -955,7 +952,7 @@ hset                       *hset_symmdiff(hset *restrict se1, const hset *restri
 
     // done via constructor
     hset tmp = hset_init_symmdiff(se1, se2);
-    hset_move(se1, &tmp);       // no need to free tmp!!!!
+    hset_moveall(se1, &tmp);       // no need to free tmp!!!!
     return logsimpleret(se1, "Done, new cnt = %d", se1->count);
 }
 // union= as SET
@@ -3583,6 +3580,140 @@ tf11(const char *name)
         hset_free(&se2);
         hset_free(&res);
     }
+    // fs
+    test_sub("subtest %d: empty minus empty", ++subnum);
+    {
+        hset a = hset_init_fs(10);
+        hset b = hset_init_fs(10);
+        hset res = hset_init_minus(&a, &b);
+
+        test_validatefree(
+            res.count == 0,
+            (hset_free(&a), hset_free(&b), hset_free(&res)),
+            "Empty minus empty should be empty"
+        );
+        hset_free(&a);
+        hset_free(&b);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: empty minus nonempty", ++subnum);
+    {
+        hset a = hset_init_fs(10);
+        hset b = HSET_CREATEFS_ASSTR("/tmp/x", "/tmp/y");
+        hset res = hset_init_minus(&a, &b);
+
+        test_validatefree(
+            res.count == 0,
+            (hset_free(&a), hset_free(&b), hset_free(&res)),
+            "Empty minus nonempty should be empty"
+        );
+        hset_free(&a);
+        hset_free(&b);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: nonempty minus empty", ++subnum);
+    {
+        hset a = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/b", "/tmp/c");
+        hset b = hset_init_fs(10);
+        hset res = hset_init_minus(&a, &b);
+
+        test_validatefree(
+            res.count == 3 &&
+            HSET_HAS_FS(&res, "/tmp/a") &&
+            HSET_HAS_FS(&res, "/tmp/b") &&
+            HSET_HAS_FS(&res, "/tmp/c"),
+            (hset_free(&a), hset_free(&b), hset_free(&res)),
+            "A minus empty should equal A"
+        );
+        hset_free(&a);
+        hset_free(&b);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: minus with common elements", ++subnum);
+    {
+        hset a = HSET_CREATEFS_ASSTR("/tmp/1", "/tmp/2", "/tmp/3", "/tmp/4");
+        hset b = HSET_CREATEFS_ASSTR("/tmp/3", "/tmp/4", "/tmp/5");
+        hset res = hset_init_minus(&a, &b);
+
+        test_validatefree(
+            res.count == 2 &&
+            HSET_HAS_FS(&res, "/tmp/1") &&
+            HSET_HAS_FS(&res, "/tmp/2") &&
+            !HSET_HAS_FS(&res, "/tmp/3") &&
+            !HSET_HAS_FS(&res, "/tmp/4") &&
+            !HSET_HAS_FS(&res, "/tmp/5"),
+            (hset_free(&a), hset_free(&b), hset_free(&res)),
+            "A \\ B should contain only /tmp/1 and /tmp/2"
+        );
+        hset_free(&a);
+        hset_free(&b);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: minus with no common elements", ++subnum);
+    {
+        hset a = HSET_CREATEFS_ASSTR("/tmp/1", "/tmp/2");
+        hset b = HSET_CREATEFS_ASSTR("/tmp/3", "/tmp/4");
+        hset res = hset_init_minus(&a, &b);
+
+        test_validatefree(
+            res.count == 2 &&
+            HSET_HAS_FS(&res, "/tmp/1") &&
+            HSET_HAS_FS(&res, "/tmp/2"),
+            (hset_free(&a), hset_free(&b), hset_free(&res)),
+            "A \\ B with no overlap should equal A"
+        );
+        hset_free(&a);
+        hset_free(&b);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: minus results in empty set", ++subnum);
+    {
+        hset a = HSET_CREATEFS_ASSTR("/tmp/x", "/tmp/y");
+        hset b = HSET_CREATEFS_ASSTR("/tmp/x", "/tmp/y");
+        hset res = hset_init_minus(&a, &b);
+
+        test_validatefree(
+            res.count == 0,
+            (hset_free(&a), hset_free(&b), hset_free(&res)),
+            "A \\ B when A == B should be empty"
+        );
+        hset_free(&a);
+        hset_free(&b);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: FS vs INT type mismatch raises SIGINT", ++subnum);
+    {
+        hset fs_set  = HSET_CREATEFS_ASSTR("/tmp/z");
+        hset int_set = hset_init_int(10);
+        hset_set(&int_set, LITERAL64_INT(42));
+
+        if (!try()) {
+            hset res = hset_init_minus(&fs_set, &int_set);   // должно вызвать ошибку
+            hset_free(&fs_set);
+            hset_free(&int_set);
+            hset_free(&res);
+            test_validate(false, 
+                "Type mismatch should have raised SIGINT"
+            );
+        } else {
+            hset_free(&fs_set);
+            hset_free(&int_set);
+            logmsg("Exception correctly raised on type mismatch");
+        }
+    }
+    fs_alloc_check(true);
     return logret(TEST_PASSED, "done");
 }
 

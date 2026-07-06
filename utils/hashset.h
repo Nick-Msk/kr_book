@@ -246,8 +246,15 @@ static inline void         *hsetelem_getptr(const hset_elem *el){
 }
 
 // ------------------------ Element access -----------------------------
+// move and fill with ZERO 0
+extern bool                 hset_move(hset *se, value64 *val);
 // true if new element is added, if exists - false
-extern bool                 hset_set(hset *se, value64 val);
+static inline bool          hset_set(hset *se, value64 val){
+    invraisecode(ERR_NULLABLE_PTR, se != 0, "Null pointer");
+
+    value64 copy = value64_clone(val, hset_getype(se));
+    return hset_move(se, &copy);
+}
 // try to delete elemenet, true if deleted, false if not found
 extern bool                 hset_del(hset *se, value64 val);
 
@@ -261,8 +268,8 @@ static inline bool          hset_isempty(const hset *se) {
 }
 
 extern void                 hset_clean(hset *se);
-// origin wll be cleaned
-static inline hset         *hset_move(hset *target, hset * origin){
+// origin wll be cleaned TODO: not checked
+static inline hset         *hset_moveall(hset *restrict target, hset *restrict origin){
     hset_free(target);
     *target = *origin;
     origin->table = 0;
