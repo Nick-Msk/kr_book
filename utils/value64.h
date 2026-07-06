@@ -97,9 +97,9 @@ extern value64                      value64_convert_str_to_fs(value64 v);
 #define                             LITERAL64_DBL(val)  (value64) {.u64 = 0L, .dval = val }
 #define                             LITERAL64_PTR(val)  (value64) {.u64 = 0L, .pval = val }
 // pointer copy!!!
-// #define                             LITERAL64_STR(val)  (value64) {.u64 = 0L, .sval = (val) }
+#define                             LITERAL64_STR(val)  (value64) {.u64 = 0L, .sval = (val) }
 // local version, just a copy!
-// #define                             LITERAL64_FS(val)   (value64) {.u64 = 0L, .fsval = &(val) }
+#define                             LITERAL64_FS(val)   (value64) {.u64 = 0L, .fsval = &(val) }
 
 // no checking here!!!
 static inline value64               value64_setzero(value64 *pv, value64_type typ){
