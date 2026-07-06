@@ -8,6 +8,7 @@ debug/
 *.dSYM
 *.o
 *.a
+*.so
 .*un~
 *.log
 *_test
