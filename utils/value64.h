@@ -155,11 +155,14 @@ static inline value64               value64_createstr(const char *sval){
     return tmp;
 }
 static inline value64               value64_createfs(const fs *fsval){
-    if (!fsval || !fsval->v)
+    if (!fsval)
         userraiseint(ERR_NULLABLE_PTR, "Null pointer fs %p or fs->v %p", fsval, fsval ? fsval->v: NULL);
+
     value64 tmp = LITERAL64_ZERO;
-    if ( (tmp.fsval = fs_heapcreate(fsval) ) == NULL)
-        userraiseint(ERR_UNABLE_ALLOCATE, "Unable to dup fs");
+    if (fsval->v){
+        if ( (tmp.fsval = fs_heapcreate(fsval) ) == NULL)
+            userraiseint(ERR_UNABLE_ALLOCATE, "Unable to dup fs");
+    }
     return tmp;
 }
 // create fs from c-str
