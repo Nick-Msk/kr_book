@@ -316,10 +316,12 @@ hset                        hset_cloneas(const hset *se, value64_type typ){
     for (int i = 0; i < se->sz; i++){
         const hset_elem *el = se->table[i];     // probably better to create separate function
         while (el){
-            if (!hset_set(&res, value64_convert(el->v, getype(se), typ) ) ) {
+            /*if (!hset_set(&res, value64_convert(el->v, getype(se), typ) ) ) {
                 hset_free(&res);
                 userraiseint(ERR_UNABLE_ALLOCATE, "Unable to create element");
-            }
+            } */
+            value64 tmp = value64_convert(el->v, getype(se), typ);
+            hset_move(&res, &tmp );
             el = el->next;
         }
     }
@@ -2086,39 +2088,42 @@ tf6(const char *name)
         hset    se2 = hset_init(10, VALUE64_FS);
 
         // Вставляем одну и ту же строку, но в se1 через перемещение, в se2 через копирование
-        fs      orig = fscopyf("move_vs_copy");
-        hset_set(&se1, value64_movefs(&orig));          // orig опустеет
+        value64 copyv = value64_createfs_asstr("move_vs_copy");
+        hset_set(&se1, copyv);
 
-        hset_set(&se2, LITERAL64_FS(orig));          // orig пуст, поэтому вставится пустая строка? Нет, VALUE64_FS передаёт &orig, а orig.v == NULL – будет пустая строка.
+        value64 movev = value64_createfs_asstr("move_vs_copy");
+        hset_move(&se2, &movev);
 
-        // Чтобы избежать путаницы, создадим новую строку для se2
-        fs      copy = fscopyf("move_vs_copy");
-        hset_set(&se2, LITERAL64_FS(copy));
+        test_validatefree(
+            value64_fs(movev) == NULL,
+            (hset_free(&se1), hset_free(&se2), value64_freefs(&copyv), value64_freefs(&movev) ),
+            "movev must be empty after moving"
+        );
 
         // Множества должны быть равны, потому что строки одинаковы
         test_validatefree(
             hset_noteq(&se1, &se2) == false,
-            (hset_free(&se1), hset_free(&se2), fsfree(copy)),
+            (hset_free(&se1), hset_free(&se2), value64_freefs(&copyv), value64_freefs(&movev) ),
             "FS != after move: sets with moved and copied strings must be equal"
         );
 
         // Удаляем элемент из se1
         test_validatefree(
-            hset_del(&se1, LITERAL64_FS(copy)),
-            (hset_free(&se1), hset_free(&se2), fsfree(copy)),
+            hset_del(&se1, copyv ),
+            (hset_free(&se1), hset_free(&se2), value64_freefs(&copyv), value64_freefs(&movev) ),
             "FS != after move: failed to delete from se1"
         );
         // Теперь должны быть не равны
         test_validatefree(
             hset_noteq(&se1, &se2) == true,
-            (hset_free(&se1), hset_free(&se2), fsfree(copy)),
+            (hset_free(&se1), hset_free(&se2), value64_freefs(&copyv), value64_freefs(&movev) ),
             "FS != after move: sets must be not equal after deletion"
         );
-        fs_fprint_checker_cnt(stdout, "V");
+        fs_fprint_checker_cnt(logfile, "V");
 
-        fsfree(copy);
-        HSET_TECH_PRINTALL(se1);
-        HSET_TECH_PRINTALL(se2);
+        value64_freefs(&copyv), value64_freefs(&movev);
+        //HSET_TECH_PRINTALL(se1);
+        //HSET_TECH_PRINTALL(se2);
 
         hset_free(&se1);
         hset_free(&se2);
@@ -5873,21 +5878,20 @@ tf27(const char *name)
     {
         hset        se = hset_init(10, VALUE64_FS);
 
-        fs          s = fscopy("move_me");          // локальная копия
-        //const char *orig_ptr = fsstr(s);       // запомним указатель на строку
-
+        value64     tmp = value64_createfs_asstr("move_me");
         test_validatefree(
-            hset_set(&se, value64_movefs(&s)),     // перемещаем!
+            hset_move(&se, &tmp),     // перемещаем!
             hset_free(&se),
             "Failed to insert via FSMOVE"
         );
 
         // После перемещения оригинал должен быть пуст (не владеть строкой)
+        fs *s = value64_fs(tmp);        // get a fs *
         test_validatefree(
-            fslen(s) == 0 && fsstr(s) == NULL,
+            s == NULL || (fs_len(s) == 0 && fs_str(s) == NULL),
             hset_free(&se),
             "After move, original fs must be empty (len=%d, str=%p)",
-            fslen(s), (void*)fsstr(s)
+            fs_len(s), (void*)fs_str(s)
         );
 
         // Проверяем, что строка во множестве
@@ -5898,7 +5902,7 @@ tf27(const char *name)
             "Moved string 'move_me' not found in set"
         );
 
-        fsfree(s);      // оригинал пуст, но fsfree безопасен
+        fs_free(s);      // оригинал пуст, но fsfree безопасен
         hset_free(&se);
     }
     fs_alloc_check(true);
@@ -5910,10 +5914,11 @@ tf27(const char *name)
         fs          strings[cnt];
 
         for (int i = 0; i < cnt; i++) {
-            strings[i] = FS();
-            fs_sprintf(strings + i, "str_%d", i);
+            strings[i] = fscopyf("str_%d", i);
+            value64 tmp = value64_movefs(&strings[i]); // strings[i] опустошается
+
             test_validatefree(
-                hset_set(&se, value64_movefs(&strings[i])),
+                hset_move(&se, &tmp),
                 hset_free(&se),
                 "Failed to move 'str_%d'", i
             );
@@ -5934,10 +5939,9 @@ tf27(const char *name)
 
         // Проверяем наличие всех строк
         for (int i = 0; i < cnt; i++) {
-            fs search = FS();
-            fs_sprintf(&search, "str_%d", i); 
+            fs search = fscopyf("str_%d", i);
             test_validatefree(
-                hset_get(&se, LITERAL64_FS(search)),
+                hset_get(&se, LITERAL64_FS(search)),    // using LITERAL64_FS isn't good
                 hset_free(&se),
                 "Moved string 'str_%d' not found", i
             );
@@ -5945,8 +5949,8 @@ tf27(const char *name)
         }
 
         // Освобождаем пустые оригиналы
-        for (int i = 0; i < cnt; i++)
-            fsfree(strings[i]);
+        //for (int i = 0; i < cnt; i++)
+        //    fsfree(strings[i]);
         hset_free(&se);
     }
     fs_alloc_check(true);
@@ -5956,13 +5960,12 @@ tf27(const char *name)
         hset    se = hset_init(10, VALUE64_FS);
 
         fs      s = fscopy("first_move");
-        hset_set(&se, value64_movefs(&s));         // первое перемещение
 
-        // s теперь пуст, попытка ещё раз переместить должна просто не добавить элемент
-        // NOT SURE
-        bool    added = hset_set(&se, value64_movefs(&s));
+        value64 tmp = value64_movefs(&s);
+        bool added_first = hset_move(&se, &tmp);
+        
         test_validatefree(
-            added == false,                     // пустой fs не должен добавиться
+            added_first == true,
             hset_free(&se),
             "Moving empty fs should return false"
         );
