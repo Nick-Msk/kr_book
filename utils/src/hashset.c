@@ -2488,6 +2488,84 @@ tf19(const char *name)
         );
         hset_free(&se);
     }
+    // fs
+    test_sub("subtest %d: normalize empty FS set", ++subnum);
+    {
+        hset se = hset_init_fs(100);
+        hset_normalize(&se);   // уменьшит до минимального размера
+        test_validatefree(
+            se.count == 0 && hset_validate(stdout, &se),
+            hset_free(&se),
+            "Normalized empty set should be valid"
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: normalize non-empty FS set", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/b", "/tmp/c");
+        int old_count = se.count;
+        int old_sz = se.sz;
+        hset_normalize(&se);
+        // После нормализации размер должен быть меньше или равен исходному, но не менее чем нужно для хранения элементов
+        test_validatefree(
+            se.count == old_count &&
+            se.sz <= old_sz &&
+            hset_validate(stdout, &se) &&
+            HSET_HAS_FS(&se, "/tmp/a") &&
+            HSET_HAS_FS(&se, "/tmp/b") &&
+            HSET_HAS_FS(&se, "/tmp/c"),
+            hset_free(&se),
+            "Normalized set must retain all elements and have optimized size"
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: double normalize", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/x", "/tmp/y");
+        hset_normalize(&se);
+        hset_normalize(&se);   // повторная нормализация не должна ломать
+        test_validatefree(
+            hset_validate(stdout, &se) &&
+            HSET_HAS_FS(&se, "/tmp/x") &&
+            HSET_HAS_FS(&se, "/tmp/y"),
+            hset_free(&se),
+            "Double normalize should be safe"
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: normalize after many insertions", ++subnum);
+    {
+        hset se = hset_init_fs(5);
+        // Добавляем много элементов, чтобы вызвать автоматическое расширение
+        for (int i = 0; i < 50; i++) {
+            char buf[64];
+            snprintf(buf, sizeof(buf), "/tmp/item%d", i);
+            value64 v = value64_createfs_asstr(buf);
+            hset_move(&se, &v);
+        }
+        int count = se.count;
+        hset_normalize(&se);
+        test_validatefree(
+            se.count == count && hset_validate(stdout, &se),
+            hset_free(&se),
+            "Normalize after bulk insert must preserve all elements"
+        );
+        // Проверим выборочно несколько элементов
+        test_validatefree(
+            HSET_HAS_FS(&se, "/tmp/item0") &&
+            HSET_HAS_FS(&se, "/tmp/item49"),
+            hset_free(&se),
+            "Elements must be found after normalize"
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
 
     return logret(TEST_PASSED, "done");
 }
