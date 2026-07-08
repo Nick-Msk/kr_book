@@ -77,10 +77,7 @@ static hset_elem           *create_elem(value64 val, value64_type typ){
 }
 
 static bool                 create_or_move_elem(hset * restrict se, hset_elem *restrict el, value64 val){
-    // temporary logging
-    if (hset_getype(se) == VALUE64_FS)
-        logsimple("%p %p", val.fsval, val.fsval ? fs_str(val.fsval) : NULL);
-    if (hset_getype(se) == VALUE64_FS && (val.fsval == NULL || fs_str(val.fsval) == NULL) )
+    if (el == NULL && hset_getype(se) == VALUE64_FS && (val.fsval == NULL || fs_str(val.fsval) == NULL) )
         return logsimpleret(false, "Unable to add Null FS value");
 
     bool         already_existed = false;
@@ -2281,6 +2278,88 @@ tf16(const char *name)
         );
         hset_free(&se);
     }
+    // fs
+    test_sub("subtest %d: resize empty FS set", ++subnum);
+    {
+        hset se = hset_init_fs(10);
+        hset_init_resize(&se, 20);
+        test_validatefree(
+            se.count == 0 && se.sz >= 20 && hset_validate(stdout, &se),
+            hset_free(&se),
+            "Empty FS set after resize should be valid and larger"
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: enlarge non-empty FS set", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/b", "/tmp/c");
+        int old_count = se.count;
+        hset_init_resize(&se, 50);
+        test_validatefree(
+            se.count == old_count &&
+            hset_validate(stdout, &se) &&
+            HSET_HAS_FS(&se, "/tmp/a") &&
+            HSET_HAS_FS(&se, "/tmp/b") &&
+            HSET_HAS_FS(&se, "/tmp/c"),
+            hset_free(&se),
+            "All elements must be present after enlarge"
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: shrink non-empty FS set", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/x", "/tmp/y");
+        int old_count = se.count;
+        hset_init_resize(&se, 3);   // новый размер меньше текущего количества элементов
+        test_validatefree(
+            se.count == old_count &&
+            hset_validate(stdout, &se) &&
+            HSET_HAS_FS(&se, "/tmp/x") &&
+            HSET_HAS_FS(&se, "/tmp/y"),
+            hset_free(&se),
+            "Elements must survive shrinking"
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: multiple resizes", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/1", "/tmp/2", "/tmp/3", "/tmp/4");
+        int cnt = se.count;
+        hset_init_resize(&se, 7);
+        hset_init_resize(&se, 20);
+        hset_init_resize(&se, 5);
+        test_validatefree(
+            se.count == cnt &&
+            HSET_HAS_FS(&se, "/tmp/1") &&
+            HSET_HAS_FS(&se, "/tmp/2") &&
+            HSET_HAS_FS(&se, "/tmp/3") &&
+            HSET_HAS_FS(&se, "/tmp/4"),
+            hset_free(&se),
+            "All elements must survive multiple resizes"
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: resize to very small size", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/z");
+        // resize до 0 или 1: реализация должна установить минимально допустимый размер
+        hset_init_resize(&se, 0);
+        test_validatefree(
+            hset_validate(stdout, &se) && HSET_HAS_FS(&se, "/tmp/z"),
+            hset_free(&se),
+            "Resize to zero should not destroy element"
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
 
     return logret(TEST_PASSED, "done");
 }
