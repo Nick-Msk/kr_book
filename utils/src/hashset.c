@@ -32,17 +32,14 @@ static unsigned long       get_lhash(unsigned cnt, value64 value, value64_type t
     return hash % cnt;
 }
 
-static inline value64_type     getype(const hset *se){
-    return se->flags & 0xFF;
-}
 // seach the value in hset!
 static hset_elem           *getprevelem(const hset *restrict se, value64 value,
         unsigned *restrict phash, hset_elem **restrict pnext, hset_elem **restrict pequal){
 
-    unsigned hash = get_lhash(se->sz, value, getype(se) );
+    unsigned hash = get_lhash(se->sz, value, hset_getype(se) );
     hset_elem *el = se->table[hash],
               *prevel = 0;
-    while (el != 0 && value64_compare(value, el->v, getype(se) ) < 0){
+    while (el != 0 && value64_compare(value, el->v, hset_getype(se) ) < 0){
         //logmsg("el %p, prevel %p", el, prevel);
         prevel = el;
         el = el->next;
@@ -52,7 +49,7 @@ static hset_elem           *getprevelem(const hset *restrict se, value64 value,
     if (pnext)
         *pnext = el;
     if (pequal){
-        if (el && value64_compare(el->v, value, getype(se) ) == 0) //  found EXACLTY!
+        if (el && value64_compare(el->v, value, hset_getype(se) ) == 0) //  found EXACLTY!
             *pequal = el;
         else
             *pequal = 0;        // NOT found exactly!
@@ -81,9 +78,9 @@ static hset_elem           *create_elem(value64 val, value64_type typ){
 
 static bool                 create_or_move_elem(hset * restrict se, hset_elem *restrict el, value64 val){
     // temporary logging
-    if (getype(se) == VALUE64_FS)
+    if (hset_getype(se) == VALUE64_FS)
         logsimple("%p %p", val.fsval, val.fsval ? fs_str(val.fsval) : NULL);
-    if (getype(se) == VALUE64_FS && (val.fsval == NULL || fs_str(val.fsval) == NULL) )
+    if (hset_getype(se) == VALUE64_FS && (val.fsval == NULL || fs_str(val.fsval) == NULL) )
         return logsimpleret(false, "Unable to add Null FS value");
 
     bool         already_existed = false;
@@ -95,14 +92,14 @@ static bool                 create_or_move_elem(hset * restrict se, hset_elem *r
     if (equal) {
         already_existed = true;
         if (!el)
-            value64_free(&val, getype(se));  // освобождает память для FS/STR
+            value64_free(&val, hset_getype(se));  // освобождает память для FS/STR
     }
     else {
         hset_elem *newel;
         if (el)     // move
             newel = el;
         else {          // create a new one
-            newel = create_elem(val, getype(se) );
+            newel = create_elem(val, hset_getype(se) );
             if (!newel)
                 userraiseint(ERR_UNABLE_ALLOCATE, "Can't create new element");
         }
@@ -257,7 +254,7 @@ hset             hset_init_resize(hset *se, int newsz){
 
     if (next_prime(newsz) == (unsigned) se->sz)
         return logsimpleret(*se, "No change");
-    hset    res = hset_init(newsz, getype(se) );
+    hset    res = hset_init(newsz, hset_getype(se) );
     // hset_foreach(se)
     for (int i = 0; i < se->sz; i++){
         hset_elem *el = se->table[i];
@@ -292,13 +289,13 @@ hset                        hset_clone(const hset *se){
     invraisecode(ERR_NULLABLE_PTR, se != 0, "Null pointer");
 
     int     newsz = se->sz;
-    hset    res = hset_init(newsz - 1, getype(se) );
+    hset    res = hset_init(newsz - 1, hset_getype(se) );
 
     if ( (res.table = malloc(newsz * sizeof(hset_elem *) ) ) == 0)    // raise here - nothing to do
         userraiseint(ERR_UNABLE_ALLOCATE, "Unable to alloc newsz %u elems", newsz);
 
     for (int i = 0; i < res.sz; i++){
-        res.table[i] = clone_elemlist(se->table[i], getype(se) );
+        res.table[i] = clone_elemlist(se->table[i], hset_getype(se) );
     }
     res.count = se->count;
 
@@ -308,19 +305,20 @@ hset                        hset_clone(const hset *se){
 hset                        hset_cloneas(const hset *se, value64_type typ){
     invraise(se != 0, "Null pointer");
 
-    if (int_notin(typ, VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_FS) && int_notin(getype(se), VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_FS))
+    if (int_notin(typ, VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_FS) 
+            && int_notin(hset_getype(se), VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_FS))
         userraiseint(ERR_UNSUPPORTED_TYPE, "From %d:%s - to %d:%s",
-            getype(se), value64_typename(getype(se) ), typ, value64_typename(typ) );
+            hset_getype(se), value64_typename(hset_getype(se) ), typ, value64_typename(typ) );
 
     hset    res = hset_init(se->sz - 1, typ);
     for (int i = 0; i < se->sz; i++){
         const hset_elem *el = se->table[i];     // probably better to create separate function
         while (el){
-            /*if (!hset_set(&res, value64_convert(el->v, getype(se), typ) ) ) {
+            /*if (!hset_set(&res, value64_convert(el->v, hset_getype(se), typ) ) ) {
                 hset_free(&res);
                 userraiseint(ERR_UNABLE_ALLOCATE, "Unable to create element");
             } */
-            value64 tmp = value64_convert(el->v, getype(se), typ);
+            value64 tmp = value64_convert(el->v, hset_getype(se), typ);
             hset_move(&res, &tmp );
             el = el->next;
         }
@@ -357,8 +355,8 @@ void                        hset_free(hset *se){
 hset             hset_init_minus(const hset *restrict se1, const hset *restrict se2){
     invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers %p %p", se1, se2);
 
-    if (getype(se1) != getype(se2) )
-         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1)), value64_typename(getype(se2) ) );
+    if (hset_getype(se1) != hset_getype(se2) )
+         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(hset_getype(se1)), value64_typename(hset_getype(se2) ) );
 
     // simple implementation
     hset res = hset_init(se1->sz - 1, se1->flags);
@@ -376,8 +374,8 @@ hset             hset_init_minus(const hset *restrict se1, const hset *restrict 
 hset                        hset_init_intersect(const hset *restrict se1, const hset *restrict se2){
     invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers %p %p", se1, se2);
 
-    if (getype(se1) != getype(se2) )
-          userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1)), value64_typename(getype(se2) ) );
+    if (hset_getype(se1) != hset_getype(se2) )
+          userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(hset_getype(se1)), value64_typename(hset_getype(se2) ) );
 
     // simple implementation
     hset res = hset_init(se1->sz - 1, se1->flags);
@@ -395,8 +393,8 @@ hset                        hset_init_intersect(const hset *restrict se1, const 
 // simm diff with construct
 hset                        hset_init_symmdiff(const hset *restrict se1, const hset *restrict se2){
     invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers %p %p", se1, se2);
-    if (getype(se1) != getype(se2) )
-         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1)), value64_typename(getype(se2) ) );
+    if (hset_getype(se1) != hset_getype(se2) )
+         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(hset_getype(se1)), value64_typename(hset_getype(se2) ) );
     hset res = hset_init(MAX(se1->sz, se2->sz) - 1, se1->flags);
 
     for (int i = 0; i < se1->sz; i++){
@@ -421,8 +419,8 @@ hset                        hset_init_symmdiff(const hset *restrict se1, const h
 // union with construct
 hset                        hset_init_union(const hset *restrict se1, const hset *restrict se2){
     invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers");
-    if (getype(se1) != getype(se2) )
-         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1)), value64_typename(getype(se2) ) );
+    if (hset_getype(se1) != hset_getype(se2) )
+         userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(hset_getype(se1)), value64_typename(hset_getype(se2) ) );
     hset res = hset_init(MAX(se1->sz, se2->sz) - 1, se1->flags);
 
     for (int i = 0; i < se1->sz; i++){
@@ -462,10 +460,10 @@ bool                        hset_validate(FILE *out, const hset *restrict se){
             fprintf(out, "Cnt %d not matched to calculated cnt %d", se->count, cnt);
         return logerr(false, "Cnt %d not matched to calculated cnt %d", se->count, cnt);
     }
-    if (int_notin(getype(se), VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_FS, VALUE64_PTR) ){
+    if (int_notin(hset_getype(se), VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_FS, VALUE64_PTR) ){
         if (out)
-            fprintf(out, "Incorrect type %d", getype(se) );
-        return logerr(false, "Incorrect type %d", getype(se) );
+            fprintf(out, "Incorrect type %d", hset_getype(se) );
+        return logerr(false, "Incorrect type %d", hset_getype(se) );
     }
     if (!se->table){
         if (out)
@@ -475,7 +473,7 @@ bool                        hset_validate(FILE *out, const hset *restrict se){
     // cross validation value <=> hashkey
     for (int i = 0; i < se->sz; i++)
         if (se->table[i] )
-            if (!validate_elemlist(se->table[i], getype(se), i, se->sz) ){
+            if (!validate_elemlist(se->table[i], hset_getype(se), i, se->sz) ){
                 if (out)
                     fprintf(out, "Hash Validation failed on %d", i);
                 return logerr(false, "Hash Validation failed on %d", i);
@@ -522,9 +520,9 @@ bool                        hset_del(hset *se, value64 val){
          se->table[hash] = el->next;
     else
         prevel->next = el->next;
-    free_elem(el, getype(se) );
+    free_elem(el, hset_getype(se) );
     se->count--;
-    //hsetval_log(val, getype(se) );
+    //hsetval_log(val, hset_getype(se) );
     return logsimpleret(true, "Deleted");
 }
 
@@ -533,7 +531,7 @@ void                        hset_clean(hset *se){
 
     for (int i = 0; i < se->sz; i++)
         if (se->table[i] ){
-            se->count -= free_elemlist(se->table[i], getype(se) );
+            se->count -= free_elemlist(se->table[i], hset_getype(se) );
             se->table[i] = 0;   // clean that chain
         }
 }
@@ -541,8 +539,8 @@ void                        hset_clean(hset *se){
 bool                        hset_eq(const hset *restrict se1, const hset *restrict se2){
     invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers %p %p", se1, se2);
 
-    if (getype(se1) != getype(se2) )
-        return userraise(false, ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1)), value64_typename(getype(se2) ) );
+    if (hset_getype(se1) != hset_getype(se2) )
+        return userraise(false, ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(hset_getype(se1)), value64_typename(hset_getype(se2) ) );
 
     int     cnt1 = hset_cnt(se1);
     int     cnt2 = hset_cnt(se2);
@@ -563,8 +561,8 @@ bool                        hset_eq(const hset *restrict se1, const hset *restri
 bool                        hset_noteq(const hset *restrict se1, const hset *restrict se2){
     invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers %p %p", se1, se2);
 
-    if (getype(se1) != getype(se2) )
-        return userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1)), value64_typename(getype(se2)));
+    if (hset_getype(se1) != hset_getype(se2) )
+        return userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(hset_getype(se1)), value64_typename(hset_getype(se2)));
 
     int     cnt1 = hset_cnt(se1);
     int     cnt2 = hset_cnt(se2);
@@ -625,8 +623,8 @@ int                         hset_loadfs_literal(hset *restrict se, const char *l
 bool                        hset_subset_check(const hset *restrict se1, const hset *restrict se2, bool strict){
     invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers %p %p", se1, se2);
 
-    if (getype(se1) != getype(se2) )
-        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1) ), value64_typename(getype(se2) ) );
+    if (hset_getype(se1) != hset_getype(se2) )
+        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(hset_getype(se1) ), value64_typename(hset_getype(se2) ) );
 
     if ( (!strict && hset_cnt(se1) > hset_cnt(se2) ) ||
         (strict && hset_cnt(se1) >= hset_cnt(se2) ) )
@@ -646,11 +644,11 @@ bool                        hset_subset_check(const hset *restrict se1, const hs
 bool                        hset_notexists(const hset *restrict se1, const hset *restrict se2){
     invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers %p %p", se1, se2);
     // refsctor tha to common
-    if (getype(se1) != getype(se2) )
-        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1) ), value64_typename(getype(se2) ) );
+    if (hset_getype(se1) != hset_getype(se2) )
+        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(hset_getype(se1) ), value64_typename(hset_getype(se2) ) );
     HSET_FOREACH(se2, val){
         if (hset_get(se1, val) ){
-            value64_fprint(logfile, val, getype(se2));
+            value64_fprint(logfile, val, hset_getype(se2));
             return logsimpleret(false, "Found element in se1");
         }
     }
@@ -660,11 +658,11 @@ bool                        hset_notexists(const hset *restrict se1, const hset 
 bool                        hset_any(const hset *restrict se1, const hset *restrict se2){
     invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers %p %p", se1, se2);
     // refsctor tha to common
-    if (getype(se1) != getype(se2) )
-        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1) ), value64_typename(getype(se2) ) );
+    if (hset_getype(se1) != hset_getype(se2) )
+        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(hset_getype(se1) ), value64_typename(hset_getype(se2) ) );
     HSET_FOREACH(se2, val){
         if (hset_get(se1, val) ){
-            value64_fprint(logfile, val, getype(se2));
+            value64_fprint(logfile, val, hset_getype(se2));
             return logsimpleret(true, "Element of se2 Found in se1");
         }
     }
@@ -674,8 +672,8 @@ bool                        hset_any(const hset *restrict se1, const hset *restr
 hset                       *hset_minus(hset *restrict se1, const hset *restrict se2){
     invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers %p %p", se1, se2);
     // TODO: rework checkers!!! at least move that into check_it()
-    if (getype(se1) != getype(se2) )
-        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1) ), value64_typename(getype(se2) ) );
+    if (hset_getype(se1) != hset_getype(se2) )
+        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(hset_getype(se1) ), value64_typename(hset_getype(se2) ) );
 
     int     cnt = 0;
     if ( !(hset_cnt(se1) == 0 || hset_cnt(se2) == 0) ){
@@ -695,8 +693,8 @@ hset                       *hset_minus(hset *restrict se1, const hset *restrict 
 hset                       *hset_intersect(hset *restrict se1, const hset *restrict se2){
     invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers %p %p", se1, se2);
     // TODO: rework checkers!!! at least move that into check_it()
-    if (getype(se1) != getype(se2) )
-        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1) ), value64_typename(getype(se2) ) );
+    if (hset_getype(se1) != hset_getype(se2) )
+        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(hset_getype(se1) ), value64_typename(hset_getype(se2) ) );
 
     // foreach elements in se2 try to delete it from se1
     int     delcnt = 0;
@@ -716,8 +714,8 @@ hset                       *hset_intersect(hset *restrict se1, const hset *restr
 hset                       *hset_symmdiff(hset *restrict se1, const hset *restrict se2){
     invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers %p %p", se1, se2);
     // TODO: rework checkers!!! at least move that into check_it()
-    if (getype(se1) != getype(se2) )
-        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1) ), value64_typename(getype(se2) ) );
+    if (hset_getype(se1) != hset_getype(se2) )
+        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(hset_getype(se1) ), value64_typename(hset_getype(se2) ) );
 
     // done via constructor
     hset tmp = hset_init_symmdiff(se1, se2);
@@ -728,8 +726,8 @@ hset                       *hset_symmdiff(hset *restrict se1, const hset *restri
 hset            *hset_union(hset *restrict se1, const hset *restrict se2){ 
     invraisecode(ERR_NULLABLE_PTR, se1 != 0 && se2 != 0, "Null pointers %p %p", se1, se2);
     // TODO: rework checkers!!! at least move that into check_it()
-    if (getype(se1) != getype(se2) )
-        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(getype(se1) ), value64_typename(getype(se2) ) );
+    if (hset_getype(se1) != hset_getype(se2) )
+        userraiseint(ERR_TYPES_MISMATCH, "Incorrect type %s vs %s", value64_typename(hset_getype(se1) ), value64_typename(hset_getype(se2) ) );
 
     int         addcnt = 0;
     if (se2->count > 0){
@@ -753,11 +751,11 @@ int                         hset_techfprint(FILE *restrict out, const hset *se, 
     if (out){
         sz = sz ? MIN(sz, se->sz) : se->sz;
         logauto(sz);
-        cnt += fprintf(out, "HSET %s(sz %d, flags %d, typez %s)[\n", name ? name : "", se->sz, se->flags, value64_typename(getype(se) ) );
+        cnt += fprintf(out, "HSET %s(sz %d, flags %d, typez %s)[\n", name ? name : "", se->sz, se->flags, value64_typename(hset_getype(se) ) );
         for (int i = 0; i < sz; i++)
             if (se->table[i]){
                 cnt += fprintf(out, "%4d: ", i);
-                cnt += sortedlist_fprint(out, se->table[i], getype(se) );
+                cnt += sortedlist_fprint(out, se->table[i], hset_getype(se) );
                 cnt += fprintf(out, "\n");
             }
         cnt += fprintf(out, "]\n");
@@ -771,7 +769,7 @@ int                         hset_fsave(FILE  *restrict out, const hset *se) {
     invraisecode(se != NULL, ERR_NULLABLE_PTR,
                 "Null pointer");
 
-    value64_type   typ = getype(se);
+    value64_type   typ = hset_getype(se);
 
     invraisecode ( int_in(typ, VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_PTR),
                 ERR_UNSUPPORTED_TYPE,
@@ -814,9 +812,9 @@ int                         hset_fload(FILE *restrict in, hset *restrict se) {
     value64_type   file_type = value64_gettype(buf);
     logauto(file_type);
 
-    if (!hset_isnoninit(se) && file_type != getype(se))
+    if (!hset_isnoninit(se) && file_type != hset_getype(se))
         return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Type mismatch: set %s, file %s",
-                      value64_typename(getype(se)), buf);
+                      value64_typename(hset_getype(se)), buf);
 
     if (hset_isnoninit(se) ){
         res = hset_init(cnt, file_type);
