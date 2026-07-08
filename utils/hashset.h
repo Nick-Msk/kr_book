@@ -110,7 +110,7 @@ static inline hset          hset_from_longarr(const long *larr, int sz){
 static inline hset          hset_from_dblarr(const double *darr, int sz){
     return hset_from_anyarr(darr, sz, VALUE64_DBL);
 }
-extern hset                 hset_from_ptrarr(const void **parr, int sz){
+static inline hset          hset_from_ptrarr(const void **parr, int sz){
     return hset_from_anyarr(parr, sz, VALUE64_PTR);
 }
 
