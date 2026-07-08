@@ -113,15 +113,6 @@ static inline hset          hset_from_dblarr(const double *darr, int sz){
 extern hset                 hset_from_ptrarr(const void **parr, int sz){
     return hset_from_anyarr(parr, sz, VALUE64_PTR);
 }
-// generic code
-// just intersect with construct
-extern hset                 hset_init_intersect(const hset *restrict se1, const hset *restrict se2);
-// minus with construct with construct
-extern hset                 hset_init_minus(const hset *restrict se1, const hset *restrict se2);
-// simm diff with construct
-extern hset                 hset_init_symmdiff(const hset *restrict a, const hset *restrict b);
-// union with construct
-extern hset                 hset_init_union(const hset *restrict a, const hset *restrict b);
 
 // Simplified macroses
 #define HSET_CREATE_INT(...)\
@@ -203,9 +194,6 @@ static inline hset         *hset_moveall(hset *restrict target, hset *restrict o
 
 extern bool                 hset_elem_move(hset *restrict se, hset_elem *restrict elem);
 
-extern bool                 hset_eq(const hset *restrict se1, const hset *restrict se2);
-
-extern bool                 hset_noteq(const hset *restrict se1, const hset *restrict se2);
 // load values from array, any type
 extern int                  hset_loadanyarr(hset *restrict se, void *arr, int sz, value64_type typ);
 
@@ -231,30 +219,33 @@ extern int                  hset_loadfs_str(hset *restrict se, const char *strin
 #define                     HSET_LOADFS_STR(se,...) hset_loadfs_str(&(se), (const char *[]) {__VA_ARGS__, NULL} )
 
 // only static literals! NOT implemented yet
-extern int                  hset_loadfs_literal(hset *restrict se, const char *lits[]);
+//extern int                  hset_loadfs_literal(hset *restrict se, const char *lits[]);
 
-// check if all of se2 in se1 strictly or not
-extern bool                 hset_subset_check(const hset *restrict se1, const hset *restrict se2, bool strict);
-// check if all of se2 in se1
-static inline bool          hset_in(const hset *restrict se1, const hset *restrict se2){
-    return hset_subset_check(se1, se2, false);
-}
-// check if all of se2 in se1  but se2 not equal se1
-static inline bool          hset_strictin(const hset *restrict se1, const hset *restrict se2){
-    return hset_subset_check(se1, se2, true);
-}
-// if not exists
-extern bool                 hset_notexists(const hset *restrict se1, const hset *restrict se2);
-// if exists any of se2 in se1
-extern bool                 hset_any(const hset *restrict se1, const hset *restrict se2);
-// se1 -= se2 as SET
-extern hset                *hset_minus(hset *restrict se1, const hset *restrict se2);
-// se1 insersect= se2 as SET
-extern hset                *hset_intersect(hset *restrict se1, const hset *restrict se2);
-// se1 symmdiff= se2 as SET
-extern hset                *hset_symmdiff(hset *restrict a, const hset *restrict b);
-// union= as SET
-extern hset                *hset_union(hset *restrict a, const hset *restrict b);
+// ----------------------------------------- iterators --------------------------------------
+
+
+// Общий внутренний макрос – проходит по всем элементам и на каждой итерации
+// объявляет var заданного типа и присваивает ей значение из поля field.
+#define _HSET_FOREACH_TYPE(se, var, type, field) \
+    for (int _i_ = 0; _i_ < (se)->sz; _i_++) \
+        for (const hset_elem *_el_ = (se)->table[_i_]; _el_; _el_ = _el_->next) \
+            for (int _flag_ = 1; _flag_; _flag_ = 0) \
+                for (type var = _el_->v.field; _flag_; _flag_ = 0)
+
+            //_Pragma("GCC diagnostic push") \
+            //_Pragma("GCC diagnostic ignored \"-Wfor-loop-analysis\"") \
+           // _Pragma("GCC diagnostic pop")
+// Публичные макросы
+#define                     HSET_FOREACH_INT(se, var)  _HSET_FOREACH_TYPE(se, var, int, ival)
+#define                     HSET_FOREACH_LONG(se, var)  _HSET_FOREACH_TYPE(se, var, long, lval)
+#define                     HSET_FOREACH_DBL(se, var)  _HSET_FOREACH_TYPE(se, var, double, dval)
+#define                     HSET_FOREACH_PTR(se, var)  _HSET_FOREACH_TYPE(se, var, void*, pval)
+// any type
+#define                     HSET_FOREACH(se, var) \
+        for (int _i_ = 0; _i_ < (se)->sz; _i_++) \
+            for (const hset_elem *_el_ = (se)->table[_i_]; _el_; _el_ = _el_->next) \
+                for (int _flag_ = 1; _flag_; _flag_ = 0) \
+                    for (value64 var  = _el_->v; _flag_; _flag_ = 0)
 
 // ------------------------------------- PRINTERS/CHECKERS ---------------------------------
 
@@ -285,70 +276,6 @@ extern int                  hset_dbsave(const char *restrict conn, const hset *r
 typedef                     void (*hset_const_proc_t)(value64 v);
 // change //typedef                 void (*hset_proc_t)(value64 *v);
 // modift structure typedef                 void (*hset_modify_proc_t)(hset *se, hset_elem *el);
-
-typedef                     void * pointer_to_void;
-
-extern void                 hset_const_foreach(const hset *se, hset_const_proc_t proc);
-//extern void               hset_foreach(hset *se, hset_proc_t proc);
-//extern void               hset_modify_foreach(hset *se, hset_modify_proc_t proc);
-
-// Общий внутренний макрос – проходит по всем элементам и на каждой итерации
-// объявляет var заданного типа и присваивает ей значение из поля field.
-#define _HSET_FOREACH_TYPE(se, var, type, field) \
-    for (int _i_ = 0; _i_ < (se)->sz; _i_++) \
-        for (const hset_elem *_el_ = (se)->table[_i_]; _el_; _el_ = _el_->next) \
-            for (int _flag_ = 1; _flag_; _flag_ = 0) \
-                for (type var = _el_->v.field; _flag_; _flag_ = 0)
-
-            //_Pragma("GCC diagnostic push") \
-            //_Pragma("GCC diagnostic ignored \"-Wfor-loop-analysis\"") \
-           // _Pragma("GCC diagnostic pop")
-// Публичные макросы
-#define                     HSET_FOREACH_INT(se, var)  _HSET_FOREACH_TYPE(se, var, int, ival)
-#define                     HSET_FOREACH_LONG(se, var)  _HSET_FOREACH_TYPE(se, var, long, lval)
-#define                     HSET_FOREACH_DBL(se, var)  _HSET_FOREACH_TYPE(se, var, double, dval)
-#define                     HSET_FOREACH_PTR(se, var)  _HSET_FOREACH_TYPE(se, var, void*, pval)
-// any type
-#define                     HSET_FOREACH(se, var) \
-        for (int _i_ = 0; _i_ < (se)->sz; _i_++) \
-            for (const hset_elem *_el_ = (se)->table[_i_]; _el_; _el_ = _el_->next) \
-                for (int _flag_ = 1; _flag_; _flag_ = 0) \
-                    for (value64 var  = _el_->v; _flag_; _flag_ = 0)
-
-// ----------------------------------------- REDUCE -----------------------------------------
-typedef struct              hset_accum {
-    value64     value;    // накопленное значение (сумма, максимум и т.п.)
-    int         count;    // количество элементов, участвовавших в накоплении
-    fs          str_agg;  // для будущей агрегации строк use value for that!
-} hset_accum;
-
-#define                     HSET_ACCUM(...)  (hset_accum) { .value = LITERAL64_ZERO, .count = 0, .str_agg = FS(), __VA_ARGS__} 
-#define                     HSET_ACCUM_DBL_ZERO  (hset_accum) { .value = LITERAL64_DBL(0.0), .count = 0, .str_agg = FS() } 
-
-typedef                     void (*hset_reduce_func)(hset_accum *acc, value64 v);
-extern hset_accum           hset_initreduce(const hset *se, hset_accum init, hset_reduce_func func);
-
-static inline hset_accum    hset_reduce(const hset *se, hset_reduce_func func){
-    return hset_initreduce(se, HSET_ACCUM(), func);
-}
-
-// unified version! TODO:
-typedef struct              hset_unified {
-    value64  value[HSET_UNIFIED_CNT];    // unified values (int, double, fs etc...)
-} hset_unified;
-
-// ------------------------------------- REDUCE IMPL -----------------------------------------
-extern void                 hset_sum_int    (hset_accum *acc, value64 v);
-extern void                 hset_count_int  (hset_accum *acc, value64 v);
-extern void                 hset_max_int    (hset_accum *acc, value64 v);
-extern void                 hset_min_int    (hset_accum *acc, value64 v);
-//extern void               hset_avg_int    (hset_accum *acc, value64 v);
-
-extern void                 hset_sum_dbl    (hset_accum *acc, value64 v);
-extern void                 hset_count_dbl  (hset_accum *acc, value64 v);
-extern void                 hset_max_dbl    (hset_accum *acc, value64 v);
-extern void                 hset_min_dbl    (hset_accum *acc, value64 v);
-//extern void                 hset_avg_dbl    (hset_accum *acc, value64 v);
 
 #endif /* !_HASHSET_H */
 

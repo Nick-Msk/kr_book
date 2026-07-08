@@ -37,6 +37,9 @@ lib/context.o: src/context.c
 lib/hashset.o: src/hashset.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+lib/hashset_utils.o: src/hashset_utils.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
 lib/value64.o: src/value64.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
@@ -120,6 +123,10 @@ test/hashset_test: src/hashset.c lib/log.o lib/test.o lib/error.o lib/numeric_op
 			lib/fs.o lib/fileutils.o lib/array.o lib/common.o lib/getword.o lib/buffer.o lib/value64.o | lib/hashset.o
 	$(CC) $(CFLAGS) -DHSETTESTING $^ -o $@ $(LDLIBS)
 
+test/hashset_utils_test: src/hashset_utils.c lib/log.o lib/test.o lib/error.o lib/numeric_ops.o\
+			lib/fs.o lib/fileutils.o lib/array.o lib/common.o lib/getword.o lib/buffer.o lib/value64.o lib/hashset.o | lib/hashset_utils.o
+	$(CC) $(CFLAGS) -DHASHSET_UTILS_TESTING $^ -o $@ $(LDLIBS)
+
 test/value64_test: src/value64.c lib/log.o lib/test.o lib/error.o lib/common.o lib/fs.o lib/fileutils.o\
 	lib/getword.o lib/buffer.o lib/numeric_ops.o lib/common.o | lib/value64.o
 	$(CC) $(CFLAGS) -DVALUE64TESTING $^ -o $@ $(LDLIBS)
@@ -144,6 +151,7 @@ metric:  test/metric_test
 numeric_ops: test/numeric_ops_test
 context: test/context_test
 hashset: test/hashset_test
+hashset_utils: test/hashset_utils_test
 value64: test/value64_test
 systemutils: test/systemutils_test
 getword: test/getword_test
