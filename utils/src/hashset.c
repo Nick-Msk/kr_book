@@ -6015,12 +6015,13 @@ tf27(const char *name)
         }
 
         // Множество, в которое будем перемещать
-        hset    se = hset_init(cnt, VALUE64_FS);
+        hset    se = hset_init_fs(cnt);
 
         // Перемещаем каждую строку (оригиналы опустеют)
         for (int i = 0; i < cnt; i++) {
+            value64 tmp = value64_movefs(&strings[i]);
             test_validatefree(
-                hset_set(&se, value64_movefs(&strings[i])) == true,
+                hset_move(&se, &tmp) == true,
                 hset_free(&se),
                 "Failed to move '%s' into set", expected[i]
             );
@@ -6029,7 +6030,7 @@ tf27(const char *name)
                 fslen(strings[i]) == 0 && fsstr(strings[i]) == NULL,
                 hset_free(&se),
                 "After move, original must be empty, but len=%d, str=%p",
-                fslen(strings[i]), (void*)fsstr(strings[i])
+                fslen(strings[i]), (void *) fsstr(strings[i])
             );
         }
 
@@ -6037,15 +6038,16 @@ tf27(const char *name)
         hset    clone = hset_clone(&se);
 
         // Проверяем, что в клоне есть все строки
+        fs      tmp = FS();
         for (int i = 0; i < cnt; i++) {
-            fs      tmp = fscopyf("%s", expected[i]);   // временный ключ для поиска
+            fs_sprintf(&tmp, "%s", expected[i]);   // временный ключ для поиска
             test_validatefree(
-                hset_get(&clone, LITERAL64_FS(tmp)),
+                hset_get(&clone, LITERAL64_FS(tmp)),    // not good but OK for now
                 (hset_free(&se), hset_free(&clone), fsfree(tmp)),
                 "Clone missing '%s'", expected[i]
             );
-            fsfree(tmp);
         }
+        fsfree(tmp);
 
         // Количество элементов должно совпадать
         test_validatefree(
