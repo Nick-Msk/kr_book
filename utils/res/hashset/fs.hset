@@ -1,0 +1,5 @@
+HSET: FS : 3
+"/tmp/c"
+"/tmp/a"
+"/tmp/b"
+HSET: DONE

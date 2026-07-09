@@ -559,7 +559,7 @@ int                         hset_fsave(FILE  *restrict out, const hset *se) {
 
     value64_type   typ = hset_getype(se);
 
-    invraisecode ( int_in(typ, VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_PTR),
+    invraisecode ( int_in(typ, VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_PTR, VALUE64_FS),
                 ERR_UNSUPPORTED_TYPE,
                 "%d - %s", typ, value64_typename(typ) );
     int         cnt = 0;
@@ -619,7 +619,7 @@ int                         hset_fload(FILE *restrict in, hset *restrict se) {
                 hset_free(&res);
             return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Failed to read element %d", i);
         }
-        addcnt += hset_set(target, val);    // addcnt++ only if real adding
+        addcnt += hset_move(target, &val);    // addcnt++ only if real adding
     }
 
     // Проверяем завершающую строку "HSET: DONE"
@@ -2813,6 +2813,164 @@ tf20(const char *name)
         hset_free(&se);
         hset_free(&loaded);
     }
+    // fs
+    /* 1. Сохранить и загрузить пустое множество */
+    test_sub("subtest %d: empty FS save/load", ++subnum);
+    {
+        hset se = hset_init_fs(10);
+        int save_ret = hset_save("res/hashset/empty_fs.hset", &se);
+        test_validatefree(
+            save_ret >= 0,
+            hset_free(&se),
+            "Empty FS save failed, ret=%d", save_ret
+        );
+
+        hset loaded = HSET_NONINIT;
+        int load_ret = hset_load("res/hashset/empty_fs.hset", &loaded);
+        test_validatefree(
+            load_ret >= 0,
+            (hset_free(&se), hset_free(&loaded)),
+            "Empty FS load failed, ret=%d", load_ret
+        );
+        test_validatefree(
+            hset_cnt(&loaded) == 0,
+            (hset_free(&se), hset_free(&loaded)),
+            "Empty FS set: cnt=%d, expected 0", hset_cnt(&loaded)
+        );
+        test_validatefree(
+            hset_validate(stdout, &loaded),
+            (hset_free(&se), hset_free(&loaded)),
+            "Empty FS set: validation failed"
+        );
+        test_validatefree(
+            hset_eq(&se, &loaded),
+            (hset_free(&se), hset_free(&loaded)),
+            "Empty FS set: not equal after load"
+        );
+
+        hset_free(&se);
+        hset_free(&loaded);
+    }
+    fs_alloc_check(true);
+
+    /* 2. Сохранить и загрузить непустое множество (FS) */
+    test_sub("subtest %d: FS save/load new", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/b", "/tmp/c");
+        int cnt = se.count;
+        int save_ret = hset_save("res/hashset/fs.hset", &se);
+        test_validatefree(
+            save_ret == cnt,
+            hset_free(&se),
+            "FS save returned %d, expected %d", save_ret, cnt
+        );
+
+        hset loaded = HSET_NONINIT;
+        int load_ret = hset_load("res/hashset/fs.hset", &loaded);
+        test_validatefree(
+            load_ret == cnt,
+            (hset_free(&se), hset_free(&loaded)),
+            "FS load returned %d, expected %d", load_ret, cnt
+        );
+        test_validatefree(
+            hset_cnt(&loaded) == cnt,
+            (hset_free(&se), hset_free(&loaded)),
+            "FS set: cnt=%d, expected %d", hset_cnt(&loaded), cnt
+        );
+        test_validatefree(
+            hset_validate(stdout, &loaded),
+            (hset_free(&se), hset_free(&loaded)),
+            "FS set: validation failed"
+        );
+        test_validatefree(
+            hset_eq(&se, &loaded),
+            (hset_free(&se), hset_free(&loaded)),
+            "FS set: not equal after load"
+        );
+        // Проверяем конкретные элементы
+        test_validatefree(
+            HSET_HAS_FS(&loaded, "/tmp/a") &&
+            HSET_HAS_FS(&loaded, "/tmp/b") &&
+            HSET_HAS_FS(&loaded, "/tmp/c"),
+            (hset_free(&se), hset_free(&loaded)),
+            "FS set: some elements missing after load"
+        );
+
+        hset_free(&se);
+        hset_free(&loaded);
+    }
+    fs_alloc_check(true);
+
+    /* 3. Дозагрузка в существующее множество (FS) */
+    test_sub("subtest %d: FS append load", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/x", "/tmp/y");
+
+        hset tmp = HSET_CREATEFS_ASSTR("/tmp/z", "/tmp/w");
+        int save_ret = hset_save("res/hashset/append_fs.hset", &tmp);
+        hset_free(&tmp);
+
+        test_validatefree(
+            save_ret == 2,
+            hset_free(&se),
+            "Append FS save returned %d, expected 2", save_ret
+        );
+
+        int load_ret = hset_load("res/hashset/append_fs.hset", &se);
+        test_validatefree(
+            load_ret == 2,
+            hset_free(&se),
+            "Append FS load returned %d, expected 2", load_ret
+        );
+
+        test_validatefree(
+            hset_cnt(&se) == 4,
+            hset_free(&se),
+            "Append FS: cnt=%d, expected 4", hset_cnt(&se)
+        );
+        test_validatefree(
+            hset_validate(stdout, &se),
+            hset_free(&se),
+            "Append FS: validation failed"
+        );
+        test_validatefree(
+            HSET_HAS_FS(&se, "/tmp/x") &&
+            HSET_HAS_FS(&se, "/tmp/y") &&
+            HSET_HAS_FS(&se, "/tmp/z") &&
+            HSET_HAS_FS(&se, "/tmp/w"),
+            hset_free(&se),
+            "Append FS: some elements missing"
+        );
+
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    /* 4. Несовпадение типов (FS vs INT) */
+    test_sub("subtest %d: FS type mismatch returns -1", ++subnum);
+    {
+        hset se_fs = HSET_CREATEFS_ASSTR("/tmp/a");
+        hset_save("res/hashset/type_fs.hset", &se_fs);
+        hset_free(&se_fs);
+
+        hset se_int = hset_init_int(10);
+        int ret = hset_load("res/hashset/type_fs.hset", &se_int);
+
+        test_validatefree(
+            ret == -1,
+            hset_free(&se_int),
+            "FS type mismatch: return code %d, expected -1", ret
+        );
+        test_validatefree(
+            hset_cnt(&se_int) == 0,
+            hset_free(&se_int),
+            "FS type mismatch: target set cnt=%d, expected 0 (unchanged)", hset_cnt(&se_int)
+        );
+
+        hset_free(&se_int);
+    }
+    fs_alloc_check(true);
+
     return logret(TEST_PASSED, "done");
 }
 

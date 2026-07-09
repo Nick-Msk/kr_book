@@ -1,0 +1,4 @@
+HSET: FS : 2
+"/tmp/z"
+"/tmp/w"
+HSET: DONE

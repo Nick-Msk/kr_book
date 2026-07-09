@@ -1,0 +1,3 @@
+HSET: FS : 1
+"/tmp/a"
+HSET: DONE
