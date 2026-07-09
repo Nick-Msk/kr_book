@@ -3626,14 +3626,13 @@ main(int argc, const char *argv[])
 {
     logsimpleinit("Start");
     bool    runall = argc == 1;
-    printf("%d\n", argc);
 
     while (runall || *++argv){
         int     num = INT_MAX;    // INT_MAX for all test
         if (!runall){
             num = atoi(*argv);
             if (num < 0){
-                fprintf(stderr,"Invalid test num %d\n", num);
+                fprintf(stderr, "Invalid test num %d\n", num);
                 continue;
             }
         }
