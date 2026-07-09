@@ -65,13 +65,19 @@ typedef struct              hset_accum {
 
 #define                     HSET_ACCUM(...)     (hset_accum) { .value = LITERAL64_ZERO, .count = 0, __VA_ARGS__}
 #define                     HSET_ACCUM_DBL_ZERO (hset_accum) { .value = LITERAL64_DBL(0.0), .count = 0 }
-#define                     HSET_ACCUM_FS_ZERO  (hset_accum) { .value = fs_create(), .count = 0 }
+#define                     HSET_ACCUM_FS_ZERO  (hset_accum) { .value = value64_createfs(fs_create() ), .count = 0 }
 
 typedef                     void (*hset_reduce_func)(hset_accum *acc, value64 v);
 extern hset_accum           hset_initreduce(const hset *se, hset_accum init, hset_reduce_func func);
 
 static inline hset_accum    hset_reduce(const hset *se, hset_reduce_func func){
     return hset_initreduce(se, HSET_ACCUM(), func);
+}
+static inline hset_accum    hset_reduce_dbl(const hset *se, hset_reduce_func func){
+    return hset_initreduce(se, HSET_ACCUM_DBL_ZERO, func);
+}
+static inline hset_accum    hset_reduce_fs(const hset *se, hset_reduce_func func){
+    return hset_initreduce(se, HSET_ACCUM_FS_ZERO, func);
 }
 
 // unified version! TODO:

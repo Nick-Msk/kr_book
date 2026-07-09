@@ -387,7 +387,6 @@ void                        hset_min_fs(hset_accum *acc, value64 v) {
 #include <time.h>
 
 //types, macro for testing
-// TODO: not sure
 #define HSET_HAS_FS(se, path) \
     ({ \
         value64 _v = value64_createfs_asstr(path); \
@@ -402,29 +401,29 @@ tf8(const char *name)
 {
     logenter("%s", name);
     int subnum = 0;
-              
+
     test_sub("subtest %d: empty in empty", ++subnum);
-    {         
+    {
         hset empty1 = hset_init(10, VALUE64_INT);
         hset empty2 = hset_init(100, VALUE64_INT);
-              
+
         test_validatefree(
             hset_validate(stdout, &empty1) && hset_validate(stdout, &empty1),
             (hset_free(&empty1), hset_free(&empty2) ), "Validation failed empty"
-        );    
+        );
         test_validatefree(
             hset_in(&empty1, &empty2), (hset_free(&empty1), hset_free(&empty2) ),
             "Empty set should be subset of empty set"
-        );    
+        );
         hset_free(&empty1);
         hset_free(&empty2);
-    }         
+    }
     test_sub("subtest %d: empty in nonempty", ++subnum);
-    {         
+    {
         int vals[] = {1, 3, 5, 7, 9};
         hset empty    = hset_init(10, VALUE64_INT);
         hset nonempty = hset_from_intarr(vals, COUNT(vals) );
-              
+
         test_validatefree(
             hset_validate(stdout, &empty) && hset_validate(stdout, &nonempty),
             (hset_free(&empty), hset_free(&nonempty) ), "Validation failed empty"
@@ -3502,7 +3501,7 @@ tf23(const char *name)
     {
         double  vals[] = {1.5, 2.5, 3.5};
         hset    se = hset_from_dblarr(vals, COUNT(vals));
-        hset_accum res = hset_initreduce(&se, HSET_ACCUM_DBL_ZERO, hset_sum_dbl);
+        hset_accum res = hset_reduce_dbl(&se, hset_sum_dbl);
 
         test_validatefree(
             fabs(res.value.dval - 7.5) < 0.0001,
@@ -3522,7 +3521,7 @@ tf23(const char *name)
     {
         double  vals[] = {10.0, 20.0, 30.0};
         hset    se = hset_from_dblarr(vals, COUNT(vals));
-        hset_accum res = hset_initreduce(&se, HSET_ACCUM_DBL_ZERO, hset_count_dbl);
+        hset_accum res = hset_reduce_dbl(&se, hset_count_dbl);
 
         test_validatefree(
             res.count == 3,
@@ -3542,7 +3541,7 @@ tf23(const char *name)
     {
         double  vals[] = {5.2, 2.3, 9.8, 1.0, 7.4};
         hset    se = hset_from_dblarr(vals, COUNT(vals));
-        hset_accum res = hset_initreduce(&se, HSET_ACCUM_DBL_ZERO, hset_max_dbl);
+        hset_accum res = hset_reduce_dbl(&se, hset_max_dbl);
 
         test_validatefree(
             fabs(res.value.dval - 9.8) < 0.0001,
@@ -3562,7 +3561,7 @@ tf23(const char *name)
     {
         double  vals[] = {-5.0, -2.5, -9.1, -1.0};
         hset    se = hset_from_dblarr(vals, COUNT(vals));
-        hset_accum res = hset_initreduce(&se, HSET_ACCUM_DBL_ZERO, hset_min_dbl);
+        hset_accum res = hset_reduce_dbl(&se, hset_min_dbl);
 
         test_validatefree(
             fabs(res.value.dval - (-9.1)) < 0.0001,
@@ -3581,7 +3580,7 @@ tf23(const char *name)
     test_sub("subtest %d: sum double on empty set", ++subnum);
     {
         hset    se = hset_init(10, VALUE64_DBL);
-        hset_accum res = hset_initreduce(&se, HSET_ACCUM_DBL_ZERO, hset_sum_dbl);
+        hset_accum res = hset_reduce_dbl(&se, hset_sum_dbl);
 
         test_validatefree(
             res.value.dval == 0.0,
@@ -3600,7 +3599,7 @@ tf23(const char *name)
     test_sub("subtest %d: max double on empty set", ++subnum);
     {
         hset    se = hset_init(10, VALUE64_DBL);
-        hset_accum res = hset_initreduce(&se, HSET_ACCUM_DBL_ZERO, hset_max_dbl);
+        hset_accum res = hset_reduce_dbl(&se, hset_max_dbl);
 
         test_validatefree(
             res.count == 0,
@@ -3615,7 +3614,7 @@ tf23(const char *name)
     {
         double  vals[] = {1e10, 2e10, 3e10};
         hset    se = hset_from_dblarr(vals, COUNT(vals));
-        hset_accum res = hset_initreduce(&se, HSET_ACCUM_DBL_ZERO, hset_sum_dbl);
+        hset_accum res = hset_reduce_dbl(&se, hset_sum_dbl);
 
         test_validatefree(
             fabs(res.value.dval - 6e10) < 1e5,
@@ -3812,6 +3811,106 @@ tf26(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST reduce_fs_count_max_min ---------------------------------
+static TestStatus
+tf_reduce_fs_count_max_min(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: count non-empty set", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/b", "/tmp/c");
+        hset_accum acc = hset_reduce(&se, hset_count_fs);
+        test_validatefree(
+            acc.count == 3,
+            hset_free(&se),
+            "Count: expected 3, got %d", acc.count
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: count empty set", ++subnum);
+    {
+        hset se = hset_init_fs(10);
+        hset_accum acc = hset_reduce(&se, hset_count_fs);
+        test_validatefree(
+            acc.count == 0,
+            hset_free(&se),
+            "Count empty: expected 0, got %d", acc.count
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: max string (lexicographic)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/b", "/tmp/a", "/tmp/c");
+        hset_accum acc = hset_reduce(&se, hset_max_fs);
+        const char *res = fs_str(acc.value.fsval);
+        test_validatefree(
+            acc.value.fsval != NULL && res != NULL && strcmp(res, "/tmp/c") == 0,
+            (hset_free(&se), fs_free(acc.value.fsval), free(acc.value.fsval)),
+            "Max: expected '/tmp/c', got '%s'", res ? res : "NULL"
+        );
+        fs_free(acc.value.fsval);
+        free(acc.value.fsval);
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: max string single element", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/single");
+        hset_accum acc = hset_reduce(&se, hset_max_fs);
+        const char *res = fs_str(acc.value.fsval);
+        test_validatefree(
+            acc.value.fsval != NULL && res != NULL && strcmp(res, "/tmp/single") == 0,
+            (hset_free(&se), fs_free(acc.value.fsval), free(acc.value.fsval)),
+            "Max single: expected '/tmp/single', got '%s'", res ? res : "NULL"
+        );
+        fs_free(acc.value.fsval);
+        free(acc.value.fsval);
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: min string (lexicographic)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/b", "/tmp/a", "/tmp/c");
+        hset_accum acc = hset_reduce(&se, hset_min_fs);
+        const char *res = fs_str(acc.value.fsval);
+        test_validatefree(
+            acc.value.fsval != NULL && res != NULL && strcmp(res, "/tmp/a") == 0,
+            (hset_free(&se), fs_free(acc.value.fsval), free(acc.value.fsval)),
+            "Min: expected '/tmp/a', got '%s'", res ? res : "NULL"
+        );
+        fs_free(acc.value.fsval);
+        free(acc.value.fsval);
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: min string single element", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/single");
+        hset_accum acc = hset_reduce(&se, hset_min_fs);
+        const char *res = fs_str(acc.value.fsval);
+        test_validatefree(
+            acc.value.fsval != NULL && res != NULL && strcmp(res, "/tmp/single") == 0,
+            (hset_free(&se), fs_free(acc.value.fsval), free(acc.value.fsval)),
+            "Min single: expected '/tmp/single', got '%s'", res ? res : "NULL"
+        );
+        fs_free(acc.value.fsval);
+        free(acc.value.fsval);
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -3830,20 +3929,21 @@ main(int argc, const char *argv[])
         }
         printf("Num %d\n", num);
             testenginestd_run(num,
-                testnew(.f2 =  tf8,             .num =  9, .name = "Hset_in simple test"                        , .desc="", .mandatory=true)
-              , testnew(.f2 =  tf9,             .num = 10, .name = "Hset_strictin simple test"                  , .desc="", .mandatory=true)
-              , testnew(.f2 = tf10,             .num = 11, .name = "Hset_minus simple test"                     , .desc="", .mandatory=true)
-              , testnew(.f2 = tf11,             .num = 12, .name = "Hset_init_minus simple test"                , .desc="", .mandatory=true)
-              , testnew(.f2 = tf12,             .num = 13, .name = "hset_intersect simple test"                 , .desc="", .mandatory=true)
-              , testnew(.f2 = tf13,             .num = 14, .name = "hset_init_intersect simple test"            , .desc="", .mandatory=true)
-              , testnew(.f2 = tf14,             .num = 15, .name = "hset_init_symmdiff simple test"             , .desc="", .mandatory=true)
-              , testnew(.f2 = tf15,             .num = 16, .name = "hset_symmdiff simple test"                  , .desc="", .mandatory=true)
-              , testnew(.f2 = tf17,             .num = 18, .name = "hset_union simple test"                     , .desc="", .mandatory=true)
-              , testnew(.f2 = tf18,             .num = 19, .name = "hset_init_union simple test"                , .desc="", .mandatory=true)
-              , testnew(.f2 = tf21,             .num = 22, .name = "hset_const_foreach simple test"             , .desc="", .mandatory=true)
-              , testnew(.f2 = tf22,             .num = 23, .name = "hset_initreduct int impl  simple test"      , .desc="", .mandatory=true)
-              , testnew(.f2 = tf23,             .num = 24, .name = "hset_initreduct double int simple test"     , .desc="", .mandatory=true)
-              , testnew(.f2 = tf26,             .num = 27, .name = "hset_any(), hset_nonexists() simple test"   , .desc="", .mandatory=true)
+                testnew(.f2 =  tf8,                         .num =  9, .name = "Hset_in simple test"                        , .desc="", .mandatory=true)
+              , testnew(.f2 =  tf9,                         .num = 10, .name = "Hset_strictin simple test"                  , .desc="", .mandatory=true)
+              , testnew(.f2 = tf10,                         .num = 11, .name = "Hset_minus simple test"                     , .desc="", .mandatory=true)
+              , testnew(.f2 = tf11,                         .num = 12, .name = "Hset_init_minus simple test"                , .desc="", .mandatory=true)
+              , testnew(.f2 = tf12,                         .num = 13, .name = "hset_intersect simple test"                 , .desc="", .mandatory=true)
+              , testnew(.f2 = tf13,                         .num = 14, .name = "hset_init_intersect simple test"            , .desc="", .mandatory=true)
+              , testnew(.f2 = tf14,                         .num = 15, .name = "hset_init_symmdiff simple test"             , .desc="", .mandatory=true)
+              , testnew(.f2 = tf15,                         .num = 16, .name = "hset_symmdiff simple test"                  , .desc="", .mandatory=true)
+              , testnew(.f2 = tf17,                         .num = 18, .name = "hset_union simple test"                     , .desc="", .mandatory=true)
+              , testnew(.f2 = tf18,                         .num = 19, .name = "hset_init_union simple test"                , .desc="", .mandatory=true)
+              , testnew(.f2 = tf21,                         .num = 22, .name = "hset_const_foreach simple test"             , .desc="", .mandatory=true)
+              , testnew(.f2 = tf22,                         .num = 23, .name = "hset_initreduce int impl  simple test"      , .desc="", .mandatory=true)
+              , testnew(.f2 = tf23,                         .num = 24, .name = "hset_initreduce double int simple test"     , .desc="", .mandatory=true)
+              , testnew(.f2 = tf26,                         .num = 27, .name = "hset_any(), hset_nonexists() simple test"   , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_reduce_fs_count_max_min,   .num = 28, .name = "hset_initreduce fs simple test"             , .desc="", .mandatory=true)
             );
         if (runall)
             break;
