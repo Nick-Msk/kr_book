@@ -259,6 +259,7 @@ void                        hset_modify_foreach(hset *se, hset_modify_proc_t pro
 
 // ----------------------------------------- REDUCE -----------------------------------------
 
+// Core engine reduct (TODO: core engine FILTER)
 hset_accum                  hset_initreduce(const hset *se, hset_accum init, hset_reduce_func func) {
     hset_accum acc = init;
     for (int i = 0; i < se->sz; i++) {
@@ -271,6 +272,7 @@ hset_accum                  hset_initreduce(const hset *se, hset_accum init, hse
     return acc;
 }
 // ------------------------------------- REDUCE IMPL -----------------------------------------
+
 void                        hset_sum_int(hset_accum *acc, value64 v) {
     acc->value.ival += v.ival;
     acc->count++;
@@ -341,14 +343,14 @@ void                        hset_min_dbl(hset_accum *acc, value64 v) {
 // fs
 // ======================= FS reduce callbacks =======================
 // TEMPORARY, because fs doesn't provide comparation
-static int                   hset_fs_cmp_wrap(const fs* restrict s1, const fs* restrict s2){
+/*static int                   hset_fs_cmp_wrap(const fs* restrict s1, const fs* restrict s2){
     invraisecode(ERR_NULLABLE_PTR, s1 && s2 && s1->v,
         "Null pointer %p %p %p", s1, s2, s1 ? s1->v: NULL);
 
     if (!s2->v)
         return 1;   // s1 valuable so > null
     return fs_cmp(s1, s2);
-}
+}*/
 
 void                         hset_count_fs(hset_accum *acc, value64 v) {
     const fs *s = value64_fs(v);
@@ -361,9 +363,9 @@ void                        hset_max_fs(hset_accum *acc, value64 v) {
     if (fs_isnull(cur) )    // ignore null and empry
         return;
     if (acc->count == 0)
-        acc->value.fsval = fs_create(); // body in heap, v isn't allocated
-    if (acc->count == 0 || /*fs_cmp*/ hset_fs_cmp_wrap(cur, acc->value.fsval ) > 0)
-        fs_cpy(acc->value.fsval, *cur);
+        hset_accum_fs(acc) = fs_create(); // body in heap, v isn't allocated
+    if (acc->count == 0 || fs_cmp(cur, hset_accum_fs(acc) ) > 0)
+        fs_cpy(hset_accum_fs(acc), *cur);
     acc->count++;
 }
 
@@ -373,9 +375,39 @@ void                        hset_min_fs(hset_accum *acc, value64 v) {
     if (fs_isnull(cur) )    // ignore null and empry
         return;
     if (acc->count == 0)
-        acc->value.fsval = fs_create(); // body in heap, v isn't allocated
+        hset_accum_fs(acc) = fs_create(); // body in heap, v isn't allocated
     if (acc->count == 0 || fs_cmp(cur, acc->value.fsval ) < 0)
-        fs_cpy(acc->value.fsval, *cur);
+        fs_cpy(hset_accum_fs(acc), *cur);
+    acc->count++;
+}
+// compare as length, find max
+void                        hset_maxlen_fs(hset_accum *acc, value64 v) {
+    const fs    *cur = value64_fs(v);
+    if (fs_isnull(cur) )    // ignore null and empry
+        return;
+    if (acc->count == 0)
+        hset_accum_fs(acc) = fs_create(); // body in heap, v isn't allocated
+    if (acc->count == 0 || fs_len(cur) > fs_len(hset_accum_fs(acc) ) )
+        fs_cpy(hset_accum_fs(acc), *cur);
+    acc->count++;
+}
+
+// compare as literal, min (even 0)
+void                        hset_minlen_fs(hset_accum *acc, value64 v) {
+    const fs    *cur = value64_fs(v);
+    if (fs_isnull(cur) )    // ignore null and empry
+        return;
+    if (acc->count == 0)
+        hset_accum_fs(acc) = fs_create(); // body in heap, v isn't allocated
+    if (acc->count == 0 || fs_len(cur) < fs_len(hset_accum_fs(acc) ) )
+        fs_cpy(hset_accum_fs(acc), *cur);
+    acc->count++;
+}
+// sum over len
+void                        hset_sumlen_fs(hset_accum *acc, value64 v) {
+    const fs *cur = value64_fs(v);
+    if (!fs_isnull(cur))
+        hset_accum_long(acc) += fs_len(cur);     // hset_long() += fs_len(cur); 
     acc->count++;
 }
 

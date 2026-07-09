@@ -64,8 +64,24 @@ typedef struct              hset_accum {
 } hset_accum;
 
 // TODO: api for extracting from hset_accum
-static inline value64       hset_accum_get(hset_accum c){
-    return c.value;
+static inline value64       hset_accum_get(hset_accum *c){
+    return c->value;
+}
+#define                     hset_accum_int(ha) *hset_accum_getint(ha)
+static inline int          *hset_accum_getint(hset_accum *c){
+    return &c->value.ival;
+}
+#define hset_accum_long(ha) (*hset_accum_getlong(ha) )
+static inline long *hset_accum_getlong(hset_accum *c) {
+    return &c->value.lval;
+}
+#define hset_accum_dbl(ha) (*hset_accum_getdbl(ha) )
+static inline double *hset_accum_getdbl(hset_accum *c) {
+    return &c->value.dval;
+}
+#define hset_accum_fs(ha)  (*hset_accum_getfs(ha) )
+static inline fs **hset_accum_getfs(hset_accum *c) {
+    return &c->value.fsval;
 }
 
 #define                     HSET_ACCUM(...)     (hset_accum) { .value = LITERAL64_ZERO, .count = 0, __VA_ARGS__}
@@ -107,6 +123,11 @@ extern void                 hset_min_dbl    (hset_accum *acc, value64 v);
 extern void                 hset_count_fs   (hset_accum *acc, value64 v);
 extern void                 hset_max_fs     (hset_accum *acc, value64 v);
 extern void                 hset_min_fs     (hset_accum *acc, value64 v);
+extern void                 hset_maxlen_fs  (hset_accum *acc, value64 v);
+extern void                 hset_minlen_fs  (hset_accum *acc, value64 v);
+extern void                 hset_sumlen_fs  (hset_accum *acc, value64 v);
+// TODO:
+extern void                 hset_agg_fs     (hset_accum *acc, value64 v);
 
 #endif /* !_HASHSET_UTILS_H */
 
