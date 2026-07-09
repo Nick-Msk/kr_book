@@ -63,6 +63,11 @@ typedef struct              hset_accum {
     int         count;    // количество элементов, участвовавших в накоплении
 } hset_accum;
 
+// TODO: api for extracting from hset_accum
+static inline value64       hset_accum_get(hset_accum c){
+    return c.value;
+}
+
 #define                     HSET_ACCUM(...)     (hset_accum) { .value = LITERAL64_ZERO, .count = 0, __VA_ARGS__}
 #define                     HSET_ACCUM_DBL_ZERO (hset_accum) { .value = LITERAL64_DBL(0.0), .count = 0 }
 #define                     HSET_ACCUM_FS_ZERO  (hset_accum) { .value = value64_createfs(fs_create() ), .count = 0 }
@@ -84,6 +89,7 @@ static inline hset_accum    hset_reduce_fs(const hset *se, hset_reduce_func func
 typedef struct              hset_unified {
     value64  value[HSET_UNIFIED_CNT];    // unified values (int, double, fs etc...)
 } hset_unified;
+
 
 // ------------------------------------- REDUCE IMPL -----------------------------------------
 extern void                 hset_sum_int    (hset_accum *acc, value64 v);
