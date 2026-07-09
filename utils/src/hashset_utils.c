@@ -1840,6 +1840,135 @@ tf13(const char *name)
         hset_free(&se2);
         hset_free(&res);
     }
+    // fs
+    test_sub("subtest %d: empty intersect empty", ++subnum);
+    {
+        hset a = hset_init_fs(10);
+        hset b = hset_init_fs(10);
+        hset res = hset_init_intersect(&a, &b);
+
+        test_validatefree(
+            res.count == 0,
+            (hset_free(&a), hset_free(&b), hset_free(&res)),
+            "Empty intersect empty should be empty"
+        );
+        hset_free(&a);
+        hset_free(&b);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: empty intersect nonempty", ++subnum);
+    {
+        hset a = hset_init_fs(10);
+        hset b = HSET_CREATEFS_ASSTR("/tmp/x", "/tmp/y");
+        hset res = hset_init_intersect(&a, &b);
+
+        test_validatefree(
+            res.count == 0,
+            (hset_free(&a), hset_free(&b), hset_free(&res)),
+            "Empty intersect nonempty should be empty"
+        );
+        hset_free(&a);
+        hset_free(&b);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: nonempty intersect empty", ++subnum);
+    {
+        hset a = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/b", "/tmp/c");
+        hset b = hset_init_fs(10);
+        hset res = hset_init_intersect(&a, &b);
+
+        test_validatefree(
+            res.count == 0,
+            (hset_free(&a), hset_free(&b), hset_free(&res)),
+            "Nonempty intersect empty should be empty"
+        );
+        hset_free(&a);
+        hset_free(&b);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: partial overlap", ++subnum);
+    {
+        hset a = HSET_CREATEFS_ASSTR("/tmp/1", "/tmp/2", "/tmp/3", "/tmp/4");
+        hset b = HSET_CREATEFS_ASSTR("/tmp/3", "/tmp/4", "/tmp/5");
+        hset res = hset_init_intersect(&a, &b);
+
+        test_validatefree(
+            res.count == 2 &&
+            HSET_HAS_FS(&res, "/tmp/3") &&
+            HSET_HAS_FS(&res, "/tmp/4") &&
+            !HSET_HAS_FS(&res, "/tmp/1") &&
+            !HSET_HAS_FS(&res, "/tmp/2") &&
+            !HSET_HAS_FS(&res, "/tmp/5"),
+            (hset_free(&a), hset_free(&b), hset_free(&res)),
+            "Init intersect should contain only common elements"
+        );
+        hset_free(&a);
+        hset_free(&b);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: no common elements", ++subnum);
+    {
+        hset a = HSET_CREATEFS_ASSTR("/tmp/1", "/tmp/2");
+        hset b = HSET_CREATEFS_ASSTR("/tmp/3", "/tmp/4");
+        hset res = hset_init_intersect(&a, &b);
+
+        test_validatefree(
+            res.count == 0,
+            (hset_free(&a), hset_free(&b), hset_free(&res)),
+            "Init intersect of disjoint sets should be empty"
+        );
+        hset_free(&a);
+        hset_free(&b);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: identical sets", ++subnum);
+    {
+        hset a = HSET_CREATEFS_ASSTR("/tmp/x", "/tmp/y");
+        hset b = HSET_CREATEFS_ASSTR("/tmp/x", "/tmp/y");
+        hset res = hset_init_intersect(&a, &b);
+
+        test_validatefree(
+            res.count == 2 &&
+            HSET_HAS_FS(&res, "/tmp/x") &&
+            HSET_HAS_FS(&res, "/tmp/y"),
+            (hset_free(&a), hset_free(&b), hset_free(&res)),
+            "Init intersect of identical sets should equal original"
+        );
+        hset_free(&a);
+        hset_free(&b);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: FS vs INT type mismatch raises SIGINT", ++subnum);
+    {
+        hset fs_set  = HSET_CREATEFS_ASSTR("/tmp/z");
+        hset int_set = hset_init_int(10);
+        hset_set(&int_set, LITERAL64_INT(42));
+
+        if (!try()) {
+            hset res = hset_init_intersect(&fs_set, &int_set);
+            hset_free(&fs_set);
+            hset_free(&int_set);
+            hset_free(&res);
+            test_validate(false, "Type mismatch should have raised SIGINT");
+        } else {
+            hset_free(&fs_set);
+            hset_free(&int_set);
+            logsimple("Exception correctly raised on type mismatch");
+        }
+    }
+    fs_alloc_check(true);
 
     return logret(TEST_PASSED, "done");
 }
