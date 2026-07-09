@@ -3212,19 +3212,13 @@ static void             print_as_int(value64 v){
 static void             dummy_const_proc(value64 v) {
     (void)v; /* ничего не делаем */
 }
-/*
-static void             multiply_by_two(value64 *v) {
-    v->ival *= 2;
-}
 
-static void             remove_if_even(hset *se, hset_elem *el) {
-    if (el->v.ival % 2 == 0)
-        hset_del(se, el->v);
+static int foreach_fs_count;
+static void foreach_fs_count_and_log(value64 v) {
+    fs *f = value64_fs(v);
+    logsimple("const_foreach visited: %s", f ? fs_str(f) : "NULL");
+    foreach_fs_count++;
 }
-
-static void             remove_all(hset *se, hset_elem *el) {
-    hset_del(se, el->v);
-} */
 
 static TestStatus
 tf21(const char *name)
@@ -3266,9 +3260,69 @@ tf21(const char *name)
         }
         hset_free(&se);
     }
+    // fs
+    test_sub("subtest %d: const_foreach over non‑empty FS set", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/ffffffffftmp/a", "/ffffffffffftmp/b", "/ffffffffffffftmp/c");
+        int old_count = se.count;
+
+        foreach_fs_count = 0;
+        hset_const_foreach(&se, foreach_fs_count_and_log);  // теперь и считает, и печатает
+
+        test_validatefree(
+            foreach_fs_count == old_count,
+            hset_free(&se),
+            "const_foreach visited %d elements, expected %d",
+            foreach_fs_count, old_count
+        );
+        test_validatefree(
+            HSET_HAS_FS(&se, "/ffffffffftmp/a") &&
+            HSET_HAS_FS(&se, "/ffffffffffftmp/b") &&
+            HSET_HAS_FS(&se, "/ffffffffffffftmp/c"),
+            hset_free(&se),
+            "const_foreach must not modify the set"
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: const_foreach over empty FS set", ++subnum);
+    {
+        hset se = hset_init_fs(10);
+        foreach_fs_count = 0;
+        hset_const_foreach(&se, foreach_fs_count_and_log);
+
+        test_validatefree(
+            foreach_fs_count == 0,
+            hset_free(&se),
+            "const_foreach on empty set should invoke callback 0 times, got %d",
+            foreach_fs_count
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: const_foreach callback sees valid FS values", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/x", "/tmp/y");
+
+        foreach_fs_count = 0;
+        hset_const_foreach(&se, foreach_fs_count_and_log);
+
+        test_validatefree(
+            foreach_fs_count == 2 &&
+            hset_validate(stdout, &se),
+            hset_free(&se),
+            "const_foreach: visited %d elements, expected 2; set must be valid",
+            foreach_fs_count
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
 
     return logret(TEST_PASSED, "done");
 }
+
 // ------------------------- TEST 22 ---------------------------------
 static TestStatus
 tf22(const char *name)
