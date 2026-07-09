@@ -3305,6 +3305,111 @@ tf25(const char *name)
         );
         hset_free(&se);
     }
+    // fs
+    test_sub("subtest %d: iterate over non-empty FS set", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/b", "/tmp/c");
+        int count = 0;
+
+        HSET_FOREACH_FS(&se, ptr) {
+            test_validatefree(
+                ptr != NULL,
+                hset_free(&se),
+                "Foreach FS: NULL pointer encountered"
+            );
+            count++;
+        }
+
+        test_validatefree(
+            count == 3 && se.count == 3,
+            hset_free(&se),
+            "Foreach FS: counted %d elements, expected 3; set count %d",
+            count, se.count
+        );
+        // Убедимся, что итерация не повредила данные
+        test_validatefree(
+            HSET_HAS_FS(&se, "/tmp/a") &&
+            HSET_HAS_FS(&se, "/tmp/b") &&
+            HSET_HAS_FS(&se, "/tmp/c"),
+            hset_free(&se),
+            "Foreach FS: elements missing after iteration"
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: iterate over empty FS set", ++subnum);
+    {
+        hset se = hset_init_fs(10);
+        int count = 0;
+
+        HSET_FOREACH_FS(&se, ptr) {
+            (void)ptr;
+            count++;
+        }
+
+        test_validatefree(
+            count == 0,
+            hset_free(&se),
+            "Foreach FS: empty set should iterate 0 times, got %d", count
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: break inside foreach FS", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/x", "/tmp/y", "/tmp/z");
+        int count = 0;
+
+        HSET_FOREACH_FS(&se, ptr) {
+            count++;
+            if (ptr && fs_str(ptr) && strcmp(fs_str(ptr), "/tmp/y") == 0)
+                break;
+        }
+
+        test_validatefree(
+            count > 0 && count <= 3,
+            hset_free(&se),
+            "Foreach FS with break: counted %d, expected 1..3", count
+        );
+        // Множество должно остаться целым
+        test_validatefree(
+            hset_validate(stdout, &se),
+            hset_free(&se),
+            "Foreach FS: validation failed after break"
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: foreach after move (elements ownership ensured)", ++subnum);
+    {
+        hset se = hset_init_fs(10);
+        // Добавим элементы через move
+        value64 v1 = value64_createfs_asstr("/tmp/1");
+        value64 v2 = value64_createfs_asstr("/tmp/2");
+        hset_move(&se, &v1);
+        hset_move(&se, &v2);
+
+        int count = 0;
+        HSET_FOREACH_FS(&se, ptr) {
+            count++;
+            test_validatefree(
+                ptr != NULL && fs_str(ptr) != NULL,
+                hset_free(&se),
+                "Foreach after move: invalid element"
+            );
+        }
+
+        test_validatefree(
+            count == 2,
+            hset_free(&se),
+            "Foreach after move: counted %d, expected 2", count
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
 
     return logret(TEST_PASSED, "done");
 }

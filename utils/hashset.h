@@ -237,9 +237,10 @@ extern int                  hset_loadfs_str(hset *restrict se, const char *strin
            // _Pragma("GCC diagnostic pop")
 // Публичные макросы
 #define                     HSET_FOREACH_INT(se, var)  _HSET_FOREACH_TYPE(se, var, int, ival)
-#define                     HSET_FOREACH_LONG(se, var)  _HSET_FOREACH_TYPE(se, var, long, lval)
+#define                     HSET_FOREACH_LONG(se, var) _HSET_FOREACH_TYPE(se, var, long, lval)
 #define                     HSET_FOREACH_DBL(se, var)  _HSET_FOREACH_TYPE(se, var, double, dval)
 #define                     HSET_FOREACH_PTR(se, var)  _HSET_FOREACH_TYPE(se, var, void*, pval)
+#define                     HSET_FOREACH_FS(se, var)   _HSET_FOREACH_TYPE(se, var, fs*, fsval)
 // any type
 #define                     HSET_FOREACH(se, var) \
         for (int _i_ = 0; _i_ < (se)->sz; _i_++) \
