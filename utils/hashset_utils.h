@@ -64,8 +64,9 @@ typedef struct              hset_accum {
     fs          str_agg;  // для будущей агрегации строк use value for that!
 } hset_accum;
 
-#define                     HSET_ACCUM(...)  (hset_accum) { .value = LITERAL64_ZERO, .count = 0, .str_agg = FS(), __VA_ARGS__} 
-#define                     HSET_ACCUM_DBL_ZERO  (hset_accum) { .value = LITERAL64_DBL(0.0), .count = 0, .str_agg = FS() } 
+#define                     HSET_ACCUM(...)     (hset_accum) { .value = LITERAL64_ZERO, .count = 0, .str_agg = FS(), __VA_ARGS__}
+#define                     HSET_ACCUM_DBL_ZERO (hset_accum) { .value = LITERAL64_DBL(0.0), .count = 0, .str_agg = FS() }
+#define                     HSET_ACCUM_FS_ZERO  (hset_accum) { .value = fs_create(), .count = 0, .str_agg = FS() }
 
 typedef                     void (*hset_reduce_func)(hset_accum *acc, value64 v);
 extern hset_accum           hset_initreduce(const hset *se, hset_accum init, hset_reduce_func func);
@@ -92,7 +93,9 @@ extern void                 hset_max_dbl    (hset_accum *acc, value64 v);
 extern void                 hset_min_dbl    (hset_accum *acc, value64 v);
 //extern void                 hset_avg_dbl    (hset_accum *acc, value64 v);
 
-
+extern void                 hset_count_fs   (hset_accum *acc, value64 v);
+extern void                 hset_max_fs     (hset_accum *acc, value64 v);
+extern void                 hset_min_fs     (hset_accum *acc, value64 v);
 
 #endif /* !_HASHSET_UTILS_H */
 

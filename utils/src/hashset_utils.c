@@ -338,6 +338,47 @@ void                        hset_min_dbl(hset_accum *acc, value64 v) {
     }
 }*/
 
+// fs
+// ======================= FS reduce callbacks =======================
+// TEMPORARY, because fs doesn't provide comparation
+static int                   hset_fs_cmp_wrap(const fs* restrict s1, const fs* restrict s2){
+    invraisecode(ERR_NULLABLE_PTR, s1 && s2 && s1->v,
+        "Null pointer %p %p %p", s1, s2, s1 ? s1->v: NULL);
+
+    if (!s2->v)
+        return 1;   // s1 valuable so > null
+    return fs_cmp(s1, s2);
+}
+
+void                         hset_count_fs(hset_accum *acc, value64 v) {
+    const fs *s = value64_fs(v);
+    if (!fs_isnull(s) )
+        acc->count++;
+}
+// compare as literal, find max
+void                        hset_max_fs(hset_accum *acc, value64 v) {
+    const fs    *cur = value64_fs(v);
+    if (fs_isnull(cur) )    // ignore null and empry
+        return;
+    if (acc->count == 0)
+        acc->value.fsval = fs_create(); // body in heap, v isn't allocated
+    if (acc->count == 0 || /*fs_cmp*/ hset_fs_cmp_wrap(cur, acc->value.fsval ) > 0)
+        fs_cpy(acc->value.fsval, *cur);
+    acc->count++;
+}
+
+// compare as literal, min (even 0)
+void                        hset_min_fs(hset_accum *acc, value64 v) {
+    const fs    *cur = value64_fs(v);
+    if (fs_isnull(cur) )    // ignore null and empry
+        return;
+    if (acc->count == 0)
+        acc->value.fsval = fs_create(); // body in heap, v isn't allocated
+    if (acc->count == 0 || fs_cmp(cur, acc->value.fsval ) < 0)
+        fs_cpy(acc->value.fsval, *cur);
+    acc->count++;
+}
+
 // ---------------------------------------- Testing ------------------------------------------
 #ifdef HASHSET_UTILS_TESTING
 
