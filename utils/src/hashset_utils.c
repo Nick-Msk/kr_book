@@ -411,6 +411,19 @@ void                        hset_sumlen_fs(hset_accum *acc, value64 v) {
     acc->count++;
 }
 
+void                        hset_agg_fs     (hset_accum *acc, value64 v){
+    const fs *cur = value64_fs(v);
+    if (fs_isnull(cur))
+        return;     // totally ignore ? OK for now
+
+    if (acc->count > 0 && acc->sep) {   // not optimized, but ok for now
+        // добавляем разделитель перед очередным элементом
+        fs_cat(hset_accum_fs(acc), fsliteral(acc->sep));
+    }
+    fs_cat(hset_accum_fs(acc), *cur);   // дописываем саму строку
+    acc->count++;
+}
+
 // ---------------------------------------- Testing ------------------------------------------
 #ifdef HASHSET_UTILS_TESTING
 
@@ -4057,6 +4070,76 @@ tf_reduce_fs_count_max_min(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST reduce_fsagg ---------------------------------
+static TestStatus
+tf_reduce_fsagg(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: aggregate empty set", ++subnum);
+    {
+        hset se = hset_init_fs(10);
+        hset_accum acc = hset_reduce_fsagg(&se, hset_agg_fs, ", ");
+        const char *res = fs_str(hset_accum_fs(&acc));
+        test_validatefree(
+            res != NULL && strcmp(res, "") == 0,
+            (hset_free(&se), hset_accum_free(&acc)),
+            "Agg empty: expected '', got '%s'", res ? res : "NULL"
+        );
+        hset_accum_free(&acc);
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: aggregate single element, no separator", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/x");
+        hset_accum acc = hset_reduce_fsagg(&se, hset_agg_fs, NULL);
+        const char *res = fs_str(hset_accum_fs(&acc));
+        test_validatefree(
+            res != NULL && strcmp(res, "/tmp/x") == 0,
+            (hset_free(&se), hset_accum_free(&acc)),
+            "Agg single: expected '/tmp/x', got '%s'", res ? res : "NULL"
+        );
+        hset_accum_free(&acc);
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: aggregate multiple elements with separator", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/b", "/tmp/c");
+        hset_accum acc = hset_reduce_fsagg(&se, hset_agg_fs, ", ");
+        const char *res = fs_str(hset_accum_fs(&acc));
+        test_validatefree(
+            res != NULL && strcmp(res, "/tmp/a, /tmp/b, /tmp/c") == 0,
+            (hset_free(&se), hset_accum_free(&acc)),
+            "Agg multi: expected '/tmp/a, /tmp/b, /tmp/c', got '%s'", res ? res : "NULL"
+        );
+        hset_accum_free(&acc);
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: aggregate without separator (pure concat)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("abc", "def", "ghi");
+        hset_accum acc = hset_reduce_fsagg(&se, hset_agg_fs, NULL);
+        const char *res = fs_str(hset_accum_fs(&acc));
+        test_validatefree(
+            res != NULL && strcmp(res, "abcdefghi") == 0,
+            (hset_free(&se), hset_accum_free(&acc)),
+            "Agg no sep: expected 'abcdefghi', got '%s'", res ? res : "NULL"
+        );
+        hset_accum_free(&acc);
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -4090,6 +4173,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf23,                         .num = 24, .name = "hset_initreduce double int simple test"     , .desc="", .mandatory=true)
               , testnew(.f2 = tf26,                         .num = 27, .name = "hset_any(), hset_nonexists() simple test"   , .desc="", .mandatory=true)
               , testnew(.f2 = tf_reduce_fs_count_max_min,   .num = 28, .name = "hset_initreduce fs simple test"             , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_reduce_fsagg,              .num = 29, .name = "hset_reduce_fsagg simple test"              , .desc="", .mandatory=true)
             );
         if (runall)
             break;

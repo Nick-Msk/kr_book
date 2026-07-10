@@ -62,6 +62,7 @@ typedef struct              hset_accum {
     value64         value;    // накопленное значение (сумма, максимум и т.п.)
     int             count;    // количество элементов, участвовавших в накоплении
     value64_type    typ;      // type of value(s)
+    const char     *sep;      // separator for fsagg
 } hset_accum;
 
 // TODO: api for extracting from hset_accum
@@ -85,9 +86,38 @@ static inline fs          **hset_accum_getfs(hset_accum *c) {
     return &c->value.fsval;
 }
 
-#define                     HSET_ACCUM(type, ...)   (hset_accum) { .value = LITERAL64_ZERO, .count = 0, .typ = (type), __VA_ARGS__}
-#define                     HSET_ACCUM_DBL_ZERO     (hset_accum) { .value = LITERAL64_DBL(0.0), .count = 0, .typ = VALUE64_DBL }
-#define                     HSET_ACCUM_FS_ZERO      (hset_accum) { .value = (value64) { .u64 = 0, .fsval = fs_create() }, .count = 0, .typ = VALUE64_FS }
+#define                     HSET_ACCUM(type, ...) \
+(hset_accum) { \
+    .value = LITERAL64_ZERO, \
+    .count = 0, \
+    .typ = (type), \
+    __VA_ARGS__ \
+}
+#define                     HSET_ACCUM_DBL_ZERO \
+(hset_accum) { \
+    .value = LITERAL64_DBL(0.0), \
+    .count = 0, \
+    .typ = VALUE64_DBL \
+}
+#define                     HSET_ACCUM_FS_ZERO \
+(hset_accum) { \
+    .value = (value64) \
+        { .u64 = 0, \
+          .fsval = fs_create() \
+        }, \
+    .count = 0, \
+    .typ = VALUE64_FS \
+}
+#define                     HSET_ACCUM_FS_AGG(sepa) \
+(hset_accum) { \
+    .value     = (value64) \
+        { .u64 = 0, \
+          .fsval = fs_create() \
+        }, \
+    .count     = 0, \
+    .typ       = VALUE64_FS, \
+    .sep       = (sepa) \
+}
 
 typedef                     void (*hset_reduce_func)(hset_accum *acc, value64 v);
 extern hset_accum           hset_initreduce(const hset *se, hset_accum init, hset_reduce_func func);
@@ -106,6 +136,9 @@ static inline hset_accum    hset_reduce_dbl(const hset *se, hset_reduce_func fun
 }
 static inline hset_accum    hset_reduce_fs(const hset *se, hset_reduce_func func){
     return hset_initreduce(se, HSET_ACCUM_FS_ZERO, func);
+}
+static inline hset_accum    hset_reduce_fsagg(const hset *se, hset_reduce_func func, const char *sep){
+    return hset_initreduce(se, HSET_ACCUM_FS_AGG(sep), func);
 }
 
 static inline void          hset_accum_free(hset_accum *ha){
