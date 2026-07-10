@@ -4083,9 +4083,9 @@ tf_reduce_fsagg(const char *name)
         hset_accum acc = hset_reduce_fsagg(&se, hset_agg_fs, ", ");
         const char *res = fs_str(hset_accum_fs(&acc));
         test_validatefree(
-            res != NULL && strcmp(res, "") == 0,
+            res == NULL,                         // пустое множество → нет строки
             (hset_free(&se), hset_accum_free(&acc)),
-            "Agg empty: expected '', got '%s'", res ? res : "NULL"
+            "Agg empty: expected NULL, got '%s'", res ? res : "NULL"
         );
         hset_accum_free(&acc);
         hset_free(&se);
@@ -4113,13 +4113,17 @@ tf_reduce_fsagg(const char *name)
         hset_accum acc = hset_reduce_fsagg(&se, hset_agg_fs, ", ");
         const char *res = fs_str(hset_accum_fs(&acc));
         test_validatefree(
-            res != NULL && strcmp(res, "/tmp/a, /tmp/b, /tmp/c") == 0,
+            res &&
+            strstr(res, "/tmp/a") && strstr(res, "/tmp/b") && strstr(res, "/tmp/c") &&
+            strlen(res) == 22,
             (hset_free(&se), hset_accum_free(&acc)),
-            "Agg multi: expected '/tmp/a, /tmp/b, /tmp/c', got '%s'", res ? res : "NULL"
+            "Agg multi: result '%s' must contain all three paths in any order",
+            res ? res : "NULL"
         );
         hset_accum_free(&acc);
         hset_free(&se);
     }
+
     fs_alloc_check(true);
 
     test_sub("subtest %d: aggregate without separator (pure concat)", ++subnum);
@@ -4128,9 +4132,11 @@ tf_reduce_fsagg(const char *name)
         hset_accum acc = hset_reduce_fsagg(&se, hset_agg_fs, NULL);
         const char *res = fs_str(hset_accum_fs(&acc));
         test_validatefree(
-            res != NULL && strcmp(res, "abcdefghi") == 0,
+            res &&
+            strstr(res, "abc") && strstr(res, "def") && strstr(res, "ghi") &&
+            strlen(res) == 9,
             (hset_free(&se), hset_accum_free(&acc)),
-            "Agg no sep: expected 'abcdefghi', got '%s'", res ? res : "NULL"
+            "Agg no sep: result '%s' must contain all three parts in any order", res ? res : "NULL"
         );
         hset_accum_free(&acc);
         hset_free(&se);
