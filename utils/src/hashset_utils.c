@@ -3936,7 +3936,124 @@ tf_reduce_fs_count_max_min(const char *name)
     }
     fs_alloc_check(true);
     // TODO:
-    
+    test_sub("subtest %d: max length string", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc");
+        hset_accum acc = hset_reduce(&se, hset_maxlen_fs);
+        const char *res = fs_str(hset_accum_fs(&acc));
+        test_validatefree(
+            hset_accum_fs(&acc) != NULL && res != NULL && strcmp(res, "/tmp/ccc") == 0,
+            (hset_free(&se), fs_free(hset_accum_fs(&acc))),
+            "Maxlen: expected '/tmp/ccc', got '%s'", res ? res : "NULL"
+        );
+        fs_free(hset_accum_fs(&acc));
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: max length single element", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/single");
+        hset_accum acc = hset_reduce(&se, hset_maxlen_fs);
+        const char *res = fs_str(hset_accum_fs(&acc));
+        test_validatefree(
+            hset_accum_fs(&acc) != NULL && res != NULL && strcmp(res, "/tmp/single") == 0,
+            (hset_free(&se), fs_free(hset_accum_fs(&acc))),
+            "Maxlen single: expected '/tmp/single', got '%s'", res ? res : "NULL"
+        );
+        fs_free(hset_accum_fs(&acc));
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: max length with equal lengths", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/abc", "/tmp/xyz", "/tmp/123");
+        hset_accum acc = hset_reduce(&se, hset_maxlen_fs);
+        const char *res = fs_str(hset_accum_fs(&acc));
+        test_validatefree(
+            hset_accum_fs(&acc) != NULL && res != NULL && strlen(res) == 8,
+            (hset_free(&se), fs_free(hset_accum_fs(&acc))),
+            "Maxlen equal: expected any string of length 8, got '%s' (len %zu)",
+            res ? res : "NULL", res ? strlen(res) : 0
+        );
+        fs_free(hset_accum_fs(&acc));
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: min length string", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/aa", "/tmp/b", "/tmp/ccc");
+        hset_accum acc = hset_reduce(&se, hset_minlen_fs);
+        const char *res = fs_str(hset_accum_fs(&acc));
+        test_validatefree(
+            hset_accum_fs(&acc) != NULL && res != NULL && strcmp(res, "/tmp/b") == 0,
+            (hset_free(&se), fs_free(hset_accum_fs(&acc))),
+            "Minlen: expected '/tmp/b', got '%s'", res ? res : "NULL"
+        );
+        fs_free(hset_accum_fs(&acc));
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: min length single element", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/single");
+        hset_accum acc = hset_reduce(&se, hset_minlen_fs);
+        const char *res = fs_str(hset_accum_fs(&acc));
+        test_validatefree(
+            hset_accum_fs(&acc) != NULL && res != NULL && strcmp(res, "/tmp/single") == 0,
+            (hset_free(&se), fs_free(hset_accum_fs(&acc))),
+            "Minlen single: expected '/tmp/single', got '%s'", res ? res : "NULL"
+        );
+        fs_free(hset_accum_fs(&acc));
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: min length with equal lengths", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/abc", "/tmp/xyz", "/tmp/123");
+        hset_accum acc = hset_reduce(&se, hset_minlen_fs);
+        const char *res = fs_str(hset_accum_fs(&acc));
+        test_validatefree(
+            hset_accum_fs(&acc) != NULL && res != NULL && strlen(res) == 8,
+            (hset_free(&se), fs_free(hset_accum_fs(&acc))),
+            "Minlen equal: expected any string of length 8, got '%s' (len %zu)",
+            res ? res : "NULL", res ? strlen(res) : 0
+        );
+        fs_free(hset_accum_fs(&acc));
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: sum of lengths", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/x", "/tmp/yy", "/tmp/zzz");
+        hset_accum acc = hset_reduce(&se, hset_sumlen_fs);
+        test_validatefree(
+            hset_accum_long(&acc) == 21,
+            hset_free(&se),
+            "Sumlen: expected 21, got %ld", hset_accum_long(&acc)
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: sum of lengths empty set", ++subnum);
+    {
+        hset se = hset_init_fs(10);
+        hset_accum acc = hset_reduce(&se, hset_sumlen_fs);
+        test_validatefree(
+            hset_accum_long(&acc) == 0,
+            hset_free(&se),
+            "Sumlen empty: expected 0, got %ld", hset_accum_long(&acc)
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
     return logret(TEST_PASSED, "done");
 }
 
