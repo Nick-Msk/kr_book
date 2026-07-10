@@ -3880,13 +3880,13 @@ tf_reduce_fs_count_max_min(const char *name)
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/b", "/tmp/a", "/tmp/c");
         hset_accum acc = hset_reduce(&se, hset_max_fs);
-        const char *res = fs_str(acc.value.fsval);
+        const char *res = fs_str(hset_accum_fs(&acc) );
         test_validatefree(
             acc.value.fsval != NULL && res != NULL && strcmp(res, "/tmp/c") == 0,
-            (hset_free(&se), fs_free(acc.value.fsval), free(acc.value.fsval)),
+            (hset_free(&se), fs_free(hset_accum_fs(&acc) ) ),
             "Max: expected '/tmp/c', got '%s'", res ? res : "NULL"
         );
-        fs_free(acc.value.fsval);
+        fs_free(hset_accum_fs(&acc) );
         hset_free(&se);
     }
     fs_alloc_check(true);
@@ -3897,11 +3897,11 @@ tf_reduce_fs_count_max_min(const char *name)
         hset_accum acc = hset_reduce(&se, hset_max_fs);
         const char *res = fs_str(acc.value.fsval);
         test_validatefree(
-            acc.value.fsval != NULL && res != NULL && strcmp(res, "/tmp/single") == 0,
-            (hset_free(&se), fs_free(acc.value.fsval), free(acc.value.fsval)),
+            hset_accum_fs(&acc) != NULL && res != NULL && strcmp(res, "/tmp/single") == 0,
+            (hset_free(&se), fs_free(hset_accum_fs(&acc) ) ),
             "Max single: expected '/tmp/single', got '%s'", res ? res : "NULL"
         );
-        fs_free(acc.value.fsval);
+        fs_free(hset_accum_fs(&acc) );
         hset_free(&se);
     }
     fs_alloc_check(true);
@@ -3910,13 +3910,13 @@ tf_reduce_fs_count_max_min(const char *name)
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/b", "/tmp/a", "/tmp/c");
         hset_accum acc = hset_reduce(&se, hset_min_fs);
-        const char *res = fs_str(value64_fs(acc.value) );   //OMG
+        const char *res = fs_str(hset_accum_fs(&acc) );   //OMG
         test_validatefree(
-            acc.value.fsval != NULL && res != NULL && strcmp(res, "/tmp/a") == 0,
-            (hset_free(&se), fs_free(acc.value.fsval), free(acc.value.fsval)),
+            hset_accum_fs(&acc) != NULL && res != NULL && strcmp(res, "/tmp/a") == 0,
+            (hset_free(&se), fs_free(hset_accum_fs(&acc) ) ),
             "Min: expected '/tmp/a', got '%s'", res ? res : "NULL"
         );
-        fs_free(acc.value.fsval);
+        fs_free(hset_accum_fs(&acc) );
         hset_free(&se);
     }
     fs_alloc_check(true);
@@ -3927,15 +3927,16 @@ tf_reduce_fs_count_max_min(const char *name)
         hset_accum acc = hset_reduce(&se, hset_min_fs);
         const char *res = fs_str(value64_fs(acc.value) );
         test_validatefree(
-            acc.value.fsval != NULL && res != NULL && strcmp(res, "/tmp/single") == 0,
-            (hset_free(&se), fs_free(acc.value.fsval), free(acc.value.fsval)),
+            hset_accum_fs(&acc) != NULL && res != NULL && strcmp(res, "/tmp/single") == 0,
+            (hset_free(&se), fs_free(hset_accum_fs(&acc) ) ),
             "Min single: expected '/tmp/single', got '%s'", res ? res : "NULL"
         );
-        fs_free(acc.value.fsval);
+        fs_free(hset_accum_fs(&acc) );
         hset_free(&se);
     }
     fs_alloc_check(true);
-
+    // TODO:
+    
     return logret(TEST_PASSED, "done");
 }
 
