@@ -1,5 +1,0 @@
-CREATE OR REPLACE FUNCTION printf(format text, VARIADIC "any")
-RETURNS text
-AS 'MODULE_PATHNAME', '_printf_core'
-LANGUAGE C IMMUTABLE STRICT;
-
