@@ -362,9 +362,9 @@ void                        hset_max_fs(hset_accum *acc, value64 v) {
     const fs    *cur = value64_fs(v);
     if (fs_isnull(cur) )    // ignore null and empry
         return;
-    if (acc->count == 0)
-        hset_accum_fs(acc) = fs_create(); // body in heap, v isn't allocated
-    if (acc->count == 0 || fs_cmp(cur, hset_accum_fs(acc) ) > 0)
+    //if (acc->count == 0)
+      //  hset_accum_fs(acc) = fs_create(); // body in heap, v isn't allocated
+    if (acc->count == 0 || fs_cmp /*hset_fs_cmp_wrap*/(cur, hset_accum_fs(acc) ) > 0)
         fs_cpy(hset_accum_fs(acc), *cur);
     acc->count++;
 }
@@ -374,19 +374,19 @@ void                        hset_min_fs(hset_accum *acc, value64 v) {
     const fs    *cur = value64_fs(v);
     if (fs_isnull(cur) )    // ignore null and empry
         return;
-    if (acc->count == 0)
-        hset_accum_fs(acc) = fs_create(); // body in heap, v isn't allocated
-    if (acc->count == 0 || fs_cmp(cur, acc->value.fsval ) < 0)
+    //if (acc->count == 0)
+      //  hset_accum_fs(acc) = fs_create(); // body in heap, v isn't allocated
+    if (acc->count == 0 || fs_cmp /*hset_fs_cmp_wrap*/(cur, acc->value.fsval ) < 0)
         fs_cpy(hset_accum_fs(acc), *cur);
     acc->count++;
 }
 // compare as length, find max
 void                        hset_maxlen_fs(hset_accum *acc, value64 v) {
     const fs    *cur = value64_fs(v);
-    if (fs_isnull(cur) )    // ignore null and empry
+    if (fs_isnull(cur) )    // ignore null and null fs (fs.v == NULL)
         return;
-    if (acc->count == 0)
-        hset_accum_fs(acc) = fs_create(); // body in heap, v isn't allocated
+    //if (acc->count == 0)
+      //  hset_accum_fs(acc) = fs_create(); // body in heap, v isn't allocated
     if (acc->count == 0 || fs_len(cur) > fs_len(hset_accum_fs(acc) ) )
         fs_cpy(hset_accum_fs(acc), *cur);
     acc->count++;
@@ -397,8 +397,8 @@ void                        hset_minlen_fs(hset_accum *acc, value64 v) {
     const fs    *cur = value64_fs(v);
     if (fs_isnull(cur) )    // ignore null and empry
         return;
-    if (acc->count == 0)
-        hset_accum_fs(acc) = fs_create(); // body in heap, v isn't allocated
+    //if (acc->count == 0)
+      //  hset_accum_fs(acc) = fs_create(); // body in heap, v isn't allocated
     if (acc->count == 0 || fs_len(cur) < fs_len(hset_accum_fs(acc) ) )
         fs_cpy(hset_accum_fs(acc), *cur);
     acc->count++;
@@ -3853,7 +3853,7 @@ tf_reduce_fs_count_max_min(const char *name)
     test_sub("subtest %d: count non-empty set", ++subnum);
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/b", "/tmp/c");
-        hset_accum acc = hset_reduce(&se, hset_count_fs);
+        hset_accum acc = hset_reduce_fs(&se, hset_count_fs);
         test_validatefree(
             acc.count == 3,
             hset_free(&se),
@@ -3866,7 +3866,7 @@ tf_reduce_fs_count_max_min(const char *name)
     test_sub("subtest %d: count empty set", ++subnum);
     {
         hset se = hset_init_fs(10);
-        hset_accum acc = hset_reduce(&se, hset_count_fs);
+        hset_accum acc = hset_reduce_fs(&se, hset_count_fs);
         test_validatefree(
             acc.count == 0,
             hset_free(&se),
@@ -3879,7 +3879,7 @@ tf_reduce_fs_count_max_min(const char *name)
     test_sub("subtest %d: max string (lexicographic)", ++subnum);
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/b", "/tmp/a", "/tmp/c");
-        hset_accum acc = hset_reduce(&se, hset_max_fs);
+        hset_accum acc = hset_reduce_fs(&se, hset_max_fs);
         const char *res = fs_str(hset_accum_fs(&acc) );
         test_validatefree(
             acc.value.fsval != NULL && res != NULL && strcmp(res, "/tmp/c") == 0,
@@ -3894,7 +3894,7 @@ tf_reduce_fs_count_max_min(const char *name)
     test_sub("subtest %d: max string single element", ++subnum);
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/single");
-        hset_accum acc = hset_reduce(&se, hset_max_fs);
+        hset_accum acc = hset_reduce_fs(&se, hset_max_fs);
         const char *res = fs_str(acc.value.fsval);
         test_validatefree(
             hset_accum_fs(&acc) != NULL && res != NULL && strcmp(res, "/tmp/single") == 0,
@@ -3909,7 +3909,7 @@ tf_reduce_fs_count_max_min(const char *name)
     test_sub("subtest %d: min string (lexicographic)", ++subnum);
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/b", "/tmp/a", "/tmp/c");
-        hset_accum acc = hset_reduce(&se, hset_min_fs);
+        hset_accum acc = hset_reduce_fs(&se, hset_min_fs);
         const char *res = fs_str(hset_accum_fs(&acc) );   //OMG
         test_validatefree(
             hset_accum_fs(&acc) != NULL && res != NULL && strcmp(res, "/tmp/a") == 0,
@@ -3924,7 +3924,7 @@ tf_reduce_fs_count_max_min(const char *name)
     test_sub("subtest %d: min string single element", ++subnum);
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/single");
-        hset_accum acc = hset_reduce(&se, hset_min_fs);
+        hset_accum acc = hset_reduce_fs(&se, hset_min_fs);
         const char *res = fs_str(value64_fs(acc.value) );
         test_validatefree(
             hset_accum_fs(&acc) != NULL && res != NULL && strcmp(res, "/tmp/single") == 0,
@@ -3939,7 +3939,7 @@ tf_reduce_fs_count_max_min(const char *name)
     test_sub("subtest %d: max length string", ++subnum);
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc");
-        hset_accum acc = hset_reduce(&se, hset_maxlen_fs);
+        hset_accum acc = hset_reduce_fs(&se, hset_maxlen_fs);
         const char *res = fs_str(hset_accum_fs(&acc));
         test_validatefree(
             hset_accum_fs(&acc) != NULL && res != NULL && strcmp(res, "/tmp/ccc") == 0,
@@ -3954,7 +3954,7 @@ tf_reduce_fs_count_max_min(const char *name)
     test_sub("subtest %d: max length single element", ++subnum);
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/single");
-        hset_accum acc = hset_reduce(&se, hset_maxlen_fs);
+        hset_accum acc = hset_reduce_fs(&se, hset_maxlen_fs);
         const char *res = fs_str(hset_accum_fs(&acc));
         test_validatefree(
             hset_accum_fs(&acc) != NULL && res != NULL && strcmp(res, "/tmp/single") == 0,
@@ -3969,7 +3969,7 @@ tf_reduce_fs_count_max_min(const char *name)
     test_sub("subtest %d: max length with equal lengths", ++subnum);
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/abc", "/tmp/xyz", "/tmp/123");
-        hset_accum acc = hset_reduce(&se, hset_maxlen_fs);
+        hset_accum acc = hset_reduce_fs(&se, hset_maxlen_fs);
         const char *res = fs_str(hset_accum_fs(&acc));
         test_validatefree(
             hset_accum_fs(&acc) != NULL && res != NULL && strlen(res) == 8,
@@ -3985,7 +3985,7 @@ tf_reduce_fs_count_max_min(const char *name)
     test_sub("subtest %d: min length string", ++subnum);
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/aa", "/tmp/b", "/tmp/ccc");
-        hset_accum acc = hset_reduce(&se, hset_minlen_fs);
+        hset_accum acc = hset_reduce_fs(&se, hset_minlen_fs);
         const char *res = fs_str(hset_accum_fs(&acc));
         test_validatefree(
             hset_accum_fs(&acc) != NULL && res != NULL && strcmp(res, "/tmp/b") == 0,
@@ -4000,7 +4000,7 @@ tf_reduce_fs_count_max_min(const char *name)
     test_sub("subtest %d: min length single element", ++subnum);
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/single");
-        hset_accum acc = hset_reduce(&se, hset_minlen_fs);
+        hset_accum acc = hset_reduce_fs(&se, hset_minlen_fs);
         const char *res = fs_str(hset_accum_fs(&acc));
         test_validatefree(
             hset_accum_fs(&acc) != NULL && res != NULL && strcmp(res, "/tmp/single") == 0,
@@ -4015,7 +4015,7 @@ tf_reduce_fs_count_max_min(const char *name)
     test_sub("subtest %d: min length with equal lengths", ++subnum);
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/abc", "/tmp/xyz", "/tmp/123");
-        hset_accum acc = hset_reduce(&se, hset_minlen_fs);
+        hset_accum acc = hset_reduce_fs(&se, hset_minlen_fs);
         const char *res = fs_str(hset_accum_fs(&acc));
         test_validatefree(
             hset_accum_fs(&acc) != NULL && res != NULL && strlen(res) == 8,

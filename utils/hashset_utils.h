@@ -59,40 +59,47 @@ extern void                 hset_const_foreach(const hset *se, hset_const_proc_t
 
 // ----------------------------------------- REDUCE -----------------------------------------
 typedef struct              hset_accum {
-    value64     value;    // накопленное значение (сумма, максимум и т.п.)
-    int         count;    // количество элементов, участвовавших в накоплении
+    value64         value;    // накопленное значение (сумма, максимум и т.п.)
+    int             count;    // количество элементов, участвовавших в накоплении
+    value64_type    typ;      // type of value(s)
 } hset_accum;
 
 // TODO: api for extracting from hset_accum
 static inline value64       hset_accum_get(hset_accum *c){
     return c->value;
 }
-#define                     hset_accum_int(ha) *hset_accum_getint(ha)
+#define                     hset_accum_int(ha) (*hset_accum_getint(ha) )
 static inline int          *hset_accum_getint(hset_accum *c){
     return &c->value.ival;
 }
-#define hset_accum_long(ha) (*hset_accum_getlong(ha) )
-static inline long *hset_accum_getlong(hset_accum *c) {
+#define                     hset_accum_long(ha) (*hset_accum_getlong(ha) )
+static inline long         *hset_accum_getlong(hset_accum *c) {
     return &c->value.lval;
 }
-#define hset_accum_dbl(ha) (*hset_accum_getdbl(ha) )
-static inline double *hset_accum_getdbl(hset_accum *c) {
+#define                     hset_accum_dbl(ha) (*hset_accum_getdbl(ha) )
+static inline double       *hset_accum_getdbl(hset_accum *c) {
     return &c->value.dval;
 }
-#define hset_accum_fs(ha)  (*hset_accum_getfs(ha) )
-static inline fs **hset_accum_getfs(hset_accum *c) {
+#define                     hset_accum_fs(ha)  (*hset_accum_getfs(ha) )
+static inline fs          **hset_accum_getfs(hset_accum *c) {
     return &c->value.fsval;
 }
 
-#define                     HSET_ACCUM(...)     (hset_accum) { .value = LITERAL64_ZERO, .count = 0, __VA_ARGS__}
-#define                     HSET_ACCUM_DBL_ZERO (hset_accum) { .value = LITERAL64_DBL(0.0), .count = 0 }
-#define                     HSET_ACCUM_FS_ZERO  (hset_accum) { .value = value64_createfs(fs_create() ), .count = 0 }
+#define                     HSET_ACCUM(type, ...)   (hset_accum) { .value = LITERAL64_ZERO, .count = 0, .typ = (type), __VA_ARGS__}
+#define                     HSET_ACCUM_DBL_ZERO     (hset_accum) { .value = LITERAL64_DBL(0.0), .count = 0, .typ = VALUE64_DBL }
+#define                     HSET_ACCUM_FS_ZERO      (hset_accum) { .value = (value64) { .u64 = 0, .fsval = fs_create() }, .count = 0, .typ = VALUE64_FS }
 
 typedef                     void (*hset_reduce_func)(hset_accum *acc, value64 v);
 extern hset_accum           hset_initreduce(const hset *se, hset_accum init, hset_reduce_func func);
 
 static inline hset_accum    hset_reduce(const hset *se, hset_reduce_func func){
-    return hset_initreduce(se, HSET_ACCUM(), func);
+    return hset_initreduce(se, HSET_ACCUM(VALUE64_INT), func);  // VALUE64_INT is just mean do nothing when hset_accum_free()
+}
+static inline hset_accum    hset_reduce_int(const hset *se, hset_reduce_func func){
+    return hset_initreduce(se, HSET_ACCUM(VALUE64_INT), func);
+}
+static inline hset_accum    hset_reduce_lng(const hset *se, hset_reduce_func func){
+    return hset_initreduce(se, HSET_ACCUM(VALUE64_LNG), func);
 }
 static inline hset_accum    hset_reduce_dbl(const hset *se, hset_reduce_func func){
     return hset_initreduce(se, HSET_ACCUM_DBL_ZERO, func);
@@ -101,11 +108,27 @@ static inline hset_accum    hset_reduce_fs(const hset *se, hset_reduce_func func
     return hset_initreduce(se, HSET_ACCUM_FS_ZERO, func);
 }
 
+static inline void          hset_accum_free(hset_accum *ha){
+    invraisecode(ERR_NULLABLE_PTR, ha != NULL, "Null pointer");
+    switch (ha->typ) {
+        case VALUE64_FS:
+            fs_free(hset_accum_fs(ha) );
+        break;
+        case VALUE64_STR:
+            userraiseint(ERR_UNSUPPORTED_TYPE, "VALUE64_STR isn't supported now");
+        break;
+        default:    // no action here
+        break;
+    }
+    *ha = HSET_ACCUM(ha->typ);  // clear (hset_accum){ .typ = ha->typ }
+}
+
+/*
 // unified version! TODO:
 typedef struct              hset_unified {
     value64  value[HSET_UNIFIED_CNT];    // unified values (int, double, fs etc...)
 } hset_unified;
-
+*/
 
 // ------------------------------------- REDUCE IMPL -----------------------------------------
 extern void                 hset_sum_int    (hset_accum *acc, value64 v);
