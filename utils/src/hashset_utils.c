@@ -259,7 +259,7 @@ void                        hset_modify_foreach(hset *se, hset_modify_proc_t pro
 
 // ----------------------------------------- REDUCE -----------------------------------------
 
-// Core engine reduct (TODO: core engine FILTER)
+// Core engine reduct
 hset_accum                  hset_initreduce(const hset *se, hset_accum init, hset_reduce_func func) {
     hset_accum acc = init;
     for (int i = 0; i < se->sz; i++) {
@@ -422,6 +422,66 @@ void                        hset_agg_fs     (hset_accum *acc, value64 v){
     }
     fs_cat(hset_accum_fs(acc), *cur);   // дописываем саму строку
     acc->count++;
+}
+
+// ------------------------------------------ FILTER -----------------------------------------
+// Core engine filter
+hset                       *hset_filter(hset *restrict se, hset_predicate_t pred, value64 data){
+    invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
+
+    int     cnt = 0;
+    for (int i = 0; i < se->sz; i++) {
+        hset_elem *el = se->table[i];
+        while (el) {
+            hset_elem *next = el->next;
+            if (!pred(el->v, data) )
+                cnt += hset_del(se, el->v);
+            el = next;
+        }
+    }
+    return logsimpleret(se, "Deleted by filter %d", cnt);
+}
+
+hset                        hset_init_filter(const hset *restrict src, hset_predicate_t pred, value64 data) {
+    invraisecode(ERR_NULLABLE_PTR, src != NULL, "Null pointer");
+
+    hset res = hset_init(src->sz, hset_getype(src) );
+    HSET_FOREACH(src, var) {
+        if (pred(var, data))
+            hset_set(&res, var);   // копирование, оригинал не трогаем
+    }
+    return logsimpleret(res, "Filtered: %d elements remain in new set", res.count);
+}
+
+// ---------------------------------------- Filters ------------------------------------------------
+// trivial, common
+bool                        hset_filter_true(value64 v, value64 data) {
+    (void)v; (void)data;
+    return true;
+}
+bool                        hset_filter_false(value64 v, value64 data) {
+    (void)v; (void)data;
+    return false;
+}
+// ---------------- fs filters -----------------
+// fs filters (assuming v as fs*), data as int
+bool                        hset_filter_fsminlen_int(value64 v, value64 data) {
+    const fs *f = value64_fs(v);
+    return !fs_isnull(f) && fs_len(f) >= value64_int(data);
+}
+// Проверка префикса (data.sval – строка-префикс)
+bool                        hset_filter_fsprefix_str(value64 v, value64 data) {
+    const fs    *f = value64_fs(v);
+    if (fs_isnull(f) || !value64_str(data) )
+        return false;
+    fs l = FSLITERAL(value64_str(data) );
+    return fs_ncmp(f, &l, fslen(l) ) == 0;
+}
+// Проверка точного равенства строки (data.sval – искомая строка)
+bool                        hset_filter_fsequals_str(value64 v, value64 data) {
+    const fs *f = value64_fs(v);
+    return !fs_isnull(f) && value64_str(data) 
+            && strcmp(f->v, value64_str(data) ) == 0;    // dangerous one
 }
 
 // ---------------------------------------- Testing ------------------------------------------
@@ -4146,6 +4206,191 @@ tf_reduce_fsagg(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST hset_filter / hset_init_filter FS -------------------------
+static TestStatus
+tf_filter_fs(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== hset_filter (in-place) ========== */
+    test_sub("subtest %d: filter empty set", ++subnum);
+    {
+        hset se = hset_init_fs(10);
+        hset *res = hset_filter(&se, hset_filter_true, LITERAL64_ZERO);
+        test_validatefree(
+            res == &se && se.count == 0,
+            hset_free(res),
+            "Filter empty: must return same pointer and stay empty"
+        );
+        hset_free(res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: filter keep all (true predicate)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc");
+        hset *res = hset_filter(&se, hset_filter_true, LITERAL64_ZERO);
+        test_validatefree(
+            res == &se && se.count == 3 &&
+            HSET_HAS_FS(res, "/tmp/a") &&
+            HSET_HAS_FS(res, "/tmp/bb") &&
+            HSET_HAS_FS(res, "/tmp/ccc"),
+            hset_free(res),
+            "Filter true must preserve all elements"
+        );
+        hset_free(res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: filter remove all (false predicate)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc");
+        hset *res = hset_filter(&se, hset_filter_false, LITERAL64_ZERO);
+        test_validatefree(
+            res == &se && se.count == 0,
+            hset_free(res),
+            "Filter false must remove all elements"
+        );
+        hset_free(res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: filter by minimum length 7", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc", "/tmp/dddd");
+        value64 data = LITERAL64_INT(7);   // минимальная длина 7
+        hset *res = hset_filter(&se, hset_filter_fsminlen_int, data);
+        test_validatefree(
+            res == &se && se.count == 3 &&
+            !HSET_HAS_FS(res, "/tmp/a") &&
+            HSET_HAS_FS(res, "/tmp/bb") &&
+            HSET_HAS_FS(res, "/tmp/ccc") &&
+            HSET_HAS_FS(res, "/tmp/dddd"),
+            hset_free(res),
+            "Filter minlen=7: should remove '/tmp/a' (length 6)"
+        );
+        hset_free(res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: filter by prefix '/tmp' (in-place)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/var/b", "/tmp/c", "/usr/d");
+        value64 prefix = value64_createstr("/tmp");
+        hset *res = hset_filter(&se, hset_filter_fsprefix_str, prefix);
+        value64_freestr(&prefix);   // освобождаем параметр после фильтрации
+
+        test_validatefree(
+            res == &se && se.count == 2 &&
+            HSET_HAS_FS(res, "/tmp/a") &&
+            HSET_HAS_FS(res, "/tmp/c") &&
+            !HSET_HAS_FS(res, "/var/b") &&
+            !HSET_HAS_FS(res, "/usr/d"),
+            hset_free(res),
+            "Filter prefix '/tmp': should keep only /tmp/a and /tmp/c"
+        );
+        hset_free(res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: filter by exact string '/tmp/foo' (in-place)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/foo", "/tmp/bar", "/tmp/foo");
+        value64 target = value64_createstr("/tmp/foo");
+        hset *res = hset_filter(&se, hset_filter_fsequals_str, target);
+        value64_freestr(&target);
+
+        test_validatefree(
+            res == &se && se.count == 1 &&
+            HSET_HAS_FS(res, "/tmp/foo") &&
+            !HSET_HAS_FS(res, "/tmp/bar"),
+            hset_free(res),
+            "Filter exact '/tmp/foo': should leave one element"
+        );
+        hset_free(res);
+    }
+    fs_alloc_check(true);
+
+    /* ========== hset_init_filter (new set) ========== */
+    test_sub("subtest %d: init_filter from empty", ++subnum);
+    {
+        hset se = hset_init_fs(10);
+        hset res = hset_init_filter(&se, hset_filter_true, LITERAL64_ZERO);
+        test_validatefree(
+            res.count == 0,
+            (hset_free(&se), hset_free(&res)),
+            "Init_filter from empty must return empty set"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: init_filter by prefix '/tmp'", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/var/b", "/tmp/c", "/usr/d");
+        value64 prefix = value64_createstr("/tmp");
+        hset res = hset_init_filter(&se, hset_filter_fsprefix_str, prefix);
+        value64_freestr(&prefix);
+
+        test_validatefree(
+            res.count == 2 &&
+            HSET_HAS_FS(&res, "/tmp/a") && HSET_HAS_FS(&res, "/tmp/c") &&
+            !HSET_HAS_FS(&res, "/var/b") && !HSET_HAS_FS(&res, "/usr/d"),
+            (hset_free(&se), hset_free(&res)),
+            "Init_filter by prefix '/tmp': should collect only matching paths"
+        );
+        test_validatefree(
+            se.count == 4,
+            (hset_free(&se), hset_free(&res)),
+            "Source set must be unchanged after init_filter"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: init_filter by minimum length 7", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc", "/tmp/dddd");
+        value64 data = LITERAL64_INT(7);
+        hset res = hset_init_filter(&se, hset_filter_fsminlen_int, data);
+
+        test_validatefree(
+            res.count == 3 &&
+            !HSET_HAS_FS(&res, "/tmp/a") &&
+            HSET_HAS_FS(&res, "/tmp/bb") &&
+            HSET_HAS_FS(&res, "/tmp/ccc") &&
+            HSET_HAS_FS(&res, "/tmp/dddd"),
+            (hset_free(&se), hset_free(&res)),
+            "Init_filter minlen=7: should skip '/tmp/a'"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: init_filter by exact string '/tmp/foo'", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/foo", "/tmp/bar", "/tmp/foo");
+        value64 target = value64_createstr("/tmp/foo");
+        hset res = hset_init_filter(&se, hset_filter_fsequals_str, target);
+        value64_freestr(&target);
+
+        test_validatefree(
+            res.count == 1 && HSET_HAS_FS(&res, "/tmp/foo"),
+            (hset_free(&se), hset_free(&res)),
+            "Init_filter exact '/tmp/foo': should return one element"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -4180,6 +4425,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf26,                         .num = 27, .name = "hset_any(), hset_nonexists() simple test"   , .desc="", .mandatory=true)
               , testnew(.f2 = tf_reduce_fs_count_max_min,   .num = 28, .name = "hset_initreduce fs simple test"             , .desc="", .mandatory=true)
               , testnew(.f2 = tf_reduce_fsagg,              .num = 29, .name = "hset_reduce_fsagg simple test"              , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_filter_fs,                 .num = 30, .name = "hset(_init)_filter simple test"             , .desc="", .mandatory=true)
             );
         if (runall)
             break;

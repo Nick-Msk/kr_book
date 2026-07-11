@@ -163,7 +163,7 @@ typedef struct              hset_unified {
 } hset_unified;
 */
 
-// ------------------------------------- REDUCE IMPL -----------------------------------------
+// ------------------------------------- REDUCE  -----------------------------------------
 extern void                 hset_sum_int    (hset_accum *acc, value64 v);
 extern void                 hset_count_int  (hset_accum *acc, value64 v);
 extern void                 hset_max_int    (hset_accum *acc, value64 v);
@@ -182,8 +182,26 @@ extern void                 hset_min_fs     (hset_accum *acc, value64 v);
 extern void                 hset_maxlen_fs  (hset_accum *acc, value64 v);
 extern void                 hset_minlen_fs  (hset_accum *acc, value64 v);
 extern void                 hset_sumlen_fs  (hset_accum *acc, value64 v);
-// TODO:
+//
 extern void                 hset_agg_fs     (hset_accum *acc, value64 v);
+
+// ------------------------------------- FILTER -----------------------------------------
+
+typedef bool                (*hset_predicate_t)(value64 v, value64 data);
+typedef bool                (*hset_predicate2_t)(value64 v, value64 data1, value64 data2); // between etc...
+// engine
+extern hset                 *hset_filter(hset *restrict se, hset_predicate_t pred, value64 data);
+extern hset                  hset_init_filter(const hset *restrict src, hset_predicate_t pred, value64 data);
+// common filters
+extern bool                  hset_filter_true(value64 v, value64 data);
+extern bool                  hset_filter_false(value64 v, value64 data);
+// ---------------- fs filters -----------------
+// fs filters (assuming v as fs*), data as int
+extern bool                  hset_filter_fsminlen_int(value64 v, value64 data);
+// Проверка префикса (data.sval – строка-префикс)
+extern bool                  hset_filter_fsprefix_str(value64 v, value64 data);
+
+
 
 #endif /* !_HASHSET_UTILS_H */
 
