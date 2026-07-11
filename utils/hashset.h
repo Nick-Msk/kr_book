@@ -247,6 +247,13 @@ extern int                  hset_loadfs_str(hset *restrict se, const char *strin
             for (const hset_elem *_el_ = (se)->table[_i_]; _el_; _el_ = _el_->next) \
                 for (int _flag_ = 1; _flag_; _flag_ = 0) \
                     for (value64 var  = _el_->v; _flag_; _flag_ = 0)
+// midification version
+#define HSET_FOREACH_MOD(se, var) \
+    for (int _i_ = 0; _i_ < (se)->sz; _i_++) \
+        for (hset_elem *_el_ = (se)->table[_i_], *_next_ = NULL; _el_; _el_ = _next_) \
+            for (int _flag_ = 1; _flag_; _flag_ = 0) \
+                for (value64 var = _el_->v; _flag_; _flag_ = 0) \
+                    for (int _once_ = (_next_ = _el_->next, 1); _once_; _once_ = 0)
 
 // ------------------------------------- PRINTERS/CHECKERS ---------------------------------
 

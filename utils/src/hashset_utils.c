@@ -430,7 +430,7 @@ hset                       *hset_filter(hset *restrict se, hset_predicate_t pred
     invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
 
     int     cnt = 0;
-    for (int i = 0; i < se->sz; i++) {
+    /*for (int i = 0; i < se->sz; i++) {
         hset_elem *el = se->table[i];
         while (el) {
             hset_elem *next = el->next;
@@ -438,15 +438,19 @@ hset                       *hset_filter(hset *restrict se, hset_predicate_t pred
                 cnt += hset_del(se, el->v);
             el = next;
         }
+    }*/
+    HSET_FOREACH_MOD(se, var) {
+        if (!pred(var, data) )
+            cnt += hset_del(se, var);
     }
     return logsimpleret(se, "Deleted by filter %d", cnt);
 }
 
-hset                        hset_init_filter(const hset *restrict src, hset_predicate_t pred, value64 data) {
-    invraisecode(ERR_NULLABLE_PTR, src != NULL, "Null pointer");
+hset                        hset_init_filter(const hset *restrict se, hset_predicate_t pred, value64 data) {
+    invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
 
-    hset res = hset_init(src->sz, hset_getype(src) );
-    HSET_FOREACH(src, var) {
+    hset res = hset_init(se->sz, hset_getype(se) );
+    HSET_FOREACH(se, var) {
         if (pred(var, data))
             hset_set(&res, var);   // копирование, оригинал не трогаем
     }
