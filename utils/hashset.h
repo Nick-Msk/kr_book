@@ -241,13 +241,13 @@ extern int                  hset_loadfs_str(hset *restrict se, const char *strin
 #define                     HSET_FOREACH_DBL(se, var)  _HSET_FOREACH_TYPE(se, var, double, dval)
 #define                     HSET_FOREACH_PTR(se, var)  _HSET_FOREACH_TYPE(se, var, void*, pval)
 #define                     HSET_FOREACH_FS(se, var)   _HSET_FOREACH_TYPE(se, var, fs*, fsval)
-// any type
+// any type, no mod!
 #define                     HSET_FOREACH(se, var) \
         for (int _i_ = 0; _i_ < (se)->sz; _i_++) \
             for (const hset_elem *_el_ = (se)->table[_i_]; _el_; _el_ = _el_->next) \
                 for (int _flag_ = 1; _flag_; _flag_ = 0) \
                     for (value64 var  = _el_->v; _flag_; _flag_ = 0)
-// midification version
+// any type, midification version
 #define HSET_FOREACH_MOD(se, var) \
     for (int _i_ = 0; _i_ < (se)->sz; _i_++) \
         for (hset_elem *_el_ = (se)->table[_i_], *_next_ = NULL; _el_; _el_ = _next_) \

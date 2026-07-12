@@ -484,8 +484,25 @@ bool                        hset_filter_fsprefix_str(value64 v, value64 data) {
 // Проверка точного равенства строки (data.sval – искомая строка)
 bool                        hset_filter_fsequals_str(value64 v, value64 data) {
     const fs *f = value64_fs(v);
-    return !fs_isnull(f) && value64_str(data) 
+    return !fs_isnull(f) && value64_str(data)
             && strcmp(f->v, value64_str(data) ) == 0;    // dangerous one
+}
+// sql-like
+bool                        hset_filter_fslike_str(value64 v, value64 data) {
+    const fs *f = value64_fs(v);
+    if (fs_isnull(f) || !value64_str(data))
+        return false;
+    fs needle = FSLITERAL(value64_str(data));
+    return fs_instr(f, &needle) >= 0;   // -1 if not found
+}
+
+// sql-ulike: регистронезависимый поиск подстроки
+bool                        hset_filter_fsulike_str(value64 v, value64 data) {
+    const fs *f = value64_fs(v);
+    if (fs_isnull(f) || !value64_str(data))
+        return false;
+    fs needle = FSLITERAL(value64_str(data));
+    return fs_iinstr(f, &needle) >= 0;  // -1 if not found
 }
 
 // ---------------------------------------- Testing ------------------------------------------
@@ -4395,6 +4412,103 @@ tf_filter_fs(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST hset_filter_fs(u)like_str -------------------------
+static TestStatus
+tf_filter_fsulike_str(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== like ========== */
+    test_sub("subtest %d: filter like (in-place)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/foo", "/var/tmp/bar", "/usr/tmp", "/home/user");
+        value64 substr = value64_createstr("tmp");
+        hset *res = hset_filter(&se, hset_filter_fslike_str, substr);
+        value64_freestr(&substr);
+
+        test_validatefree(
+            res == &se && se.count == 3 &&
+            HSET_HAS_FS(res, "/tmp/foo") &&
+            HSET_HAS_FS(res, "/var/tmp/bar") &&
+            HSET_HAS_FS(res, "/usr/tmp") &&
+            !HSET_HAS_FS(res, "/home/user"),
+            hset_free(res),
+            "Filter like 'tmp': must keep only paths containing 'tmp'"
+        );
+        hset_free(res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: init_filter like", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/foo", "/var/tmp/bar", "/usr/tmp", "/home/user");
+        value64 substr = value64_createstr("tmp");
+        hset res = hset_init_filter(&se, hset_filter_fslike_str, substr);
+        value64_freestr(&substr);
+
+        test_validatefree(
+            res.count == 3 &&
+            HSET_HAS_FS(&res, "/tmp/foo") &&
+            HSET_HAS_FS(&res, "/var/tmp/bar") &&
+            HSET_HAS_FS(&res, "/usr/tmp"),
+            (hset_free(&se), hset_free(&res)),
+            "Init_filter like 'tmp': must collect matching paths"
+        );
+        test_validatefree(
+            se.count == 4,
+            (hset_free(&se), hset_free(&res)),
+            "Source set must be unchanged"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    /* ========== ulike ========== */
+    test_sub("subtest %d: filter ulike (case‑insensitive)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/TMP/foo", "/var/tmp/bar", "/usr/Tmp", "/home/user");
+        value64 substr = value64_createstr("tmp");
+        hset *res = hset_filter(&se, hset_filter_fsulike_str, substr);
+        value64_freestr(&substr);
+
+        test_validatefree(
+            res == &se && se.count == 3 &&
+            HSET_HAS_FS(res, "/TMP/foo") &&
+            HSET_HAS_FS(res, "/var/tmp/bar") &&
+            HSET_HAS_FS(res, "/usr/Tmp") &&
+            !HSET_HAS_FS(res, "/home/user"),
+            hset_free(res),
+            "Filter ulike 'tmp': must match regardless of case"
+        );
+        hset_free(res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: init_filter ulike", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/TMP/foo", "/var/tmp/bar", "/usr/Tmp", "/home/user");
+        value64 substr = value64_createstr("tmp");
+        hset res = hset_init_filter(&se, hset_filter_fsulike_str, substr);
+        value64_freestr(&substr);
+
+        test_validatefree(
+            res.count == 3 &&
+            HSET_HAS_FS(&res, "/TMP/foo") &&
+            HSET_HAS_FS(&res, "/var/tmp/bar") &&
+            HSET_HAS_FS(&res, "/usr/Tmp"),
+            (hset_free(&se), hset_free(&res)),
+            "Init_filter ulike 'tmp': case‑insensitive collect"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -4430,6 +4544,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_reduce_fs_count_max_min,   .num = 28, .name = "hset_initreduce fs simple test"             , .desc="", .mandatory=true)
               , testnew(.f2 = tf_reduce_fsagg,              .num = 29, .name = "hset_reduce_fsagg simple test"              , .desc="", .mandatory=true)
               , testnew(.f2 = tf_filter_fs,                 .num = 30, .name = "hset(_init)_filter simple test"             , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_filter_fsulike_str,        .num = 31, .name = "hset_filter_fs(u)like_str simple test"      , .desc="", .mandatory=true)
             );
         if (runall)
             break;

@@ -200,8 +200,9 @@ extern bool                  hset_filter_false(value64 v, value64 data);
 extern bool                  hset_filter_fsminlen_int(value64 v, value64 data);
 // Проверка префикса (data.sval – строка-префикс)
 extern bool                  hset_filter_fsprefix_str(value64 v, value64 data);
-
-
+//
+extern bool                  hset_filter_like(value64 v, value64 data);
+extern bool                  hset_filter_ulike(value64 v, value64 data);
 
 #endif /* !_HASHSET_UTILS_H */
 
