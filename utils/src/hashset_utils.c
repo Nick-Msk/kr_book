@@ -430,7 +430,7 @@ hset                       *hset_filter(hset *restrict se, hset_predicate_t pred
     invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
 
     int     cnt = 0;
-    HSET_FOREACH_MOD(se, var) {
+    HSET_FOREACH_DEL(se, var) {
         if (!pred(var, data) )
             cnt += hset_del(se, var);
     }

@@ -550,6 +550,8 @@ extern bool                         value64_filter_fsmaxlen_int(value64 v, value
 extern bool                         value64_filter_fslen_int(value64 v, value64 data);
 // Проверка префикса (data.sval – строка-префикс)
 extern bool                         value64_filter_fsprefix_str(value64 v, value64 data);
+//
+extern bool                         value64_filter_fsequals_str(value64 v, value64 data);
 // fs vs str
 extern bool                         value64_filter_fslike_str(value64 v, value64 data);
 extern bool                         value64_filter_fsulike_str(value64 v, value64 data);
