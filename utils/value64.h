@@ -101,6 +101,8 @@ extern value64                      value64_convert_str_to_fs(value64 v);
 // local version, just a copy!
 #define                             LITERAL64_FS(val)   (value64) {.u64 = 0L, .fsval = &(val) }
 
+#define                             LITERAL64_FS_STR(str) (value64) {.u64 = 0L, .fsval = &FSLITERAL(str) }
+
 // no checking here!!!
 static inline value64               value64_setzero(value64 *pv, value64_type typ){
     switch (typ){
