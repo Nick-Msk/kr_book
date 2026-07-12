@@ -4918,6 +4918,94 @@ tf_minlen_simpliriers(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST hset_create_fsmaxlen_int / hset_delete_fs_notmaxlen_int
+//              hset_create_fslen_int / hset_delete_fs_notlen_int -------------------------
+static TestStatus
+tf_maxlen_simpliriers(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== maxlen ========== */
+    test_sub("subtest %d: create maxlen=7", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc", "/tmp/dddd");
+        // длины: 6,7,8,9 → при maxlen=7 должны остаться /tmp/a, /tmp/bb
+        hset res = hset_create_fsmaxlen_int(&se, 7);
+        test_validatefree(
+            res.count == 2 &&
+            HSET_HAS_FS(&res, "/tmp/a") &&
+            HSET_HAS_FS(&res, "/tmp/bb") &&
+            !HSET_HAS_FS(&res, "/tmp/ccc") &&
+            !HSET_HAS_FS(&res, "/tmp/dddd"),
+            (hset_free(&se), hset_free(&res)),
+            "Create maxlen=7: should keep /tmp/a and /tmp/bb"
+        );
+        test_validatefree(se.count == 4, (hset_free(&se), hset_free(&res)), "Source unchanged");
+        hset_free(&se);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: delete NOT maxlen=7", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc", "/tmp/dddd");
+        // NOT maxlen=7 → удалить всё, что НЕ <= 7, т.е. удалить /tmp/ccc(8), /tmp/dddd(9)
+        hset *res = hset_delete_fs_notmaxlen_int(&se, 7);
+        test_validatefree(
+            res == &se && se.count == 2 &&
+            HSET_HAS_FS(res, "/tmp/a") &&
+            HSET_HAS_FS(res, "/tmp/bb") &&
+            !HSET_HAS_FS(res, "/tmp/ccc") &&
+            !HSET_HAS_FS(res, "/tmp/dddd"),
+            hset_free(res),
+            "Delete NOT maxlen=7: must keep only length <= 7"
+        );
+        hset_free(res);
+    }
+    fs_alloc_check(true);
+
+    /* ========== len_eq ========== */
+    test_sub("subtest %d: create len=7", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc", "/tmp/dddd");
+        // только /tmp/bb имеет длину 7
+        hset res = hset_create_fslen_int(&se, 7);
+        test_validatefree(
+            res.count == 1 &&
+            HSET_HAS_FS(&res, "/tmp/bb") &&
+            !HSET_HAS_FS(&res, "/tmp/a") &&
+            !HSET_HAS_FS(&res, "/tmp/ccc") &&
+            !HSET_HAS_FS(&res, "/tmp/dddd"),
+            (hset_free(&se), hset_free(&res)),
+            "Create len=7: only /tmp/bb should match"
+        );
+        test_validatefree(se.count == 4, (hset_free(&se), hset_free(&res)), "Source unchanged");
+        hset_free(&se);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: delete NOT len=7", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc", "/tmp/dddd");
+        hset *res = hset_delete_fs_notlen_int(&se, 7);
+        test_validatefree(
+            res == &se && se.count == 1 &&
+            HSET_HAS_FS(res, "/tmp/bb") &&
+            !HSET_HAS_FS(res, "/tmp/a") &&
+            !HSET_HAS_FS(res, "/tmp/ccc") &&
+            !HSET_HAS_FS(res, "/tmp/dddd"),
+            hset_free(res),
+            "Delete NOT len=7: must remain /tmp/bb"
+        );
+        hset_free(res);
+    }
+    fs_alloc_check(true);
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -4955,7 +5043,10 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_filter_fs,                 .num = 30, .name = "hset(_init)_filter simple test"             , .desc="", .mandatory=true)
               , testnew(.f2 = tf_filter_fsulike_str,        .num = 31, .name = "hset_filter_fs(u)like_str simple test"      , .desc="", .mandatory=true)
               , testnew(.f2 = tf_like_ulike_simpliriers,    .num = 32, .name = "hset_delete_fs(u)like_str simplifiers"      , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_minlen_simpliriers,        .num = 33, .name = "hset_create/delete_fsminlen_int simplifiers", .desc="", .mandatory=true)
+              , testnew(.f2 = tf_minlen_simpliriers,        .num = 33, .name = "hset_create/delete_fsminlen_int simplifiers"
+                                , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_maxlen_simpliriers,        .num = 34, .name = "hset_create/delete_fs(max)len_int simplifiers"
+                                , .desc="", .mandatory=true)
             );
         if (runall)
             break;

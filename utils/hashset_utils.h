@@ -225,10 +225,27 @@ extern bool                  hset_filter_fsulike_str(value64 v, value64 data);
 static inline hset           hset_create_fsminlen_int(const hset *restrict se, int len){
     return hset_create_fs_int_filter(se, len, hset_filter_fsminlen_int);
 }
-// sql-like create as select where length >=  :int
+// sql-like delete where NOT length >=  :int
 static inline hset          *hset_delete_fs_notminlen_int(hset *restrict se, int len){
     return hset_delete_fs_int_antifilter(se, len, hset_filter_fsminlen_int);
 }
+// sql-like create as select where length <=  :int
+static inline hset           hset_create_fsmaxlen_int(const hset *restrict se, int len){
+    return hset_create_fs_int_filter(se, len, hset_filter_fsmaxlen_int);
+}
+// sql-like delete where NOT length <=  :int
+static inline hset          *hset_delete_fs_notmaxlen_int(hset *restrict se, int len){
+    return hset_delete_fs_int_antifilter(se, len, hset_filter_fsmaxlen_int);
+}
+// sql-like create as select where length == :int
+static inline hset           hset_create_fslen_int(const hset *restrict se, int len){
+    return hset_create_fs_int_filter(se, len, hset_filter_fslen_int);
+}
+// sql-like delete where NOT length == :int
+static inline hset          *hset_delete_fs_notlen_int(hset *restrict se, int len){
+    return hset_delete_fs_int_antifilter(se, len, hset_filter_fslen_int);
+}
+
 
 // sql-like create as select where like
 static inline hset           hset_create_fslike_str(const hset *restrict se, const char *restrict pattern){
