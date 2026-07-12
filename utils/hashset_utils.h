@@ -208,5 +208,26 @@ extern bool                  hset_filter_fsprefix_str(value64 v, value64 data);
 extern bool                  hset_filter_fslike_str(value64 v, value64 data);
 extern bool                  hset_filter_fsulike_str(value64 v, value64 data);
 
+// --------- simplifyers over filters ---------
+extern hset                  hset_create_fslike_str_common(const hset *restrict se, const char *restrict pattern, hset_predicate_t filter);
+// sql-like create as select where like
+static inline hset           hset_create_fslike_str(const hset *restrict se, const char *restrict pattern){
+    return hset_create_fslike_str_common(se, pattern, hset_filter_fslike_str);
+}
+// sql-like create as select where ulike
+static inline hset           hset_create_fsulike_str(const hset *restrict se, const char *restrict pattern){
+    return hset_create_fslike_str_common(se, pattern, hset_filter_fsulike_str);
+}
+extern hset                 *hset_delete_fs_notlike_str_common(hset *restrict se, const char *restrict pattern, hset_predicate_t filter);
+// sql-like create as select where like
+static inline hset          *hset_delete_fs_notlike_str(hset *restrict se, const char *restrict pattern){
+    return hset_delete_fs_notlike_str_common(se, pattern, hset_filter_fslike_str);
+}
+// sql-like create as select where ulike
+static inline hset          *hset_delete_fs_notulike_str(hset *restrict se, const char *restrict pattern){
+    return hset_delete_fs_notlike_str_common(se, pattern, hset_filter_fsulike_str);
+}
+
+
 #endif /* !_HASHSET_UTILS_H */
 

@@ -515,6 +515,27 @@ bool                        hset_filter_fsulike_str(value64 v, value64 data) {
     return fs_iinstr(f, &needle) >= 0;  // -1 if not found
 }
 
+// --------- simplifyers over filters ---------
+// sql-like create as select where (u)like
+hset                        hset_create_fslike_str_common(const hset *restrict se, const char *restrict pattern, hset_predicate_t filter){
+    invraisecode(ERR_NULLABLE_PTR, se != NULL && pattern != NULL,
+            "Null pointers %p %p", se, pattern);
+    invraisecode(ERR_UNSUPPORTED_TYPE, hset_getype(se) == VALUE64_FS,
+            "Only VALUE64_FS is supported");
+    //fs l = FSLITERAL(pattern);  // no need to free
+    hset tmp = hset_init_filter(se, filter, LITERAL64_STR(pattern) );
+    return logsimpleret(tmp, "Created %d elems", hset_cnt(&tmp) );
+}
+// sql-like delete where NOT like
+hset                       *hset_delete_fs_notlike_str_common(hset *restrict se, const char *restrict pattern, hset_predicate_t filter){
+    invraisecode(ERR_NULLABLE_PTR, se != NULL && pattern != NULL,
+            "Null pointers %p %p", se, pattern);
+    invraisecode(ERR_UNSUPPORTED_TYPE, hset_getype(se) == VALUE64_FS,
+            "Only VALUE64_FS is supported");
+    hset_filter(se, filter, LITERAL64_STR(pattern) );
+    return logsimpleret(se, "Remained %d elems", hset_cnt(se) );
+}
+
 // ---------------------------------------- Testing ------------------------------------------
 #ifdef HASHSET_UTILS_TESTING
 
@@ -4600,6 +4621,150 @@ tf_filter_fsulike_str(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST hset_create/delete like/ulike API -------------------------
+static TestStatus
+tf_like_ulike_simpliriers(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ===== hset_create_fslike_str (чувствительный LIKE) ===== */
+    test_sub("subtest %d: create like (sensitive)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/foo", "/var/tmp/bar", "/usr/tmp", "/home/user");
+        hset res = hset_create_fslike_str(&se, "tmp");
+        test_validatefree(
+            res.count == 3 &&
+            HSET_HAS_FS(&res, "/tmp/foo") &&
+            HSET_HAS_FS(&res, "/var/tmp/bar") &&
+            HSET_HAS_FS(&res, "/usr/tmp") &&
+            !HSET_HAS_FS(&res, "/home/user"),
+            (hset_free(&se), hset_free(&res)),
+            "Create LIKE 'tmp': must collect 3 paths containing 'tmp'"
+        );
+        test_validatefree(
+            se.count == 4,
+            (hset_free(&se), hset_free(&res)),
+            "Source set must be unchanged"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    /* ===== hset_create_fsulike_str (без учёта регистра) ===== */
+    test_sub("subtest %d: create ulike (case-insensitive)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/TMP/foo", "/var/tmp/bar", "/usr/Tmp", "/home/user");
+        hset res = hset_create_fsulike_str(&se, "tmp");
+        test_validatefree(
+            res.count == 3 &&
+            HSET_HAS_FS(&res, "/TMP/foo") &&
+            HSET_HAS_FS(&res, "/var/tmp/bar") &&
+            HSET_HAS_FS(&res, "/usr/Tmp") &&
+            !HSET_HAS_FS(&res, "/home/user"),
+            (hset_free(&se), hset_free(&res)),
+            "Create ULIKE 'tmp': case-insensitive, should collect 3 paths"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    /* ---------- delete NOT like (sensitive) ---------- */
+    test_sub("subtest %d: delete NOT like (sensitive)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/foo", "/var/tmp/bar", "/usr/tmp", "/home/user");
+        hset *res = hset_delete_fs_notlike_str(&se, "tmp");   // удаляем всё, что НЕ содержит "tmp"
+        test_validatefree(
+            res == &se && se.count == 3 &&
+            HSET_HAS_FS(res, "/tmp/foo") &&
+            HSET_HAS_FS(res, "/var/tmp/bar") &&
+            HSET_HAS_FS(res, "/usr/tmp") &&
+            !HSET_HAS_FS(res, "/home/user"),
+            hset_free(res),
+            "Delete NOT LIKE 'tmp': must keep only paths containing 'tmp'"
+        );
+        hset_free(res);
+    }
+    fs_alloc_check(true);
+
+    /* ---------- delete NOT ulike (case‑insensitive) ---------- */
+    test_sub("subtest %d: delete NOT ulike (case-insensitive)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/TMP/foo", "/var/tmp/bar", "/usr/Tmp", "/home/user");
+        hset *res = hset_delete_fs_notulike_str(&se, "tmp"); // удаляем всё, что НЕ содержит "tmp" без учёта регистра
+        test_validatefree(
+            res == &se && se.count == 3 &&
+            HSET_HAS_FS(res, "/TMP/foo") &&
+            HSET_HAS_FS(res, "/var/tmp/bar") &&
+            HSET_HAS_FS(res, "/usr/Tmp") &&
+            !HSET_HAS_FS(res, "/home/user"),
+            hset_free(res),
+            "Delete NOT ULIKE 'tmp': case‑insensitive keep"
+        );
+        hset_free(res);
+    }
+    fs_alloc_check(true);
+    /* ===== Граничные случаи ===== */
+    test_sub("subtest %d: create like on empty set", ++subnum);
+    {
+        hset se = hset_init_fs(10);
+        hset res = hset_create_fslike_str(&se, "tmp");
+        test_validatefree(
+            res.count == 0 && hset_validate(stdout, &res),
+            (hset_free(&se), hset_free(&res)),
+            "Create LIKE on empty set must return empty"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: delete like on empty set", ++subnum);
+    {
+        hset se = hset_init_fs(10);
+        hset *res = hset_delete_fs_notlike_str(&se, "tmp");
+        test_validatefree(
+            res == &se && se.count == 0,
+            hset_free(res),
+            "Delete LIKE on empty set must stay empty"
+        );
+        hset_free(res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: create like with no matches", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/b");
+        hset res = hset_create_fslike_str(&se, "xyz");
+        test_validatefree(
+            res.count == 0,
+            (hset_free(&se), hset_free(&res)),
+            "Create LIKE 'xyz' should return empty set"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: delete like with no matches", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/b");
+        hset *res = hset_delete_fs_notlike_str(&se, "tmp");
+        test_validatefree(
+            res == &se && se.count == 2 &&
+            HSET_HAS_FS(res, "/tmp/a") && HSET_HAS_FS(res, "/tmp/b"),
+            hset_free(res),
+            "Delete NOT LIKE 'tmp' must keep all elements"
+        );
+        hset_free(res);
+    }
+    fs_alloc_check(true);
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -4636,6 +4801,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_reduce_fsagg,              .num = 29, .name = "hset_reduce_fsagg simple test"              , .desc="", .mandatory=true)
               , testnew(.f2 = tf_filter_fs,                 .num = 30, .name = "hset(_init)_filter simple test"             , .desc="", .mandatory=true)
               , testnew(.f2 = tf_filter_fsulike_str,        .num = 31, .name = "hset_filter_fs(u)like_str simple test"      , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_like_ulike_simpliriers,    .num = 32, .name = "hset_delete_fs(u)like_str simplifiers"      , .desc="", .mandatory=true)
             );
         if (runall)
             break;
