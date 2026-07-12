@@ -430,22 +430,13 @@ hset                       *hset_filter(hset *restrict se, hset_predicate_t pred
     invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
 
     int     cnt = 0;
-    /*for (int i = 0; i < se->sz; i++) {
-        hset_elem *el = se->table[i];
-        while (el) {
-            hset_elem *next = el->next;
-            if (!pred(el->v, data) )
-                cnt += hset_del(se, el->v);
-            el = next;
-        }
-    }*/
     HSET_FOREACH_MOD(se, var) {
         if (!pred(var, data) )
             cnt += hset_del(se, var);
     }
     return logsimpleret(se, "Deleted by filter %d", cnt);
 }
-
+// core engine construct
 hset                        hset_init_filter(const hset *restrict se, hset_predicate_t pred, value64 data) {
     invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
 
@@ -516,24 +507,43 @@ bool                        hset_filter_fsulike_str(value64 v, value64 data) {
 }
 
 // --------- simplifyers over filters ---------
-// sql-like create as select where (u)like
-hset                        hset_create_fslike_str_common(const hset *restrict se, const char *restrict pattern, hset_predicate_t filter){
+// sql-like create as select:fs where predicate:int
+hset                        hset_create_fs_int_filter(const hset *restrict se, int data, hset_predicate_t filter){
+    invraisecode(ERR_NULLABLE_PTR, se != NULL,
+        "Null pointers %p", se);
+    invraisecode(ERR_UNSUPPORTED_TYPE, hset_getype(se) == VALUE64_INT /*|| hset_getype(se) == VALUE64_LONG */,
+        "Only VALUE64_INT/LONG is supported");
+    hset tmp = hset_init_filter(se, filter, LITERAL64_INT(data) );
+    return logsimpleret(tmp, "Created as int filter %d elems", hset_cnt(&tmp) );
+}
+// sql-like delete :fs where NOT predicate:int
+hset                       *hset_delete_fs_int_antifilter(hset *restrict se, int data, hset_predicate_t filter){
+    invraisecode(ERR_NULLABLE_PTR, se != NULL,
+        "Null pointers %p", se);
+    invraisecode(ERR_UNSUPPORTED_TYPE, hset_getype(se) == VALUE64_INT /*|| hset_getype(se) == VALUE64_LONG */,
+        "Only VALUE64_INT/LONG is supported");
+    hset_filter(se, filter, LITERAL64_INT(data) );
+    return logsimpleret(se, "Remained after int filter %d elems", hset_cnt(se) );
+}
+
+// sql-like create as select:fs where predicate:str
+hset                        hset_create_fs_str_filter(const hset *restrict se, const char *restrict pattern, hset_predicate_t filter){
     invraisecode(ERR_NULLABLE_PTR, se != NULL && pattern != NULL,
             "Null pointers %p %p", se, pattern);
     invraisecode(ERR_UNSUPPORTED_TYPE, hset_getype(se) == VALUE64_FS,
             "Only VALUE64_FS is supported");
     //fs l = FSLITERAL(pattern);  // no need to free
     hset tmp = hset_init_filter(se, filter, LITERAL64_STR(pattern) );
-    return logsimpleret(tmp, "Created %d elems", hset_cnt(&tmp) );
+    return logsimpleret(tmp, "Created as str filter %d elems", hset_cnt(&tmp) );
 }
-// sql-like delete where NOT like
-hset                       *hset_delete_fs_notlike_str_common(hset *restrict se, const char *restrict pattern, hset_predicate_t filter){
+// sql-like delete :fs where NOT predicate:str
+hset                       *hset_delete_fs_str_antifilter(hset *restrict se, const char *restrict pattern, hset_predicate_t filter){
     invraisecode(ERR_NULLABLE_PTR, se != NULL && pattern != NULL,
             "Null pointers %p %p", se, pattern);
     invraisecode(ERR_UNSUPPORTED_TYPE, hset_getype(se) == VALUE64_FS,
             "Only VALUE64_FS is supported");
     hset_filter(se, filter, LITERAL64_STR(pattern) );
-    return logsimpleret(se, "Remained %d elems", hset_cnt(se) );
+    return logsimpleret(se, "Remained after str filter %d elems", hset_cnt(se) );
 }
 
 // ---------------------------------------- Testing ------------------------------------------
@@ -4765,6 +4775,149 @@ tf_like_ulike_simpliriers(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST hset_create_fsminlen_int / hset_delete_fs_notminlen_int -------------------------
+static TestStatus
+tf_minlen_simpliriers(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== hset_create_fsminlen_int (новое множество) ========== */
+    test_sub("subtest %d: create minlen=7 (empty set)", ++subnum);
+    {
+        hset se = hset_init_fs(10);
+        hset res = hset_create_fsminlen_int(&se, 7);
+        test_validatefree(
+            res.count == 0 && hset_validate(stdout, &res),
+            (hset_free(&se), hset_free(&res)),
+            "Create minlen=7 from empty: must return empty set"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: create minlen=7 (mixed lengths)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc", "/tmp/dddd");
+        // длины: 6, 7, 8, 9  → при minlen=7 должны остаться /tmp/bb, /tmp/ccc, /tmp/dddd
+        hset res = hset_create_fsminlen_int(&se, 7);
+        test_validatefree(
+            res.count == 3 &&
+            !HSET_HAS_FS(&res, "/tmp/a") &&
+            HSET_HAS_FS(&res, "/tmp/bb") &&
+            HSET_HAS_FS(&res, "/tmp/ccc") &&
+            HSET_HAS_FS(&res, "/tmp/dddd"),
+            (hset_free(&se), hset_free(&res)),
+            "Create minlen=7: should skip /tmp/a (len=6)"
+        );
+        // источник не должен измениться
+        test_validatefree(
+            se.count == 4,
+            (hset_free(&se), hset_free(&res)),
+            "Source set must be unchanged after create"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: create minlen=10 (no matches)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc");
+        hset res = hset_create_fsminlen_int(&se, 10);
+        test_validatefree(
+            res.count == 0,
+            (hset_free(&se), hset_free(&res)),
+            "Create minlen=10: no element should match"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: create minlen=0 (all match)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc");
+        hset res = hset_create_fsminlen_int(&se, 0);
+        test_validatefree(
+            res.count == 3 &&
+            HSET_HAS_FS(&res, "/tmp/a") &&
+            HSET_HAS_FS(&res, "/tmp/bb") &&
+            HSET_HAS_FS(&res, "/tmp/ccc"),
+            (hset_free(&se), hset_free(&res)),
+            "Create minlen=0: all elements must be included"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    /* ========== hset_delete_fs_notminlen_int (in-place) ========== */
+    test_sub("subtest %d: delete NOT minlen=7 (empty set)", ++subnum);
+    {
+        hset se = hset_init_fs(10);
+        hset *res = hset_delete_fs_notminlen_int(&se, 7);
+        test_validatefree(
+            res == &se && se.count == 0,
+            hset_free(res),
+            "Delete NOT minlen=7 from empty: must stay empty"
+        );
+        hset_free(res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: delete NOT minlen=7 (mixed lengths)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc", "/tmp/dddd");
+        // длины: 6,7,8,9. NOT minlen=7 => удаляем те, у которых длина < 7, т.е. /tmp/a (6).
+        // должны остаться /tmp/bb, /tmp/ccc, /tmp/dddd
+        hset *res = hset_delete_fs_notminlen_int(&se, 7);
+        test_validatefree(
+            res == &se && se.count == 3 &&
+            !HSET_HAS_FS(res, "/tmp/a") &&
+            HSET_HAS_FS(res, "/tmp/bb") &&
+            HSET_HAS_FS(res, "/tmp/ccc") &&
+            HSET_HAS_FS(res, "/tmp/dddd"),
+            hset_free(res),
+            "Delete NOT minlen=7: should remove /tmp/a (len=6)"
+        );
+        hset_free(res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: delete NOT minlen=10 (remove all)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc");
+        hset *res = hset_delete_fs_notminlen_int(&se, 10);
+        test_validatefree(
+            res == &se && se.count == 0,
+            hset_free(res),
+            "Delete NOT minlen=10: all elements have length < 10, must be removed"
+        );
+        hset_free(res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: delete NOT minlen=0 (keep all)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc");
+        hset *res = hset_delete_fs_notminlen_int(&se, 0);
+        test_validatefree(
+            res == &se && se.count == 3 &&
+            HSET_HAS_FS(res, "/tmp/a") &&
+            HSET_HAS_FS(res, "/tmp/bb") &&
+            HSET_HAS_FS(res, "/tmp/ccc"),
+            hset_free(res),
+            "Delete NOT minlen=0: all lengths >=0, nothing removed"
+        );
+        hset_free(res);
+    }
+    fs_alloc_check(true);
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -4802,6 +4955,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_filter_fs,                 .num = 30, .name = "hset(_init)_filter simple test"             , .desc="", .mandatory=true)
               , testnew(.f2 = tf_filter_fsulike_str,        .num = 31, .name = "hset_filter_fs(u)like_str simple test"      , .desc="", .mandatory=true)
               , testnew(.f2 = tf_like_ulike_simpliriers,    .num = 32, .name = "hset_delete_fs(u)like_str simplifiers"      , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_minlen_simpliriers,        .num = 33, .name = "hset_create/delete_fsminlen_int simplifiers", .desc="", .mandatory=true)
             );
         if (runall)
             break;

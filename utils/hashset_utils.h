@@ -186,12 +186,24 @@ extern void                 hset_sumlen_fs  (hset_accum *acc, value64 v);
 extern void                 hset_agg_fs     (hset_accum *acc, value64 v);
 
 // ------------------------------------- FILTER -----------------------------------------
-
+// filter types
 typedef bool                (*hset_predicate_t)(value64 v, value64 data);
 typedef bool                (*hset_predicate2_t)(value64 v, value64 data1, value64 data2); // between etc...
+
 // engine
 extern hset                 *hset_filter(hset *restrict se, hset_predicate_t pred, value64 data);
 extern hset                  hset_init_filter(const hset *restrict src, hset_predicate_t pred, value64 data);
+// simplifiers predicate engine
+// sql-like create as select:fs where predicate:str
+extern hset                  hset_create_fs_str_filter(const hset *restrict se, const char *restrict pattern, hset_predicate_t filter);
+// sql-like delete :fs where NOT predicate:str
+extern hset                 *hset_delete_fs_str_antifilter(hset *restrict se, const char *restrict pattern, hset_predicate_t filter);
+
+// sql-like create as select:fs where predicate:int
+extern hset                  hset_create_fs_int_filter(const hset *restrict se, int data, hset_predicate_t filter);
+// sql-like delete :fs where NOT predicate:int
+extern hset                 *hset_delete_fs_int_antifilter(hset *restrict se, int data, hset_predicate_t filter);
+
 // common filters
 extern bool                  hset_filter_true(value64 v, value64 data);
 extern bool                  hset_filter_false(value64 v, value64 data);
@@ -209,23 +221,30 @@ extern bool                  hset_filter_fslike_str(value64 v, value64 data);
 extern bool                  hset_filter_fsulike_str(value64 v, value64 data);
 
 // --------- simplifyers over filters ---------
-extern hset                  hset_create_fslike_str_common(const hset *restrict se, const char *restrict pattern, hset_predicate_t filter);
+// sql-like create as select where length >=  :int
+static inline hset           hset_create_fsminlen_int(const hset *restrict se, int len){
+    return hset_create_fs_int_filter(se, len, hset_filter_fsminlen_int);
+}
+// sql-like create as select where length >=  :int
+static inline hset          *hset_delete_fs_notminlen_int(hset *restrict se, int len){
+    return hset_delete_fs_int_antifilter(se, len, hset_filter_fsminlen_int);
+}
+
 // sql-like create as select where like
 static inline hset           hset_create_fslike_str(const hset *restrict se, const char *restrict pattern){
-    return hset_create_fslike_str_common(se, pattern, hset_filter_fslike_str);
+    return hset_create_fs_str_filter(se, pattern, hset_filter_fslike_str);
 }
 // sql-like create as select where ulike
 static inline hset           hset_create_fsulike_str(const hset *restrict se, const char *restrict pattern){
-    return hset_create_fslike_str_common(se, pattern, hset_filter_fsulike_str);
+    return hset_create_fs_str_filter(se, pattern, hset_filter_fsulike_str);
 }
-extern hset                 *hset_delete_fs_notlike_str_common(hset *restrict se, const char *restrict pattern, hset_predicate_t filter);
 // sql-like create as select where like
 static inline hset          *hset_delete_fs_notlike_str(hset *restrict se, const char *restrict pattern){
-    return hset_delete_fs_notlike_str_common(se, pattern, hset_filter_fslike_str);
+    return hset_delete_fs_str_antifilter(se, pattern, hset_filter_fslike_str);
 }
 // sql-like create as select where ulike
 static inline hset          *hset_delete_fs_notulike_str(hset *restrict se, const char *restrict pattern){
-    return hset_delete_fs_notlike_str_common(se, pattern, hset_filter_fsulike_str);
+    return hset_delete_fs_str_antifilter(se, pattern, hset_filter_fsulike_str);
 }
 
 
