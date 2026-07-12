@@ -524,6 +524,8 @@ hset                       *hset_delete_int_int_antifilter(hset *restrict se, in
         _res; \
     })
 
+#define HSET_HAS_INT(se, val)  hset_get((se), LITERAL64_INT(val))
+
 // ------------------------- TEST 8 ---------------------------------
 static TestStatus
 tf8(const char *name)
@@ -5094,6 +5096,115 @@ tf_prefix_simpliriers(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST int:int simplifiers (gt, ge, ne) -------------------------
+static TestStatus
+tf_int_int_simpliriers(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== greater than ========== */
+    test_sub("subtest %d: create int > 10", ++subnum);
+    {
+        int vals[] = {5, 12, 3, 8, 15, 10};
+        hset se = hset_from_intarr(vals, COUNT(vals));
+        hset res = hset_create_intgt_int(&se, 10);
+        test_validatefree(
+            res.count == 2 &&
+            HSET_HAS_INT(&res, 12) && HSET_HAS_INT(&res, 15) &&
+            !HSET_HAS_INT(&res, 5) && !HSET_HAS_INT(&res, 3) &&
+            !HSET_HAS_INT(&res, 8) && !HSET_HAS_INT(&res, 10),
+            (hset_free(&se), hset_free(&res)),
+            "Create int >10 must select 12,15"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+
+    test_sub("subtest %d: delete int not > 10", ++subnum);
+    {
+        int vals[] = {5, 12, 3, 8, 15, 10};
+        hset se = hset_from_intarr(vals, COUNT(vals));
+        hset *res = hset_delete_int_notgt_int(&se, 10);
+        test_validatefree(
+            res == &se && se.count == 2 &&
+            HSET_HAS_INT(res, 12) && HSET_HAS_INT(res, 15) &&
+            !HSET_HAS_INT(res, 5) && !HSET_HAS_INT(res, 3) &&
+            !HSET_HAS_INT(res, 8) && !HSET_HAS_INT(res, 10),
+            hset_free(res),
+            "Delete int not >10 must leave 12,15"
+        );
+        hset_free(res);
+    }
+
+    /* ========== greater or equal ========== */
+    test_sub("subtest %d: create int >= 10", ++subnum);
+    {
+        int vals[] = {5, 12, 3, 8, 15, 10};
+        hset se = hset_from_intarr(vals, COUNT(vals));
+        hset res = hset_create_intge_int(&se, 10);
+        test_validatefree(
+            res.count == 3 &&
+            HSET_HAS_INT(&res, 10) && HSET_HAS_INT(&res, 12) && HSET_HAS_INT(&res, 15) &&
+            !HSET_HAS_INT(&res, 5) && !HSET_HAS_INT(&res, 3) && !HSET_HAS_INT(&res, 8),
+            (hset_free(&se), hset_free(&res)),
+            "Create int >=10 must select 10,12,15"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+
+    test_sub("subtest %d: delete int not >= 10", ++subnum);
+    {
+        int vals[] = {5, 12, 3, 8, 15, 10};
+        hset se = hset_from_intarr(vals, COUNT(vals));
+        hset *res = hset_delete_int_notge_int(&se, 10);
+        test_validatefree(
+            res == &se && se.count == 3 &&
+            HSET_HAS_INT(res, 10) && HSET_HAS_INT(res, 12) && HSET_HAS_INT(res, 15),
+            hset_free(res),
+            "Delete int not >=10 must leave 10,12,15"
+        );
+        hset_free(res);
+    }
+
+    /* ========== not equal ========== */
+    test_sub("subtest %d: create int != 8", ++subnum);
+    {
+        int vals[] = {5, 12, 3, 8, 15};
+        hset se = hset_from_intarr(vals, COUNT(vals));
+        hset res = hset_create_intne_int(&se, 8);
+        test_validatefree(
+            res.count == 4 &&
+            HSET_HAS_INT(&res, 5) && HSET_HAS_INT(&res, 12) &&
+            HSET_HAS_INT(&res, 3) && HSET_HAS_INT(&res, 15) &&
+            !HSET_HAS_INT(&res, 8),
+            (hset_free(&se), hset_free(&res)),
+            "Create int !=8 must select all except 8"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+
+    test_sub("subtest %d: delete int not != 8", ++subnum);
+    {
+        int vals[] = {5, 12, 3, 8, 15};
+        hset se = hset_from_intarr(vals, COUNT(vals));
+        hset *res = hset_delete_int_notne_int(&se, 8);
+        test_validatefree(
+            res == &se && se.count == 4 &&
+            HSET_HAS_INT(res, 5) && HSET_HAS_INT(res, 12) &&
+            HSET_HAS_INT(res, 3) && HSET_HAS_INT(res, 15) &&
+            !HSET_HAS_INT(res, 8),
+            hset_free(res),
+            "Delete int not !=8 must leave all except 8"
+        );
+        hset_free(res);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -5136,6 +5247,8 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_maxlen_simpliriers,        .num = 34, .name = "hset_create/delete_fs(max)len_int simplifiers"
                                 , .desc="", .mandatory=true)
               , testnew(.f2 = tf_prefix_simpliriers,        .num = 35, .name = "hset_create/delete_fsprefix_str simplifiers"
+                                , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_int_int_simpliriers,       .num = 36, .name = "hset_create/delete_int<ACT>_int simplifiers"
                                 , .desc="", .mandatory=true)
             );
         if (runall)
