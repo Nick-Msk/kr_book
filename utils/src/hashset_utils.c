@@ -487,6 +487,26 @@ hset                       *hset_delete_fs_str_antifilter(hset *restrict se, con
     hset_filter(se, filter, LITERAL64_STR(pattern) );
     return logsimpleret(se, "Remained after str filter %d elems", hset_cnt(se) );
 }
+// sql-like create as select:int where predicate:int
+hset                        hset_create_int_int_filter(const hset *restrict se, int value, hset_predicate_t filter) {
+    invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
+    invraisecode(ERR_UNSUPPORTED_TYPE,
+        hset_getype(se) == VALUE64_INT /* || hset_getype(se) == VALUE64_LNG */, // long is diabled for now
+        "Only VALUE64_INT supported");
+    hset tmp = hset_init_filter(se, filter, LITERAL64_INT(value));
+    return logsimpleret(tmp, "Created %d elems", hset_cnt(&tmp));
+}
+
+// sql-like delete :int where NOT predicate:int
+hset                       *hset_delete_int_int_antifilter(hset *restrict se, int value, hset_predicate_t filter) {
+    invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
+    invraisecode(ERR_UNSUPPORTED_TYPE,
+        hset_getype(se) == VALUE64_INT /* || hset_getype(se) == VALUE64_LNG*/, // long is diabled for now
+        "Only VALUE64_INT supported");
+    hset_filter(se, filter, LITERAL64_INT(value));
+    return logsimpleret(se, "Remained %d elems", hset_cnt(se));
+}
+
 
 // ---------------------------------------- Testing ------------------------------------------
 #ifdef HASHSET_UTILS_TESTING
