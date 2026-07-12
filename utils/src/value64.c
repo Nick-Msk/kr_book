@@ -876,6 +876,63 @@ int                          value64_tostr(fs *target, value64 val, value64_type
     }
 }
 
+// ---------------------------------------- Filters ------------------------------------------------
+// trivial, common
+bool                        value64_filter_true(value64 v, value64 data) {
+    (void)v; (void)data;
+    return true;
+}
+bool                        value64_filter_false(value64 v, value64 data) {
+    (void)v; (void)data;
+    return false;
+}
+// ---------------- fs filters -----------------
+// fs filters (assuming v as fs*), data as int, check len >= data
+bool                        value64_filter_fsminlen_int(value64 v, value64 data) {
+    const fs *f = value64_fs(v);
+    return !fs_isnull(f) && fs_len(f) >= value64_int(data);
+}
+// fs filters (assuming v as fs*), data as int, check len <= data
+bool                        value64_filter_fsmaxlen_int(value64 v, value64 data) {
+    const fs *f = value64_fs(v);
+    return !fs_isnull(f) && fs_len(f) <= value64_int(data);
+}
+// fs filters (assuming v as fs*), data as int, check len == data
+bool                        value64_filter_fslen_int(value64 v, value64 data) {
+    const fs *f = value64_fs(v);
+    return !fs_isnull(f) && fs_len(f) == value64_int(data);
+}
+// Проверка префикса (data.sval – строка-префикс)
+bool                        value64_filter_fsprefix_str(value64 v, value64 data) {
+    const fs    *f = value64_fs(v);
+    if (fs_isnull(f) || !value64_str(data) )
+        return false;
+    fs l = FSLITERAL(value64_str(data) );
+    return fs_ncmp(f, &l, fslen(l) ) == 0;
+}
+// Проверка точного равенства строки (data.sval – искомая строка)
+bool                        value64_filter_fsequals_str(value64 v, value64 data) {
+    const fs *f = value64_fs(v);
+    return !fs_isnull(f) && value64_str(data)
+            && strcmp(f->v, value64_str(data) ) == 0;    // dangerous one
+}
+// sql-like
+bool                        value64_filter_fslike_str(value64 v, value64 data) {
+    const fs *f = value64_fs(v);
+    if (fs_isnull(f) || !value64_str(data))
+        return false;
+    fs needle = FSLITERAL(value64_str(data));
+    return fs_instr(f, &needle) >= 0;   // -1 if not found
+}
+
+// sql-ulike: регистронезависимый поиск подстроки
+bool                        value64_filter_fsulike_str(value64 v, value64 data) {
+    const fs *f = value64_fs(v);
+    if (fs_isnull(f) || !value64_str(data))
+        return false;
+    fs needle = FSLITERAL(value64_str(data));
+    return fs_iinstr(f, &needle) >= 0;  // -1 if not found
+}
 
 
 // ---------------------------------------- Testing ------------------------------------------

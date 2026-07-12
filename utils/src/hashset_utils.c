@@ -448,64 +448,6 @@ hset                        hset_init_filter(const hset *restrict se, hset_predi
     return logsimpleret(res, "Filtered: %d elements remain in new set", res.count);
 }
 
-// ---------------------------------------- Filters ------------------------------------------------
-// trivial, common
-bool                        hset_filter_true(value64 v, value64 data) {
-    (void)v; (void)data;
-    return true;
-}
-bool                        hset_filter_false(value64 v, value64 data) {
-    (void)v; (void)data;
-    return false;
-}
-// ---------------- fs filters -----------------
-// fs filters (assuming v as fs*), data as int, check len >= data
-bool                        hset_filter_fsminlen_int(value64 v, value64 data) {
-    const fs *f = value64_fs(v);
-    return !fs_isnull(f) && fs_len(f) >= value64_int(data);
-}
-// fs filters (assuming v as fs*), data as int, check len <= data
-bool                        hset_filter_fsmaxlen_int(value64 v, value64 data) {
-    const fs *f = value64_fs(v);
-    return !fs_isnull(f) && fs_len(f) <= value64_int(data);
-}
-// fs filters (assuming v as fs*), data as int, check len == data
-bool                        hset_filter_fslen_int(value64 v, value64 data) {
-    const fs *f = value64_fs(v);
-    return !fs_isnull(f) && fs_len(f) == value64_int(data);
-}
-// Проверка префикса (data.sval – строка-префикс)
-bool                        hset_filter_fsprefix_str(value64 v, value64 data) {
-    const fs    *f = value64_fs(v);
-    if (fs_isnull(f) || !value64_str(data) )
-        return false;
-    fs l = FSLITERAL(value64_str(data) );
-    return fs_ncmp(f, &l, fslen(l) ) == 0;
-}
-// Проверка точного равенства строки (data.sval – искомая строка)
-bool                        hset_filter_fsequals_str(value64 v, value64 data) {
-    const fs *f = value64_fs(v);
-    return !fs_isnull(f) && value64_str(data)
-            && strcmp(f->v, value64_str(data) ) == 0;    // dangerous one
-}
-// sql-like
-bool                        hset_filter_fslike_str(value64 v, value64 data) {
-    const fs *f = value64_fs(v);
-    if (fs_isnull(f) || !value64_str(data))
-        return false;
-    fs needle = FSLITERAL(value64_str(data));
-    return fs_instr(f, &needle) >= 0;   // -1 if not found
-}
-
-// sql-ulike: регистронезависимый поиск подстроки
-bool                        hset_filter_fsulike_str(value64 v, value64 data) {
-    const fs *f = value64_fs(v);
-    if (fs_isnull(f) || !value64_str(data))
-        return false;
-    fs needle = FSLITERAL(value64_str(data));
-    return fs_iinstr(f, &needle) >= 0;  // -1 if not found
-}
-
 // --------- simplifyers over filters ---------
 // sql-like create as select:fs where predicate:int
 hset                        hset_create_fs_int_filter(const hset *restrict se, int data, hset_predicate_t filter){
@@ -4279,7 +4221,7 @@ tf_filter_fs(const char *name)
     test_sub("subtest %d: filter empty set", ++subnum);
     {
         hset se = hset_init_fs(10);
-        hset *res = hset_filter(&se, hset_filter_true, LITERAL64_ZERO);
+        hset *res = hset_filter(&se, value64_filter_true, LITERAL64_ZERO);
         test_validatefree(
             res == &se && se.count == 0,
             hset_free(res),
@@ -4292,7 +4234,7 @@ tf_filter_fs(const char *name)
     test_sub("subtest %d: filter keep all (true predicate)", ++subnum);
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc");
-        hset *res = hset_filter(&se, hset_filter_true, LITERAL64_ZERO);
+        hset *res = hset_filter(&se, value64_filter_true, LITERAL64_ZERO);
         test_validatefree(
             res == &se && se.count == 3 &&
             HSET_HAS_FS(res, "/tmp/a") &&
@@ -4308,7 +4250,7 @@ tf_filter_fs(const char *name)
     test_sub("subtest %d: filter remove all (false predicate)", ++subnum);
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc");
-        hset *res = hset_filter(&se, hset_filter_false, LITERAL64_ZERO);
+        hset *res = hset_filter(&se, value64_filter_false, LITERAL64_ZERO);
         test_validatefree(
             res == &se && se.count == 0,
             hset_free(res),
@@ -4322,7 +4264,7 @@ tf_filter_fs(const char *name)
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc", "/tmp/dddd");
         value64 data = LITERAL64_INT(7);   // минимальная длина 7
-        hset *res = hset_filter(&se, hset_filter_fsminlen_int, data);
+        hset *res = hset_filter(&se, value64_filter_fsminlen_int, data);
         test_validatefree(
             res == &se && se.count == 3 &&
             !HSET_HAS_FS(res, "/tmp/a") &&
@@ -4340,7 +4282,7 @@ tf_filter_fs(const char *name)
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/var/b", "/tmp/c", "/usr/d");
         value64 prefix = value64_createstr("/tmp");
-        hset *res = hset_filter(&se, hset_filter_fsprefix_str, prefix);
+        hset *res = hset_filter(&se, value64_filter_fsprefix_str, prefix);
         value64_freestr(&prefix);   // освобождаем параметр после фильтрации
 
         test_validatefree(
@@ -4360,7 +4302,7 @@ tf_filter_fs(const char *name)
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/foo", "/tmp/bar", "/tmp/foo");
         value64 target = value64_createstr("/tmp/foo");
-        hset *res = hset_filter(&se, hset_filter_fsequals_str, target);
+        hset *res = hset_filter(&se, value64_filter_fsequals_str, target);
         value64_freestr(&target);
 
         test_validatefree(
@@ -4378,7 +4320,7 @@ tf_filter_fs(const char *name)
     test_sub("subtest %d: init_filter from empty", ++subnum);
     {
         hset se = hset_init_fs(10);
-        hset res = hset_init_filter(&se, hset_filter_true, LITERAL64_ZERO);
+        hset res = hset_init_filter(&se, value64_filter_true, LITERAL64_ZERO);
         test_validatefree(
             res.count == 0,
             (hset_free(&se), hset_free(&res)),
@@ -4393,7 +4335,7 @@ tf_filter_fs(const char *name)
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/var/b", "/tmp/c", "/usr/d");
         value64 prefix = value64_createstr("/tmp");
-        hset res = hset_init_filter(&se, hset_filter_fsprefix_str, prefix);
+        hset res = hset_init_filter(&se, value64_filter_fsprefix_str, prefix);
         value64_freestr(&prefix);
 
         test_validatefree(
@@ -4417,7 +4359,7 @@ tf_filter_fs(const char *name)
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc", "/tmp/dddd");
         value64 data = LITERAL64_INT(7);
-        hset res = hset_init_filter(&se, hset_filter_fsminlen_int, data);
+        hset res = hset_init_filter(&se, value64_filter_fsminlen_int, data);
 
         test_validatefree(
             res.count == 3 &&
@@ -4437,7 +4379,7 @@ tf_filter_fs(const char *name)
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/foo", "/tmp/bar", "/tmp/foo");
         value64 target = value64_createstr("/tmp/foo");
-        hset res = hset_init_filter(&se, hset_filter_fsequals_str, target);
+        hset res = hset_init_filter(&se, value64_filter_fsequals_str, target);
         value64_freestr(&target);
 
         test_validatefree(
@@ -4454,7 +4396,7 @@ tf_filter_fs(const char *name)
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc", "/tmp/dddd");
         value64 data = LITERAL64_INT(7);   // оставить только строки длиной <= 7
-        hset *res = hset_filter(&se, hset_filter_fsmaxlen_int, data);
+        hset *res = hset_filter(&se, value64_filter_fsmaxlen_int, data);
         test_validatefree(
             res == &se && se.count == 2 &&
             HSET_HAS_FS(res, "/tmp/a") &&   // длина 6
@@ -4472,7 +4414,7 @@ tf_filter_fs(const char *name)
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc", "/tmp/dddd");
         value64 data = LITERAL64_INT(7);
-        hset res = hset_init_filter(&se, hset_filter_fsmaxlen_int, data);
+        hset res = hset_init_filter(&se, value64_filter_fsmaxlen_int, data);
         test_validatefree(
             res.count == 2 &&
             HSET_HAS_FS(&res, "/tmp/a") &&
@@ -4497,7 +4439,7 @@ tf_filter_fs(const char *name)
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc");
         value64 data = LITERAL64_INT(7);   // оставить только длину 7
-        hset *res = hset_filter(&se, hset_filter_fslen_int, data);
+        hset *res = hset_filter(&se, value64_filter_fslen_int, data);
         test_validatefree(
             res == &se && se.count == 1 &&
             HSET_HAS_FS(res, "/tmp/bb") &&
@@ -4514,7 +4456,7 @@ tf_filter_fs(const char *name)
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc");
         value64 data = LITERAL64_INT(7);
-        hset res = hset_init_filter(&se, hset_filter_fslen_int, data);
+        hset res = hset_init_filter(&se, value64_filter_fslen_int, data);
         test_validatefree(
             res.count == 1 &&
             HSET_HAS_FS(&res, "/tmp/bb"),
@@ -4546,7 +4488,7 @@ tf_filter_fsulike_str(const char *name)
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/foo", "/var/tmp/bar", "/usr/tmp", "/home/user");
         value64 substr = value64_createstr("tmp");
-        hset *res = hset_filter(&se, hset_filter_fslike_str, substr);
+        hset *res = hset_filter(&se, value64_filter_fslike_str, substr);
         value64_freestr(&substr);
 
         test_validatefree(
@@ -4566,7 +4508,7 @@ tf_filter_fsulike_str(const char *name)
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/foo", "/var/tmp/bar", "/usr/tmp", "/home/user");
         value64 substr = value64_createstr("tmp");
-        hset res = hset_init_filter(&se, hset_filter_fslike_str, substr);
+        hset res = hset_init_filter(&se, value64_filter_fslike_str, substr);
         value64_freestr(&substr);
 
         test_validatefree(
@@ -4592,7 +4534,7 @@ tf_filter_fsulike_str(const char *name)
     {
         hset se = HSET_CREATEFS_ASSTR("/TMP/foo", "/var/tmp/bar", "/usr/Tmp", "/home/user");
         value64 substr = value64_createstr("tmp");
-        hset *res = hset_filter(&se, hset_filter_fsulike_str, substr);
+        hset *res = hset_filter(&se, value64_filter_fsulike_str, substr);
         value64_freestr(&substr);
 
         test_validatefree(
@@ -4612,7 +4554,7 @@ tf_filter_fsulike_str(const char *name)
     {
         hset se = HSET_CREATEFS_ASSTR("/TMP/foo", "/var/tmp/bar", "/usr/Tmp", "/home/user");
         value64 substr = value64_createstr("tmp");
-        hset res = hset_init_filter(&se, hset_filter_fsulike_str, substr);
+        hset res = hset_init_filter(&se, value64_filter_fsulike_str, substr);
         value64_freestr(&substr);
 
         test_validatefree(
