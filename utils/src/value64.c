@@ -933,7 +933,25 @@ bool                        value64_filter_fsulike_str(value64 v, value64 data) 
     fs needle = FSLITERAL(value64_str(data));
     return fs_iinstr(f, &needle) >= 0;  // -1 if not found
 }
-
+// int to int less
+bool                        value64_filter_intlt_int(value64 v, value64 data) {
+    return value64_int(v) < value64_int(data);
+}
+bool                        value64_filter_intle_int(value64 v, value64 data) {
+    return value64_int(v) <= value64_int(data);
+}
+bool                        value64_filter_intgt_int(value64 v, value64 data) {
+    return value64_int(v) >  value64_int(data);
+}
+bool                        value64_filter_intge_int(value64 v, value64 data) {
+    return value64_int(v) >= value64_int(data);
+}
+bool                        value64_filter_inteq_int(value64 v, value64 data) {
+    return value64_int(v) == value64_int(data);
+}
+bool                        value64_filter_intne_int(value64 v, value64 data) {
+    return value64_int(v) != value64_int(data);
+}
 
 // ---------------------------------------- Testing ------------------------------------------
 #ifdef VALUE64TESTING

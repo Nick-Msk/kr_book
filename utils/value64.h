@@ -539,20 +539,27 @@ extern int                          value64_tostr_fs(fs *target, value64 val);
 
 // -------------------------------------------FILTERS -----------------------------------------
 // ---------------------- trivial filters ------------------------------
-extern bool                  value64_filter_true(value64 v, value64 data);
-extern bool                  value64_filter_false(value64 v, value64 data);
+extern bool                         value64_filter_true(value64 v, value64 data);
+extern bool                         value64_filter_false(value64 v, value64 data);
 // ---------------- fs filters -----------------
 // fs filters (assuming v as fs*), data as int, check len >= data
-extern bool                  value64_filter_fsminlen_int(value64 v, value64 data);
+extern bool                         value64_filter_fsminlen_int(value64 v, value64 data);
 // fs filters (assuming v as fs*), data as int, check len <= data
-extern bool                  value64_filter_fsmaxlen_int(value64 v, value64 data);
+extern bool                         value64_filter_fsmaxlen_int(value64 v, value64 data);
 // fs filters (assuming v as fs*), data as int, check len == data
-extern bool                  value64_filter_fslen_int(value64 v, value64 data);
+extern bool                         value64_filter_fslen_int(value64 v, value64 data);
 // Проверка префикса (data.sval – строка-префикс)
-extern bool                  value64_filter_fsprefix_str(value64 v, value64 data);
-//
-extern bool                  value64_filter_fslike_str(value64 v, value64 data);
-extern bool                  value64_filter_fsulike_str(value64 v, value64 data);
+extern bool                         value64_filter_fsprefix_str(value64 v, value64 data);
+// fs vs str
+extern bool                         value64_filter_fslike_str(value64 v, value64 data);
+extern bool                         value64_filter_fsulike_str(value64 v, value64 data);
+// int vs int
+extern bool                         value64_filter_intlt_int(value64 v, value64 data);
+extern bool                         value64_filter_intle_int(value64 v, value64 data);
+extern bool                         value64_filter_intgt_int(value64 v, value64 data);
+extern bool                         value64_filter_intge_int(value64 v, value64 data);
+extern bool                         value64_filter_inteq_int(value64 v, value64 data);
+extern bool                         value64_filter_intne_int(value64 v, value64 data);
 
 // ------------------------------------ ETC. ----------------------------------------
 
