@@ -204,7 +204,7 @@ extern hset                  hset_create_fs_int_filter(const hset *restrict se, 
 // sql-like delete :fs where NOT predicate:int
 extern hset                 *hset_delete_fs_int_antifilter(hset *restrict se, int data, hset_predicate_t filter);
 
-// common filters
+// trivial filters
 extern bool                  hset_filter_true(value64 v, value64 data);
 extern bool                  hset_filter_false(value64 v, value64 data);
 // ---------------- fs filters -----------------
@@ -221,45 +221,52 @@ extern bool                  hset_filter_fslike_str(value64 v, value64 data);
 extern bool                  hset_filter_fsulike_str(value64 v, value64 data);
 
 // --------- simplifyers over filters ---------
-// sql-like create as select where length >=  :int
+// sql-like create :fs as select where length >=  :int
 static inline hset           hset_create_fsminlen_int(const hset *restrict se, int len){
     return hset_create_fs_int_filter(se, len, hset_filter_fsminlen_int);
 }
-// sql-like delete where NOT length >=  :int
+// sql-like delete :fs where NOT length >=  :int
 static inline hset          *hset_delete_fs_notminlen_int(hset *restrict se, int len){
     return hset_delete_fs_int_antifilter(se, len, hset_filter_fsminlen_int);
 }
-// sql-like create as select where length <=  :int
+// sql-like create :fs as select where length <=  :int
 static inline hset           hset_create_fsmaxlen_int(const hset *restrict se, int len){
     return hset_create_fs_int_filter(se, len, hset_filter_fsmaxlen_int);
 }
-// sql-like delete where NOT length <=  :int
+// sql-like delete :fs where NOT length <=  :int
 static inline hset          *hset_delete_fs_notmaxlen_int(hset *restrict se, int len){
     return hset_delete_fs_int_antifilter(se, len, hset_filter_fsmaxlen_int);
 }
-// sql-like create as select where length == :int
+// sql-like create :fs as select where length == :int
 static inline hset           hset_create_fslen_int(const hset *restrict se, int len){
     return hset_create_fs_int_filter(se, len, hset_filter_fslen_int);
 }
-// sql-like delete where NOT length == :int
+// sql-like delete :fs where NOT length == :int
 static inline hset          *hset_delete_fs_notlen_int(hset *restrict se, int len){
     return hset_delete_fs_int_antifilter(se, len, hset_filter_fslen_int);
 }
+// sql-like create :fs as select where prefix == :str
+static inline hset           hset_create_fsprefix_str(const hset *restrict se, const char *restrict pattern){
+    return hset_create_fs_str_filter(se, pattern, hset_filter_fsprefix_str);
+}
+// sql-like delete :fs where NOT prefix == :str
+static inline hset          *hset_delete_fs_notprefix_str(hset *restrict se, const char *restrict pattern){
+    return hset_delete_fs_str_antifilter(se, pattern, hset_filter_fsprefix_str);
+}
 
-
-// sql-like create as select where like
+// sql-like create :fs as select where like :str
 static inline hset           hset_create_fslike_str(const hset *restrict se, const char *restrict pattern){
     return hset_create_fs_str_filter(se, pattern, hset_filter_fslike_str);
 }
-// sql-like create as select where ulike
+// sql-like create :fs as select where ulike :str
 static inline hset           hset_create_fsulike_str(const hset *restrict se, const char *restrict pattern){
     return hset_create_fs_str_filter(se, pattern, hset_filter_fsulike_str);
 }
-// sql-like create as select where like
+// sql-like delete :fs where NOT like :str
 static inline hset          *hset_delete_fs_notlike_str(hset *restrict se, const char *restrict pattern){
     return hset_delete_fs_str_antifilter(se, pattern, hset_filter_fslike_str);
 }
-// sql-like create as select where ulike
+// sql-like delete :fs where NOT ulike :str
 static inline hset          *hset_delete_fs_notulike_str(hset *restrict se, const char *restrict pattern){
     return hset_delete_fs_str_antifilter(se, pattern, hset_filter_fsulike_str);
 }

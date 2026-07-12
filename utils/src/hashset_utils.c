@@ -5006,6 +5006,132 @@ tf_maxlen_simpliriers(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST hset_create_fsprefix_str / hset_delete_fs_notprefix_str -------------------------
+static TestStatus
+tf_prefix_simpliriers(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== hset_create_fsprefix_str (новое множество) ========== */
+    test_sub("subtest %d: create prefix '/tmp' (empty set)", ++subnum);
+    {
+        hset se = hset_init_fs(10);
+        hset res = hset_create_fsprefix_str(&se, "/tmp");
+        test_validatefree(
+            res.count == 0 && hset_validate(stdout, &res),
+            (hset_free(&se), hset_free(&res)),
+            "Create prefix '/tmp' from empty: must return empty set"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: create prefix '/tmp' (mixed paths)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/var/tmp/b", "/tmp/c", "/usr/d");
+        // Ожидаем только /tmp/a и /tmp/c
+        hset res = hset_create_fsprefix_str(&se, "/tmp");
+        test_validatefree(
+            res.count == 2 &&
+            HSET_HAS_FS(&res, "/tmp/a") &&
+            HSET_HAS_FS(&res, "/tmp/c") &&
+            !HSET_HAS_FS(&res, "/var/tmp/b") &&
+            !HSET_HAS_FS(&res, "/usr/d"),
+            (hset_free(&se), hset_free(&res)),
+            "Create prefix '/tmp': must collect only matching paths"
+        );
+        test_validatefree(
+            se.count == 4,
+            (hset_free(&se), hset_free(&res)),
+            "Source set must be unchanged after create"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: create prefix '/nonexistent' (no matches)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/var/b", "/usr/c");
+        hset res = hset_create_fsprefix_str(&se, "/nonexistent");
+        test_validatefree(
+            res.count == 0,
+            (hset_free(&se), hset_free(&res)),
+            "Create prefix '/nonexistent': must return empty set"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    /* ========== hset_delete_fs_notprefix_str (in-place) ========== */
+    test_sub("subtest %d: delete NOT prefix '/tmp' (empty set)", ++subnum);
+    {
+        hset se = hset_init_fs(10);
+        hset *res = hset_delete_fs_notprefix_str(&se, "/tmp");
+        test_validatefree(
+            res == &se && se.count == 0,
+            hset_free(res),
+            "Delete NOT prefix '/tmp' from empty: must stay empty"
+        );
+        hset_free(res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: delete NOT prefix '/tmp' (mixed paths)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/var/tmp/b", "/tmp/c", "/usr/d");
+        // NOT prefix '/tmp' => удалить все, которые НЕ начинаются с '/tmp'.
+        // Останутся только /tmp/a и /tmp/c.
+        hset *res = hset_delete_fs_notprefix_str(&se, "/tmp");
+        test_validatefree(
+            res == &se && se.count == 2 &&
+            HSET_HAS_FS(res, "/tmp/a") &&
+            HSET_HAS_FS(res, "/tmp/c") &&
+            !HSET_HAS_FS(res, "/var/tmp/b") &&
+            !HSET_HAS_FS(res, "/usr/d"),
+            hset_free(res),
+            "Delete NOT prefix '/tmp': must keep only /tmp/a and /tmp/c"
+        );
+        hset_free(res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: delete NOT prefix '/nonexistent' (remove all)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/var/b", "/usr/c");
+        hset *res = hset_delete_fs_notprefix_str(&se, "/nonexistent");
+        test_validatefree(
+            res == &se && se.count == 0,
+            hset_free(res),
+            "Delete NOT prefix '/nonexistent': no element matches, all removed"
+        );
+        hset_free(res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: delete NOT prefix '/' (remove none)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/var/b");
+        // Все абсолютные пути начинаются с '/', поэтому предикат истинен для всех,
+        // hset_filter оставляет все, ничего не удаляется.
+        hset *res = hset_delete_fs_notprefix_str(&se, "/");
+        test_validatefree(
+            res == &se && se.count == 2 &&
+            HSET_HAS_FS(res, "/tmp/a") &&
+            HSET_HAS_FS(res, "/var/b"),
+            hset_free(res),
+            "Delete NOT prefix '/': no element removed"
+        );
+        hset_free(res);
+    }
+    fs_alloc_check(true);
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -5046,6 +5172,8 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_minlen_simpliriers,        .num = 33, .name = "hset_create/delete_fsminlen_int simplifiers"
                                 , .desc="", .mandatory=true)
               , testnew(.f2 = tf_maxlen_simpliriers,        .num = 34, .name = "hset_create/delete_fs(max)len_int simplifiers"
+                                , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_prefix_simpliriers,        .num = 35, .name = "hset_create/delete_fsprefix_str simplifiers"
                                 , .desc="", .mandatory=true)
             );
         if (runall)
