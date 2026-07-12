@@ -196,13 +196,17 @@ extern hset                  hset_init_filter(const hset *restrict src, hset_pre
 extern bool                  hset_filter_true(value64 v, value64 data);
 extern bool                  hset_filter_false(value64 v, value64 data);
 // ---------------- fs filters -----------------
-// fs filters (assuming v as fs*), data as int
+// fs filters (assuming v as fs*), data as int, check len >= data
 extern bool                  hset_filter_fsminlen_int(value64 v, value64 data);
+// fs filters (assuming v as fs*), data as int, check len <= data
+extern bool                  hset_filter_fsmaxlen_int(value64 v, value64 data);
+// fs filters (assuming v as fs*), data as int, check len == data
+extern bool                  hset_filter_fslen_int(value64 v, value64 data);
 // Проверка префикса (data.sval – строка-префикс)
 extern bool                  hset_filter_fsprefix_str(value64 v, value64 data);
 //
-extern bool                  hset_filter_like(value64 v, value64 data);
-extern bool                  hset_filter_ulike(value64 v, value64 data);
+extern bool                  hset_filter_fslike_str(value64 v, value64 data);
+extern bool                  hset_filter_fsulike_str(value64 v, value64 data);
 
 #endif /* !_HASHSET_UTILS_H */
 

@@ -468,10 +468,20 @@ bool                        hset_filter_false(value64 v, value64 data) {
     return false;
 }
 // ---------------- fs filters -----------------
-// fs filters (assuming v as fs*), data as int
+// fs filters (assuming v as fs*), data as int, check len >= data
 bool                        hset_filter_fsminlen_int(value64 v, value64 data) {
     const fs *f = value64_fs(v);
     return !fs_isnull(f) && fs_len(f) >= value64_int(data);
+}
+// fs filters (assuming v as fs*), data as int, check len <= data
+bool                        hset_filter_fsmaxlen_int(value64 v, value64 data) {
+    const fs *f = value64_fs(v);
+    return !fs_isnull(f) && fs_len(f) <= value64_int(data);
+}
+// fs filters (assuming v as fs*), data as int, check len == data
+bool                        hset_filter_fslen_int(value64 v, value64 data) {
+    const fs *f = value64_fs(v);
+    return !fs_isnull(f) && fs_len(f) == value64_int(data);
 }
 // Проверка префикса (data.sval – строка-префикс)
 bool                        hset_filter_fsprefix_str(value64 v, value64 data) {
@@ -4403,6 +4413,87 @@ tf_filter_fs(const char *name)
             res.count == 1 && HSET_HAS_FS(&res, "/tmp/foo"),
             (hset_free(&se), hset_free(&res)),
             "Init_filter exact '/tmp/foo': should return one element"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+    /* ========== maxlen (длина <= data) ========== */
+    test_sub("subtest %d: filter maxlen <= 7 (in-place)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc", "/tmp/dddd");
+        value64 data = LITERAL64_INT(7);   // оставить только строки длиной <= 7
+        hset *res = hset_filter(&se, hset_filter_fsmaxlen_int, data);
+        test_validatefree(
+            res == &se && se.count == 2 &&
+            HSET_HAS_FS(res, "/tmp/a") &&   // длина 6
+            HSET_HAS_FS(res, "/tmp/bb") &&  // длина 7
+            !HSET_HAS_FS(res, "/tmp/ccc") && // длина 8
+            !HSET_HAS_FS(res, "/tmp/dddd"), // длина 9
+            hset_free(res),
+            "Filter maxlen 7: should keep /tmp/a and /tmp/bb only"
+        );
+        hset_free(res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: init_filter maxlen <= 7", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc", "/tmp/dddd");
+        value64 data = LITERAL64_INT(7);
+        hset res = hset_init_filter(&se, hset_filter_fsmaxlen_int, data);
+        test_validatefree(
+            res.count == 2 &&
+            HSET_HAS_FS(&res, "/tmp/a") &&
+            HSET_HAS_FS(&res, "/tmp/bb") &&
+            !HSET_HAS_FS(&res, "/tmp/ccc") &&
+            !HSET_HAS_FS(&res, "/tmp/dddd"),
+            (hset_free(&se), hset_free(&res)),
+            "Init_filter maxlen 7: should collect /tmp/a and /tmp/bb"
+        );
+        test_validatefree(
+            se.count == 4,
+            (hset_free(&se), hset_free(&res)),
+            "Source set must be unchanged"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    /* ========== len_eq (длина == data) ========== */
+    test_sub("subtest %d: filter len == 7 (in-place)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc");
+        value64 data = LITERAL64_INT(7);   // оставить только длину 7
+        hset *res = hset_filter(&se, hset_filter_fslen_int, data);
+        test_validatefree(
+            res == &se && se.count == 1 &&
+            HSET_HAS_FS(res, "/tmp/bb") &&
+            !HSET_HAS_FS(res, "/tmp/a") &&
+            !HSET_HAS_FS(res, "/tmp/ccc"),
+            hset_free(res),
+            "Filter len==7: should keep only /tmp/bb"
+        );
+        hset_free(res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: init_filter len == 7", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc");
+        value64 data = LITERAL64_INT(7);
+        hset res = hset_init_filter(&se, hset_filter_fslen_int, data);
+        test_validatefree(
+            res.count == 1 &&
+            HSET_HAS_FS(&res, "/tmp/bb"),
+            (hset_free(&se), hset_free(&res)),
+            "Init_filter len==7: should collect /tmp/bb only"
+        );
+        test_validatefree(
+            se.count == 3,
+            (hset_free(&se), hset_free(&res)),
+            "Source set must be unchanged"
         );
         hset_free(&se);
         hset_free(&res);
