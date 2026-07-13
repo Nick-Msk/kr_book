@@ -262,12 +262,8 @@ void                        hset_modify_foreach(hset *se, hset_modify_proc_t pro
 // Core engine reduce
 hset_accum                  hset_reduce(const hset *se, hset_accum init, hset_reduce_func func) {
     hset_accum acc = init;
-    for (int i = 0; i < se->sz; i++) {
-        const hset_elem *el = se->table[i];
-        while (el) {
-            func(&acc, el->v);
-            el = el->next;
-        }
+    HSET_FOREACH(se, var) {
+        func(&acc, var);
     }
     return acc;
 }
