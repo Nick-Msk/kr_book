@@ -5553,6 +5553,81 @@ tf_init_map_int_add_fs_append(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST hset_reduce_filtered FS -------------------------
+static TestStatus
+tf_reduce_filtered_fs(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    // TODO:
+    test_sub("subtest %d: filtered sumlen with prefix /tmp", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/x", "/var/y", "/tmp/z", "/usr/w");
+        value64 prefix = LITERAL64_STR("/tmp");
+        hset_accum acc = hset_reduce_filtered(&se, HSET_ACCUM_INT_ZERO, hset_sumlen_fs,
+                                              value64_filter_fsprefix_str, prefix);
+        test_validatefree(
+            hset_accum_long(&acc) == 12 && acc.count == 2,
+            hset_free(&se),
+            "Filtered sumlen /tmp: expected 12, got %ld (count %d)",
+            hset_accum_long(&acc), acc.count
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: filtered sumlen no match (empty result)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/var/y", "/usr/w");
+        value64 prefix = LITERAL64_STR("/tmp");
+        hset_accum acc = hset_reduce_filtered(&se, HSET_ACCUM_INT_ZERO, hset_sumlen_fs,
+                                              value64_filter_fsprefix_str, prefix);
+        test_validatefree(
+            hset_accum_long(&acc) == 0 && acc.count == 0,
+            hset_free(&se),
+            "Filtered sumlen no match: expected 0, got %ld (count %d)",
+            hset_accum_long(&acc), acc.count
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: filtered sumlen with NULL pred (all elements)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/x", "/var/y", "/tmp/z", "/usr/w");
+        // Все эти пути имеют длину 6 символов -> сумма 24
+        hset_accum acc = hset_reduce_filtered(&se, HSET_ACCUM_INT_ZERO, hset_sumlen_fs,
+                                              NULL, LITERAL64_ZERO);
+        test_validatefree(
+            hset_accum_long(&acc) == 24 && acc.count == 4,
+            hset_free(&se),
+            "Filtered sumlen NULL pred: expected 24, got %ld (count %d)",
+            hset_accum_long(&acc), acc.count
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: filtered sumlen on empty set", ++subnum);
+    {
+        hset se = hset_init_fs(10);
+        value64 prefix = LITERAL64_STR("/tmp");
+        hset_accum acc = hset_reduce_filtered(&se, HSET_ACCUM_INT_ZERO, hset_sumlen_fs,
+                                              value64_filter_fsprefix_str, prefix);
+        test_validatefree(
+            hset_accum_long(&acc) == 0 && acc.count == 0,
+            hset_free(&se),
+            "Filtered sumlen on empty set: expected 0, got %ld (count %d)",
+            hset_accum_long(&acc), acc.count
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -5605,6 +5680,8 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_intbetween_int_int_simpliriers,    .num = 37, .name = "hset_create/apply_intbetween_int_int simplifiers"
                                 , .desc="", .mandatory=true)
               , testnew(.f2 = tf_init_map_int_add_fs_append,        .num = 38, .name = "hset_init_map simple test"
+                                , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_reduce_filtered_fs,                .num = 39, .name = "hset_reduce_filtered() simple test"
                                 , .desc="", .mandatory=true)
             );
         if (runall)

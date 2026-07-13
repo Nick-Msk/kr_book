@@ -101,8 +101,12 @@ static inline fs          **hset_accum_getfs(hset_accum *c) {
     .value = LITERAL64_ZERO, \
     .count = 0, \
     .typ = (type), \
-    __VA_ARGS__ \
+    ##__VA_ARGS__ \
 }
+#define                     HSET_ACCUM_INT_ZERO HSET_ACCUM(VALUE64_INT)
+
+#define                     HSET_ACCUM_LNG_ZERO HSET_ACCUM(VALUE64_INT)
+
 #define                     HSET_ACCUM_DBL_ZERO \
 (hset_accum) { \
     .value = LITERAL64_DBL(0.0), \
