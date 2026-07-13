@@ -953,7 +953,7 @@ bool                        value64_filter_intne_int(value64 v, value64 data) {
     return value64_int(v) != value64_int(data);
 }
 // 2 value filters
-bool                        value64_filter2_intbetween_int(value64 v, value64 data1, value64 data2){
+bool                        value64_filter2_intbetween_int_int(value64 v, value64 data1, value64 data2){
     return value64_int(v) >= value64_int(data1) && value64_int(v) <= value64_int(data2);
 }
 

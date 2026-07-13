@@ -564,7 +564,7 @@ extern bool                         value64_filter_intge_int(value64 v, value64 
 extern bool                         value64_filter_inteq_int(value64 v, value64 data);
 extern bool                         value64_filter_intne_int(value64 v, value64 data);
 // 2 value filters
-extern bool                         value64_filter2_intbetween_int(value64 v, value64 data1, value64 data2);
+extern bool                         value64_filter2_intbetween_int_int(value64 v, value64 data1, value64 data2);
 
 // ------------------------------------ ETC. ----------------------------------------
 
