@@ -555,6 +555,7 @@ extern bool                         value64_filter_fsequals_str(value64 v, value
 // fs vs str
 extern bool                         value64_filter_fslike_str(value64 v, value64 data);
 extern bool                         value64_filter_fsulike_str(value64 v, value64 data);
+// --------------- numeric filters -------------------------
 // int vs int
 extern bool                         value64_filter_intlt_int(value64 v, value64 data);
 extern bool                         value64_filter_intle_int(value64 v, value64 data);
@@ -562,6 +563,8 @@ extern bool                         value64_filter_intgt_int(value64 v, value64 
 extern bool                         value64_filter_intge_int(value64 v, value64 data);
 extern bool                         value64_filter_inteq_int(value64 v, value64 data);
 extern bool                         value64_filter_intne_int(value64 v, value64 data);
+// 2 value filters
+extern bool                         value64_filter2_intbetween_int(value64 v, value64 data1, value64 data2);
 
 // ------------------------------------ ETC. ----------------------------------------
 
