@@ -515,8 +515,8 @@ hset                        hset_create_int_int_filter(const hset *restrict se, 
     invraisecode(ERR_UNSUPPORTED_TYPE,
         hset_getype(se) == VALUE64_INT /* || hset_getype(se) == VALUE64_LNG */, // long is diabled for now
         "Only VALUE64_INT supported");
-    hset tmp = hset_init_filter(se, filter, LITERAL64_INT(value));
-    return logsimpleret(tmp, "Created %d elems", hset_cnt(&tmp));
+    hset tmp = hset_init_filter(se, filter, LITERAL64_INT(value) );
+    return logsimpleret(tmp, "Created %d elems", hset_cnt(&tmp) );
 }
 
 // sql-like delete :int where NOT predicate:int
@@ -525,8 +525,28 @@ hset                       *hset_apply_int_int_filter(hset *restrict se, int val
     invraisecode(ERR_UNSUPPORTED_TYPE,
         hset_getype(se) == VALUE64_INT /* || hset_getype(se) == VALUE64_LNG*/, // long is diabled for now
         "Only VALUE64_INT supported");
-    hset_filter(se, filter, LITERAL64_INT(value));
-    return logsimpleret(se, "Remained %d elems", hset_cnt(se));
+    hset_filter(se, filter, LITERAL64_INT(value) );
+    return logsimpleret(se, "Remained %d elems", hset_cnt(se) );
+}
+
+// int - (int, int)
+// sql-like create as select:int where predicate:(int, int)
+hset                        hset_create_int_int_filter2(const hset *restrict se, int value1, int value2, hset_predicate2_t filter2){
+    invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
+    invraisecode(ERR_UNSUPPORTED_TYPE,
+        hset_getype(se) == VALUE64_INT /* || hset_getype(se) == VALUE64_LNG */, // long is diabled for now
+        "Only VALUE64_INT supported");
+    hset tmp = hset_init_filter2(se, filter2, LITERAL64_INT(value1), LITERAL64_INT(value2) );
+    return logsimpleret(tmp, "Created %d elems", hset_cnt(&tmp) );
+}
+// sql-like apply:int where predicate:(int, int)
+hset                       *hset_apply_int_int_filter2(hset *restrict se, int value1, int value2, hset_predicate2_t filter2){
+    invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
+    invraisecode(ERR_UNSUPPORTED_TYPE,
+        hset_getype(se) == VALUE64_INT /* || hset_getype(se) == VALUE64_LNG*/, // long is diabled for now
+        "Only VALUE64_INT supported");
+    hset_filter2(se, filter2, LITERAL64_INT(value1), LITERAL64_INT(value2) );
+    return logsimpleret(se, "Remained %d elems", hset_cnt(se) );
 }
 
 

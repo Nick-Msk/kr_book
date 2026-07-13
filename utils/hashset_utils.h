@@ -214,7 +214,11 @@ extern hset                 *hset_apply_fs_int_filter(hset *restrict se, int dat
 extern hset                  hset_create_int_int_filter(const hset *restrict se, int value, hset_predicate_t filter);
 // sql-like delete :int where NOT predicate:int
 extern hset                 *hset_apply_int_int_filter(hset *restrict se, int value, hset_predicate_t filter);
-
+// int - (int, int)
+// sql-like create as select:int where predicate:(int, int)
+extern hset                  hset_create_int_int_filter2(const hset *restrict se, int value1, int value2, hset_predicate2_t filter2);
+// sql-like apply:int where predicate:(int, int)
+extern hset                 *hset_apply_int_int_filter2(hset *restrict se, int value1, int value2, hset_predicate2_t filter2);
 
 // --------- simplifyers over filters ---------
 // sql-like create :fs as select where length >=  :int
@@ -309,13 +313,20 @@ static inline hset         *hset_apply_int_noteq_int(hset *restrict se, int v) {
 }
 
 // ---------- not equal ----------
-static inline hset  hset_create_intne_int(const hset *restrict se, int v) {
+static inline hset          hset_create_intne_int(const hset *restrict se, int v) {
     return hset_create_int_int_filter(se, v, value64_filter_intne_int);
 }
-static inline hset *hset_apply_int_notne_int(hset *restrict se, int v) {
+static inline hset         *hset_apply_int_notne_int(hset *restrict se, int v) {
     return hset_apply_int_int_filter(se, v, value64_filter_intne_int);
 }
 
+// ------------- between int : int ---------------
+static inline hset         hset_create_intbetween_int_int(const hset *restrict se, int v1, int v2) {
+    return hset_create_int_int_filter2(se, v1, v2, value64_filter2_intbetween_int_int);
+}
+static inline hset *hset_apply_intbetween_int_int(hset *restrict se, int v1, int v2) {
+    return hset_apply_int_int_filter2(se, v1, v2, value64_filter2_intbetween_int_int);
+}
 
 #endif /* !_HASHSET_UTILS_H */
 
