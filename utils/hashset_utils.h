@@ -123,7 +123,7 @@ static inline fs          **hset_accum_getfs(hset_accum *c) {
 typedef                     void (*hset_reduce_func)(hset_accum *acc, value64 v);
 extern hset_accum           hset_initreduce(const hset *se, hset_accum init, hset_reduce_func func);
 
-static inline hset_accum    hset_reduce(const hset *se, hset_reduce_func func){
+static inline hset_accum    hset_reduce_common(const hset *se, hset_reduce_func func){
     return hset_initreduce(se, HSET_ACCUM(VALUE64_INT), func);  // VALUE64_INT is just mean do nothing when hset_accum_free()
 }
 static inline hset_accum    hset_reduce_int(const hset *se, hset_reduce_func func){
