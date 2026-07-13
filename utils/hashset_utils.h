@@ -331,11 +331,11 @@ static inline hset *hset_apply_intbetween_int_int(hset *restrict se, int v1, int
 
 // ---------------------------------- MAPPERS ---------------------------------
 // filter types
-typedef value64              (*hset_map_t)(value64 v, value64_params_t* data);
+typedef value64              (*hset_map_t)(value64 v, const value64_params_t* data);
 
 // ------------------------------- engine ------------------------------------------
 // constructor only! No apply engine
-extern hset                  hset_init_map(const hset *restrict src, hset_map_t pred, value64_params_t *restrict data);
+extern hset                  hset_init_map(const hset *restrict src, hset_map_t mapper, const value64_params_t *restrict data);
 
 #endif /* !_HASHSET_UTILS_H */
 

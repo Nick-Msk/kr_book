@@ -552,7 +552,7 @@ hset                       *hset_apply_int_int_filter2(hset *restrict se, int va
 // ---------------------------------- MAPPERS ---------------------------------
 // ------------------------------- engine ------------------------------------------
 // constructor only! No apply engine
-hset                        hset_init_map(const hset *restrict src, hset_map_t map, value64_params_t *restrict params) {
+hset                        hset_init_map(const hset *restrict src, hset_map_t map, const value64_params_t *restrict params) {
     invraisecode(ERR_NULLABLE_PTR, src != NULL, "Null pointer");
     hset res = hset_init(src->sz, hset_getype(src));
 
@@ -581,6 +581,23 @@ hset                        hset_init_map(const hset *restrict src, hset_map_t m
     })
 
 #define HSET_HAS_INT(se, val)  hset_get((se), LITERAL64_INT(val))
+
+// Преобразование: добавить число (один параметр)
+// v - VALUE64_INT, p->v[0] - VALUE64_INT
+static value64                  test_map_int_add_int(value64 v, const value64_params_t* p) {
+    return LITERAL64_INT(value64_int(v) + value64_int( value64_getpar1(p) ) );
+    // or just v->ival += value64_int( value64_getpar1(p) )
+}
+
+// Преобразование: добавить суффикс к пути (один параметр-строка)
+// v - VALUE64_FS, p->v[0]  VALUE64_STR
+static value64                  test_map_fs_append_str(value64 v, const value64_params_t* p) {
+    value64 newv = value64_clone(v, VALUE64_FS);
+    const char *suffix = value64_str( value64_getpar1(p) ); // no checking here, p->v[0] MUST be VALUE64_STR
+    if (suffix)
+        fs_catstr(value64_fs(newv), suffix);
+    return newv;
+}
 
 // ------------------------- TEST 8 ---------------------------------
 static TestStatus
@@ -5422,6 +5439,107 @@ tf_intbetween_int_int_simpliriers(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST hset_init_map (int add, fs append) -------------------------
+static TestStatus
+tf_init_map_int_add_fs_append(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== map int add ========== */
+    test_sub("subtest %d: map int add 10", ++subnum);
+    {
+        int vals[] = {1, 2, 3};
+        hset se = hset_from_intarr(vals, COUNT(vals));
+
+        // Параметры: один int-параметр = 10
+        value64_params_t params = VALUE64_PARAMS1(LITERAL64_INT(10));
+        hset res = hset_init_map(&se, test_map_int_add_int, &params);
+
+        // Ожидаем 11, 12, 13
+        test_validatefree(
+            res.count == 3 &&
+            HSET_HAS_INT(&res, 11) &&
+            HSET_HAS_INT(&res, 12) &&
+            HSET_HAS_INT(&res, 13),
+            (hset_free(&se), hset_free(&res)),
+            "Map int add 10: must be 11,12,13"
+        );
+        test_validatefree(se.count == 3, (hset_free(&se), hset_free(&res)), "Source unchanged");
+        hset_free(&se);
+        hset_free(&res);
+    }
+
+    test_sub("subtest %d: map int add 0 (no change)", ++subnum);
+    {
+        int vals[] = {5, -3, 0};
+        hset se = hset_from_intarr(vals, COUNT(vals));
+        value64_params_t params = VALUE64_PARAMS1(LITERAL64_INT(0));
+        hset res = hset_init_map(&se, test_map_int_add_int, &params);
+        test_validatefree(
+            res.count == 3 &&
+            HSET_HAS_INT(&res, 5) &&
+            HSET_HAS_INT(&res, -3) &&
+            HSET_HAS_INT(&res, 0),
+            (hset_free(&se), hset_free(&res)),
+            "Map int add 0: must be unchanged"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+
+    /* ========== map fs append suffix ========== */
+    test_sub("subtest %d: map fs append '.bak'", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/b", "/tmp/c");
+        value64_params_t params = VALUE64_PARAMS1(LITERAL64_STR(".bak"));
+        hset res = hset_init_map(&se, test_map_fs_append_str, &params);
+
+        //HSET_TECH_PRINTALL(res);
+        //HSET_TECH_PRINTALL(se);
+
+        test_validatefree(
+            res.count == 3 &&
+            HSET_HAS_FS(&res, "/tmp/a.bak") &&
+            HSET_HAS_FS(&res, "/tmp/b.bak") &&
+            HSET_HAS_FS(&res, "/tmp/c.bak"),
+            (hset_free(&se), hset_free(&res)),
+            "Map fs append '.bak': must add suffix"
+        );
+        // Проверим, что исходное множество не изменилось
+        test_validatefree(
+            se.count == 3 &&
+            HSET_HAS_FS(&se, "/tmp/a") &&
+            HSET_HAS_FS(&se, "/tmp/b") &&
+            HSET_HAS_FS(&se, "/tmp/c"),
+            (hset_free(&se), hset_free(&res)),
+            "Source must be intact"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: map fs append empty suffix (no change)", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/x", "/tmp/y");
+        value64_params_t params = VALUE64_PARAMS1(LITERAL64_STR(""));  // пустая строка
+        hset res = hset_init_map(&se, test_map_fs_append_str, &params);
+        test_validatefree(
+            res.count == 2 &&
+            HSET_HAS_FS(&res, "/tmp/x") &&
+            HSET_HAS_FS(&res, "/tmp/y"),
+            (hset_free(&se), hset_free(&res)),
+            "Append empty suffix: paths unchanged"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+    fs_alloc_check(true);
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -5472,6 +5590,8 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_int_int_simpliriers,               .num = 36, .name = "hset_create/delete_int<ACT>_int simplifiers"
                                 , .desc="", .mandatory=true)
               , testnew(.f2 = tf_intbetween_int_int_simpliriers,    .num = 37, .name = "hset_create/apply_intbetween_int_int simplifiers"
+                                , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_init_map_int_add_fs_append,        .num = 38, .name = "hset_init_map simple test"
                                 , .desc="", .mandatory=true)
             );
         if (runall)
