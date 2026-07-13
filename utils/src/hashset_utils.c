@@ -5565,7 +5565,7 @@ tf_reduce_filtered_fs(const char *name)
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/x", "/var/y", "/tmp/z", "/usr/w");
         value64 prefix = LITERAL64_STR("/tmp");
-        hset_accum acc = hset_reduce_filtered(&se, HSET_ACCUM_INT_ZERO, hset_sumlen_fs,
+        hset_accum acc = hset_reduce_filtered(&se, HSET_ACCUM_LNG_ZERO, hset_sumlen_fs,
                                               value64_filter_fsprefix_str, prefix);
         test_validatefree(
             hset_accum_long(&acc) == 12 && acc.count == 2,
@@ -5581,7 +5581,7 @@ tf_reduce_filtered_fs(const char *name)
     {
         hset se = HSET_CREATEFS_ASSTR("/var/y", "/usr/w");
         value64 prefix = LITERAL64_STR("/tmp");
-        hset_accum acc = hset_reduce_filtered(&se, HSET_ACCUM_INT_ZERO, hset_sumlen_fs,
+        hset_accum acc = hset_reduce_filtered(&se, HSET_ACCUM_LNG_ZERO, hset_sumlen_fs,
                                               value64_filter_fsprefix_str, prefix);
         test_validatefree(
             hset_accum_long(&acc) == 0 && acc.count == 0,
@@ -5597,7 +5597,7 @@ tf_reduce_filtered_fs(const char *name)
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/x", "/var/y", "/tmp/z", "/usr/w");
         // Все эти пути имеют длину 6 символов -> сумма 24
-        hset_accum acc = hset_reduce_filtered(&se, HSET_ACCUM_INT_ZERO, hset_sumlen_fs,
+        hset_accum acc = hset_reduce_filtered(&se, HSET_ACCUM_LNG_ZERO, hset_sumlen_fs,
                                               NULL, LITERAL64_ZERO);
         test_validatefree(
             hset_accum_long(&acc) == 24 && acc.count == 4,
@@ -5613,10 +5613,10 @@ tf_reduce_filtered_fs(const char *name)
     {
         hset se = hset_init_fs(10);
         value64 prefix = LITERAL64_STR("/tmp");
-        hset_accum acc = hset_reduce_filtered(&se, HSET_ACCUM_INT_ZERO, hset_sumlen_fs,
+        hset_accum acc = hset_reduce_filtered(&se, HSET_ACCUM_LNG_ZERO, hset_sumlen_fs,
                                               value64_filter_fsprefix_str, prefix);
         test_validatefree(
-            hset_accum_long(&acc) == 0 && acc.count == 0,
+            hset_accum_int(&acc) == 0 && acc.count == 0,
             hset_free(&se),
             "Filtered sumlen on empty set: expected 0, got %ld (count %d)",
             hset_accum_long(&acc), acc.count
