@@ -5247,6 +5247,167 @@ tf_int_int_simpliriers(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST int between simplifier -------------------------
+static TestStatus
+tf_intbetween_int_int_simpliriers(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== create between (new set) ========== */
+    test_sub("subtest %d: create int between 3 and 8", ++subnum);
+    {
+        int vals[] = {1, 5, 3, 8, 10, 6, 12, 0};
+        hset se = hset_from_intarr(vals, COUNT(vals));
+        // Ожидаем элементы: 3,5,6,8 (включая границы)
+        hset res = hset_create_intbetween_int_int(&se, 3, 8);
+        test_validatefree(
+            res.count == 4 &&
+            HSET_HAS_INT(&res, 3) &&
+            HSET_HAS_INT(&res, 5) &&
+            HSET_HAS_INT(&res, 6) &&
+            HSET_HAS_INT(&res, 8) &&
+            !HSET_HAS_INT(&res, 1) &&
+            !HSET_HAS_INT(&res, 10) &&
+            !HSET_HAS_INT(&res, 12) &&
+            !HSET_HAS_INT(&res, 0),
+            (hset_free(&se), hset_free(&res)),
+            "Create int between 3 and 8: must select values in [3,8]"
+        );
+        test_validatefree(
+            hset_validate(logfile, &se),
+            (hset_free(&se), hset_free(&res)),
+            "Validation origin is failed"
+        );
+        test_validatefree(
+            hset_validate(logfile, &res),
+            (hset_free(&se), hset_free(&res)),
+            "Validation created is failed"
+        );
+        // Исходное множество не должно измениться
+        test_validatefree(
+            se.count == COUNT(vals),
+            (hset_free(&se), hset_free(&res)),
+            "Source set must be unchanged after create"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+
+    test_sub("subtest %d: create int between reversed bounds (8 and 3)", ++subnum);
+    {
+        // Если v1 > v2, предполагаем, что предикат возвращает false для всех элементов
+        int vals[] = {1, 5, 3, 8, 10};
+        hset se = hset_from_intarr(vals, COUNT(vals));
+        hset res = hset_create_intbetween_int_int(&se, 8, 3);
+        test_validatefree(
+            res.count == 0,
+            (hset_free(&se), hset_free(&res)),
+            "Create int between 8 and 3 (reversed): must return empty set"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+
+    test_sub("subtest %d: create int between with no matching elements", ++subnum);
+    {
+        int vals[] = {1, 2, 10, 11};
+        hset se = hset_from_intarr(vals, COUNT(vals));
+        hset res = hset_create_intbetween_int_int(&se, 5, 7);
+        test_validatefree(
+            res.count == 0,
+            (hset_free(&se), hset_free(&res)),
+            "Create int between 5 and 7: must be empty"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+
+    test_sub("subtest %d: create int between where all elements match", ++subnum);
+    {
+        int vals[] = {4, 5, 6};
+        hset se = hset_from_intarr(vals, COUNT(vals));
+        hset res = hset_create_intbetween_int_int(&se, 4, 6);
+        test_validatefree(
+            res.count == 3 &&
+            HSET_HAS_INT(&res, 4) &&
+            HSET_HAS_INT(&res, 5) &&
+            HSET_HAS_INT(&res, 6),
+            (hset_free(&se), hset_free(&res)),
+            "Create int between 4 and 6: all elements must be selected"
+        );
+        hset_free(&se);
+        hset_free(&res);
+    }
+
+    /* ========== apply between (in-place) ========== */
+    test_sub("subtest %d: apply int between 3 and 8", ++subnum);
+    {
+        int vals[] = {1, 5, 3, 8, 10, 6, 12, 0};
+        hset se = hset_from_intarr(vals, COUNT(vals));
+        hset *res = hset_apply_intbetween_int_int(&se, 3, 8);
+        // Ожидаем, что останутся 3,5,6,8
+        test_validatefree(
+            res == &se && se.count == 4 &&
+            HSET_HAS_INT(res, 3) &&
+            HSET_HAS_INT(res, 5) &&
+            HSET_HAS_INT(res, 6) &&
+            HSET_HAS_INT(res, 8) &&
+            !HSET_HAS_INT(res, 1) &&
+            !HSET_HAS_INT(res, 10) &&
+            !HSET_HAS_INT(res, 12) &&
+            !HSET_HAS_INT(res, 0),
+            hset_free(res),
+            "Apply int between 3 and 8: must keep values in [3,8]"
+        );
+        hset_free(res);
+    }
+
+    test_sub("subtest %d: apply int between reversed bounds (keep none)", ++subnum);
+    {
+        int vals[] = {1, 5, 3, 8, 10};
+        hset se = hset_from_intarr(vals, COUNT(vals));
+        hset *res = hset_apply_intbetween_int_int(&se, 8, 3);
+        test_validatefree(
+            res == &se && se.count == 0,
+            hset_free(res),
+            "Apply int between 8 and 3: must result in empty set"
+        );
+        hset_free(res);
+    }
+
+    test_sub("subtest %d: apply int between with no matching elements", ++subnum);
+    {
+        int vals[] = {1, 2, 10, 11};
+        hset se = hset_from_intarr(vals, COUNT(vals));
+        hset *res = hset_apply_intbetween_int_int(&se, 5, 7);
+        test_validatefree(
+            res == &se && se.count == 0,
+            hset_free(res),
+            "Apply int between 5 and 7: no elements match, set becomes empty"
+        );
+        hset_free(res);
+    }
+
+    test_sub("subtest %d: apply int between where all elements match", ++subnum);
+    {
+        int vals[] = {4, 5, 6};
+        hset se = hset_from_intarr(vals, COUNT(vals));
+        hset *res = hset_apply_intbetween_int_int(&se, 4, 6);
+        test_validatefree(
+            res == &se && se.count == 3 &&
+            HSET_HAS_INT(res, 4) &&
+            HSET_HAS_INT(res, 5) &&
+            HSET_HAS_INT(res, 6),
+            hset_free(res),
+            "Apply int between 4 and 6: all elements must remain"
+        );
+        hset_free(res);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -5263,34 +5424,40 @@ main(int argc, const char *argv[])
                 continue;
             }
         }
-        printf("Num %d\n", num);
             testenginestd_run(num,
-                testnew(.f2 =  tf8,                         .num =  9, .name = "Hset_in simple test"                        , .desc="", .mandatory=true)
-              , testnew(.f2 =  tf9,                         .num = 10, .name = "Hset_strictin simple test"                  , .desc="", .mandatory=true)
-              , testnew(.f2 = tf10,                         .num = 11, .name = "Hset_minus simple test"                     , .desc="", .mandatory=true)
-              , testnew(.f2 = tf11,                         .num = 12, .name = "Hset_init_minus simple test"                , .desc="", .mandatory=true)
-              , testnew(.f2 = tf12,                         .num = 13, .name = "hset_intersect simple test"                 , .desc="", .mandatory=true)
-              , testnew(.f2 = tf13,                         .num = 14, .name = "hset_init_intersect simple test"            , .desc="", .mandatory=true)
-              , testnew(.f2 = tf14,                         .num = 15, .name = "hset_init_symmdiff simple test"             , .desc="", .mandatory=true)
-              , testnew(.f2 = tf15,                         .num = 16, .name = "hset_symmdiff simple test"                  , .desc="", .mandatory=true)
-              , testnew(.f2 = tf17,                         .num = 18, .name = "hset_union simple test"                     , .desc="", .mandatory=true)
-              , testnew(.f2 = tf18,                         .num = 19, .name = "hset_init_union simple test"                , .desc="", .mandatory=true)
-              , testnew(.f2 = tf21,                         .num = 22, .name = "hset_const_foreach simple test"             , .desc="", .mandatory=true)
-              , testnew(.f2 = tf22,                         .num = 23, .name = "hset_initreduce int impl  simple test"      , .desc="", .mandatory=true)
-              , testnew(.f2 = tf23,                         .num = 24, .name = "hset_initreduce double int simple test"     , .desc="", .mandatory=true)
-              , testnew(.f2 = tf26,                         .num = 27, .name = "hset_any(), hset_nonexists() simple test"   , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_reduce_fs_count_max_min,   .num = 28, .name = "hset_initreduce fs simple test"             , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_reduce_fsagg,              .num = 29, .name = "hset_reduce_fsagg simple test"              , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_filter_fs,                 .num = 30, .name = "hset(_init)_filter simple test"             , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_filter_fsulike_str,        .num = 31, .name = "hset_filter_fs(u)like_str simple test"      , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_like_ulike_simpliriers,    .num = 32, .name = "hset_apply_fs(u)like_str simplifiers"      , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_minlen_simpliriers,        .num = 33, .name = "hset_create/delete_fsminlen_int simplifiers"
+                testnew(.f2 =  tf8,                                 .num =  9, .name = "Hset_in simple test"                        , .desc="", .mandatory=true)
+              , testnew(.f2 =  tf9,                                 .num = 10, .name = "Hset_strictin simple test"                  , .desc="", .mandatory=true)
+              , testnew(.f2 = tf10,                                 .num = 11, .name = "Hset_minus simple test"                     , .desc="", .mandatory=true)
+              , testnew(.f2 = tf11,                                 .num = 12, .name = "Hset_init_minus simple test"                , .desc="", .mandatory=true)
+              , testnew(.f2 = tf12,                                 .num = 13, .name = "hset_intersect simple test"                 , .desc="", .mandatory=true)
+              , testnew(.f2 = tf13,                                 .num = 14, .name = "hset_init_intersect simple test"            , .desc="", .mandatory=true)
+              , testnew(.f2 = tf14,                                 .num = 15, .name = "hset_init_symmdiff simple test"             , .desc="", .mandatory=true)
+              , testnew(.f2 = tf15,                                 .num = 16, .name = "hset_symmdiff simple test"                  , .desc="", .mandatory=true)
+              , testnew(.f2 = tf17,                                 .num = 18, .name = "hset_union simple test"                     , .desc="", .mandatory=true)
+              , testnew(.f2 = tf18,                                 .num = 19, .name = "hset_init_union simple test"                , .desc="", .mandatory=true)
+              , testnew(.f2 = tf21,                                 .num = 22, .name = "hset_const_foreach simple test"             , .desc="", .mandatory=true)
+              , testnew(.f2 = tf22,                                 .num = 23, .name = "hset_initreduce int impl  simple test"      , .desc="", .mandatory=true)
+              , testnew(.f2 = tf23,                                 .num = 24, .name = "hset_initreduce double int simple test"     , .desc="", .mandatory=true)
+              , testnew(.f2 = tf26,                                 .num = 27, .name = "hset_any(), hset_nonexists() simple test"   , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_reduce_fs_count_max_min,           .num = 28, .name = "hset_initreduce fs simple test"
                                 , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_maxlen_simpliriers,        .num = 34, .name = "hset_create/delete_fs(max)len_int simplifiers"
+              , testnew(.f2 = tf_reduce_fsagg,                      .num = 29, .name = "hset_reduce_fsagg simple test"
                                 , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_prefix_simpliriers,        .num = 35, .name = "hset_create/delete_fsprefix_str simplifiers"
+              , testnew(.f2 = tf_filter_fs,                         .num = 30, .name = "hset(_init)_filter simple test"
                                 , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_int_int_simpliriers,       .num = 36, .name = "hset_create/delete_int<ACT>_int simplifiers"
+              , testnew(.f2 = tf_filter_fsulike_str,                .num = 31, .name = "hset_filter_fs(u)like_str simple test"
+                                , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_like_ulike_simpliriers,            .num = 32, .name = "hset_apply_fs(u)like_str simplifiers"
+                                , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_minlen_simpliriers,                .num = 33, .name = "hset_create/delete_fsminlen_int simplifiers"
+                                , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_maxlen_simpliriers,                .num = 34, .name = "hset_create/delete_fs(max)len_int simplifiers"
+                                , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_prefix_simpliriers,                .num = 35, .name = "hset_create/delete_fsprefix_str simplifiers"
+                                , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_int_int_simpliriers,               .num = 36, .name = "hset_create/delete_int<ACT>_int simplifiers"
+                                , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_intbetween_int_int_simpliriers,    .num = 37, .name = "hset_create/apply_intbetween_int_int simplifiers"
                                 , .desc="", .mandatory=true)
             );
         if (runall)
