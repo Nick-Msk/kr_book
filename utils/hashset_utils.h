@@ -14,6 +14,22 @@
 
 // ------------------- TYPES -----------------------
 
+// filter types
+typedef bool                (*hset_predicate_t)(value64 v, value64 data);
+typedef bool                (*hset_predicate2_t)(value64 v, value64 data1, value64 data2); // between etc...
+
+typedef struct              hset_accum {
+    value64         value;    // накопленное значение (сумма, максимум и т.п.)
+    int             count;    // количество элементов, участвовавших в накоплении
+    value64_type    typ;      // type of value(s)
+    const char     *sep;      // separator for fsagg
+} hset_accum;
+
+typedef                     void (*hset_reduce_func)(hset_accum *acc, value64 v);
+
+// filter types
+typedef value64              (*hset_map_t)(value64 v, const value64_params_t* data);
+
 // generic code
 // just intersect with construct
 extern hset                 hset_init_intersect(const hset *restrict se1, const hset *restrict se2);
@@ -52,19 +68,12 @@ extern hset                *hset_symmdiff(hset *restrict a, const hset *restrict
 extern hset                *hset_union(hset *restrict a, const hset *restrict b);
 
 // ----------------------------------------- iterators --------------------------------------
-typedef                     void * pointer_to_void;
 
 extern void                 hset_const_foreach(const hset *se, hset_const_proc_t proc);
 //extern void               hset_foreach(hset *se, hset_proc_t proc);
 //extern void               hset_modify_foreach(hset *se, hset_modify_proc_t proc);
 
 // ----------------------------------------- REDUCE -----------------------------------------
-typedef struct              hset_accum {
-    value64         value;    // накопленное значение (сумма, максимум и т.п.)
-    int             count;    // количество элементов, участвовавших в накоплении
-    value64_type    typ;      // type of value(s)
-    const char     *sep;      // separator for fsagg
-} hset_accum;
 
 // TODO: api for extracting from hset_accum
 static inline value64       hset_accum_get(hset_accum *c){
@@ -120,8 +129,11 @@ static inline fs          **hset_accum_getfs(hset_accum *c) {
     .sep       = (sepa) \
 }
 
-typedef                     void (*hset_reduce_func)(hset_accum *acc, value64 v);
+// forall engine
 extern hset_accum           hset_reduce(const hset *se, hset_accum init, hset_reduce_func func);
+// conditional engine
+extern hset_accum           hset_reduce_filtered(const hset *se, hset_accum init, hset_reduce_func func,
+                                hset_predicate_t pred, value64 data);
 
 static inline hset_accum    hset_reduce_common(const hset *se, hset_reduce_func func){
     return hset_reduce(se, HSET_ACCUM(VALUE64_INT), func);  // VALUE64_INT is just mean do nothing when hset_accum_free()
@@ -138,7 +150,7 @@ static inline hset_accum    hset_reduce_dbl(const hset *se, hset_reduce_func fun
 static inline hset_accum    hset_reduce_fs(const hset *se, hset_reduce_func func){
     return hset_reduce(se, HSET_ACCUM_FS_ZERO, func);
 }
-static inline hset_accum    hset_reduce_fsagg(const hset *se, hset_reduce_func func, const char *sep){
+static inline hset_accum    hset_reduce_fsagg(const hset *restrict se, hset_reduce_func func, const char *restrict sep){
     return hset_reduce(se, HSET_ACCUM_FS_AGG(sep), func);
 }
 
@@ -187,9 +199,6 @@ extern void                 hset_sumlen_fs  (hset_accum *acc, value64 v);
 extern void                 hset_agg_fs     (hset_accum *acc, value64 v);
 
 // ------------------------------------- FILTER -----------------------------------------
-// filter types
-typedef bool                (*hset_predicate_t)(value64 v, value64 data);
-typedef bool                (*hset_predicate2_t)(value64 v, value64 data1, value64 data2); // between etc...
 
 // ------------------------------- engine ------------------------------------------
 extern hset                 *hset_filter(hset *restrict se, hset_predicate_t pred, value64 data);
@@ -330,8 +339,6 @@ static inline hset *hset_apply_intbetween_int_int(hset *restrict se, int v1, int
 }
 
 // ---------------------------------- MAPPERS ---------------------------------
-// filter types
-typedef value64              (*hset_map_t)(value64 v, const value64_params_t* data);
 
 // ------------------------------- engine ------------------------------------------
 // constructor only! No apply engine

@@ -259,7 +259,7 @@ void                        hset_modify_foreach(hset *se, hset_modify_proc_t pro
 
 // ----------------------------------------- REDUCE -----------------------------------------
 
-// Core engine reduct
+// Core engine reduce
 hset_accum                  hset_reduce(const hset *se, hset_accum init, hset_reduce_func func) {
     hset_accum acc = init;
     for (int i = 0; i < se->sz; i++) {
@@ -267,6 +267,23 @@ hset_accum                  hset_reduce(const hset *se, hset_accum init, hset_re
         while (el) {
             func(&acc, el->v);
             el = el->next;
+        }
+    }
+    return acc;
+}
+// conditional engine
+hset_accum                  hset_reduce_filtered(const hset *se, hset_accum init, hset_reduce_func func,
+                                hset_predicate_t pred, value64 data) {
+    invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
+
+    // Без предиката – обычная свёртка
+    if (!pred)
+        return hset_reduce(se, init, func);
+
+    hset_accum acc = init;
+    HSET_FOREACH(se, var) {
+        if (pred(var, data)) {
+            func(&acc, var);
         }
     }
     return acc;
