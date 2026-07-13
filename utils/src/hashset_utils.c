@@ -411,7 +411,7 @@ void                        hset_sumlen_fs(hset_accum *acc, value64 v) {
     acc->count++;
 }
 
-void                        hset_agg_fs     (hset_accum *acc, value64 v){
+void                        hset_agg_fs     (hset_accum *acc, value64 v) {
     const fs *cur = value64_fs(v);
     if (fs_isnull(cur))
         return;     // totally ignore ? OK for now
@@ -425,8 +425,8 @@ void                        hset_agg_fs     (hset_accum *acc, value64 v){
 }
 
 // ------------------------------------------ FILTER -----------------------------------------
-// Core engine filter
-hset                       *hset_filter(hset *restrict se, hset_predicate_t pred, value64 data){
+// Core engine filter 1 parameter
+hset                       *hset_filter(hset *restrict se, hset_predicate_t pred, value64 data) {
     invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
 
     int     cnt = 0;
@@ -436,19 +436,41 @@ hset                       *hset_filter(hset *restrict se, hset_predicate_t pred
     }
     return logsimpleret(se, "Deleted by filter %d", cnt);
 }
-// core engine construct
+// core engine construct 1 par
 hset                        hset_init_filter(const hset *restrict se, hset_predicate_t pred, value64 data) {
     invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
 
     hset res = hset_init(se->sz, hset_getype(se) );
     HSET_FOREACH(se, var) {
-        if (pred(var, data))
+        if (pred(var, data) )
+            hset_set(&res, var);   // копирование, оригинал не трогаем
+    }
+    return logsimpleret(res, "Filtered: %d elements remain in new set", res.count);
+}
+// Core engine filter 1 parameter
+hset                       *hset_filter2(hset *restrict se, hset_predicate2_t pred2, value64 data1, value64 data2) {
+    invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
+
+    int     cnt = 0;
+    HSET_FOREACH_DEL(se, var) {
+        if (!pred2(var, data1, data2) )
+            cnt += hset_del(se, var);
+    }
+    return logsimpleret(se, "Deleted by filter %d", cnt);
+}
+// core engine construct 1 par
+extern hset                  hset_init_filter2(const hset *restrict se, hset_predicate2_t pred2, value64 data1, value64 data2) {
+    invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
+
+    hset res = hset_init(se->sz, hset_getype(se) );
+    HSET_FOREACH(se, var) {
+        if (pred2(var, data1, data2) )
             hset_set(&res, var);   // копирование, оригинал не трогаем
     }
     return logsimpleret(res, "Filtered: %d elements remain in new set", res.count);
 }
 
-// --------- simplifyers over filters ---------
+// -------------------------- simplifyers over filters ----------------------------------
 // sql-like create as select:fs where predicate:int
 hset                        hset_create_fs_int_filter(const hset *restrict se, int data, hset_predicate_t filter){
     invraisecode(ERR_NULLABLE_PTR, se != NULL,

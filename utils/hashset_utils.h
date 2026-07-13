@@ -194,8 +194,8 @@ typedef bool                (*hset_predicate2_t)(value64 v, value64 data1, value
 extern hset                 *hset_filter(hset *restrict se, hset_predicate_t pred, value64 data);
 extern hset                  hset_init_filter(const hset *restrict src, hset_predicate_t pred, value64 data);
 
-extern hset                 *hset_filter2(hset *restrict se, hset_predicate_t pred, value64 data1, value64 data2);
-extern hset                  hset_init_filter2(const hset *restrict src, hset_predicate_t pred, value64 data1, value64 data2);
+extern hset                 *hset_filter2(hset *restrict se, hset_predicate2_t pred2, value64 data1, value64 data2);
+extern hset                  hset_init_filter2(const hset *restrict src, hset_predicate2_t pred2, value64 data1, value64 data2);
 
 // ------------------------ simplifiers predicate engine ---------------------------
 // fs - str
