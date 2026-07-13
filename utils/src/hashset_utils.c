@@ -4691,7 +4691,7 @@ tf_like_ulike_simpliriers(const char *name)
     test_sub("subtest %d: delete NOT like (sensitive)", ++subnum);
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/foo", "/var/tmp/bar", "/usr/tmp", "/home/user");
-        hset *res = hset_apply_fs_notlike_str(&se, "tmp");   // удаляем всё, что НЕ содержит "tmp"
+        hset *res = hset_apply_fslike_str(&se, "tmp");   // удаляем всё, что НЕ содержит "tmp"
         test_validatefree(
             res == &se && se.count == 3 &&
             HSET_HAS_FS(res, "/tmp/foo") &&
@@ -4709,7 +4709,7 @@ tf_like_ulike_simpliriers(const char *name)
     test_sub("subtest %d: delete NOT ulike (case-insensitive)", ++subnum);
     {
         hset se = HSET_CREATEFS_ASSTR("/TMP/foo", "/var/tmp/bar", "/usr/Tmp", "/home/user");
-        hset *res = hset_apply_fs_notulike_str(&se, "tmp"); // удаляем всё, что НЕ содержит "tmp" без учёта регистра
+        hset *res = hset_apply_fsulike_str(&se, "tmp"); // удаляем всё, что НЕ содержит "tmp" без учёта регистра
         test_validatefree(
             res == &se && se.count == 3 &&
             HSET_HAS_FS(res, "/TMP/foo") &&
@@ -4740,7 +4740,7 @@ tf_like_ulike_simpliriers(const char *name)
     test_sub("subtest %d: delete like on empty set", ++subnum);
     {
         hset se = hset_init_fs(10);
-        hset *res = hset_apply_fs_notlike_str(&se, "tmp");
+        hset *res = hset_apply_fslike_str(&se, "tmp");
         test_validatefree(
             res == &se && se.count == 0,
             hset_free(res),
@@ -4767,7 +4767,7 @@ tf_like_ulike_simpliriers(const char *name)
     test_sub("subtest %d: delete like with no matches", ++subnum);
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/b");
-        hset *res = hset_apply_fs_notlike_str(&se, "tmp");
+        hset *res = hset_apply_fslike_str(&se, "tmp");
         test_validatefree(
             res == &se && se.count == 2 &&
             HSET_HAS_FS(res, "/tmp/a") && HSET_HAS_FS(res, "/tmp/b"),
@@ -4781,7 +4781,7 @@ tf_like_ulike_simpliriers(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
-// ------------------------- TEST hset_create_fsminlen_int / hset_apply_fs_notminlen_int -------------------------
+// ------------------------- TEST hset_create_fsminlen_int / hset_apply_fsminlen_int -------------------------
 static TestStatus
 tf_minlen_simpliriers(const char *name)
 {
@@ -4859,11 +4859,11 @@ tf_minlen_simpliriers(const char *name)
     }
     fs_alloc_check(true);
 
-    /* ========== hset_apply_fs_notminlen_int (in-place) ========== */
+    /* ========== hset_apply_fsminlen_int (in-place) ========== */
     test_sub("subtest %d: delete NOT minlen=7 (empty set)", ++subnum);
     {
         hset se = hset_init_fs(10);
-        hset *res = hset_apply_fs_notminlen_int(&se, 7);
+        hset *res = hset_apply_fsminlen_int(&se, 7);
         test_validatefree(
             res == &se && se.count == 0,
             hset_free(res),
@@ -4878,7 +4878,7 @@ tf_minlen_simpliriers(const char *name)
         hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc", "/tmp/dddd");
         // длины: 6,7,8,9. NOT minlen=7 => удаляем те, у которых длина < 7, т.е. /tmp/a (6).
         // должны остаться /tmp/bb, /tmp/ccc, /tmp/dddd
-        hset *res = hset_apply_fs_notminlen_int(&se, 7);
+        hset *res = hset_apply_fsminlen_int(&se, 7);
         test_validatefree(
             res == &se && se.count == 3 &&
             !HSET_HAS_FS(res, "/tmp/a") &&
@@ -4895,7 +4895,7 @@ tf_minlen_simpliriers(const char *name)
     test_sub("subtest %d: delete NOT minlen=10 (remove all)", ++subnum);
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc");
-        hset *res = hset_apply_fs_notminlen_int(&se, 10);
+        hset *res = hset_apply_fsminlen_int(&se, 10);
         test_validatefree(
             res == &se && se.count == 0,
             hset_free(res),
@@ -4908,7 +4908,7 @@ tf_minlen_simpliriers(const char *name)
     test_sub("subtest %d: delete NOT minlen=0 (keep all)", ++subnum);
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc");
-        hset *res = hset_apply_fs_notminlen_int(&se, 0);
+        hset *res = hset_apply_fsminlen_int(&se, 0);
         test_validatefree(
             res == &se && se.count == 3 &&
             HSET_HAS_FS(res, "/tmp/a") &&
@@ -4924,8 +4924,8 @@ tf_minlen_simpliriers(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
-// ------------------------- TEST hset_create_fsmaxlen_int / hset_apply_fs_notmaxlen_int
-//              hset_create_fslen_int / hset_apply_fs_notlen_int -------------------------
+// ------------------------- TEST hset_create_fsmaxlen_int / hset_apply_fsmaxlen_int
+//              hset_create_fslen_int / hset_apply_fslen_int -------------------------
 static TestStatus
 tf_maxlen_simpliriers(const char *name)
 {
@@ -4957,7 +4957,7 @@ tf_maxlen_simpliriers(const char *name)
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc", "/tmp/dddd");
         // NOT maxlen=7 → удалить всё, что НЕ <= 7, т.е. удалить /tmp/ccc(8), /tmp/dddd(9)
-        hset *res = hset_apply_fs_notmaxlen_int(&se, 7);
+        hset *res = hset_apply_fsmaxlen_int(&se, 7);
         test_validatefree(
             res == &se && se.count == 2 &&
             HSET_HAS_FS(res, "/tmp/a") &&
@@ -4995,7 +4995,7 @@ tf_maxlen_simpliriers(const char *name)
     test_sub("subtest %d: delete NOT len=7", ++subnum);
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc", "/tmp/dddd");
-        hset *res = hset_apply_fs_notlen_int(&se, 7);
+        hset *res = hset_apply_fslen_int(&se, 7);
         test_validatefree(
             res == &se && se.count == 1 &&
             HSET_HAS_FS(res, "/tmp/bb") &&
@@ -5012,7 +5012,7 @@ tf_maxlen_simpliriers(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
-// ------------------------- TEST hset_create_fsprefix_str / hset_apply_fs_notprefix_str -------------------------
+// ------------------------- TEST hset_create_fsprefix_str / hset_apply_fsprefix_str -------------------------
 static TestStatus
 tf_prefix_simpliriers(const char *name)
 {
@@ -5072,11 +5072,11 @@ tf_prefix_simpliriers(const char *name)
     }
     fs_alloc_check(true);
 
-    /* ========== hset_apply_fs_notprefix_str (in-place) ========== */
+    /* ========== hset_apply_fsprefix_str (in-place) ========== */
     test_sub("subtest %d: delete NOT prefix '/tmp' (empty set)", ++subnum);
     {
         hset se = hset_init_fs(10);
-        hset *res = hset_apply_fs_notprefix_str(&se, "/tmp");
+        hset *res = hset_apply_fsprefix_str(&se, "/tmp");
         test_validatefree(
             res == &se && se.count == 0,
             hset_free(res),
@@ -5091,7 +5091,7 @@ tf_prefix_simpliriers(const char *name)
         hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/var/tmp/b", "/tmp/c", "/usr/d");
         // NOT prefix '/tmp' => удалить все, которые НЕ начинаются с '/tmp'.
         // Останутся только /tmp/a и /tmp/c.
-        hset *res = hset_apply_fs_notprefix_str(&se, "/tmp");
+        hset *res = hset_apply_fsprefix_str(&se, "/tmp");
         test_validatefree(
             res == &se && se.count == 2 &&
             HSET_HAS_FS(res, "/tmp/a") &&
@@ -5108,7 +5108,7 @@ tf_prefix_simpliriers(const char *name)
     test_sub("subtest %d: delete NOT prefix '/nonexistent' (remove all)", ++subnum);
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/var/b", "/usr/c");
-        hset *res = hset_apply_fs_notprefix_str(&se, "/nonexistent");
+        hset *res = hset_apply_fsprefix_str(&se, "/nonexistent");
         test_validatefree(
             res == &se && se.count == 0,
             hset_free(res),
@@ -5123,7 +5123,7 @@ tf_prefix_simpliriers(const char *name)
         hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/var/b");
         // Все абсолютные пути начинаются с '/', поэтому предикат истинен для всех,
         // hset_filter оставляет все, ничего не удаляется.
-        hset *res = hset_apply_fs_notprefix_str(&se, "/");
+        hset *res = hset_apply_fsprefix_str(&se, "/");
         test_validatefree(
             res == &se && se.count == 2 &&
             HSET_HAS_FS(res, "/tmp/a") &&
@@ -5167,7 +5167,7 @@ tf_int_int_simpliriers(const char *name)
     {
         int vals[] = {5, 12, 3, 8, 15, 10};
         hset se = hset_from_intarr(vals, COUNT(vals));
-        hset *res = hset_apply_int_notgt_int(&se, 10);
+        hset *res = hset_apply_intgt_int(&se, 10);
         test_validatefree(
             res == &se && se.count == 2 &&
             HSET_HAS_INT(res, 12) && HSET_HAS_INT(res, 15) &&
@@ -5200,7 +5200,7 @@ tf_int_int_simpliriers(const char *name)
     {
         int vals[] = {5, 12, 3, 8, 15, 10};
         hset se = hset_from_intarr(vals, COUNT(vals));
-        hset *res = hset_apply_int_notge_int(&se, 10);
+        hset *res = hset_apply_intge_int(&se, 10);
         test_validatefree(
             res == &se && se.count == 3 &&
             HSET_HAS_INT(res, 10) && HSET_HAS_INT(res, 12) && HSET_HAS_INT(res, 15),
@@ -5232,7 +5232,7 @@ tf_int_int_simpliriers(const char *name)
     {
         int vals[] = {5, 12, 3, 8, 15};
         hset se = hset_from_intarr(vals, COUNT(vals));
-        hset *res = hset_apply_int_notne_int(&se, 8);
+        hset *res = hset_apply_intne_int(&se, 8);
         test_validatefree(
             res == &se && se.count == 4 &&
             HSET_HAS_INT(res, 5) && HSET_HAS_INT(res, 12) &&

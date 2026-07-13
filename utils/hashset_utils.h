@@ -226,7 +226,7 @@ static inline hset           hset_create_fsminlen_int(const hset *restrict se, i
     return hset_create_fs_int_filter(se, len, value64_filter_fsminlen_int);
 }
 // sql-like delete :fs where NOT length >=  :int
-static inline hset          *hset_apply_fs_notminlen_int(hset *restrict se, int len){
+static inline hset          *hset_apply_fsminlen_int(hset *restrict se, int len){
     return hset_apply_fs_int_filter(se, len, value64_filter_fsminlen_int);
 }
 // sql-like create :fs as select where length <=  :int
@@ -234,7 +234,7 @@ static inline hset           hset_create_fsmaxlen_int(const hset *restrict se, i
     return hset_create_fs_int_filter(se, len, value64_filter_fsmaxlen_int);
 }
 // sql-like delete :fs where NOT length <=  :int
-static inline hset          *hset_apply_fs_notmaxlen_int(hset *restrict se, int len){
+static inline hset          *hset_apply_fsmaxlen_int(hset *restrict se, int len){
     return hset_apply_fs_int_filter(se, len, value64_filter_fsmaxlen_int);
 }
 // sql-like create :fs as select where length == :int
@@ -242,7 +242,7 @@ static inline hset           hset_create_fslen_int(const hset *restrict se, int 
     return hset_create_fs_int_filter(se, len, value64_filter_fslen_int);
 }
 // sql-like delete :fs where NOT length == :int
-static inline hset          *hset_apply_fs_notlen_int(hset *restrict se, int len){
+static inline hset          *hset_apply_fslen_int(hset *restrict se, int len){
     return hset_apply_fs_int_filter(se, len, value64_filter_fslen_int);
 }
 // sql-like create :fs as select where prefix == :str
@@ -250,7 +250,7 @@ static inline hset           hset_create_fsprefix_str(const hset *restrict se, c
     return hset_create_fs_str_filter(se, pattern, value64_filter_fsprefix_str);
 }
 // sql-like delete :fs where NOT prefix == :str
-static inline hset          *hset_apply_fs_notprefix_str(hset *restrict se, const char *restrict pattern){
+static inline hset          *hset_apply_fsprefix_str(hset *restrict se, const char *restrict pattern){
     return hset_apply_fs_str_filter(se, pattern, value64_filter_fsprefix_str);
 }
 
@@ -263,11 +263,11 @@ static inline hset           hset_create_fsulike_str(const hset *restrict se, co
     return hset_create_fs_str_filter(se, pattern, value64_filter_fsulike_str);
 }
 // sql-like delete :fs where NOT like :str
-static inline hset          *hset_apply_fs_notlike_str(hset *restrict se, const char *restrict pattern){
+static inline hset          *hset_apply_fslike_str(hset *restrict se, const char *restrict pattern){
     return hset_apply_fs_str_filter(se, pattern, value64_filter_fslike_str);
 }
 // sql-like delete :fs where NOT ulike :str
-static inline hset          *hset_apply_fs_notulike_str(hset *restrict se, const char *restrict pattern){
+static inline hset          *hset_apply_fsulike_str(hset *restrict se, const char *restrict pattern){
     return hset_apply_fs_str_filter(se, pattern, value64_filter_fsulike_str);
 }
 
@@ -276,7 +276,7 @@ static inline hset          *hset_apply_fs_notulike_str(hset *restrict se, const
 static inline hset          hset_create_intlt_int(const hset *restrict se, int v) {
     return hset_create_int_int_filter(se, v, value64_filter_intlt_int);
 }
-static inline hset         *hset_apply_int_notlt_int(hset *restrict se, int v) {
+static inline hset         *hset_apply_intlt_int(hset *restrict se, int v) {
     return hset_apply_int_int_filter(se, v, value64_filter_intlt_int);
 }
 
@@ -284,7 +284,7 @@ static inline hset         *hset_apply_int_notlt_int(hset *restrict se, int v) {
 static inline hset          hset_create_intle_int(const hset *restrict se, int v) {
     return hset_create_int_int_filter(se, v, value64_filter_intle_int);
 }
-static inline hset         *hset_apply_int_notle_int(hset *restrict se, int v) {
+static inline hset         *hset_apply_intle_int(hset *restrict se, int v) {
     return hset_apply_int_int_filter(se, v, value64_filter_intle_int);
 }
 
@@ -292,7 +292,7 @@ static inline hset         *hset_apply_int_notle_int(hset *restrict se, int v) {
 static inline hset          hset_create_intgt_int(const hset *restrict se, int v) {
     return hset_create_int_int_filter(se, v, value64_filter_intgt_int);
 }
-static inline hset         *hset_apply_int_notgt_int(hset *restrict se, int v) {
+static inline hset         *hset_apply_intgt_int(hset *restrict se, int v) {
     return hset_apply_int_int_filter(se, v, value64_filter_intgt_int);
 }
 
@@ -300,7 +300,7 @@ static inline hset         *hset_apply_int_notgt_int(hset *restrict se, int v) {
 static inline hset          hset_create_intge_int(const hset *restrict se, int v) {
     return hset_create_int_int_filter(se, v, value64_filter_intge_int);
 }
-static inline hset         *hset_apply_int_notge_int(hset *restrict se, int v) {
+static inline hset         *hset_apply_intge_int(hset *restrict se, int v) {
     return hset_apply_int_int_filter(se, v, value64_filter_intge_int);
 }
 
@@ -308,7 +308,7 @@ static inline hset         *hset_apply_int_notge_int(hset *restrict se, int v) {
 static inline hset          hset_create_inteq_int(const hset *restrict se, int v) {
     return hset_create_int_int_filter(se, v, value64_filter_inteq_int);
 }
-static inline hset         *hset_apply_int_noteq_int(hset *restrict se, int v) {
+static inline hset         *hset_apply_inteq_int(hset *restrict se, int v) {
     return hset_apply_int_int_filter(se, v, value64_filter_inteq_int);
 }
 
@@ -316,7 +316,7 @@ static inline hset         *hset_apply_int_noteq_int(hset *restrict se, int v) {
 static inline hset          hset_create_intne_int(const hset *restrict se, int v) {
     return hset_create_int_int_filter(se, v, value64_filter_intne_int);
 }
-static inline hset         *hset_apply_int_notne_int(hset *restrict se, int v) {
+static inline hset         *hset_apply_intne_int(hset *restrict se, int v) {
     return hset_apply_int_int_filter(se, v, value64_filter_intne_int);
 }
 
