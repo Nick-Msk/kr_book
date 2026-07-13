@@ -121,25 +121,25 @@ static inline fs          **hset_accum_getfs(hset_accum *c) {
 }
 
 typedef                     void (*hset_reduce_func)(hset_accum *acc, value64 v);
-extern hset_accum           hset_initreduce(const hset *se, hset_accum init, hset_reduce_func func);
+extern hset_accum           hset_reduce(const hset *se, hset_accum init, hset_reduce_func func);
 
 static inline hset_accum    hset_reduce_common(const hset *se, hset_reduce_func func){
-    return hset_initreduce(se, HSET_ACCUM(VALUE64_INT), func);  // VALUE64_INT is just mean do nothing when hset_accum_free()
+    return hset_reduce(se, HSET_ACCUM(VALUE64_INT), func);  // VALUE64_INT is just mean do nothing when hset_accum_free()
 }
 static inline hset_accum    hset_reduce_int(const hset *se, hset_reduce_func func){
-    return hset_initreduce(se, HSET_ACCUM(VALUE64_INT), func);
+    return hset_reduce(se, HSET_ACCUM(VALUE64_INT), func);
 }
 static inline hset_accum    hset_reduce_lng(const hset *se, hset_reduce_func func){
-    return hset_initreduce(se, HSET_ACCUM(VALUE64_LNG), func);
+    return hset_reduce(se, HSET_ACCUM(VALUE64_LNG), func);
 }
 static inline hset_accum    hset_reduce_dbl(const hset *se, hset_reduce_func func){
-    return hset_initreduce(se, HSET_ACCUM_DBL_ZERO, func);
+    return hset_reduce(se, HSET_ACCUM_DBL_ZERO, func);
 }
 static inline hset_accum    hset_reduce_fs(const hset *se, hset_reduce_func func){
-    return hset_initreduce(se, HSET_ACCUM_FS_ZERO, func);
+    return hset_reduce(se, HSET_ACCUM_FS_ZERO, func);
 }
 static inline hset_accum    hset_reduce_fsagg(const hset *se, hset_reduce_func func, const char *sep){
-    return hset_initreduce(se, HSET_ACCUM_FS_AGG(sep), func);
+    return hset_reduce(se, HSET_ACCUM_FS_AGG(sep), func);
 }
 
 static inline void          hset_accum_free(hset_accum *ha){
