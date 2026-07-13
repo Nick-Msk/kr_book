@@ -8,6 +8,7 @@
 // --------------- Includes -----------------------
 
 #include "hashset.h"
+#include "value64_params.h"
 
 // ----------- CONSTANTS AND GLOBALS ---------------
 
@@ -327,6 +328,14 @@ static inline hset         hset_create_intbetween_int_int(const hset *restrict s
 static inline hset *hset_apply_intbetween_int_int(hset *restrict se, int v1, int v2) {
     return hset_apply_int_int_filter2(se, v1, v2, value64_filter2_intbetween_int_int);
 }
+
+// ---------------------------------- MAPPERS ---------------------------------
+// filter types
+typedef value64              (*hset_map_t)(value64 v, value64_params_t* data);
+
+// ------------------------------- engine ------------------------------------------
+// constructor only! No apply engine
+extern hset                  hset_init_map(const hset *restrict src, hset_map_t pred, value64_params_t *restrict data);
 
 #endif /* !_HASHSET_UTILS_H */
 

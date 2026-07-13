@@ -549,6 +549,20 @@ hset                       *hset_apply_int_int_filter2(hset *restrict se, int va
     return logsimpleret(se, "Remained %d elems", hset_cnt(se) );
 }
 
+// ---------------------------------- MAPPERS ---------------------------------
+// ------------------------------- engine ------------------------------------------
+// constructor only! No apply engine
+hset                        hset_init_map(const hset *restrict src, hset_map_t map, value64_params_t *restrict params) {
+    invraisecode(ERR_NULLABLE_PTR, src != NULL, "Null pointer");
+    hset res = hset_init(src->sz, hset_getype(src));
+
+    HSET_FOREACH(src, var) {
+        value64 mapped = map(var, params);  // params is NULL normal!
+        hset_move(&res, &mapped);
+    }
+
+    return logsimpleret(res, "Mapped (new set) %d elems", res.count);
+}
 
 // ---------------------------------------- Testing ------------------------------------------
 #ifdef HASHSET_UTILS_TESTING
