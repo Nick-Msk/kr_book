@@ -139,14 +139,15 @@ extern hset_accum           hset_reduce(const hset *se, hset_accum init, hset_re
 extern hset_accum           hset_reduce_filtered(const hset *se, hset_accum init, hset_reduce_func func,
                                 hset_predicate_t pred, value64 data);
 
-static inline hset_accum    hset_reduce_common(const hset *se, hset_reduce_func func){
-    return hset_reduce(se, HSET_ACCUM(VALUE64_INT), func);  // VALUE64_INT is just mean do nothing when hset_accum_free()
-}
+// TODO: not sure if that really needed
+//static inline hset_accum    hset_reduce_common(const hset *se, hset_reduce_func func){
+//    return hset_reduce(se, HSET_ACCUM(VALUE64_INT), func);  // VALUE64_INT is just mean do nothing when hset_accum_free()
+//}
 static inline hset_accum    hset_reduce_int(const hset *se, hset_reduce_func func){
-    return hset_reduce(se, HSET_ACCUM(VALUE64_INT), func);
+    return hset_reduce(se, HSET_ACCUM_INT_ZERO, func);
 }
 static inline hset_accum    hset_reduce_lng(const hset *se, hset_reduce_func func){
-    return hset_reduce(se, HSET_ACCUM(VALUE64_LNG), func);
+    return hset_reduce(se, HSET_ACCUM_LNG_ZERO, func);
 }
 static inline hset_accum    hset_reduce_dbl(const hset *se, hset_reduce_func func){
     return hset_reduce(se, HSET_ACCUM_DBL_ZERO, func);

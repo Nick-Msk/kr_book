@@ -3592,7 +3592,7 @@ tf22(const char *name)
     {
         int     vals[] = {1, 2, 3, 4, 5};
         hset    se = hset_from_intarr(vals, COUNT(vals));
-        hset_accum res = hset_reduce_common(&se, hset_sum_int);
+        hset_accum res = hset_reduce_int(&se, hset_sum_int);
 
         test_validatefree(
             res.value.ival == 15,
@@ -3612,7 +3612,7 @@ tf22(const char *name)
     {
         int     vals[] = {10, 20, 30};
         hset    se = hset_from_intarr(vals, COUNT(vals));
-        hset_accum res = hset_reduce_common(&se, hset_count_int);
+        hset_accum res = hset_reduce_int(&se, hset_count_int);
 
         test_validatefree(
             res.count == COUNT(vals),
@@ -3633,7 +3633,7 @@ tf22(const char *name)
     {
         int     vals[] = {5, 2, 9, 1, 7};
         hset    se = hset_from_intarr(vals, COUNT(vals));
-        hset_accum res = hset_reduce_common(&se, hset_max_int);
+        hset_accum res = hset_reduce_int(&se, hset_max_int);
 
         test_validatefree(
             res.value.ival == 9,
@@ -3653,7 +3653,7 @@ tf22(const char *name)
     {
         int     vals[] = {3, 8, 1, 6, 4};
         hset    se = hset_from_intarr(vals, COUNT(vals));
-        hset_accum res = hset_reduce_common(&se, hset_min_int);
+        hset_accum res = hset_reduce_int(&se, hset_min_int);
 
         test_validatefree(
             res.value.ival == 1,
@@ -3672,7 +3672,7 @@ tf22(const char *name)
     test_sub("subtest %d: reduce on empty set", ++subnum);
     {
         hset    se = hset_init(10, VALUE64_INT);
-        hset_accum res = hset_reduce_common(&se, hset_sum_int);
+        hset_accum res = hset_reduce_int(&se, hset_sum_int);
 
         test_validatefree(
             res.value.ival == 0,
@@ -3691,7 +3691,7 @@ tf22(const char *name)
     test_sub("subtest %d: reduce max on empty set", ++subnum);
     {
         hset    se = hset_init(10, VALUE64_INT);
-        hset_accum res = hset_reduce_common(&se, hset_max_int);
+        hset_accum res = hset_reduce_int(&se, hset_max_int);
 
         test_validatefree(
             res.count == 0,
@@ -4216,7 +4216,7 @@ tf_reduce_fs_count_max_min(const char *name)
     test_sub("subtest %d: sum of lengths", ++subnum);
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/x", "/tmp/yy", "/tmp/zzz");
-        hset_accum acc = hset_reduce_common(&se, hset_sumlen_fs);
+        hset_accum acc = hset_reduce_int(&se, hset_sumlen_fs);
         test_validatefree(
             hset_accum_long(&acc) == 21,
             hset_free(&se),
@@ -4229,7 +4229,7 @@ tf_reduce_fs_count_max_min(const char *name)
     test_sub("subtest %d: sum of lengths empty set", ++subnum);
     {
         hset se = hset_init_fs(10);
-        hset_accum acc = hset_reduce_common(&se, hset_sumlen_fs);
+        hset_accum acc = hset_reduce_int(&se, hset_sumlen_fs);
         test_validatefree(
             hset_accum_long(&acc) == 0,
             hset_free(&se),
