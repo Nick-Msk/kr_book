@@ -563,6 +563,20 @@ extern bool                         value64_filter_intgt_int(value64 v, value64 
 extern bool                         value64_filter_intge_int(value64 v, value64 data);
 extern bool                         value64_filter_inteq_int(value64 v, value64 data);
 extern bool                         value64_filter_intne_int(value64 v, value64 data);
+// long vs  long
+extern bool                         value64_filter_lnglt_lng(value64 v, value64 data);
+extern bool                         value64_filter_lngle_lng(value64 v, value64 data);
+extern bool                         value64_filter_lnggt_lng(value64 v, value64 data);
+extern bool                         value64_filter_lngge_lng(value64 v, value64 data);
+extern bool                         value64_filter_lngeq_lng(value64 v, value64 data);
+extern bool                         value64_filter_lngne_lng(value64 v, value64 data);
+// double vs double
+extern bool                         value64_filter_dbllt_dbl(value64 v, value64 data);
+extern bool                         value64_filter_dblle_dbl(value64 v, value64 data);
+extern bool                         value64_filter_dblgt_dbl(value64 v, value64 data);
+extern bool                         value64_filter_dblge_dbl(value64 v, value64 data);
+extern bool                         value64_filter_dbleq_dbl(value64 v, value64 data);
+extern bool                         value64_filter_dblne_dbl(value64 v, value64 data);
 // 2 value filters
 extern bool                         value64_filter2_intbetween_int_int(value64 v, value64 data1, value64 data2);
 
