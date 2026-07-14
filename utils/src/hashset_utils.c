@@ -290,7 +290,6 @@ void                        hset_sum_int(hset_accum *acc, value64 v) {
     acc->value.ival += v.ival;
     acc->count++;
 }
-
 void                        hset_count_int(hset_accum *acc, value64 v) {
     (void) v;
     acc->count++;
@@ -302,7 +301,6 @@ void                        hset_max_int(hset_accum *acc, value64 v) {
         acc->count = 1;   // помечаем, что значение уже есть
     }
 }
-
 void                        hset_min_int(hset_accum *acc, value64 v) {
     if (acc->count == 0 || v.ival < acc->value.ival) {
         acc->value.ival = v.ival;
@@ -314,7 +312,24 @@ void                        hset_min_int(hset_accum *acc, value64 v) {
     acc->value.ival += v.ival;
     acc->count++;
 }*/
+// long
 
+void                        hset_sum_lng(hset_accum *acc, value64 v) {
+    acc->value.lval += v.lval;
+    acc->count++;
+}
+void                        hset_max_lng(hset_accum *acc, value64 v) {
+    if (acc->count == 0 || v.lval > acc->value.lval) {
+        acc->value.lval = v.lval;
+        acc->count = 1;   // помечаем, что значение уже есть
+    }
+}
+void                        hset_min_lng(hset_accum *acc, value64 v) {
+    if (acc->count == 0 || v.lval < acc->value.lval) {
+        acc->value.lval = v.lval;
+        acc->count = 1;
+    }
+}
 // double
 void                        hset_sum_dbl(hset_accum *acc, value64 v) {
     if (isfinite(v.dval)) {
@@ -4120,7 +4135,7 @@ tf_reduce_fs_count_max_min(const char *name)
         hset_free(&se);
     }
     fs_alloc_check(true);
-    // TODO:
+
     test_sub("subtest %d: max length string", ++subnum);
     {
         hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc");
@@ -5628,6 +5643,152 @@ tf_reduce_filtered_fs(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST hset_filtereduce_* (all types) -------------------------
+static TestStatus
+tf_filtereduce_all_types(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== INT ========== */
+    test_sub("subtest %d: filtereduce_int sum of values > 5", ++subnum);
+    {
+        int vals[] = {1, 8, 3, 10, 6, 4};
+        hset se = hset_from_intarr(vals, COUNT(vals));
+        // Предикат: больше 5 -> 8,10,6; сумма = 24
+        value64 threshold = LITERAL64_INT(5);
+        hset_accum acc = hset_filtereduce_int(&se, hset_sum_int,
+                                              value64_filter_intgt_int, threshold);
+        test_validatefree(
+            hset_accum_int(&acc) == 24 && acc.count == 3,
+            hset_free(&se),
+            "Filtered int >5 sum: expected 24, got %d (count %d)",
+            hset_accum_int(&acc), acc.count
+        );
+        hset_free(&se);
+    }
+
+    test_sub("subtest %d: filtereduce_int with NULL pred (all)", ++subnum);
+    {
+        int vals[] = {1, 2, 3};
+        hset se = hset_from_intarr(vals, COUNT(vals));
+        hset_accum acc = hset_filtereduce_int(&se, hset_sum_int,
+                                              NULL, LITERAL64_ZERO);
+        test_validatefree(
+            hset_accum_int(&acc) == 6 && acc.count == 3,
+            hset_free(&se),
+            "Filtered int NULL pred sum: expected 6, got %d", hset_accum_int(&acc)
+        );
+        hset_free(&se);
+    }
+
+    /* ========== LNG ========== */
+    test_sub("subtest %d: filtereduce_lng sum of values >= 100", ++subnum);
+    {
+        long vals[] = {50, 150, 200, 75};
+        hset se = hset_from_longarr(vals, COUNT(vals));
+        value64 threshold = LITERAL64_LNG(100);
+        hset_accum acc = hset_filtereduce_lng(&se, hset_sum_lng,
+                                              value64_filter_lngge_lng, threshold);
+        test_validatefree(
+            hset_accum_long(&acc) == 350 && acc.count == 2,
+            hset_free(&se),
+            "Filtered lng >=100 sum: expected 350, got %ld (count %d)",
+            hset_accum_long(&acc), acc.count
+        );
+        hset_free(&se);
+    }
+
+    /* ========== DBL ========== */
+    test_sub("subtest %d: filtereduce_dbl max of values < 3.0", ++subnum);
+    {
+        double vals[] = {1.5, 2.7, 3.1, 0.9, 4.2};
+        hset se = hset_from_dblarr(vals, COUNT(vals));
+        value64 threshold = LITERAL64_DBL(3.0);
+        hset_accum acc = hset_filtereduce_dbl(&se, hset_max_dbl,
+                                              value64_filter_dbllt_dbl, threshold);
+        test_validatefree(
+            hset_accum_dbl(&acc) == 2.7 && acc.count > 0,   // count == 1
+            hset_free(&se),
+            "Filtered dbl <3.0 max: expected 2.7, got %f (count %d)",
+            hset_accum_dbl(&acc), acc.count
+        );
+        hset_free(&se);
+    }
+
+    /* ========== FS ========== */
+    test_sub("subtest %d: filtereduce_fs sumlen of paths with prefix /tmp", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/x", "/var/y", "/tmp/z", "/usr/w");
+        value64 prefix = LITERAL64_STR("/tmp");
+        hset_accum acc = hset_filtereduce_lng(&se, hset_sumlen_fs,
+                                             value64_filter_fsprefix_str, prefix);
+        // /tmp/x длина 6, /tmp/z длина 6 => 12
+        test_validatefree(
+            hset_accum_long(&acc) == 12 && acc.count == 2,
+            hset_free(&se),
+            "Filtered FS sumlen /tmp: expected 12, got %ld (count %d)",
+            hset_accum_long(&acc), acc.count
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: filtereduce_fs count of paths with minlen >= 7", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/tmp/bb", "/tmp/ccc");
+        value64 minlen = LITERAL64_INT(7);
+        hset_accum acc = hset_filtereduce_fs(&se, hset_count_fs,
+                                             value64_filter_fsminlen_int, minlen);
+        test_validatefree(
+            acc.count == 2,  // /tmp/bb (7), /tmp/ccc (8)
+            hset_free(&se),
+            "Filtered FS minlen>=7 count: expected 2, got %d", acc.count
+        );
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    /* ========== FSAGG ========== */
+    test_sub("subtest %d: filtereduce_fsagg concatenate with prefix /tmp", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/tmp/a", "/var/b", "/tmp/c", "/usr/d");
+        value64 prefix = LITERAL64_STR("/tmp");
+        hset_accum acc = hset_filtereduce_fsagg(&se, hset_agg_fs, ", ",
+                                                value64_filter_fsprefix_str, prefix);
+        const char *res = fs_str(hset_accum_fs(&acc));
+        test_validatefree(
+            res != NULL &&
+            strstr(res, "/tmp/a") && strstr(res, "/tmp/c") &&
+            !strstr(res, "/var") && !strstr(res, "/usr"),
+            (hset_free(&se), hset_accum_free(&acc)),
+            "Filtered FS agg: expected only /tmp paths, got '%s'", res ? res : "NULL"
+        );
+        hset_accum_free(&acc);
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: filtereduce_fsagg empty result", ++subnum);
+    {
+        hset se = HSET_CREATEFS_ASSTR("/var/y", "/usr/w");
+        value64 prefix = LITERAL64_STR("/tmp");
+        hset_accum acc = hset_filtereduce_fsagg(&se, hset_agg_fs, ", ",
+                                                value64_filter_fsprefix_str, prefix);
+        const char *res = fs_str(hset_accum_fs(&acc));
+        test_validatefree(
+            res == NULL || strlen(res) == 0,
+            (hset_free(&se), hset_accum_free(&acc)),
+            "Filtered FS agg empty: expected empty string, got '%s'", res ? res : "NULL"
+        );
+        hset_accum_free(&acc);
+        hset_free(&se);
+    }
+    fs_alloc_check(true);
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -5682,6 +5843,8 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_init_map_int_add_fs_append,        .num = 38, .name = "hset_init_map simple test"
                                 , .desc="", .mandatory=true)
               , testnew(.f2 = tf_reduce_filtered_fs,                .num = 39, .name = "hset_reduce_filtered() simple test"
+                                , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_filtereduce_all_types,             .num = 40, .name = "hset_filtereduce_* (all types) simple test"
                                 , .desc="", .mandatory=true)
             );
         if (runall)
