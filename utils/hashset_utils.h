@@ -132,33 +132,175 @@ static inline fs          **hset_accum_getfs(hset_accum *c) {
     .typ       = VALUE64_FS, \
     .sep       = (sepa) \
 }
+// ---------------------------------------------------------------------------
+//                              REDUCE ENGINE
+// ---------------------------------------------------------------------------
 
-// forall engine
-extern hset_accum           hset_reduce(const hset *se, hset_accum init, hset_reduce_func func);
-// conditional engine
-extern hset_accum           hset_reduce_filtered(const hset *se, hset_accum init, hset_reduce_func func,
-                                hset_predicate_t pred, value64 data);
+/**
+ * @brief Обычная свёртка без фильтрации (движок).
+ * @param se   исходное множество
+ * @param init начальное значение аккумулятора
+ * @param func функция-редьюсер (вызывается для каждого элемента)
+ * @return заполненный аккумулятор
+ */
+extern hset_accum hset_reduce(const hset *se, hset_accum init, hset_reduce_func func);
 
-// TODO: not sure if that really needed
-//static inline hset_accum    hset_reduce_common(const hset *se, hset_reduce_func func){
-//    return hset_reduce(se, HSET_ACCUM(VALUE64_INT), func);  // VALUE64_INT is just mean do nothing when hset_accum_free()
-//}
-static inline hset_accum    hset_reduce_int(const hset *se, hset_reduce_func func){
+/**
+ * @brief Свёртка с фильтрацией (движок).
+ *
+ * Если pred == NULL, обрабатываются все элементы (эквивалент hset_reduce).
+ * Иначе обрабатываются только те элементы, для которых pred(v, data) == true.
+ *
+ * @param se   исходное множество
+ * @param init начальное значение аккумулятора
+ * @param func функция-редьюсер
+ * @param pred предикат-фильтр (может быть NULL)
+ * @param data данные для предиката
+ * @return заполненный аккумулятор
+ */
+extern hset_accum hset_reduce_filtered(const hset *se, hset_accum init,
+                                       hset_reduce_func func,
+                                       hset_predicate_t pred, value64 data);
+
+// ---------------------------------------------------------------------------
+//                    TYPED REDUCE (without filtering)
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief Свёртка для VALUE64_INT (без фильтрации).
+ * @param se   исходное множество
+ * @param func функция-редьюсер
+ * @return заполненный аккумулятор с типом VALUE64_INT
+ */
+static inline hset_accum hset_reduce_int(const hset *se, hset_reduce_func func) {
     return hset_reduce(se, HSET_ACCUM_INT_ZERO, func);
 }
-static inline hset_accum    hset_reduce_lng(const hset *se, hset_reduce_func func){
+
+/**
+ * @brief Свёртка для VALUE64_LNG (без фильтрации).
+ * @param se   исходное множество
+ * @param func функция-редьюсер
+ * @return заполненный аккумулятор с типом VALUE64_LNG
+ */
+static inline hset_accum hset_reduce_lng(const hset *se, hset_reduce_func func) {
     return hset_reduce(se, HSET_ACCUM_LNG_ZERO, func);
 }
-static inline hset_accum    hset_reduce_dbl(const hset *se, hset_reduce_func func){
+
+/**
+ * @brief Свёртка для VALUE64_DBL (без фильтрации).
+ * @param se   исходное множество
+ * @param func функция-редьюсер
+ * @return заполненный аккумулятор с типом VALUE64_DBL
+ */
+static inline hset_accum hset_reduce_dbl(const hset *se, hset_reduce_func func) {
     return hset_reduce(se, HSET_ACCUM_DBL_ZERO, func);
 }
-static inline hset_accum    hset_reduce_fs(const hset *se, hset_reduce_func func){
+
+/**
+ * @brief Свёртка для VALUE64_FS (без фильтрации).
+ * @param se   исходное множество
+ * @param func функция-редьюсер
+ * @return заполненный аккумулятор с типом VALUE64_FS
+ */
+static inline hset_accum hset_reduce_fs(const hset *se, hset_reduce_func func) {
     return hset_reduce(se, HSET_ACCUM_FS_ZERO, func);
 }
-static inline hset_accum    hset_reduce_fsagg(const hset *restrict se, hset_reduce_func func, const char *restrict sep){
+
+/**
+ * @brief Агрегирующая свёртка строк с разделителем (без фильтрации).
+ * @param se  исходное множество
+ * @param func функция-редьюсер (обычно hset_agg_fs)
+ * @param sep строка-разделитель (может быть NULL)
+ * @return заполненный аккумулятор с типом VALUE64_FS
+ */
+static inline hset_accum hset_reduce_fsagg(const hset *restrict se,
+                                           hset_reduce_func func,
+                                           const char *restrict sep) {
     return hset_reduce(se, HSET_ACCUM_FS_AGG(sep), func);
 }
 
+// ---------------------------------------------------------------------------
+//                 FILTERED REDUCE (reduce + predicate)
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief Свёртка с фильтрацией для VALUE64_INT.
+ * @param se   исходное множество
+ * @param func функция-редьюсер
+ * @param pred предикат-фильтр
+ * @param data данные для предиката
+ * @return заполненный аккумулятор с типом VALUE64_INT
+ */
+static inline hset_accum hset_filtereduce_int(const hset *se,
+                                              hset_reduce_func func,
+                                              hset_predicate_t pred,
+                                              value64 data) {
+    return hset_reduce_filtered(se, HSET_ACCUM_INT_ZERO, func, pred, data);
+}
+
+/**
+ * @brief Свёртка с фильтрацией для VALUE64_LNG.
+ * @param se   исходное множество
+ * @param func функция-редьюсер
+ * @param pred предикат-фильтр
+ * @param data данные для предиката
+ * @return заполненный аккумулятор с типом VALUE64_LNG
+ */
+static inline hset_accum hset_filtereduce_lng(const hset *se,
+                                              hset_reduce_func func,
+                                              hset_predicate_t pred,
+                                              value64 data) {
+    return hset_reduce_filtered(se, HSET_ACCUM_LNG_ZERO, func, pred, data);
+}
+
+/**
+ * @brief Свёртка с фильтрацией для VALUE64_DBL.
+ * @param se   исходное множество
+ * @param func функция-редьюсер
+ * @param pred предикат-фильтр
+ * @param data данные для предиката
+ * @return заполненный аккумулятор с типом VALUE64_DBL
+ */
+static inline hset_accum hset_filtereduce_dbl(const hset *se,
+                                              hset_reduce_func func,
+                                              hset_predicate_t pred,
+                                              value64 data) {
+    return hset_reduce_filtered(se, HSET_ACCUM_DBL_ZERO, func, pred, data);
+}
+
+/**
+ * @brief Свёртка с фильтрацией для VALUE64_FS.
+ * @param se   исходное множество
+ * @param func функция-редьюсер
+ * @param pred предикат-фильтр
+ * @param data данные для предиката
+ * @return заполненный аккумулятор с типом VALUE64_FS
+ */
+static inline hset_accum hset_filtereduce_fs(const hset *se,
+                                              hset_reduce_func func,
+                                              hset_predicate_t pred,
+                                              value64 data) {
+    return hset_reduce_filtered(se, HSET_ACCUM_FS_ZERO, func, pred, data);
+}
+
+/**
+ * @brief Агрегирующая свёртка строк с фильтрацией и разделителем.
+ * @param se  исходное множество
+ * @param func функция-редьюсер (обычно hset_agg_fs)
+ * @param sep строка-разделитель (может быть NULL)
+ * @param pred предикат-фильтр
+ * @param data данные для предиката
+ * @return заполненный аккумулятор с типом VALUE64_FS
+ */
+static inline hset_accum hset_filtereduce_fsagg(const hset *restrict se,
+                                                hset_reduce_func func,
+                                                const char *restrict sep,
+                                                hset_predicate_t pred,
+                                                value64 data) {
+    return hset_reduce_filtered(se, HSET_ACCUM_FS_AGG(sep), func, pred, data);
+}
+
+// destructor
 static inline void          hset_accum_free(hset_accum *ha){
     invraisecode(ERR_NULLABLE_PTR, ha != NULL, "Null pointer");
     switch (ha->typ) {
