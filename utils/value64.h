@@ -100,6 +100,8 @@ extern value64                      value64_convert_str_to_fs(value64 v);
 #define                             LITERAL64_STR(val)  (value64) {.u64 = 0L, .sval = (char *) (val) }
 // local version, just a copy!
 #define                             LITERAL64_FS(val)   (value64) {.u64 = 0L, .fsval = &(val) }
+// pointer version
+#define                             LITERAL64_PFS(val)   (value64) {.u64 = 0L, .fsval = (val) }
 
 #define                             LITERAL64_FS_STR(str) (value64) {.u64 = 0L, .fsval = &FSLITERAL(str) }
 
