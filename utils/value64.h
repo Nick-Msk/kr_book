@@ -124,6 +124,7 @@ extern value64                      value64_pcopy_move(void *p, value64_type typ
 static inline value64               value64_pinit(const void *p, value64_type typ){
     return value64_pcopy_move( (void *) p, typ, false);
 }
+// TODO: rework, ugly now
 // create value from pointer, value64 constructor ANY type, MOVE semantic
 static inline value64               value64_pmove(void *p, value64_type typ){
     return value64_pcopy_move(p, typ, true);
@@ -248,26 +249,41 @@ static inline fs                   *value64_fs(value64 v){
     return v.fsval;
 }
 
+// move constructor!
+static inline  value64              value64_initmove(value64 *restrict source, value64_type typ) {
+    invraisecode(source,  ERR_NULLABLE_PTR, "Null pointer");
+    value64 res = *source;      // just a move!!! For all types
+    switch (typ) {
+        case VALUE64_DBL:
+            *source = LITERAL64_DBL(0.0);
+        break;
+        default:
+            *source = LITERAL64_ZERO;
+        break;
+    }
+    return res;
+}
+
 // move to EXISTING object, thart is NOT a constructor
 // move switcher to EXISTING object
-extern value64                     *value64_move(value64 *restrict target, value64 *restrict source, value64_type typ);
-static inline value64              *value64_move_int(value64 *restrict target, value64 *restrict source){
-    return value64_move(target, source, VALUE64_INT);
+extern value64                     *value64_moveto(value64 *restrict target, value64 *restrict source, value64_type typ);
+static inline value64              *value64_moveto_int(value64 *restrict target, value64 *restrict source){
+    return value64_moveto(target, source, VALUE64_INT);
 }
-static inline value64              *value64_move_long(value64 *restrict target, value64 *restrict source){
-    return value64_move(target, source, VALUE64_LNG);
+static inline value64              *value64_moveto_long(value64 *restrict target, value64 *restrict source){
+    return value64_moveto(target, source, VALUE64_LNG);
 }
-static inline value64              *value64_move_dbl(value64 *restrict target, value64 *restrict source){
-    return value64_move(target, source, VALUE64_DBL);
+static inline value64              *value64_moveto_dbl(value64 *restrict target, value64 *restrict source){
+    return value64_moveto(target, source, VALUE64_DBL);
 }
-static inline value64              *value64_move_str(value64 *restrict target, value64 *restrict source){
-    return value64_move(target, source, VALUE64_STR);
+static inline value64              *value64_moveto_str(value64 *restrict target, value64 *restrict source){
+    return value64_moveto(target, source, VALUE64_STR);
 }
-static inline value64              *value64_move_ptr(value64 *restrict target, value64 *restrict source){
-    return value64_move(target, source, VALUE64_PTR);
+static inline value64              *value64_moveto_ptr(value64 *restrict target, value64 *restrict source){
+    return value64_moveto(target, source, VALUE64_PTR);
 }
-static inline value64              *value64_move_fs(value64 *restrict target, value64 *restrict source){
-    return value64_move(target, source, VALUE64_FS);
+static inline value64              *value64_moveto_fs(value64 *restrict target, value64 *restrict source){
+    return value64_moveto(target, source, VALUE64_FS);
 }
 
 extern unsigned long               value64_lhash(value64 value, value64_type typ);

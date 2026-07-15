@@ -165,7 +165,7 @@ value64_type            value64_gettype(const char *str){
 
 // move to EXISTING object, that is NOT a constructor
 // move switcher to EXISTING object
-value64                     *value64_move(value64 *restrict target, value64 *restrict source, value64_type typ){
+value64                     *value64_moveto(value64 *restrict target, value64 *restrict source, value64_type typ){
     invraisecode(target && source,  ERR_NULLABLE_PTR, "Null pointers %p %p", target, source);
 
     switch (typ){
@@ -1535,7 +1535,7 @@ tf_move(const char *name)
     {
         value64 src = value64_createint(42);
         value64 dst = LITERAL64_ZERO;
-        value64 *ret = value64_move_int(&dst, &src);
+        value64 *ret = value64_moveto_int(&dst, &src);
 
         test_validate(ret == &dst, "move_int must return &dst");
         test_validate(value64_int(dst) == 42, "dst must be 42, got %d", value64_int(dst));
@@ -1547,7 +1547,7 @@ tf_move(const char *name)
     {
         value64 src = value64_createlong(123456789L);
         value64 dst = LITERAL64_ZERO;
-        value64_move_long(&dst, &src);
+        value64_moveto_long(&dst, &src);
 
         test_validate(value64_long(dst) == 123456789L, "dst mismatch, got %ld", value64_long(dst));
         test_validate(value64_long(src) == 0L, "src must be 0 after move, got %ld", value64_long(src));
@@ -1558,7 +1558,7 @@ tf_move(const char *name)
     {
         value64 src = value64_createdbl(3.1415);
         value64 dst = LITERAL64_ZERO;
-        value64_move_dbl(&dst, &src);
+        value64_moveto_dbl(&dst, &src);
 
         test_validate(fabs(value64_dbl(dst) - 3.1415) < 0.0001, "dst mismatch, got %f", value64_dbl(dst));
         test_validate(fabs(value64_dbl(src) - 0.0) < 1e-12, "src must be 0.0 after move, got %f", value64_dbl(src));
@@ -1570,7 +1570,7 @@ tf_move(const char *name)
         int x = 7;
         value64 src = value64_createptr(&x);
         value64 dst = LITERAL64_ZERO;
-        value64_move_ptr(&dst, &src);
+        value64_moveto_ptr(&dst, &src);
 
         test_validate(value64_ptr(dst) == &x, "dst must point to x, got %p", value64_ptr(dst));
         test_validate(value64_ptr(src) == NULL, "src must be NULL after move, got %p", value64_ptr(src));
@@ -1582,7 +1582,7 @@ tf_move(const char *name)
         const char *text = "movable string";
         value64 src = value64_createstr(text);
         value64 dst = LITERAL64_ZERO;
-        value64_move_str(&dst, &src);
+        value64_moveto_str(&dst, &src);
 
         test_validatefree(
             value64_str(dst) != NULL && strcmp(value64_str(dst), text) == 0,
@@ -1608,7 +1608,7 @@ tf_move(const char *name)
         fs *src_fs_before = value64_fs(src);   // запоминаем указатель до move
 
         value64 dst = LITERAL64_ZERO;
-        value64_move_fs(&dst, &src);
+        value64_moveto_fs(&dst, &src);
 
         fs *dst_fs = value64_fs(dst);
 
@@ -1642,7 +1642,7 @@ tf_move(const char *name)
             fs orig = fscopy(words[i]);
             value64 src = value64_createfs(&orig);
             fsfree(orig);
-            value64_move_fs(&dst[i], &src);
+            value64_moveto_fs(&dst[i], &src);
         }
 
         for (int i = 0; i < COUNT(words); i++) {
@@ -4478,7 +4478,7 @@ main(int argc, const char *argv[])
                 testnew(.f2 = tf_init_free,        .num =  1, .name = "Simple init and validate test"              , .desc="", .mandatory=true)
               , testnew(.f2 = tf_point_init,       .num =  2, .name = "Simple value64_pcopy_move() test"           , .desc="", .mandatory=true)
               , testnew(.f2 = tf_clone,            .num =  3, .name = "Simple value64_clone() test"                , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_move,             .num =  4, .name = "Simple value64_move() test"                 , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_move,             .num =  4, .name = "Simple value64_moveto() test"               , .desc="", .mandatory=true)
               , testnew(.f2 = tf_lhash,            .num =  5, .name = "Simple value64_lhash() test"                , .desc="", .mandatory=true)
               , testnew(.f2 = tf_compare,          .num =  6, .name = "Simple value64_compare() test"              , .desc="", .mandatory=true)
               , testnew(.f2 = tf_convert,          .num =  7, .name = "Simple value64_convert() test"              , .desc="", .mandatory=true)
