@@ -135,7 +135,7 @@ test/value64_test: src/value64.c lib/log.o lib/test.o lib/error.o lib/common.o l
 	$(CC) $(CFLAGS) -DVALUE64TESTING $^ -o $@ $(LDLIBS)
 
 test/value64_tarray_test: src/value64_tarray.c lib/log.o lib/test.o lib/error.o lib/common.o lib/fs.o lib/common.o \
-	lib/fileutils.o lib/getword.o lib/buffer.o | lib/value64_tarray.o
+	lib/fileutils.o lib/getword.o lib/buffer.o lib/value64.o lib/numeric_ops.o | lib/value64_tarray.o
 	$(CC) $(CFLAGS) -DVALUE64_TARRAY_TESTING $^ -o $@ $(LDLIBS)
 
 UTIL_OBJS = lib/log.o lib/test.o lib/error.o lib/common.o lib/checker.o \

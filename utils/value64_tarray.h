@@ -36,7 +36,7 @@ void                            value64_tarray_free(value64_tarray *arr);
 // ------------------------- ДОБАВЛЕНИЕ -----------------------------------
 
 /** @brief Добавить элемент в конец (автоматически расширяет массив) */
-void                            value64_tarray_push(value64_tarray *arr, value64_typed elem);
+value64_tarray                 *value64_tarray_push(value64_tarray *arr, value64_typed elem);
 
 // ------------------------- ДОСТУП ---------------------------------------
 
@@ -53,7 +53,7 @@ value64_typed                  *value64_tarray_get_ptr(value64_tarray *arr, int 
     (value64_static_tarray){ .base = { \
                       .v = (value64_typed[]){__VA_ARGS__}, \
                       .cnt = COUNT((value64_typed[]){__VA_ARGS__}), \
-                      .sz = COUNT((value64_typed[]){__VA_ARGS__}) } \
+                      .sz = -1 } \
                            }
 
 // ------------------------- ВСПОМОГАТЕЛЬНЫЕ КОНСТРУКТОРЫ ----------------
@@ -73,6 +73,12 @@ static inline value64_typed     value64_typedstr(const char *s) {
 }
 static inline value64_typed     value64_typedfs(fs *s) {
     return (value64_typed){ .val = LITERAL64_PFS(s), .typ = VALUE64_FS };
+}
+static inline value64_typed     value64_typedunk(void) {
+    return (value64_typed){ .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN };
+}
+static inline value64_typed     value64_typed_clone(value64_typed v) {
+    return (value64_typed) { .val = value64_clone(v.val, v.typ), .typ = v.typ };
 }
 
 #endif /* _VALUE64_TARRAY_H */
