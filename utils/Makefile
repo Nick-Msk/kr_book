@@ -8,7 +8,7 @@ LDLIBS=
 
 .PHONY: clean cleanlog cleanall no_targets__ list
 .PHONY: checker error log common test metric numeric_ops context hashset value64 array buffer fs fs_iter fs_array
-.PHONY: getword systemutils command_executor fileutils
+.PHONY: getword systemutils command_executor fileutils value64_tarray
 
 lib/checker.o: src/checker.c
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -41,6 +41,9 @@ lib/hashset_utils.o: src/hashset_utils.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 lib/value64.o: src/value64.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/value64_tarray.o: src/value64_tarray.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 lib/array.o: src/array.c
@@ -131,12 +134,16 @@ test/value64_test: src/value64.c lib/log.o lib/test.o lib/error.o lib/common.o l
 	lib/getword.o lib/buffer.o lib/numeric_ops.o lib/common.o | lib/value64.o
 	$(CC) $(CFLAGS) -DVALUE64TESTING $^ -o $@ $(LDLIBS)
 
+test/value64_tarray_test: src/value64_tarray.c lib/log.o lib/test.o lib/error.o lib/common.o lib/fs.o lib/common.o \
+	lib/fileutils.o lib/getword.o lib/buffer.o | lib/value64_tarray.o
+	$(CC) $(CFLAGS) -DVALUE64_TARRAY_TESTING $^ -o $@ $(LDLIBS)
+
 UTIL_OBJS = lib/log.o lib/test.o lib/error.o lib/common.o lib/checker.o \
 	lib/fs.o lib/fileutils.o lib/getword.o lib/buffer.o \
 	lib/fs_iter.o lib/fs_array.o lib/command_executor.o \
 	lib/numeric_ops.o lib/hashset.o lib/value64.o \
 	lib/context.o lib/systemutils.o\
-	lib/fs.o lib/fileutils.o lib/array.o lib/metric.o
+	lib/fs.o lib/fileutils.o lib/array.o lib/metric.o lib/value64_tarray.o
 
 lib/cmutils.a: $(UTIL_OBJS)
 	ar rcs $@ $^
@@ -153,6 +160,7 @@ context: test/context_test
 hashset: test/hashset_test
 hashset_utils: test/hashset_utils_test
 value64: test/value64_test
+value64_tarray: test/value64_tarray_test
 systemutils: test/systemutils_test
 getword: test/getword_test
 fileutils: test/fileutils_test

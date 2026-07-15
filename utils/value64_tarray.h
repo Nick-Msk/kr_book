@@ -20,7 +20,7 @@ typedef struct {
 
 // for static init (no free)
 typedef struct {
-    struct value64_tarray;
+    value64_tarray base;
 } value64_static_tarray;
 
 // TODO: value64_tarray4 {value64_tarray v[4];}
@@ -49,10 +49,12 @@ value64_typed                  *value64_tarray_get_ptr(value64_tarray *arr, int 
 // ------------------------- ИНИЦИАЛИЗАЦИЯ ЛИТЕРАЛАМИ --------------------
 
 /** @brief Создать статический массив из литералов */
-#define VALUE64_TARRAY(...) \
-    (value64_tarray){ .v = (value64_typed[]){__VA_ARGS__}, \
+#define VALUE64_TSTATIC_ARRAY(...) \
+    (value64_static_tarray){ .base = { \
+                      .v = (value64_typed[]){__VA_ARGS__}, \
                       .cnt = COUNT((value64_typed[]){__VA_ARGS__}), \
-                      .sz = COUNT((value64_typed[]){__VA_ARGS__}) }
+                      .sz = COUNT((value64_typed[]){__VA_ARGS__}) } \
+                           }
 
 // ------------------------- ВСПОМОГАТЕЛЬНЫЕ КОНСТРУКТОРЫ ----------------
 
@@ -70,7 +72,7 @@ static inline value64_typed     value64_typedstr(const char *s) {
     return (value64_typed){ .val = LITERAL64_STR(s), .typ = VALUE64_STR };
 }
 static inline value64_typed     value64_typedfs(fs *s) {
-    return (value64_typed){ .val = LITERAL64_FS(s), .typ = VALUE64_FS };
+    return (value64_typed){ .val = LITERAL64_PFS(s), .typ = VALUE64_FS };
 }
 
 #endif /* _VALUE64_TARRAY_H */
