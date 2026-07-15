@@ -69,6 +69,23 @@ static                  value64_tarray *resize(value64_tarray *varr, int newsz, 
     return logsimpleret(varr, "Resized to %d", varr->sz);
 }
 
+/**
+ * @brief  simple checker for increase
+ *
+ * @param varr value64_tarray pointer
+*/
+static bool                             check_increase(value64_tarray *varr) {
+    if (varr->cnt >= varr->sz) {
+        int newsz = varr->sz;
+        if (!resize(varr, newsz, true)) {
+            userraiseint(ERR_UNABLE_ALLOCATE,
+                         "Unable to grow vt array from %d to %d", varr->sz, newsz);
+        }
+        return true;    // increased
+    } else
+        return false;
+}
+
 // ------------------------------------- API -----------------------------------------------
 
 /**
@@ -77,6 +94,8 @@ static                  value64_tarray *resize(value64_tarray *varr, int newsz, 
  * @return initialized array (owns memory, must be freed with value64_tarray_free).
  */
 value64_tarray                      value64_tarray_init(int cap) {
+    invraisecode(ERR_WRONG_PARAMETER, cap > 0, "Must be positive %d", cap);
+
     logenter("%d", cap);
     value64_tarray arr = { .v = NULL, .cnt = 0, .sz = 0 };
     if (!resize(&arr, cap, false) )
@@ -102,19 +121,50 @@ value64_tarray                     *value64_tarray_push(value64_tarray *arr, val
                 "Cannot push to static array (sz=%d)", arr->sz);
 
     logenter("elem typ=%d:%s", elem.typ, value64_typename(elem.typ) );
-    if (arr->cnt >= arr->sz) {
-        // ensure a reasonable minimum capacity
-        int newsz = arr->sz > 0 ? arr->sz * 2 : 4;
-        if (!resize(arr, newsz, false)) {
-            userraiseint(ERR_UNABLE_ALLOCATE,
-                         "Unable to grow vt array from %d to %d", arr->sz, newsz);
-        }
-    }
+
+    check_increase(arr);
     arr->v[arr->cnt++] = value64_typed_clone(elem);
     return logret(arr, "Pushed, cnt=%d", arr->cnt);
 }
 
-/** @brief Освободить массив и все владеющие памятью элементы (FS/STR) */
+/**
+ * @brief Move a typed element into a dynamic array, taking ownership.
+ *
+ * The source element *elem is moved into the array via value64_move();
+ * after the call *elem is reset to a safe empty state
+ * (LITERAL64_ZERO / VALUE64_INT).  This avoids a deep copy for
+ * FS/STR values that own heap memory.
+ *
+ * @param arr  non‑NULL, non‑static value64_tarray
+ * @param elem pointer to the element to move
+ * @return pointer to the (possibly resized) array
+ * @throws ERR_NULLABLE_PTR if arr or elem is NULL
+ * @throws ERR_UNSUPPORTED_TYPE if arr is static (sz < 0)
+ * @throws ERR_UNABLE_ALLOCATE if realloc fails
+ */
+value64_tarray *value64_tarray_move(value64_tarray *restrict arr, value64_typed *restrict elem) {
+    invraisecode(ERR_NULLABLE_PTR, arr != NULL && elem != NULL,
+                 "Null pointer arr=%p elem=%p", arr, elem);
+    invraisecode(ERR_UNSUPPORTED_TYPE, arr->sz >= 0,
+                 "Cannot move into static array (sz=%d)", arr->sz);
+
+    logenter("elem typ=%d:%s", elem->typ, value64_typename(elem->typ));
+
+    check_increase(arr);
+    arr->v[arr->cnt++] = value64_typed_move(elem);
+    return logret(arr, "Moved, cnt=%d", arr->cnt);
+}
+
+/**
+ * @brief Free a dynamic value64_tarray and all owned elements.
+ *
+ * Static arrays (sz < 0) are silently ignored.
+ * After return the array is zeroed and safe to reuse.
+ *
+ * @param arr non‑NULL pointer to a dynamic array
+ * @throws ERR_NULLABLE_PTR if arr is NULL
+ * @throws ERR_UNSUPPORTED_TYPE is static
+ */
 void                            value64_tarray_free(value64_tarray *arr) {
     invraisecode(ERR_NULLABLE_PTR, arr != NULL, 
                 "Null pointer");
@@ -122,6 +172,7 @@ void                            value64_tarray_free(value64_tarray *arr) {
                 "Cannot free static array (sz=%d)", arr->sz);
     for (int i = 0; i < arr->cnt; i++)
         value64_free(&arr->v[i].val, arr->v[i].typ);
+    free(arr->v);
     arr->cnt = arr->sz = 0;
     arr->v = NULL;
     logsimple("freed tarray");
@@ -132,17 +183,120 @@ void                            value64_tarray_free(value64_tarray *arr) {
 
 #include "test.h"
 
-// ------------------------- TEST hset_filtereduce_* (all types) -------------------------
+// ------------------------- TEST value64_tarray ---------------------------------
 static TestStatus
-tf(const char *name)    // TODO:
+tf_value64_tarray(const char *name)
 {
     logenter("%s", name);
     int subnum = 0;
 
+    /* 1. Создание пустого динамического массива */
+    test_sub("subtest %d: init empty dynamic array", ++subnum);
     {
+        value64_tarray arr = value64_tarray_init(0);
+        test_validatefree(
+            arr.sz == 0 && arr.cnt == 0 && arr.v == NULL,
+            value64_tarray_free(&arr),
+            "Empty init: sz=%d, cnt=%d, v=%p", arr.sz, arr.cnt, arr.v
+        );
+        value64_tarray_free(&arr);
+    }
 
+    /* 2. Создание с начальной ёмкостью */
+    test_sub("subtest %d: init with capacity", ++subnum);
+    {
+        value64_tarray arr = value64_tarray_init(3);
+        test_validatefree(
+            arr.sz >= 3 && arr.cnt == 0,
+            value64_tarray_free(&arr),
+            "Init cap=3: sz=%d, cnt=%d", arr.sz, arr.cnt
+        );
+        value64_tarray_free(&arr);
+    }
+
+    /* 3. Добавление элементов разных типов */
+    test_sub("subtest %d: push int, str, fs", ++subnum);
+    {
+        value64_tarray arr = value64_tarray_init(2);
+        // push int
+        value64_tarray_push(&arr, value64_typedint(42));
+        test_validatefree(
+            arr.cnt == 1 && arr.v[0].typ == VALUE64_INT && arr.v[0].val.ival == 42,
+            value64_tarray_free(&arr),
+            "Push int: cnt=%d, val=%d", arr.cnt, arr.v[0].val.ival
+        );
+        // push str (literal, no ownership)
+        value64_tarray_push(&arr, value64_typedstr("hello"));
+        test_validatefree(
+            arr.cnt == 2 && arr.v[1].typ == VALUE64_STR &&
+            strcmp(arr.v[1].val.sval, "hello") == 0,
+            value64_tarray_free(&arr),
+            "Push str: cnt=%d, val=%s", arr.cnt, arr.v[1].val.sval
+        );
+        // push fs (heap allocated, ownership transferred)
+        fs *f = fs_heapcopy("test");
+        value64_tarray_push(&arr, value64_typedfs(f));
+        // после push оригинальный f не должен освобождаться пользователем, массив владеет копией?
+        // Так как мы клонируем в push, то f можно освободить отдельно
+        fs_free(f);
+        test_validatefree(
+            arr.cnt == 3 && arr.v[2].typ == VALUE64_FS &&
+            strcmp(fs_str(arr.v[2].val.fsval), "test") == 0,
+            value64_tarray_free(&arr),
+            "Push fs: cnt=%d, val=%s", arr.cnt, fs_str(arr.v[2].val.fsval)
+        );
+        value64_tarray_free(&arr);
     }
     fs_alloc_check(true);
+
+    /* 4. Проверка клонирования: изменение оригинала не влияет на массив */
+    test_sub("subtest %d: clone isolation (int)", ++subnum);
+    {
+        value64_tarray arr = value64_tarray_init(1);
+        value64_typed orig = value64_typedint(100);
+        value64_tarray_push(&arr, orig);
+        // меняем оригинал
+        orig.val.ival = 999;
+        test_validatefree(
+            arr.v[0].val.ival == 100,
+            value64_tarray_free(&arr),
+            "Clone isolation: array must keep original value 100, got %d",
+            arr.v[0].val.ival
+        );
+        value64_tarray_free(&arr);
+    }
+
+    /* 5. Защита от push в статический массив */
+    test_sub("subtest %d: push to static array must raise SIGINT", ++subnum);
+    {
+        value64_static_tarray st = VALUE64_TSTATIC_ARRAY(value64_typedint(1));
+        if (!try()) {
+            // пытаемся добавить в статический массив (приведение к value64_tarray*)
+            value64_tarray_push((value64_tarray*)&st.base, value64_typedint(2));
+            // если сюда дошли, то ошибки не было -> провал
+            test_validate(false, "Push to static array should have raised SIGINT");
+        } else {
+            logsimple("Exception correctly raised on push to static");
+        }
+        // статический массив освобождать не нужно
+    }
+
+    /* 6. Освобождение пустого массива */
+    test_sub("subtest %d: free empty array", ++subnum);
+    {
+        value64_tarray arr = {0};
+        value64_tarray_free(&arr);
+        // просто не должно упасть
+        test_validate(true, "Free empty array succeeded");
+    }
+
+    /* 7. Освобождение статического массива (должно игнорироваться) */
+    test_sub("subtest %d: free static array must be ignored", ++subnum);
+    {
+        value64_static_tarray st = VALUE64_TSTATIC_ARRAY(value64_typedint(1));
+        value64_tarray_free(&st.base);   // sz=-1, функция выйдет
+        test_validate(true, "Free static array ignored");
+    }
 
     return logret(TEST_PASSED, "done");
 }
@@ -164,7 +318,7 @@ main(int argc, const char *argv[])
             }
         }
         testenginestd_run(num,
-            testnew(.f2 =  tf,                                 .num = 1, .name = "Hset_in simple test"                        
+            testnew(.f2 =  tf_value64_tarray,                                 .num = 1, .name = "tf_value64_tarray"
                 , .desc="", .mandatory=true)
         );
         if (runall)

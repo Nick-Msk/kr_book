@@ -28,23 +28,35 @@ typedef struct {
 // ------------------------- CONSTRUCTORS / DESTRUCTORS -------------------
 
 /** @brief Создать пустой массив с начальной ёмкостью cap */
-value64_tarray                  value64_tarray_init(int cap);
+extern value64_tarray                  value64_tarray_init(int cap);
 
 /** @brief Освободить массив и все владеющие памятью элементы (FS/STR) */
-void                            value64_tarray_free(value64_tarray *arr);
+extern void                            value64_tarray_free(value64_tarray *arr);
 
 // ------------------------- ДОБАВЛЕНИЕ -----------------------------------
 
 /** @brief Добавить элемент в конец (автоматически расширяет массив) */
-value64_tarray                 *value64_tarray_push(value64_tarray *arr, value64_typed elem);
+extern value64_tarray                 *value64_tarray_push(value64_tarray *arr, value64_typed elem);
+
+extern value64_tarray                 *value64_tarray_move(value64_tarray *restrict arr, value64_typed *restrict elem);
 
 // ------------------------- ДОСТУП ---------------------------------------
 
 /** @brief Получить i-й элемент (возвращает копию value64_typed) */
-value64_typed                   value64_tarray_get(const value64_tarray *arr, int i);
+extern value64_typed                   value64_tarray_get(const value64_tarray *arr, int i);
 
 /** @brief Получить указатель на i-й элемент */
-value64_typed                  *value64_tarray_get_ptr(value64_tarray *arr, int i);
+extern value64_typed                  *value64_tarray_get_ptr(value64_tarray *arr, int i);
+
+// ------------------------ Printers ---------------------------------------
+
+extern int                             value64_tarray_techfprinf(FILE *restrict out, value64_tarray *restrict arr, const char *restrict name);
+static inline int                      value64_tarray_techprinf(value64_tarray *restrict arr, const char *restrict name) {
+    return value64_tarray_techfprinf(stdout, arr, name);
+}
+
+#define VALUE64_TARRAY_TECHFPRINF(out, arr) value64_tarray_techfprinf(out, arr, #arr)
+#define VALUE64_TARRAY_TECHPRINF(arr) value64_tarray_techfprinf(arr, #arr)
 
 // ------------------------- ИНИЦИАЛИЗАЦИЯ ЛИТЕРАЛАМИ --------------------
 
@@ -79,6 +91,11 @@ static inline value64_typed     value64_typedunk(void) {
 }
 static inline value64_typed     value64_typed_clone(value64_typed v) {
     return (value64_typed) { .val = value64_clone(v.val, v.typ), .typ = v.typ };
+}
+static inline value64_typed     value64_typed_move(value64_typed *v) {
+    value64_typed   res = { .val = value64_move(&v->val, v->typ), .typ = v->typ};
+    v->typ = VALUE64_UNKNOWN;
+    return res;
 }
 
 #endif /* _VALUE64_TARRAY_H */
