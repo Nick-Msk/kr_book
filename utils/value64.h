@@ -250,7 +250,7 @@ static inline fs                   *value64_fs(value64 v){
 }
 
 // move constructor!
-static inline  value64              value64_initmove(value64 *restrict source, value64_type typ) {
+static inline  value64              value64_move(value64 *restrict source, value64_type typ) {
     invraisecode(source,  ERR_NULLABLE_PTR, "Null pointer");
     value64 res = *source;      // just a move!!! For all types
     switch (typ) {

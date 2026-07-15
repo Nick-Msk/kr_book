@@ -4455,6 +4455,113 @@ tf_setzero(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST value64_move ---------------------------------
+static TestStatus
+tf_value64_move(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ---------- INT ---------- */
+    test_sub("subtest %d: move INT", ++subnum);
+    {
+        value64 src = LITERAL64_INT(42);
+        value64 dst = value64_move(&src, VALUE64_INT);
+        test_validate(
+            dst.ival == 42 && src.ival == 0,
+            "Move INT: dst=%d, src=%d (expected 42, 0)", dst.ival, src.ival
+        );
+    }
+
+    /* ---------- LNG ---------- */
+    test_sub("subtest %d: move LNG", ++subnum);
+    {
+        value64 src = { .lval = 999888777L };
+        value64 dst = value64_move(&src, VALUE64_LNG);
+        test_validate(
+            dst.lval == 999888777L && src.lval == 0L,
+            "Move LNG: dst=%ld, src=%ld (expected 999888777, 0)", dst.lval, src.lval
+        );
+    }
+
+    /* ---------- DBL ---------- */
+    test_sub("subtest %d: move DBL", ++subnum);
+    {
+        value64 src = LITERAL64_DBL(3.14159);
+        value64 dst = value64_move(&src, VALUE64_DBL);
+        test_validate(
+            dst.dval == 3.14159 && src.dval == 0.0,
+            "Move DBL: dst=%f, src=%f (expected 3.14159, 0.0)", dst.dval, src.dval
+        );
+    }
+
+    /* ---------- PTR ---------- */
+    test_sub("subtest %d: move PTR", ++subnum);
+    {
+        int dummy = 10;
+        value64 src = LITERAL64_PTR(&dummy);
+        value64 dst = value64_move(&src, VALUE64_PTR);
+        test_validate(
+            dst.pval == &dummy && src.pval == NULL,
+            "Move PTR: dst=%p, src=%p (expected %p, NULL)", dst.pval, src.pval, &dummy
+        );
+    }
+
+    /* ---------- STR (owned) ---------- */
+    test_sub("subtest %d: move STR", ++subnum);
+    {
+        value64 src = value64_createstr("hello");
+        char *orig = src.sval;
+        value64 dst = value64_move(&src, VALUE64_STR);
+        test_validatefree(
+            dst.sval == orig && src.sval == NULL,
+            value64_freestr(&dst),
+            "Move STR: dst=%p, src=%p (expected %p, NULL)", dst.sval, src.sval, orig
+        );
+        value64_freestr(&dst);
+    }
+
+    /* ---------- FS (owned) ---------- */
+    test_sub("subtest %d: move FS", ++subnum);
+    {
+        value64 src = value64_createfs_asstr("/tmp/test");
+        fs *orig_fs = src.fsval;
+        value64 dst = value64_move(&src, VALUE64_FS);
+        test_validatefree(
+            dst.fsval == orig_fs && src.fsval == NULL,
+            value64_freefs(&dst),
+            "Move FS: dst=%p, src=%p (expected %p, NULL)", dst.fsval, src.fsval, orig_fs
+        );
+        value64_freefs(&dst);
+    }
+    fs_alloc_check(true);
+
+    /* ---------- Edge: move from zero ---------- */
+    test_sub("subtest %d: move from zero (INT)", ++subnum);
+    {
+        value64 src = LITERAL64_ZERO;
+        value64 dst = value64_move(&src, VALUE64_INT);
+        test_validate(
+            dst.ival == 0 && src.ival == 0,
+            "Move from zero: dst=%d, src=%d", dst.ival, src.ival
+        );
+    }
+
+    /* ---------- Edge: move from empty FS ---------- */
+    test_sub("subtest %d: move from empty FS (already moved)", ++subnum);
+    {
+        value64 src = LITERAL64_ZERO;   // fsval == NULL
+        value64 dst = value64_move(&src, VALUE64_FS);
+        test_validate(
+            dst.fsval == NULL && src.fsval == NULL,
+            "Move from empty FS: dst=%p, src=%p", dst.fsval, src.fsval
+        );
+    }
+    fs_alloc_check(true);
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -4495,6 +4602,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_tostr,            .num = 18, .name = "Simple value64_tostr_<type> test"           , .desc="", .mandatory=true)
               , testnew(.f2 = tf_createfs_asstr,   .num = 19, .name = "Simple value64_createfs_asstr test"         , .desc="", .mandatory=true)
               , testnew(.f2 = tf_setzero,          .num = 20, .name = "Simple value64_setzero test"                , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_value64_move,     .num = 21, .name = "Simple value64_move() test"                 , .desc="", .mandatory=true)
             );
         if (runall)
             break;
