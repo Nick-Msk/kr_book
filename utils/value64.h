@@ -503,15 +503,29 @@ extern value64                     value64_convert_move_str_to_str(value64 *v);
 
 extern int                          value64_fprint_msg(FILE *restrict out, const char *restrict msg, value64 val, value64_type typ);
 // generic file serilization!!
-static inline  int                  value64_fprint(FILE *restrict out, value64 val, value64_type typ){
+static inline  int                  value64_fprint(FILE *restrict out, value64 val, value64_type typ) {
     return value64_fprint_msg(out, NULL, val, typ);
 }
-static inline void                  value64_log(value64 val, value64_type typ){
+static inline void                  value64_log(value64 val, value64_type typ) {
     value64_fprint(logfile, val, typ);
 }
-static inline void                  value64_print(value64 val, value64_type typ){
+static inline void                  value64_print(value64 val, value64_type typ) {
     value64_fprint(stdout, val, typ);
 }
+/**
+ * @brief technical printer
+ *
+ * @param out stream, opened for write
+ * @param val the value64
+ * @param typ type of value64
+ */
+extern int                          value64_techfprint(FILE *restrict out, value64 val, value64_type typ, const char *restrict name);
+static inline int                   value64_techprint(value64 val, value64_type typ, const char *restrict name) {
+    return value64_techfprint(stdout, val, typ, name);
+}
+#define VALUE64_TECHFPRINT(out, val, typ) value64_techfprint( (out), (val), (typ), #val)
+#define VALUE64_TECHPRINT(val, typ) value64_techprint((val), (typ), #val)
+
 // typed
 extern int                          value64_fprint_str(FILE *restrict out, value64 val);
 extern int                          value64_fprint_int(FILE *restrict out, value64 val);

@@ -696,10 +696,40 @@ int                         value64_fprint_msg(FILE *restrict out, const char *r
     }
     return cnt;
 }
+/**
+ * @brief technical printer
+ *
+ * @param out stream, opened for write
+ * @param val the value64
+ * @param typ type of value64
+ */
+int                        value64_techfprint(FILE *restrict out, value64 val, value64_type typ, const char *restrict name) {
+    int     cnt = 0;
+    if (out){
+        cnt += fprintf(out, "VALUE64:%s [", name);  // name cab be NULL
+        switch (typ){
+            case VALUE64_INT:
+                return value64_fprint_int(out, val) + cnt;
+            case VALUE64_LNG:
+                return value64_fprint_long(out, val) + cnt;
+            case VALUE64_DBL:
+                return value64_fprint_dbl(out, val) + cnt;
+            case VALUE64_PTR:
+                return value64_fprint_ptr(out, val) + cnt;
+            case VALUE64_STR:
+                return value64_fprint_str(out, val) + cnt;
+            case VALUE64_FS:
+                return value64_fprint_fs(out, val) + cnt;
+            default:
+                fprintf(out, "Unsupported %d!\n", typ);
+                return logsimpleerr(-1, "Unsupported %d!\n", typ);
+        }
+        cnt += fprintf(out, ", %s]\n", value64_typename(typ) );
+    }
+    return cnt;
+}
 
 // --------------------------------- SERIALIZATION -----------------------------------------
-
-
 
 int                         value64_fsave(FILE *out, value64 val, value64_type typ, bool savetypeinfo) {
     invraisecode(out != NULL, ERR_NULLABLE_PTR,
@@ -4562,6 +4592,42 @@ tf_value64_move(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST value64_techfprint() manual ---------------------------------
+static TestStatus
+tf_techfprint(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d:  INT", ++subnum);
+    {
+        value64 v = LITERAL64_INT(5);
+        VALUE64_TECHFPRINT(stdout, v, VALUE64_INT);
+    }
+    test_sub("subtest %d:  INT", ++subnum);
+    {
+        value64 v = LITERAL64_INT(5);
+        VALUE64_TECHFPRINT(stdout, v, VALUE64_LNG);
+    }
+    test_sub("subtest %d:  DOUBLE", ++subnum);
+    {
+        value64 v = LITERAL64_DBL(8.9);
+        VALUE64_TECHFPRINT(stdout, v, VALUE64_DBL);
+    }
+    test_sub("subtest %d:  DOUBLE", ++subnum);
+    {
+        value64 v = LITERAL64_STR("bla bla");
+        VALUE64_TECHFPRINT(stdout, v, VALUE64_STR);
+    }
+    test_sub("subtest %d:  DOUBLE", ++subnum);
+    {
+        value64 v = value64_createfs_asstr("qwertyui1");
+        VALUE64_TECHFPRINT(stdout, v, VALUE64_FS);
+        value64_free(&v, VALUE64_FS);
+    }
+    fs_alloc_check(true);
+    return logret(TEST_MANUAL, "done");
+}
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -4603,6 +4669,7 @@ main(int argc, const char *argv[])
               , testnew(.f2 = tf_createfs_asstr,   .num = 19, .name = "Simple value64_createfs_asstr test"         , .desc="", .mandatory=true)
               , testnew(.f2 = tf_setzero,          .num = 20, .name = "Simple value64_setzero test"                , .desc="", .mandatory=true)
               , testnew(.f2 = tf_value64_move,     .num = 21, .name = "Simple value64_move() test"                 , .desc="", .mandatory=true)
+              , testnew(.f2 = tf_techfprint,       .num = 22, .name = "Simple value64_techfprint() manual test"    , .desc="", .mandatory=true)
             );
         if (runall)
             break;
