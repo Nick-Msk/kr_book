@@ -49,6 +49,7 @@ static const int                        ERR_FS_NOT_ALLOC_FLAG       = 10001;
 static const int                        ERR_TOO_LONG_LINE           = 10010;
 static const int                        ERR_GUARD_RAISE             = 10100;
 static const int                        ERR_ACTION_NOT_APPLICABLE   = 10200;
+static const int                        ERR_UNABLE_ALLOCATE_SEQ     = 10201;
 
 static const int                        ERR_UNABLE_LOAD_FSARRAY     = 10220;
 static const int                        ERR_UNSUPPORTED_TYPE        = 10230;
