@@ -57,7 +57,7 @@ static                  value64_tarray *resize(value64_tarray *varr, int newsz, 
         // Расширение
         if (!strict)
             newsz = calcnewsize(SIZE_POWER2, newsz);
-        value64_typed *new_v = realloc(varr->v, newsz * sizeof(value64_typed));
+        new_v = realloc(varr->v, newsz * sizeof(value64_typed));
         if (!new_v) {
             userraiseint(ERR_UNABLE_ALLOCATE, "Unable to acclocate %d elems", newsz);  // ошибка выделения памяти
         }
@@ -92,7 +92,7 @@ static bool                             check_increase(value64_tarray *varr) {
  * @param out FILE *, opened for write
  * @param v value64_typed structure
  */
-static int                              value64_typed_techfprint(FILE *out, value64_typed v) {
+int                                     value64_typed_techfprint(FILE *out, value64_typed v) {
     int cnt = 0;
     cnt += value64_techfprint(out, v.val, v.typ, "");
     return cnt;
@@ -180,14 +180,18 @@ value64_tarray *value64_tarray_move(value64_tarray *restrict arr, value64_typed 
 void                            value64_tarray_free(value64_tarray *arr) {
     invraisecode(ERR_NULLABLE_PTR, arr != NULL, 
                 "Null pointer");
-    invraisecode(ERR_UNSUPPORTED_TYPE, arr->sz >= 0,
-                "Cannot free static array (sz=%d)", arr->sz);
-    for (int i = 0; i < arr->cnt; i++)
-        value64_free(&arr->v[i].val, arr->v[i].typ);
-    free(arr->v);
-    arr->cnt = arr->sz = 0;
-    arr->v = NULL;
-    logsimple("freed tarray");
+    //invraisecode(ERR_UNSUPPORTED_TYPE, arr->sz >= 0,
+    //            "Cannot free static array (sz=%d)", arr->sz);
+    if (arr->sz < 0)
+        logsimple("Static - do nothing");
+    else {
+        for (int i = 0; i < arr->cnt; i++)
+            value64_free(&arr->v[i].val, arr->v[i].typ);
+        free(arr->v);
+        arr->cnt = arr->sz = 0;
+        arr->v = NULL;
+        logsimple("freed tarray");
+    }
 };
 
 // ------------------------ Printers ---------------------------------------
@@ -254,6 +258,7 @@ tf_value64_tarray(const char *name)
         // push int
         VALUE64_TARRAY_TECHFPRINF(logfile, &arr);
         value64_tarray_push(&arr, value64_typedint(42));
+        VALUE64_TARRAY_TECHFPRINF(logfile, &arr);
         test_validatefree(
             arr.cnt == 1 && arr.v[0].typ == VALUE64_INT && arr.v[0].val.ival == 42,
             value64_tarray_free(&arr),

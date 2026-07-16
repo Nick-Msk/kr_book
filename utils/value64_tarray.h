@@ -71,6 +71,14 @@ static inline int                      value64_tarray_techprinf(value64_tarray *
 #define VALUE64_TARRAY_TECHFPRINF(out, arr) value64_tarray_techfprinf(out, arr, #arr)
 #define VALUE64_TARRAY_TECHPRINF(arr) value64_tarray_techfprinf(arr, #arr)
 
+/**
+ * @brief  technical printer, wrapper over value64_techfprint
+ *
+ * @param out FILE *, opened for write
+ * @param v value64_typed structure
+ */
+int                                    value64_typed_techfprint(FILE *out, value64_typed v);
+
 // ------------------------- ИНИЦИАЛИЗАЦИЯ ЛИТЕРАЛАМИ --------------------
 
 /** @brief Создать статический массив из литералов */
