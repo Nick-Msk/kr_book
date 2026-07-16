@@ -709,20 +709,26 @@ int                        value64_techfprint(FILE *restrict out, value64 val, v
         cnt += fprintf(out, "VALUE64:%s [", name);  // name cab be NULL
         switch (typ){
             case VALUE64_INT:
-                return value64_fprint_int(out, val) + cnt;
+                cnt += value64_fprint_int(out, val) + cnt;
+            break;
             case VALUE64_LNG:
-                return value64_fprint_long(out, val) + cnt;
+                cnt += value64_fprint_long(out, val) + cnt;
+            break;
             case VALUE64_DBL:
-                return value64_fprint_dbl(out, val) + cnt;
+                cnt += value64_fprint_dbl(out, val) + cnt;
+            break;
             case VALUE64_PTR:
-                return value64_fprint_ptr(out, val) + cnt;
+                cnt += value64_fprint_ptr(out, val) + cnt;
+            break;
             case VALUE64_STR:
-                return value64_fprint_str(out, val) + cnt;
+                cnt += value64_fprint_str(out, val) + cnt;
+            break;
             case VALUE64_FS:
-                return value64_fprint_fs(out, val) + cnt;
+                cnt += value64_fprint_fs(out, val) + cnt;
+            break;
             default:
-                fprintf(out, "Unsupported %d!\n", typ);
-                return logsimpleerr(-1, "Unsupported %d!\n", typ);
+                cnt += fprintf(out, "Unsupported %d!\n", typ);
+                logsimple("Unsupported %d!\n", typ);
         }
         cnt += fprintf(out, ", %s]\n", value64_typename(typ) );
     }
