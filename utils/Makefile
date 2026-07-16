@@ -8,7 +8,10 @@ LDLIBS=
 
 .PHONY: clean cleanlog cleanall no_targets__ list
 .PHONY: checker error log common test metric numeric_ops context hashset value64 array buffer fs fs_iter fs_array
-.PHONY: getword systemutils command_executor fileutils value64_tarray
+.PHONY: getword systemutils command_executor fileutils value64_tarray seq all hashset_utils
+
+all: checker error log common test metric numeric_ops context hashset value64 array buffer fs fs_iter fs_array \
+	getword systemutils command_executor fileutils value64_tarray seq hashset_utils
 
 lib/checker.o: src/checker.c
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -73,6 +76,9 @@ lib/command_executor.o: src/command_executor.c
 lib/systemutils.o: src/systemutils.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+lib/seq.o: src/seq.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
 test/checker_test: src/checker.c lib/log.o lib/test.o lib/error.o | lib/checker.o$
 	$(CC) $(CFLAGS) -DCHECKERTESTING $^ -o $@ $(LDLIBS)
 
@@ -115,6 +121,9 @@ test/getword_test: src/getword.c lib/log.o lib/test.o lib/error.o lib/checker.o 
 
 test/systemutils_test: src/systemutils.c lib/log.o lib/test.o lib/error.o lib/checker.o | lib/systemutils.o
 	$(CC) $(CFLAGS) -DSYSTEMUTILSTESTING $^ -o $@ $(LDLIBS)
+
+test/seq_test: src/seq.c lib/log.o lib/test.o lib/error.o lib/checker.o | lib/seq.o
+	$(CC) $(CFLAGS) -DSEQTESTING $^ -o $@ $(LDLIBS)
 
 test/numeric_ops_test: src/numeric_ops.c lib/log.o lib/test.o lib/error.o | lib/numeric_ops.o
 	$(CC) $(CFLAGS) -DNUMERIC_OPS_TESTING $^ -o $@ $(LDLIBS)
@@ -169,13 +178,13 @@ fs_iter: test/fs_iter_test
 fs: test/fs_test
 buffer: test/buffer_test
 array: test/array_test
+seq: test/seq
 
 
 clean:
 	@rm -f lib/*.o
-	@rm -rf test/*.dSYM
 	@rm -f *.gch
-	@rm -f test/*
+	@rm -rf test/*
 	@rm -f lib/*
 	@find . -perm -u=x -type f -ls -maxdepth 1 -exec rm {} \;
 
