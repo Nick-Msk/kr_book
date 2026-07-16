@@ -178,7 +178,7 @@ fs_iter: test/fs_iter_test
 fs: test/fs_test
 buffer: test/buffer_test
 array: test/array_test
-seq: test/seq
+seq: test/seq_test
 
 
 clean:
