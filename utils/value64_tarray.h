@@ -50,7 +50,20 @@ extern value64_typed                  *value64_tarray_get_ptr(value64_tarray *ar
 
 // ------------------------ Printers ---------------------------------------
 
+/**
+ * @brief  technical printer
+ *
+ * @param out FILE *, opened for write
+ * @param arr  value64_tarray pointer
+ * @param name   name of value64 tarray
+*/
 extern int                             value64_tarray_techfprinf(FILE *restrict out, value64_tarray *restrict arr, const char *restrict name);
+/**
+ * @brief  technical printer to stdout
+ *
+ * @param arr  value64_tarray pointer
+ * @param name   name of value64 tarray
+*/
 static inline int                      value64_tarray_techprinf(value64_tarray *restrict arr, const char *restrict name) {
     return value64_tarray_techfprinf(stdout, arr, name);
 }

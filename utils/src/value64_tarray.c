@@ -86,6 +86,18 @@ static bool                             check_increase(value64_tarray *varr) {
         return false;
 }
 
+/**
+ * @brief  technical printer, wrapper over value64_techfprint
+ *
+ * @param out FILE *, opened for write
+ * @param v value64_typed structure
+ */
+static int                              value64_typed_techfprint(FILE *out, value64_typed v) {
+    int cnt = 0;
+    cnt += value64_techfprint(out, v.val, v.typ, "");
+    return cnt;
+}
+
 // ------------------------------------- API -----------------------------------------------
 
 /**
@@ -178,6 +190,27 @@ void                            value64_tarray_free(value64_tarray *arr) {
     logsimple("freed tarray");
 };
 
+// ------------------------ Printers ---------------------------------------
+/**
+ * @brief  technical printer
+ *
+ * @param out FILE *, opened for write
+ * @param arr  value64_tarray pointer
+ * @param name   name of value64 tarray
+ * @throws ERR_NULLABLE_PTR if arr is NULL
+ */
+int                             value64_tarray_techfprinf(FILE *restrict out, value64_tarray *restrict arr, const char *restrict name) {
+    invraisecode(ERR_NULLABLE_PTR, arr != NULL, "Null pointer");
+    int cnt = 0;
+    if (out) {
+        cnt += fprintf(out, "VALUE64_TARRAY: cnt [%d], sz [%d] %s[\n", arr->cnt, arr->sz, name);
+        for (int i = 0; i < arr->cnt; i++)
+            cnt += value64_typed_techfprint(out, arr->v[i]);
+        cnt += fprintf(out, "]\n");
+    }
+    return cnt;
+}
+
 // ---------------------------------------- Testing ------------------------------------------
 #ifdef VALUE64_TARRAY_TESTING
 
@@ -219,6 +252,7 @@ tf_value64_tarray(const char *name)
     {
         value64_tarray arr = value64_tarray_init(2);
         // push int
+        VALUE64_TARRAY_TECHFPRINF(logfile, &arr);
         value64_tarray_push(&arr, value64_typedint(42));
         test_validatefree(
             arr.cnt == 1 && arr.v[0].typ == VALUE64_INT && arr.v[0].val.ival == 42,
