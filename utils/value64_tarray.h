@@ -42,11 +42,17 @@ extern value64_tarray                 *value64_tarray_move(value64_tarray *restr
 
 // ------------------------- ДОСТУП ---------------------------------------
 
-/** @brief Получить i-й элемент (возвращает копию value64_typed) */
-extern value64_typed                   value64_tarray_get(const value64_tarray *arr, int i);
-
 /** @brief Получить указатель на i-й элемент */
-extern value64_typed                  *value64_tarray_get_ptr(value64_tarray *arr, int i);
+static inline value64_typed          *value64_tarray_getptr(value64_tarray *arr, int i) {
+    invraisecode(ERR_NULLABLE_PTR, arr != NULL, "Null arr");
+    invraisecode(ERR_OUT_OF_RANGE, i < arr->sz && i >= 0, "%d is out of range (0-%d)", i, arr->sz);
+    return arr->v + i;
+}
+/** @brief Получить i-й элемент (возвращает копию value64_typed) */
+static inline value64_typed           value64_tarray_get(value64_tarray *arr, int i) {
+    return *value64_tarray_getptr(arr, i);
+}
+#define                              value64_tarray_elem(arr, pos) (*value64_tarray_getptr(arr, pos) )
 
 // ------------------------ Printers ---------------------------------------
 

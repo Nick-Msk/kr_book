@@ -339,6 +339,100 @@ tf_value64_tarray(const char *name)
 
     return logret(TEST_PASSED, "done");
 }
+// ------------------------- TEST value64_tarray accessors -------------------------
+static TestStatus
+tf_tarray_accessors(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. getptr / get / elem в нормальном диапазоне */
+    test_sub("subtest %d: getptr/get/elem within bounds", ++subnum);
+    {
+        value64_tarray arr = value64_tarray_init(3);
+        value64_tarray_push(&arr, value64_typedint(10));
+        value64_tarray_push(&arr, value64_typedint(20));
+        value64_tarray_push(&arr, value64_typedint(30));
+
+        // getptr
+        value64_typed *p0 = value64_tarray_getptr(&arr, 0);
+        value64_typed *p1 = value64_tarray_getptr(&arr, 1);
+        test_validatefree(
+            p0 != NULL && p1 != NULL &&
+            p0->val.ival == 10 && p1->val.ival == 20,
+            value64_tarray_free(&arr),
+            "getptr: p0->val=%d, p1->val=%d (expected 10, 20)",
+            p0 ? p0->val.ival : -1, p1 ? p1->val.ival : -1
+        );
+        // get (копия)
+        value64_typed v0 = value64_tarray_get(&arr, 2);
+        test_validatefree(
+            v0.val.ival == 30 && v0.typ == VALUE64_INT,
+            value64_tarray_free(&arr),
+            "get: v0.val=%d, typ=%d (expected 30, INT)", v0.val.ival, v0.typ
+        );
+        // elem (макрос)
+        test_validatefree(
+            value64_tarray_elem(&arr, 0).val.ival == 10,
+            value64_tarray_free(&arr),
+            "elem: arr[0].ival=%d (expected 10)", value64_tarray_elem(&arr, 0).val.ival
+        );
+
+        value64_tarray_free(&arr);
+    }
+
+    /* 2. доступ по индексу за пределами (должен вызвать SIGINT) */
+    test_sub("subtest %d: out-of-bounds access raises SIGINT", ++subnum);
+    {
+        value64_tarray arr = value64_tarray_init(2);
+        value64_tarray_push(&arr, value64_typedint(1));
+
+        if (!try()) {
+            value64_tarray_getptr(&arr, 5);   // явно за границей
+            test_validatefree(
+                false, value64_tarray_free(&arr),
+                "Out-of-bounds access should have raised SIGINT"
+            );
+        } else {
+            logsimple("Exception correctly raised on out-of-bounds access");
+            value64_tarray_free(&arr);
+        }
+    }
+
+    /* 3. работа с пустым массивом (sz==0, любой индекс невалиден) */
+    test_sub("subtest %d: access on empty array must raise", ++subnum);
+    {
+        value64_tarray arr = value64_tarray_init(0);
+        if (!try()) {
+            value64_tarray_getptr(&arr, 0);
+            test_validatefree(
+                false, value64_tarray_free(&arr),
+                "Access on empty array should have raised SIGINT"
+            );
+        } else {
+            logsimple("Exception correctly raised on empty array access");
+        }
+        value64_tarray_free(&arr);
+    }
+
+    /* 4. модификация через getptr и проверка через elem */
+    test_sub("subtest %d: modify via getptr", ++subnum);
+    {
+        value64_tarray arr = value64_tarray_init(1);
+        value64_tarray_push(&arr, value64_typedint(100));
+        value64_typed *p = value64_tarray_getptr(&arr, 0);
+        p->val.ival = 200;
+        test_validatefree(
+            value64_tarray_elem(&arr, 0).val.ival == 200,
+            value64_tarray_free(&arr),
+            "After modify via getptr: arr[0].ival=%d (expected 200)",
+            value64_tarray_elem(&arr, 0).val.ival
+        );
+        value64_tarray_free(&arr);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
 
 // ------------------------------------------------------------------------------------------------------------------------------
 int
@@ -358,6 +452,8 @@ main(int argc, const char *argv[])
         }
         testenginestd_run(num,
             testnew(.f2 =  tf_value64_tarray,                                 .num = 1, .name = "tf_value64_tarray"
+                , .desc="", .mandatory=true)
+          , testnew(.f2 =  tf_tarray_accessors,                              .num = 2, .name = "tf_value64_tarray"
                 , .desc="", .mandatory=true)
         );
         if (runall)
