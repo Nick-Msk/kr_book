@@ -45,13 +45,13 @@ seqv_t              currval(seqnum_t s) {
     return sequences[s];
 }
 
-seqv_t           nextval(seqnum_t s) {
+seqv_t              nextval(seqnum_t s) {
     if (! (s >= 0 && s < SEQ_MAXCOUNT) )
         userraiseint(ERR_OUT_OF_RANGE, "%d must be positive and < %d", s, SEQ_MAXCOUNT);
     return ++sequences[s];
 }
 
-void             resetseq(void) {
+void                resetseq(void) {
     for (int i = 0; i < SEQ_MAXCOUNT; i++)
         sequences[i] = 0L;
     sequencesptr = 0;
@@ -66,7 +66,7 @@ int                 seq_techfprint(FILE *out) {
             if (sequences[i])
                 fprintf(out, "%3d:%6lld\t", i, sequences[i]), total++;
         }
-        fprintf(out, "], total allocated %d\n", total);
+        fprintf(out, "]\nTotal allocated: %d\n", total);
     }
     return cnt;
 }
@@ -110,6 +110,7 @@ tf_sequence(const char *name)
         test_validate(v1 == 2L && v2 == 3L && cur == 3L,
                       "nextval: v1=%ld, v2=%ld, cur=%ld (expected 2,3,3)",
                       (long)v1, (long)v2, (long)cur);
+        seq_techfprint(stdout);
         dropseq(s);
     }
 
