@@ -15,7 +15,7 @@ static seqnum_t      sequencesptr = 0;
 
 int                 findseq(void) {
     for (seqnum_t i = 0; i < sequencesptr; i++)
-        if (sequences[i])   // found dropped
+        if (!sequences[i])   // found dropped
             return logsimpleret(i, "Found %d", i);
     return logsimpleret(-1, "Unable to find empty seq");
 }
@@ -51,6 +51,11 @@ seqv_t           nextval(seqnum_t s) {
     return ++sequences[s];
 }
 
+void             resetseq(void) {
+    for (int i = 0; i < SEQ_MAXCOUNT; i++)
+        sequences[i] = 0L;
+    sequencesptr = 0;
+}
 // ------------------------ Printers ---------------------------------------
 int                 seq_techfprint(FILE *out) {
     int     cnt = 0;
@@ -80,13 +85,15 @@ tf_sequence(const char *name)
 
     test_sub("subtest %d: init single sequence", ++subnum);
     {
+        resetseq();
         seqnum_t s = initseq();
-        test_validate(s >= 0, "Failed to init sequence (got %d)", s);
+        test_validate(s == 0, "First initseq should return 0, got %d", s);
         dropseq(s);
     }
 
     test_sub("subtest %d: currval after init is 1", ++subnum);
     {
+        resetseq();
         seqnum_t s = initseq();
         seqv_t v = currval(s);
         test_validate(v == 1L, "currval after init should be 1, got %ld", (long)v);
@@ -95,6 +102,7 @@ tf_sequence(const char *name)
 
     test_sub("subtest %d: nextval increments", ++subnum);
     {
+        resetseq();
         seqnum_t s = initseq();
         seqv_t v1 = nextval(s);
         seqv_t v2 = nextval(s);
@@ -105,24 +113,58 @@ tf_sequence(const char *name)
         dropseq(s);
     }
 
-    test_sub("subtest %d: drop and reuse slot", ++subnum);
+    test_sub("subtest %d: no reuse before exhaustion", ++subnum);
     {
-        seqnum_t a = initseq();                     // a=0
-        seqnum_t b = initseq();                     // b=1
-        dropseq(a);
-        seqnum_t c = initseq();                     // должно занять слот 0
-        test_validate(c == 0, "Reused slot should be 0, got %d", c);
+        resetseq();
+        seqnum_t a = initseq();                     // 0
+        seqnum_t b = initseq();                     // 1
+        dropseq(a);                                 // освобождаем 0
+
+        seqnum_t c = initseq();                     // должен получить новый индекс 2, а не 0
+        test_validate(c == 2,
+                      "Before full, initseq should return new index (2), got %d", c);
+
+        // Проверим, что слот 0 всё ещё свободен и не тронут
+        test_validate(sequences[0] == 0L,
+                      "Slot 0 must remain dropped (0), got %ld", (long)sequences[0]);
+
         dropseq(b);
         dropseq(c);
     }
 
+    test_sub("subtest %d: reuse after full", ++subnum);
+    {
+        resetseq();
+        // Заполняем все SEQ_MAXCOUNT слотов
+        seqnum_t used[SEQ_MAXCOUNT] = {0};
+        for (int i = 0; i < SEQ_MAXCOUNT; i++) {
+            used[i] = initseq();
+            test_validate(used[i] >= 0, "initseq failed at slot %d", i);
+        }
+
+        // Освобождаем слот в середине
+        dropseq(used[SEQ_MAXCOUNT/2]);
+
+        // Теперь следующий initseq должен переиспользовать освобождённый слот
+        seqnum_t s = initseq();
+        test_validate(s == used[SEQ_MAXCOUNT/2],
+                      "After full, initseq should reuse dropped index %d, got %d",
+                      used[SEQ_MAXCOUNT/2], s);
+
+        // Очистка
+        for (int i = 0; i < SEQ_MAXCOUNT; i++) {
+            if (i != SEQ_MAXCOUNT/2)
+                dropseq(used[i]);
+        }
+        dropseq(s);
+    }
+
     test_sub("subtest %d: init more than SEQ_MAXCOUNT raises", ++subnum);
     {
-        // Займём все слоты (предполагается, что SEQ_MAXCOUNT достаточно мал для теста, иначе займём часть и проверим, что после превышения выбрасывается исключение)
-        // Для надёжности сохраним номера, чтобы потом освободить
+        resetseq();
+        // Заполняем все слоты
         seqnum_t used[SEQ_MAXCOUNT] = {0};
         int cnt = 0;
-        // Заполняем все возможные слоты
         for (int i = 0; i < SEQ_MAXCOUNT; i++) {
             seqnum_t s = initseq();
             if (s < 0) break;
@@ -130,9 +172,8 @@ tf_sequence(const char *name)
         }
         // Теперь попытка создать ещё один должна вызвать ошибку
         if (!try()) {
-            seqnum_t extra = initseq();          // должно упасть
+            seqnum_t extra = initseq();
             test_validate(false, "Should have raised SIGINT when out of slots");
-            // если не упало, удаляем лишний
             if (extra >= 0) dropseq(extra);
         } else {
             logsimple("Exception correctly raised on sequence exhaustion");
@@ -145,6 +186,7 @@ tf_sequence(const char *name)
 
     test_sub("subtest %d: drop invalid index raises", ++subnum);
     {
+        resetseq();
         if (!try()) {
             dropseq(-1);
             test_validate(false, "Should have raised on negative index");
@@ -161,6 +203,7 @@ tf_sequence(const char *name)
 
     test_sub("subtest %d: currval/nextval invalid index raises", ++subnum);
     {
+        resetseq();
         if (!try()) {
             currval(-5);
             test_validate(false, "currval(-5) should have raised");
@@ -173,46 +216,6 @@ tf_sequence(const char *name)
         } else {
             logsimple("Exception on nextval(out of range)");
         }
-    }
-    test_sub("subtest %d: initseq reuses dropped slot when full", ++subnum);
-    {
-        // предполагаем, что SEQ_MAXCOUNT достаточно мал для теста (например, 4)
-        seqnum_t used[SEQ_MAXCOUNT] = {0};
-        int cnt = 0;
-
-        // 1. Заполняем все слоты до максимума
-        for (int i = 0; i < SEQ_MAXCOUNT; i++) {
-            seqnum_t s = initseq();
-            if (s < 0) break;
-            used[cnt++] = s;
-        }
-        test_validate(cnt == SEQ_MAXCOUNT,
-                      "Should have allocated all %d slots, got %d", SEQ_MAXCOUNT, cnt);
-
-        // 2. Освобождаем слот с индексом 2 (не последний)
-        dropseq(used[2]);
-
-        // 3. Ещё раз запрашиваем последовательность – должен вернуться тот же индекс
-        seqnum_t s = initseq();
-        test_validate(s == used[2],
-                      "initseq should reuse dropped index %d, got %d", used[2], s);
-        test_validate(currval(s) == 1L,
-                      "Reused sequence must start at 1, got %ld", (long)currval(s));
-
-        // 4. Проверяем, что больше свободных слотов нет – следующая попытка должна вызвать ошибку
-        if (!try()) {
-            seqnum_t extra = initseq();
-            test_validate(false, "Should have raised when no slots available");
-            if (extra >= 0) dropseq(extra);
-        } else {
-            logsimple("Exception correctly raised after reusing last free slot");
-        }
-
-        // 5. Освобождаем все занятые слоты (кроме уже удалённого used[2])
-        for (int i = 0; i < cnt; i++) {
-            if (i != 2) dropseq(used[i]);
-        }
-        dropseq(s); // освобождаем повторно использованный
     }
 
     return logret(TEST_PASSED, "done");

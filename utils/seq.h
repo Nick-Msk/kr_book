@@ -42,7 +42,10 @@ extern seqv_t           currval(seqnum_t s);
  * @param s sequence
  */
 extern seqv_t           nextval(seqnum_t s);
-
+/**
+ * @brief reset sequence engine
+ */
+extern void             resetseq(void);
 /**
  * @brief technical printer
  *
