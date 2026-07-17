@@ -245,7 +245,8 @@ value64_tarray                  value64_tarray_fs_from_arr(fs **vals, int n) {
 extern value64_tarray                  value64_tarray_fs_from_strarr(const char **vals, int n){
     value64_tarray arr = value64_tarray_init(n);
     for (int i = 0; i < n; i++) {
-        value64_typed tmp = value64_typedfs(value64_fs(value64_createfs_asstr(vals[i] ) ) );
+        //value64_typed tmp = value64_typedfs(value64_fs(value64_createfs_asstr(vals[i] ) ) );
+        value64_typed tmp = value64_typedfs(fs_heapcopy(vals[i] ) );
         value64_tarray_move(&arr, &tmp);              // перемещаем владение в массив, elem.val обнуляется
     }
     return arr;
