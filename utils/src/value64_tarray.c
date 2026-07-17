@@ -127,7 +127,7 @@ value64_tarray                      value64_tarray_init(int cap) {
  * @throws ERR_UNABLE_ALLOCATE if realloc fails
  */
 value64_tarray                     *value64_tarray_push(value64_tarray *arr, value64_typed elem) {
-    invraisecode(ERR_NULLABLE_PTR, arr != NULL, 
+    invraisecode(ERR_NULLABLE_PTR, arr != NULL,
                 "Null pointer");
     invraisecode(ERR_UNSUPPORTED_TYPE, arr->sz >= 0,
                 "Cannot push to static array (sz=%d)", arr->sz);
@@ -167,6 +167,50 @@ value64_tarray *value64_tarray_move(value64_tarray *restrict arr, value64_typed 
     return logret(arr, "Moved, cnt=%d", arr->cnt);
 }
 
+// ------------------------------------- Constructor/destructor -----------------------------------------------
+
+/**
+ * @brief Create a dynamic value64_tarray from an array of ints.
+ * @param vals pointer to the first element
+ * @param n    number of elements
+ * @return initialized dynamic array (must be freed with value64_tarray_free)
+ */
+value64_tarray value64_tarray_int_from_arr(const int *vals, int n) {
+    value64_tarray arr = value64_tarray_init(n);
+    for (int i = 0; i < n; i++) {
+        value64_tarray_push(&arr, value64_typedint(vals[i]) );
+    }
+    return arr;
+}
+
+/**
+ * @brief Create a dynamic value64_tarray from an array of C‑strings.
+ * @param vals pointer to the first string pointer
+ * @param n    number of elements
+ * @return initialized dynamic array (must be freed with value64_tarray_free)
+ */
+value64_tarray value64_tarray_str_from_arr(const char **vals, int n) {
+    value64_tarray arr = value64_tarray_init(n);
+    for (int i = 0; i < n; i++) {
+        value64_tarray_push(&arr, value64_typedstr( vals[i]));
+    }
+    return arr;
+}
+
+/**
+ * @brief Create a dynamic value64_tarray from an array of fs pointers.
+ * @param vals pointer to the first fs* element
+ * @param n    number of elements
+ * @return initialized dynamic array (must be freed with value64_tarray_free)
+ */
+value64_tarray value64_tarray_fs_from_arr(fs **vals, int n) {
+    value64_tarray arr = value64_tarray_init(n);
+    for (int i = 0; i < n; i++) {
+        value64_tarray_push(&arr, value64_typedfs(vals[i] ) );
+    }
+    return arr;
+}
+
 /**
  * @brief Free a dynamic value64_tarray and all owned elements.
  *
@@ -178,7 +222,7 @@ value64_tarray *value64_tarray_move(value64_tarray *restrict arr, value64_typed 
  * @throws ERR_UNSUPPORTED_TYPE is static
  */
 void                            value64_tarray_free(value64_tarray *arr) {
-    invraisecode(ERR_NULLABLE_PTR, arr != NULL, 
+    invraisecode(ERR_NULLABLE_PTR, arr != NULL,
                 "Null pointer");
     //invraisecode(ERR_UNSUPPORTED_TYPE, arr->sz >= 0,
     //            "Cannot free static array (sz=%d)", arr->sz);
@@ -434,6 +478,196 @@ tf_tarray_accessors(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST VALUE64_TSTATIC_ARRAY and typed constructors -------------------------
+static TestStatus
+tf_tstatic_array(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ====================================================================
+     * 1. Проверка статических массивов (все типы, 1..3 элемента)
+     * ==================================================================== */
+
+    // ---------- INT ----------
+    test_sub("subtest %d: static INT list (1 elem)", ++subnum);
+    {
+        value64_static_tarray st = V64TYP_INTLIST(42);
+        test_validate(
+            st.base.cnt == 1 && st.base.sz == -1 &&
+            st.base.v[0].val.ival == 42 && st.base.v[0].typ == VALUE64_INT,
+            "INT1: cnt=%d, val=%d", st.base.cnt, st.base.v[0].val.ival
+        );
+        // value64_tarray_free должен безопасно игнорировать статический массив
+        value64_tarray_free(&st.base);
+        test_validate(st.base.sz == -1, "After free static sz must stay -1");
+    }
+
+    test_sub("subtest %d: static INT list (2 elem)", ++subnum);
+    {
+        value64_static_tarray st = V64TYP_INTLIST(10, 20);
+        test_validate(
+            st.base.cnt == 2 && st.base.sz == -1 &&
+            st.base.v[0].val.ival == 10 && st.base.v[0].typ == VALUE64_INT &&
+            st.base.v[1].val.ival == 20 && st.base.v[1].typ == VALUE64_INT,
+            "INT2: cnt=%d, vals=%d,%d", st.base.cnt, st.base.v[0].val.ival, st.base.v[1].val.ival
+        );
+        value64_tarray_free(&st.base);
+        test_validate(st.base.sz == -1, "After free static sz must stay -1");
+    }
+
+    test_sub("subtest %d: static INT list (3 elem)", ++subnum);
+    {
+        value64_static_tarray st = V64TYP_INTLIST(1, 6, 7);
+        test_validate(
+            st.base.cnt == 3 && st.base.sz == -1 &&
+            st.base.v[0].val.ival == 1 && st.base.v[0].typ == VALUE64_INT &&
+            st.base.v[1].val.ival == 6 && st.base.v[1].typ == VALUE64_INT &&
+            st.base.v[2].val.ival == 7 && st.base.v[2].typ == VALUE64_INT,
+            "INT3: cnt=%d, vals=%d,%d,%d", st.base.cnt,
+            st.base.v[0].val.ival, st.base.v[1].val.ival, st.base.v[2].val.ival
+        );
+        value64_tarray_free(&st.base);
+        test_validate(st.base.sz == -1, "After free static sz must stay -1");
+    }
+
+    // ---------- LONG ----------
+    test_sub("subtest %d: static LONG list (2 elem)", ++subnum);
+    {
+        value64_static_tarray st = V64TYP_LONGLIST(100L, 200L);
+        test_validate(
+            st.base.cnt == 2 && st.base.sz == -1 &&
+            st.base.v[0].val.lval == 100L && st.base.v[0].typ == VALUE64_LNG &&
+            st.base.v[1].val.lval == 200L && st.base.v[1].typ == VALUE64_LNG,
+            "LONG2: cnt=%d, vals=%ld,%ld", st.base.cnt,
+            st.base.v[0].val.lval, st.base.v[1].val.lval
+        );
+        value64_tarray_free(&st.base);
+        test_validate(st.base.sz == -1, "After free static sz must stay -1");
+    }
+
+    // ---------- DBL ----------
+    test_sub("subtest %d: static DBL list (2 elem)", ++subnum);
+    {
+        value64_static_tarray st = V64TYP_DBLLIST(1.5, 2.718);
+        test_validate(
+            st.base.cnt == 2 && st.base.sz == -1 &&
+            st.base.v[0].val.dval == 1.5 && st.base.v[0].typ == VALUE64_DBL &&
+            st.base.v[1].val.dval == 2.718 && st.base.v[1].typ == VALUE64_DBL,
+            "DBL2: cnt=%d, vals=%f,%f", st.base.cnt,
+            st.base.v[0].val.dval, st.base.v[1].val.dval
+        );
+        value64_tarray_free(&st.base);
+        test_validate(st.base.sz == -1, "After free static sz must stay -1");
+    }
+
+    // ---------- PTR ----------
+    test_sub("subtest %d: static PTR list (1 elem)", ++subnum);
+    {
+        int dummy = 99;
+        value64_static_tarray st = V64TYP_PTRLIST(&dummy);
+        test_validate(
+            st.base.cnt == 1 && st.base.sz == -1 &&
+            st.base.v[0].val.pval == &dummy && st.base.v[0].typ == VALUE64_PTR,
+            "PTR1: cnt=%d, ptr=%p", st.base.cnt, st.base.v[0].val.pval
+        );
+        value64_tarray_free(&st.base);
+        test_validate(st.base.sz == -1, "After free static sz must stay -1");
+    }
+
+    // ---------- STR ----------
+    test_sub("subtest %d: static STR list (2 elem)", ++subnum);
+    {
+        value64_static_tarray st = V64TYP_STRLIST("hello", "world");
+        test_validate(
+            st.base.cnt == 2 && st.base.sz == -1 &&
+            strcmp(st.base.v[0].val.sval, "hello") == 0 && st.base.v[0].typ == VALUE64_STR &&
+            strcmp(st.base.v[1].val.sval, "world") == 0 && st.base.v[1].typ == VALUE64_STR,
+            "STR2: cnt=%d, vals=%s,%s", st.base.cnt,
+            st.base.v[0].val.sval, st.base.v[1].val.sval
+        );
+        value64_tarray_free(&st.base);
+        test_validate(st.base.sz == -1, "After free static sz must stay -1");
+    }
+
+    // ---------- FS ----------
+    test_sub("subtest %d: static FS list (2 elem)", ++subnum);
+    {
+        fs *f1 = fs_heapcopy("/tmp/a");
+        fs *f2 = fs_heapcopy("/tmp/b");
+        value64_static_tarray st = V64TYP_FSLIST(f1, f2);
+        test_validatefree(
+            st.base.cnt == 2 && st.base.sz == -1 &&
+            st.base.v[0].val.fsval == f1 && st.base.v[0].typ == VALUE64_FS &&
+            st.base.v[1].val.fsval == f2 && st.base.v[1].typ == VALUE64_FS,
+            (fs_free(f1), fs_free(f2)),
+            "FS2: cnt=%d, ptrs=%p,%p", st.base.cnt, f1, f2
+        );
+        // Вызов value64_tarray_free на статическом массиве не должен трогать fs
+        value64_tarray_free(&st.base);
+        test_validatefree(
+            st.base.sz == -1,
+            (fs_free(f1), fs_free(f2)),
+            "Static FS array must stay intact after free"
+        );
+        fs_free(f1);
+        fs_free(f2);
+    }
+    fs_alloc_check(true);
+
+    /* ====================================================================
+     * 2. Динамические массивы + корректное освобождение
+     * ==================================================================== */
+
+    test_sub("subtest %d: dynamic from INT arr + free", ++subnum);
+    {
+        int vals[] = {1, 2, 3, 4};
+        value64_tarray arr = value64_tarray_int_from_arr(vals, 4);
+        test_validatefree(
+            arr.cnt == 4 && arr.sz >= 4 &&
+            arr.v[0].val.ival == 1 && arr.v[3].val.ival == 4,
+            value64_tarray_free(&arr),
+            "Dynamic INT: cnt=%d", arr.cnt
+        );
+        value64_tarray_free(&arr);
+    }
+
+    test_sub("subtest %d: dynamic from STR arr + free", ++subnum);
+    {
+        const char *vals[] = {"a", "b"};
+        value64_tarray arr = value64_tarray_str_from_arr(vals, 2);
+        test_validatefree(
+            arr.cnt == 2 && arr.sz >= 2 &&
+            strcmp(arr.v[0].val.sval, "a") == 0,
+            value64_tarray_free(&arr),
+            "Dynamic STR: cnt=%d", arr.cnt
+        );
+        value64_tarray_free(&arr);
+    }
+
+    test_sub("subtest %d: dynamic from FS arr + free", ++subnum);
+    {
+        fs *f1 = fs_heapcopy("/tmp/x");
+        fs *f2 = fs_heapcopy("/tmp/y");
+        fs *arr_fs[] = {f1, f2};
+        value64_tarray arr = value64_tarray_fs_from_arr(arr_fs, 2);
+
+        test_validatefree(
+            arr.cnt == 2 && arr.sz >= 2 &&
+            fs_cmp(arr.v[0].val.fsval, f1) == 0 && fs_cmp(arr.v[1].val.fsval, f2) == 0,
+            value64_tarray_free(&arr),
+            "Dynamic FS: cnt=%d but must be %d, arr.sz=%d but must be >= %d, arr.v[0].val.fsval = '%s' but mus be '%s', arr.v[1].val.fsval = '%s' but mus be '%s'",
+                arr.cnt, 2, arr.sz, 2, fs_str(arr.v[0].val.fsval), fs_str(f1), fs_str(arr.v[1].val.fsval), fs_str(f2)
+        );
+        value64_tarray_free(&arr);
+        fsfreeall(f1, f2);
+    }
+    fs_alloc_check(true);
+
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -451,9 +685,11 @@ main(int argc, const char *argv[])
             }
         }
         testenginestd_run(num,
-            testnew(.f2 =  tf_value64_tarray,                                 .num = 1, .name = "tf_value64_tarray"
+            testnew(.f2 =  tf_value64_tarray,       .num = 1, .name = "SImple init/free test"
                 , .desc="", .mandatory=true)
-          , testnew(.f2 =  tf_tarray_accessors,                              .num = 2, .name = "tf_value64_tarray"
+          , testnew(.f2 =  tf_tarray_accessors,     .num = 2, .name = "Simple access test"
+                , .desc="", .mandatory=true)
+          , testnew(.f2 =  tf_tstatic_array,        .num = 3, .name = "Simple test for VALUE64_TSTATIC_ARRAY and typed constructors"
                 , .desc="", .mandatory=true)
         );
         if (runall)
