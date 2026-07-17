@@ -4431,7 +4431,7 @@ tf_setzero(const char *name)
 
     test_sub("subtest %d: setzero LNG", ++subnum);
     {
-        value64 v = LITERAL64_LNG(123456789L);
+        value64 v = LITERAL64_LONG(123456789L);
         value64_setzero(&v, VALUE64_LNG);
         test_validate(
             v.lval == 0L,

@@ -93,7 +93,7 @@ extern value64                      value64_convert_str_to_fs(value64 v);
 // Init
 #define                             LITERAL64_ZERO      (value64) {.u64 = 0L }
 #define                             LITERAL64_INT(val)  (value64) {.u64 = 0L, .ival = val }
-#define                             LITERAL64_LNG(val)  (value64) {.u64 = 0L, .lval = val }
+#define                             LITERAL64_LONG(val)  (value64) {.u64 = 0L, .lval = val }
 #define                             LITERAL64_DBL(val)  (value64) {.u64 = 0L, .dval = val }
 #define                             LITERAL64_PTR(val)  (value64) {.u64 = 0L, .pval = val }
 // pointer copy!!!
