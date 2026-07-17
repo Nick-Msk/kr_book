@@ -236,7 +236,20 @@ value64_tarray                  value64_tarray_fs_from_arr(fs **vals, int n) {
     }
     return arr;
 }
-
+/**
+ * @brief Create a dynamic value64_tarray from an array of c-str pointers.
+ * @param vals pointer to the first fs* element
+ * @param n    number of elements
+ * @return initialized dynamic array (must be freed with value64_tarray_free)
+ */
+extern value64_tarray                  value64_tarray_fs_from_strarr(const char **vals, int n){
+    value64_tarray arr = value64_tarray_init(n);
+    for (int i = 0; i < n; i++) {
+        value64_typed tmp = value64_typedfs(value64_fs(value64_createfs_asstr(vals[i] ) ) );
+        value64_tarray_move(&arr, &tmp);              // перемещаем владение в массив, elem.val обнуляется
+    }
+    return arr;
+}
 /**
  * @brief Free a dynamic value64_tarray and all owned elements.
  *
@@ -726,6 +739,30 @@ tf_tstatic_array(const char *name)
     }
     fs_alloc_check(true);
 
+    test_sub("subtest %d: dynamic FS from string array (using value64)", ++subnum);
+    {
+        const char *strings[] = {"/tmp/a", "/tmp/b", "/tmp/c"};
+        value64_tarray arr = value64_tarray_fs_from_strarr(strings, 3);
+
+        // Создаём литералы для сравнения
+        fs tmp1 = fsliteral("/tmp/a");
+        fs tmp2 = fsliteral("/tmp/b");
+        fs tmp3 = fsliteral("/tmp/c");
+
+        test_validatefree(
+            arr.cnt == 3 && arr.sz >= 3 &&
+            fs_cmp(arr.v[0].val.fsval, &tmp1) == 0 &&
+            fs_cmp(arr.v[1].val.fsval, &tmp2) == 0 &&
+            fs_cmp(arr.v[2].val.fsval, &tmp3) == 0,
+            value64_tarray_free(&arr),
+            "Dynamic FS from str arr: cnt=%d but must be 3, sz=%d but must be >= 3, "
+            "v[0]=%s but must be /tmp/a, v[1]=%s but must be /tmp/b, v[2]=%s but must be /tmp/c",
+            arr.cnt, arr.sz,
+            fs_str(arr.v[0].val.fsval), fs_str(arr.v[1].val.fsval), fs_str(arr.v[2].val.fsval)
+        );
+        value64_tarray_free(&arr);
+    }
+    fs_alloc_check(true);
 
     return logret(TEST_PASSED, "done");
 }

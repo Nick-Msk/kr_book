@@ -68,8 +68,13 @@ extern value64_tarray                  value64_tarray_str_from_arr(const char **
  * @return initialized dynamic array (must be freed with value64_tarray_free)
  */
 extern value64_tarray                  value64_tarray_fs_from_arr(fs **vals, int n);
-// TODO: value64_tarray_fs_from_strarr(const char **vals, int n);
-
+/**
+ * @brief Create a dynamic value64_tarray from an array of c-str pointers.
+ * @param vals pointer to the first fs* element
+ * @param n    number of elements
+ * @return initialized dynamic array (must be freed with value64_tarray_free)
+ */
+extern value64_tarray                  value64_tarray_fs_from_strarr(const char **vals, int n);
 // ------------------------- ДОБАВЛЕНИЕ -----------------------------------
 
 /** @brief Добавить элемент в конец (автоматически расширяет массив) */
