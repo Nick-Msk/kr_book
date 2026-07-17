@@ -33,6 +33,43 @@ extern value64_tarray                  value64_tarray_init(int cap);
 /** @brief Освободить массив и все владеющие памятью элементы (FS/STR) */
 extern void                            value64_tarray_free(value64_tarray *arr);
 
+/**
+ * @brief Create a dynamic value64_tarray from an array of ints.
+ * @param vals pointer to the first element
+ * @param n    number of elements
+ * @return initialized dynamic array (must be freed with value64_tarray_free)
+ */
+extern value64_tarray                  value64_tarray_int_from_arr(const int *vals, int n);
+/**
+ * @brief Create a dynamic value64_tarray from an array of longs.
+ * @param vals pointer to the first element
+ * @param n    number of elements
+ * @return initialized dynamic array (must be freed with value64_tarray_free)
+ */
+extern value64_tarray                  value64_tarray_long_from_arr(const long *vals, int n);
+/**
+ * @brief Create a dynamic value64_tarray from an array of doubles.
+ * @param vals pointer to the first element
+ * @param n    number of elements
+ * @return initialized dynamic array (must be freed with value64_tarray_free)
+ */
+extern value64_tarray                  value64_tarray_dbl_from_arr(const double *vals, int n);
+/**
+ * @brief Create a dynamic value64_tarray from an array of C‑strings.
+ * @param vals pointer to the first string pointer
+ * @param n    number of elements
+ * @return initialized dynamic array (must be freed with value64_tarray_free)
+ */
+extern value64_tarray                  value64_tarray_str_from_arr(const char **vals, int n);
+/**
+ * @brief Create a dynamic value64_tarray from an array of fs pointers.
+ * @param vals pointer to the first fs* element
+ * @param n    number of elements
+ * @return initialized dynamic array (must be freed with value64_tarray_free)
+ */
+extern value64_tarray                  value64_tarray_fs_from_arr(fs **vals, int n);
+// TODO: value64_tarray_fs_from_strarr(const char **vals, int n);
+
 // ------------------------- ДОБАВЛЕНИЕ -----------------------------------
 
 /** @brief Добавить элемент в конец (автоматически расширяет массив) */

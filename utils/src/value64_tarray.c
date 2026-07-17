@@ -175,7 +175,7 @@ value64_tarray *value64_tarray_move(value64_tarray *restrict arr, value64_typed 
  * @param n    number of elements
  * @return initialized dynamic array (must be freed with value64_tarray_free)
  */
-value64_tarray value64_tarray_int_from_arr(const int *vals, int n) {
+value64_tarray                  value64_tarray_int_from_arr(const int *vals, int n) {
     value64_tarray arr = value64_tarray_init(n);
     for (int i = 0; i < n; i++) {
         value64_tarray_push(&arr, value64_typedint(vals[i]) );
@@ -184,12 +184,38 @@ value64_tarray value64_tarray_int_from_arr(const int *vals, int n) {
 }
 
 /**
+ * @brief Create a dynamic value64_tarray from an array of longs.
+ * @param vals pointer to the first element
+ * @param n    number of elements
+ * @return initialized dynamic array (must be freed with value64_tarray_free)
+ */
+value64_tarray                  value64_tarray_long_from_arr(const long *vals, int n) {
+    value64_tarray arr = value64_tarray_init(n);
+    for (int i = 0; i < n; i++) {
+        value64_tarray_push(&arr, value64_typedlong(vals[i]) );
+    }
+    return arr;
+}
+/**
+ * @brief Create a dynamic value64_tarray from an array of doubles.
+ * @param vals pointer to the first element
+ * @param n    number of elements
+ * @return initialized dynamic array (must be freed with value64_tarray_free)
+ */
+value64_tarray                  value64_tarray_dbl_from_arr(const double *vals, int n) {
+    value64_tarray arr = value64_tarray_init(n);
+    for (int i = 0; i < n; i++) {
+        value64_tarray_push(&arr, value64_typeddbl(vals[i]) );
+    }
+    return arr;
+}
+/**
  * @brief Create a dynamic value64_tarray from an array of C‑strings.
  * @param vals pointer to the first string pointer
  * @param n    number of elements
  * @return initialized dynamic array (must be freed with value64_tarray_free)
  */
-value64_tarray value64_tarray_str_from_arr(const char **vals, int n) {
+value64_tarray                  value64_tarray_str_from_arr(const char **vals, int n) {
     value64_tarray arr = value64_tarray_init(n);
     for (int i = 0; i < n; i++) {
         value64_tarray_push(&arr, value64_typedstr( vals[i]));
@@ -203,7 +229,7 @@ value64_tarray value64_tarray_str_from_arr(const char **vals, int n) {
  * @param n    number of elements
  * @return initialized dynamic array (must be freed with value64_tarray_free)
  */
-value64_tarray value64_tarray_fs_from_arr(fs **vals, int n) {
+value64_tarray                  value64_tarray_fs_from_arr(fs **vals, int n) {
     value64_tarray arr = value64_tarray_init(n);
     for (int i = 0; i < n; i++) {
         value64_tarray_push(&arr, value64_typedfs(vals[i] ) );
@@ -614,6 +640,42 @@ tf_tstatic_array(const char *name)
         fs_free(f2);
     }
     fs_alloc_check(true);
+
+    test_sub("subtest %d: dynamic from LONG arr + free", ++subnum);
+    {
+        long vals[] = {100L, 200L, 300L};
+        value64_tarray arr = value64_tarray_long_from_arr(vals, 3);
+        test_validatefree(
+            arr.cnt == 3 && arr.sz >= 3 &&
+            arr.v[0].val.lval == 100L &&
+            arr.v[1].val.lval == 200L &&
+            arr.v[2].val.lval == 300L,
+            value64_tarray_free(&arr),
+            "Dynamic LONG: cnt=%d but must be 3, arr.sz=%d but must be >= 3, "
+            "v[0]=%ld but must be 100, v[1]=%ld but must be 200, v[2]=%ld but must be 300",
+            arr.cnt, arr.sz,
+            arr.v[0].val.lval, arr.v[1].val.lval, arr.v[2].val.lval
+        );
+        value64_tarray_free(&arr);
+    }
+
+    test_sub("subtest %d: dynamic from DBL arr + free", ++subnum);
+    {
+        double vals[] = {1.5, 2.718, 3.14};
+        value64_tarray arr = value64_tarray_dbl_from_arr(vals, 3);
+        test_validatefree(
+            arr.cnt == 3 && arr.sz >= 3 &&
+            arr.v[0].val.dval == 1.5 &&
+            arr.v[1].val.dval == 2.718 &&
+            arr.v[2].val.dval == 3.14,
+            value64_tarray_free(&arr),
+            "Dynamic DBL: cnt=%d but must be 3, arr.sz=%d but must be >= 3, "
+            "v[0]=%f but must be 1.5, v[1]=%f but must be 2.718, v[2]=%f but must be 3.14",
+            arr.cnt, arr.sz,
+            arr.v[0].val.dval, arr.v[1].val.dval, arr.v[2].val.dval
+        );
+        value64_tarray_free(&arr);
+    }
 
     /* ====================================================================
      * 2. Динамические массивы + корректное освобождение
