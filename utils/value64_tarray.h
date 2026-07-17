@@ -311,6 +311,34 @@ int                                    value64_typed_techfprint(FILE *out, value
                                 (value64_typed){ .val = LITERAL64_PFS(v4), .typ = VALUE64_FS } }, \
         .cnt = 4, .sz = -1 } }
 
+// SIMPLIFIERS
+#define V64TYP_CNT(parr)       ((parr)->cnt)
+
+#define V64TYP_INT1(parr)      value64_int((parr)->v[0].val)
+#define V64TYP_INT2(parr)      value64_int((parr)->v[1].val)
+#define V64TYP_INT3(parr)      value64_int((parr)->v[2].val)
+#define V64TYP_INT4(parr)      value64_int((parr)->v[3].val)
+
+#define V64TYP_LONG1(parr)     value64_long((parr)->v[0].val)
+#define V64TYP_LONG2(parr)     value64_long((parr)->v[1].val)
+#define V64TYP_LONG3(parr)     value64_long((parr)->v[2].val)
+#define V64TYP_LONG4(parr)     value64_long((parr)->v[3].val)
+
+#define V64TYP_DBL1(parr)      value64_dbl((parr)->v[0].val)
+#define V64TYP_DBL2(parr)      value64_dbl((parr)->v[1].val)
+#define V64TYP_DBL3(parr)      value64_dbl((parr)->v[2].val)
+#define V64TYP_DBL4(parr)      value64_dbl((parr)->v[3].val)
+
+#define V64TYP_STR1(parr)      value64_str((parr)->v[0].val)
+#define V64TYP_STR2(parr)      value64_str((parr)->v[1].val)
+#define V64TYP_STR3(parr)      value64_str((parr)->v[2].val)
+#define V64TYP_STR4(parr)      value64_str((parr)->v[3].val)
+
+#define V64TYP_FS1(parr)       value64_fs((parr)->v[0].val)
+#define V64TYP_FS2(parr)       value64_fs((parr)->v[1].val)
+#define V64TYP_FS3(parr)       value64_fs((parr)->v[2].val)
+#define V64TYP_FS4(parr)       value64_fs((parr)->v[3].val)
+
 // ------------------------- ВСПОМОГАТЕЛЬНЫЕ КОНСТРУКТОРЫ ----------------
 
 static inline value64_typed     value64_typedint(int x) {
