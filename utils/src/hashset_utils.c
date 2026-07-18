@@ -236,27 +236,6 @@ void                        hset_const_foreach(const hset *se, hset_const_proc_t
         }
     }
 }
-/*      NOT USED FOR NOW
-void                        hset_foreach(hset *se, hset_proc_t proc) {
-    for (int i = 0; i < se->sz; i++) {
-        hset_elem *el = se->table[i];
-        while (el) {
-            proc(&el->v);
-            el = el->next;
-        }
-    }
-}
-void                        hset_modify_foreach(hset *se, hset_modify_proc_t proc) {
-    for (int i = 0; i < se->sz; i++) {
-        hset_elem *el = se->table[i];
-        while (el) {
-            hset_elem *next = el->next;
-            proc(se, el);   // можно вызывать hset_del внутри
-            el = next;
-        }
-    }
-} */
-
 // ----------------------------------------- REDUCE -----------------------------------------
 
 // Core engine reduce
@@ -268,8 +247,8 @@ hset_accum                  hset_reduce(const hset *se, hset_accum init, hset_re
     return acc;
 }
 // conditional engine
-hset_accum                  hset_reduce_filtered(const hset *se, hset_accum init, hset_reduce_func func,
-                                hset_predicate_t pred, value64 data) {
+hset_accum                  hset_reduce_filtered(const hset *restrict se, hset_accum init, hset_reduce_func func,
+                                valur64_predicate_t pred, const value64_tarray *restrict params) {
     invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
 
     // Без предиката – обычная свёртка
@@ -278,7 +257,7 @@ hset_accum                  hset_reduce_filtered(const hset *se, hset_accum init
 
     hset_accum acc = init;
     HSET_FOREACH(se, var) {
-        if (pred(var, data)) {
+        if (pred(var, params)) {
             func(&acc, var);
         }
     }
@@ -454,23 +433,23 @@ void                        hset_agg_fs     (hset_accum *acc, value64 v) {
 
 // ------------------------------------------ FILTER -----------------------------------------
 // Core engine filter 1 parameter
-hset                       *hset_filter(hset *restrict se, hset_predicate_t pred, value64 data) {
+hset                       *hset_filter(hset *restrict se, valur64_predicate_t pred, const value64_tarray *restrict params) {
     invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
 
     int     cnt = 0;
     HSET_FOREACH_DEL(se, var) {
-        if (!pred(var, data) )
+        if (!pred(var, params) )
             cnt += hset_del(se, var);
     }
-    return logsimpleret(se, "Deleted by filter %d", cnt);
+    return logsimpleret(se, "Deleted by apply filter %d", cnt);
 }
 // core engine construct 1 par
-hset                        hset_init_filter(const hset *restrict se, hset_predicate_t pred, value64 data) {
+hset                        hset_init_filter(const hset *restrict se, valur64_predicate_t pred, const value64_tarray *restrict params) {
     invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
 
     hset res = hset_init(se->sz, hset_getype(se) );
     HSET_FOREACH(se, var) {
-        if (pred(var, data) )
+        if (pred(var, params) )
             hset_set(&res, var);   // копирование, оригинал не трогаем
     }
     return logsimpleret(res, "Filtered: %d elements remain in new set", res.count);
@@ -484,15 +463,16 @@ hset                       *hset_filter2(hset *restrict se, hset_predicate2_t pr
         if (!pred2(var, data1, data2) )
             cnt += hset_del(se, var);
     }
-    return logsimpleret(se, "Deleted by filter %d", cnt);
+    return logsimpleret(se, "Deleted by apply filter %d", cnt);
 }
-// core engine construct 1 par
-extern hset                  hset_init_filter2(const hset *restrict se, hset_predicate2_t pred2, value64 data1, value64 data2) {
+// core engine construct 2 par
+extern hset                  hset_init_filter2(const hset *restrict se, value64_predicate_t pred2, /*value64 data1, value64 data2*/
+            const value64_tarray *restrict params) {
     invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
 
     hset res = hset_init(se->sz, hset_getype(se) );
     HSET_FOREACH(se, var) {
-        if (pred2(var, data1, data2) )
+        if (pred2(var, params) )
             hset_set(&res, var);   // копирование, оригинал не трогаем
     }
     return logsimpleret(res, "Filtered: %d elements remain in new set", res.count);
@@ -500,80 +480,80 @@ extern hset                  hset_init_filter2(const hset *restrict se, hset_pre
 
 // -------------------------- simplifyers over filters ----------------------------------
 // sql-like create as select:fs where predicate:int
-hset                        hset_create_fs_int_filter(const hset *restrict se, int data, hset_predicate_t filter){
+hset                        hset_create_fs_int_filter(const hset *restrict se, valur64_predicate_t filter, int data){
     invraisecode(ERR_NULLABLE_PTR, se != NULL,
         "Null pointers %p", se);
     invraisecode(ERR_UNSUPPORTED_TYPE, hset_getype(se) == VALUE64_INT /*|| hset_getype(se) == VALUE64_LONG */,
         "Only VALUE64_INT/LONG is supported");
-    hset tmp = hset_init_filter(se, filter, LITERAL64_INT(data) );
+    hset tmp = hset_init_filter(se, filter, /*LITERAL64_INT(data) */ V64TYP_INTLIST(data) );
     return logsimpleret(tmp, "Created as int filter %d elems", hset_cnt(&tmp) );
 }
-// sql-like delete :fs where NOT predicate:int
-hset                       *hset_apply_fs_int_filter(hset *restrict se, int data, hset_predicate_t filter){
+// sql-like apply :fs where  predicate:int
+hset                       *hset_apply_fs_int_filter(hset *restrict se, valur64_predicate_t filter, int data){
     invraisecode(ERR_NULLABLE_PTR, se != NULL,
         "Null pointers %p", se);
     invraisecode(ERR_UNSUPPORTED_TYPE, hset_getype(se) == VALUE64_INT /*|| hset_getype(se) == VALUE64_LONG */,
         "Only VALUE64_INT/LONG is supported");
-    hset_filter(se, filter, LITERAL64_INT(data) );
+    hset_filter(se, filter, /* LITERAL64_INT(data) */ V64TYP_INTLIST(data) );
     return logsimpleret(se, "Remained after int filter %d elems", hset_cnt(se) );
 }
 
 // sql-like create as select:fs where predicate:str
-hset                        hset_create_fs_str_filter(const hset *restrict se, const char *restrict pattern, hset_predicate_t filter){
+hset                        hset_create_fs_str_filter(const hset *restrict se, valur64_predicate_t filter, const char *restrict pattern,) {
     invraisecode(ERR_NULLABLE_PTR, se != NULL && pattern != NULL,
             "Null pointers %p %p", se, pattern);
     invraisecode(ERR_UNSUPPORTED_TYPE, hset_getype(se) == VALUE64_FS,
             "Only VALUE64_FS is supported");
     //fs l = FSLITERAL(pattern);  // no need to free
-    hset tmp = hset_init_filter(se, filter, LITERAL64_STR(pattern) );
+    hset tmp = hset_init_filter(se, filter, /* LITERAL64_STR(pattern)*/ V64TYP_FSLIST_FROMSTR(pattern) );
     return logsimpleret(tmp, "Created as str filter %d elems", hset_cnt(&tmp) );
 }
-// sql-like delete :fs where NOT predicate:str
-hset                       *hset_apply_fs_str_filter(hset *restrict se, const char *restrict pattern, hset_predicate_t filter){
+// sql-like apply :fs where predicate:str
+hset                       *hset_apply_fs_str_filter(hset *restrict se, valur64_predicate_t filter, const char *restrict pattern) {
     invraisecode(ERR_NULLABLE_PTR, se != NULL && pattern != NULL,
             "Null pointers %p %p", se, pattern);
     invraisecode(ERR_UNSUPPORTED_TYPE, hset_getype(se) == VALUE64_FS,
             "Only VALUE64_FS is supported");
-    hset_filter(se, filter, LITERAL64_STR(pattern) );
+    hset_filter(se, filter, /*LITERAL64_STR(pattern) */  V64TYP_FSLIST_FROMSTR(pattern) );
     return logsimpleret(se, "Remained after str filter %d elems", hset_cnt(se) );
 }
 // sql-like create as select:int where predicate:int
-hset                        hset_create_int_int_filter(const hset *restrict se, int value, hset_predicate_t filter) {
+hset                        hset_create_int_int_filter(const hset *restrict se, valur64_predicate_t filter, int value) {
     invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
     invraisecode(ERR_UNSUPPORTED_TYPE,
         hset_getype(se) == VALUE64_INT /* || hset_getype(se) == VALUE64_LNG */, // long is diabled for now
         "Only VALUE64_INT supported");
-    hset tmp = hset_init_filter(se, filter, LITERAL64_INT(value) );
+    hset tmp = hset_init_filter(se, filter, V64TYP_INTLIST(value) );
     return logsimpleret(tmp, "Created %d elems", hset_cnt(&tmp) );
 }
 
-// sql-like delete :int where NOT predicate:int
-hset                       *hset_apply_int_int_filter(hset *restrict se, int value, hset_predicate_t filter) {
+// sql-like aoply :int where predicate:int
+hset                       *hset_apply_int_int_filter(hset *restrict se,  valur64_predicate_t filter, int value) {
     invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
     invraisecode(ERR_UNSUPPORTED_TYPE,
         hset_getype(se) == VALUE64_INT /* || hset_getype(se) == VALUE64_LNG*/, // long is diabled for now
         "Only VALUE64_INT supported");
-    hset_filter(se, filter, LITERAL64_INT(value) );
+    hset_filter(se, filter, V64TYP_INTLIST(value) );
     return logsimpleret(se, "Remained %d elems", hset_cnt(se) );
 }
 
 // int - (int, int)
 // sql-like create as select:int where predicate:(int, int)
-hset                        hset_create_int_int_filter2(const hset *restrict se, int value1, int value2, hset_predicate2_t filter2){
+hset                        hset_create_int_int_filter2(const hset *restrict se, value64_predicate_t filter2, int value1, int value2) {
     invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
     invraisecode(ERR_UNSUPPORTED_TYPE,
         hset_getype(se) == VALUE64_INT /* || hset_getype(se) == VALUE64_LNG */, // long is diabled for now
         "Only VALUE64_INT supported");
-    hset tmp = hset_init_filter2(se, filter2, LITERAL64_INT(value1), LITERAL64_INT(value2) );
+    hset tmp = hset_init_filter2(se, filter2, V64TYP_INTLIST(value1, value2) );
     return logsimpleret(tmp, "Created %d elems", hset_cnt(&tmp) );
 }
 // sql-like apply:int where predicate:(int, int)
-hset                       *hset_apply_int_int_filter2(hset *restrict se, int value1, int value2, hset_predicate2_t filter2){
+hset                       *hset_apply_int_int_filter2(hset *restrict se, value64_predicate_t filter2, int value1, int value2) {
     invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
     invraisecode(ERR_UNSUPPORTED_TYPE,
         hset_getype(se) == VALUE64_INT /* || hset_getype(se) == VALUE64_LNG*/, // long is diabled for now
         "Only VALUE64_INT supported");
-    hset_filter2(se, filter2, LITERAL64_INT(value1), LITERAL64_INT(value2) );
+    hset_filter2(se, filter2, V64TYP_INTLIST(value1, value2) );
     return logsimpleret(se, "Remained %d elems", hset_cnt(se) );
 }
 

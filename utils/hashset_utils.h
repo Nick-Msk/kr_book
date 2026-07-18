@@ -9,14 +9,15 @@
 
 #include "hashset.h"
 #include "value64_params.h"
+#include "value64_tarray.h"
 
 // ----------- CONSTANTS AND GLOBALS ---------------
 
 // ------------------- TYPES -----------------------
 
 // filter types
-typedef bool                (*hset_predicate_t)(value64 v, value64 data);
-typedef bool                (*hset_predicate2_t)(value64 v, value64 data1, value64 data2); // between etc...
+typedef bool                (*valur64_predicate_t)(value64 v, /* value64 data */ const value64_tarray *params);
+//typedef bool                (*hset_predicate2_t)(value64 v, value64 data1, value64 data2); // between etc...
 
 typedef struct              hset_accum {
     value64         value;    // накопленное значение (сумма, максимум и т.п.)
@@ -158,9 +159,10 @@ extern hset_accum hset_reduce(const hset *se, hset_accum init, hset_reduce_func 
  * @param data данные для предиката
  * @return заполненный аккумулятор
  */
-extern hset_accum hset_reduce_filtered(const hset *se, hset_accum init,
+extern hset_accum hset_reduce_filtered(const hset *restrict se, hset_accum init,
                                        hset_reduce_func func,
-                                       hset_predicate_t pred, value64 data);
+                                       valur64_predicate_t pred, /* value64 data*/
+                                       const value64_tarray *restrict params);
 
 // ---------------------------------------------------------------------------
 //                    TYPED REDUCE (without filtering)
@@ -231,11 +233,11 @@ static inline hset_accum hset_reduce_fsagg(const hset *restrict se,
  * @param data данные для предиката
  * @return заполненный аккумулятор с типом VALUE64_INT
  */
-static inline hset_accum hset_filtereduce_int(const hset *se,
+static inline hset_accum hset_filtereduce_int(const hset *restrict se,
                                               hset_reduce_func func,
-                                              hset_predicate_t pred,
-                                              value64 data) {
-    return hset_reduce_filtered(se, HSET_ACCUM_INT_ZERO, func, pred, data);
+                                              valur64_predicate_t pred,
+                                              const value64_tarray *restrict params) {
+    return hset_reduce_filtered(se, HSET_ACCUM_INT_ZERO, func, pred, params);
 }
 
 /**
@@ -246,11 +248,11 @@ static inline hset_accum hset_filtereduce_int(const hset *se,
  * @param data данные для предиката
  * @return заполненный аккумулятор с типом VALUE64_LNG
  */
-static inline hset_accum hset_filtereduce_lng(const hset *se,
+static inline hset_accum hset_filtereduce_lng(const hset *restrict se,
                                               hset_reduce_func func,
-                                              hset_predicate_t pred,
-                                              value64 data) {
-    return hset_reduce_filtered(se, HSET_ACCUM_LNG_ZERO, func, pred, data);
+                                              valur64_predicate_t pred,
+                                              const value64_tarray *restrict params) {
+    return hset_reduce_filtered(se, HSET_ACCUM_LNG_ZERO, func, pred, params);
 }
 
 /**
@@ -261,11 +263,11 @@ static inline hset_accum hset_filtereduce_lng(const hset *se,
  * @param data данные для предиката
  * @return заполненный аккумулятор с типом VALUE64_DBL
  */
-static inline hset_accum hset_filtereduce_dbl(const hset *se,
+static inline hset_accum hset_filtereduce_dbl(const hset *restrict se,
                                               hset_reduce_func func,
-                                              hset_predicate_t pred,
-                                              value64 data) {
-    return hset_reduce_filtered(se, HSET_ACCUM_DBL_ZERO, func, pred, data);
+                                              valur64_predicate_t pred,
+                                              const value64_tarray *restrict params) {
+    return hset_reduce_filtered(se, HSET_ACCUM_DBL_ZERO, func, pred, params);
 }
 
 /**
@@ -276,11 +278,11 @@ static inline hset_accum hset_filtereduce_dbl(const hset *se,
  * @param data данные для предиката
  * @return заполненный аккумулятор с типом VALUE64_FS
  */
-static inline hset_accum hset_filtereduce_fs(const hset *se,
+static inline hset_accum hset_filtereduce_fs(const hset *restrict se,
                                               hset_reduce_func func,
-                                              hset_predicate_t pred,
-                                              value64 data) {
-    return hset_reduce_filtered(se, HSET_ACCUM_FS_ZERO, func, pred, data);
+                                              valur64_predicate_t pred,
+                                              const value64_tarray *restrict params) {
+    return hset_reduce_filtered(se, HSET_ACCUM_FS_ZERO, func, pred, params);
 }
 
 /**
@@ -295,9 +297,9 @@ static inline hset_accum hset_filtereduce_fs(const hset *se,
 static inline hset_accum hset_filtereduce_fsagg(const hset *restrict se,
                                                 hset_reduce_func func,
                                                 const char *restrict sep,
-                                                hset_predicate_t pred,
-                                                value64 data) {
-    return hset_reduce_filtered(se, HSET_ACCUM_FS_AGG(sep), func, pred, data);
+                                                valur64_predicate_t pred,
+                                                const value64_tarray *restrict params) {
+    return hset_reduce_filtered(se, HSET_ACCUM_FS_AGG(sep), func, pred, params);
 }
 
 // destructor
@@ -348,141 +350,143 @@ extern void                 hset_agg_fs     (hset_accum *acc, value64 v);
 // ------------------------------------- FILTER -----------------------------------------
 
 // ------------------------------- engine ------------------------------------------
-extern hset                 *hset_filter(hset *restrict se, hset_predicate_t pred, value64 data);
-extern hset                  hset_init_filter(const hset *restrict src, hset_predicate_t pred, value64 data);
+extern hset                 *hset_filter(hset *restrict se, valur64_predicate_t pred, value64 data);
+extern hset                  hset_init_filter(const hset *restrict src, valur64_predicate_t pred, value64 data);
 
+/*
 extern hset                 *hset_filter2(hset *restrict se, hset_predicate2_t pred2, value64 data1, value64 data2);
 extern hset                  hset_init_filter2(const hset *restrict src, hset_predicate2_t pred2, value64 data1, value64 data2);
+*/
 
 // ------------------------ simplifiers predicate engine ---------------------------
 // fs - str
 // sql-like create as select:fs where predicate:str
-extern hset                  hset_create_fs_str_filter(const hset *restrict se, const char *restrict pattern, hset_predicate_t filter);
-// sql-like delete :fs where NOT predicate:str
-extern hset                 *hset_apply_fs_str_filter(hset *restrict se, const char *restrict pattern, hset_predicate_t filter);
+extern hset                  hset_create_fs_str_filter(const hset *restrict se, valur64_predicate_t filter, const char *restrict pattern);
+// sql-like apply :fs where predicate:str
+extern hset                 *hset_apply_fs_str_filter(hset *restrict se, valur64_predicate_t filter, const char *restrict pattern);
 // fs - int
 // sql-like create as select:fs where predicate:int
-extern hset                  hset_create_fs_int_filter(const hset *restrict se, int data, hset_predicate_t filter);
-// sql-like delete :fs where NOT predicate:int
-extern hset                 *hset_apply_fs_int_filter(hset *restrict se, int data, hset_predicate_t filter);
+extern hset                  hset_create_fs_int_filter(const hset *restrict se, valur64_predicate_t filter, int data);
+// sql-like apply :fs where predicate:int
+extern hset                 *hset_apply_fs_int_filter(hset *restrict se, valur64_predicate_t filter, int data);
 
 // int - int
 // sql-like create as select:int where predicate:int
-extern hset                  hset_create_int_int_filter(const hset *restrict se, int value, hset_predicate_t filter);
-// sql-like delete :int where NOT predicate:int
-extern hset                 *hset_apply_int_int_filter(hset *restrict se, int value, hset_predicate_t filter);
+extern hset                  hset_create_int_int_filter(const hset *restrict se, valur64_predicate_t filter, int data);
+// sql-like apply :int where predicate:int
+extern hset                 *hset_apply_int_int_filter(hset *restrict se, valur64_predicate_t filter, int data);
 // int - (int, int)
 // sql-like create as select:int where predicate:(int, int)
-extern hset                  hset_create_int_int_filter2(const hset *restrict se, int value1, int value2, hset_predicate2_t filter2);
+extern hset                  hset_create_int_int_filter2(const hset *restrict se,  valur64_predicate_t filter2, int value1, int value2);
 // sql-like apply:int where predicate:(int, int)
-extern hset                 *hset_apply_int_int_filter2(hset *restrict se, int value1, int value2, hset_predicate2_t filter2);
+extern hset                 *hset_apply_int_int_filter2(hset *restrict se, valur64_predicate_t filter2, int value1, int value2);
 
 // --------- simplifyers over filters ---------
 // sql-like create :fs as select where length >=  :int
 static inline hset           hset_create_fsminlen_int(const hset *restrict se, int len){
-    return hset_create_fs_int_filter(se, len, value64_filter_fsminlen_int);
+    return hset_create_fs_int_filter(se, value64_filter_fsminlen_int, len);
 }
-// sql-like delete :fs where NOT length >=  :int
+// sql-like apply :fs where length >=  :int
 static inline hset          *hset_apply_fsminlen_int(hset *restrict se, int len){
-    return hset_apply_fs_int_filter(se, len, value64_filter_fsminlen_int);
+    return hset_apply_fs_int_filter(se, value64_filter_fsminlen_int, len);
 }
 // sql-like create :fs as select where length <=  :int
 static inline hset           hset_create_fsmaxlen_int(const hset *restrict se, int len){
-    return hset_create_fs_int_filter(se, len, value64_filter_fsmaxlen_int);
+    return hset_create_fs_int_filter(se, value64_filter_fsmaxlen_int, len);
 }
-// sql-like delete :fs where NOT length <=  :int
+// sql-like apply :fs where length <=  :int
 static inline hset          *hset_apply_fsmaxlen_int(hset *restrict se, int len){
-    return hset_apply_fs_int_filter(se, len, value64_filter_fsmaxlen_int);
+    return hset_apply_fs_int_filter(se, value64_filter_fsmaxlen_int, len);
 }
 // sql-like create :fs as select where length == :int
 static inline hset           hset_create_fslen_int(const hset *restrict se, int len){
-    return hset_create_fs_int_filter(se, len, value64_filter_fslen_int);
+    return hset_create_fs_int_filter(se, value64_filter_fslen_int, len);
 }
-// sql-like delete :fs where NOT length == :int
+// sql-like apply :fs where length == :int
 static inline hset          *hset_apply_fslen_int(hset *restrict se, int len){
-    return hset_apply_fs_int_filter(se, len, value64_filter_fslen_int);
+    return hset_apply_fs_int_filter(se, value64_filter_fslen_int, len);
 }
 // sql-like create :fs as select where prefix == :str
 static inline hset           hset_create_fsprefix_str(const hset *restrict se, const char *restrict pattern){
-    return hset_create_fs_str_filter(se, pattern, value64_filter_fsprefix_str);
+    return hset_create_fs_str_filter(se, value64_filter_fsprefix_str, pattern);
 }
-// sql-like delete :fs where NOT prefix == :str
+// sql-like apply :fs where prefix == :str
 static inline hset          *hset_apply_fsprefix_str(hset *restrict se, const char *restrict pattern){
-    return hset_apply_fs_str_filter(se, pattern, value64_filter_fsprefix_str);
+    return hset_apply_fs_str_filter(se, value64_filter_fsprefix_str, pattern);
 }
 
 // sql-like create :fs as select where like :str
 static inline hset           hset_create_fslike_str(const hset *restrict se, const char *restrict pattern){
-    return hset_create_fs_str_filter(se, pattern, value64_filter_fslike_str);
+    return hset_create_fs_str_filter(se, value64_filter_fslike_str, pattern);
 }
 // sql-like create :fs as select where ulike :str
 static inline hset           hset_create_fsulike_str(const hset *restrict se, const char *restrict pattern){
-    return hset_create_fs_str_filter(se, pattern, value64_filter_fsulike_str);
+    return hset_create_fs_str_filter(se, value64_filter_fsulike_str, pattern);
 }
-// sql-like delete :fs where NOT like :str
+// sql-like apply :fs where like :str
 static inline hset          *hset_apply_fslike_str(hset *restrict se, const char *restrict pattern){
-    return hset_apply_fs_str_filter(se, pattern, value64_filter_fslike_str);
+    return hset_apply_fs_str_filter(se, value64_filter_fslike_str, pattern);
 }
-// sql-like delete :fs where NOT ulike :str
+// sql-like apply :fs where ulike :str
 static inline hset          *hset_apply_fsulike_str(hset *restrict se, const char *restrict pattern){
-    return hset_apply_fs_str_filter(se, pattern, value64_filter_fsulike_str);
+    return hset_apply_fs_str_filter(se, value64_filter_fsulike_str, pattern);
 }
 
 // int - int
 // ---------- less than ----------
 static inline hset          hset_create_intlt_int(const hset *restrict se, int v) {
-    return hset_create_int_int_filter(se, v, value64_filter_intlt_int);
+    return hset_create_int_int_filter(se, value64_filter_intlt_int, v);
 }
 static inline hset         *hset_apply_intlt_int(hset *restrict se, int v) {
-    return hset_apply_int_int_filter(se, v, value64_filter_intlt_int);
+    return hset_apply_int_int_filter(se, value64_filter_intlt_int, v);
 }
 
 // ---------- less or equal ----------
 static inline hset          hset_create_intle_int(const hset *restrict se, int v) {
-    return hset_create_int_int_filter(se, v, value64_filter_intle_int);
+    return hset_create_int_int_filter(se, value64_filter_intle_int, v);
 }
 static inline hset         *hset_apply_intle_int(hset *restrict se, int v) {
-    return hset_apply_int_int_filter(se, v, value64_filter_intle_int);
+    return hset_apply_int_int_filter(se, value64_filter_intle_int, v);
 }
 
 // ---------- greater than ----------
 static inline hset          hset_create_intgt_int(const hset *restrict se, int v) {
-    return hset_create_int_int_filter(se, v, value64_filter_intgt_int);
+    return hset_create_int_int_filter(se, value64_filter_intgt_int, v);
 }
 static inline hset         *hset_apply_intgt_int(hset *restrict se, int v) {
-    return hset_apply_int_int_filter(se, v, value64_filter_intgt_int);
+    return hset_apply_int_int_filter(se, value64_filter_intgt_int, v);
 }
 
 // ---------- greater or equal ----------
 static inline hset          hset_create_intge_int(const hset *restrict se, int v) {
-    return hset_create_int_int_filter(se, v, value64_filter_intge_int);
+    return hset_create_int_int_filter(se, value64_filter_intge_int, v);
 }
 static inline hset         *hset_apply_intge_int(hset *restrict se, int v) {
-    return hset_apply_int_int_filter(se, v, value64_filter_intge_int);
+    return hset_apply_int_int_filter(se, value64_filter_intge_int, v);
 }
 
 // ---------- equal ----------
 static inline hset          hset_create_inteq_int(const hset *restrict se, int v) {
-    return hset_create_int_int_filter(se, v, value64_filter_inteq_int);
+    return hset_create_int_int_filter(se, value64_filter_inteq_int, v);
 }
 static inline hset         *hset_apply_inteq_int(hset *restrict se, int v) {
-    return hset_apply_int_int_filter(se, v, value64_filter_inteq_int);
+    return hset_apply_int_int_filter(se, value64_filter_inteq_int, v);
 }
 
 // ---------- not equal ----------
 static inline hset          hset_create_intne_int(const hset *restrict se, int v) {
-    return hset_create_int_int_filter(se, v, value64_filter_intne_int);
+    return hset_create_int_int_filter(se, value64_filter_intne_int, v);
 }
 static inline hset         *hset_apply_intne_int(hset *restrict se, int v) {
-    return hset_apply_int_int_filter(se, v, value64_filter_intne_int);
+    return hset_apply_int_int_filter(se, value64_filter_intne_int, v);
 }
 
 // ------------- between int : int ---------------
 static inline hset         hset_create_intbetween_int_int(const hset *restrict se, int v1, int v2) {
-    return hset_create_int_int_filter2(se, v1, v2, value64_filter2_intbetween_int_int);
+    return hset_create_int_int_filter2(se, value64_filter2_intbetween_int_int, v1, v2);
 }
 static inline hset *hset_apply_intbetween_int_int(hset *restrict se, int v1, int v2) {
-    return hset_apply_int_int_filter2(se, v1, v2, value64_filter2_intbetween_int_int);
+    return hset_apply_int_int_filter2(se,  value64_filter2_intbetween_int_int, int v1, int v2);
 }
 
 // ---------------------------------- MAPPERS ---------------------------------

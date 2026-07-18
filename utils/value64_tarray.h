@@ -311,6 +311,9 @@ int                                    value64_typed_techfprint(FILE *out, value
                                 (value64_typed){ .val = LITERAL64_PFS(v4), .typ = VALUE64_FS } }, \
         .cnt = 4, .sz = -1 } }
 
+// TODO:
+#define V64TYP_FSLIST_FROMSTR(...) ...
+
 // SIMPLIFIERS
 #define V64TYP_CNT(parr)       ((parr)->cnt)
 
@@ -338,6 +341,7 @@ int                                    value64_typed_techfprint(FILE *out, value
 #define V64TYP_FS2(parr)       value64_fs((parr)->v[1].val)
 #define V64TYP_FS3(parr)       value64_fs((parr)->v[2].val)
 #define V64TYP_FS4(parr)       value64_fs((parr)->v[3].val)
+
 
 // ------------------------- ВСПОМОГАТЕЛЬНЫЕ КОНСТРУКТОРЫ ----------------
 
