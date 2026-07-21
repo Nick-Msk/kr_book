@@ -8,10 +8,10 @@ LDLIBS=
 
 .PHONY: clean cleanlog cleanall no_targets__ list
 .PHONY: checker error log common test metric numeric_ops context hashset value64 array buffer fs fs_iter fs_array
-.PHONY: getword systemutils command_executor fileutils value64_tarray seq all hashset_utils
+.PHONY: getword systemutils command_executor fileutils value64_tarray seq all hashset_utils lwset
 
 all: checker error log common test metric numeric_ops context hashset value64 array buffer fs fs_iter fs_array \
-	getword systemutils command_executor fileutils value64_tarray seq hashset_utils
+	getword systemutils command_executor fileutils value64_tarray seq hashset_utils lwset
 
 lib/checker.o: src/checker.c
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -79,6 +79,9 @@ lib/systemutils.o: src/systemutils.c
 lib/seq.o: src/seq.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+lib/lwset.o: src/lwset.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
 test/checker_test: src/checker.c lib/log.o lib/test.o lib/error.o | lib/checker.o$
 	$(CC) $(CFLAGS) -DCHECKERTESTING $^ -o $@ $(LDLIBS)
 
@@ -125,6 +128,9 @@ test/systemutils_test: src/systemutils.c lib/log.o lib/test.o lib/error.o lib/ch
 test/seq_test: src/seq.c lib/log.o lib/test.o lib/error.o lib/checker.o | lib/seq.o
 	$(CC) $(CFLAGS) -DSEQTESTING $^ -o $@ $(LDLIBS)
 
+test/lwset_test: src/lwset.c lib/log.o lib/test.o lib/error.o lib/checker.o | lib/lwset.o
+	$(CC) $(CFLAGS) -DLWSETTESTING $^ -o $@ $(LDLIBS)
+
 test/numeric_ops_test: src/numeric_ops.c lib/log.o lib/test.o lib/error.o | lib/numeric_ops.o
 	$(CC) $(CFLAGS) -DNUMERIC_OPS_TESTING $^ -o $@ $(LDLIBS)
 
@@ -152,7 +158,8 @@ UTIL_OBJS = lib/log.o lib/test.o lib/error.o lib/common.o lib/checker.o \
 	lib/fs_iter.o lib/fs_array.o lib/command_executor.o \
 	lib/numeric_ops.o lib/hashset.o lib/value64.o \
 	lib/context.o lib/systemutils.o\
-	lib/fs.o lib/fileutils.o lib/array.o lib/metric.o lib/value64_tarray.o
+	lib/fs.o lib/fileutils.o lib/array.o lib/metric.o lib/value64_tarray.o \
+	lib/hashset_utils.o lib/seq.o lib/lwset.o
 
 lib/cmutils.a: $(UTIL_OBJS)
 	ar rcs $@ $^
@@ -179,6 +186,7 @@ fs: test/fs_test
 buffer: test/buffer_test
 array: test/array_test
 seq: test/seq_test
+lwset: test/lwset_test
 
 
 clean:
