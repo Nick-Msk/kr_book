@@ -60,23 +60,59 @@ static inline bool           lwset_get(const lwset *s, unsigned short index) {
     return (s->value >> index) & 1;
 }
 
-static inline void           lwset_set(lwset *s, unsigned short index, bool value) {
+
+
+extern lwset                *lwset_union(const lwset *restrict s1, const lwset *restrict s2);
+extern lwset                *lwset_intersect(const lwset *restrict s1, const lwset *restrict s2);
+extern lwset                *lwset_minus(const lwset *restrict s1, const lwset *restrict s2);
+static inline bool           lwset_equals(const lwset *restrict s1, const lwset *restrict s2) {
+    invraisecode(ERR_NULLABLE_PTR, s1 != NULL && s2 != NULL, 
+        "Pointers is NULL %p %p", (void*) s1, (void*) s2);
+    // compare even if the ranges are NOT  the same
+    return s1->value == s2->value; // && s1->low == s2->low && s1->high == s2->high;
+}
+static inline bool           lwset_notequal(const lwset *restrict s1, const lwset *restrict s2) {
+    invraisecode(ERR_NULLABLE_PTR, s1 != NULL && s2 != NULL, 
+        "Pointers is NULL %p %p", (void*) s1, (void*) s2);
+    return (s1->value != s2->value);  // without checking low/high, because we want to compare the actual values
+}
+extern bool                  lwset_in(const lwset *restrict s1, const lwset *restrict s2);
+static inline bool           lwset_strictin(const lwset *restrict s1, const lwset *restrict s2) {
+    return lwset_in(s1, s2) && !lwset_equals(s1, s2);
+}
+// A >< B
+extern bool                  lwset_simmdiff(const lwset *restrict s1, const lwset *restrict s2);
+static inline bool           lwset_notempty(const lwset *s) {
+    invraisecode(ERR_NULLABLE_PTR, s != NULL, "Pointer is NULL");
+    return s->value != 0;
+}
+
+static inline bool           lwset_isempty(const lwset *s) {
+    invraisecode(ERR_NULLABLE_PTR, s != NULL, "Pointer is NULL");
+    return s->value == 0;
+}
+
+// Modification functions
+static inline lwset          *lwset_set(lwset *s, unsigned short index, bool value) {
     invraisecode(ERR_NULLABLE_PTR, s != NULL, "input pointer is NULL");
     invraisecode(ERR_OUT_OF_RANGE, index >= s->low && index <= s->high, "index %u is out of bounds for lwset", index);
     if (value)
         s->value |= (1UL << index);
     else
         s->value &= ~(1UL << index);
+    return s;
+}
+// 
+static  inline lwset                *lwset_setrange(lwset *s, unsigned short low, unsigned short high, bool value){
+    invraisecode(ERR_NULLABLE_PTR, s != NULL, "Pointer is NULL");
+    invraisecode(ERR_OUT_OF_RANGE, low >= s->low && high <= s->high && low <= high, 
+        "range [%u, %u] is out of bounds for lwset with range [%u, %u]", low, high, s->low, s->high);
+    for (unsigned short i = low; i <= high; ++i)
+        lwset_set(s, i, value);
+    return s;
 }
 
-extern lwset                *lwset_union(const lwset *restrict s1, const lwset *restrict s2);
-extern lwset                *lwset_intersect(const lwset *restrict s1, const lwset *restrict s2);
-extern lwset                *lwset_minus(const lwset *restrict s1, const lwset *restrict s2);
-static inline bool           lwset_equals(const lwset *restrict s1, const lwset *restrict s2) {
-    invraisecode(ERR_NULLABLE_PTR, s1 != NULL && s2 != NULL, "input pointer is NULL");
-    // compare even if the ranges are NOT  the same
-    return s1->value == s2->value; // && s1->low == s2->low && s1->high == s2->high;
-}
+
 
 // ----------------------------- CONVERTERS ----------------------------------------
 
