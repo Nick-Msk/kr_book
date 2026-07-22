@@ -12,6 +12,8 @@
 
 #include "checker.h"
 #include "error.h"
+#include "log.h"
+#include "common.h"
 
 // --------------------------------- CONSTANTS AND GLOBALS --------------------------
 
@@ -41,7 +43,7 @@ static inline lwset             lwset_list(const unsigned short *values, size_t 
     lwset s = lwset_initunlim();
     unsigned short max = 0;
     for (size_t i = 0; i < count; ++i) {
-            invraisecode(ERR_OUT_OF_BOUNDS, values[i] >= 0 && values[i] < s.high
+            invraisecode(ERR_OUT_OF_RANGE, values[i] >= 0 && values[i] < s.high
                 , "value %hd is out of bounds for lwset", values[i]);
         if (values[i] > max)
             max = values[i];
@@ -50,6 +52,10 @@ static inline lwset             lwset_list(const unsigned short *values, size_t 
     s.high = max;
     return s;
 }
+
+// simplifier constructor for lwset_list
+#define LWSET_LIST(...) lwset_list((unsigned short[]){__VA_ARGS__}, \
+    COUNT(unsigned short[]){__VA_ARGS__})
 
 
 // -------------------- ACCESS AND MODIFICATORS -------------------------------------
@@ -60,11 +66,6 @@ static inline bool           lwset_get(const lwset *s, unsigned short index) {
     return (s->value >> index) & 1;
 }
 
-
-
-extern lwset                *lwset_union(const lwset *restrict s1, const lwset *restrict s2);
-extern lwset                *lwset_intersect(const lwset *restrict s1, const lwset *restrict s2);
-extern lwset                *lwset_minus(const lwset *restrict s1, const lwset *restrict s2);
 static inline bool           lwset_equals(const lwset *restrict s1, const lwset *restrict s2) {
     invraisecode(ERR_NULLABLE_PTR, s1 != NULL && s2 != NULL, 
         "Pointers is NULL %p %p", (void*) s1, (void*) s2);
@@ -77,11 +78,11 @@ static inline bool           lwset_notequal(const lwset *restrict s1, const lwse
     return (s1->value != s2->value);  // without checking low/high, because we want to compare the actual values
 }
 extern bool                  lwset_in(const lwset *restrict s1, const lwset *restrict s2);
+
 static inline bool           lwset_strictin(const lwset *restrict s1, const lwset *restrict s2) {
     return lwset_in(s1, s2) && !lwset_equals(s1, s2);
 }
-// A >< B
-extern bool                  lwset_simmdiff(const lwset *restrict s1, const lwset *restrict s2);
+
 static inline bool           lwset_notempty(const lwset *s) {
     invraisecode(ERR_NULLABLE_PTR, s != NULL, "Pointer is NULL");
     return s->value != 0;
@@ -95,7 +96,8 @@ static inline bool           lwset_isempty(const lwset *s) {
 // Modification functions
 static inline lwset          *lwset_set(lwset *s, unsigned short index, bool value) {
     invraisecode(ERR_NULLABLE_PTR, s != NULL, "input pointer is NULL");
-    invraisecode(ERR_OUT_OF_RANGE, index >= s->low && index <= s->high, "index %u is out of bounds for lwset", index);
+    invraisecode(ERR_OUT_OF_RANGE, index >= s->low && index <= s->high, 
+            "index %u is out of bounds for lwset", index);
     if (value)
         s->value |= (1UL << index);
     else
@@ -103,7 +105,7 @@ static inline lwset          *lwset_set(lwset *s, unsigned short index, bool val
     return s;
 }
 // 
-static  inline lwset                *lwset_setrange(lwset *s, unsigned short low, unsigned short high, bool value){
+static  inline lwset           *lwset_setrange(lwset *s, unsigned short low, unsigned short high, bool value) {
     invraisecode(ERR_NULLABLE_PTR, s != NULL, "Pointer is NULL");
     invraisecode(ERR_OUT_OF_RANGE, low >= s->low && high <= s->high && low <= high, 
         "range [%u, %u] is out of bounds for lwset with range [%u, %u]", low, high, s->low, s->high);
@@ -112,6 +114,13 @@ static  inline lwset                *lwset_setrange(lwset *s, unsigned short low
     return s;
 }
 
+extern lwset                    *lwset_union(lwset *restrict s1, const lwset *restrict s2);
+extern lwset                    *lwset_intersect(lwset *restrict s1, const lwset *restrict s2);
+extern lwset                    *lwset_minus(lwset *restrict s1, const lwset *restrict s2);
+extern lwset                    *lwset_simmdiff(lwset *restrict s1, const lwset *restrict s2);
+
+// extern lwset                    *lwset_include(lwset *restrict s1, const lwset *restrict s2);
+// extern lwset                    *lwset_exclude(lwset *restrict s1, const lwset *restrict s2);
 
 
 // ----------------------------- CONVERTERS ----------------------------------------
