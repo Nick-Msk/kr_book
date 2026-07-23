@@ -79,8 +79,8 @@ static inline lwset             lwset_list(const unsigned short *values, size_t 
 }
 
 // simplifier macro-constructor for lwset_list
-#define LWSET_LIST(...) lwset_list((unsigned short[]){__VA_ARGS__}, \
-    COUNT(unsigned short[]){__VA_ARGS__})
+#define LWSET_LIST(...) lwset_list( (unsigned short[]){__VA_ARGS__}, \
+    COUNT( ( (unsigned short[]){__VA_ARGS__} ) ) )
 
 
 // -------------------- ACCESS AND MODIFICATORS -------------------------------------

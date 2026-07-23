@@ -175,6 +175,118 @@ tf_lwset_init(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST lwset_clone / lwset_list / LWSET_LIST -------------------------
+static TestStatus
+tf_lwset_clone_list(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== lwset_clone ========== */
+    test_sub("subtest %d: clone empty set", ++subnum);
+    {
+        lwset orig = lwset_initunlim();
+        lwset copy = lwset_clone(&orig);
+        test_validate(
+            copy.value == orig.value &&
+            copy.low == orig.low &&
+            copy.high == orig.high,
+            "Clone empty: value=0x%llx low=%u high=%u (expected same as orig)",
+            (unsigned long long)copy.value, copy.low, copy.high
+        );
+        // Изменение оригинала не влияет на копию
+        orig.value = 0xAA;
+        test_validate(
+            copy.value == 0,
+            "Clone must be independent: orig changed, copy still 0"
+        );
+    }
+
+    test_sub("subtest %d: clone non‑empty set", ++subnum);
+    {
+        lwset orig = lwset_initunlim();
+        orig.value = (1ULL << 3) | (1ULL << 15);
+        orig.high = 20;
+        lwset copy = lwset_clone(&orig);
+        test_validate(
+            copy.value == orig.value &&
+            copy.low == orig.low &&
+            copy.high == orig.high,
+            "Clone non‑empty: value=0x%llx low=%u high=%u (expected same as orig)",
+            (unsigned long long)copy.value, copy.low, copy.high
+        );
+    }
+
+    /* ========== lwset_list ========== */
+    test_sub("subtest %d: list with empty array", ++subnum);
+    {
+        unsigned short vals[] = {};
+        lwset s = lwset_list(vals, 0);
+        test_validate(
+            s.value == 0 && s.low == 0 && s.high == 0,   // high остаётся 0? в коде high изначально 63, но затем max=0 -> s.high = 0
+            "List empty: value=0x%llx low=%u high=%u (expected 0,0,0)",
+            (unsigned long long)s.value, s.low, s.high
+        );
+    }
+
+    test_sub("subtest %d: list with several values", ++subnum);
+    {
+        unsigned short vals[] = {2, 7, 15, 63};
+        lwset s = lwset_list(vals, COUNT(vals));
+        // проверяем, что биты 2,7,15,63 установлены
+        test_validate(
+            (s.value & (1ULL << 2))  != 0 &&
+            (s.value & (1ULL << 7))  != 0 &&
+            (s.value & (1ULL << 15)) != 0 &&
+            (s.value & (1ULL << 63)) != 0 &&
+            s.high == 63,
+            "List {2,7,15,63}: bits 2,7,15,63 must be set, high=%u", s.high
+        );
+        // лишних битов нет (только эти 4)
+        test_validate(
+            s.value == ((1ULL << 2) | (1ULL << 7) | (1ULL << 15) | (1ULL << 63)),
+            "List value must exactly match expected bits"
+        );
+    }
+
+    test_sub("subtest %d: list with duplicates", ++subnum);
+    {
+        unsigned short vals[] = {5, 5, 5};
+        lwset s = lwset_list(vals, COUNT(vals));
+        test_validate(
+            s.value == (1ULL << 5) && s.high == 5,
+            "Duplicates: only bit 5 must be set"
+        );
+    }
+
+    test_sub("subtest %d: LWSET_LIST macro", ++subnum);
+    {
+        lwset s = LWSET_LIST(0, 10, 20);
+        test_validate(
+            (s.value & (1ULL << 0))  != 0 &&
+            (s.value & (1ULL << 10)) != 0 &&
+            (s.value & (1ULL << 20)) != 0 &&
+            s.high == 20,
+            "LWSET_LIST(0,10,20): bits 0,10,20 must be set"
+        );
+    }
+
+    /* ========== Ошибка выхода за диапазон ========== */
+    test_sub("subtest %d: list with value >= 64 raises SIGINT", ++subnum);
+    {
+        if (!try()) {
+            unsigned short vals[] = {64};  // 64 > 63
+            lwset s = lwset_list(vals, 1);
+            // не должны сюда попасть
+            test_validate(false, "Should have raised SIGINT for value 64");
+            (void)s;
+        } else {
+            logsimple("Exception correctly raised on value 64");
+        }
+    }
+
+    return logret(TEST_PASSED, "done");
+}
 
 // ------------------------------------------------------------------------------------------------------------------------------
 int
@@ -194,6 +306,8 @@ main(int argc, const char *argv[])
         }
             testenginestd_run(num,
                 testnew(.f2 =  tf_lwset_init,  .num =  1, .name = "Lwset init simple test"                        , 
+                        .desc="", .mandatory=true)
+              , testnew(.f2 =  tf_lwset_clone_list,  .num =  2, .name = "Lwset clone and list test"                        , 
                         .desc="", .mandatory=true)
                  );
         if (runall)
