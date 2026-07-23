@@ -27,26 +27,28 @@ typedef struct {
     unsigned short low, high;  
 } lwset;
 
+static const unsigned short     LWSET_MAX_BITS = sizeof(uint64_t) * 8;  // 64 bits
+
 // ------------------------- CONSTRUCTOTS/DESTRUCTORS -------------------------------
 
 /// @brief Initializes a lwset with all bits set to 0 and the range [0, 63]
 static inline lwset             lwset_initunlim(void) {
-    return (lwset) {.value = 0, .low = 0, .high = sizeof(int64_t) * 8 - 1};  // set high to the maximum bit index for int64_t
+    return (lwset) {.value = 0, .low = 0, .high = LWSET_MAX_BITS - 1};  // set high to the maximum bit index for int64_t
 }
 
 /// @brief Initializes a lwset with all bits set to 1 and the range [0, 63]
 static inline lwset             lwset_init1unlim(void) {
-    return (lwset) {.value = UINT64_MAX, .low = 0, .high = sizeof(int64_t) * 8 - 1};  // set high to the maximum bit index for int64_t
+    return (lwset) {.value = UINT64_MAX, .low = 0, .high = LWSET_MAX_BITS - 1};  // set high to the maximum bit index for int64_t
 }
 
-/// @brief  Initializes a lwset with all bits set to 0 and the specified range [low, high]
+/// @brief  initializes a lwset with all bits set to 0 and the specified range [low, high]
 /// @param low the starting index of the range (inclusive)
 /// @param high the ending index of the range (inclusive)
 /// @return the initialized lwset
 static inline lwset             lwset_init0(unsigned short low, unsigned short high) {
     return (lwset) {.value = 0, .low = low, .high = high};
 }
-/// @brief  Initializes a lwset with all bits set to 1 and the specified range [low, high]
+/// @brief  initializes a lwset with all bits set to 1 and the specified range [low, high]
 /// @param low the starting index of the range (inclusive)
 /// @param high the ending index of the range (inclusive)
 /// @return the initialized lwset
@@ -236,6 +238,23 @@ static inline int               lwset_techprint(const lwset * s) {
 /// @return  number of characters printed
 static inline int               lwset_techlog(const lwset * s) {
     return lwset_techfprint(logfile, s);
+}
+/// @brief  Checks if the lwset is valid, ensuring that the range is within bounds and that no bits outside the specified range are set
+/// @param s  pointer to the lwset
+/// @return  true if the lwset is valid, false otherwise
+static inline bool              lwset_isvalid(const lwset * s) {
+    invraisecode(ERR_NULLABLE_PTR, s != NULL, "Pointer is NULL");
+    bool res = s->low <= s->high && s->high < LWSET_MAX_BITS;  // ensure the range is valid and within bounds
+    if (!res)
+        userraise(false,ERR_OUT_OF_RANGE, "Invalid lwset range: low=%u, high=%u", s->low, s->high);
+    for (unsigned short i = 0; i < LWSET_MAX_BITS; ++i) {
+        // check if the bits outside the range are not set
+            if ( ( (s->value >> i) & 1 ) && (i < s->low || i > s->high) ) {
+                userraise(false, ERR_OUT_OF_RANGE, "Invalid lwset: bit %u is set outside the range [%u, %u]", i, s->low, s->high);
+                res = false;        
+            }
+    }
+    return logsimpleret(res, "Validated!");
 }
 
 // --------------------------------- SERIALIZATION ----------------------------------

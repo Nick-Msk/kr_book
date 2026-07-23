@@ -288,6 +288,111 @@ tf_lwset_clone_list(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST lwset_get / lwset_equals / lwset_notequal  -------------------------
+static TestStatus
+tf_lwset_get_equals(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== lwset_get ========== */
+    test_sub("subtest %d: get bit from empty set", ++subnum);
+    {
+        lwset s = lwset_initunlim();
+        test_validate(
+            lwset_get(&s, 0) == false,
+            "Empty set: bit 0 must be false"
+        );
+    }
+
+    test_sub("subtest %d: get set bit", ++subnum);
+    {
+        lwset s = lwset_initunlim();
+        s.value |= (1ULL << 5);
+        test_validate(
+            lwset_get(&s, 5) == true,
+            "Set: bit 5 must be true"
+        );
+        test_validate(
+            lwset_get(&s, 4) == false,
+            "Set: bit 4 must be false (only bit 5 is set)"
+        );
+    }
+
+    test_sub("subtest %d: get bit at boundary high=63", ++subnum);
+    {
+        lwset s = lwset_initunlim();
+        s.value = UINT64_MAX;  // все биты установлены
+        test_validate(
+            lwset_get(&s, 63) == true,
+            "Bit 63 must be true when full set"
+        );
+    }
+
+    test_sub("subtest %d: get with index out of range raises", ++subnum);
+    {
+        lwset s = lwset_init0(0, 10);
+        
+        // 1. Валидный индекс – исключения быть не должно
+        bool valid = lwset_get(&s, 0);
+        test_validate(valid == false, "Bit 0 in empty set must be false");
+        
+        // 2. Невалидный индекс – должно выброситься исключение
+        if (!try()) {
+            lwset_get(&s, 11);   // index 11 > high (10)
+            test_validate(false, "Should have raised SIGINT for index 11");
+        } else {
+            logsimple("Exception correctly raised for index 11");
+        }
+    }
+
+    /* ========== lwset_equals ========== */
+    test_sub("subtest %d: equal empty sets", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        lwset b = lwset_initunlim();
+        test_validate(lwset_equals(&a, &b), "Empty sets must be equal");
+    }
+
+    test_sub("subtest %d: equal non‑empty sets", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        lwset b = lwset_initunlim();
+        a.value = b.value = (1ULL << 3) | (1ULL << 7);
+        test_validate(lwset_equals(&a, &b), "Identical non‑empty sets must be equal");
+    }
+
+    test_sub("subtest %d: equal with different ranges (only value compared)", ++subnum);
+    {
+        lwset a = lwset_init0(0, 10);
+        lwset b = lwset_init0(20, 30);
+        a.value = b.value = 0xAA;
+        // согласно реализации сравнивается только value, поэтому должно быть true
+        test_validate(lwset_equals(&a, &b), "Sets with same value but different ranges must be equal");
+    }
+
+    test_sub("subtest %d: not equal", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        lwset b = lwset_initunlim();
+        a.value = 0xFF;
+        b.value = 0xFE;
+        test_validate(!lwset_equals(&a, &b), "Different values must not be equal");
+    }
+
+    /* ========== lwset_notequal (противоположность) ========== */
+    test_sub("subtest %d: notequal basic", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        lwset b = lwset_initunlim();
+        a.value = 1; b.value = 2;
+        test_validate(lwset_notequal(&a, &b), "Different sets must be notequal");
+        test_validate(!lwset_notequal(&a, &a), "Same set must not be notequal");
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -305,11 +410,13 @@ main(int argc, const char *argv[])
             }
         }
             testenginestd_run(num,
-                testnew(.f2 =  tf_lwset_init,  .num =  1, .name = "Lwset init simple test"                        , 
+                testnew(.f2 =  tf_lwset_init,  .num =  1, .name = "Lwset init simple test", 
                         .desc="", .mandatory=true)
-              , testnew(.f2 =  tf_lwset_clone_list,  .num =  2, .name = "Lwset clone and list test"                        , 
+              , testnew(.f2 =  tf_lwset_clone_list,  .num =  2, .name = "Lwset clone and list test", 
                         .desc="", .mandatory=true)
-                 );
+              , testnew(.f2 =  tf_lwset_get_equals,  .num =  3, .name = "Lwset get/equals/notequal test",
+                        .desc="", .mandatory=true)
+              );
         if (runall)
             break;
     }
