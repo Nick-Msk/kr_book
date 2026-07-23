@@ -150,7 +150,7 @@ static inline bool           lwset_isempty(const lwset *s) {
 /// @param index the index of the bit to set
 /// @param value the value to set the bit to (true or false)
 /// @return pointer to the modified lwset
-static inline lwset          *lwset_set(lwset *s, unsigned short index, bool value) {
+static inline lwset          *lwset_setvalue(lwset *s, unsigned short index, bool value) {
     invraisecode(ERR_NULLABLE_PTR, s != NULL, "input pointer is NULL");
     invraisecode(ERR_OUT_OF_RANGE, index >= s->low && index <= s->high, 
             "index %u is out of bounds for lwset", index);
@@ -171,7 +171,7 @@ static inline lwset           *lwset_setrange(lwset *s, unsigned short low, unsi
     invraisecode(ERR_OUT_OF_RANGE, low >= s->low && high <= s->high && low <= high, 
         "range [%u, %u] is out of bounds for lwset with range [%u, %u]", low, high, s->low, s->high);
     for (unsigned short i = low; i <= high; ++i)
-        lwset_set(s, i, value);
+        lwset_setvalue(s, i, value);
     return s;
 }
 
@@ -242,20 +242,7 @@ static inline int               lwset_techlog(const lwset * s) {
 /// @brief  Checks if the lwset is valid, ensuring that the range is within bounds and that no bits outside the specified range are set
 /// @param s  pointer to the lwset
 /// @return  true if the lwset is valid, false otherwise
-static inline bool              lwset_isvalid(const lwset * s) {
-    invraisecode(ERR_NULLABLE_PTR, s != NULL, "Pointer is NULL");
-    bool res = s->low <= s->high && s->high < LWSET_MAX_BITS;  // ensure the range is valid and within bounds
-    if (!res)
-        userraise(false,ERR_OUT_OF_RANGE, "Invalid lwset range: low=%u, high=%u", s->low, s->high);
-    for (unsigned short i = 0; i < LWSET_MAX_BITS; ++i) {
-        // check if the bits outside the range are not set
-            if ( ( (s->value >> i) & 1 ) && (i < s->low || i > s->high) ) {
-                userraise(false, ERR_OUT_OF_RANGE, "Invalid lwset: bit %u is set outside the range [%u, %u]", i, s->low, s->high);
-                res = false;        
-            }
-    }
-    return logsimpleret(res, "Validated!");
-}
+extern bool              lwset_isvalid(const lwset * s);
 
 // --------------------------------- SERIALIZATION ----------------------------------
 /// @brief Saves the lwset to a specified output stream in a pseudo-json format
