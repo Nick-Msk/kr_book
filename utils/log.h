@@ -317,7 +317,7 @@ log_numbers(LogAction            act,
 
 /// @brief Prints spaces corresponding to the current log offset to the log file
 static inline int
-logprintfoffset(void) {
+logprintoffset(void) {
 	int offset = log_offset();
 	if (offset > 0)
 		return fprintf(logfile, "%*s", offset, "");
@@ -383,7 +383,7 @@ logprintfoffset(void) {
 
 #define logfile								(stdout)		// in case of no logging engine
 #define logoffset							(0)				//
-#define logprintfoffset						(void) (0)
+#define logprintoffset						(void) (0)
 
 #define logoff()							(void) (0)
 #define	logon()								(void) (0)
