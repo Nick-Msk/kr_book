@@ -315,6 +315,15 @@ log_numbers(LogAction            act,
 #define	logfile								(log_file())			// wrapper for log_file()
 #define logoffset							(log_offset())		// wrapper for log_offset()
 
+/// @brief Prints spaces corresponding to the current log offset to the log file
+static inline int
+logprintfoffset(void) {
+	int offset = log_offset();
+	if (offset > 0)
+		return fprintf(logfile, "%*s", offset, "");
+	return 0;
+}
+
 // TODO: перавая версия простая, но подумать, можно ли сделать автовключение лога при возврате на предыдущий/текущей уровень _LG_LV
 #define logoff()                            log_prog_switch(false)
 #define logon()								log_prog_switch(true)
@@ -374,6 +383,7 @@ log_numbers(LogAction            act,
 
 #define logfile								(stdout)		// in case of no logging engine
 #define logoffset							(0)				//
+#define logprintfoffset						(void) (0)
 
 #define logoff()							(void) (0)
 #define	logon()								(void) (0)
