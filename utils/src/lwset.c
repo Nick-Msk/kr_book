@@ -6,62 +6,40 @@
 
 // ------------------------------------ Utilities ------------------------------------------
 
-
 // ------------------------------------- API -----------------------------------------------
 
-/// @brief Checks if s1 is a subset of s2
-/// @param s1 first lwset pointer
-/// @param s2 second lwset pointer
-/// @return true if s1 is a subset of s2, false otherwise
-bool                     lwset_in(const lwset *restrict s1, const lwset *restrict s2) {
-    invraisecode(ERR_NULLABLE_PTR, s1 != NULL && s2 != NULL, 
-        "Pointers is NULL %p %p", (void*) s1, (void*) s2);
-    return (s1->value & s2->value) == s1->value;
+// ------------------------ PRINTERS/CHECKERS ---------------------------------------
+/// @brief Technical Prints the lwset to the specified output stream
+/// @param s pointer to the lwset
+/// @param out output stream (e.g., stdout, stderr, or a file), CAN be NULL
+/// @return number of characters printed    
+int                      lwset_techfprint(FILE *restrict out, const lwset *restrict s) {
+    int cnt = 0;
+    if (out) {
+    invraisecode(ERR_NULLABLE_PTR, s != NULL, 
+        "Pointers is NULL %p %p", (void*) s);
+    
+        cnt +=  fprintf(out, "LWSET {value=");
+        // print each bit in the range [low, high] as 0 or 1
+        uint64_t tmpval = s->value;
+        // logging in logfile with oiffset! For each line, print the offset spaces before the actual content
+        if (out == logfile)
+            logprintoffset();
+        for (unsigned short i = s->low; i <= s->high; tmpval >>= 1) {
+            if (tmpval == 0)
+                cnt += fprintf(out, "|");   // no more bits set, print a separator
+            cnt += fprintf(out, "%c", tmpval & 1 ? '1' : '0');
+        }
+        cnt += fprintf(out, ", low=%u, high=%u }\n", s->low, s->high);
+    }
+    return cnt;
 }
-/// @brief  Computes the union of two lwsets and stores the result in s1  
-/// @param s1   first lwset pointer
-/// @param s2   second lwset pointer
-/// @return  pointer to the modified s1
-lwset                    *lwset_union(lwset *restrict s1, const lwset *restrict s2) {
-    invraisecode(ERR_NULLABLE_PTR, s1 != NULL && s2 != NULL, 
-        "Pointers is NULL %p %p", (void*) s1, (void*) s2);
-    s1->value |= s2->value;
-    return s1;
-}
-/// @brief  Computes the intersection of two lwsets and stores the result in s1
-/// @param s1   first lwset pointer
-/// @param s2   second lwset pointer
-/// @return  pointer to the modified s1
-lwset                    *lwset_intersect(lwset *restrict s1, const lwset *restrict s2) {
-    invraisecode(ERR_NULLABLE_PTR, s1 != NULL && s2 != NULL, 
-        "Pointers is NULL %p %p", (void*) s1, (void*) s2);
-    s1->value &= s2->value;
-    return s1;
-}
-/// @brief  Computes the difference of two lwsets and stores the result in s1
-/// @param s1   first lwset pointer
-/// @param s2   second lwset pointer
-/// @return  pointer to the modified s1
-lwset                    *lwset_minus(lwset *restrict s1, const lwset *restrict s2) {
-    invraisecode(ERR_NULLABLE_PTR, s1 != NULL && s2 != NULL, 
-        "Pointers is NULL %p %p", (void*) s1, (void*) s2);
-    s1->value &= ~s2->value;
-    return s1;
-}
-/// @brief Computes the symmetric difference of two lwsets and stores the result in s1
-/// @param s1  first lwset pointer
-/// @param s2  second lwset pointer
-/// @return  pointer to the modified s1
-lwset                    *lwset_simmdiff(lwset *restrict s1, const lwset *restrict s2) {
-    invraisecode(ERR_NULLABLE_PTR, s1 != NULL && s2 != NULL, 
-        "Pointers is NULL %p %p", (void*) s1, (void*) s2);
-    s1->value ^= s2->value;
-    return s1;
-}
-
-
 
 // --------------------------------------- ITERATORS ---------------------------------------
+
+// --------------------------------- SERIALIZATION -----------------------------------------
+
+// TODO:
 
 // ---------------------------------------- Testing ------------------------------------------
 #ifdef LWSET_TESTING

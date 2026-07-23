@@ -19,6 +19,9 @@
 
 // ---------------------------------- TYPES -----------------------------------------
 
+/// @brief Lightweight set structure using a single 64-bit integer to represent the set of bits
+/// @details The lwset structure uses a single 64-bit integer to represent a set of bits, where each bit corresponds to an element in the set. The low and high fields define the range of valid indices for the set.
+/// @note The lwset structure is designed for efficiency and simplicity, making it suitable for scenarios where a small, fixed-size set is needed. It is not intended for large or dynamic sets.
 typedef struct {
     uint64_t value;  // now only 1 int64_t value is used, but in the future, we can add more fields if needed
     unsigned short low, high;  
@@ -26,19 +29,41 @@ typedef struct {
 
 // ------------------------- CONSTRUCTOTS/DESTRUCTORS -------------------------------
 
+/// @brief Initializes a lwset with all bits set to 0 and the range [0, 63]
 static inline lwset             lwset_initunlim(void) {
     return (lwset) {.value = 0, .low = 0, .high = sizeof(int64_t) * 8 - 1};  // set high to the maximum bit index for int64_t
 }
 
+/// @brief Initializes a lwset with all bits set to 1 and the range [0, 63]
+static inline lwset             lwset_init1unlim(void) {
+    return (lwset) {.value = UINT64_MAX, .low = 0, .high = sizeof(int64_t) * 8 - 1};  // set high to the maximum bit index for int64_t
+}
+
+/// @brief  Initializes a lwset with all bits set to 0 and the specified range [low, high]
+/// @param low the starting index of the range (inclusive)
+/// @param high the ending index of the range (inclusive)
+/// @return the initialized lwset
 static inline lwset             lwset_init0(unsigned short low, unsigned short high) {
     return (lwset) {.value = 0, .low = low, .high = high};
 }
-
+/// @brief  Initializes a lwset with all bits set to 1 and the specified range [low, high]
+/// @param low the starting index of the range (inclusive)
+/// @param high the ending index of the range (inclusive)
+/// @return the initialized lwset
+static inline lwset             lwset_init1(unsigned short low, unsigned short high) {
+    return (lwset) {.value = UINT64_MAX >> (64 - (high - low + 1)), .low = low, .high = high};
+}
+/// @brief  Clones a lwset, creating a new lwset with the same value and range as the original
+/// @param s  pointer to the lwset to clone
+/// @return  the cloned lwset
 static inline lwset             lwset_clone(const lwset *s) {
     invraisecode(ERR_NULLABLE_PTR, s != NULL, "input pointer is NULL");
     return (lwset) {.value = s->value, .low = s->low, .high = s->high};
 }
-
+/// @brief  Create from ushort array of values, and count of values
+/// @param values pointer to the array of unsigned short values
+/// @param count the number of values in the array
+/// @return  the initialized lwset with bits set according to the values in the array
 static inline lwset             lwset_list(const unsigned short *values, size_t count) {
     lwset s = lwset_initunlim();
     unsigned short max = 0;
@@ -53,47 +78,76 @@ static inline lwset             lwset_list(const unsigned short *values, size_t 
     return s;
 }
 
-// simplifier constructor for lwset_list
+// simplifier macro-constructor for lwset_list
 #define LWSET_LIST(...) lwset_list((unsigned short[]){__VA_ARGS__}, \
     COUNT(unsigned short[]){__VA_ARGS__})
 
 
 // -------------------- ACCESS AND MODIFICATORS -------------------------------------
-
+/// @brief  Gets the value of a specific bit in the lwset
+/// @param s pointer to the lwset
+/// @param index the index of the bit to get
+/// @return the value of the bit at the specified index (true or false)
 static inline bool           lwset_get(const lwset *s, unsigned short index) {
     invraisecode(ERR_NULLABLE_PTR, s != NULL, "input pointer is NULL");
     invraisecode(ERR_OUT_OF_RANGE, index >= s->low && index <= s->high, "index %u is out of bounds for lwset", index);
     return (s->value >> index) & 1;
 }
-
+/// @brief  Checks if two lwsets are equal, comparing their values and ranges
+/// @param s1 pointer to the first lwset
+/// @param s2  pointer to the second lwset
+/// @return  true if the lwsets are equal, false otherwise
 static inline bool           lwset_equals(const lwset *restrict s1, const lwset *restrict s2) {
     invraisecode(ERR_NULLABLE_PTR, s1 != NULL && s2 != NULL, 
         "Pointers is NULL %p %p", (void*) s1, (void*) s2);
     // compare even if the ranges are NOT  the same
     return s1->value == s2->value; // && s1->low == s2->low && s1->high == s2->high;
 }
+/// @brief  Checks if two lwsets are not equal, comparing their values and ranges
+/// @param s1  pointer to the first lwset
+/// @param s2  pointer to the second lwset
+/// @return  true if the lwsets are not equal, false otherwise
 static inline bool           lwset_notequal(const lwset *restrict s1, const lwset *restrict s2) {
     invraisecode(ERR_NULLABLE_PTR, s1 != NULL && s2 != NULL, 
         "Pointers is NULL %p %p", (void*) s1, (void*) s2);
     return (s1->value != s2->value);  // without checking low/high, because we want to compare the actual values
 }
-extern bool                  lwset_in(const lwset *restrict s1, const lwset *restrict s2);
-
+/// @brief  Checks if lwset s1 is a subset of lwset s2, comparing their values
+/// @param s1  pointer to the first lwset
+/// @param s2  pointer to the second lwset
+/// @return  true if s1 is a subset of s2, false otherwise
+static inline bool            lwset_in(const lwset *restrict s1, const lwset *restrict s2) {
+    invraisecode(ERR_NULLABLE_PTR, s1 != NULL && s2 != NULL, 
+        "Pointers is NULL %p %p", (void*) s1, (void*) s2);
+    return (s1->value & s2->value) == s1->value;
+}
+/// @brief  Checks if lwset s1 is a strict subset of lwset s2, comparing their values
+/// @param s1  pointer to the first lwset
+/// @param s2  pointer to the second lwset
+/// @return  true if s1 is a strict subset of s2, false otherwise
 static inline bool           lwset_strictin(const lwset *restrict s1, const lwset *restrict s2) {
     return lwset_in(s1, s2) && !lwset_equals(s1, s2);
 }
-
+/// @brief  Checks if lwset s1 is not empty
+/// @param s  pointer to the lwset
+/// @return  true if s1 is not empty, false otherwise
 static inline bool           lwset_notempty(const lwset *s) {
     invraisecode(ERR_NULLABLE_PTR, s != NULL, "Pointer is NULL");
     return s->value != 0;
 }
-
+/// @brief  Checks if lwset s1 is empty
+/// @param s  pointer to the lwset
+/// @return  true if s1 is empty, false otherwise
 static inline bool           lwset_isempty(const lwset *s) {
     invraisecode(ERR_NULLABLE_PTR, s != NULL, "Pointer is NULL");
     return s->value == 0;
 }
-
-// Modification functions
+// --------------------- Modification functions -------------------------------
+/// @brief Sets a specific bit in the lwset to a specified value (true or false)
+/// @param s pointer to the lwset
+/// @param index the index of the bit to set
+/// @param value the value to set the bit to (true or false)
+/// @return pointer to the modified lwset
 static inline lwset          *lwset_set(lwset *s, unsigned short index, bool value) {
     invraisecode(ERR_NULLABLE_PTR, s != NULL, "input pointer is NULL");
     invraisecode(ERR_OUT_OF_RANGE, index >= s->low && index <= s->high, 
@@ -104,8 +158,13 @@ static inline lwset          *lwset_set(lwset *s, unsigned short index, bool val
         s->value &= ~(1UL << index);
     return s;
 }
-// 
-static  inline lwset           *lwset_setrange(lwset *s, unsigned short low, unsigned short high, bool value) {
+/// @brief Sets a range of bits in the lwset to a specified value (true or false)
+/// @param s pointer to the lwset 
+/// @param low the starting index of the range (inclusive)
+/// @param high the ending index of the range (inclusive)
+/// @param value the value to set the bits to (true or false)
+/// @return pointer to the modified lwset
+static inline lwset           *lwset_setrange(lwset *s, unsigned short low, unsigned short high, bool value) {
     invraisecode(ERR_NULLABLE_PTR, s != NULL, "Pointer is NULL");
     invraisecode(ERR_OUT_OF_RANGE, low >= s->low && high <= s->high && low <= high, 
         "range [%u, %u] is out of bounds for lwset with range [%u, %u]", low, high, s->low, s->high);
@@ -114,28 +173,96 @@ static  inline lwset           *lwset_setrange(lwset *s, unsigned short low, uns
     return s;
 }
 
-extern lwset                    *lwset_union(lwset *restrict s1, const lwset *restrict s2);
-extern lwset                    *lwset_intersect(lwset *restrict s1, const lwset *restrict s2);
-extern lwset                    *lwset_minus(lwset *restrict s1, const lwset *restrict s2);
-extern lwset                    *lwset_simmdiff(lwset *restrict s1, const lwset *restrict s2);
-
-// extern lwset                    *lwset_include(lwset *restrict s1, const lwset *restrict s2);
-// extern lwset                    *lwset_exclude(lwset *restrict s1, const lwset *restrict s2);
-
+/// @brief  Computes the union of two lwsets and stores the result in s1  
+/// @param s1   first lwset pointer
+/// @param s2   second lwset pointer
+/// @return  pointer to the modified s1
+static inline lwset                    *lwset_union(lwset *restrict s1, const lwset *restrict s2) {
+    invraisecode(ERR_NULLABLE_PTR, s1 != NULL && s2 != NULL, 
+        "Pointers is NULL %p %p", (void*) s1, (void*) s2);
+    s1->value |= s2->value;
+    return s1;
+}
+/// @brief  Computes the intersection of two lwsets and stores the result in s1
+/// @param s1   first lwset pointer
+/// @param s2   second lwset pointer
+/// @return  pointer to the modified s1
+static inline lwset                    *lwset_intersect(lwset *restrict s1, const lwset *restrict s2) {
+    invraisecode(ERR_NULLABLE_PTR, s1 != NULL && s2 != NULL, 
+        "Pointers is NULL %p %p", (void*) s1, (void*) s2);
+    s1->value &= s2->value;
+    return s1;
+}
+/// @brief  Computes the difference of two lwsets and stores the result in s1
+/// @param s1   first lwset pointer
+/// @param s2   second lwset pointer
+/// @return  pointer to the modified s1
+static inline lwset                    *lwset_minus(lwset *restrict s1, const lwset *restrict s2) {
+    invraisecode(ERR_NULLABLE_PTR, s1 != NULL && s2 != NULL, 
+        "Pointers is NULL %p %p", (void*) s1, (void*) s2);
+    s1->value &= ~s2->value;
+    return s1;
+}
+/// @brief Computes the symmetric difference of two lwsets and stores the result in s1
+/// @param s1  first lwset pointer
+/// @param s2  second lwset pointer
+/// @return  pointer to the modified s1
+lwset                    *lwset_simmdiff(lwset *restrict s1, const lwset *restrict s2) {
+    invraisecode(ERR_NULLABLE_PTR, s1 != NULL && s2 != NULL, 
+        "Pointers is NULL %p %p", (void*) s1, (void*) s2);
+    s1->value ^= s2->value;
+    return s1;
+}
 
 // ----------------------------- CONVERTERS ----------------------------------------
 
-// TODO:
+// TODO: probably that in converter.h
 // hset *lwset_to_hset(const lwset *s); create  a new VALUE64_INT hset
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
-
-extern int                      lwset_fprint(const lwset *restrict s, FILE *restrict out);
-static inline int               lwset_print(const lwset * s) {
-    return lwset_fprint(s, stdout);
+/// @brief Prints the lwset to the specified output stream
+/// @param out output stream (e.g., stdout, stderr, or a file), CAN be NULL
+/// @param s pointer to the lwset
+/// @return number of characters printed
+extern int                      lwset_techfprint(FILE *restrict out, const lwset *restrict s);
+/// @brief  Prints the lwset to the standard output
+/// @param s pointer to the lwset
+/// @return number of characters printed
+static inline int               lwset_techprint(const lwset * s) {
+    return lwset_techfprint(stdout, s);
+}
+/// @brief Prints the lwset to the logfile with offset spaces before the actual content  
+/// @param s pointer to the lwset
+/// @return  number of characters printed
+static inline int               lwset_techlog(const lwset * s) {
+    return lwset_techfprint(logfile, s);
 }
 
 // --------------------------------- SERIALIZATION ----------------------------------
+/// @brief Saves the lwset to a specified output stream in a pseudo-json format
+/// @param out output stream (e.g., stdout, stderr, or a file), CAN be NULL
+/// @param s pointer to the lwset
+/// @return number of characters printed
+extern int                      lwset_fsave(FILE *restrict out, const  lwset *restrict s);
+/// @brief  Saves the lwset to the standard output in a pseudo-json format
+/// @param s pointer to the lwset 
+/// @return number of characters printed
+static inline int               lwset_save(const lwset * s) {
+    return lwset_fsave(stdout, s);
+}
+/// @brief Loads the lwset from a specified input stream in a pseudo-json format
+/// @param in input stream (e.g., stdin, a file)
+/// @param s pointer to the lwset
+/// @return number of characters read
+extern int                      lwset_fload(FILE *restrict in, lwset *restrict s);
+/// @brief  Loads the lwset from the standard input in a pseudo-json format
+/// @param s  pointer to the lwset
+/// @return  number of characters read
+static inline int               lwset_load(lwset * s) {
+    return lwset_fload(stdin, s);
+}
+
+// fs serialization, 
 
 // ------------------------------------ ETC. ----------------------------------------
 
