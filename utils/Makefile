@@ -88,7 +88,7 @@ test/checker_test: src/checker.c lib/log.o lib/test.o lib/error.o | lib/checker.
 test/error_test: src/error.c lib/log.o lib/common.o lib/test.o | lib/error.o
 	$(CC) $(CFLAGS) -DERRORTESTING $^ -o $@ $(LDLIBS)
 
-test/log_test: src/log.c test.o error.o | lib/log.o
+test/log_test: src/log.c lib/test.o lib/error.o | lib/log.o
 	$(CC) $(CFLAGS) -DLOGTESTING $^ -o $@ $(LDLIBS)
 
 test/common_test: src/common.c lib/test.o lib/error.o lib/log.o | lib/common.o

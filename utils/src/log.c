@@ -462,11 +462,11 @@ print_modules(void)
 // ------------------------- TEST 1 -------------------------
 // Loginit/close test
 static TestStatus
-f1(void)
+f1(const char *name)
 {
 	const  char *test_name="test1.log";
 
-	printf("%s: Loginit/close test\n", __func__);
+	printf("%s - %s: Loginit/close test\n", name, __func__);
 
 	if (!log_init(test_name, false, LOG_FORMAT_ALL)){
 		printf("\t\tUnable to init logging\n");
@@ -482,11 +482,11 @@ f1(void)
 // ------------------------ TEST 2 ----------------------------
 // Log_msg test
 static TestStatus
-f2(void)
+f2(const char *name)
 {
 	const  char *test_name="test2.log";
 
-	printf("%s: Log_msg test\n", __func__);
+	printf("%s - %s: Log_msg test\n", name, __func__);
 
 	if (!log_init(test_name, false, LOG_FORMAT_ALL)){
         printf("\t\tUnable to init logging\n");
@@ -509,11 +509,11 @@ f2(void)
 // ------------------------ TEST 3 ----------------------------
 // test several level of logging
 static TestStatus
-f3(void)
+f3(const char *name)
 {
 	const  char *test_name="test3.log";
 
-	printf("%s: test several level of logging\n", __func__);
+	printf("%s - %s: test several level of logging\n", name, __func__);
 
     if (!log_init(test_name, false, LOG_FORMAT_ALL)){
         printf("\t\tUnable to init logging\n");
@@ -543,12 +543,12 @@ f3(void)
 // ------------------------ TEST 4 ----------------------------
 // Common macro test
 static TestStatus
-f4(void)
+f4(const char *name)
 {
 	const  char *test_name="test4.log";
 	int c=0;
 
-	printf("%s: Common macro test\n", __func__);
+	printf("%s - %s: Common macro test\n", name, __func__);
 
 	loginit(test_name, false, 0, "start test macro... %c", '-');
 	logmsg("test message [%f]", 1.2345);
@@ -578,12 +578,12 @@ f5_lv1(void)
 }
 
 static TestStatus
-f5(void)
+f5(const char *name)
 {
 	const  char *test_name="test5.log";
 	int c=5;
 
-	printf("%s: Enclosure macro test\n", __func__);
+	printf("%s - %s: Enclosure macro test\n", name, __func__);
 
 	loginit(test_name, false, 0, "start test enclosure macro...");
 	logmsg("test1");
@@ -617,12 +617,12 @@ f6_lv1(void)
 }
 
 static TestStatus
-f6(void)
+f6(const char *name)
 {
 	const  char *test_name="test6.log";
 	int c=9;
 
-	printf("%s: Interrupted macro test\n", __func__);
+	printf("%s - %s: Interrupted macro test\n", name, __func__);
 
 	loginit(test_name, false, 0, "start test interruption macro...");
 	logmsg("...");
@@ -636,10 +636,10 @@ f6(void)
 // ------------------------ TEST 7 ----------------------------
 // Module init testing
 static TestStatus
-f7(void)
+f7(const char *name)
 {
 
-	printf("%s: Module init testing\n", __func__);
+	printf("%s - %s: Module init testing\n", name, __func__);
 
 	if (!log_modinit( (LogModlevel []) {
 			{ .module = "TST", .level = LOGALL }
@@ -681,9 +681,9 @@ f7(void)
 // ------------------------ TEST 8 ----------------------------
 // Level of loging testing
 static TestStatus
-f8(void)
+f8(const char *name)
 {
-	printf("%s: Level of loging testing\n", __func__);
+	printf("%s - %s: Level of loging testing\n", name, __func__);
 
 #undef 	 	MODNAME
 #define  	MODNAME  "TEST8"
@@ -713,12 +713,12 @@ f8(void)
 // ------------------------ TEST 9 ----------------------------
 // Default module logging test
 static TestStatus
-f9(void)
+f9(const char *name)
 {
 #undef  MODNAME
 #define MODNAME		DEFAULT_MOD
 
-	printf("%s: Default module logging test\n", __func__);
+	printf("%s - %s: Default module logging test\n", name, __func__);
 
 	loginit("log9.log", false, 0, "Init %s...", __func__);
 	logmsg("Bla bla bla default %c", '-');
@@ -732,9 +732,9 @@ f9(void)
 // ------------------------ TEST 10 ----------------------------
 // Typed log test
 static TestStatus
-f10(void)
+f10(const char *name)
 {
-	printf("%s: Typed log test\n", __func__);
+	printf("%s - %s: Typed log test\n", name, __func__);
 
 	loginit("log10.log", false, 0, "typed log test...");
 
@@ -752,9 +752,9 @@ f10(void)
 // ------------------------ TEST 11 ----------------------------
 // Program switch off/on test
 static TestStatus
-f11(void)
+f11(const char *name)
 {
-	printf("%s: Program switch off/on test\n", __func__);
+	printf("%s - %s: Program switch off/on test\n", name, __func__);
 
 	loginit("log11.log", false, 0, "Program switch off/on test...");
 
@@ -843,9 +843,9 @@ f12_local_launcher(const char *msg, ...)
 // ------------------------ TEST 12 ----------------------------
 // *_ap group test
 static TestStatus
-f12(void)
+f12(const char *name)
 {
-	printf("%s: *_ap group test\n", __func__);
+	printf("%s - %s: *_ap group test\n", name, __func__);
 
 	loginit("log12.log", false, 0, " *_ap group test");
 	log_format(LOG_FORMAT_ALL);
@@ -860,9 +860,9 @@ f12(void)
 // ------------------------ TEST 13 ----------------------------
 // Logger format test
 static TestStatus
-f13(void)
+f13(const char * name)
 {
-	printf("%s: Logger format test\n", __func__);
+	printf("%s - %s: Logger format test\n", name, __func__);
 
 	loginits("log13.log", false, LOG_FORMAT_SIMPLE, 0, "simple format test");
 
