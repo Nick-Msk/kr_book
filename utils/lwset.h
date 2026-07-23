@@ -160,6 +160,20 @@ static inline lwset          *lwset_setvalue(lwset *s, unsigned short index, boo
         s->value &= ~(1UL << index);
     return s;
 }
+/// @brief Sets a specific bit in the lwset to true (1)
+/// @param s pointer to the lwset 
+/// @param index  the index of the bit to set
+/// @return  pointer to the modified lwset
+static inline lwset          *lwset_set(lwset *s, unsigned short index) {
+    return lwset_setvalue(s, index, true);
+}
+/// @brief Sets a specific bit in the lwset to false (0)
+/// @param s pointer to the lwset 
+/// @param index  the index of the bit to set
+/// @return  pointer to the modified lwset
+static inline lwset          *lwset_unset(lwset *s, unsigned short index) {
+    return lwset_setvalue(s, index, false);
+}
 /// @brief Sets a range of bits in the lwset to a specified value (true or false)
 /// @param s pointer to the lwset 
 /// @param low the starting index of the range (inclusive)
