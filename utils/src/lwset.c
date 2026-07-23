@@ -69,12 +69,12 @@ main(int argc, const char *argv[])
         if (!runall){
             num = atoi(*argv);
             if (num < 0){
-                fprintf(stderr,"Invalid test num %d\n", num);
+                fprintf(stderr, "Invalid test num %d\n", num);
                 continue;
             }
         }
             testenginestd_run(num,
-                testnew(.f2 =  tf8,  .num =  1 .name = "Lwset simple test"                        , 
+                testnew(.f2 =  tf8,  .num =  1, .name = "Lwset simple test"                        , 
                         .desc="", .mandatory=true)
 
                  );

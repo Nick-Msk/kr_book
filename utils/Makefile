@@ -129,7 +129,7 @@ test/seq_test: src/seq.c lib/log.o lib/test.o lib/error.o lib/checker.o | lib/se
 	$(CC) $(CFLAGS) -DSEQTESTING $^ -o $@ $(LDLIBS)
 
 test/lwset_test: src/lwset.c lib/log.o lib/test.o lib/error.o lib/checker.o | lib/lwset.o
-	$(CC) $(CFLAGS) -DLWSETTESTING $^ -o $@ $(LDLIBS)
+	$(CC) $(CFLAGS) -DLWSET_TESTING $^ -o $@ $(LDLIBS)
 
 test/numeric_ops_test: src/numeric_ops.c lib/log.o lib/test.o lib/error.o | lib/numeric_ops.o
 	$(CC) $(CFLAGS) -DNUMERIC_OPS_TESTING $^ -o $@ $(LDLIBS)
