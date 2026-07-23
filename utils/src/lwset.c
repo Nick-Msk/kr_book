@@ -9,15 +9,12 @@
 // ------------------------------------- API -----------------------------------------------
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
-/// @brief Technical Prints the lwset to the specified output stream
-/// @param s pointer to the lwset
-/// @param out output stream (e.g., stdout, stderr, or a file), CAN be NULL
-/// @return number of characters printed    
+
 int                      lwset_techfprint(FILE *restrict out, const lwset *restrict s) {
     int cnt = 0;
     if (out) {
     invraisecode(ERR_NULLABLE_PTR, s != NULL, 
-        "Pointers is NULL %p %p", (void*) s);
+        "Pointers is NULL %p", (void*) s);
     
         cnt +=  fprintf(out, "LWSET {value=");
         // print each bit in the range [low, high] as 0 or 1
@@ -52,7 +49,7 @@ tf8(const char *name)
 {
     logenter("%s", name);
     int subnum = 0;
-    test_sub("subtest %d: FS vs INT type mismatch raise SIGINT", ++subnum);
+    test_sub("subtest %d: ", ++subnum);
     {
     }
 
