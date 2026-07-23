@@ -52,8 +52,10 @@ static inline lwset             lwset_init0(unsigned short low, unsigned short h
 /// @param low the starting index of the range (inclusive)
 /// @param high the ending index of the range (inclusive)
 /// @return the initialized lwset
-static inline lwset             lwset_init1(unsigned short low, unsigned short high) {
-    return (lwset) {.value = UINT64_MAX >> (64 - (high - low + 1)), .low = low, .high = high};
+static inline lwset lwset_init1(unsigned short low, unsigned short high) {
+    unsigned short width = high - low + 1;
+    uint64_t mask = (width >= 64) ? UINT64_MAX : ((1ULL << width) - 1);
+    return (lwset) { .value = mask << low, .low = low, .high = high };
 }
 /// @brief  Clones a lwset, creating a new lwset with the same value and range as the original
 /// @param s  pointer to the lwset to clone

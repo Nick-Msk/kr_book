@@ -33,16 +33,18 @@ int                      lwset_techfprint(FILE *restrict out, const lwset *restr
 }
 
 bool                    lwset_isvalid(const lwset * s) {
-    invraisecode(ERR_NULLABLE_PTR, s != NULL, "Pointer is NULL");
-    bool res = s->low <= s->high && s->high < LWSET_MAX_BITS;  // ensure the range is valid and within bounds
+    bool res = s != NULL;
     if (!res)
-        userraise(false,ERR_OUT_OF_RANGE, "Invalid lwset range: low=%u, high=%u", s->low, s->high);
+        return userraise(false, ERR_NULLABLE_PTR, "Pointer is NULL");
+    invraisecode(ERR_NULLABLE_PTR, s != NULL, "Pointer is NULL");
+    res = s->low <= s->high && s->high < LWSET_MAX_BITS;  // ensure the range is valid and within bounds
+    if (!res)
+        return userraise(false, ERR_OUT_OF_RANGE, "Invalid lwset range: low=%u, high=%u", s->low, s->high);
     for (unsigned short i = 0; i < LWSET_MAX_BITS; ++i) {
         // check if the bits outside the range are not set
-            if ( ( (s->value >> i) & 1 ) && (i < s->low || i > s->high) ) {
-                userraise(false, ERR_OUT_OF_RANGE, "Invalid lwset: bit %u is set outside the range [%u, %u]", i, s->low, s->high);
-                res = false;        
-            }
+        if ( ( (s->value >> i) & 1 ) && (i < s->low || i > s->high) ) {
+            return userraise(false, ERR_OUT_OF_RANGE, "Invalid lwset: bit %u is set outside the range [%u, %u]", i, s->low, s->high);
+        }
     }
     return logsimpleret(res, "Validated!");
 }
@@ -74,6 +76,10 @@ tf_lwset_init(const char *name)
             "initunlim: value=0x%016llx, low=%u, high=%u (expected 0, 0, 63)",
             (unsigned long long)s.value, s.low, s.high
         );
+        test_validate(
+            lwset_isvalid(&s), 
+            "Set must be valid after initialization"
+        );
     }
 
     test_sub("subtest %d: lwset_init1unlim creates full set [0,63]", ++subnum);
@@ -82,6 +88,10 @@ tf_lwset_init(const char *name)
         test_validate(
             s.value == UINT64_MAX && s.low == 0 && s.high == 63,
             "init1unlim: value=0x%016llx (expected all ones)", (unsigned long long)s.value
+        );
+        test_validate(
+            lwset_isvalid(&s),
+            "Set must be valid after initialization"
         );
     }
 
@@ -92,12 +102,16 @@ tf_lwset_init(const char *name)
             s.value == 0 && s.low == 10 && s.high == 20,
             "init0 range: value=0x%llx, low=%u, high=%u", (unsigned long long)s.value, s.low, s.high
         );
+        test_validate(
+            lwset_isvalid(&s),
+            "Set must be valid after initialization"
+        );
     }
 
     test_sub("subtest %d: lwset_init1 with range [5,10]", ++subnum);
     {
         lwset s = lwset_init1(5, 10);
-        uint64_t expected = (1ULL << (10 - 5 + 1)) - 1;  // 6 бит = 0x3F
+        uint64_t expected = ((1ULL << (10 - 5 + 1)) - 1) << 5;  // 0x3F << 5 = 0x7E0
         test_validate(
             s.value == expected && s.low == 5 && s.high == 10,
             "init1 range: value=0x%llx (expected 0x%llx), low=%u, high=%u",
@@ -117,6 +131,10 @@ tf_lwset_init(const char *name)
         test_validate(
             lwset_in(&empty, &empty),
             "Empty set must be subset of itself"
+        );
+        test_validate(
+            lwset_isvalid(&empty),
+            "Empty set must be valid"
         );
     }
 
@@ -215,6 +233,10 @@ tf_lwset_clone_list(const char *name)
             copy.value == 0,
             "Clone must be independent: orig changed, copy still 0"
         );
+        test_validate(
+            lwset_isvalid(&copy),
+            "Cloned set must be valid"
+        );
     }
 
     test_sub("subtest %d: clone non‑empty set", ++subnum);
@@ -230,6 +252,10 @@ tf_lwset_clone_list(const char *name)
             "Clone non‑empty: value=0x%llx low=%u high=%u (expected same as orig)",
             (unsigned long long)copy.value, copy.low, copy.high
         );
+        test_validate(
+            lwset_isvalid(&copy),
+            "Cloned set must be valid"
+        );
     }
 
     /* ========== lwset_list ========== */
@@ -241,6 +267,10 @@ tf_lwset_clone_list(const char *name)
             s.value == 0 && s.low == 0 && s.high == 0,   // high остаётся 0? в коде high изначально 63, но затем max=0 -> s.high = 0
             "List empty: value=0x%llx low=%u high=%u (expected 0,0,0)",
             (unsigned long long)s.value, s.low, s.high
+        );
+        test_validate(
+            lwset_isvalid(&s),
+            "Set must be valid after list initialization"
         );
     }
 
@@ -262,6 +292,10 @@ tf_lwset_clone_list(const char *name)
             s.value == ((1ULL << 2) | (1ULL << 7) | (1ULL << 15) | (1ULL << 63)),
             "List value must exactly match expected bits"
         );
+        test_validate(
+            lwset_isvalid(&s),
+            "Set must be valid after list initialization"
+        );
     }
 
     test_sub("subtest %d: list with duplicates", ++subnum);
@@ -271,6 +305,10 @@ tf_lwset_clone_list(const char *name)
         test_validate(
             s.value == (1ULL << 5) && s.high == 5,
             "Duplicates: only bit 5 must be set"
+        );
+        test_validate(
+            lwset_isvalid(&s),
+            "Set must be valid after list duplicate initialization"
         );
     }
 
@@ -283,6 +321,10 @@ tf_lwset_clone_list(const char *name)
             (s.value & (1ULL << 20)) != 0 &&
             s.high == 20,
             "LWSET_LIST(0,10,20): bits 0,10,20 must be set"
+        );
+        test_validate(
+            lwset_isvalid(&s),
+            "Set must be valid after LWSET_LIST initialization"
         );
     }
 
@@ -420,7 +462,10 @@ tf_lwset_in_strictin_empty(const char *name)
     {
         lwset a = lwset_initunlim();
         lwset b = lwset_initunlim();
-        test_validate(lwset_in(&a, &b), "Empty set must be subset of empty set");
+        test_validate(
+            lwset_in(&a, &b), 
+            "Empty set must be subset of empty set"
+        );
     }
 
     test_sub("subtest %d: empty in non‑empty → true", ++subnum);
@@ -428,7 +473,9 @@ tf_lwset_in_strictin_empty(const char *name)
         lwset a = lwset_initunlim();
         lwset b = lwset_initunlim();
         b.value = 0xFF;
-        test_validate(lwset_in(&a, &b), "Empty set must be subset of any set");
+        test_validate(
+            lwset_in(&a, &b), 
+            "Empty set must be subset of any set");
     }
 
     test_sub("subtest %d: non‑empty in empty → false", ++subnum);
@@ -436,7 +483,10 @@ tf_lwset_in_strictin_empty(const char *name)
         lwset a = lwset_initunlim();
         lwset b = lwset_initunlim();
         a.value = 0xFF;
-        test_validate(!lwset_in(&a, &b), "Non‑empty set must not be subset of empty set");
+        test_validate(
+            !lwset_in(&a, &b), 
+            "Non‑empty set must not be subset of empty set"
+        );
     }
 
     test_sub("subtest %d: proper subset → true", ++subnum);
@@ -445,7 +495,10 @@ tf_lwset_in_strictin_empty(const char *name)
         lwset b = lwset_initunlim();
         a.value = (1ULL << 2);
         b.value = (1ULL << 2) | (1ULL << 5);
-        test_validate(lwset_in(&a, &b), "Proper subset must be detected");
+        test_validate(
+            lwset_in(&a, &b), 
+            "Proper subset must be detected"
+        );
     }
 
     test_sub("subtest %d: equal sets → true", ++subnum);
@@ -453,7 +506,10 @@ tf_lwset_in_strictin_empty(const char *name)
         lwset a = lwset_initunlim();
         lwset b = lwset_initunlim();
         a.value = b.value = 0xABCD;
-        test_validate(lwset_in(&a, &b), "Equal sets are subsets of each other");
+        test_validate(
+            lwset_in(&a, &b), 
+            "Equal sets are subsets of each other"
+        );
     }
 
     test_sub("subtest %d: non‑overlapping bits → false", ++subnum);
@@ -462,7 +518,10 @@ tf_lwset_in_strictin_empty(const char *name)
         lwset b = lwset_initunlim();
         a.value = (1ULL << 3);
         b.value = (1ULL << 7);
-        test_validate(!lwset_in(&a, &b), "Disjoint sets must not be subsets");
+        test_validate(
+            !lwset_in(&a, &b), 
+            "Disjoint sets must not be subsets"
+        );
     }
 
     /* ========== lwset_strictin ========== */
@@ -470,7 +529,10 @@ tf_lwset_in_strictin_empty(const char *name)
     {
         lwset a = lwset_initunlim();
         lwset b = lwset_initunlim();
-        test_validate(!lwset_strictin(&a, &b), "Empty must not be strict subset of itself");
+        test_validate(
+            !lwset_strictin(&a, &b), 
+            "Empty must not be strict subset of itself"
+        );
     }
 
     test_sub("subtest %d: empty strictin non‑empty → true", ++subnum);
@@ -478,7 +540,10 @@ tf_lwset_in_strictin_empty(const char *name)
         lwset a = lwset_initunlim();
         lwset b = lwset_initunlim();
         b.value = 0xFF;
-        test_validate(lwset_strictin(&a, &b), "Empty must be strict subset of non‑empty");
+        test_validate(
+            lwset_strictin(&a, &b), 
+            "Empty must be strict subset of non‑empty"
+        );
     }
 
     test_sub("subtest %d: non‑empty strictin empty → false", ++subnum);
@@ -486,7 +551,10 @@ tf_lwset_in_strictin_empty(const char *name)
         lwset a = lwset_initunlim();
         lwset b = lwset_initunlim();
         a.value = 0xFF;
-        test_validate(!lwset_strictin(&a, &b), "Non‑empty must not be strict subset of empty");
+        test_validate(
+            !lwset_strictin(&a, &b), 
+            "Non‑empty must not be strict subset of empty"
+        );
     }
 
     test_sub("subtest %d: proper subset strictin → true", ++subnum);
@@ -495,7 +563,10 @@ tf_lwset_in_strictin_empty(const char *name)
         lwset b = lwset_initunlim();
         a.value = (1ULL << 2);
         b.value = (1ULL << 2) | (1ULL << 5);
-        test_validate(lwset_strictin(&a, &b), "Proper subset must be strict");
+        test_validate(
+            lwset_strictin(&a, &b), 
+            "Proper subset must be strict"
+        );
     }
 
     test_sub("subtest %d: equal sets strictin → false", ++subnum);
@@ -503,23 +574,38 @@ tf_lwset_in_strictin_empty(const char *name)
         lwset a = lwset_initunlim();
         lwset b = lwset_initunlim();
         a.value = b.value = 0xABCD;
-        test_validate(!lwset_strictin(&a, &b), "Equal sets must not be strict subsets");
+        test_validate(
+            !lwset_strictin(&a, &b), 
+            "Equal sets must not be strict subsets"
+        );
     }
 
     /* ========== lwset_notempty / lwset_isempty ========== */
     test_sub("subtest %d: empty set is empty", ++subnum);
     {
         lwset s = lwset_initunlim();
-        test_validate(lwset_isempty(&s), "Empty set must be empty");
-        test_validate(!lwset_notempty(&s), "Empty set must not be non‑empty");
+        test_validate(
+            lwset_isempty(&s), 
+            "Empty set must be empty"
+        );
+        test_validate(
+            !lwset_notempty(&s), 
+            "Empty set must not be non‑empty"
+        );
     }
 
     test_sub("subtest %d: non‑empty set is not empty", ++subnum);
     {
         lwset s = lwset_initunlim();
         s.value = 0x1;
-        test_validate(!lwset_isempty(&s), "Non‑empty must not be empty");
-        test_validate(lwset_notempty(&s), "Non‑empty must be non‑empty");
+        test_validate(
+            !lwset_isempty(&s), 
+            "Non‑empty must not be empty"
+        );
+        test_validate(
+            lwset_notempty(&s), 
+            "Non‑empty must be non‑empty"
+        );
     }
 
     /* ========== NULL checks ========== */
@@ -591,7 +677,10 @@ tf_lwset_isvalid(const char *name)
     test_sub("subtest %d: valid empty set [0,63]", ++subnum);
     {
         lwset s = lwset_initunlim();
-        test_validate(lwset_isvalid(&s), "Empty set [0,63] must be valid");
+        test_validate(
+            lwset_isvalid(&s), 
+            "Empty set [0,63] must be valid"
+        );
     }
 
     /* 2. Valid set with bits inside range */
@@ -599,7 +688,10 @@ tf_lwset_isvalid(const char *name)
     {
         lwset s = lwset_init0(5, 20);
         s.value = (1ULL << 10) | (1ULL << 15);
-        test_validate(lwset_isvalid(&s), "Bits inside [5,20] must be valid");
+        test_validate(
+            lwset_isvalid(&s), 
+            "Bits inside [5,20] must be valid"
+        );
     }
 
     /* 3. Valid set with bits at the boundaries */
@@ -607,7 +699,10 @@ tf_lwset_isvalid(const char *name)
     {
         lwset s = lwset_init0(10, 30);
         s.value = (1ULL << 10) | (1ULL << 30);
-        test_validate(lwset_isvalid(&s), "Bits at low=10 and high=30 must be valid");
+        test_validate(
+            lwset_isvalid(&s), 
+            "Bits at low=10 and high=30 must be valid"
+        );
     }
 
     /* 4. low > high → invalid */
@@ -616,7 +711,10 @@ tf_lwset_isvalid(const char *name)
         lwset s = { .value = 0, .low = 20, .high = 10 };
         if (!try()) {
             bool valid = lwset_isvalid(&s);
-            test_validate(!valid, "Set with low>high must return false");
+            test_validate(
+                !valid, 
+                "Set with low>high must return false"
+            );
         } else {
             logsimple("lwset_isvalid raised exception for low>high (expected)");
         }
@@ -628,7 +726,10 @@ tf_lwset_isvalid(const char *name)
         lwset s = { .value = 0, .low = 0, .high = 64 }; // assuming LWSET_MAX_BITS=64
         if (!try()) {
             bool valid = lwset_isvalid(&s);
-            test_validate(!valid, "Set with high>=64 must return false");
+            test_validate(
+                !valid, 
+                "Set with high>=64 must return false"
+            );
         } else {
             logsimple("lwset_isvalid raised exception for high>=64 (expected)");
         }
@@ -641,7 +742,10 @@ tf_lwset_isvalid(const char *name)
         s.value = (1ULL << 5);   // bit 5 < low=10
         if (!try()) {
             bool valid = lwset_isvalid(&s);
-            test_validate(!valid, "Bit 5 outside [10,20] must be invalid");
+            test_validate(
+                !valid, 
+                "Bit 5 outside [10,20] must be invalid"
+            );
         } else {
             logsimple("lwset_isvalid raised exception for bit outside range (expected)");
         }
@@ -654,7 +758,10 @@ tf_lwset_isvalid(const char *name)
         s.value = (1ULL << 50);   // 50 > 40
         if (!try()) {
             bool valid = lwset_isvalid(&s);
-            test_validate(!valid, "Bit 50 outside [0,40] must be invalid");
+            test_validate(
+                !valid, 
+                "Bit 50 outside [0,40] must be invalid"
+            );
         } else {
             logsimple("lwset_isvalid raised exception for bit above high (expected)");
         }
@@ -694,20 +801,38 @@ tf_lwset_set_unset_range(const char *name)
             s.value == (1ULL << 5),
             "Only bit 5 must be set, value=0x%llx", (uint64_t) s.value
         );
+        test_validate(
+            lwset_isvalid(&s),
+            "Set must remain valid after setting a bit"
+        );
     }
 
     test_sub("subtest %d: set bit at low boundary", ++subnum);
     {
         lwset s = lwset_init0(10, 30);
         lwset_set(&s, 10);
-        test_validate(lwset_get(&s, 10) == true, "Bit at low=10 must be set");
+        test_validate(
+            lwset_get(&s, 10) == true,
+            "Bit at low=10 must be set"
+        );
+        test_validate(
+            lwset_isvalid(&s), 
+            "Set must remain valid after setting a bit"
+        );
     }
 
     test_sub("subtest %d: set bit at high boundary", ++subnum);
     {
         lwset s = lwset_init0(10, 30);
         lwset_set(&s, 30);
-        test_validate(lwset_get(&s, 30) == true, "Bit at high=30 must be set");
+        test_validate(
+            lwset_get(&s, 30) == true, 
+            "Bit at high=30 must be set"
+        );
+        test_validate(
+            lwset_isvalid(&s), 
+            "Set must remain valid after setting a bit"
+        );
     }
 
     test_sub("subtest %d: set bit out of range raises", ++subnum);
@@ -719,6 +844,10 @@ tf_lwset_set_unset_range(const char *name)
         } else {
             logsimple("Exception correctly raised for index<low");
         }
+        test_validate(
+            lwset_isvalid(&s), 
+            "Set must remain valid after setting a bit"
+        );
         if (!try()) {
             lwset_set(&s, 25);
             test_validate(false, "Should have raised SIGINT for index>high");
@@ -733,15 +862,32 @@ tf_lwset_set_unset_range(const char *name)
         lwset s = lwset_initunlim();
         lwset_set(&s, 7);
         lwset_unset(&s, 7);
-        test_validate(lwset_get(&s, 7) == false, "Bit 7 must be cleared");
-        test_validate(s.value == 0, "Value must be 0 after unset");
+        test_validate(
+            lwset_get(&s, 7) == false, 
+            "Bit 7 must be cleared"
+        );
+        test_validate(
+            s.value == 0, 
+            "Value must be 0 after unset"
+        );
+        test_validate(
+            lwset_isvalid(&s), 
+            "Set must remain valid after unsetting a bit"
+        );
     }
 
     test_sub("subtest %d: unset already cleared bit", ++subnum);
     {
         lwset s = lwset_initunlim();
         lwset_unset(&s, 3);
-        test_validate(lwset_get(&s, 3) == false, "Unset of unset bit keeps it false");
+        test_validate(
+            lwset_get(&s, 3) == false, 
+            "Unset of unset bit keeps it false"
+        );
+        test_validate(
+            lwset_isvalid(&s), 
+            "Set must remain valid after unsetting a bit"
+        );
     }
 
     test_sub("subtest %d: unset out of range raises", ++subnum);
@@ -753,6 +899,10 @@ tf_lwset_set_unset_range(const char *name)
         } else {
             logsimple("Exception correctly raised for index>63");
         }
+        test_validate(
+            lwset_isvalid(&s), 
+            "Set must remain valid after unsetting a bit"
+        );
     }
 
     /* ========== lwset_setrangevalue ========== */
@@ -761,9 +911,18 @@ tf_lwset_set_unset_range(const char *name)
         lwset s = lwset_init0(0, 20);
         lwset_setrangevalue(&s, 2, 5, true);
         for (unsigned short i = 2; i <= 5; ++i)
-            test_validate(lwset_get(&s, i) == true, "Bit %u must be set", i);
-        test_validate(lwset_get(&s, 1) == false && lwset_get(&s, 6) == false,
-                      "Bits outside range must remain 0");
+            test_validate(
+                lwset_get(&s, i) == true, 
+                "Bit %u must be set", i
+            );
+        test_validate(
+            lwset_get(&s, 1) == false && lwset_get(&s, 6) == false,
+            "Bits outside range must remain 0"
+        );
+        test_validate(
+            lwset_isvalid(&s), 
+            "Set must remain valid after setting a range"
+        );
     }
 
     test_sub("subtest %d: clear range of bits (set to false)", ++subnum);
@@ -772,9 +931,19 @@ tf_lwset_set_unset_range(const char *name)
         lwset_setrangevalue(&s, 0, 19, true);
         lwset_setrangevalue(&s, 5, 10, false);
         for (unsigned short i = 5; i <= 10; ++i)
-            test_validate(lwset_get(&s, i) == false, "Bit %u must be cleared", i);
-        test_validate(lwset_get(&s, 0) == true && lwset_get(&s, 4) == true &&
-                      lwset_get(&s, 11) == true, "Bits outside cleared range must stay set");
+            test_validate(
+                lwset_get(&s, i) == false, 
+                "Bit %u must be cleared", i
+            );
+        test_validate(
+            lwset_get(&s, 0) == true && lwset_get(&s, 4) == true &&
+            lwset_get(&s, 11) == true, 
+            "Bits outside cleared range must stay set"
+        );
+        test_validate(
+            lwset_isvalid(&s), 
+            "Set must remain valid after setting a range"
+        );
     }
 
     test_sub("subtest %d: setrange with invalid range (low > high) raises", ++subnum);
@@ -786,6 +955,10 @@ tf_lwset_set_unset_range(const char *name)
         } else {
             logsimple("Exception correctly raised for low>high");
         }
+        test_validate(
+            lwset_isvalid(&s), 
+            "Set must remain valid after setting a range"
+        );
     }
 
     test_sub("subtest %d: setrange with low < s->low raises", ++subnum);
@@ -797,6 +970,10 @@ tf_lwset_set_unset_range(const char *name)
         } else {
             logsimple("Exception correctly raised for low< s->low");
         }
+        test_validate(
+            lwset_isvalid(&s), 
+            "Set must remain valid after setting a range"
+        );
     }
 
     test_sub("subtest %d: setrange with high > s->high raises", ++subnum);
@@ -808,6 +985,10 @@ tf_lwset_set_unset_range(const char *name)
         } else {
             logsimple("Exception correctly raised for high> s->high");
         }
+        test_validate(
+            lwset_isvalid(&s), 
+            "Set must remain valid after setting a range"
+        );
     }
 
     test_sub("subtest %d: NULL pointer raises", ++subnum);
