@@ -1016,6 +1016,232 @@ tf_lwset_set_unset_range(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST lwset_union / lwset_intersect / lwset_minus / lwset_symmdiff -------------------------
+static TestStatus
+tf_lwset_ops(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== lwset_union ========== */
+    test_sub("subtest %d: union of two non‑empty sets", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        lwset b = lwset_initunlim();
+        a.value = (1ULL << 2) | (1ULL << 5);
+        b.value = (1ULL << 5) | (1ULL << 7);
+        lwset *res = lwset_union(&a, &b);
+        test_validate(
+            res == &a &&
+            a.value == ((1ULL << 2) | (1ULL << 5) | (1ULL << 7)),
+            "Union must contain bits 2,5,7"
+        );
+        test_validate(
+            lwset_isvalid(&a), 
+            "Set must be valid after union"
+        );
+    }
+
+    test_sub("subtest %d: union with empty set", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        lwset b = lwset_initunlim();
+        a.value = 0xAA;
+        lwset_union(&a, &b);
+        test_validate(
+            a.value == 0xAA, 
+            "Union with empty set must keep a unchanged"
+        );
+        test_validate(
+            lwset_isvalid(&a), 
+            "Set must be valid after union with empty"
+        );
+    }
+
+    test_sub("subtest %d: union with NULL raises", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        if (!try()) {
+            lwset_union(NULL, &a);
+            test_validate(false, "Should have raised SIGINT");
+        } else {
+            logsimple("Exception on NULL s1");
+        }
+        if (!try()) {
+            lwset_union(&a, NULL);
+            test_validate(false, "Should have raised SIGINT");
+        } else {
+            logsimple("Exception on NULL s2");
+        }
+    }
+
+    /* ========== lwset_intersect ========== */
+    test_sub("subtest %d: intersect of overlapping sets", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        lwset b = lwset_initunlim();
+        a.value = (1ULL << 3) | (1ULL << 6) | (1ULL << 9);
+        b.value = (1ULL << 6) | (1ULL << 9) | (1ULL << 12);
+        lwset_intersect(&a, &b);
+        test_validate(
+            a.value == ((1ULL << 6) | (1ULL << 9)),
+            "Intersect must keep only bits 6,9"
+        );
+        test_validate(
+            lwset_isvalid(&a), 
+            "Set must be valid after intersect"
+        );
+    }
+
+    test_sub("subtest %d: intersect with empty set", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        lwset b = lwset_initunlim();
+        a.value = 0xFF;
+        lwset_intersect(&a, &b);
+        test_validate(
+            a.value == 0, 
+            "Intersect with empty set must clear a"
+        );
+        test_validate(
+            lwset_isvalid(&a), 
+            "Set must be valid after intersect with empty"
+        );
+    }
+
+    test_sub("subtest %d: intersect with NULL raises", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        if (!try()) { 
+            lwset_intersect(NULL, &a); 
+            test_validate(false, "NULL s1"); 
+        } else
+            logsimple("Exception on NULL s1");
+        if (!try()) { 
+            lwset_intersect(&a, NULL); 
+            test_validate(false, "NULL s2"); 
+        }
+        else 
+            logsimple("Exception on NULL s2");
+    }
+
+    /* ========== lwset_minus ========== */
+    test_sub("subtest %d: minus of overlapping sets", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        lwset b = lwset_initunlim();
+        a.value = (1ULL << 2) | (1ULL << 4) | (1ULL << 6);
+        b.value = (1ULL << 4);
+        lwset_minus(&a, &b);
+        test_validate(
+            a.value == ((1ULL << 2) | (1ULL << 6)),
+            "Minus must remove bit 4"
+        );
+        test_validate(
+            lwset_isvalid(&a), 
+            "Set must be valid after minus"
+        );
+    }
+
+    test_sub("subtest %d: minus with empty set", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        lwset b = lwset_initunlim();
+        a.value = 0xAA;
+        lwset_minus(&a, &b);
+        test_validate(
+            a.value == 0xAA, 
+            "Minus with empty set keeps a unchanged"
+        );
+        test_validate(
+            lwset_isvalid(&a), 
+            "Set must be valid after minus with empty"
+        );
+    }
+
+    test_sub("subtest %d: minus with NULL raises", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        if (!try()) { 
+            lwset_minus(NULL, &a); 
+            test_validate(false, "NULL s1"); 
+        } else 
+            logsimple("Exception on NULL s1");
+        if (!try()) { 
+            lwset_minus(&a, NULL); 
+            test_validate(false, "NULL s2"); 
+        } else
+            logsimple("Exception on NULL s2");
+    }
+
+    /* ========== lwset_symmdiff ========== */
+    test_sub("subtest %d: symmetric difference of overlapping sets", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        lwset b = lwset_initunlim();
+        a.value = (1ULL << 1) | (1ULL << 3) | (1ULL << 5);
+        b.value = (1ULL << 3) | (1ULL << 5) | (1ULL << 7);
+        lwset_symmdiff(&a, &b);
+        test_validate(
+            a.value == ((1ULL << 1) | (1ULL << 7)),
+            "Symmetric difference must leave bits 1 and 7"
+        );
+        test_validate(
+            lwset_isvalid(&a), 
+            "Set must be valid after symmdiff"
+        );
+    }
+
+    test_sub("subtest %d: symmetric difference with empty set", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        lwset b = lwset_initunlim();
+        a.value = 0x55;
+        lwset_symmdiff(&a, &b);
+        test_validate(
+            a.value == 0x55, 
+            "Symmetric diff with empty set keeps a unchanged"
+        );
+        test_validate(
+            lwset_isvalid(&a), 
+            "Set must be valid after symmdiff with empty"
+        );
+    }
+
+    test_sub("subtest %d: symmetric difference of equal sets is empty", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        lwset b = lwset_initunlim();
+        a.value = b.value = 0x1234;
+        lwset_symmdiff(&a, &b);
+        test_validate(
+            a.value == 0, 
+            "Symmetric diff of identical sets must be 0"
+        );
+        test_validate(
+            lwset_isvalid(&a), 
+            "Set must be valid after symmdiff of equals"
+        );
+    }
+
+    test_sub("subtest %d: symmdiff with NULL raises", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        if (!try()) { 
+            lwset_symmdiff(NULL, &a); 
+            test_validate(false, "NULL s1"); 
+        } else
+            logsimple("Exception on NULL s1");
+        if (!try()) { 
+            lwset_symmdiff(&a, NULL); 
+            test_validate(false, "NULL s2");
+        } else
+            logsimple("Exception on NULL s2");
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -1044,6 +1270,8 @@ main(int argc, const char *argv[])
             , testnew(.f2 =  tf_lwset_isvalid,            .num =  5, .name = "Lwset isvalid test",
                     .desc="", .mandatory=true)
             , testnew(.f2 =  tf_lwset_set_unset_range,    .num =  6, .name = "Lwset set/unset/range test",
+                    .desc="", .mandatory=true)
+            , testnew(.f2 =  tf_lwset_ops,                .num =  7, .name = "Lwset operations test",
                     .desc="", .mandatory=true)
             );
         if (runall)

@@ -225,7 +225,7 @@ static inline lwset                    *lwset_minus(lwset *restrict s1, const lw
 /// @param s1  first lwset pointer
 /// @param s2  second lwset pointer
 /// @return  pointer to the modified s1
-lwset                    *lwset_simmdiff(lwset *restrict s1, const lwset *restrict s2) {
+lwset                    *lwset_symmdiff(lwset *restrict s1, const lwset *restrict s2) {
     invraisecode(ERR_NULLABLE_PTR, s1 != NULL && s2 != NULL, 
         "Pointers is NULL %p %p", (void*) s1, (void*) s2);
     s1->value ^= s2->value;
