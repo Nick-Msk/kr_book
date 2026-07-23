@@ -180,7 +180,7 @@ static inline lwset          *lwset_unset(lwset *s, unsigned short index) {
 /// @param high the ending index of the range (inclusive)
 /// @param value the value to set the bits to (true or false)
 /// @return pointer to the modified lwset
-static inline lwset           *lwset_setrange(lwset *s, unsigned short low, unsigned short high, bool value) {
+static inline lwset           *lwset_setrangevalue(lwset *s, unsigned short low, unsigned short high, bool value) {
     invraisecode(ERR_NULLABLE_PTR, s != NULL, "Pointer is NULL");
     invraisecode(ERR_OUT_OF_RANGE, low >= s->low && high <= s->high && low <= high, 
         "range [%u, %u] is out of bounds for lwset with range [%u, %u]", low, high, s->low, s->high);

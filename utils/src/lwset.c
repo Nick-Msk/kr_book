@@ -674,6 +674,167 @@ tf_lwset_isvalid(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST lwset_set / lwset_unset / lwset_setrangevalue -------------------------
+static TestStatus
+tf_lwset_set_unset_range(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== lwset_set ========== */
+    test_sub("subtest %d: set bit in empty set", ++subnum);
+    {
+        lwset s = lwset_initunlim();
+        lwset *res = lwset_set(&s, 5);
+        test_validate(
+            res == &s && lwset_get(&s, 5) == true,
+            "Set bit 5 must be true, res must be &s"
+        );
+        test_validate(
+            s.value == (1ULL << 5),
+            "Only bit 5 must be set, value=0x%llx", (uint64_t) s.value
+        );
+    }
+
+    test_sub("subtest %d: set bit at low boundary", ++subnum);
+    {
+        lwset s = lwset_init0(10, 30);
+        lwset_set(&s, 10);
+        test_validate(lwset_get(&s, 10) == true, "Bit at low=10 must be set");
+    }
+
+    test_sub("subtest %d: set bit at high boundary", ++subnum);
+    {
+        lwset s = lwset_init0(10, 30);
+        lwset_set(&s, 30);
+        test_validate(lwset_get(&s, 30) == true, "Bit at high=30 must be set");
+    }
+
+    test_sub("subtest %d: set bit out of range raises", ++subnum);
+    {
+        lwset s = lwset_init0(10, 20);
+        if (!try()) {
+            lwset_set(&s, 5);
+            test_validate(false, "Should have raised SIGINT for index<low");
+        } else {
+            logsimple("Exception correctly raised for index<low");
+        }
+        if (!try()) {
+            lwset_set(&s, 25);
+            test_validate(false, "Should have raised SIGINT for index>high");
+        } else {
+            logsimple("Exception correctly raised for index>high");
+        }
+    }
+
+    /* ========== lwset_unset ========== */
+    test_sub("subtest %d: unset a set bit", ++subnum);
+    {
+        lwset s = lwset_initunlim();
+        lwset_set(&s, 7);
+        lwset_unset(&s, 7);
+        test_validate(lwset_get(&s, 7) == false, "Bit 7 must be cleared");
+        test_validate(s.value == 0, "Value must be 0 after unset");
+    }
+
+    test_sub("subtest %d: unset already cleared bit", ++subnum);
+    {
+        lwset s = lwset_initunlim();
+        lwset_unset(&s, 3);
+        test_validate(lwset_get(&s, 3) == false, "Unset of unset bit keeps it false");
+    }
+
+    test_sub("subtest %d: unset out of range raises", ++subnum);
+    {
+        lwset s = lwset_init0(0, 63);
+        if (!try()) {
+            lwset_unset(&s, 64);
+            test_validate(false, "Should have raised SIGINT for index>63");
+        } else {
+            logsimple("Exception correctly raised for index>63");
+        }
+    }
+
+    /* ========== lwset_setrangevalue ========== */
+    test_sub("subtest %d: set range of bits to true", ++subnum);
+    {
+        lwset s = lwset_init0(0, 20);
+        lwset_setrangevalue(&s, 2, 5, true);
+        for (unsigned short i = 2; i <= 5; ++i)
+            test_validate(lwset_get(&s, i) == true, "Bit %u must be set", i);
+        test_validate(lwset_get(&s, 1) == false && lwset_get(&s, 6) == false,
+                      "Bits outside range must remain 0");
+    }
+
+    test_sub("subtest %d: clear range of bits (set to false)", ++subnum);
+    {
+        lwset s = lwset_init0(0, 20);
+        lwset_setrangevalue(&s, 0, 19, true);
+        lwset_setrangevalue(&s, 5, 10, false);
+        for (unsigned short i = 5; i <= 10; ++i)
+            test_validate(lwset_get(&s, i) == false, "Bit %u must be cleared", i);
+        test_validate(lwset_get(&s, 0) == true && lwset_get(&s, 4) == true &&
+                      lwset_get(&s, 11) == true, "Bits outside cleared range must stay set");
+    }
+
+    test_sub("subtest %d: setrange with invalid range (low > high) raises", ++subnum);
+    {
+        lwset s = lwset_init0(0, 30);
+        if (!try()) {
+            lwset_setrangevalue(&s, 10, 5, true);
+            test_validate(false, "Should have raised SIGINT for low>high");
+        } else {
+            logsimple("Exception correctly raised for low>high");
+        }
+    }
+
+    test_sub("subtest %d: setrange with low < s->low raises", ++subnum);
+    {
+        lwset s = lwset_init0(10, 20);
+        if (!try()) {
+            lwset_setrangevalue(&s, 5, 15, true);
+            test_validate(false, "Should have raised SIGINT for low< s->low");
+        } else {
+            logsimple("Exception correctly raised for low< s->low");
+        }
+    }
+
+    test_sub("subtest %d: setrange with high > s->high raises", ++subnum);
+    {
+        lwset s = lwset_init0(10, 20);
+        if (!try()) {
+            lwset_setrangevalue(&s, 15, 25, true);
+            test_validate(false, "Should have raised SIGINT for high> s->high");
+        } else {
+            logsimple("Exception correctly raised for high> s->high");
+        }
+    }
+
+    test_sub("subtest %d: NULL pointer raises", ++subnum);
+    {
+        if (!try()) {
+            lwset_set(NULL, 0);
+            test_validate(false, "Should have raised SIGINT for NULL");
+        } else {
+            logsimple("Exception correctly raised for NULL in lwset_set");
+        }
+        if (!try()) {
+            lwset_unset(NULL, 0);
+            test_validate(false, "Should have raised SIGINT for NULL");
+        } else {
+            logsimple("Exception correctly raised for NULL in lwset_unset");
+        }
+        if (!try()) {
+            lwset_setrangevalue(NULL, 0, 10, true);
+            test_validate(false, "Should have raised SIGINT for NULL");
+        } else {
+            logsimple("Exception correctly raised for NULL in lwset_setrangevalue");
+        }
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -691,7 +852,7 @@ main(int argc, const char *argv[])
             }
         }
         testenginestd_run(num,
-            testnew(.f2 =  tf_lwset_init,               .num =  1, .name = "Lwset init simple test", 
+            testnew(.f2 =  tf_lwset_init,                 .num =  1, .name = "Lwset init simple test", 
                     .desc="", .mandatory=true)
             , testnew(.f2 =  tf_lwset_clone_list,         .num =  2, .name = "Lwset clone and list test", 
                     .desc="", .mandatory=true)
@@ -700,6 +861,8 @@ main(int argc, const char *argv[])
             , testnew(.f2 =  tf_lwset_in_strictin_empty,  .num =  4, .name = "Lwset in/strictin/empty test",
                     .desc="", .mandatory=true)
             , testnew(.f2 =  tf_lwset_isvalid,            .num =  5, .name = "Lwset isvalid test",
+                    .desc="", .mandatory=true)
+            , testnew(.f2 =  tf_lwset_set_unset_range,    .num =  6, .name = "Lwset set/unset/range test",
                     .desc="", .mandatory=true)
             );
         if (runall)
