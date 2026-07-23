@@ -48,6 +48,7 @@ static inline lwset             lwset_init1unlim(void) {
 static inline lwset             lwset_init0(unsigned short low, unsigned short high) {
     return (lwset) {.value = 0, .low = low, .high = high};
 }
+
 /// @brief  initializes a lwset with all bits set to 1 and the specified range [low, high]
 /// @param low the starting index of the range (inclusive)
 /// @param high the ending index of the range (inclusive)
@@ -57,6 +58,7 @@ static inline lwset lwset_init1(unsigned short low, unsigned short high) {
     uint64_t mask = (width >= 64) ? UINT64_MAX : ((1ULL << width) - 1);
     return (lwset) { .value = mask << low, .low = low, .high = high };
 }
+
 /// @brief  Clones a lwset, creating a new lwset with the same value and range as the original
 /// @param s  pointer to the lwset to clone
 /// @return  the cloned lwset
@@ -276,17 +278,20 @@ extern bool              lwset_isvalid(const lwset * s);
 /// @param s pointer to the lwset
 /// @return number of characters printed
 extern int                      lwset_fsave(FILE *restrict out, const  lwset *restrict s);
+
 /// @brief  Saves the lwset to the standard output in a pseudo-json format
 /// @param s pointer to the lwset 
 /// @return number of characters printed
 static inline int               lwset_save(const lwset * s) {
     return lwset_fsave(stdout, s);
 }
+
 /// @brief Loads the lwset from a specified input stream in a pseudo-json format
 /// @param in input stream (e.g., stdin, a file)
 /// @param s pointer to the lwset
 /// @return number of characters read
 extern int                      lwset_fload(FILE *restrict in, lwset *restrict s);
+
 /// @brief  Loads the lwset from the standard input in a pseudo-json format
 /// @param s  pointer to the lwset
 /// @return  number of characters read

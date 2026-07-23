@@ -1473,6 +1473,75 @@ tf_lwset_save(const char *name)
         test_validate(cnt == 0, "Saving to NULL file must return 0");
     }
 
+    test_sub("subtest %d: save single-bit range (low==high)", ++subnum);
+    {
+        const char *tmpname = "res/lwset/tmp_lwset_save_single_bit.dat";
+        lwset s = lwset_init0(20, 20);
+        lwset_set(&s, 20);                        // только бит 20
+        FILE *fp = fopen(tmpname, "w");
+        lwset_fsave(fp, &s);
+        fclose(fp);
+
+        fp = fopen(tmpname, "r");
+        fread(buf, 1, sizeof(buf)-1, fp);
+        buf[sizeof(buf)-1] = '\0';
+        fclose(fp);
+        remove(tmpname);
+
+        // Ожидаем вывод только одного бита: '1'
+        test_validate(strstr(buf, "\"value\": \"1\"") != NULL,
+                    "Single bit 20 must produce '1'");
+        test_validate(strstr(buf, "\"low\": 20") != NULL &&
+                    strstr(buf, "\"high\": 20") != NULL,
+                    "low=20, high=20 expected");
+    }
+
+    test_sub("subtest %d: save mid-range with mixed bits", ++subnum);
+    {
+        const char *tmpname = "res/lwset/tmp_lwset_save_mid_range.dat";
+        lwset s = lwset_init0(10, 15);
+        s.value = (1ULL << 10) | (1ULL << 12);   // биты 10 и 12
+        FILE *fp = fopen(tmpname, "w");
+        lwset_fsave(fp, &s);
+        fclose(fp);
+
+        fp = fopen(tmpname, "r");
+        fread(buf, 1, sizeof(buf)-1, fp);
+        buf[sizeof(buf)-1] = '\0';
+        fclose(fp);
+        remove(tmpname);
+
+        // Биты 10..15: 10=1,11=0,12=1,13=0,14=0,15=0 → "101000"
+        test_validate(strstr(buf, "\"value\": \"101000\"") != NULL,
+                    "Bits 10,12 must produce '101000'");
+        test_validate(strstr(buf, "\"low\": 10") != NULL &&
+                    strstr(buf, "\"high\": 15") != NULL,
+                    "low=10, high=15 expected");
+    }
+
+    test_sub("subtest %d: save range including bit 63", ++subnum);
+    {
+        const char *tmpname = "res/lwset/tmp_lwset_save_bit63.dat";
+        lwset s = lwset_init0(60, 63);
+        lwset_set(&s, 63);                       // только бит 63
+        FILE *fp = fopen(tmpname, "w");
+        lwset_fsave(fp, &s);
+        fclose(fp);
+
+        fp = fopen(tmpname, "r");
+        fread(buf, 1, sizeof(buf)-1, fp);
+        buf[sizeof(buf)-1] = '\0';
+        fclose(fp);
+        remove(tmpname);
+
+        // Биты 60..63: 60=0,61=0,62=0,63=1 → "0001"
+        test_validate(strstr(buf, "\"value\": \"0001\"") != NULL,
+                    "Bit 63 only must produce '0001' for range [60,63]");
+        test_validate(strstr(buf, "\"low\": 60") != NULL &&
+                    strstr(buf, "\"high\": 63") != NULL,
+                    "low=60, high=63 expected");
+    }
+
     return logret(TEST_PASSED, "done");
 }
 
