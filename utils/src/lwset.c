@@ -393,6 +393,178 @@ tf_lwset_get_equals(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST lwset_in / lwset_strictin / lwset_notempty / lwset_isempty -------------------------
+static TestStatus
+tf_lwset_in_strictin_empty(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== lwset_in ========== */
+    test_sub("subtest %d: empty in empty → true", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        lwset b = lwset_initunlim();
+        test_validate(lwset_in(&a, &b), "Empty set must be subset of empty set");
+    }
+
+    test_sub("subtest %d: empty in non‑empty → true", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        lwset b = lwset_initunlim();
+        b.value = 0xFF;
+        test_validate(lwset_in(&a, &b), "Empty set must be subset of any set");
+    }
+
+    test_sub("subtest %d: non‑empty in empty → false", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        lwset b = lwset_initunlim();
+        a.value = 0xFF;
+        test_validate(!lwset_in(&a, &b), "Non‑empty set must not be subset of empty set");
+    }
+
+    test_sub("subtest %d: proper subset → true", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        lwset b = lwset_initunlim();
+        a.value = (1ULL << 2);
+        b.value = (1ULL << 2) | (1ULL << 5);
+        test_validate(lwset_in(&a, &b), "Proper subset must be detected");
+    }
+
+    test_sub("subtest %d: equal sets → true", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        lwset b = lwset_initunlim();
+        a.value = b.value = 0xABCD;
+        test_validate(lwset_in(&a, &b), "Equal sets are subsets of each other");
+    }
+
+    test_sub("subtest %d: non‑overlapping bits → false", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        lwset b = lwset_initunlim();
+        a.value = (1ULL << 3);
+        b.value = (1ULL << 7);
+        test_validate(!lwset_in(&a, &b), "Disjoint sets must not be subsets");
+    }
+
+    /* ========== lwset_strictin ========== */
+    test_sub("subtest %d: empty strictin empty → false", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        lwset b = lwset_initunlim();
+        test_validate(!lwset_strictin(&a, &b), "Empty must not be strict subset of itself");
+    }
+
+    test_sub("subtest %d: empty strictin non‑empty → true", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        lwset b = lwset_initunlim();
+        b.value = 0xFF;
+        test_validate(lwset_strictin(&a, &b), "Empty must be strict subset of non‑empty");
+    }
+
+    test_sub("subtest %d: non‑empty strictin empty → false", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        lwset b = lwset_initunlim();
+        a.value = 0xFF;
+        test_validate(!lwset_strictin(&a, &b), "Non‑empty must not be strict subset of empty");
+    }
+
+    test_sub("subtest %d: proper subset strictin → true", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        lwset b = lwset_initunlim();
+        a.value = (1ULL << 2);
+        b.value = (1ULL << 2) | (1ULL << 5);
+        test_validate(lwset_strictin(&a, &b), "Proper subset must be strict");
+    }
+
+    test_sub("subtest %d: equal sets strictin → false", ++subnum);
+    {
+        lwset a = lwset_initunlim();
+        lwset b = lwset_initunlim();
+        a.value = b.value = 0xABCD;
+        test_validate(!lwset_strictin(&a, &b), "Equal sets must not be strict subsets");
+    }
+
+    /* ========== lwset_notempty / lwset_isempty ========== */
+    test_sub("subtest %d: empty set is empty", ++subnum);
+    {
+        lwset s = lwset_initunlim();
+        test_validate(lwset_isempty(&s), "Empty set must be empty");
+        test_validate(!lwset_notempty(&s), "Empty set must not be non‑empty");
+    }
+
+    test_sub("subtest %d: non‑empty set is not empty", ++subnum);
+    {
+        lwset s = lwset_initunlim();
+        s.value = 0x1;
+        test_validate(!lwset_isempty(&s), "Non‑empty must not be empty");
+        test_validate(lwset_notempty(&s), "Non‑empty must be non‑empty");
+    }
+
+    /* ========== NULL checks ========== */
+    test_sub("subtest %d: lwset_in with NULL raises", ++subnum);
+    {
+        lwset s = lwset_initunlim();
+        if (!try()) {
+            lwset_in(NULL, &s);
+            test_validate(false, "Should have raised SIGINT for NULL s1");
+        } else {
+            logsimple("Exception correctly raised for NULL s1");
+        }
+        if (!try()) {
+            lwset_in(&s, NULL);
+            test_validate(false, "Should have raised SIGINT for NULL s2");
+        } else {
+            logsimple("Exception correctly raised for NULL s2");
+        }
+    }
+
+    test_sub("subtest %d: lwset_isempty(NULL) raises", ++subnum);
+    {
+        if (!try()) {
+            lwset_isempty(NULL);
+            test_validate(false, "Should have raised SIGINT");
+        } else {
+            logsimple("Exception correctly raised for lwset_isempty(NULL)");
+        }
+    }
+
+    test_sub("subtest %d: lwset_notempty(NULL) raises", ++subnum);
+    {
+        if (!try()) {
+            lwset_notempty(NULL);
+            test_validate(false, "Should have raised SIGINT");
+        } else {
+            logsimple("Exception correctly raised for lwset_notempty(NULL)");
+        }
+    }
+
+    test_sub("subtest %d: lwset_strictin with NULL raises", ++subnum);
+    {
+        lwset s = lwset_initunlim();
+        if (!try()) {
+            lwset_strictin(NULL, &s);
+            test_validate(false, "Should have raised SIGINT for NULL s1");
+        } else {
+            logsimple("Exception correctly raised for NULL s1");
+        }
+        if (!try()) {
+            lwset_strictin(&s, NULL);
+            test_validate(false, "Should have raised SIGINT for NULL s2");
+        } else {
+            logsimple("Exception correctly raised for NULL s2");
+        }
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -410,11 +582,13 @@ main(int argc, const char *argv[])
             }
         }
             testenginestd_run(num,
-                testnew(.f2 =  tf_lwset_init,  .num =  1, .name = "Lwset init simple test", 
+                testnew(.f2 =  tf_lwset_init,        .num =  1, .name = "Lwset init simple test", 
                         .desc="", .mandatory=true)
               , testnew(.f2 =  tf_lwset_clone_list,  .num =  2, .name = "Lwset clone and list test", 
                         .desc="", .mandatory=true)
               , testnew(.f2 =  tf_lwset_get_equals,  .num =  3, .name = "Lwset get/equals/notequal test",
+                        .desc="", .mandatory=true)
+              , testnew(.f2 =  tf_lwset_in_strictin_empty,  .num =  4, .name = "Lwset in/strictin/empty test",
                         .desc="", .mandatory=true)
               );
         if (runall)
