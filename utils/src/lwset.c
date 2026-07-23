@@ -1242,6 +1242,91 @@ tf_lwset_ops(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST lwset_count -------------------------
+static TestStatus
+tf_lwset_count(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: count empty set", ++subnum);
+    {
+        lwset s = lwset_initunlim();
+        test_validate(
+            lwset_count(&s) == 0,
+            "Empty set must have count 0"
+        );
+    }
+
+    test_sub("subtest %d: count single bit", ++subnum);
+    {
+        lwset s = lwset_initunlim();
+        lwset_set(&s, 10);
+        test_validate(
+            lwset_count(&s) == 1,
+            "Single bit set must count 1"
+        );
+    }
+
+    test_sub("subtest %d: count multiple bits", ++subnum);
+    {
+        lwset s = lwset_initunlim();
+        lwset_set(&s, 2);
+        lwset_set(&s, 5);
+        lwset_set(&s, 63);
+        test_validate(
+            lwset_count(&s) == 3,
+            "Three bits set must count 3"
+        );
+    }
+
+    test_sub("subtest %d: count full set (all bits)", ++subnum);
+    {
+        lwset s = lwset_init1unlim();   // все 64 бита
+        test_validate(
+            lwset_count(&s) == 64,
+            "Full set must count 64"
+        );
+    }
+
+    test_sub("subtest %d: count only within range", ++subnum);
+    {
+        lwset s = lwset_init1(5, 10);   // биты 5..10 установлены, всего 6
+        test_validate(
+            lwset_count(&s) == 6,
+            "Range [5,10] full must count 6"
+        );
+    }
+
+    test_sub("subtest %d: count with modified bits inside range", ++subnum);
+    {
+        lwset s = lwset_init0(0, 20);
+        lwset_set(&s, 5);
+        lwset_set(&s, 15);
+        lwset_set(&s, 0);
+        test_validate(
+            lwset_count(&s) == 3,
+            "Three bits inside range must count 3"
+        );
+        test_validate(
+            lwset_isvalid(&s), 
+            "Set must be valid"
+        );
+    }
+
+    test_sub("subtest %d: count NULL raises", ++subnum);
+    {
+        if (!try()) {
+            lwset_count(NULL);
+            test_validate(false, "Should have raised SIGINT for NULL");
+        } else {
+            logsimple("Exception correctly raised for NULL");
+        }
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -1272,6 +1357,8 @@ main(int argc, const char *argv[])
             , testnew(.f2 =  tf_lwset_set_unset_range,    .num =  6, .name = "Lwset set/unset/range test",
                     .desc="", .mandatory=true)
             , testnew(.f2 =  tf_lwset_ops,                .num =  7, .name = "Lwset operations test",
+                    .desc="", .mandatory=true)
+            , testnew(.f2 =  tf_lwset_count,              .num =  8, .name = "Lwset count test",
                     .desc="", .mandatory=true)
             );
         if (runall)

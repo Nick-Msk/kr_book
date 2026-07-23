@@ -146,6 +146,16 @@ static inline bool           lwset_isempty(const lwset *s) {
     invraisecode(ERR_NULLABLE_PTR, s != NULL, "Pointer is NULL");
     return s->value == 0;
 }
+/// @brief  Counts the number of bits set to 1 in the lwset 
+/// @param s  pointer to the lwset
+/// @return  the number of bits set to 1 in the lwset
+static inline int                      lwset_count(const lwset *s) {
+    invraisecode(ERR_NULLABLE_PTR, s != NULL, "Pointer is NULL");
+    int count = 0;
+    for (unsigned short i = s->low; i <= s->high; ++i)
+        count += ((s->value >> i) & 1);
+    return count;
+}
 // --------------------- Modification functions -------------------------------
 /// @brief Sets a specific bit in the lwset to a specified value (true or false)
 /// @param s pointer to the lwset
