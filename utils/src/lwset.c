@@ -6,7 +6,26 @@
 
 // ------------------------------------ Utilities ------------------------------------------
 
+/// @brief  Prints the bits of the lwset to the specified output stream
+/// @param out output stream (e.g., stdout, a file)
+/// @param s pointer to the lwset
+/// @param   separator if not NULL, prints a separator when no more bits are set
+/// @return number of characters printed
+/// @note This function is static and used internally for printing the bits of the lwset. It iterates through the bits from low to high and prints '1' or '0' based on whether each bit is set. If the separator flag is true, it prints a '|' when there are no more bits set.
+static int              lwset_fprint_bits(FILE *restrict out, const lwset *restrict s, const char *restrict separator) {
+    int cnt = 0;
+    uint64_t tmpval = s->value >> s->low;  // shift the value to start from the low index
+    for (unsigned short i = s->low; i <= s->high; tmpval >>= 1, i++) {
+        if (tmpval == 0 && separator)
+                cnt += fprintf(out, "%s", separator);   // no more bits set, print a separator
+        cnt += fprintf(out, "%c", tmpval & 1 ? '1' : '0');
+    }
+    return cnt;
+}
+
 // ------------------------------------- API -----------------------------------------------
+
+// all functions are inline, so they are defined in the header file (lwset.h) for performance reasons. The following functions are provided:
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
@@ -16,18 +35,27 @@ int                      lwset_techfprint(FILE *restrict out, const lwset *restr
     invraisecode(ERR_NULLABLE_PTR, s != NULL, 
         "Pointers is NULL %p", (void*) s);
     
-        cnt +=  fprintf(out, "LWSET {value=");
-        // print each bit in the range [low, high] as 0 or 1
-        uint64_t tmpval = s->value;
+        cnt +=  fprintf(out, "LWSET [%u/%u] {value=", s->low, s->high);
         // logging in logfile with oiffset! For each line, print the offset spaces before the actual content
         if (out == logfile)
-            logprintoffset();
-        for (unsigned short i = s->low; i <= s->high; tmpval >>= 1) {
-            if (tmpval == 0)
-                cnt += fprintf(out, "|");   // no more bits set, print a separator
-            cnt += fprintf(out, "%c", tmpval & 1 ? '1' : '0');
-        }
-        cnt += fprintf(out, ", low=%u, high=%u }\n", s->low, s->high);
+            cnt += logprintoffset();
+        cnt += lwset_fprint_bits(out, s, " | ");
+        cnt += fprintf(out, "}\n");
+    }
+    return cnt;
+}
+
+int                      lwset_fsave(FILE *restrict out, const  lwset *restrict s){
+    int cnt = 0;
+    if (out) {
+        invraisecode(ERR_NULLABLE_PTR, s != NULL, 
+            "Pointers is NULL %p", (void*) s);
+        // header
+        cnt += fprintf(out, "LWSET { \"value\": \"");
+        cnt += lwset_fprint_bits(out, s, NULL);
+        // print the rest
+        cnt += fprintf(out, "\", \"low\": %u, \"high\": %u }", 
+            s->low, s->high);
     }
     return cnt;
 }
@@ -52,6 +80,8 @@ bool                    lwset_isvalid(const lwset * s) {
 // --------------------------------------- ITERATORS ---------------------------------------
 
 // --------------------------------- SERIALIZATION -----------------------------------------
+
+
 
 // TODO:
 
@@ -1327,6 +1357,125 @@ tf_lwset_count(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST lwset_fsave / lwset_fprint_bits -------------------------
+static TestStatus
+tf_lwset_save(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    char buf[256];
+
+    test_sub("subtest %d: save empty set (value=0)", ++subnum);
+    {
+        lwset s = lwset_initunlim();
+        const char *tmpname = "res/lwset/tmp_lwset_save_empty.dat";
+        FILE *fp = fopen(tmpname, "w");
+        if (!fp) {
+            return logret(TEST_FAILED, "file open error %s", tmpname);
+        }
+        int cnt = lwset_fsave(fp, &s);
+        fclose(fp);
+        test_validate(cnt > 0, "Empty set should produce valid output");
+
+        fp = fopen(tmpname, "r");
+        if (!fp) {
+            remove(tmpname);
+            return logret(TEST_FAILED, "file read error %s", tmpname);
+        }
+        size_t n = fread(buf, 1, sizeof(buf)-1, fp);
+        buf[n] = '\0';
+        fclose(fp);
+        //remove(tmpname);
+
+        // Ожидаем: "LWSET { \"value\": \"0000...0000\", \"low\": 0, \"high\": 63 }"
+        test_validate(strstr(buf, "\"value\": \"") != NULL, "Header must contain value");
+        test_validate(strstr(buf, "0000000000000000000000000000000000000000000000000000000000000000") != NULL,
+                      "Empty set must have 64 zeros");
+        test_validate(strstr(buf, "\"low\": 0") != NULL && strstr(buf, "\"high\": 63") != NULL,
+                      "low=0, high=63 expected");
+    }
+
+    test_sub("subtest %d: save set with bits", ++subnum);
+    {
+        lwset s = lwset_initunlim();
+        s.value = (1ULL << 2) | (1ULL << 5);  // биты 2 и 5
+        const char *tmpname = "res/lwset/tmp_lwset_save_bits.dat";
+        FILE *fp = fopen(tmpname, "w");
+        if (!fp) {
+            return logret(TEST_FAILED, "file open error %s", tmpname);
+        }
+        lwset_fsave(fp, &s);
+        fclose(fp);
+
+        fp = fopen(tmpname, "r");
+        fread(buf, 1, sizeof(buf)-1, fp);
+        buf[sizeof(buf)-1] = '\0';
+        fclose(fp);
+        //remove(tmpname);
+
+        // биты печатаются от младшего к старшему: 0,0,1,0,0,1 → "001001"
+        test_validate(strstr(buf, "\"value\": \"001001") != NULL,
+                      "Bits 2 and 5 must produce '001001'");
+        test_validate(strstr(buf, "\"low\": 0") != NULL && strstr(buf, "\"high\": 63") != NULL,
+                      "low=0, high=63 expected");
+    }
+
+    test_sub("subtest %d: save set with custom range", ++subnum);
+    {
+        lwset s = lwset_init1(5, 10);  // биты 5..10 = 0x7E0 (младшие 11 бит: 11111100000)
+        const char *tmpname = "res/lwset/tmp_lwset_save_range.dat";
+        FILE *fp = fopen(tmpname, "w");
+        if (!fp) {
+            return logret(TEST_FAILED, "file open error %s", tmpname);
+        }
+        lwset_fsave(fp, &s);
+        fclose(fp);
+
+        fp = fopen(tmpname, "r");
+        fread(buf, 1, sizeof(buf)-1, fp);
+        buf[sizeof(buf)-1] = '\0';
+        fclose(fp);
+        //remove(tmpname);
+
+        // биты от 0 до 10: 0-4 → '0', 5-10 → '1', всего 11 символов "00000111111"
+        test_validate(
+            strstr(buf, "\"value\": \"111111\"") != NULL,
+            "Range [5,10] must produce '111111' (6 ones)"
+        );
+        test_validate(
+            strstr(buf, "\"low\": 5") != NULL && strstr(buf, "\"high\": 10") != NULL,
+            "low=5, high=10 expected"
+        );
+    }
+
+    test_sub("subtest %d: save with NULL set raises", ++subnum);
+    {
+        const char *tmpname = "res/lwset/tmp_lwset_save_null.dat";
+        FILE *fp = fopen(tmpname, "w");
+        if (!fp) {
+            return logret(TEST_FAILED, "file open error %s", tmpname);
+        }
+        if (!try()) {
+            lwset_fsave(fp, NULL);
+            test_validate(false, "Should have raised SIGINT for NULL");
+        } else {
+            logsimple("Exception correctly raised for NULL set");
+        }
+        fclose(fp);
+        //remove(tmpname);
+    }
+
+    test_sub("subtest %d: save to NULL file returns 0", ++subnum);
+    {
+        lwset s = lwset_initunlim();
+        int cnt = lwset_fsave(NULL, &s);
+        test_validate(cnt == 0, "Saving to NULL file must return 0");
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -1359,6 +1508,8 @@ main(int argc, const char *argv[])
             , testnew(.f2 =  tf_lwset_ops,                .num =  7, .name = "Lwset operations test",
                     .desc="", .mandatory=true)
             , testnew(.f2 =  tf_lwset_count,              .num =  8, .name = "Lwset count test",
+                    .desc="", .mandatory=true)
+            , testnew(.f2 =  tf_lwset_save,               .num =  9, .name = "Lwset save test",
                     .desc="", .mandatory=true)
             );
         if (runall)
