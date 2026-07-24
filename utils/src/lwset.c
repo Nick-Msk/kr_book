@@ -1983,6 +1983,81 @@ tf_lwset_load_roundtrip(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST lwset_serialize / lwset_fs_bits -------------------------
+static TestStatus
+tf_lwset_serialize(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Сериализация пустого множества */
+    test_sub("subtest %d: serialize empty set", ++subnum);
+    {
+        lwset s = lwset_initunlim();
+        fs buf = FS();
+        int cnt = lwset_serialize(&buf, &s);
+        test_validate(cnt > 0, "Serialize must return > 0 bytes written");
+        // ожидаем ровно 64 нуля
+        const char *expected_bits = "0000000000000000000000000000000000000000000000000000000000000000";
+        test_validate(strstr(fs_str(&buf), expected_bits) != NULL,
+                      "Empty set must contain 64 zeros, got '%s'", fs_str(&buf));
+        fsfree(buf);
+    }
+
+    /* 2. Сериализация множества с битами 2 и 5 */
+    test_sub("subtest %d: serialize bits 2 and 5", ++subnum);
+    {
+        lwset s = lwset_initunlim();
+        s.value = (1ULL << 2) | (1ULL << 5);
+        fs buf = FS();
+        lwset_serialize(&buf, &s);
+
+        // биты от 63 до 0: ... (58 нулей) ... 1 (бит5) 00 1 (бит2) 00
+        const char *expected = "LWSET { \"value\": \"0000000000000000000000000000000000000000000000000000000000100100\", \"low\": 0, \"high\": 64 }";
+        test_validate(strcmp(fs_str(&buf), expected) == 0,
+                      "Serialized bits 2&5 must match exactly.\nExpected: %s\nGot: %s",
+                      expected, fs_str(&buf));
+        fsfree(buf);
+    }
+
+    /* 3. Сериализация с кастомным диапазоном [5,10] */
+    test_sub("subtest %d: serialize range [5,10]", ++subnum);
+    {
+        lwset s = lwset_init1(5, 10);   // все биты 5..9 установлены, 10-й тоже? смотрите интервал: [5,10] => биты 5,6,7,8,9
+        // в предыдущей реализации lwset_init1(5,10) даёт биты 5..10? Давайте уточним: если high=10, то биты 5..9 включительно? У нас high теперь означает верхнюю границу не включая? Ранее мы перешли на [low, high), значит lwset_init1(5,10) устанавливает биты 5,6,7,8,9 – пять битов.
+        fs buf = FS();
+        lwset_serialize(&buf, &s);
+
+        // ожидаем 5 единиц подряд: "11111"
+        test_validate(strstr(fs_str(&buf), "\"value\": \"11111\"") != NULL,
+                      "Range [5,10] must produce five ones, got '%s'", fs_str(&buf));
+        fsfree(buf);
+    }
+
+    /* 4. NULL lwset -> ошибка */
+    test_sub("subtest %d: serialize NULL lwset raises", ++subnum);
+    {
+        fs buf = FS();
+        if (!try()) {
+            lwset_serialize(&buf, NULL);
+            test_validate(false, "Should have raised on NULL lwset");
+        } else {
+            logsimple("Exception correctly raised on NULL lwset");
+        }
+        fsfree(buf);
+    }
+
+    /* 5. target == NULL -> возвращает 0 (ничего не пишет) */
+    test_sub("subtest %d: serialize to NULL target returns 0", ++subnum);
+    {
+        lwset s = lwset_initunlim();
+        int cnt = lwset_serialize(NULL, &s);
+        test_validate(cnt == 0, "Serialize to NULL target must return 0");
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -1992,7 +2067,7 @@ main(int argc, const char *argv[])
 
     while (runall || *++argv){
         int     num = INT_MAX;    // INT_MAX for all test
-        if (!runall){
+        if (!runall) {
             num = atoi(*argv);
             if (num < 0){
                 fprintf(stderr, "Invalid test num %d\n", num);
@@ -2019,6 +2094,8 @@ main(int argc, const char *argv[])
             , testnew(.f2 =  tf_lwset_save,               .num =  9, .name = "Lwset save test",
                     .desc="", .mandatory=true)
             , testnew(.f2 =  tf_lwset_load_roundtrip,     .num = 10, .name = "Lwset save/load test",
+                    .desc="", .mandatory=true)
+            , testnew(.f2 =  tf_lwset_serialize,          .num = 11, .name = "Lwset lwset_serialize / lwset_fs_bits test",
                     .desc="", .mandatory=true)
             );
         if (runall)
