@@ -66,6 +66,7 @@ static inline lwset             lwset_clone(const lwset *s) {
     invraisecode(ERR_NULLABLE_PTR, s != NULL, "input pointer is NULL");
     return (lwset) {.value = s->value, .low = s->low, .high = s->high};
 }
+
 /// @brief  Create from ushort array of values, and count of values
 /// @param values pointer to the array of unsigned short values
 /// @param count the number of values in the array
@@ -99,6 +100,7 @@ static inline bool           lwset_get(const lwset *s, unsigned short index) {
     invraisecode(ERR_OUT_OF_RANGE, index >= s->low && index <= s->high, "index %u is out of bounds for lwset", index);
     return (s->value >> index) & 1;
 }
+
 /// @brief  Checks if two lwsets are equal, comparing their values and ranges
 /// @param s1 pointer to the first lwset
 /// @param s2  pointer to the second lwset
@@ -109,6 +111,7 @@ static inline bool           lwset_equals(const lwset *restrict s1, const lwset 
     // compare even if the ranges are NOT  the same
     return s1->value == s2->value; // && s1->low == s2->low && s1->high == s2->high;
 }
+
 /// @brief  Checks if two lwsets are not equal, comparing their values and ranges
 /// @param s1  pointer to the first lwset
 /// @param s2  pointer to the second lwset
@@ -118,6 +121,7 @@ static inline bool           lwset_notequal(const lwset *restrict s1, const lwse
         "Pointers is NULL %p %p", (void*) s1, (void*) s2);
     return (s1->value != s2->value);  // without checking low/high, because we want to compare the actual values
 }
+
 /// @brief  Checks if lwset s1 is a subset of lwset s2, comparing their values
 /// @param s1  pointer to the first lwset
 /// @param s2  pointer to the second lwset
@@ -127,6 +131,7 @@ static inline bool            lwset_in(const lwset *restrict s1, const lwset *re
         "Pointers is NULL %p %p", (void*) s1, (void*) s2);
     return (s1->value & s2->value) == s1->value;
 }
+
 /// @brief  Checks if lwset s1 is a strict subset of lwset s2, comparing their values
 /// @param s1  pointer to the first lwset
 /// @param s2  pointer to the second lwset
@@ -141,6 +146,7 @@ static inline bool           lwset_notempty(const lwset *s) {
     invraisecode(ERR_NULLABLE_PTR, s != NULL, "Pointer is NULL");
     return s->value != 0;
 }
+
 /// @brief  Checks if lwset s1 is empty
 /// @param s  pointer to the lwset
 /// @return  true if s1 is empty, false otherwise
@@ -148,6 +154,7 @@ static inline bool           lwset_isempty(const lwset *s) {
     invraisecode(ERR_NULLABLE_PTR, s != NULL, "Pointer is NULL");
     return s->value == 0;
 }
+
 /// @brief  Counts the number of bits set to 1 in the lwset 
 /// @param s  pointer to the lwset
 /// @return  the number of bits set to 1 in the lwset
@@ -158,6 +165,7 @@ static inline int                      lwset_count(const lwset *s) {
         count += ((s->value >> i) & 1);
     return count;
 }
+
 // --------------------- Modification functions -------------------------------
 /// @brief Sets a specific bit in the lwset to a specified value (true or false)
 /// @param s pointer to the lwset
@@ -174,6 +182,7 @@ static inline lwset          *lwset_setvalue(lwset *s, unsigned short index, boo
         s->value &= ~(1UL << index);
     return s;
 }
+
 /// @brief Sets a specific bit in the lwset to true (1)
 /// @param s pointer to the lwset 
 /// @param index  the index of the bit to set
@@ -188,6 +197,7 @@ static inline lwset          *lwset_set(lwset *s, unsigned short index) {
 static inline lwset          *lwset_unset(lwset *s, unsigned short index) {
     return lwset_setvalue(s, index, false);
 }
+
 /// @brief Sets a range of bits in the lwset to a specified value (true or false)
 /// @param s pointer to the lwset 
 /// @param low the starting index of the range (inclusive)
@@ -213,6 +223,7 @@ static inline lwset                    *lwset_union(lwset *restrict s1, const lw
     s1->value |= s2->value;
     return s1;
 }
+
 /// @brief  Computes the intersection of two lwsets and stores the result in s1
 /// @param s1   first lwset pointer
 /// @param s2   second lwset pointer
@@ -223,6 +234,7 @@ static inline lwset                    *lwset_intersect(lwset *restrict s1, cons
     s1->value &= s2->value;
     return s1;
 }
+
 /// @brief  Computes the difference of two lwsets and stores the result in s1
 /// @param s1   first lwset pointer
 /// @param s2   second lwset pointer
@@ -233,6 +245,7 @@ static inline lwset                    *lwset_minus(lwset *restrict s1, const lw
     s1->value &= ~s2->value;
     return s1;
 }
+
 /// @brief Computes the symmetric difference of two lwsets and stores the result in s1
 /// @param s1  first lwset pointer
 /// @param s2  second lwset pointer
@@ -255,12 +268,14 @@ lwset                    *lwset_symmdiff(lwset *restrict s1, const lwset *restri
 /// @param s pointer to the lwset
 /// @return number of characters printed
 extern int                      lwset_techfprint(FILE *restrict out, const lwset *restrict s);
+
 /// @brief  Prints the lwset to the standard output
 /// @param s pointer to the lwset
 /// @return number of characters printed
 static inline int               lwset_techprint(const lwset * s) {
     return lwset_techfprint(stdout, s);
 }
+
 /// @brief Prints the lwset to the logfile with offset spaces before the actual content  
 /// @param s pointer to the lwset
 /// @return  number of characters printed

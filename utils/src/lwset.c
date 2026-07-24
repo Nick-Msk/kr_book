@@ -9,16 +9,29 @@
 /// @brief  Prints the bits of the lwset to the specified output stream
 /// @param out output stream (e.g., stdout, a file)
 /// @param s pointer to the lwset
-/// @param   separator if not NULL, prints a separator when no more bits are set
 /// @return number of characters printed
 /// @note This function is static and used internally for printing the bits of the lwset. It iterates through the bits from low to high and prints '1' or '0' based on whether each bit is set. If the separator flag is true, it prints a '|' when there are no more bits set.
-static int              lwset_fprint_bits(FILE *restrict out, const lwset *restrict s, const char *restrict separator) {
-    int cnt = 0;
-    uint64_t tmpval = s->value >> s->low;  // shift the value to start from the low index
-    for (unsigned short i = s->low; i <= s->high; tmpval >>= 1, i++) {
-        if (tmpval == 0 && separator)
-                cnt += fprintf(out, "%s", separator);   // no more bits set, print a separator
-        cnt += fprintf(out, "%c", tmpval & 1 ? '1' : '0');
+static int              lwset_fprint_bits(FILE *restrict out, const lwset *restrict s) {
+    int     cnt = 0;
+    for (int i = s->high; i >= s->low; i--) {
+        cnt += fprintf(out, "%c", ( (s->value >> i) & 1) ? '1' 
+                                                         : '0');
+    }
+    return cnt;
+}
+
+/// @brief  Prints all bits of the lwset to the specified output stream, including leading zeros, and optionally adds a separator between groups of zeros. 
+/// @param out  output stream (e.g., stdout, a file)
+/// @param s  pointer to the lwset
+/// @param sep  separator string to print between groups of zeros (can be NULL)
+/// @return  number of characters printed
+static int             lwset_fprint_allbits(FILE *restrict out, const lwset *restrict s, const char *sep) {
+    int     cnt = 0;
+    for (int i = LWSET_MAX_BITS - 1; i >= 0; i--) {
+        cnt += fprintf(out, "%c", ( (s->value >> i) & 1) ? '1' 
+                                                         : '0');
+        if (sep && i > 0 && ((s->value >> i) & 1) == 0 && ((s->value >> (i-1)) & 1) == 0)
+            cnt += fprintf(out, "%s", sep);
     }
     return cnt;
 }
@@ -39,23 +52,8 @@ int                      lwset_techfprint(FILE *restrict out, const lwset *restr
         // logging in logfile with oiffset! For each line, print the offset spaces before the actual content
         if (out == logfile)
             cnt += logprintoffset();
-        cnt += lwset_fprint_bits(out, s, " | ");
+        cnt += lwset_fprint_allbits(out, s, " | ");
         cnt += fprintf(out, "}\n");
-    }
-    return cnt;
-}
-
-int                      lwset_fsave(FILE *restrict out, const  lwset *restrict s){
-    int cnt = 0;
-    if (out) {
-        invraisecode(ERR_NULLABLE_PTR, s != NULL, 
-            "Pointers is NULL %p", (void*) s);
-        // header
-        cnt += fprintf(out, "LWSET { \"value\": \"");
-        cnt += lwset_fprint_bits(out, s, NULL);
-        // print the rest
-        cnt += fprintf(out, "\", \"low\": %u, \"high\": %u }", 
-            s->low, s->high);
     }
     return cnt;
 }
@@ -81,9 +79,20 @@ bool                    lwset_isvalid(const lwset * s) {
 
 // --------------------------------- SERIALIZATION -----------------------------------------
 
-
-
-// TODO:
+int                      lwset_fsave(FILE *restrict out, const  lwset *restrict s){
+    int cnt = 0;
+    if (out) {
+        invraisecode(ERR_NULLABLE_PTR, s != NULL, 
+            "Pointers is NULL %p", (void*) s);
+        // header
+        cnt += fprintf(out, "LWSET { \"value\": \"");
+        cnt += lwset_fprint_bits(out, s);
+        // print the rest
+        cnt += fprintf(out, "\", \"low\": %u, \"high\": %u }", 
+            s->low, s->high);
+    }
+    return cnt;
+}
 
 // ---------------------------------------- Testing ------------------------------------------
 #ifdef LWSET_TESTING
@@ -1357,7 +1366,7 @@ tf_lwset_count(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
-// ------------------------- TEST lwset_fsave / lwset_fprint_bits -------------------------
+// ------------------------- TEST lwset_fsave / lwset_fprint_bits (final, no remove) -------------------------
 static TestStatus
 tf_lwset_save(const char *name)
 {
@@ -1368,8 +1377,9 @@ tf_lwset_save(const char *name)
 
     test_sub("subtest %d: save empty set (value=0)", ++subnum);
     {
-        lwset s = lwset_initunlim();
         const char *tmpname = "res/lwset/tmp_lwset_save_empty.dat";
+
+        lwset s = lwset_initunlim();
         FILE *fp = fopen(tmpname, "w");
         if (!fp) {
             return logret(TEST_FAILED, "file open error %s", tmpname);
@@ -1380,27 +1390,36 @@ tf_lwset_save(const char *name)
 
         fp = fopen(tmpname, "r");
         if (!fp) {
-            remove(tmpname);
             return logret(TEST_FAILED, "file read error %s", tmpname);
         }
         size_t n = fread(buf, 1, sizeof(buf)-1, fp);
         buf[n] = '\0';
         fclose(fp);
-        //remove(tmpname);
 
-        // Ожидаем: "LWSET { \"value\": \"0000...0000\", \"low\": 0, \"high\": 63 }"
-        test_validate(strstr(buf, "\"value\": \"") != NULL, "Header must contain value");
-        test_validate(strstr(buf, "0000000000000000000000000000000000000000000000000000000000000000") != NULL,
-                      "Empty set must have 64 zeros");
-        test_validate(strstr(buf, "\"low\": 0") != NULL && strstr(buf, "\"high\": 63") != NULL,
-                      "low=0, high=63 expected");
+        // При пустом множестве выводятся 64 нуля (биты 63..0)
+        test_validate(
+            strstr(buf, "\"value\": \"") != NULL, 
+            "Header must contain value"
+        );
+        test_validate(
+            strstr(buf, "0000000000000000000000000000000000000000000000000000000000000000") != NULL,
+            "Empty set must have 64 zeros");
+        test_validate(
+            strstr(buf, "\"low\": 0") != NULL && strstr(buf, "\"high\": 63") != NULL,
+            "low=0, high=63 expected"
+        );
+        test_validate(
+            lwset_isvalid(&s), 
+            "Set must be valid"
+        );
     }
 
-    test_sub("subtest %d: save set with bits", ++subnum);
+    test_sub("subtest %d: save set with bits 2 and 5", ++subnum);
     {
-        lwset s = lwset_initunlim();
-        s.value = (1ULL << 2) | (1ULL << 5);  // биты 2 и 5
         const char *tmpname = "res/lwset/tmp_lwset_save_bits.dat";
+
+        lwset s = lwset_initunlim();
+        s.value = (1ULL << 2) | (1ULL << 5);  // биты 2 и 5 установлены
         FILE *fp = fopen(tmpname, "w");
         if (!fp) {
             return logret(TEST_FAILED, "file open error %s", tmpname);
@@ -1409,22 +1428,35 @@ tf_lwset_save(const char *name)
         fclose(fp);
 
         fp = fopen(tmpname, "r");
-        fread(buf, 1, sizeof(buf)-1, fp);
-        buf[sizeof(buf)-1] = '\0';
+        if (!fp) {
+            return logret(TEST_FAILED, "file read error %s", tmpname);
+        }
+        size_t n = fread(buf, 1, sizeof(buf)-1, fp);
+        buf[n] = '\0';
         fclose(fp);
-        //remove(tmpname);
 
-        // биты печатаются от младшего к старшему: 0,0,1,0,0,1 → "001001"
-        test_validate(strstr(buf, "\"value\": \"001001") != NULL,
-                      "Bits 2 and 5 must produce '001001'");
-        test_validate(strstr(buf, "\"low\": 0") != NULL && strstr(buf, "\"high\": 63") != NULL,
-                      "low=0, high=63 expected");
+        // Старший бит 63… младший бит 0. Единицы на позициях 5 и 2 (слева направо).
+        // 58 нулей, затем "1" (бит5), "00", "1" (бит2), "00" → всего 64 символа.
+        const char *expected = "0000000000000000000000000000000000000000000000000000000000100100";
+        test_validate(
+            strstr(buf, expected) != NULL,
+            "Bits 2 and 5 must produce '%s'", expected
+        );
+        test_validate(
+            strstr(buf, "\"low\": 0") != NULL && strstr(buf, "\"high\": 63") != NULL,
+            "low=0, high=63 expected"
+        );
+        test_validate(
+            lwset_isvalid(&s), 
+            "Set must be valid"
+        );
     }
 
-    test_sub("subtest %d: save set with custom range", ++subnum);
+    test_sub("subtest %d: save set with custom range [5,10]", ++subnum);
     {
-        lwset s = lwset_init1(5, 10);  // биты 5..10 = 0x7E0 (младшие 11 бит: 11111100000)
         const char *tmpname = "res/lwset/tmp_lwset_save_range.dat";
+
+        lwset s = lwset_init1(5, 10);  // биты 5..10 = 0x7E0
         FILE *fp = fopen(tmpname, "w");
         if (!fp) {
             return logret(TEST_FAILED, "file open error %s", tmpname);
@@ -1433,25 +1465,142 @@ tf_lwset_save(const char *name)
         fclose(fp);
 
         fp = fopen(tmpname, "r");
-        fread(buf, 1, sizeof(buf)-1, fp);
-        buf[sizeof(buf)-1] = '\0';
+        if (!fp) {
+            return logret(TEST_FAILED, "file read error %s", tmpname);
+        }
+        size_t n = fread(buf, 1, sizeof(buf)-1, fp);
+        buf[n] = '\0';
         fclose(fp);
-        //remove(tmpname);
 
-        // биты от 0 до 10: 0-4 → '0', 5-10 → '1', всего 11 символов "00000111111"
+        // Биты 10..5 (старший -> младший): все единицы → "111111"
         test_validate(
             strstr(buf, "\"value\": \"111111\"") != NULL,
-            "Range [5,10] must produce '111111' (6 ones)"
+            "Range [5,10] must produce '111111'"
         );
         test_validate(
             strstr(buf, "\"low\": 5") != NULL && strstr(buf, "\"high\": 10") != NULL,
             "low=5, high=10 expected"
+        );
+        test_validate(
+            lwset_isvalid(&s), 
+            "Set must be valid"
+        );
+    }
+
+    test_sub("subtest %d: save single-bit range (low==high)", ++subnum);
+    {
+        const char *tmpname = "res/lwset/tmp_lwset_save_single.dat";
+
+        lwset s = lwset_init0(20, 20);
+        lwset_set(&s, 20);
+        FILE *fp = fopen(tmpname, "w");
+        if (!fp) {
+            return logret(TEST_FAILED, "file open error %s", tmpname);
+        }
+        lwset_fsave(fp, &s);
+        fclose(fp);
+
+        fp = fopen(tmpname, "r");
+        if (!fp) {
+            return logret(TEST_FAILED, "file read error %s", tmpname);
+        }
+        size_t n = fread(buf, 1, sizeof(buf)-1, fp);
+        buf[n] = '\0';
+        fclose(fp);
+
+        test_validate(
+            strstr(buf, "\"value\": \"1\"") != NULL,
+            "Single bit 20 must produce '1'"
+        );
+        test_validate(
+            strstr(buf, "\"low\": 20") != NULL &&
+            strstr(buf, "\"high\": 20") != NULL,
+            "low=20, high=20 expected"
+        );
+        test_validate(
+            lwset_isvalid(&s), 
+            "Set must be valid"
+        );
+    }
+
+    test_sub("subtest %d: save mid-range with mixed bits", ++subnum);
+    {
+        const char *tmpname = "res/lwset/tmp_lwset_save_mid.dat";
+
+        lwset s = lwset_init0(10, 15);
+        s.value = (1ULL << 10) | (1ULL << 12);   // биты 10 и 12
+        FILE *fp = fopen(tmpname, "w");
+        if (!fp) {
+            return logret(TEST_FAILED, "file open error %s", tmpname);
+        }
+        lwset_fsave(fp, &s);
+        fclose(fp);
+
+        fp = fopen(tmpname, "r");
+        if (!fp) {
+            return logret(TEST_FAILED, "file read error %s", tmpname);
+        }
+        size_t n = fread(buf, 1, sizeof(buf)-1, fp);
+        buf[n] = '\0';
+        fclose(fp);
+
+        // Порядок: 15..10 → бит15=0,14=0,13=0,12=1,11=0,10=1 → "000101"
+        test_validate(
+            strstr(buf, "\"value\": \"000101\"") != NULL,
+            "Bits 10,12 must produce '000101'"
+        );
+        test_validate(
+            strstr(buf, "\"low\": 10") != NULL &&
+            strstr(buf, "\"high\": 15") != NULL,
+            "low=10, high=15 expected"
+        );
+        test_validate(
+            lwset_isvalid(&s), 
+            "Set must be valid"
+        );
+    }
+
+    test_sub("subtest %d: save range including bit 63", ++subnum);
+    {
+        const char *tmpname = "res/lwset/tmp_lwset_save_high.dat";
+
+        lwset s = lwset_init0(60, 63);
+        lwset_set(&s, 63);
+        FILE *fp = fopen(tmpname, "w");
+        if (!fp) {
+            return logret(TEST_FAILED, "file open error %s", tmpname);
+        }
+        lwset_fsave(fp, &s);
+        fclose(fp);
+
+        fp = fopen(tmpname, "r");
+        if (!fp) {
+            return logret(TEST_FAILED, "file read error %s", tmpname);
+        }
+        size_t n = fread(buf, 1, sizeof(buf)-1, fp);
+        buf[n] = '\0';
+        fclose(fp);
+
+        // Биты 63..60: 63=1,62=0,61=0,60=0 → "1000"
+        test_validate(
+            strstr(buf, "\"value\": \"1000\"") != NULL,
+            "Bit 63 only must produce '1000' for range [60,63]"
+        );
+        test_validate(
+            strstr(buf, "\"low\": 60") != NULL &&
+            strstr(buf, "\"high\": 63") != NULL,
+            "low=60, high=63 expected"
+        );
+        test_validate(
+            lwset_isvalid(&s), 
+            "Set must be valid"
         );
     }
 
     test_sub("subtest %d: save with NULL set raises", ++subnum);
     {
         const char *tmpname = "res/lwset/tmp_lwset_save_null.dat";
+
         FILE *fp = fopen(tmpname, "w");
         if (!fp) {
             return logret(TEST_FAILED, "file open error %s", tmpname);
@@ -1463,7 +1612,6 @@ tf_lwset_save(const char *name)
             logsimple("Exception correctly raised for NULL set");
         }
         fclose(fp);
-        //remove(tmpname);
     }
 
     test_sub("subtest %d: save to NULL file returns 0", ++subnum);
@@ -1471,75 +1619,6 @@ tf_lwset_save(const char *name)
         lwset s = lwset_initunlim();
         int cnt = lwset_fsave(NULL, &s);
         test_validate(cnt == 0, "Saving to NULL file must return 0");
-    }
-
-    test_sub("subtest %d: save single-bit range (low==high)", ++subnum);
-    {
-        const char *tmpname = "res/lwset/tmp_lwset_save_single_bit.dat";
-        lwset s = lwset_init0(20, 20);
-        lwset_set(&s, 20);                        // только бит 20
-        FILE *fp = fopen(tmpname, "w");
-        lwset_fsave(fp, &s);
-        fclose(fp);
-
-        fp = fopen(tmpname, "r");
-        fread(buf, 1, sizeof(buf)-1, fp);
-        buf[sizeof(buf)-1] = '\0';
-        fclose(fp);
-        remove(tmpname);
-
-        // Ожидаем вывод только одного бита: '1'
-        test_validate(strstr(buf, "\"value\": \"1\"") != NULL,
-                    "Single bit 20 must produce '1'");
-        test_validate(strstr(buf, "\"low\": 20") != NULL &&
-                    strstr(buf, "\"high\": 20") != NULL,
-                    "low=20, high=20 expected");
-    }
-
-    test_sub("subtest %d: save mid-range with mixed bits", ++subnum);
-    {
-        const char *tmpname = "res/lwset/tmp_lwset_save_mid_range.dat";
-        lwset s = lwset_init0(10, 15);
-        s.value = (1ULL << 10) | (1ULL << 12);   // биты 10 и 12
-        FILE *fp = fopen(tmpname, "w");
-        lwset_fsave(fp, &s);
-        fclose(fp);
-
-        fp = fopen(tmpname, "r");
-        fread(buf, 1, sizeof(buf)-1, fp);
-        buf[sizeof(buf)-1] = '\0';
-        fclose(fp);
-        remove(tmpname);
-
-        // Биты 10..15: 10=1,11=0,12=1,13=0,14=0,15=0 → "101000"
-        test_validate(strstr(buf, "\"value\": \"101000\"") != NULL,
-                    "Bits 10,12 must produce '101000'");
-        test_validate(strstr(buf, "\"low\": 10") != NULL &&
-                    strstr(buf, "\"high\": 15") != NULL,
-                    "low=10, high=15 expected");
-    }
-
-    test_sub("subtest %d: save range including bit 63", ++subnum);
-    {
-        const char *tmpname = "res/lwset/tmp_lwset_save_bit63.dat";
-        lwset s = lwset_init0(60, 63);
-        lwset_set(&s, 63);                       // только бит 63
-        FILE *fp = fopen(tmpname, "w");
-        lwset_fsave(fp, &s);
-        fclose(fp);
-
-        fp = fopen(tmpname, "r");
-        fread(buf, 1, sizeof(buf)-1, fp);
-        buf[sizeof(buf)-1] = '\0';
-        fclose(fp);
-        remove(tmpname);
-
-        // Биты 60..63: 60=0,61=0,62=0,63=1 → "0001"
-        test_validate(strstr(buf, "\"value\": \"0001\"") != NULL,
-                    "Bit 63 only must produce '0001' for range [60,63]");
-        test_validate(strstr(buf, "\"low\": 60") != NULL &&
-                    strstr(buf, "\"high\": 63") != NULL,
-                    "low=60, high=63 expected");
     }
 
     return logret(TEST_PASSED, "done");
