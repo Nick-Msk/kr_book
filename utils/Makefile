@@ -128,7 +128,8 @@ test/systemutils_test: src/systemutils.c lib/log.o lib/test.o lib/error.o lib/ch
 test/seq_test: src/seq.c lib/log.o lib/test.o lib/error.o lib/checker.o | lib/seq.o
 	$(CC) $(CFLAGS) -DSEQTESTING $^ -o $@ $(LDLIBS)
 
-test/lwset_test: src/lwset.c lib/log.o lib/test.o lib/error.o lib/checker.o | lib/lwset.o
+test/lwset_test: src/lwset.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/fs_iter.o lib/fs.o \
+		lib/common.o lib/fileutils.o lib/getword.o lib/buffer.o | lib/lwset.o
 	$(CC) $(CFLAGS) -DLWSET_TESTING $^ -o $@ $(LDLIBS)
 
 test/numeric_ops_test: src/numeric_ops.c lib/log.o lib/test.o lib/error.o | lib/numeric_ops.o

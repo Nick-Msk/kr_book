@@ -14,6 +14,8 @@
 #include "error.h"
 #include "log.h"
 #include "common.h"
+#include "fs.h"
+#include "fs_iter.h"
 
 // --------------------------------- CONSTANTS AND GLOBALS --------------------------
 
@@ -319,7 +321,18 @@ static inline bool               lwset_load(lwset * s) {
     return lwset_fload(stdin, s);
 }
 
-// fs serialization, 
+// fs serialization
+/// @brief Saves the lwset to a specified output stream in a pseudo-json format
+/// @param target pointer to valid fs
+/// @param s pointer to the lwset
+/// @return number of characters printed
+extern int                       lwset_serialize(fs *restrict target, const lwset *restrict s);
+
+/// @brief Load the lwset from a specified fs
+/// @param target pointer to valid fs
+/// @param s pointer to the lwset
+/// @return number of characters printed
+extern bool                      lwset_loadfs(const fs *restrict target, lwset *restrict s);
 
 // ------------------------------------ ETC. ----------------------------------------
 

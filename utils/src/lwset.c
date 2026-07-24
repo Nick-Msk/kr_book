@@ -20,6 +20,20 @@ static int              lwset_fprint_bits(FILE *restrict out, const lwset *restr
     return cnt;
 }
 
+/// @brief Prints the bits of the lwset to the specified fs
+/// @param target valid fs (FS_HEAP)
+/// @param s pointer to the lwset
+/// @return number of characters printed
+static int              lwset_fs_bits(fs *restrict target, const lwset *restrict s) {
+    fsnew iter = fsiapp(target);    // append iterator 
+    for (int i = s->high - 1; i >= s->low; i--)
+        elemnext(iter) = ( (s->value >> i) & 1) ? '1' 
+                                                : '0';
+    elemend(iter);
+    return s->high - s->low;
+}
+
+
 /// @brief  Prints all bits of the lwset to the specified output stream, including leading zeros, and optionally adds a separator between groups of zeros. 
 /// @param out  output stream (e.g., stdout, a file)
 /// @param s  pointer to the lwset
@@ -123,6 +137,21 @@ bool                      lwset_fload(FILE *restrict in, lwset *restrict s) {
     if (s)
         *s = res; 
     return logsimpleret(true, "lwset created");
+}
+
+int                       lwset_serialize(fs *restrict target, const lwset *restrict s) {
+    invraisecode(ERR_NULLABLE_PTR,  s != NULL, 
+            "Pointers is NULL %p", s);
+    int cnt = 0;
+    if (target) {
+        // header
+        cnt += fs_sprintf_concat(target, "LWSET { \"value\": \"");  
+        cnt += lwset_fs_bits(target, s);    
+        // print the rest
+        cnt += fs_sprintf_concat(target, "\", \"low\": %u, \"high\": %u }", 
+            s->low, s->high);
+    }
+    return cnt;  
 }
 
 // ---------------------------------------- Testing ------------------------------------------
