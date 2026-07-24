@@ -33,7 +33,6 @@ static int              lwset_fs_bits(fs *restrict target, const lwset *restrict
     return s->high - s->low;
 }
 
-
 /// @brief  Prints all bits of the lwset to the specified output stream, including leading zeros, and optionally adds a separator between groups of zeros. 
 /// @param out  output stream (e.g., stdout, a file)
 /// @param s  pointer to the lwset
@@ -48,6 +47,18 @@ static int             lwset_fprint_allbits(FILE *restrict out, const lwset *res
             cnt += fprintf(out, "%s", sep);
     }
     return cnt;
+}
+
+static int          lwset_read_bits(const char *restrict buf, int sz, uint64_t *restrict val, unsigned short  high) {
+    for (int i = 0; i < sz; i++) {
+        if (buf[i] == '1') {
+            unsigned short bit_index = high - 1 - i;   // MSB first
+            *val |= (1ULL << bit_index);
+        } else if (buf[i] != '0') {
+            return userraise(-1, ERR_INVALID_BINARY_DATA, "invalid character in bit string '%c'", buf[i]);            // invalid character in bit string
+        }
+    }
+    return sz;
 }
 
 // ------------------------------------- API -----------------------------------------------
@@ -112,7 +123,7 @@ bool                      lwset_fload(FILE *restrict in, lwset *restrict s) {
     invraisecode(ERR_NULLABLE_PTR, in != NULL, 
             "Pointers is NULL %p", in);
 
-    char            bits[65] = {'\0'};          // enough for 64 bits + null
+    char            bits[LWSET_MAX_BITS + 1] = {'\0'};          // enough for 64 bits + null
     unsigned short  low = 0, high = 0;
 
     /* The format is exactly: LWSET { "value": "<bits>", "low": %hu, "high": %hu } */
@@ -120,20 +131,16 @@ bool                      lwset_fload(FILE *restrict in, lwset *restrict s) {
                          bits, &low, &high);
     if (matched != 3)
         return userraise(false, ERR_WRONG_INPUT_FORMAT, "lwset header mismatch");                // header mismatch
-    int len = (int)strlen(bits);
+    int len = strlen(bits);
     if (len != high - low)
         return userraise(false, ERR_WRONG_INPUT_FORMAT, "lwset: bit string length does not match range");
 
     lwset           res = lwset_init0(low, high);
     
-    for (int i = 0; i < len; i++) {
-        if (bits[i] == '1') {
-            unsigned short bit_index = high - 1 - i;   // MSB first
-            res.value |= (1ULL << bit_index);
-        } else if (bits[i] != '0') {
-            return userraise(false, ERR_INVALID_BINARY_DATA, "invalid character in bit string '%c'", bits[i]);            // invalid character in bit string
-        }
-    }
+    // fill the res.value
+    if (lwset_read_bits(bits, sizeof(bits), &res.value, high)  < 0)
+        userraise(false, ERR_INVALID_BINARY_DATA, "invalid character in bit string '%s'", bits);
+
     if (s)
         *s = res; 
     return logsimpleret(true, "lwset created");
@@ -141,7 +148,7 @@ bool                      lwset_fload(FILE *restrict in, lwset *restrict s) {
 
 int                       lwset_serialize(fs *restrict target, const lwset *restrict s) {
     invraisecode(ERR_NULLABLE_PTR,  s != NULL, 
-            "Pointers is NULL %p", s);
+            "Pointer is NULL %p", s);
     int cnt = 0;
     if (target) {
         // header
@@ -152,6 +159,32 @@ int                       lwset_serialize(fs *restrict target, const lwset *rest
             s->low, s->high);
     }
     return cnt;  
+}
+/// @brief  
+/// @param target 
+/// @param s 
+/// @return 
+bool                      lwset_loadfs(const fs *restrict target, lwset *restrict s) {
+    invraisecode(ERR_NULLABLE_PTR, target != NULL && s != NULL, 
+            "Pointers is NULL %p %p", target, s);
+
+   char            bits[LWSET_MAX_BITS + 1] = {'\0'};          // enough for 64 bits + null
+   unsigned short  low = 0, high = 0;
+   int matched = sscanf(target->v, "LWSET { \"value\": \"%64[^\"]\", \"low\": %hu, \"high\": %hu }",
+                         bits, &low, &high);
+    if (matched != 3)
+        return userraise(false, ERR_WRONG_INPUT_FORMAT, "lwset header mismatch");
+    int len = strlen(bits);
+    if (len != high - low)
+        return userraise(false, ERR_WRONG_INPUT_FORMAT, "lwset: bit string length does not match range");
+
+    lwset           res = lwset_init0(low, high);
+    // fill the res.value
+    if (lwset_read_bits(bits, sizeof(bits), &res.value, high)  < 0)
+        userraise(false, ERR_INVALID_BINARY_DATA, "invalid character in bit string '%s'", bits);
+    if (s)
+        *s = res;
+    return logsimpleret(true, "loaded from fs");
 }
 
 // ---------------------------------------- Testing ------------------------------------------
