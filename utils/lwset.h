@@ -24,7 +24,7 @@
 /// @note The lwset structure is designed for efficiency and simplicity, making it suitable for scenarios where a small, fixed-size set is needed. It is not intended for large or dynamic sets.
 typedef struct {
     uint64_t value;  // now only 1 int64_t value is used, but in the future, we can add more fields if needed
-    unsigned short low, high;  
+    unsigned short low, high;  // range of valid indices for the set, non-iclusive, low < high, high <= 64
 } lwset;
 
 static const unsigned short     LWSET_MAX_BITS = sizeof(uint64_t) * 8;  // 64 bits
@@ -33,12 +33,12 @@ static const unsigned short     LWSET_MAX_BITS = sizeof(uint64_t) * 8;  // 64 bi
 
 /// @brief Initializes a lwset with all bits set to 0 and the range [0, 63]
 static inline lwset             lwset_initunlim(void) {
-    return (lwset) {.value = 0, .low = 0, .high = LWSET_MAX_BITS - 1};  // set high to the maximum bit index for int64_t
+    return (lwset) {.value = 0, .low = 0, .high = LWSET_MAX_BITS};  // set high to the maximum bit index for int64_t
 }
 
 /// @brief Initializes a lwset with all bits set to 1 and the range [0, 63]
 static inline lwset             lwset_init1unlim(void) {
-    return (lwset) {.value = UINT64_MAX, .low = 0, .high = LWSET_MAX_BITS - 1};  // set high to the maximum bit index for int64_t
+    return (lwset) {.value = UINT64_MAX, .low = 0, .high = LWSET_MAX_BITS};  // set high to the maximum bit index for int64_t
 }
 
 /// @brief  initializes a lwset with all bits set to 0 and the specified range [low, high]
@@ -46,7 +46,9 @@ static inline lwset             lwset_init1unlim(void) {
 /// @param high the ending index of the range (inclusive)
 /// @return the initialized lwset
 static inline lwset             lwset_init0(unsigned short low, unsigned short high) {
-    return (lwset) {.value = 0, .low = low, .high = high};
+    if (low >= high || high > LWSET_MAX_BITS)
+        userraiseint(ERR_OUT_OF_RANGE, "Invalid lwset range: low=%u, high=%u", low, high);
+    return (lwset) {.value = 0, .low = low, .high = high};  // high is inclusive, so we subtract 1 to make it non-inclusive
 }
 
 /// @brief  initializes a lwset with all bits set to 1 and the specified range [low, high]
@@ -54,7 +56,9 @@ static inline lwset             lwset_init0(unsigned short low, unsigned short h
 /// @param high the ending index of the range (inclusive)
 /// @return the initialized lwset
 static inline lwset lwset_init1(unsigned short low, unsigned short high) {
-    unsigned short width = high - low + 1;
+    if (low >= high || high > LWSET_MAX_BITS)
+        userraiseint(ERR_OUT_OF_RANGE, "Invalid lwset range: low=%u, high=%u", low, high);
+    unsigned short width = high - low;
     uint64_t mask = (width >= 64) ? UINT64_MAX : ((1ULL << width) - 1);
     return (lwset) { .value = mask << low, .low = low, .high = high };
 }
@@ -81,7 +85,7 @@ static inline lwset             lwset_list(const unsigned short *values, size_t 
             max = values[i];
         s.value |= (1UL << values[i]);
     }
-    s.high = max;
+    s.high = max + 1;  // set high to the maximum value + 1 to make it non-inclusive
     return s;
 }
 
@@ -97,7 +101,8 @@ static inline lwset             lwset_list(const unsigned short *values, size_t 
 /// @return the value of the bit at the specified index (true or false)
 static inline bool           lwset_get(const lwset *s, unsigned short index) {
     invraisecode(ERR_NULLABLE_PTR, s != NULL, "input pointer is NULL");
-    invraisecode(ERR_OUT_OF_RANGE, index >= s->low && index <= s->high, "index %u is out of bounds for lwset", index);
+    invraisecode(ERR_OUT_OF_RANGE, index >= s->low && index < s->high, 
+        "index %u is out of bounds for lwset", index);
     return (s->value >> index) & 1;
 }
 
@@ -161,7 +166,7 @@ static inline bool           lwset_isempty(const lwset *s) {
 static inline int                      lwset_count(const lwset *s) {
     invraisecode(ERR_NULLABLE_PTR, s != NULL, "Pointer is NULL");
     int count = 0;
-    for (unsigned short i = s->low; i <= s->high; ++i)
+    for (unsigned short i = s->low; i < s->high; ++i)
         count += ((s->value >> i) & 1);
     return count;
 }
@@ -174,7 +179,7 @@ static inline int                      lwset_count(const lwset *s) {
 /// @return pointer to the modified lwset
 static inline lwset          *lwset_setvalue(lwset *s, unsigned short index, bool value) {
     invraisecode(ERR_NULLABLE_PTR, s != NULL, "input pointer is NULL");
-    invraisecode(ERR_OUT_OF_RANGE, index >= s->low && index <= s->high, 
+    invraisecode(ERR_OUT_OF_RANGE, index >= s->low && index < s->high, 
             "index %u is out of bounds for lwset", index);
     if (value)
         s->value |= (1UL << index);
@@ -206,9 +211,9 @@ static inline lwset          *lwset_unset(lwset *s, unsigned short index) {
 /// @return pointer to the modified lwset
 static inline lwset           *lwset_setrangevalue(lwset *s, unsigned short low, unsigned short high, bool value) {
     invraisecode(ERR_NULLABLE_PTR, s != NULL, "Pointer is NULL");
-    invraisecode(ERR_OUT_OF_RANGE, low >= s->low && high <= s->high && low <= high, 
+    invraisecode(ERR_OUT_OF_RANGE, low >= s->low && high <= s->high && low < high, 
         "range [%u, %u] is out of bounds for lwset with range [%u, %u]", low, high, s->low, s->high);
-    for (unsigned short i = low; i <= high; ++i)
+    for (unsigned short i = low; i < high; ++i)
         lwset_setvalue(s, i, value);
     return s;
 }
