@@ -94,6 +94,37 @@ int                      lwset_fsave(FILE *restrict out, const  lwset *restrict 
     return cnt;
 }
 
+bool                      lwset_fload(FILE *restrict in, lwset *restrict s) {
+    invraisecode(ERR_NULLABLE_PTR, in != NULL, 
+            "Pointers is NULL %p", in);
+
+    char            bits[65] = {'\0'};          // enough for 64 bits + null
+    unsigned short  low = 0, high = 0;
+
+    /* The format is exactly: LWSET { "value": "<bits>", "low": %hu, "high": %hu } */
+    int matched = fscanf(in, "LWSET { \"value\": \"%64[^\"]\", \"low\": %hu, \"high\": %hu }",
+                         bits, &low, &high);
+    if (matched != 3)
+        return userraise(-1, ERR_WRONG_INPUT_FORMAT, "lwset header mismatch");                // header mismatch
+    int len = (int)strlen(bits);
+    if (len != high - low)
+        return userraise(false, ERR_WRONG_INPUT_FORMAT, "lwset: bit string length does not match range");
+
+    lwset           res = lwset_init0(low, high);
+    
+    for (int i = 0; i < len; i++) {
+        if (bits[i] == '1') {
+            unsigned short bit_index = high - 1 - i;   // MSB first
+            res.value |= (1ULL << bit_index);
+        } else if (bits[i] != '0') {
+            return userraise(false, ERR_INVALID_BINARY_DATA, "invalid character in bit string '%c'", bits[i]);            // invalid character in bit string
+        }
+    }
+    if (s)
+        *s = res; 
+    return logsimpleret(true, "lwset created");
+}
+
 // ---------------------------------------- Testing ------------------------------------------
 #ifdef LWSET_TESTING
 
@@ -1624,6 +1655,305 @@ tf_lwset_save(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST lwset_fload (round‑trip, самодостаточный) -------------------------
+static TestStatus
+tf_lwset_load_roundtrip(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. round‑trip empty set (64 bits, low=0, high=64) */
+    test_sub("subtest %d: round‑trip empty set", ++subnum);
+    {
+        const char *fname = "res/lwset/tmp_lwset_load_empty.dat";
+
+        lwset orig = lwset_initunlim();
+        FILE *fp = fopen(fname, "w");
+        if (!fp)
+            return logret(TEST_FAILED, "cannot open %s for writing", fname);
+        lwset_fsave(fp, &orig);
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        if (!fp)
+            return logret(TEST_FAILED, "cannot open %s for reading", fname);
+        lwset loaded;
+
+        test_validatefree(
+            lwset_fload(fp, &loaded), 
+            fclose(fp),
+            "fload must succeed"
+        );
+        fclose(fp);
+        test_validate(
+            loaded.value == 0 && loaded.low == 0 && loaded.high == 64,
+            "loaded empty: value=0x%llx low=%u high=%u (expected 0,0,64)",
+            (unsigned long long)loaded.value, loaded.low, loaded.high
+        );
+        test_validate(
+            lwset_isvalid(&loaded), 
+            "loaded set must be valid"
+        );
+    }
+
+    /* 2. round‑trip set with bits 2 and 5 */
+    test_sub("subtest %d: round‑trip bits 2 and 5", ++subnum);
+    {
+        const char *fname = "res/lwset/tmp_lwset_load_bits.dat";
+
+        lwset orig = lwset_initunlim();
+        orig.value = (1ULL << 2) | (1ULL << 5);
+        FILE *fp = fopen(fname, "w");
+        if (!fp)
+            return logret(TEST_FAILED, "cannot open %s for writing", fname);
+        lwset_fsave(fp, &orig);
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        if (!fp)
+            return logret(TEST_FAILED, "cannot open %s for reading", fname);
+        lwset loaded;
+ 
+        test_validatefree(
+            lwset_fload(fp, &loaded), 
+            fclose(fp),
+            "fload must succeed"
+        );
+        fclose(fp);
+        test_validate(
+            loaded.value == ((1ULL << 2) | (1ULL << 5)) &&
+            loaded.low == 0 && loaded.high == 64,
+            "loaded bits: value=0x%llx low=%u high=%u",
+            (unsigned long long)loaded.value, loaded.low, loaded.high
+        );
+        test_validate(
+            lwset_get(&loaded, 2) && lwset_get(&loaded, 5),
+            "bits 2 and 5 must be set"
+        );
+        test_validate(
+            lwset_isvalid(&loaded), 
+            "loaded set must be valid"
+        );
+    }
+
+    /* 3. round‑trip custom range [5,10] */
+    test_sub("subtest %d: round‑trip range [5,10]", ++subnum);
+    {
+        const char *fname = "res/lwset/tmp_lwset_load_range.dat";
+
+        lwset orig = lwset_init1(5, 10);   // все биты 5..10 = 1
+        FILE *fp = fopen(fname, "w");
+        if (!fp)
+            return logret(TEST_FAILED, "cannot open %s for writing", fname);
+        lwset_fsave(fp, &orig);
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        if (!fp)
+            return logret(TEST_FAILED, "cannot open %s for reading", fname);
+        lwset loaded;
+
+        test_validatefree(
+            lwset_fload(fp, &loaded), 
+            fclose(fp),
+            "fload must succeed"
+        );
+        fclose(fp);
+        test_validate(
+            loaded.low == 5 && loaded.high == 10,
+            "loaded range: low=%u high=%u (expected 5,10)", loaded.low, loaded.high
+        );
+        for (unsigned short i = 5; i < 10; i++)
+            test_validate(
+                lwset_get(&loaded, i),
+                "bit %u must be set", i
+            );
+        test_validate(
+            lwset_isvalid(&loaded), 
+            "loaded set must be valid"
+        );
+    }
+
+    /* 4. round‑trip single bit [20,20] */
+    test_sub("subtest %d: round‑trip single bit [20,20]", ++subnum);
+    {
+        const char *fname = "res/lwset/tmp_lwset_load_single.dat";
+
+        lwset orig = lwset_init0(20, 20);
+        lwset_set(&orig, 20);
+        FILE *fp = fopen(fname, "w");
+        if (!fp)
+            return logret(TEST_FAILED, "cannot open %s for writing", fname);
+        lwset_fsave(fp, &orig);
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        if (!fp)
+            return logret(TEST_FAILED, "cannot open %s for reading", fname);
+        lwset loaded;
+
+        test_validatefree(
+            lwset_fload(fp, &loaded), 
+            fclose(fp),
+            "fload must succeed"
+        );
+        fclose(fp);
+        test_validate(
+            loaded.low == 20 && loaded.high == 20 && lwset_get(&loaded, 20),
+            "loaded single: low=%u high=%u bit20=%d",
+            loaded.low, loaded.high, lwset_get(&loaded, 20)
+        );
+        test_validate(
+            lwset_isvalid(&loaded), 
+            "loaded set must be valid"
+        );
+    }
+
+    /* 5. round‑trip mid‑range with mixed bits */
+    test_sub("subtest %d: round‑trip mid‑range mixed bits", ++subnum);
+    {
+        const char *fname = "res/lwset/tmp_lwset_load_mid.dat";
+
+        lwset orig = lwset_init0(10, 15);
+        orig.value = (1ULL << 10) | (1ULL << 12);  // биты 10 и 12
+        FILE *fp = fopen(fname, "w");
+        if (!fp)
+            return logret(TEST_FAILED, "cannot open %s for writing", fname);
+        lwset_fsave(fp, &orig);
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        if (!fp) return logret(TEST_FAILED, "cannot open %s for reading", fname);
+        lwset loaded;
+ 
+        test_validatefree(
+            lwset_fload(fp, &loaded), 
+            fclose(fp),
+            "fload must succeed"
+        );
+        fclose(fp);
+        test_validate(
+            loaded.low == 10 && loaded.high == 15 &&
+            lwset_get(&loaded, 10) && lwset_get(&loaded, 12) &&
+            !lwset_get(&loaded, 11) && !lwset_get(&loaded, 13) &&
+            !lwset_get(&loaded, 14),
+            "loaded mid: bits 10,12 must be set, others clear"
+        );
+        test_validate(
+            lwset_isvalid(&loaded), 
+            "loaded set must be valid"
+        );
+    }
+
+    /* 6. round‑trip range including bit 63 */
+    test_sub("subtest %d: round‑trip bit 63", ++subnum);
+    {
+        const char *fname = "res/lwset/tmp_lwset_load_high.dat";
+
+        lwset orig = lwset_init0(60, 63);
+        lwset_set(&orig, 63);
+        FILE *fp = fopen(fname, "w");
+        if (!fp) return logret(TEST_FAILED, "cannot open %s for writing", fname);
+        lwset_fsave(fp, &orig);
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        if (!fp) return logret(TEST_FAILED, "cannot open %s for reading", fname);
+        lwset loaded;
+       
+        test_validatefree(
+            lwset_fload(fp, &loaded), 
+            fclose(fp),
+            "fload must succeed"
+        );
+        fclose(fp);
+        test_validate(
+            loaded.low == 60 && loaded.high == 63 &&
+            lwset_get(&loaded, 63) &&
+            !lwset_get(&loaded, 60) && !lwset_get(&loaded, 61) && !lwset_get(&loaded, 62),
+            "loaded high: bit63 must be set, 60..62 clear"
+        );
+        test_validate(
+            lwset_isvalid(&loaded), 
+            "loaded set must be valid"
+        );
+    }
+
+    /* 7. invalid input – wrong header */
+    test_sub("subtest %d: invalid header returns false", ++subnum);
+    {
+        const char *fname = "res/lwset/tmp_lwset_load_bad_header.dat";
+        FILE *fp = fopen(fname, "w");
+        fprintf(fp, "NOT A LWSET { \"value\": \"0\", \"low\": 0, \"high\": 1 }");
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        lwset s;
+     
+        test_validatefree(
+            !lwset_fload(fp, &s), 
+            fclose(fp),
+            "Bad header should make lwset_fload return false"
+        );
+        fclose(fp);
+    }
+
+    /* 8. invalid input – length mismatch */
+    test_sub("subtest %d: length mismatch returns false", ++subnum);
+    {
+        const char *fname = "res/lwset/tmp_lwset_load_bad_len.dat";
+        FILE *fp = fopen(fname, "w");
+        fprintf(fp, "LWSET { \"value\": \"111\", \"low\": 0, \"high\": 4 }");  // 3 бита, диапазон 4
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        lwset s;
+        
+        test_validatefree(
+            !lwset_fload(fp, &s), 
+            fclose(fp),
+            "Length mismatch should make lwset_fload return false"
+        );
+        fclose(fp);
+    }
+
+    /* 9. invalid character in bit string */
+    test_sub("subtest %d: invalid char returns false", ++subnum);
+    {
+        const char *fname = "res/lwset/tmp_lwset_load_bad_char.dat";
+        FILE *fp = fopen(fname, "w");
+        fprintf(fp, "LWSET { \"value\": \"10X0\", \"low\": 0, \"high\": 4 }");
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        lwset s;
+      
+        test_validatefree(
+            !lwset_fload(fp, &s), 
+            fclose(fp),
+            "Invalid character should make lwset_fload return false"
+        );
+        fclose(fp);
+    }
+
+    /* 10. NULL stream raises SIGINT (или возвращает false, если поменяешь реализацию) */
+    test_sub("subtest %d: NULL stream raises SIGINT", ++subnum);
+    {
+        // Сейчас lwset_fload содержит invraisecode для in != NULL,
+        // поэтому при NULL будет SIGINT. Если заменишь на возврат false,
+        // достаточно убрать try/else и проверять !ok.
+        if (!try()) {
+            lwset s;
+            lwset_fload(NULL, &s);
+            test_validate(false, "Should have raised SIGINT for NULL stream");
+        } else {
+            logsimple("Exception correctly raised for NULL stream");
+        }
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -1658,6 +1988,8 @@ main(int argc, const char *argv[])
             , testnew(.f2 =  tf_lwset_count,              .num =  8, .name = "Lwset count test",
                     .desc="", .mandatory=true)
             , testnew(.f2 =  tf_lwset_save,               .num =  9, .name = "Lwset save test",
+                    .desc="", .mandatory=true)
+            , testnew(.f2 =  tf_lwset_load_roundtrip,     .num = 10, .name = "Lwset save/load test",
                     .desc="", .mandatory=true)
             );
         if (runall)

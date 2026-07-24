@@ -308,14 +308,14 @@ static inline int               lwset_save(const lwset * s) {
 
 /// @brief Loads the lwset from a specified input stream in a pseudo-json format
 /// @param in input stream (e.g., stdin, a file)
-/// @param s pointer to the lwset
-/// @return number of characters read
-extern int                      lwset_fload(FILE *restrict in, lwset *restrict s);
+/// @param s pointer to the lwset (if NULL - dummy read)
+/// @return true - ok, false - wrong format, etc... 
+extern bool                      lwset_fload(FILE *restrict in, lwset *restrict s);
 
 /// @brief  Loads the lwset from the standard input in a pseudo-json format
-/// @param s  pointer to the lwset
-/// @return  number of characters read
-static inline int               lwset_load(lwset * s) {
+/// @param s  pointer to the lwset (if NULL - dummy read)
+/// @return  true - ok, false - wrong format, etc... 
+static inline bool               lwset_load(lwset * s) {
     return lwset_fload(stdin, s);
 }
 
