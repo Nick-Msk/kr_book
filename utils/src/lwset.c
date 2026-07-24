@@ -105,7 +105,7 @@ bool                      lwset_fload(FILE *restrict in, lwset *restrict s) {
     int matched = fscanf(in, "LWSET { \"value\": \"%64[^\"]\", \"low\": %hu, \"high\": %hu }",
                          bits, &low, &high);
     if (matched != 3)
-        return userraise(-1, ERR_WRONG_INPUT_FORMAT, "lwset header mismatch");                // header mismatch
+        return userraise(false, ERR_WRONG_INPUT_FORMAT, "lwset header mismatch");                // header mismatch
     int len = (int)strlen(bits);
     if (len != high - low)
         return userraise(false, ERR_WRONG_INPUT_FORMAT, "lwset: bit string length does not match range");
@@ -1775,11 +1775,11 @@ tf_lwset_load_roundtrip(const char *name)
     }
 
     /* 4. round‑trip single bit [20,20] */
-    test_sub("subtest %d: round‑trip single bit [20,20]", ++subnum);
+    test_sub("subtest %d: round‑trip single bit [20,21]", ++subnum);
     {
         const char *fname = "res/lwset/tmp_lwset_load_single.dat";
 
-        lwset orig = lwset_init0(20, 20);
+        lwset orig = lwset_init0(20, 20 + 1);
         lwset_set(&orig, 20);
         FILE *fp = fopen(fname, "w");
         if (!fp)
@@ -1799,7 +1799,7 @@ tf_lwset_load_roundtrip(const char *name)
         );
         fclose(fp);
         test_validate(
-            loaded.low == 20 && loaded.high == 20 && lwset_get(&loaded, 20),
+            loaded.low == 20 && loaded.high == 21 && lwset_get(&loaded, 20),
             "loaded single: low=%u high=%u bit20=%d",
             loaded.low, loaded.high, lwset_get(&loaded, 20)
         );
@@ -1850,7 +1850,7 @@ tf_lwset_load_roundtrip(const char *name)
     {
         const char *fname = "res/lwset/tmp_lwset_load_high.dat";
 
-        lwset orig = lwset_init0(60, 63);
+        lwset orig = lwset_init0(60, 64);
         lwset_set(&orig, 63);
         FILE *fp = fopen(fname, "w");
         if (!fp) return logret(TEST_FAILED, "cannot open %s for writing", fname);
@@ -1868,7 +1868,7 @@ tf_lwset_load_roundtrip(const char *name)
         );
         fclose(fp);
         test_validate(
-            loaded.low == 60 && loaded.high == 63 &&
+            loaded.low == 60 && loaded.high == 64 &&
             lwset_get(&loaded, 63) &&
             !lwset_get(&loaded, 60) && !lwset_get(&loaded, 61) && !lwset_get(&loaded, 62),
             "loaded high: bit63 must be set, 60..62 clear"
