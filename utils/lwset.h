@@ -29,6 +29,7 @@ typedef struct {
     unsigned short low, high;  // range of valid indices for the set, non-iclusive, low < high, high <= 64
 } lwset;
 
+/// @brief msx bits in lwset
 static const unsigned short     LWSET_MAX_BITS = sizeof(uint64_t) * 8;  // 64 bits
 
 // ------------------------- CONSTRUCTOTS/DESTRUCTORS -------------------------------
