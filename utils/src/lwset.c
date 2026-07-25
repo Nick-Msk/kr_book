@@ -2247,37 +2247,24 @@ tf_lwset_loadfs_roundtrip(const char *name)
 
 // ------------------------------------------------------------------------------------------------------------------------------
 int
-main(int argc, const char *argv[])
+main(/*int argc, const char *argv[] */)
 {
     logsimpleinit("Start");
-    bool    runall = argc == 1;
-
-    while (runall || *++argv){
-        int     num = INT_MAX;    // INT_MAX for all test
-        if (!runall) {
-            num = atoi(*argv);
-            if (num < 0){
-                fprintf(stderr, "Invalid test num %d\n", num);
-                continue;
-            }
-        }
-        testenginestd(
-            TESTADD(tf_lwset_init,               "Lwset init simple test"),
-            TESTADD(tf_lwset_clone_list,         "Lwset clone and list test"),
-            TESTADD(tf_lwset_get_equals,         "Lwset get/equals/notequal test"),
-            TESTADD(tf_lwset_in_strictin_empty,  "Lwset in/strictin/empty test"),
-            TESTADD(tf_lwset_isvalid,            "Lwset isvalid test"),
-            TESTADD(tf_lwset_set_unset_range,    "Lwset set/unset/range test"),
-            TESTADD(tf_lwset_ops,                "Lwset operations test"),
-            TESTADD(tf_lwset_count,              "Lwset count test"),
-            TESTADD(tf_lwset_save,               "Lwset save test"),
-            TESTADD(tf_lwset_load_roundtrip,     "Lwset save/load test"),
-            TESTADD(tf_lwset_serialize,          "Lwset serialize / fs_bits test"),
-            TESTADD(tf_lwset_loadfs_roundtrip,   "Lwset serialize / loadfs test")
-        );
-        if (runall)
-            break;
-    }
+    
+    testenginestd(
+        TESTADD(tf_lwset_init,               "Lwset init simple test"),
+        TESTADD(tf_lwset_clone_list,         "Lwset clone and list test"),
+        TESTADD(tf_lwset_get_equals,         "Lwset get/equals/notequal test"),
+        TESTADD(tf_lwset_in_strictin_empty,  "Lwset in/strictin/empty test"),
+        TESTADD(tf_lwset_isvalid,            "Lwset isvalid test"),
+        TESTADD(tf_lwset_set_unset_range,    "Lwset set/unset/range test"),
+        TESTADD(tf_lwset_ops,                "Lwset operations test"),
+        TESTADD(tf_lwset_count,              "Lwset count test"),
+        TESTADD(tf_lwset_save,               "Lwset save test"),
+        TESTADD(tf_lwset_load_roundtrip,     "Lwset save/load test"),
+        TESTADD(tf_lwset_serialize,          "Lwset serialize / fs_bits test"),
+        TESTADD(tf_lwset_loadfs_roundtrip,   "Lwset serialize / loadfs test")
+    );
 
     return logret(0, "end...");  // as replace of logclose()
 }
