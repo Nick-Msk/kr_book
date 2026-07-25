@@ -14,6 +14,8 @@ static 		 int 		g_offset 	 	= 0;		// offset
 static		FILE 	   *g_out 			= 0;		// 	out stream, required for subtest TODO: refactor it!!
 static 		 bool		g_prev_subtest 	= false;	//  requited for subtest, TODO: refactor it
 
+static int		        G_TEST_COUNTER  = 1000;    // for support TESTADD() macro, starts from 1000
+
 // #define OFFSETINC(x) (g_offset += G_OFFSET_INC * (x));  // TODO: подумать, может как-то красивей назвать
 static inline int
 offsetinc(int x)
@@ -528,6 +530,11 @@ test_compare_engine(FILE *restrict tf, long from, long to, const char *restrict 
 	buf[sz] = '\0';
 
 	return comp(buf, sz, pt);
+}
+
+int
+test_getnextnum(void) {
+	return G_TEST_COUNTER++;
 }
 
 #ifdef TESTTESTING

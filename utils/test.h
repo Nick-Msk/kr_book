@@ -57,6 +57,10 @@ typedef bool (*Tcomp)(const char *restrict, int, const char *restrict);
 
 #define testenginestd_run(num, ...) testengine( (num), stdout, __VA_ARGS__)
 
+// simplirier for unit-tsting
+#define TESTADD(func, testname) \
+    testnew(.f2 = (func), .num = test_getnextnum(), .name = (testname), .desc = "", .mandatory = true )
+
 typedef struct
             {
 				int         num;                	// logical number of test, '0' is not allowed here!
@@ -72,6 +76,9 @@ typedef struct
             } Utest;
 
 //-------------------------------------- PUBLIC API ------------------------------------------------
+
+extern int
+test_getnextnum(void);
 
 static inline FILE *
 tfile(TFILE tf)
