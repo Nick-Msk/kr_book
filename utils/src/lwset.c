@@ -138,8 +138,8 @@ bool                      lwset_fload(FILE *restrict in, lwset *restrict s) {
     lwset           res = lwset_init0(low, high);
     
     // fill the res.value
-    if (lwset_read_bits(bits, sizeof(bits), &res.value, high)  < 0)
-        userraise(false, ERR_INVALID_BINARY_DATA, "invalid character in bit string '%s'", bits);
+    if (lwset_read_bits(bits, len, &res.value, high) < 0)
+        return userraise(false, ERR_INVALID_BINARY_DATA, "invalid character in bit string '%s'", bits);
 
     if (s)
         *s = res; 
@@ -160,10 +160,7 @@ int                       lwset_serialize(fs *restrict target, const lwset *rest
     }
     return cnt;  
 }
-/// @brief  
-/// @param target 
-/// @param s 
-/// @return 
+
 bool                      lwset_loadfs(const fs *restrict target, lwset *restrict s) {
     invraisecode(ERR_NULLABLE_PTR, target != NULL && s != NULL, 
             "Pointers is NULL %p %p", target, s);
@@ -180,8 +177,8 @@ bool                      lwset_loadfs(const fs *restrict target, lwset *restric
 
     lwset           res = lwset_init0(low, high);
     // fill the res.value
-    if (lwset_read_bits(bits, sizeof(bits), &res.value, high)  < 0)
-        userraise(false, ERR_INVALID_BINARY_DATA, "invalid character in bit string '%s'", bits);
+    if (lwset_read_bits(bits, len, &res.value, high)  < 0)
+        return userraise(false, ERR_INVALID_BINARY_DATA, "invalid character in bit string '%s'", bits);
     if (s)
         *s = res;
     return logsimpleret(true, "loaded from fs");
@@ -2091,6 +2088,163 @@ tf_lwset_serialize(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST lwset_loadfs (round‑trip через fs, без bool ok) -------------------------
+static TestStatus
+tf_lwset_loadfs_roundtrip(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. round‑trip пустого множества */
+    test_sub("subtest %d: loadfs round‑trip empty set", ++subnum);
+    {
+        lwset orig = lwset_initunlim();
+        fs buf = FS();
+        lwset_serialize(&buf, &orig);
+
+        lwset loaded;
+        test_validatefree(
+            lwset_loadfs(&buf, &loaded) && lwset_equals(&orig, &loaded),
+            fsfree(buf),
+            "Empty set must survive round‑trip"
+        );
+        fsfree(buf);
+    }
+
+    /* 2. round‑trip множества с битами 2 и 5 */
+    test_sub("subtest %d: loadfs round‑trip bits 2 and 5", ++subnum);
+    {
+        lwset orig = lwset_initunlim();
+        orig.value = (1ULL << 2) | (1ULL << 5);
+        fs buf = FS();
+        lwset_serialize(&buf, &orig);
+
+        lwset loaded;
+        test_validatefree(
+            lwset_loadfs(&buf, &loaded) && lwset_equals(&orig, &loaded),
+            fsfree(buf),
+            "Bits 2 and 5 must survive round‑trip"
+        );
+        fsfree(buf);
+    }
+
+    /* 3. round‑trip с кастомным диапазоном [5,10] */
+    test_sub("subtest %d: loadfs round‑trip range [5,10]", ++subnum);
+    {
+        lwset orig = lwset_init1(5, 10);   // биты 5..9
+        fs buf = FS();
+        lwset_serialize(&buf, &orig);
+
+        lwset loaded;
+        test_validatefree(
+            lwset_loadfs(&buf, &loaded) && lwset_equals(&orig, &loaded),
+            fsfree(buf),
+            "Range [5,10] must survive round‑trip"
+        );
+        fsfree(buf);
+    }
+
+    /* 4. round‑trip с одиночным битом [20,21] */
+    test_sub("subtest %d: loadfs round‑trip single bit [20,21]", ++subnum);
+    {
+        lwset orig = lwset_init0(20, 21);
+        lwset_set(&orig, 20);
+        fs buf = FS();
+        lwset_serialize(&buf, &orig);
+
+        lwset loaded;
+        test_validatefree(
+            lwset_loadfs(&buf, &loaded) && lwset_equals(&orig, &loaded),
+            fsfree(buf),
+            "Single bit must survive round‑trip"
+        );
+        fsfree(buf);
+    }
+
+    /* 5. round‑trip с битом 63 (диапазон [60,64]) */
+    test_sub("subtest %d: loadfs round‑trip bit 63", ++subnum);
+    {
+        lwset orig = lwset_init0(60, 64);
+        lwset_set(&orig, 63);
+        fs buf = FS();
+        lwset_serialize(&buf, &orig);
+
+        lwset loaded;
+        test_validatefree(
+            lwset_loadfs(&buf, &loaded) && lwset_equals(&orig, &loaded),
+            fsfree(buf),
+            "Bit 63 must survive round‑trip"
+        );
+        fsfree(buf);
+    }
+
+    /* 6. некорректный заголовок → false */
+    test_sub("subtest %d: loadfs invalid header returns false", ++subnum);
+    {
+        fs buf = FS();
+        fs_catstr(&buf, "NOT A LWSET { \"value\": \"0\", \"low\": 0, \"high\": 1 }");
+        lwset s;
+        test_validatefree(
+            !lwset_loadfs(&buf, &s),
+            fsfree(buf),
+            "Bad header must return false"
+        );
+        fsfree(buf);
+    }
+
+    /* 7. несовпадение длины → false */
+    test_sub("subtest %d: loadfs length mismatch returns false", ++subnum);
+    {
+        fs buf = FS();
+        fs_catstr(&buf, "LWSET { \"value\": \"111\", \"low\": 0, \"high\": 4 }");
+        lwset s;
+        test_validatefree(
+            !lwset_loadfs(&buf, &s),
+            fsfree(buf),
+            "Length mismatch must return false"
+        );
+        fsfree(buf);
+    }
+
+    /* 8. невалидный символ в битах → false */
+    test_sub("subtest %d: loadfs invalid char returns false", ++subnum);
+    {
+        fs buf = FS();
+        fs_catstr(&buf, "LWSET { \"value\": \"10X0\", \"low\": 0, \"high\": 4 }");
+        lwset s;
+        test_validatefree(
+            !lwset_loadfs(&buf, &s),
+            fsfree(buf),
+            "Invalid char must return false"
+        );
+        fsfree(buf);
+    }
+
+    /* 9. NULL target или NULL s → SIGINT */
+    test_sub("subtest %d: loadfs NULL arguments raise", ++subnum);
+    {
+        fs buf = FS();
+        lwset_serialize(&buf, &(lwset){0});
+        lwset s;
+
+        if (!try()) {
+            lwset_loadfs(NULL, &s);
+            test_validatefree(false, fsfree(buf), "Should have raised on NULL target");
+        } else {
+            logsimple("Exception correctly raised on NULL target");
+        }
+        if (!try()) {
+            lwset_loadfs(&buf, NULL);
+            test_validatefree(false, fsfree(buf), "Should have raised on NULL s");
+        } else {
+            logsimple("Exception correctly raised on NULL s");
+        }
+        fsfree(buf);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(int argc, const char *argv[])
@@ -2129,6 +2283,8 @@ main(int argc, const char *argv[])
             , testnew(.f2 =  tf_lwset_load_roundtrip,     .num = 10, .name = "Lwset save/load test",
                     .desc="", .mandatory=true)
             , testnew(.f2 =  tf_lwset_serialize,          .num = 11, .name = "Lwset lwset_serialize / lwset_fs_bits test",
+                    .desc="", .mandatory=true)
+            , testnew(.f2 =  tf_lwset_loadfs_roundtrip,   .num = 12, .name = "Lwset lwset_serialize / lwset_loadfs test",
                     .desc="", .mandatory=true)
             );
         if (runall)
