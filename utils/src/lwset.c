@@ -2261,32 +2261,20 @@ main(int argc, const char *argv[])
                 continue;
             }
         }
-        testenginestd_run(num,
-            testnew(.f2 =  tf_lwset_init,                 .num =  1, .name = "Lwset init simple test", 
-                    .desc="", .mandatory=true)
-            , testnew(.f2 =  tf_lwset_clone_list,         .num =  2, .name = "Lwset clone and list test", 
-                    .desc="", .mandatory=true)
-            , testnew(.f2 =  tf_lwset_get_equals,         .num =  3, .name = "Lwset get/equals/notequal test",
-                    .desc="", .mandatory=true)
-            , testnew(.f2 =  tf_lwset_in_strictin_empty,  .num =  4, .name = "Lwset in/strictin/empty test",
-                    .desc="", .mandatory=true)
-            , testnew(.f2 =  tf_lwset_isvalid,            .num =  5, .name = "Lwset isvalid test",
-                    .desc="", .mandatory=true)
-            , testnew(.f2 =  tf_lwset_set_unset_range,    .num =  6, .name = "Lwset set/unset/range test",
-                    .desc="", .mandatory=true)
-            , testnew(.f2 =  tf_lwset_ops,                .num =  7, .name = "Lwset operations test",
-                    .desc="", .mandatory=true)
-            , testnew(.f2 =  tf_lwset_count,              .num =  8, .name = "Lwset count test",
-                    .desc="", .mandatory=true)
-            , testnew(.f2 =  tf_lwset_save,               .num =  9, .name = "Lwset save test",
-                    .desc="", .mandatory=true)
-            , testnew(.f2 =  tf_lwset_load_roundtrip,     .num = 10, .name = "Lwset save/load test",
-                    .desc="", .mandatory=true)
-            , testnew(.f2 =  tf_lwset_serialize,          .num = 11, .name = "Lwset lwset_serialize / lwset_fs_bits test",
-                    .desc="", .mandatory=true)
-            , testnew(.f2 =  tf_lwset_loadfs_roundtrip,   .num = 12, .name = "Lwset lwset_serialize / lwset_loadfs test",
-                    .desc="", .mandatory=true)
-            );
+        testenginestd(
+            TESTADD(tf_lwset_init,               "Lwset init simple test"),
+            TESTADD(tf_lwset_clone_list,         "Lwset clone and list test"),
+            TESTADD(tf_lwset_get_equals,         "Lwset get/equals/notequal test"),
+            TESTADD(tf_lwset_in_strictin_empty,  "Lwset in/strictin/empty test"),
+            TESTADD(tf_lwset_isvalid,            "Lwset isvalid test"),
+            TESTADD(tf_lwset_set_unset_range,    "Lwset set/unset/range test"),
+            TESTADD(tf_lwset_ops,                "Lwset operations test"),
+            TESTADD(tf_lwset_count,              "Lwset count test"),
+            TESTADD(tf_lwset_save,               "Lwset save test"),
+            TESTADD(tf_lwset_load_roundtrip,     "Lwset save/load test"),
+            TESTADD(tf_lwset_serialize,          "Lwset serialize / fs_bits test"),
+            TESTADD(tf_lwset_loadfs_roundtrip,   "Lwset serialize / loadfs test")
+        );
         if (runall)
             break;
     }
