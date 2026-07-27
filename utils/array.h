@@ -2,10 +2,16 @@
 #define _ARRAY_H
 
 #include <stdio.h>
+#include <limits.h>
+#include <time.h>
+#include <stdlib.h>
+#include <float.h>
 
 #include "common.h"
 #include "log.h"
 #include "checker.h"
+#include "value64.h"    // for Value64
+#include "error.h"
 
 // ---------------------------------------------------------------------------------
 // --------------------------- Public Array API ------------------------------------
@@ -15,13 +21,13 @@
 
 // array, but not IArray, because common for int and double
 typedef enum ArrayFillType{
-    ARRAY_NONE      = 0,
-    ARRAY_DESC,
-    ARRAY_ASC,
-    ARRAY_RND,
-    ARRAY_ZERO,
-    ARRAY_ASC_SERIES,
-    ARRAY_DESC_SERIES
+    ARRAY_FILLTYPE_NONE      = 0,
+    ARRAY_FILLTYPE_DESC,
+    ARRAY_FILLTYPE_ASC,
+    ARRAY_FILLTYPE_RND,
+    ARRAY_FILLTYPE_ZERO,
+    ARRAY_FILLTYPE_ASC_SERIES,
+    ARRAY_FILLTYPE_DESC_SERIES
 } ArrayFillType;
 
 typedef enum ArrayType{
@@ -29,6 +35,7 @@ typedef enum ArrayType{
     ARRAY_INT       = 0x2,
     ARRAY_LONG      = 0x3,
     ARRAY_POINTER   = 0x4,
+    ARRAY_V64       = 0x5,      // value64 port
     ARRAY_ERROR     = 0x100
 } ArrayType;
 
@@ -39,19 +46,20 @@ static inline const char        *ArrayTypeName(ArrayType t){
         CASE_RETURN(ARRAY_LONG);
         CASE_RETURN(ARRAY_POINTER);
         CASE_RETURN(ARRAY_ERROR);
+        CASE_RETURN(ARRAY_V64);
         default: return "";
     }
 }
 
 static inline const char        *ArrayFillTypeName(ArrayFillType t){
     switch (t){
-        CASE_RETURN(ARRAY_NONE);
-        CASE_RETURN(ARRAY_DESC);
-        CASE_RETURN(ARRAY_ASC);
-        CASE_RETURN(ARRAY_RND);
-        CASE_RETURN(ARRAY_ZERO);
-        CASE_RETURN(ARRAY_ASC_SERIES);
-        CASE_RETURN(ARRAY_DESC_SERIES);
+        CASE_RETURN(ARRAY_FILLTYPE_NONE);
+        CASE_RETURN(ARRAY_FILLTYPE_DESC);
+        CASE_RETURN(ARRAY_FILLTYPE_ASC);
+        CASE_RETURN(ARRAY_FILLTYPE_RND);
+        CASE_RETURN(ARRAY_FILLTYPE_ZERO);
+        CASE_RETURN(ARRAY_FILLTYPE_ASC_SERIES);
+        CASE_RETURN(ARRAY_FILLTYPE_DESC_SERIES);
         default: return "";
     }
 }
