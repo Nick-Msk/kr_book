@@ -987,7 +987,7 @@ tf3(const char *name)
     }
     test_sub("subtest %d: create from int array", ++subnum);
     {
-        Array arr = IArray_create(200, ARRAY_RND);
+        Array arr = IArray_create(200, ARRAY_FILLTYPE_RND);
 
         hset    se1 = hset_from_intarr(arr.iv, arr.len);
 
@@ -1008,7 +1008,7 @@ tf3(const char *name)
     }
     test_sub("subtest %d: create from int array, contained 0 value", ++subnum);
     {
-        Array arr = IArray_create(10, ARRAY_ZERO);
+        Array arr = IArray_create(10, ARRAY_FILLTYPE_ZERO);
         hset    se1 = hset_from_intarr(arr.iv, arr.len);
 
         HSET_TECH_FPRINTALL(stdout, se1);
@@ -1308,7 +1308,7 @@ tf4(const char *name)
     test_sub("subtest %d: loaded count", ++subnum);
     {
         rndinit();
-        Array   arr = DArray_create(500, ARRAY_ASC);
+        Array   arr = DArray_create(500, ARRAY_FILLTYPE_ASC);
         hset    se2 = hset_from_dblarr(arr.dv, arr.len);
         int     res;
         // hset_techprint(&se2, 5);
@@ -1321,7 +1321,7 @@ tf4(const char *name)
     }
     test_sub("subtest %d: loaded count int", ++subnum);
     {
-        Array   arr = IArray_create(500, ARRAY_ASC);
+        Array   arr = IArray_create(500, ARRAY_FILLTYPE_ASC);
         hset    se2 = hset_from_intarr(arr.iv, arr.len);
         int     res;
         //hset_techprint(&se2, 0);
@@ -1415,7 +1415,7 @@ tf5(const char *name)
 
     test_sub("subtest %d: clone and compare", ++subnum);
     {
-        Array   arr = IArray_create(200, ARRAY_RND);
+        Array   arr = IArray_create(200, ARRAY_FILLTYPE_RND);
 
         hset    se1 = hset_from_intarr(arr.iv, arr.len);
         int     elem = arr.iv[0];   // save one
@@ -1444,7 +1444,7 @@ tf5(const char *name)
     }
     test_sub("subtest %d: compare with different hash table size", ++subnum);
     {
-        Array   arr = IArray_create(200, ARRAY_RND);
+        Array   arr = IArray_create(200, ARRAY_FILLTYPE_RND);
         // create from array
         hset    se1 = hset_from_intarr(arr.iv, Arraylen(arr) );
         // manually creating, small
@@ -1584,7 +1584,7 @@ tf6(const char *name)
 
     test_sub("subtest %d: clone and !=", ++subnum);
     {
-        Array   arr = IArray_create(200, ARRAY_RND);
+        Array   arr = IArray_create(200, ARRAY_FILLTYPE_RND);
 
         hset    se1 = hset_from_intarr(arr.iv, arr.len);
         int     elem = arr.iv[0];   // save one
@@ -1613,7 +1613,7 @@ tf6(const char *name)
     }
     test_sub("subtest %d: != with different hash table size", ++subnum);
     {
-        Array   arr = IArray_create(150, ARRAY_RND);
+        Array   arr = IArray_create(150, ARRAY_FILLTYPE_RND);
         int     elem = arr.iv[0];   // save one
         // create from array
         hset    se1 = hset_from_intarr(arr.iv, Arraylen(arr) );
@@ -1837,7 +1837,7 @@ tf7(const char *name)
 
     test_sub("subtest %d: cloneas int -> long", ++subnum);
     {
-        Array   arr = IArray_create(/*200*/ 10, ARRAY_ASC);
+        Array   arr = IArray_create(/*200*/ 10, ARRAY_FILLTYPE_ASC);
 
         hset    se1 = hset_from_intarr(arr.iv, arr.len);
         Arrayfree(arr);
@@ -1875,7 +1875,7 @@ tf7(const char *name)
     }
     test_sub("subtest %d: cloneas int -> double", ++subnum);
     {
-        Array   arr = IArray_create(110, ARRAY_ASC);
+        Array   arr = IArray_create(110, ARRAY_FILLTYPE_ASC);
 
         hset    se1 = hset_from_intarr(arr.iv, arr.len);
         Arrayfree(arr);
@@ -1916,7 +1916,7 @@ tf7(const char *name)
     test_sub("subtest %d: cloneas int -> FS", ++subnum);
     {
         int     cnt = 10 /*200*/;
-        Array   arr = IArray_create(cnt, ARRAY_ASC);   // 0,1,2,...,199
+        Array   arr = IArray_create(cnt, ARRAY_FILLTYPE_ASC);   // 0,1,2,...,199
         hset    se_int = hset_from_intarr(arr.iv, arr.len);
         Arrayfree(arr);
 
