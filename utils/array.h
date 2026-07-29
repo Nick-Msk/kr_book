@@ -31,6 +31,7 @@ typedef enum ArrayFillType{
 } ArrayFillType;
 
 typedef enum ArrayType{
+    ARRAY_UNKNOWN   = 0x0,
     ARRAY_DOUBLE    = 0x1,
     ARRAY_INT       = 0x2,
     ARRAY_LONG      = 0x3,
@@ -69,15 +70,17 @@ extern const char      *g_custom_print_line;
 // ------------------- TYPES -----------------------
 
 typedef struct {
-    int     len;
-    int     sz; // total size, > len + 1
-    int     flags; // ARRAY_DOUBLE || ARRAY_INT || ARRAY_POINTER
+    int             len;
+    int             sz; // total size, > len + 1
+    int             flags; // ARRAY_DOUBLE || ARRAY_INT || ARRAY_POINTER || ARRAY_V64
+    value64_type    v64type;        // applicable only for ARRAY_V64
     union {
         void    *v;
         int     *iv;
         long    *lv;
         double  *dv;
         void   **pv;    // pointer array
+        value64  v64;   // container type
     };
 } Array;
 // condition func
@@ -92,33 +95,70 @@ typedef         void (*Array_proc)(Array arr, int pos);
 #define                         LArray_init(...) (Array){.len = 0, .sz = 0, .lv = 0, .flags = ARRAY_LONG, __VA_ARGS__}
 #define                         DArray_init(...) (Array){.len = 0, .sz = 0, .dv = 0, .flags = ARRAY_DOUBLE, __VA_ARGS__}
 #define                         PArray_init(...) (Array){.len = 0, .sz = 0, .iv = 0, .flags = ARRAY_POINTER, __VA_ARGS__}
+#define                         V64Array_init(...) (Array){.len = 0, .sz = 0, .iv = 0, .flags = ARRAY_V64, __VA_ARGS__}
 #define                         Array_init(...)  (Array){.len = 0, .sz = 0, .iv = 0, .flags = 0, __VA_ARGS__}
 #define                         Arrayfree(x)({ Array_free(&(x)); (x).iv = 0; })
 
 // --------------- CREATE  and fill --------------------
-extern Array                    Array_create(int cnt, ArrayFillType filltyp, ArrayType typ);
+extern Array                    Array_create(int cnt, ArrayFillType filltyp, ArrayType typ, value64_type vt);
 
 extern void                     Array_free(Array *val);
 
 static inline Array             IArray_create(int cnt, ArrayFillType typ){
-    return Array_create(cnt, typ, ARRAY_INT);
+    return Array_create(cnt, typ, ARRAY_INT, VALUE64_UNKNOWN);
 }
 static inline Array             LArray_create(int cnt, ArrayFillType typ){
-    return Array_create(cnt, typ, ARRAY_LONG);
+    return Array_create(cnt, typ, ARRAY_LONG, VALUE64_UNKNOWN);
 }
 static inline Array             DArray_create(int cnt, ArrayFillType typ){
-    return Array_create(cnt, typ, ARRAY_DOUBLE);
+    return Array_create(cnt, typ, ARRAY_DOUBLE, VALUE64_UNKNOWN);
 }
 static inline Array             PArray_create(int cnt, ArrayFillType typ){
-    return Array_create(cnt, typ, ARRAY_POINTER);
+    return Array_create(cnt, typ, ARRAY_POINTER, VALUE64_UNKNOWN);
+}
+static inline Array             V64Array_create(int cnt, ArrayFillType typ, value64_type vt){
+    return Array_create(cnt, typ, ARRAY_V64, vt);
 }
 
 
 // -------------- ACCESS AND MODIFICATION --------------
 
-static inline int               Array_gettype(Array a){
+static inline int               Array_gettype(Array a) {
     return a.flags & 0xFF;
 }
+
+static inline const char       *ArrayGettypeName(Array a){
+    return ArrayFillTypeName(Array_gettype(a) );
+}
+
+static inline ArrayType         ArrayGetmappedType(Array a, value64_type vt) {
+    ArrayType res = Array_gettype(a);
+    if (res == ARRAY_V64) {
+        // TODO: probably use a mapping table
+        switch (vt) {
+            case VALUE64_INT:
+                res = ARRAY_INT;
+                break;
+            case VALUE64_LNG:
+                res = ARRAY_LONG;
+                break;
+            case VALUE64_DBL:
+                res = ARRAY_DOUBLE;
+                break;
+            case VALUE64_PTR:
+                res = ARRAY_POINTER;
+                break;
+            default:
+                // TODO: error
+                res = ARRAY_UNKNOWN;
+                break;
+        }
+    }
+    return res;
+}
+    Array_isv64(a) && vt == VALUE64_INT)
+}
+
 
 static inline bool              Array_isint(Array a){
     return Array_gettype(a) == ARRAY_INT;
@@ -132,6 +172,9 @@ static inline bool              Array_isdouble(Array a){
 static inline bool              Array_ispointer(Array a){
     return Array_gettype(a) == ARRAY_POINTER;
 }
+static inline bool              Array_isv64(Array a){
+    return Array_gettype(a) == ARRAY_V64;
+}
 static inline bool              Array_iserror(Array a){
     return a.flags & ARRAY_ERROR;
 }
@@ -142,7 +185,8 @@ static inline Array             Array_seterror(Array a){
 }
 static inline bool              Array_isvalid(Array a){
     return ( ( !(a.flags & ARRAY_ERROR) && a.flags &
-            (ARRAY_INT | ARRAY_LONG | ARRAY_DOUBLE | ARRAY_POINTER) ) > 0) && a.sz >= a.len && a.len >= 0 && a.iv != 0;
+            (ARRAY_INT | ARRAY_LONG | ARRAY_DOUBLE | ARRAY_POINTER | ARRAY_V64
+            ) ) > 0) && a.sz >= a.len && a.len >= 0 && a.iv != 0;
 }
 
 static inline int               Arraylen(Array a){
@@ -184,6 +228,7 @@ extern int                      Array_foreach_proc(Array arr, Array_cond cond, A
 #define LArray_foreach(arr, elem) _Array_foreach_gen((arr).lv, (arr).len, elem)
 #define DArray_foreach(arr, elem) _Array_foreach_gen((arr).dv, (arr).len, elem)
 #define PArray_foreach(arr, elem) _Array_foreach_gen((arr).pv, (arr).len, elem)
+#define V64Array_foreach(arr, elem) _Array_foreach_gen((arr).v64, (arr).len, elem)
 
 // ----------------- PRINTERS ----------------------
 

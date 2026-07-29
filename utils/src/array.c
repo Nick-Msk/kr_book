@@ -15,6 +15,7 @@ const char              *g_save_format_double    = "%6d      %15.15lg\n";
 const char              *g_save_format_int       = "%6d\t%6d\n";
 const char              *g_save_format_long      = "%6d\t%6ld\n";
 const char              *g_save_format_pointer   = "%6d\t%p\n";
+// not possible to format v64 that way!
 const double             g_array_dbl_increment   = 0.01;
 
 // internal type
@@ -31,6 +32,7 @@ static int                      increase(Array *arr, int newsz){
         newsz = round_up_2(newsz);
 
     int bytes = newsz;
+    // TODO: that need to be ref!
     if (Array_isint(*arr))
         bytes *= sizeof(int);
     else if (Array_islong(*arr))
@@ -39,6 +41,8 @@ static int                      increase(Array *arr, int newsz){
         bytes *= sizeof(double);
     else if (Array_ispointer(*arr))
         bytes *= sizeof(void *);
+    else if (Array_isv64(*arr))
+        bytes *= sizeof(value64);
     else
         return logerr(-1, "Unknown type");
 
@@ -55,6 +59,74 @@ static int                      increase(Array *arr, int newsz){
     return logret(arr->sz, "New sz %d", arr->sz);
 }
 
+/**
+ * @brief Writes an integer value into an array (plain or value64).
+ *
+ * If the array is a value64 array (Array_isv64), the value is wrapped
+ * via value64_createint and stored in a.v64[i].  Otherwise it is written
+ * directly to a.iv[i].
+ *
+ * @param a   array
+ * @param i   element index
+ * @param val value to write
+ */
+static inline void set_int_element(Array a, int i, int val) {
+    if (Array_isv64(a))
+        a.v64[i] = value64_createint(val);
+    else
+        a.iv[i] = val;
+}
+
+/**
+ * @brief Writes a long integer into an array (plain or value64).
+ * @see set_int_element
+ */
+static inline void set_long_element(Array a, int i, long val) {
+    if (Array_isv64(a))
+        a.v64[i] = value64_createlong(val);
+    else
+        a.lv[i] = val;
+}
+
+/**
+ * @brief Writes a double into an array (plain or value64).
+ * @see set_int_element
+ */
+static inline void set_double_element(Array a, int i, double val) {
+    if (Array_isv64(a))
+        a.v64[i] = value64_createdbl(val);
+    else
+        a.dv[i] = val;
+}
+
+/**
+ * @brief Writes an fs value into a value64 array.
+ *
+ * The array must be a value64 array (Array_isv64).  The fs object is
+ * deep‑copied into the array element.
+ *
+ * @param a   value64 array
+ * @param i   element index
+ * @param val pointer to the fs object to copy
+ */
+static inline void set_fs_element(Array a, int i, const fs *val) {
+    a.v64[i] = value64_createfs(val);
+}
+
+/**
+ * @brief Writes a C‑string into a value64 array (owned copy).
+ *
+ * The array must be a value64 array (Array_isv64).  The string is
+ * duplicated and stored as a VALUE64_STR element.
+ *
+ * @param a   value64 array
+ * @param i   element index
+ * @param val C‑string to copy
+ */
+static inline void set_str_element(Array a, int i, const char *val) {
+    a.v64[i] = value64_createstr(val);
+}
+
 // -------------------------- (Utility) printers -------------------
 
 // --------------------------- API ---------------------------------
@@ -62,10 +134,13 @@ static int                      increase(Array *arr, int newsz){
 // ------------- CONSTRUCTOTS/DESTRUCTORS --------------
 
 // CREATE  and fill with method
-Array                           Array_create(int cnt, ArrayFillType filltyp, ArrayType typ){
+Array                           Array_create(int cnt, ArrayFillType filltyp, ArrayType typ, value64_type vt){
     logenter("cnt %d, filltyp %s typ %s", cnt, ArrayFillTypeName(filltyp), ArrayTypeName(typ) );
     // TODO: refactor via Array_increase
-    Array       res = Array_init(.flags = typ);
+    Array       res = Array_init(.flags = typ, .v64type = vt);
+    if (cnt <= 0)
+        return logerr(res, "sz = %d", res.sz);
+
     increase(&res, cnt);
     res.len         = cnt;
     Array_fill(res, filltyp);
@@ -74,20 +149,169 @@ Array                           Array_create(int cnt, ArrayFillType filltyp, Arr
 
 void                            Array_free(Array *val){
     if (val && val->iv){
-        free(val->iv);
+        if (val->iv) {
+            // if case of containered - free each element
+            if (Array_isv64(*val) )
+                for (int i = 0; i < val->len; i++)
+                    value64_free(&val->v64[i], val->v64type);
+            free(val->iv);
+        }
         val->iv = 0;
     }
 }
-
-int                             Array_fill(Array a, ArrayFillType typ){
-    return Array_fillrange(a, typ, 0, a.len);
+/// @brief        Array filler (formatter) using fill type
+/// @param a  Array (by value now, will be reworked)
+/// @param typ  Array type 
+/// @param vt   V64 type, only for for V64
+/// @return Count of formatter data
+int                             Array_fill(Array a, ArrayFillType typ, value64_type vt){
+    return Array_fillrange(a, typ, 0, a.len, vt);
+}
+/// @brief      int incrementer (or dec)
+/// @param val  int value 
+/// @param sign sign (1/-1) 
+/// @return adjusted value
+static int                      incint(int *val, int sign){
+    return (*val += sign * (rndint(10) + 1) );
+}
+/// @brief      long incrementer (or dec)
+/// @param val  long value 
+/// @param sign sign (1/-1) 
+/// @return adjusted value
+static long                      inclong(long *val, int sign){
+    return (*val += sign * (rndlong(10) + 1) );
+}
+/// @brief       double incrementer (or dec)
+/// @param val   double value
+/// @param sign  sign (1/-1) 
+/// @return adjusted value
+static double                   incdouble(double *val, int sign){
+    return (*val += sign * (rnddbl(10) + g_array_dbl_increment) );
+}
+/// @brief        const char* incrementer
+/// @param s      buffer fs pointer 
+/// @return       inctremented fs
+static fs                      *incfs(fs *s) {
+    fs_sprintf(s, "%*A", fs_len(s) + 1);    // increment len by 1
+    return s;
+}
+/// @brief        fs dec
+/// @param s      buffer fs pointer 
+/// @return       decremented fs
+static fs                      *decfs(fs *s) {
+    fs_setlen(s, fs_len(s) - 1);    // increment len by 1
+    return s;
+}
+/// @brief        const char* incrementer
+/// @param s      buffer fs pointer 
+/// @return       inctremented const char* pointer
+static const char              *inccstr(fs *s) {
+    fs_sprintf(s, "%*A", fs_len(s) + 1);    // increment len by 1
+    return fs_str(s);
+}
+/// @brief        const char* incrementer
+/// @param s      buffer fs pointer 
+/// @return       decremented const char* pointer
+static const char              *deccstrfs(fs *s) {
+    fs_sprintf(s, "%*A", fs_len(s) + 1);    // increment len by 1
+    return fs_str(s);
 }
 
+
+static int                      Array_fillrange_ASC(Array a, int from, int to, value64_type vt){
+    switch (ArrayGetmappedType(a, vt) ) {
+        case ARRAY_INT: {
+            int val = 0;
+            for (int i = from; i < to; i++, incval(&val, 1) )
+                set_int_element(a, i, val);
+            break;
+        }
+        case ARRAY_LONG: {
+            long val = 0;
+            for (int i = from; i < to; i++, inclong(&val, 1) )
+                set_long_element(a, i, val);
+            break;
+        }
+        case ARRAY_DOUBLE: {
+            double val = 0.0;
+            for (int i = from; i < to; i++, incdouble(&val, 1) )
+                set_double_element(a, i, val);
+            break;
+        }
+        // V64, which not mapped to ARRAY_TYPES
+        case ARRAY_UNKNOWN: {
+            switch (vt) {
+                case VALUE64_FS: {
+                    fs s = FS();
+                    // fs увеличивающейся длины
+                    for (int i = from; i < to; i++) {
+                        fscatstr(s, "A");   // длина i+1
+                        set_fs_element(a, i, &s);  
+                    }
+                    fsfree(s);
+                    break;
+                }
+                case VALUE64_STR: {
+                    fs s = FS();    // buf
+                    // C‑строки увеличивающейся длины
+                    for (int i = from; i < to; i++) {
+                        fscatstr(s, "A");   // длина i+1
+                        set_str_element(a, i, fsstr(s));
+                    }
+                    fsfree(s);
+                    break;
+                }
+                default:
+                    userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ASC fill %s", value64_typename(vt) );
+                    break;
+            }
+        }
+        default:
+            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayGettypeName(a) );
+            break;
+    }
+    return a.len;
+}
+
+/// @brief Array filler
+/// @param a base array
+/// @param typ Array type 
+/// @param from from (will be normilized if out of range)
+/// @param to  to (will be normilized if out of range)
+/// @param vt  V64 type, only for for V64
+/// @return Count of formatter data
+int Array_fillrange(Array a, ArrayFillType typ, int from, int to, value64_type vt) {
+    logenter("%d - %d, %s/%s", from, to, ArrayFillTypeName(typ), value64_typename(vt) );
+    // Нормализация границ
+    if (from < 0)
+        logmsg(from = 0, "'from' was negative, normalized to 0");
+    if (to > a.len)
+        logmsg(to = a.len, "'to' was out of range - normalized to %d", a.len);
+
+    switch (typ) {
+        case ARRAY_FILLTYPE_ASC:
+            // ----- Заполнение по возрастанию -----
+            Array_fillrange_ASC(a, from, to, vt);
+            breakl
+        case ARRAY_FILLTYPE_DESC: {
+            // ----- Заполнение по убыванию -----
+            // Array_fillrange_ASC(a, from, to, vt); TODO:
+        }
+
+        default:
+            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Only ASC and DESC fill types are supported");
+    }
+
+    return logret(a.len, "Filled %d", a.len);
+}
+
+/*
 // TODO: probably shoube be reworked to use switch (type) + separate code
-int                             Array_fillrange(Array a, ArrayFillType typ, int from, int to){
+int                             Array_fillrange(Array a, ArrayFillType typ, int from, int to, value64_type vt){
     int         intval;
     long        longval;
     double      doubleval;  // TODO:
+    fs          sval = FS();
     // fill
     if (from < 0)
         from = 0;
@@ -98,17 +322,35 @@ int                             Array_fillrange(Array a, ArrayFillType typ, int 
             intval = 100 * a.len;   // hope it'll ne owerwelhm int
             longval = 100 * a.len;
             doubleval = 100.0 * a.len;
+            sval = fscopyf("%*A", a.len + 1);       // len = a.len + 1
             int     dec_value = 10;          // for now!!! It'll be changed
+            // TODO: refactor is required to avoid if then else logic
             for (int i = from; i < to; i++){
-                if (Array_isint(a))
+                if (Array_isint(a) || (Array_isv64(a) && a.v64type == VALUE64_INT) ) {
                     a.iv[i] = (intval -= rndint(dec_value) + 1);
-                else if (Array_islong(a))
+                    if (Array_isv64(a))
+                        a.v64[i] = value64_createint(intval);
+                } else if (Array_islong(a) || (Array_isv64(a) && a.v64type == VALUE64_LNG)) {
                     a.lv[i] = (longval -= rndlong(dec_value) + 1);
-                else if (Array_isdouble(a))
+                    if (Array_isv64(a))
+                        a.v64[i] = value64_createlong(longval);
+                } else if (Array_isdouble(a) || (Array_isv64(a) && a.v64type == VALUE64_DBL) ) {
                     a.dv[i] = doubleval -= (rnddbl(dec_value) + g_array_dbl_increment);
-                else if (Array_ispointer(a))
+                    if (Array_isv64(a))
+                        a.v64[i] = value64_createdbl(doubleval);
+                } else if (Array_ispointer(a))
                     userraiseint(ERR_ACTION_NOT_APPLICABLE, "ARRAY_FILLTYPE_ASC isn't appilcable");
+                else if (Array_isv64(a) && a.v64type == VALUE64_FS) {
+                    // fs with decreasing length
+                    a.v64[i] = value64_createfs(&sval);
+                    fsetlen(sval, sval.len - 1);
+                } if (Array_isv64(a) && a.v64type == VALUE64_STR) {
+                    // c-str with decreasing length
+                    a.v64[i] = value64_createstr(fsstr(sval) );
+                    fsetlen(sval, sval.len - 1);
+                }
             }
+            fsfree(sval);
         break;
         case ARRAY_FILLTYPE_ASC:
             intval = a.len / 10;
@@ -197,6 +439,7 @@ int                             Array_fillrange(Array a, ArrayFillType typ, int 
     }
     return logsimpleret(to - from, "Filled %s [%d-%d] by %s", ArrayTypeName(a.flags), from, to - 1, ArrayFillTypeName(typ) );
 }
+    */
 
 // -------------- ACCESS AND MODIFICATION --------------
 
@@ -265,7 +508,7 @@ void                     Array_qsort(Array arr, ArrayFillType ord){
         else
             cmp = pptr_revcmp;
     }
-    if (sz)
+    if (sz && cmp)
         qsort(arr.v, arr.len, sz, cmp);
 }
 // if condition is 0-ptr == ALL
