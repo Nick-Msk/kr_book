@@ -364,7 +364,7 @@ static int                      Array_fillrange_DESC(Array a, int from, int to){
     return a.len;
 }
 
-/// @brief        descending filler
+/// @brief        zero filler
 /// @param a      array 
 /// @param from   start index 
 /// @param to     end index 
@@ -417,6 +417,61 @@ static int                      Array_fillrange_ZERO(Array a, int from, int to){
     }
     return a.len;
 }
+/// @brief        random value filler
+/// @param a      array 
+/// @param from   start index 
+/// @param to     end index 
+/// @return       count of filled elements
+static int                      Array_fillrange_RND(Array a, int from, int to){
+    switch (ArrayGetV64mappedType(a) ) {
+        case ARRAY_INT:
+            //for (int i = from; i < to; i++){ // iter??? TODO: check if it's correct
+              //  a.iv[i] = 0;
+            IArray_foreach(a, i){
+                    *i = rndint(10 * (to - from + 1) ); // probaly not too good
+                }
+            break;
+        case ARRAY_LONG:
+            LArray_foreach(a, i){
+                *i = rndlong(10L * (to - from + 1) ); // probaly not too good
+            }
+            break;
+        case ARRAY_DOUBLE:
+            DArray_foreach(a, i){
+                *i = rnddbl(10.0 * (to - from + 1) ); // probaly not too good
+            }
+            break;
+        case ARRAY_UNKNOWN: {
+            switch (a.v64type) {
+                case VALUE64_FS: {
+                    fs s = FS();
+                    for (int i = from; i < to; i++) {
+                        // fs_genrnd(&s, from - to + 1, 'A'); TODO:
+                        set_fs_element(a, i, &s);  
+                    }
+                    fsfree(s);
+                    break;
+                }
+                case VALUE64_STR: {
+                    fs s = FS();
+                    for (int i = from; i < to; i++) {
+                        // fs_genrnd(&s, from - to + 1, 'A'); TODO:
+                        set_str_element(a, i, "");
+                    }
+                    fsfree(s);
+                    break;
+                }
+                default:
+                    userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ZERO fill %s", ArrayGetV64typeName(a) );
+                    break;
+            }
+        }
+        default:
+            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ZERO fill %s", ArrayGettypeName(a) );
+            break;
+    }
+    return a.len;
+}
 
 /// @brief Array filler
 /// @param a base array
@@ -449,8 +504,11 @@ int                             Array_fillrange(Array a, ArrayFillType typ, int 
             Array_fillrange_ZERO(a, from, to);
             break;
         case ARRAY_FILLTYPE_RND:
-            // Array_fillrange_ZERO(a, from, to); TODO:
+            Array_fillrange_RND(a, from, to);
             break;
+        case ARRAY_FILLTYPE_NONE:
+            // just do nothing
+        break;
         default:
             userraiseint(ERR_ACTION_NOT_APPLICABLE, "Not supported filltype %s", ArrayFillTypeName(typ));
     }
