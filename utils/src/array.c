@@ -230,6 +230,7 @@ static fs                      *decfs(fs *s) {
     fs_setlen(s, fs_len(s) - 1);    // dec len by 1
     return s;
 }
+/*
 /// @brief        const char* incrementer
 /// @param s      buffer fs pointer 
 /// @return       inctremented const char* pointer
@@ -243,8 +244,7 @@ static const char              *inccstr(fs *s) {
 static const char              *deccstrfs(fs *s) {
     fs_setlen(s, fs_len(s) - 1);    // dec len by 1
     return fs_str(s);
-}
-
+}*/
 
 static int                      Array_fillrange_ASC(Array a, int from, int to){
     switch (ArrayGetV64mappedType(a) ) {
@@ -273,7 +273,7 @@ static int                      Array_fillrange_ASC(Array a, int from, int to){
                     fs s = FS();
                     // fs увеличивающейся длины
                     for (int i = from; i < to; i++) {
-                        fscatstr(s, "A");   // длина i+1
+                        incfs(&s);   // длина i+1
                         set_fs_element(a, i, &s);  
                     }
                     fsfree(s);
@@ -283,7 +283,62 @@ static int                      Array_fillrange_ASC(Array a, int from, int to){
                     fs s = FS();    // buf
                     // C‑строки увеличивающейся длины
                     for (int i = from; i < to; i++) {
-                        fscatstr(s, "A");   // длина i+1
+                        incfs(&s);   // длина i+1
+                        set_str_element(a, i, fsstr(s));
+                    }
+                    fsfree(s);
+                    break;
+                }
+                default:
+                    userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ASC fill %s", ArrayGetV64typeName(a) );
+                    break;
+            }
+        }
+        default:
+            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayGettypeName(a) );
+            break;
+    }
+    return a.len;
+}
+
+static int                      Array_fillrange_DESC(Array a, int from, int to){
+    switch (ArrayGetV64mappedType(a) ) {
+        case ARRAY_INT: {
+            int val = 10 * a.len;   // hope it'll ne owerwelhm int;
+            for (int i = from; i < to; i++, incint(&val, -1) )
+                set_int_element(a, i, val);
+            break;
+        }
+        case ARRAY_LONG: {
+            long val = 100L * a.len;
+            for (int i = from; i < to; i++, inclong(&val, -1) )
+                set_long_element(a, i, val);
+            break;
+        }
+        case ARRAY_DOUBLE: {
+            double val = 0.0;
+            for (int i = from; i < to; i++, incdouble(&val, -1) )
+                set_double_element(a, i, val);
+            break;
+        }
+        // V64, which not mapped to ARRAY_TYPES
+        case ARRAY_UNKNOWN: {
+            switch (a.v64type) {
+                case VALUE64_FS: {
+                    fs s = fscopyf("%*s", to - from + 1,  "A");    // buf
+                    // fs desc length
+                    for (int i = from; i < to; i++) {
+                        decfs(&s);   // длина i+1
+                        set_fs_element(a, i, &s);  
+                    }
+                    fsfree(s);
+                    break;
+                }
+                case VALUE64_STR: {
+                    fs s = fscopyf("%*s", to - from + 1,  "A");    // buf
+                    // c-str desc length
+                    for (int i = from; i < to; i++) {
+                        decfs(&s);   // длина i+1
                         set_str_element(a, i, fsstr(s));
                     }
                     fsfree(s);
@@ -326,7 +381,7 @@ int                             Array_fillrange(Array a, ArrayFillType typ, int 
             break;
         case ARRAY_FILLTYPE_DESC:
             // ----- Заполнение по убыванию -----
-            // Array_fillrange_ASC(a, from, to); TODO:
+            Array_fillrange_DESC(a, from, to);
         
         default:
             userraiseint(ERR_ACTION_NOT_APPLICABLE, "Only ASC and DESC fill types are supported");
