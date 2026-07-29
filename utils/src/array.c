@@ -171,7 +171,7 @@ Array                           Array_create(int cnt, ArrayFillType filltyp, Arr
 
     increase(&res, cnt);
     res.len         = cnt;
-    Array_fill(res, filltyp, vt);
+    Array_fill(res, filltyp);
     return logret(res, "sz = %d", res.sz);
 }
 
@@ -192,8 +192,8 @@ void                            Array_free(Array *val){
 /// @param typ  Array type 
 /// @param vt   V64 type, only for for V64
 /// @return Count of formatter data
-int                             Array_fill(Array a, ArrayFillType typ, value64_type vt){
-    return Array_fillrange(a, typ, 0, a.len, vt);
+int                             Array_fill(Array a, ArrayFillType typ){
+    return Array_fillrange(a, typ, 0, a.len);
 }
 /// @brief      int incrementer (or dec)
 /// @param val  int value 
@@ -246,8 +246,8 @@ static const char              *deccstrfs(fs *s) {
 }
 
 
-static int                      Array_fillrange_ASC(Array a, int from, int to, value64_type vt){
-    switch (ArrayGetmappedType(a, vt) ) {
+static int                      Array_fillrange_ASC(Array a, int from, int to){
+    switch (ArrayGetV64mappedType(a) ) {
         case ARRAY_INT: {
             int val = 0;
             for (int i = from; i < to; i++, incint(&val, 1) )
@@ -268,7 +268,7 @@ static int                      Array_fillrange_ASC(Array a, int from, int to, v
         }
         // V64, which not mapped to ARRAY_TYPES
         case ARRAY_UNKNOWN: {
-            switch (vt) {
+            switch (a.v64type) {
                 case VALUE64_FS: {
                     fs s = FS();
                     // fs увеличивающейся длины
@@ -290,7 +290,7 @@ static int                      Array_fillrange_ASC(Array a, int from, int to, v
                     break;
                 }
                 default:
-                    userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ASC fill %s", value64_typename(vt) );
+                    userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ASC fill %s", ArrayGetV64typeName(a) );
                     break;
             }
         }
@@ -308,8 +308,8 @@ static int                      Array_fillrange_ASC(Array a, int from, int to, v
 /// @param to  to (will be normilized if out of range)
 /// @param vt  V64 type, only for for V64
 /// @return Count of formatter data
-int                             Array_fillrange(Array a, ArrayFillType typ, int from, int to, value64_type vt) {
-    logenter("%d - %d, %s/%s", from, to, ArrayFillTypeName(typ), value64_typename(vt) );
+int                             Array_fillrange(Array a, ArrayFillType typ, int from, int to) {
+    logenter("%d - %d, %s/%s", from, to, ArrayFillTypeName(typ), ArrayGetV64typeName(a) );
     // Нормализация границ
     if (from < 0) {
         from = 0;
@@ -322,11 +322,11 @@ int                             Array_fillrange(Array a, ArrayFillType typ, int 
     switch (typ) {
         case ARRAY_FILLTYPE_ASC:
             // ----- Заполнение по возрастанию -----
-            Array_fillrange_ASC(a, from, to, vt);
+            Array_fillrange_ASC(a, from, to);
             break;
         case ARRAY_FILLTYPE_DESC:
             // ----- Заполнение по убыванию -----
-            // Array_fillrange_ASC(a, from, to, vt); TODO:
+            // Array_fillrange_ASC(a, from, to); TODO:
         
         default:
             userraiseint(ERR_ACTION_NOT_APPLICABLE, "Only ASC and DESC fill types are supported");
@@ -473,10 +473,10 @@ int                             Array_fillrange(Array a, ArrayFillType typ, int 
 
 // -------------- ACCESS AND MODIFICATION --------------
 
-Array                           Array_increase(Array arr, int newcnt, value64_type vt){
+Array                           Array_increase(Array arr, int newcnt){
     if (newcnt > Arraysz(arr) )
         increase(&arr, newcnt);
-    Array_fillrange(arr, ARRAY_FILLTYPE_ZERO, arr.len, newcnt, vt);
+    Array_fillrange(arr, ARRAY_FILLTYPE_ZERO, arr.len, newcnt);
     arr.len = newcnt;
     return arr;
 }

@@ -127,15 +127,19 @@ static inline int               Array_gettype(Array a) {
     return a.flags & 0xFF;
 }
 
-static inline const char       *ArrayGettypeName(Array a){
+static inline const char       *ArrayGettypeName(Array a) {
     return ArrayFillTypeName(Array_gettype(a) );
 }
 
-static inline ArrayType         ArrayGetmappedType(Array a, value64_type vt) {
+static inline const char       *ArrayGetV64typeName(Array a) {
+    return ArrayFillTypeName(Array_gettype(a) );
+}
+
+static inline ArrayType         ArrayGetV64mappedType(Array a) {
     ArrayType res = Array_gettype(a);
     if (res == ARRAY_V64) {
         // TODO: probably use a mapping table
-        switch (vt) {
+        switch (a.v64type) {
             case VALUE64_INT:
                 res = ARRAY_INT;
                 break;
@@ -231,15 +235,18 @@ static inline int               ArrayGetcnt(Array a){
 }
 
 
-extern int                      Array_fill(Array arr, ArrayFillType typ, value64_type vt);
-extern int                      Array_fillrange(Array a, ArrayFillType typ, int from, int to, value64_type vt);
+extern int                      Array_fill(Array arr, ArrayFillType typ);
+extern int                      Array_fillrange(Array a, ArrayFillType typ, int from, int to);
 extern Array                    Array_shrink(Array arr, int newsz);
-extern Array                    Array_increase(Array arr, int newcnt, value64_type vt);
+extern Array                    Array_increase(Array arr, int newcnt);
 
 extern void                     Array_shuffle(Array arr);
 extern void                     Array_qsort(Array arr, ArrayFillType ord);
 // if condition is 0-ptr == ALL
 extern int                      Array_foreach_proc(Array arr, Array_cond cond, Array_proc func);
+// if condition is 0-ptr == ALL
+// TODO:
+extern int                      Array_foreach_rev_proc(Array arr, Array_cond cond, Array_proc func);
 
 //#define                       Array_apply(arr, condition, action)
 
@@ -248,6 +255,11 @@ extern int                      Array_foreach_proc(Array arr, Array_cond cond, A
     for (typeof_unqual(*(p)) *_begin_ = (p), *(elem) = _begin_; \
          (elem) < _begin_ + (len); \
          ++(elem))
+// reverse
+ #define                         _Array_foreach_rev_gen(p, len, elem) \
+    for (typeof_unqual(*(p)) *_begin_ = (p) + (len) - 1, *(elem) = _begin_; \
+         (elem) >= _begin_ ; \
+         --(elem))        
 
 // Публичные однобуквенные макросы
 #define IArray_foreach(arr, elem) _Array_foreach_gen((arr).iv, (arr).len, elem)
