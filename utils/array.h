@@ -80,7 +80,7 @@ typedef struct {
         long    *lv;
         double  *dv;
         void   **pv;    // pointer array
-        value64  v64;   // container type
+        value64 *v64;   // container type
     };
 } Array;
 // condition func
@@ -156,43 +156,72 @@ static inline ArrayType         ArrayGetmappedType(Array a, value64_type vt) {
     }
     return res;
 }
-    Array_isv64(a) && vt == VALUE64_INT)
-}
-
-
+/// @brief check if array is INT
+/// @param a array
+/// @return true if INT
 static inline bool              Array_isint(Array a){
     return Array_gettype(a) == ARRAY_INT;
 }
+/// @brief check if array is LONG
+/// @param a array
+/// @return true if LONG
 static inline bool              Array_islong(Array a){
     return Array_gettype(a) == ARRAY_LONG;
 }
+/// @brief check if array is DBL
+/// @param a array
+/// @return true if DBL
 static inline bool              Array_isdouble(Array a){
     return Array_gettype(a) == ARRAY_DOUBLE;
 }
+/// @brief check if array is PTR
+/// @param a array
+/// @return true if PTR
 static inline bool              Array_ispointer(Array a){
     return Array_gettype(a) == ARRAY_POINTER;
 }
+/// @brief check if array is VALUE64
+/// @param a array
+/// @return true if VALUE64
 static inline bool              Array_isv64(Array a){
     return Array_gettype(a) == ARRAY_V64;
 }
+/// @brief check if array is in error state /* NOT USED */
+/// @param a array
+/// @return true if error state 
 static inline bool              Array_iserror(Array a){
     return a.flags & ARRAY_ERROR;
 }
-
+/// @brief set error state to array /* NOT USED */
+/// @param a array
+/// @return array
 static inline Array             Array_seterror(Array a){
     a.flags |= ARRAY_ERROR;
     return a;
 }
+/// @brief check if array is valie
+/// @param a array
+/// @return true if ok 
 static inline bool              Array_isvalid(Array a){
     return ( ( !(a.flags & ARRAY_ERROR) && a.flags &
             (ARRAY_INT | ARRAY_LONG | ARRAY_DOUBLE | ARRAY_POINTER | ARRAY_V64
             ) ) > 0) && a.sz >= a.len && a.len >= 0 && a.iv != 0;
 }
-
+/// @brief get array length (count of formatted values)
+/// @param a array
+/// @return count of formatted values
 static inline int               Arraylen(Array a){
     return a.len;
 }
-
+/// @brief get array size (total allocated values)
+/// @param a array
+/// @return total allocated values
+static inline int               Arraysz(Array a){
+    return a.sz;
+}
+/// @brief get count of non-null pointers
+/// @param a array
+/// @return count of non-null pointers
 static inline int               ArrayGetcnt(Array a){
     invraise(Array_ispointer(a), "Applicable only for pointers ARRAY_POINTER %d", ARRAY_POINTER);
     int cnt = 0;
@@ -201,14 +230,11 @@ static inline int               ArrayGetcnt(Array a){
     return logsimpleret(cnt, "Total valuable elem %d", cnt);
 }
 
-static inline int               Arraysz(Array a){
-    return a.sz;
-}
 
-extern int                      Array_fill(Array arr, ArrayFillType typ);
-extern int                      Array_fillrange(Array a, ArrayFillType typ, int from, int to);
+extern int                      Array_fill(Array arr, ArrayFillType typ, value64_type vt);
+extern int                      Array_fillrange(Array a, ArrayFillType typ, int from, int to, value64_type vt);
 extern Array                    Array_shrink(Array arr, int newsz);
-extern Array                    Array_increase(Array arr, int newcnt);
+extern Array                    Array_increase(Array arr, int newcnt, value64_type vt);
 
 extern void                     Array_shuffle(Array arr);
 extern void                     Array_qsort(Array arr, ArrayFillType ord);
