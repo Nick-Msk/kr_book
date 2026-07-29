@@ -262,10 +262,10 @@ extern int                      Array_foreach_rev_proc(Array arr, Array_cond con
          --(elem))        
 
 // Публичные однобуквенные макросы
-#define IArray_foreach(arr, elem) _Array_foreach_gen((arr).iv, (arr).len, elem)
-#define LArray_foreach(arr, elem) _Array_foreach_gen((arr).lv, (arr).len, elem)
-#define DArray_foreach(arr, elem) _Array_foreach_gen((arr).dv, (arr).len, elem)
-#define PArray_foreach(arr, elem) _Array_foreach_gen((arr).pv, (arr).len, elem)
+#define IArray_foreach(arr, elem)   _Array_foreach_gen((arr).iv, (arr).len, elem)
+#define LArray_foreach(arr, elem)   _Array_foreach_gen((arr).lv, (arr).len, elem)
+#define DArray_foreach(arr, elem)   _Array_foreach_gen((arr).dv, (arr).len, elem)
+#define PArray_foreach(arr, elem)   _Array_foreach_gen((arr).pv, (arr).len, elem)
 #define V64Array_foreach(arr, elem) _Array_foreach_gen((arr).v64, (arr).len, elem)
 
 // ----------------- PRINTERS ----------------------

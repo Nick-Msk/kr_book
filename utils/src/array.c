@@ -245,7 +245,11 @@ static const char              *deccstrfs(fs *s) {
     fs_setlen(s, fs_len(s) - 1);    // dec len by 1
     return fs_str(s);
 }*/
-
+/// @brief        ascending filler
+/// @param a      array 
+/// @param from   start index 
+/// @param to     end index 
+/// @return       count of filled elements
 static int                      Array_fillrange_ASC(Array a, int from, int to){
     switch (ArrayGetV64mappedType(a) ) {
         case ARRAY_INT: {
@@ -300,7 +304,11 @@ static int                      Array_fillrange_ASC(Array a, int from, int to){
     }
     return a.len;
 }
-
+/// @brief        descending filler
+/// @param a      array 
+/// @param from   start index 
+/// @param to     end index 
+/// @return       count of filled elements
 static int                      Array_fillrange_DESC(Array a, int from, int to){
     switch (ArrayGetV64mappedType(a) ) {
         case ARRAY_INT: {
@@ -345,12 +353,66 @@ static int                      Array_fillrange_DESC(Array a, int from, int to){
                     break;
                 }
                 default:
-                    userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ASC fill %s", ArrayGetV64typeName(a) );
+                    userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for DESC fill %s", ArrayGetV64typeName(a) );
                     break;
             }
         }
         default:
-            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayGettypeName(a) );
+            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for DESC fill %s", ArrayGettypeName(a) );
+            break;
+    }
+    return a.len;
+}
+
+/// @brief        descending filler
+/// @param a      array 
+/// @param from   start index 
+/// @param to     end index 
+/// @return       count of filled elements
+static int                      Array_fillrange_ZERO(Array a, int from, int to){
+    switch (ArrayGetV64mappedType(a) ) {
+        case ARRAY_INT:
+            //for (int i = from; i < to; i++){ // iter??? TODO: check if it's correct
+              //  a.iv[i] = 0;
+            IArray_foreach(a, i){
+                    *i = 0;
+                }
+            break;
+        case ARRAY_LONG:
+            LArray_foreach(a, i){
+                *i = 0L;
+            }
+            break;
+        case ARRAY_DOUBLE:
+            DArray_foreach(a, i){
+                *i = 0.0;
+            }
+            break;
+        case ARRAY_POINTER:
+            PArray_foreach(a, i){
+                *i = NULL;
+            }
+            break;
+        case ARRAY_UNKNOWN: {
+            switch (a.v64type) {
+                case VALUE64_FS: {
+                    fs s = FSLITERAL("");
+                    for (int i = from; i < to; i++)
+                        set_fs_element(a, i, &s);  
+                    break;
+                }
+                case VALUE64_STR: {
+                    for (int i = from; i < to; i++)
+                        set_str_element(a, i, "");
+                    break;
+                }
+                default:
+                    userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ZERO fill %s", ArrayGetV64typeName(a) );
+                    break;
+            }
+        }
+        default:
+            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ZERO fill %s", ArrayGettypeName(a) );
             break;
     }
     return a.len;
@@ -364,7 +426,7 @@ static int                      Array_fillrange_DESC(Array a, int from, int to){
 /// @param vt  V64 type, only for for V64
 /// @return Count of formatter data
 int                             Array_fillrange(Array a, ArrayFillType typ, int from, int to) {
-    logenter("%d - %d, %s/%s", from, to, ArrayFillTypeName(typ), ArrayGetV64typeName(a) );
+    logenter("%d - %d, %s (v64: %s)", from, to, ArrayFillTypeName(typ), ArrayGetV64typeName(a) );
     // Нормализация границ
     if (from < 0) {
         from = 0;
@@ -382,9 +444,15 @@ int                             Array_fillrange(Array a, ArrayFillType typ, int 
         case ARRAY_FILLTYPE_DESC:
             // ----- Заполнение по убыванию -----
             Array_fillrange_DESC(a, from, to);
-        
+            break;
+        case ARRAY_FILLTYPE_ZERO:
+            Array_fillrange_ZERO(a, from, to);
+            break;
+        case ARRAY_FILLTYPE_RND:
+            // Array_fillrange_ZERO(a, from, to); TODO:
+            break;
         default:
-            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Only ASC and DESC fill types are supported");
+            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Not supported filltype %s", ArrayFillTypeName(typ));
     }
 
     return logret(a.len, "Filled %d", a.len);
