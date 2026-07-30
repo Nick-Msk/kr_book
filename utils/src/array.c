@@ -634,10 +634,10 @@ void                     Array_qsort(Array arr, ArrayFillType ord){
     } else if (Array_isv64(arr) ) {
         // TODO:
         sz = sizeof(value64);
-        /*if (ord == ARRAY_FILLTYPE_ASC)
-            cmp = pvalue64_cmp;
+        if (ord == ARRAY_FILLTYPE_ASC)
+            cmp = value64_getPComparator(arr.v64type);
         else
-            cmp = pvalue64_revcmp;*/
+            cmp = value64_getPRevComparator(arr.v64type);
     } else {
         logsimple("Array_fill: unsupported type %s", ArrayGettypeName(arr) );
         return;
