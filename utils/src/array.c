@@ -2188,6 +2188,240 @@ tf_v64array_shrink_increase(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST V64Array (STR / FS) sorting -------------------------
+static TestStatus
+tf_v64array_sort(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== STR sorting ========== */
+    test_sub("subtest %d: STR sort ASC", ++subnum);
+    {
+        Array arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        arr.v64[0] = value64_createstr("delta");
+        arr.v64[1] = value64_createstr("alpha");
+        arr.v64[2] = value64_createstr("charlie");
+        arr.v64[3] = value64_createstr("beta");
+
+        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+
+        const char *expected[] = {"alpha", "beta", "charlie", "delta"};
+        for (int i = 0; i < 4; i++) {
+            test_validatefree(
+                strcmp(value64_str(arr.v64[i]), expected[i]) == 0,
+                Arrayfree(arr),
+                "STR ASC [%d]: expected '%s', got '%s'",
+                i, expected[i], value64_str(arr.v64[i])
+            );
+        }
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: STR sort DESC", ++subnum);
+    {
+        Array arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        arr.v64[0] = value64_createstr("delta");
+        arr.v64[1] = value64_createstr("alpha");
+        arr.v64[2] = value64_createstr("charlie");
+        arr.v64[3] = value64_createstr("beta");
+
+        Array_qsort(arr, ARRAY_FILLTYPE_DESC);
+
+        const char *expected[] = {"delta", "charlie", "beta", "alpha"};
+        for (int i = 0; i < 4; i++) {
+            test_validatefree(
+                strcmp(value64_str(arr.v64[i]), expected[i]) == 0,
+                Arrayfree(arr),
+                "STR DESC [%d]: expected '%s', got '%s'",
+                i, expected[i], value64_str(arr.v64[i])
+            );
+        }
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    /* ========== FS sorting ========== */
+    test_sub("subtest %d: FS sort ASC", ++subnum);
+    {
+        Array arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        arr.v64[0] = value64_createfs_asstr("/zzz");
+        arr.v64[1] = value64_createfs_asstr("/aaa");
+        arr.v64[2] = value64_createfs_asstr("/mmm");
+        arr.v64[3] = value64_createfs_asstr("/bbb");
+
+        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+
+        const char *expected[] = {"/aaa", "/bbb", "/mmm", "/zzz"};
+        for (int i = 0; i < 4; i++) {
+            test_validatefree(
+                strcmp(fs_str(value64_fs(arr.v64[i])), expected[i]) == 0,
+                Arrayfree(arr),
+                "FS ASC [%d]: expected '%s', got '%s'",
+                i, expected[i], fs_str(value64_fs(arr.v64[i]))
+            );
+        }
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: FS sort DESC", ++subnum);
+    {
+        Array arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        arr.v64[0] = value64_createfs_asstr("/zzz");
+        arr.v64[1] = value64_createfs_asstr("/aaa");
+        arr.v64[2] = value64_createfs_asstr("/mmm");
+        arr.v64[3] = value64_createfs_asstr("/bbb");
+
+        Array_qsort(arr, ARRAY_FILLTYPE_DESC);
+
+        const char *expected[] = {"/zzz", "/mmm", "/bbb", "/aaa"};
+        for (int i = 0; i < 4; i++) {
+            test_validatefree(
+                strcmp(fs_str(value64_fs(arr.v64[i])), expected[i]) == 0,
+                Arrayfree(arr),
+                "FS DESC [%d]: expected '%s', got '%s'",
+                i, expected[i], fs_str(value64_fs(arr.v64[i]))
+            );
+        }
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    /* ========== граничные случаи ========== */
+
+    test_sub("subtest %d: STR sort empty array", ++subnum);
+    {
+        Array arr = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array_qsort(arr, ARRAY_FILLTYPE_ASC);   // не должно падать
+        test_validatefree(
+            arr.len == 0,
+            Arrayfree(arr),
+            "Empty STR array after sort must still be empty"
+        );
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: STR sort single element", ++subnum);
+    {
+        Array arr = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        arr.v64[0] = value64_createstr("single");
+        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        test_validatefree(
+            strcmp(value64_str(arr.v64[0]), "single") == 0,
+            Arrayfree(arr),
+            "Single STR element must survive sorting"
+        );
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: STR sort already sorted", ++subnum);
+    {
+        Array arr = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        arr.v64[0] = value64_createstr("a");
+        arr.v64[1] = value64_createstr("b");
+        arr.v64[2] = value64_createstr("c");
+        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        const char *exp[] = {"a", "b", "c"};
+        for (int i = 0; i < 3; i++) {
+            test_validatefree(
+                strcmp(value64_str(arr.v64[i]), exp[i]) == 0,
+                Arrayfree(arr),
+                "Already sorted STR [%d] must stay '%s'", i, exp[i]
+            );
+        }
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: STR sort with duplicates", ++subnum);
+    {
+        Array arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        arr.v64[0] = value64_createstr("a");
+        arr.v64[1] = value64_createstr("b");
+        arr.v64[2] = value64_createstr("a");
+        arr.v64[3] = value64_createstr("c");
+        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        const char *exp[] = {"a", "a", "b", "c"};
+        for (int i = 0; i < 4; i++) {
+            test_validatefree(
+                strcmp(value64_str(arr.v64[i]), exp[i]) == 0,
+                Arrayfree(arr),
+                "Duplicates STR [%d] must be '%s'", i, exp[i]
+            );
+        }
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: FS sort empty array", ++subnum);
+    {
+        Array arr = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        test_validatefree(arr.len == 0, Arrayfree(arr), "Empty FS array after sort must still be empty");
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: FS sort single element", ++subnum);
+    {
+        Array arr = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        arr.v64[0] = value64_createfs_asstr("/only");
+        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        test_validatefree(
+            strcmp(fs_str(value64_fs(arr.v64[0])), "/only") == 0,
+            Arrayfree(arr),
+            "Single FS element must survive sorting"
+        );
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: FS sort already sorted", ++subnum);
+    {
+        Array arr = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        arr.v64[0] = value64_createfs_asstr("/a");
+        arr.v64[1] = value64_createfs_asstr("/b");
+        arr.v64[2] = value64_createfs_asstr("/c");
+        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        const char *exp[] = {"/a", "/b", "/c"};
+        for (int i = 0; i < 3; i++) {
+            test_validatefree(
+                strcmp(fs_str(value64_fs(arr.v64[i])), exp[i]) == 0,
+                Arrayfree(arr),
+                "Already sorted FS [%d] must stay '%s'", i, exp[i]
+            );
+        }
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: FS sort with duplicates", ++subnum);
+    {
+        Array arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        arr.v64[0] = value64_createfs_asstr("/a");
+        arr.v64[1] = value64_createfs_asstr("/b");
+        arr.v64[2] = value64_createfs_asstr("/a");
+        arr.v64[3] = value64_createfs_asstr("/c");
+        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        const char *exp[] = {"/a", "/a", "/b", "/c"};
+        for (int i = 0; i < 4; i++) {
+            test_validatefree(
+                strcmp(fs_str(value64_fs(arr.v64[i])), exp[i]) == 0,
+                Arrayfree(arr),
+                "Duplicates FS [%d] must be '%s'", i, exp[i]
+            );
+        }
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    return logret(TEST_PASSED, "done");
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -2209,7 +2443,8 @@ main( /*int argc, char *argv[] */ )
         TESTADD(tf12,                           "Array_foreach macro simple test"),
         TESTADD(tf13,                           "Array_foreach_prod simple test"),
         TESTADD(tf_v64array_str_fs,             "V64Array (STR / FS) simple test"),
-        TESTADD(tf_v64array_shrink_increase,    "V64Array (STR / FS) shrink / increase simple test")
+        TESTADD(tf_v64array_shrink_increase,    "V64Array (STR / FS) shrink / increase simple test"),
+        TESTADD(tf_v64array_sort,               "V64Array (STR / FS) sorting")
     );
 
     return logret(0, "end...");  // as replace of logclose()
