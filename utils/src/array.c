@@ -2422,6 +2422,195 @@ tf_v64array_sort(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST V64Array (STR / FS) save/load -------------------------
+static TestStatus
+tf_v64array_save_load(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== STR save/load ========== */
+    test_sub("subtest %d: STR save/load", ++subnum);
+    {
+        const char *fname = "res/array/v64str.sv";
+
+        // создаём массив и заполняем
+        Array orig = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        orig.v64[0] = value64_createstr("one");
+        orig.v64[1] = value64_createstr("two");
+        orig.v64[2] = value64_createstr("three");
+
+        // сохраняем
+        long written = Array_save(orig, fname);
+        test_validatefree(written > 0, Arrayfree(orig), "STR save failed");
+
+        // загружаем
+        Array loaded = Array_load(fname);
+        test_validatefree(
+            loaded.len == orig.len,
+            (Arrayfree(orig), Arrayfree(loaded)),
+            "STR load: len=%d, expected %d", loaded.len, orig.len
+        );
+
+        // сравниваем поэлементно
+        for (int i = 0; i < orig.len; i++) {
+            test_validatefree(
+                strcmp(value64_str(orig.v64[i]), value64_str(loaded.v64[i])) == 0,
+                (Arrayfree(orig), Arrayfree(loaded)),
+                "STR[%d]: orig='%s', loaded='%s'",
+                i, value64_str(orig.v64[i]), value64_str(loaded.v64[i])
+            );
+        }
+
+        Arrayfree(orig);
+        Arrayfree(loaded);
+    }
+    fs_alloc_check(true);
+
+    /* ========== FS save/load ========== */
+    test_sub("subtest %d: FS save/load", ++subnum);
+    {
+        const char *fname = "res/array/v64fs.sv";
+
+        // создаём массив и заполняем
+        Array orig = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        orig.v64[0] = value64_createfs_asstr("/alpha");
+        orig.v64[1] = value64_createfs_asstr("/beta");
+        orig.v64[2] = value64_createfs_asstr("/gamma");
+
+        // сохраняем
+        long written = Array_save(orig, fname);
+        test_validatefree(written > 0, Arrayfree(orig), "FS save failed");
+
+        // загружаем
+        Array loaded = Array_load(fname);
+        test_validatefree(
+            loaded.len == orig.len,
+            (Arrayfree(orig), Arrayfree(loaded)),
+            "FS load: len=%d, expected %d", loaded.len, orig.len
+        );
+
+        // сравниваем поэлементно (строки, лежащие внутри fs)
+        for (int i = 0; i < orig.len; i++) {
+            fs *f_orig = value64_fs(orig.v64[i]);
+            fs *f_load = value64_fs(loaded.v64[i]);
+            test_validatefree(
+                f_orig && f_load && strcmp(fs_str(f_orig), fs_str(f_load)) == 0,
+                (Arrayfree(orig), Arrayfree(loaded)),
+                "FS[%d]: orig='%s', loaded='%s'",
+                i, f_orig ? fs_str(f_orig) : "NULL",
+                f_load ? fs_str(f_load) : "NULL"
+            );
+        }
+
+        Arrayfree(orig);
+        Arrayfree(loaded);
+    }
+    fs_alloc_check(true);
+
+    /* ========== STR save/load: граничные случаи ========== */
+
+    test_sub("subtest %d: STR save/load empty array", ++subnum);
+    {
+        const char *fname = "res/array/v64str_empty.sv";
+
+        Array orig = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        long written = Array_save(orig, fname);
+        test_validatefree(written > 0, Arrayfree(orig), "STR empty save failed");
+
+        Array loaded = Array_load(fname);
+        test_validatefree(
+            loaded.len == 0 && loaded.v64 == NULL,
+            (Arrayfree(orig), Arrayfree(loaded)),
+            "Loaded empty STR: len=%d, v64=%p (expected 0, NULL)", loaded.len, loaded.v64
+        );
+
+        Arrayfree(orig);
+        Arrayfree(loaded);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: STR save/load single element", ++subnum);
+    {
+        const char *fname = "res/array/v64str_single.sv";
+
+        Array orig = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        orig.v64[0] = value64_createstr("single");
+        long written = Array_save(orig, fname);
+        test_validatefree(written > 0, Arrayfree(orig), "STR single save failed");
+
+        Array loaded = Array_load(fname);
+        test_validatefree(
+            loaded.len == 1,
+            (Arrayfree(orig), Arrayfree(loaded)),
+            "Loaded single STR: len=%d, expected 1", loaded.len
+        );
+        test_validatefree(
+            strcmp(value64_str(orig.v64[0]), value64_str(loaded.v64[0])) == 0,
+            (Arrayfree(orig), Arrayfree(loaded)),
+            "STR single: orig='%s', loaded='%s'",
+            value64_str(orig.v64[0]), value64_str(loaded.v64[0])
+        );
+
+        Arrayfree(orig);
+        Arrayfree(loaded);
+    }
+    fs_alloc_check(true);
+
+    /* ========== FS save/load: граничные случаи ========== */
+
+    test_sub("subtest %d: FS save/load empty array", ++subnum);
+    {
+        const char *fname = "res/array/v64fs_empty.sv";
+
+        Array orig = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        long written = Array_save(orig, fname);
+        test_validatefree(written > 0, Arrayfree(orig), "FS empty save failed");
+
+        Array loaded = Array_load(fname);
+        test_validatefree(
+            loaded.len == 0 && loaded.v64 == NULL,
+            (Arrayfree(orig), Arrayfree(loaded)),
+            "Loaded empty FS: len=%d, v64=%p (expected 0, NULL)", loaded.len, loaded.v64
+        );
+
+        Arrayfree(orig);
+        Arrayfree(loaded);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: FS save/load single element", ++subnum);
+    {
+        const char *fname = "res/array/v64fs_single.sv";
+
+        Array orig = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        orig.v64[0] = value64_createfs_asstr("/only");
+        long written = Array_save(orig, fname);
+        test_validatefree(written > 0, Arrayfree(orig), "FS single save failed");
+
+        Array loaded = Array_load(fname);
+        test_validatefree(
+            loaded.len == 1,
+            (Arrayfree(orig), Arrayfree(loaded)),
+            "Loaded single FS: len=%d, expected 1", loaded.len
+        );
+        fs *f_orig = value64_fs(orig.v64[0]);
+        fs *f_load = value64_fs(loaded.v64[0]);
+        test_validatefree(
+            f_orig && f_load && strcmp(fs_str(f_orig), fs_str(f_load)) == 0,
+            (Arrayfree(orig), Arrayfree(loaded)),
+            "FS single: orig='%s', loaded='%s'",
+            f_orig ? fs_str(f_orig) : "NULL", f_load ? fs_str(f_load) : "NULL"
+        );
+
+        Arrayfree(orig);
+        Arrayfree(loaded);
+    }
+    fs_alloc_check(true);
+
+    return logret(TEST_PASSED, "done");
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -2444,7 +2633,8 @@ main( /*int argc, char *argv[] */ )
         TESTADD(tf13,                           "Array_foreach_prod simple test"),
         TESTADD(tf_v64array_str_fs,             "V64Array (STR / FS) simple test"),
         TESTADD(tf_v64array_shrink_increase,    "V64Array (STR / FS) shrink / increase simple test"),
-        TESTADD(tf_v64array_sort,               "V64Array (STR / FS) sorting")
+        TESTADD(tf_v64array_sort,               "V64Array (STR / FS) sorting"),
+        TESTADD(tf_v64array_save_load,          "V64Array STR/FS save/load test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
