@@ -122,6 +122,7 @@ static inline Array             V64Array_create(int cnt, ArrayFillType typ, valu
 
 
 // -------------- ACCESS AND MODIFICATION --------------
+static inline bool              Array_isv64(Array a);
 
 static inline int               Array_gettype(Array a) {
     return a.flags & 0xFF;
@@ -132,7 +133,10 @@ static inline const char       *ArrayGettypeName(Array a) {
 }
 
 static inline const char       *ArrayGetV64typeName(Array a) {
-    return ArrayFillTypeName(Array_gettype(a) );
+    if (Array_isv64(a))
+        return value64_typename(a.v64type);
+    else
+        return "Not V64 type";
 }
 
 static inline ArrayType         ArrayGetV64mappedType(Array a) {

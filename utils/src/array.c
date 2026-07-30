@@ -128,6 +128,16 @@ static inline void set_double_element(Array a, int i, double val) {
 }
 
 /**
+ * @brief Writes a pointer into an array (plain or value64).
+ * @see set_int_element
+ */
+static inline void set_pointer_element(Array a, int i, void *val) {
+    if (Array_isv64(a))
+        a.v64[i] = value64_createptr(val);
+    else
+        a.pv[i] = val;
+}
+/**
  * @brief Writes an fs value into a value64 array.
  *
  * The array must be a value64 array (Array_isv64).  The fs object is
@@ -137,7 +147,7 @@ static inline void set_double_element(Array a, int i, double val) {
  * @param i   element index
  * @param val pointer to the fs object to copy
  */
-static inline void set_fs_element(Array a, int i, const fs *val) {
+static inline void set_v64fs_element(Array a, int i, const fs *val) {
     a.v64[i] = value64_createfs(val);
 }
 
@@ -151,9 +161,11 @@ static inline void set_fs_element(Array a, int i, const fs *val) {
  * @param i   element index
  * @param val C‑string to copy
  */
-static inline void set_str_element(Array a, int i, const char *val) {
+static inline void set_v64str_element(Array a, int i, const char *val) {
     a.v64[i] = value64_createstr(val);
 }
+
+
 
 // -------------------------- (Utility) printers -------------------
 
@@ -170,20 +182,15 @@ Array                           Array_create(int cnt, ArrayFillType filltyp, Arr
         return logerr(res, "sz = %d", res.sz);
 
     increase(&res, cnt);
-    res.len         = cnt;
+    res.len = cnt;
     Array_fill(res, filltyp);
     return logret(res, "sz = %d", res.sz);
 }
 
 void                            Array_free(Array *val){
     if (val && val->iv){
-        if (val->iv) {
-            // if case of containered - free each element
-            if (Array_isv64(*val) )
-                for (int i = 0; i < val->len; i++)
-                    value64_free(&val->v64[i], val->v64type);
-            free(val->iv);
-        }
+        freeelems(val, 0, val->len);
+        free(val->iv);
         val->iv = 0;
     }
 }
@@ -199,52 +206,38 @@ int                             Array_fill(Array a, ArrayFillType typ){
 /// @param val  int value 
 /// @param sign sign (1/-1) 
 /// @return adjusted value
-static int                      incint(int *val, int sign){
+static inline int               incintrnd(int *val, int sign){
     return (*val += sign * (rndint(10) + 1) );
 }
 /// @brief      long incrementer (or dec)
 /// @param val  long value 
 /// @param sign sign (1/-1) 
 /// @return adjusted value
-static long                      inclong(long *val, int sign){
+static inline long              inclongrnd(long *val, int sign){
     return (*val += sign * (rndlong(10) + 1) );
 }
 /// @brief       double incrementer (or dec)
 /// @param val   double value
 /// @param sign  sign (1/-1) 
 /// @return adjusted value
-static double                   incdouble(double *val, int sign){
+static inline double           incdoublernd(double *val, int sign){
     return (*val += sign * (rnddbl(10) + g_array_dbl_increment) );
 }
 /// @brief        const char* incrementer
 /// @param s      buffer fs pointer 
 /// @return       inctremented fs
-static fs                      *incfs(fs *s) {
+static inline fs               *incfs(fs *s) {
     fs_catstr(s, "A");    // increment len by 1
     return s;
 }
 /// @brief        fs dec
 /// @param s      buffer fs pointer 
 /// @return       decremented fs
-static fs                      *decfs(fs *s) {
+static inline fs               *decfs(fs *s) {
     fs_setlen(s, fs_len(s) - 1);    // dec len by 1
     return s;
 }
-/*
-/// @brief        const char* incrementer
-/// @param s      buffer fs pointer 
-/// @return       inctremented const char* pointer
-static const char              *inccstr(fs *s) {
-    fs_catstr(s, "A");    // increment len by 1
-    return fs_str(s);
-}
-/// @brief        const char* decrement
-/// @param s      buffer fs pointer 
-/// @return       decremented const char* pointer
-static const char              *deccstrfs(fs *s) {
-    fs_setlen(s, fs_len(s) - 1);    // dec len by 1
-    return fs_str(s);
-}*/
+
 /// @brief        ascending filler
 /// @param a      array 
 /// @param from   start index 
@@ -254,19 +247,19 @@ static int                      Array_fillrange_ASC(Array a, int from, int to){
     switch (ArrayGetV64mappedType(a) ) {
         case ARRAY_INT: {
             int val = 0;
-            for (int i = from; i < to; i++, incint(&val, 1) )
+            for (int i = from; i < to; i++, incintrnd(&val, 1) )
                 set_int_element(a, i, val);
             break;
         }
         case ARRAY_LONG: {
             long val = 0;
-            for (int i = from; i < to; i++, inclong(&val, 1) )
+            for (int i = from; i < to; i++, inclongrnd(&val, 1) )
                 set_long_element(a, i, val);
             break;
         }
         case ARRAY_DOUBLE: {
             double val = 0.0;
-            for (int i = from; i < to; i++, incdouble(&val, 1) )
+            for (int i = from; i < to; i++, incdoublernd(&val, 1) )
                 set_double_element(a, i, val);
             break;
         }
@@ -278,7 +271,7 @@ static int                      Array_fillrange_ASC(Array a, int from, int to){
                     // fs увеличивающейся длины
                     for (int i = from; i < to; i++) {
                         incfs(&s);   // длина i+1
-                        set_fs_element(a, i, &s);  
+                        set_v64fs_element(a, i, &s);  
                     }
                     fsfree(s);
                     break;
@@ -288,7 +281,7 @@ static int                      Array_fillrange_ASC(Array a, int from, int to){
                     // C‑строки увеличивающейся длины
                     for (int i = from; i < to; i++) {
                         incfs(&s);   // длина i+1
-                        set_str_element(a, i, fsstr(s));
+                        set_v64str_element(a, i, fsstr(s));
                     }
                     fsfree(s);
                     break;
@@ -313,19 +306,19 @@ static int                      Array_fillrange_DESC(Array a, int from, int to){
     switch (ArrayGetV64mappedType(a) ) {
         case ARRAY_INT: {
             int val = 10 * a.len;   // hope it'll ne owerwelhm int;
-            for (int i = from; i < to; i++, incint(&val, -1) )
+            for (int i = from; i < to; i++, incintrnd(&val, -1) )
                 set_int_element(a, i, val);
             break;
         }
         case ARRAY_LONG: {
             long val = 100L * a.len;
-            for (int i = from; i < to; i++, inclong(&val, -1) )
+            for (int i = from; i < to; i++, inclongrnd(&val, -1) )
                 set_long_element(a, i, val);
             break;
         }
         case ARRAY_DOUBLE: {
             double val = 0.0;
-            for (int i = from; i < to; i++, incdouble(&val, -1) )
+            for (int i = from; i < to; i++, incdoublernd(&val, -1) )
                 set_double_element(a, i, val);
             break;
         }
@@ -337,7 +330,7 @@ static int                      Array_fillrange_DESC(Array a, int from, int to){
                     // fs desc length
                     for (int i = from; i < to; i++) {
                         decfs(&s);   // длина i+1
-                        set_fs_element(a, i, &s);  
+                        set_v64fs_element(a, i, &s);  
                     }
                     fsfree(s);
                     break;
@@ -347,7 +340,7 @@ static int                      Array_fillrange_DESC(Array a, int from, int to){
                     // c-str desc length
                     for (int i = from; i < to; i++) {
                         decfs(&s);   // длина i+1
-                        set_str_element(a, i, fsstr(s));
+                        set_v64str_element(a, i, fsstr(s));
                     }
                     fsfree(s);
                     break;
@@ -372,38 +365,32 @@ static int                      Array_fillrange_DESC(Array a, int from, int to){
 static int                      Array_fillrange_ZERO(Array a, int from, int to){
     switch (ArrayGetV64mappedType(a) ) {
         case ARRAY_INT:
-            //for (int i = from; i < to; i++){ // iter??? TODO: check if it's correct
-              //  a.iv[i] = 0;
-            IArray_foreach(a, i){
-                    *i = 0;
-                }
+            for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
+                set_int_element(a, i, 0);
             break;
         case ARRAY_LONG:
-            LArray_foreach(a, i){
-                *i = 0L;
-            }
+            for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
+                set_long_element(a, i, 0L);
             break;
         case ARRAY_DOUBLE:
-            DArray_foreach(a, i){
-                *i = 0.0;
-            }
+            for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
+                set_double_element(a, i, 0.0);
             break;
         case ARRAY_POINTER:
-            PArray_foreach(a, i){
-                *i = NULL;
-            }
+            for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
+                set_pointer_element(a, i, NULL);
             break;
         case ARRAY_UNKNOWN: {
             switch (a.v64type) {
                 case VALUE64_FS: {
                     fs s = FSLITERAL("");
                     for (int i = from; i < to; i++)
-                        set_fs_element(a, i, &s);  
+                        set_v64fs_element(a, i, &s);  
                     break;
                 }
                 case VALUE64_STR: {
                     for (int i = from; i < to; i++)
-                        set_str_element(a, i, "");
+                        set_v64str_element(a, i, "");
                     break;
                 }
                 default:
@@ -425,21 +412,16 @@ static int                      Array_fillrange_ZERO(Array a, int from, int to){
 static int                      Array_fillrange_RND(Array a, int from, int to){
     switch (ArrayGetV64mappedType(a) ) {
         case ARRAY_INT:
-            //for (int i = from; i < to; i++){ // iter??? TODO: check if it's correct
-              //  a.iv[i] = 0;
-            IArray_foreach(a, i){
-                    *i = rndint(10 * (to - from + 1) ); // probaly not too good
-                }
+            for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
+                 set_int_element(a, i, rndint(10 * (to - from + 1) ) );
             break;
         case ARRAY_LONG:
-            LArray_foreach(a, i){
-                *i = rndlong(10L * (to - from + 1) ); // probaly not too good
-            }
+            for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
+                 set_long_element(a, i, rndlong(10 * (to - from + 1) ) );
             break;
         case ARRAY_DOUBLE:
-            DArray_foreach(a, i){
-                *i = rnddbl(10.0 * (to - from + 1) ); // probaly not too good
-            }
+            for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
+                set_double_element(a, i, rnddbl(10 * (to - from + 1) ) );
             break;
         case ARRAY_UNKNOWN: {
             switch (a.v64type) {
@@ -447,7 +429,7 @@ static int                      Array_fillrange_RND(Array a, int from, int to){
                     fs s = FS();
                     for (int i = from; i < to; i++) {
                         // fs_genrnd(&s, from - to + 1, 'A'); TODO:
-                        set_fs_element(a, i, &s);  
+                        set_v64fs_element(a, i, &s);  
                     }
                     fsfree(s);
                     break;
@@ -456,7 +438,7 @@ static int                      Array_fillrange_RND(Array a, int from, int to){
                     fs s = FS();
                     for (int i = from; i < to; i++) {
                         // fs_genrnd(&s, from - to + 1, 'A'); TODO:
-                        set_str_element(a, i, "");
+                        set_v64str_element(a, i, "");
                     }
                     fsfree(s);
                     break;
@@ -473,12 +455,75 @@ static int                      Array_fillrange_RND(Array a, int from, int to){
     return a.len;
 }
 
+/// @brief        ascending series filler
+/// @param a      array 
+/// @param from   start index 
+/// @param to     end index 
+/// @return       count of filled elements
+static int                      Array_fillrange_ASC_SERIES(Array a, int from, int to){
+    switch (ArrayGetV64mappedType(a) ) {
+        case ARRAY_INT: {
+            int val = from;
+            for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
+                 set_int_element(a, i, val++);
+            break;
+        }
+        case ARRAY_LONG: {
+            long val = from;
+            for (int i = from; i < to; i++)
+                set_long_element(a, i, val++);
+            break;
+        }
+        case ARRAY_DOUBLE: {
+            double val = from + 0.0;
+            for (int i = from; i < to; i++)
+                set_double_element(a, i, val++);
+            break;
+        }
+        default:
+            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayGettypeName(a) );
+            break;
+    }
+    return a.len;
+}
+
+/// @brief        descending series filler
+/// @param a      array 
+/// @param from   start index 
+/// @param to     end index 
+/// @return       count of filled elements
+static int                      Array_fillrange_DESC_SERIES(Array a, int from, int to){
+    switch (ArrayGetV64mappedType(a) ) {
+        case ARRAY_INT: {
+            int val = to - 1;
+            for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
+                 set_int_element(a, i, val--);
+            break;
+        }
+        case ARRAY_LONG: {
+            long val = to - 1;
+            for (int i = from; i < to; i++)
+                set_long_element(a, i, val--);
+            break;
+        }
+        case ARRAY_DOUBLE: {
+            double val = to - 1;
+            for (int i = from; i < to; i++)
+                set_double_element(a, i, val--);
+            break;
+        }
+        default:
+            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayGettypeName(a) );
+            break;
+    }
+    return a.len;
+}
+
 /// @brief Array filler
 /// @param a base array
 /// @param typ Array type 
 /// @param from from (will be normilized if out of range)
 /// @param to  to (will be normilized if out of range)
-/// @param vt  V64 type, only for for V64
 /// @return Count of formatter data
 int                             Array_fillrange(Array a, ArrayFillType typ, int from, int to) {
     logenter("%d - %d, %s (v64: %s)", from, to, ArrayFillTypeName(typ), ArrayGetV64typeName(a) );
@@ -487,9 +532,9 @@ int                             Array_fillrange(Array a, ArrayFillType typ, int 
         from = 0;
         logmsg("'from' was negative, normalized to 0");
     }
-    if (to > a.len){
-        to = a.len;
-        logmsg("'to' was out of range - normalized to %d", a.len);
+    if (to > a.sz){
+        to = a.sz;
+        logmsg("'to' was out of range - normalized to sz %d", a.sz);
     }
     switch (typ) {
         case ARRAY_FILLTYPE_ASC:
@@ -508,12 +553,18 @@ int                             Array_fillrange(Array a, ArrayFillType typ, int 
             break;
         case ARRAY_FILLTYPE_NONE:
             // just do nothing
-        break;
+            break;
+        case ARRAY_FILLTYPE_ASC_SERIES:
+            Array_fillrange_ASC_SERIES(a, from, to);
+            break;
+        case ARRAY_FILLTYPE_DESC_SERIES:
+            Array_fillrange_DESC_SERIES(a, from, to);
+            break;
         default:
             userraiseint(ERR_ACTION_NOT_APPLICABLE, "Not supported filltype %s", ArrayFillTypeName(typ));
     }
 
-    return logret(a.len, "Filled %d", a.len);
+    return logret(to - from, "Filled %d", to - from);
 }
 
 /*
@@ -1279,9 +1330,18 @@ tf8(const char *name){
 
         arr = Array_increase(arr, initsz * 3);
 
-        test_validatefree(Arraylen(arr) == initsz * 3, Arrayfree(arr), "Array length %d must be %d", Arraylen(arr), initsz * 3);
+        test_validatefree(
+            Arraylen(arr) == initsz * 3, 
+            Arrayfree(arr), 
+            "Array length %d must be %d", Arraylen(arr), 
+            initsz * 3
+        );
         for (int i = initsz; i < Arraylen(arr); i++){
-            test_validatefree(arr.iv[i] == 0, Arrayfree(arr), "arr[%d] must be zero,  but not %d", i, arr.iv[i]);
+            test_validatefree(
+                arr.iv[i] == 0,
+                Arrayfree(arr),
+                "arr[%d] must be zero,  but not %d", i, arr.iv[i]
+            );
         }
 
         Arrayfree(arr);
@@ -1355,7 +1415,7 @@ tf9(const char *name){
     test_sub("subtest %d, pointer array save/load", ++subnum);
     {
         const char *filename = "res/array/parr.sv";
-        Array parr = PArray_create(100, ARRAY_FILLTYPE_RND);
+        Array parr = PArray_create(100, ARRAY_FILLTYPE_ZERO);
 
         Array_save(parr, filename);
 
@@ -1398,7 +1458,7 @@ tf9(const char *name){
     test_sub("subtest %d increase pointer array", ++subnum);
     {
         int initsz = 25;
-        Array arr = PArray_create(initsz, ARRAY_FILLTYPE_RND);
+        Array arr = PArray_create(initsz, ARRAY_FILLTYPE_ZERO);
 
         arr = Array_increase(arr, initsz * 3);
 
