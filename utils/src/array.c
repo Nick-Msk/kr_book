@@ -160,6 +160,16 @@ static inline void set_v64str_element(Array a, int i, const char *val) {
     a.v64[i] = value64_createstr(val);
 }
 
+/**
+ * @brief Loads array elements from a text stream.
+ *
+ * The array header must already be read, and the array must be correctly
+ * created before calling this function.
+ *
+ * @param in  input stream, already opened for reading
+ * @param arr pointer to the array to fill
+ * @return true on success, false on error
+ */
 static bool                 load_values(FILE *restrict in, Array *restrict arr) {
     int     tmp;
     for (int i = 0; i < arr->len; i++){
@@ -181,6 +191,37 @@ static bool                 load_values(FILE *restrict in, Array *restrict arr) 
         }
     }
     return true;
+}
+
+/**
+ * @brief Writes the array elements into a text stream.
+ *
+ * This function outputs only the element data, without header or footer.
+ *
+ * @param out output stream, already opened for writing
+ * @param arr constant pointer to the array
+ * @return number of bytes written
+ */
+static long                 save_values(FILE *restrict out, const Array *restrict arr) {
+    long        res = 0L;
+    for (int i = 0; i < arr->len; i++)
+        switch (Array_gettype(*arr)) {
+            case ARRAY_INT:
+                res += fprintf(out, g_save_format_int, i, arr->iv[i]);
+                break;
+            case ARRAY_LONG:
+                res += fprintf(out, g_save_format_long, i, arr->lv[i]);
+                break;
+            case ARRAY_DOUBLE:
+                res += fprintf(out, g_save_format_double, i, arr->dv[i]);
+                break;
+            case ARRAY_POINTER:
+                res += fprintf(out, g_save_format_pointer, i, arr->pv[i]);
+                break;
+            case ARRAY_V64:
+                res += value64_fsave(out, arr->v64[i], arr->v64type, true);
+        }
+    return res;
 }
 
 // -------------------------- (Utility) printers -------------------
@@ -796,55 +837,74 @@ long                        Array_savevalues(Array arr, const char *fname, char 
     return logret(res, "Done %ld", res);
 }
 
-long                        Array_save(Array arr, const char *fname){
+/**
+ * @brief Saves an array to a text stream in the full ARRAY format.
+ *
+ * The format is:
+ *   ARRAY: <type> / <v64type> : <count>\n
+ *   <elements>
+ *   ARRAY: DONE\n
+ *
+ * @param out output stream, already opened for writing
+ * @param arr array (by value)
+ * @return number of bytes written
+ */
+long                        ArrayFSave(FILE *out, Array arr) {
+    long res = 0L;
+    if (out) {
+        // g_save_format_double g_save_format_int
+        const char  *typ = ArrayTypeName(arr.flags);
+
+        res = fprintf(out, "ARRAY: %s / %s : %d\n", typ, 
+                    Array_isv64(arr) ? ArrayGetV64typeName(arr) : "NONV64_TYPE", arr.len);
+        res += save_values(out, &arr);
+        res += fprintf(out, "ARRAY: DONE\n");
+    }
+    return res;
+}
+
+/**
+ * @brief Saves an array to a file.
+ *
+ * Opens the file for writing, calls ArrayFSave(), and closes the file.
+ *
+ * @param arr   array (by value)
+ * @param fname file path
+ * @return number of bytes written, or a negative value on error
+ */
+long                        Array_save(Array arr, const char *fname) {
     logenter("%s", fname);
 
-    long         res = 0;
-    FILE        *f = fopen(fname, "w");
-    if (f == 0){
-        fprintf(stderr, "Unable to open %s for writinf\n", fname);
-        return logerr(-1, "Can't open for write");
-    }
-    // g_save_format_double g_save_format_int
-    const char  *typ = ArrayTypeName(arr.flags);
+    FILE        *out = fopen(fname, "w");
+    if (out == 0)
+        return userraise(ERR_UNABLE_OPEN_FILE_WRITE, -1, "Can't open '%s' for write", fname);
 
-    res += fprintf(f, "ARRAY: %s / %s : %d\n", typ, 
-            Array_isv64(arr) ? ArrayGetV64typeName(arr) : "NONV64_TYPE", arr.len);
-    for (int i = 0; i < arr.len; i++)
-        if (Array_isint(arr))
-            res += fprintf(f, g_save_format_int, i, arr.iv[i]);    // TODO: think if shrink repeatable
-        else if (Array_islong(arr))
-            res += fprintf(f, g_save_format_long, i, arr.lv[i]);    // TODO: think if shrink repeatable
-        else if (Array_isdouble(arr))
-            res += fprintf(f, g_save_format_double, i, arr.dv[i]);
-        else if (Array_ispointer(arr))
-            res += fprintf(f, g_save_format_pointer, i, arr.pv[i]);
-        else if (Array_isv64(arr))
-            res += value64_fsave(f, arr.v64[i], arr.v64type, true);
-    res += fprintf(f, "ARRAY: DONE\n");
-    fclose(f);
+    long        res = ArrayFSave(out, arr);
+
+    fclose(out);
     return logret(res, "Done %ld", res);
 }
 
-Array                       Array_load(const char *fname){
-    invraisecode(ERR_NULLABLE_PTR, fname != NULL, "Nullable fname");
+/**
+ * @brief Loads an array from a text stream in the full ARRAY format.
+ *
+ * Reads the header, creates the array, fills its elements, and checks the
+ * footer.
+ *
+ * @param in input stream, already opened for reading
+ * @return loaded array, or an array with the error flag set
+ */
+Array                      ArrayFLoad(FILE *in) {
+    invraisecode(ERR_NULLABLE_PTR, in != NULL, "Nullable input");
 
-    logenter("%s", fname);
-
-    int    cnt = 0;
-    FILE *f = fopen(fname, "r");
-    Array arr = Array_init();
-    if (f == 0){
-        fprintf(stderr, "Unable to open %s for read\n", fname);
-        Array_seterror(arr);
-        return logerr(arr, "Can't read");
-    }
     // TODO: to be refactored to json save/load model
-    char typ[20], v64typ[20];   // 20 is magic number OMG
+    int         cnt = 0;
+    char        typ[20], v64typ[20];   // 20 is magic number OMG
     //fscanf(f, "ARRAY: %s : %d", typ, &cnt);
-    if (fscanf(f, "ARRAY: %s / %s : %d ", typ, v64typ, &cnt) != 3)
+    if (fscanf(in, "ARRAY: %s / %s : %d ", typ, v64typ, &cnt) != 3)
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Array header wrong format");
 
+    Array       arr = Array_init(cnt);
     if (strcmp(typ, "ARRAY_V64") == 0) {
         value64_type vt = value64_gettype(v64typ);
         if (vt == VALUE64_UNKNOWN)
@@ -862,13 +922,34 @@ Array                       Array_load(const char *fname){
     else 
         userraiseint(ERR_UNSUPPORTED_TYPE, "Unsupported format %s\n", typ);
     
-    load_values(f, &arr);
+    load_values(in, &arr);
     
-    if (fscanf(f, "ARRAY: %19s", typ) != 1 || strcmp(typ, "DONE") != 0)
+    if (fscanf(in, "ARRAY: %19s", typ) != 1 || strcmp(typ, "DONE") != 0)
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Wrong final piece '%s'", typ);
+    return arr;
+}
 
-    fclose(f);
-    return logret(arr, "Done %d", cnt);
+/**
+ * @brief Loads an array from a file.
+ *
+ * Opens the file for reading, calls ArrayFLoad(), and closes the file.
+ *
+ * @param fname file path
+ * @return loaded array, or an array with the error flag set
+ */
+Array                       Array_load(const char *fname) {
+    invraisecode(ERR_NULLABLE_PTR, fname != NULL, "Nullable fname");
+
+    logenter("%s", fname);
+    FILE    *in = fopen(fname, "r");
+
+    if (in == 0)
+        userraiseint(ERR_UNABLE_OPEN_FILE_READ, "Can't open for read '%s'", fname);
+    
+    Array arr = ArrayFLoad(in);
+    
+    fclose(in);
+    return logret(arr, "Done %d", arr.len);
 }
 // -------------------------------Testing --------------------------
 

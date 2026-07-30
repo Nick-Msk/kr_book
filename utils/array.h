@@ -281,8 +281,9 @@ static inline int               Array_print(Array val, int limit){
 }
 
 extern long                     Array_save(Array arr, const char *fname);
-
+extern long                     ArrayFSave(FILE *out, Array arr);
 extern Array                    Array_load(const char *fname);
+extern Array                    ArrayFLoad(FILE *in);
 
 // save only values by delimeter
 extern long                     Array_savevalues(Array arr, const char *fname, char delim);
