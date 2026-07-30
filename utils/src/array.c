@@ -1866,19 +1866,19 @@ main( /*int argc, char *argv[] */ )
     logsimpleinit("Start");
 
     testenginestd(
-        testnew(.f2 =  tf1, .num =  1, .name = "Int/double creation/descr test"                 , .desc = "", .mandatory=true)
-      , testnew(.f2 =  tf2, .num =  2, .name = "Int/double filling test"                        , .desc = "", .mandatory=true)
-      , testnew(.f2 =  tf3, .num =  3, .name = "Shrink test"                                    , .desc = "", .mandatory=true)
-      , testnew(.f2 =  tf4, .num =  4, .name = "Save/load int test"                             , .desc = "", .mandatory=true)
-      , testnew(.f2 =  tf5, .num =  5, .name = "Save/load dbl test"                             , .desc = "", .mandatory=true)
-      , testnew(.f2 =  tf6, .num =  6, .name = "Shuffle array(dbl/int) simple test"             , .desc = "", .mandatory=true)
-      , testnew(.f2 =  tf7, .num =  7, .name = "Sort array(dbl/int) simple test"                , .desc = "", .mandatory=true)
-      , testnew(.f2 =  tf8, .num =  8, .name = "Array_increase simple test"                     , .desc = "", .mandatory=true)
-      , testnew(.f2 =  tf9, .num =  9, .name = "PArray simple test"                             , .desc = "", .mandatory=true)
-      , testnew(.f2 = tf10, .num = 10, .name = "Creation with ARRAY_(DE)ASC_SERIES simple test" , .desc = "", .mandatory=true)
-      , testnew(.f2 = tf11, .num = 11, .name = "Array_fillrange simple test"                    , .desc = "", .mandatory=true)
-      , testnew(.f2 = tf12, .num = 12, .name = "Array_foreach macro simple test"                , .desc = "", .mandatory=true)
-      , testnew(.f2 = tf13, .num = 13, .name = "Array_foreach_prod simple test"                 , .desc = "", .mandatory=true)
+        TESTADD(tf1,  "Int/double creation/descr test"),
+        TESTADD(tf2,  "Int/double filling test"),
+        TESTADD(tf3,  "Shrink test"),
+        TESTADD(tf4,  "Save/load int test"),
+        TESTADD(tf5,  "Save/load dbl test"),
+        TESTADD(tf6,  "Shuffle array(dbl/int) simple test"),
+        TESTADD(tf7,  "Sort array(dbl/int) simple test"),
+        TESTADD(tf8,  "Array_increase simple test"),
+        TESTADD(tf9,  "PArray simple test"),
+        TESTADD(tf10, "Creation with ARRAY_(DE)ASC_SERIES simple test"),
+        TESTADD(tf11, "Array_fillrange simple test"),
+        TESTADD(tf12, "Array_foreach macro simple test"),
+        TESTADD(tf13, "Array_foreach_prod simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
