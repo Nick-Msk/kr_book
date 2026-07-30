@@ -44,7 +44,7 @@ static void                     freeelems(Array *arr, int from, int to) {
 /// @return 
 static int                      increase(Array *arr, int newsz){
     invraisecode(ERR_NULLABLE_PTR, arr != NULL, "Null pointer");
-    invraisecode(ERR_OUT_OF_RANGE, newsz > 0, "Size must be positive");
+    invraisecode(ERR_OUT_OF_RANGE, newsz >= 0, "Size must be >= 0");
     logenter("newsz %d", newsz);
     if (newsz == arr->sz)
         return logret(arr->sz, "No change sz %d", arr->sz);
@@ -69,15 +69,16 @@ static int                      increase(Array *arr, int newsz){
     if (newsz < arr->len)
         freeelems(arr, newsz, arr->len);    
     logmsg("Arr: bytes=%d, sz=%d", bytes, newsz);
-    void *p  = realloc(arr->iv, bytes);
-    if (p == 0)
-        userraiseint(ERR_UNABLE_ALLOCATE, "Unable to allocate %d", bytes);
-    else {
-        arr->v = p; // iv/dv is the same
-        if (arr->len > newsz)   // shrink case
-            arr->len = newsz;
-        arr->sz = newsz;
-    }
+    void *p = NULL;  
+    if (bytes > 0) {
+        if ( (p = realloc(arr->v, bytes) ) == NULL)
+            userraiseint(ERR_UNABLE_ALLOCATE, "Unable to allocate %d", bytes);
+    } else
+        free(arr->v);
+    arr->v = p; // iv/dv/pv... is the same
+    if (arr->len > newsz)   // shrink case
+        arr->len = newsz;
+    arr->sz = newsz;
     return logret(arr->sz, "New sz %d", arr->sz);
 }
 
@@ -180,13 +181,17 @@ Array                           Array_create(int cnt, ArrayFillType filltyp, Arr
     Array_fill(res, filltyp);
     return logret(res, "sz = %d", res.sz);
 }
-
+/// @brief free array
+/// @param val pointer to array
+/// @note: Array_free must not failed even if val == NULL
 void                            Array_free(Array *val){
-    if (val && val->iv){
+    if (val)        // Array_free must not failed even if val == NULL
+        increase(val, 0);
+    /*if (val && val->iv){
         freeelems(val, 0, val->len);
         free(val->iv);
         val->iv = 0;
-    }
+    }*/
 }
 /// @brief        Array filler (formatter) using fill type
 /// @param a  Array (by value now, will be reworked)
