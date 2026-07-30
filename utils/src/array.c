@@ -295,7 +295,7 @@ static int                      Array_fillrange_ASC(Array a, int from, int to){
             userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayGettypeName(a) );
             break;
     }
-    return a.len;
+    return to - from;
 }
 /// @brief        descending filler
 /// @param a      array 
@@ -355,7 +355,7 @@ static int                      Array_fillrange_DESC(Array a, int from, int to){
             userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for DESC fill %s", ArrayGettypeName(a) );
             break;
     }
-    return a.len;
+    return to - from;
 }
 
 /// @brief        zero filler
@@ -405,14 +405,42 @@ static int                      Array_fillrange_ZERO(Array a, int from, int to){
             userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ZERO fill %s", ArrayGettypeName(a) );
             break;
     }
-    return a.len;
+    return to - from;
 }
+
+static int                      Array_fillrange_NONE(Array a, int from, int to) {
+    switch (ArrayGetV64mappedType(a) ) {
+        case ARRAY_UNKNOWN: {
+            switch (a.v64type) {
+                case VALUE64_FS: {
+                    fs s = FS();
+                    for (int i = from; i < to; i++)
+                        a.v64[i] = LITERAL64_FS(s);;  
+                    break;
+                }
+                case VALUE64_STR: {
+                    for (int i = from; i < to; i++)
+                        a.v64[i] = LITERAL64_STR("");
+                    break;
+                }
+                default:
+                    userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ZERO v64 type %s", ArrayGetV64typeName(a) );
+                    break;
+            }
+            break;
+        }
+        default:
+        break;
+    }
+    return to - from;
+}
+
 /// @brief        random value filler
 /// @param a      array 
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      Array_fillrange_RND(Array a, int from, int to){
+static int                      Array_fillrange_RND(Array a, int from, int to) {
     switch (ArrayGetV64mappedType(a) ) {
         case ARRAY_INT:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
@@ -456,7 +484,7 @@ static int                      Array_fillrange_RND(Array a, int from, int to){
             userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ZERO fill %s", ArrayGettypeName(a) );
             break;
     }
-    return a.len;
+    return to - from;
 }
 
 /// @brief        ascending series filler
@@ -488,7 +516,7 @@ static int                      Array_fillrange_ASC_SERIES(Array a, int from, in
             userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayGettypeName(a) );
             break;
     }
-    return a.len;
+    return to - from;
 }
 
 /// @brief        descending series filler
@@ -520,7 +548,7 @@ static int                      Array_fillrange_DESC_SERIES(Array a, int from, i
             userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayGettypeName(a) );
             break;
     }
-    return a.len;
+    return to - from;
 }
 
 /// @brief Array filler
@@ -556,7 +584,8 @@ int                             Array_fillrange(Array a, ArrayFillType typ, int 
             Array_fillrange_RND(a, from, to);
             break;
         case ARRAY_FILLTYPE_NONE:
-            // just do nothing
+            // just do nothing for scalar types
+            Array_fillrange_NONE(a, from, to);
             break;
         case ARRAY_FILLTYPE_ASC_SERIES:
             Array_fillrange_ASC_SERIES(a, from, to);
@@ -1911,6 +1940,13 @@ tf_v64array_str_fs(const char *name)
     }
     fs_alloc_check(true);   // STR не связан с FS, но для порядка
 
+    test_sub("subtest %d: create NONE fs array", ++subnum);
+    {   
+        Array arrtmp = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Arrayfree(arrtmp);
+    }
+    fs_alloc_check(true);
+
     test_sub("subtest %d: create ASC‑filled STR array", ++subnum);
     {
         Array arr = V64Array_create(4, ARRAY_FILLTYPE_ASC, VALUE64_STR);
@@ -2029,6 +2065,129 @@ tf_v64array_str_fs(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST V64Array (STR / FS) shrink / increase -------------------------
+static TestStatus
+tf_v64array_shrink_increase(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== STR array: increase then shrink ========== */
+    test_sub("subtest %d: STR increase + shrink", ++subnum);
+    {
+        Array arr = V64Array_create(3, ARRAY_FILLTYPE_ZERO, VALUE64_STR);
+        // заполним явно, чтобы потом проверять
+        arr.v64[0] = value64_createstr("first");
+        arr.v64[1] = value64_createstr("second");
+        arr.v64[2] = value64_createstr("third");
+
+        // увеличиваем до 6
+        arr = Array_increase(arr, 6);
+        test_validatefree(
+            arr.len == 6 && arr.sz >= 6,
+            Arrayfree(arr),
+            "After increase len=%d (expected 6)", arr.len
+        );
+        // новые элементы должны быть пустыми строками
+        for (int i = 3; i < 6; i++) {
+            test_validatefree(
+                value64_str(arr.v64[i]) != NULL && strcmp(value64_str(arr.v64[i]), "") == 0,
+                Arrayfree(arr),
+                "STR[%d] must be empty after increase", i
+            );
+        }
+
+        // уменьшаем обратно до 3
+        arr = Array_shrink(arr, 3);
+        test_validatefree(
+            arr.len == 3 && arr.sz >= 3,
+            Arrayfree(arr),
+            "After shrink len=%d (expected 3)", arr.len
+        );
+        // старые элементы должны сохраниться
+        test_validatefree(
+            strcmp(value64_str(arr.v64[0]), "first") == 0 &&
+            strcmp(value64_str(arr.v64[1]), "second") == 0 &&
+            strcmp(value64_str(arr.v64[2]), "third") == 0,
+            Arrayfree(arr),
+            "STR elements must survive shrink"
+        );
+
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    /* ========== FS array: increase then shrink ========== */
+    test_sub("subtest %d: FS increase + shrink", ++subnum);
+    {
+        //
+        Array arr = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        // заполним явно
+        arr.v64[0] = value64_createfs_asstr("/first");
+        arr.v64[1] = value64_createfs_asstr("/second");
+
+        // увеличиваем до 4
+        arr = Array_increase(arr, 4);
+        test_validatefree(
+            arr.len == 4 && arr.sz >= 4,
+            Arrayfree(arr),
+            "After increase len=%d (expected 4)", arr.len
+        );
+        // новые элементы – пустые fs
+        for (int i = 2; i < 4; i++) {
+            fs *f = value64_fs(arr.v64[i]);
+            test_validatefree(
+                f != NULL && fs_len(f) == 0,
+                Arrayfree(arr),
+                "FS[%d] must be empty after increase", i
+            );
+        }
+
+        // уменьшаем до 1
+        arr = Array_shrink(arr, 1);
+        test_validatefree(
+            arr.len == 1 && arr.sz >= 1,
+            Arrayfree(arr),
+            "After shrink len=%d (expected 1)", arr.len
+        );
+        // первый элемент должен сохраниться
+        test_validatefree(
+            strcmp(fs_str(value64_fs(arr.v64[0])), "/first") == 0,
+            Arrayfree(arr),
+            "FS[0] must survive shrink"
+        );
+
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    /* ========== Shrink to zero ========== */
+    test_sub("subtest %d: shrink to zero", ++subnum);
+    {
+        Array arr = V64Array_create(3, ARRAY_FILLTYPE_ZERO, VALUE64_STR);
+        arr.v64[0] = value64_createstr("a");
+        arr.v64[1] = value64_createstr("b");
+        arr.v64[2] = value64_createstr("c");
+
+        arr = Array_shrink(arr, 0);
+        test_validatefree(
+            arr.len == 0 && arr.sz == 0,
+            Arrayfree(arr),
+            "Shrink to zero: len=%d sz=%d (expected 0,0)", arr.len, arr.sz
+        );
+        // v64 должен быть NULL (память освобождена)
+        test_validatefree(
+            arr.v64 == NULL,
+            Arrayfree(arr),
+            "v64 must be NULL after shrinking to zero"
+        );
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    return logret(TEST_PASSED, "done");
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -2036,20 +2195,21 @@ main( /*int argc, char *argv[] */ )
     logsimpleinit("Start");
 
     testenginestd(
-        TESTADD(tf1,  "Int/double creation/descr test"),
-        TESTADD(tf2,  "Int/double filling test"),
-        TESTADD(tf3,  "Shrink test"),
-        TESTADD(tf4,  "Save/load int test"),
-        TESTADD(tf5,  "Save/load dbl test"),
-        TESTADD(tf6,  "Shuffle array(dbl/int) simple test"),
-        TESTADD(tf7,  "Sort array(dbl/int) simple test"),
-        TESTADD(tf8,  "Array_increase simple test"),
-        TESTADD(tf9,  "PArray simple test"),
-        TESTADD(tf10, "Creation with ARRAY_(DE)ASC_SERIES simple test"),
-        TESTADD(tf11, "Array_fillrange simple test"),
-        TESTADD(tf12, "Array_foreach macro simple test"),
-        TESTADD(tf13, "Array_foreach_prod simple test"),
-        TESTADD(tf_v64array_str_fs, "V64Array (STR / FS) simple test")
+        TESTADD(tf1,                            "Int/double creation/descr test"),
+        TESTADD(tf2,                            "Int/double filling test"),
+        TESTADD(tf3,                            "Shrink test"),
+        TESTADD(tf4,                            "Save/load int test"),
+        TESTADD(tf5,                            "Save/load dbl test"),
+        TESTADD(tf6,                            "Shuffle array(dbl/int) simple test"),
+        TESTADD(tf7,                            "Sort array(dbl/int) simple test"),
+        TESTADD(tf8,                            "Array_increase simple test"),
+        TESTADD(tf9,                            "PArray simple test"),
+        TESTADD(tf10,                           "Creation with ARRAY_(DE)ASC_SERIES simple test"),
+        TESTADD(tf11,                           "Array_fillrange simple test"),
+        TESTADD(tf12,                           "Array_foreach macro simple test"),
+        TESTADD(tf13,                           "Array_foreach_prod simple test"),
+        TESTADD(tf_v64array_str_fs,             "V64Array (STR / FS) simple test"),
+        TESTADD(tf_v64array_shrink_increase,    "V64Array (STR / FS) shrink / increase simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
