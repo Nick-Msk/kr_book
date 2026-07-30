@@ -31,7 +31,7 @@ const double             g_array_dbl_increment   = 0.01;
 static void                     freeelems(Array *arr, int from, int to) {
     invraisecode(ERR_NULLABLE_PTR, arr != NULL, "Null pointer");
     invraisecode(ERR_OUT_OF_RANGE, from >= 0 && to <= arr->sz, "Invalid range");
-    if (arr->v64type == VALUE64_STR || arr->v64type == VALUE64_PTR) {   
+    if (arr->v64type == VALUE64_STR || arr->v64type == VALUE64_FS) {   
         for (int i = from; i < to; i++) {
             value64free(arr->v64[i], arr->v64type);
         }
@@ -284,6 +284,7 @@ static int                      Array_fillrange_ASC(Array a, int from, int to){
                     userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ASC fill %s", ArrayGetV64typeName(a) );
                     break;
             }
+            break;
         }
         default:
             userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayGettypeName(a) );
@@ -343,6 +344,7 @@ static int                      Array_fillrange_DESC(Array a, int from, int to){
                     userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for DESC fill %s", ArrayGetV64typeName(a) );
                     break;
             }
+            break;
         }
         default:
             userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for DESC fill %s", ArrayGettypeName(a) );
@@ -374,6 +376,7 @@ static int                      Array_fillrange_ZERO(Array a, int from, int to){
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
                 set_pointer_element(a, i, NULL);
             break;
+        // not real type => container v64
         case ARRAY_UNKNOWN: {
             switch (a.v64type) {
                 case VALUE64_FS: {
@@ -388,9 +391,10 @@ static int                      Array_fillrange_ZERO(Array a, int from, int to){
                     break;
                 }
                 default:
-                    userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ZERO fill %s", ArrayGetV64typeName(a) );
+                    userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ZERO v64 type %s", ArrayGetV64typeName(a) );
                     break;
             }
+            break;
         }
         default:
             userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ZERO fill %s", ArrayGettypeName(a) );
@@ -438,9 +442,10 @@ static int                      Array_fillrange_RND(Array a, int from, int to){
                     break;
                 }
                 default:
-                    userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ZERO fill %s", ArrayGetV64typeName(a) );
+                    userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ZERO v64 fill %s", ArrayGetV64typeName(a) );
                     break;
             }
+            break;
         }
         default:
             userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ZERO fill %s", ArrayGettypeName(a) );
@@ -1859,6 +1864,166 @@ tf13(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST V64Array (STR / FS) -------------------------
+static TestStatus
+tf_v64array_str_fs(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ---------- VALUE64_STR ---------- */
+    test_sub("subtest %d: create empty STR array", ++subnum);
+    {
+        Array arr = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        test_validatefree(
+            arr.len == 0 && arr.sz == 0 && arr.v64 == NULL,
+            Arrayfree(arr),
+            "Empty STR array: len=%d, sz=%d, v64=%p (expected 0,0,NULL)",
+            arr.len, arr.sz, (void*)arr.v64
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: create ZERO‑filled STR array", ++subnum);
+    {
+        Array arr = V64Array_create(5, ARRAY_FILLTYPE_ZERO, VALUE64_STR);
+        test_validatefree(
+            arr.len == 5 && arr.sz >= 5,
+            Arrayfree(arr),
+            "ZERO STR array: len=%d, sz=%d (expected 5, >=5)", arr.len, arr.sz
+        );
+        // проверяем, что каждый элемент – пустая строка
+        for (int i = 0; i < 5; i++) {
+            test_validatefree(
+                value64_str(arr.v64[i]) != NULL &&
+                strcmp(value64_str(arr.v64[i]), "") == 0,
+                Arrayfree(arr),
+                "STR[%d] must be empty string, got '%s'",
+                i, value64_str(arr.v64[i])
+            );
+        }
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);   // STR не связан с FS, но для порядка
+
+    test_sub("subtest %d: create ASC‑filled STR array", ++subnum);
+    {
+        Array arr = V64Array_create(4, ARRAY_FILLTYPE_ASC, VALUE64_STR);
+        test_validatefree(
+            arr.len == 4,
+            Arrayfree(arr),
+            "ASC STR array: len=%d (expected 4)", arr.len
+        );
+        // строки должны быть непустыми и увеличиваться по длине
+        for (int i = 1; i < 4; i++) {
+            test_validatefree(
+                strlen(value64_str(arr.v64[i])) >= strlen(value64_str(arr.v64[i-1])),
+                Arrayfree(arr),
+                "ASC STR: length must be non‑decreasing"
+            );
+        }
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: create DESC‑filled STR array", ++subnum);
+    {
+        Array arr = V64Array_create(4, ARRAY_FILLTYPE_DESC, VALUE64_STR);
+        test_validatefree(
+            arr.len == 4,
+            Arrayfree(arr),
+            "DESC STR array: len=%d (expected 4)", arr.len
+        );
+        // строки должны уменьшаться по длине (или быть пустыми к концу)
+        for (int i = 1; i < 4; i++) {
+            test_validatefree(
+                strlen(value64_str(arr.v64[i])) <= strlen(value64_str(arr.v64[i-1])),
+                Arrayfree(arr),
+                "DESC STR: length must be non‑increasing"
+            );
+        }
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    /* ---------- VALUE64_FS ---------- */
+    test_sub("subtest %d: create empty FS array", ++subnum);
+    {
+        Array arr = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        test_validatefree(
+            arr.len == 0 && arr.sz == 0 && arr.v64 == NULL,
+            Arrayfree(arr),
+            "Empty FS array: len=%d, sz=%d, v64=%p (expected 0,0,NULL)",
+            arr.len, arr.sz, (void*)arr.v64
+        );
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: create ZERO‑filled FS array", ++subnum);
+    {
+        Array arr = V64Array_create(5, ARRAY_FILLTYPE_ZERO, VALUE64_FS);
+        test_validatefree(
+            arr.len == 5 && arr.sz >= 5,
+            Arrayfree(arr),
+            "ZERO FS array: len=%d, sz=%d (expected 5, >=5)", arr.len, arr.sz
+        );
+        // каждый элемент – FS с пустой строкой
+        for (int i = 0; i < 5; i++) {
+            fs *f = value64_fs(arr.v64[i]);
+            test_validatefree(
+                f != NULL && fs_len(f) == 0 && fs_str(f)[0] == '\0',
+                Arrayfree(arr),
+                "FS[%d] must be empty fs", i
+            );
+        }
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: create ASC‑filled FS array", ++subnum);
+    {
+        Array arr = V64Array_create(3, ARRAY_FILLTYPE_ASC, VALUE64_FS);
+        test_validatefree(
+            arr.len == 3,
+            Arrayfree(arr),
+            "ASC FS array: len=%d (expected 3)", arr.len
+        );
+        // длины FS должны возрастать
+        for (int i = 1; i < 3; i++) {
+            test_validatefree(
+                fs_len(value64_fs(arr.v64[i])) >= fs_len(value64_fs(arr.v64[i-1])),
+                Arrayfree(arr),
+                "ASC FS: length must be non‑decreasing"
+            );
+        }
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: create DESC‑filled FS array", ++subnum);
+    {
+        Array arr = V64Array_create(3, ARRAY_FILLTYPE_DESC, VALUE64_FS);
+        test_validatefree(
+            arr.len == 3,
+            Arrayfree(arr),
+            "DESC FS array: len=%d (expected 3)", arr.len
+        );
+        // длины FS должны убывать
+        for (int i = 1; i < 3; i++) {
+            test_validatefree(
+                fs_len(value64_fs(arr.v64[i])) <= fs_len(value64_fs(arr.v64[i-1])),
+                Arrayfree(arr),
+                "DESC FS: length must be non‑increasing"
+            );
+        }
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    return logret(TEST_PASSED, "done");
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -1878,7 +2043,8 @@ main( /*int argc, char *argv[] */ )
         TESTADD(tf10, "Creation with ARRAY_(DE)ASC_SERIES simple test"),
         TESTADD(tf11, "Array_fillrange simple test"),
         TESTADD(tf12, "Array_foreach macro simple test"),
-        TESTADD(tf13, "Array_foreach_prod simple test")
+        TESTADD(tf13, "Array_foreach_prod simple test"),
+        TESTADD(tf_v64array_str_fs, "V64Array (STR / FS) simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
