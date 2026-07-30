@@ -248,6 +248,15 @@ static inline void                 *value64_ptr(value64 v){
 static inline fs                   *value64_fs(value64 v){
     return v.fsval;
 }
+/// @brief  exchanger
+/// @param v1 pointer to first v64
+/// @param v2 pointer to second v64
+/// @note   this is low level function, no NULL pointers check!
+static inline void                 v64_exch(value64 *restrict v1, value64 *restrict v2) {
+    value64 tmp = *v1;
+    *v1 = *v2;
+    *v2 = tmp;
+}
 
 // move constructor!
 static inline  value64              value64_move(value64 *restrict source, value64_type typ) {
