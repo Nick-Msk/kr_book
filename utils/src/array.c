@@ -160,7 +160,28 @@ static inline void set_v64str_element(Array a, int i, const char *val) {
     a.v64[i] = value64_createstr(val);
 }
 
-
+static bool                 load_values(FILE *restrict in, Array *restrict arr) {
+    int     tmp;
+    for (int i = 0; i < arr->len; i++){
+        switch (Array_gettype(*arr)) {
+            case ARRAY_INT:
+                fscanf(in, g_save_format_int, &tmp, arr->iv + i);
+                break;
+            case ARRAY_LONG:
+                fscanf(in, g_save_format_long, &tmp, arr->lv + i);
+                break;
+            case ARRAY_DOUBLE:
+                fscanf(in, "%d %lg\n", &tmp, arr->dv + i);
+                break;
+            case ARRAY_POINTER:
+                fscanf(in, "%d %p\n", &tmp, arr->pv + i);
+                break;
+            case ARRAY_V64:
+                value64_fload(in, &arr->v64[i], arr->v64type, true, NULL);
+        }
+    }
+    return true;
+}
 
 // -------------------------- (Utility) printers -------------------
 
@@ -644,6 +665,7 @@ void                     Array_shuffle(Array arr){
 void                     Array_qsort(Array arr, ArrayFillType ord){
     int  sz = 0;
     int (*cmp)(const void *, const void *) = 0;
+    // TODO: ref to switch
     if (Array_isint(arr) ){
         sz = sizeof(int);
         if (ord == ARRAY_FILLTYPE_ASC)
@@ -652,10 +674,8 @@ void                     Array_qsort(Array arr, ArrayFillType ord){
             cmp = pint_revcmp;
     } else if (Array_islong(arr) ){
         sz = sizeof(long);
-        if (ord == ARRAY_FILLTYPE_ASC){
+        if (ord == ARRAY_FILLTYPE_ASC)
             cmp = plong_cmp;
-            //logsimple("COMPARATOR: sz %d, ARRAY_FILLTYPE_ASC", sz);
-        }
         else
             cmp = plong_revcmp;
     } else if (Array_isdouble(arr) ) {
@@ -677,10 +697,9 @@ void                     Array_qsort(Array arr, ArrayFillType ord){
             cmp = value64_getPComparator(arr.v64type);
         else
             cmp = value64_getPRevComparator(arr.v64type);
-    } else {
+    } else
         logsimple("Array_fill: unsupported type %s", ArrayGettypeName(arr) );
-        return;
-    }
+    
     if (sz && cmp)
         qsort(arr.v, arr.len, sz, cmp);
 }
@@ -789,7 +808,8 @@ long                        Array_save(Array arr, const char *fname){
     // g_save_format_double g_save_format_int
     const char  *typ = ArrayTypeName(arr.flags);
 
-    res += fprintf(f, "ARRAY: %s : %d\n", typ, arr.len);
+    res += fprintf(f, "ARRAY: %s / %s : %d\n", typ, 
+            Array_isv64(arr) ? ArrayGetV64typeName(arr) : "NONV64_TYPE", arr.len);
     for (int i = 0; i < arr.len; i++)
         if (Array_isint(arr))
             res += fprintf(f, g_save_format_int, i, arr.iv[i]);    // TODO: think if shrink repeatable
@@ -807,9 +827,11 @@ long                        Array_save(Array arr, const char *fname){
 }
 
 Array                       Array_load(const char *fname){
+    invraisecode(ERR_NULLABLE_PTR, fname != NULL, "Nullable fname");
+
     logenter("%s", fname);
 
-    int    cnt = 0, tmp;
+    int    cnt = 0;
     FILE *f = fopen(fname, "r");
     Array arr = Array_init();
     if (f == 0){
@@ -817,11 +839,19 @@ Array                       Array_load(const char *fname){
         Array_seterror(arr);
         return logerr(arr, "Can't read");
     }
+    // TODO: to be refactored to json save/load model
+    char typ[20], v64typ[20];   // 20 is magic number OMG
+    //fscanf(f, "ARRAY: %s : %d", typ, &cnt);
+    if (fscanf(f, "ARRAY: %s / %s : %d ", typ, v64typ, &cnt) != 3)
+        userraiseint(ERR_WRONG_INPUT_FORMAT, "Array header wrong format");
 
-    char typ[20];
-    fscanf(f, "ARRAY: %s : %d", typ, &cnt);
-    fs s = FS();
-    if (strcmp(typ, "ARRAY_INT") == 0)
+    if (strcmp(typ, "ARRAY_V64") == 0) {
+        value64_type vt = value64_gettype(v64typ);
+        if (vt == VALUE64_UNKNOWN)
+            userraiseint(ERR_WRONG_INPUT_FORMAT, "Array header V64 wrong format '%s'", v64typ);
+        arr = V64Array_create(cnt, ARRAY_FILLTYPE_NONE, vt);
+    } 
+    else if (strcmp(typ, "ARRAY_INT") == 0)
         arr = IArray_create(cnt, ARRAY_FILLTYPE_NONE);
     else if (strcmp(typ, "ARRAY_LONG") == 0)
         arr = LArray_create(cnt, ARRAY_FILLTYPE_NONE);
@@ -829,27 +859,14 @@ Array                       Array_load(const char *fname){
         arr = DArray_create(cnt, ARRAY_FILLTYPE_NONE);
     else if (strcmp(typ, "ARRAY_POINTER") == 0)
         arr = PArray_create(cnt, ARRAY_FILLTYPE_NONE);
-    else if (strcmp(typ, "ARRAY_V64") == 0)
-        // TODO: rework probably VALUE64_UNKNOWN
-        arr = V64Array_create(cnt, ARRAY_FILLTYPE_NONE, VALUE64_UNKNOWN);
-    else {
-        fprintf(stderr, "Unsupported format %s\n", typ);
-        return logactret(fclose(f), arr, "failed, wrong format %s...", typ);
-    }
-    for (int i = 0; i < cnt; i++){
-        if (Array_isint(arr))
-            fscanf(f, g_save_format_int, &tmp, arr.iv + i); // tmp isn't used for now
-        else if (Array_islong(arr))
-            fscanf(f, g_save_format_long, &tmp, arr.lv + i);
-        else if (Array_isdouble(arr) )
-            fscanf(f, "%d %lg\n", &tmp, arr.dv + i);
-        else if (Array_ispointer(arr) )
-            fscanf(f, "%d %p\n", &tmp, arr.pv + i);
-        else if (Array_isv64(arr) )
-            value64_fload(f, &arr.v64[i], arr.v64type, true, &s);
-    }
-    fsfree(s);
-    // TODO: probably checking for ARRAY: DONE must be here
+    else 
+        userraiseint(ERR_UNSUPPORTED_TYPE, "Unsupported format %s\n", typ);
+    
+    load_values(f, &arr);
+    
+    if (fscanf(f, "ARRAY: %19s", typ) != 1 || strcmp(typ, "DONE") != 0)
+        userraiseint(ERR_WRONG_INPUT_FORMAT, "Wrong final piece '%s'", typ);
+
     fclose(f);
     return logret(arr, "Done %d", cnt);
 }
@@ -1332,12 +1349,12 @@ tf9(const char *name){
     }
     test_sub("subtest %d, pointer array sorting", ++subnum);
     {
-
-        Array parr = PArray_create(10000, ARRAY_FILLTYPE_ZERO);
+        int cnt = 10000;
+        Array parr = PArray_create(cnt, ARRAY_FILLTYPE_ZERO);
 
         // fiil array manually
         for (int i = 0; i < parr.len; i++)
-            parr.pv[i] = (void **) rndulong(parr.len * 10000);
+            parr.pv[i] = parr.pv + cnt - 1 - i;
 
         Array_qsort(parr, ARRAY_FILLTYPE_ASC);
         //Array_print(darr, 50);
@@ -2442,7 +2459,11 @@ tf_v64array_save_load(const char *name)
 
         // сохраняем
         long written = Array_save(orig, fname);
-        test_validatefree(written > 0, Arrayfree(orig), "STR save failed");
+        test_validatefree(
+            written > 0,
+            Arrayfree(orig),
+            "STR save failed"
+        );
 
         // загружаем
         Array loaded = Array_load(fname);

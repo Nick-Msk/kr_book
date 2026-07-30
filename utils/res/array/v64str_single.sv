@@ -1,0 +1,3 @@
+ARRAY: ARRAY_V64 / STR : 1
+VALUE64(STR):"single"
+ARRAY: DONE

@@ -1,0 +1,5 @@
+ARRAY: ARRAY_V64 / FS : 3
+VALUE64(FS):"/alpha"
+VALUE64(FS):"/beta"
+VALUE64(FS):"/gamma"
+ARRAY: DONE

@@ -1,4 +1,4 @@
-ARRAY: ARRAY_INT : 100
+ARRAY: ARRAY_INT / NONV64_TYPE : 100
      0	    45
      1	    41
      2	   154

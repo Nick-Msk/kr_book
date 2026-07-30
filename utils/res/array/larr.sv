@@ -1,4 +1,4 @@
-ARRAY: ARRAY_LONG : 100
+ARRAY: ARRAY_LONG / NONV64_TYPE : 100
      0	   616
      1	   674
      2	   500
