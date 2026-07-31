@@ -224,26 +224,28 @@ static inline int               compare_ptr(const void *restrict v1, const void 
 }
 
 // ------------------- Pointer comparators -------------------
+
+typedef int                     (*pointer_comparator)(const void *restrict s1, const void *restrict s2);
 // simple char comparator
 extern int                      pchar_cmp(const void *restrict s1, const void *restrict s2);
 // simple char reverse comparator
-extern int                      pchar_revcmp(const void *s1, const void *s2);
+extern int                      pchar_revcmp(const void *restrict s1, const void *restrict s2);
 // simple comparator pointer int
 extern int                      pint_cmp(const void *restrict i1, const void *restrict i2);
 // simple reverse comparator pointer int
-extern int                      pint_revcmp(const void *i1, const void *i2);
+extern int                      pint_revcmp(const void *restrict i1, const void *restrict i2);
 // simple comparator pointer long
-extern int                      plong_cmp(const void *l1, const void *l2);
+extern int                      plong_cmp(const void *restrict l1, const void *restrict l2);
 // simple reverse comparator pointer long
-extern int                      plong_revcmp(const void *l1, const void *l2);
+extern int                      plong_revcmp(const void *restrict l1, const void *restrict l2);
 // simple comparator pointer to pointer
-extern int                      pptr_cmp(const void *p1, const void *p2);
+extern int                      pptr_cmp(const void *restrict p1, const void *restrict p2);
 // simple reverse comparator pointer to pointer
-extern int                      pptr_revcmp(const void *p1, const void *p2);
+extern int                      pptr_revcmp(const void *restrict p1, const void *restrict p2);
 // simple comparator pointer double
-extern int                      pdbl_cmp(const void *d1, const void *d2);
+extern int                      pdbl_cmp(const void *restrict d1, const void *restrict d2);
 // simple reverse comparator pointer double
-extern int                      pdbl_revcmp(const void *d1, const void *d2);
+extern int                      pdbl_revcmp(const void *restrict d1, const void *restrict d2);
 
 // (void *) comparator
 //static inline int               pointer_cmp(const void *p1, const void *p2){

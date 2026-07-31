@@ -754,12 +754,13 @@ void                     Array_qsort(Array arr, ArrayFillType ord){
  * @param val value to search for
  * @return index of the found element (>=0), or -1 if not found
  */
-int ArrayBsearchInt(Array arr, int val) {
+int                         ArrayBsearchIntCommon(Array arr, int val, bool acs) {
     if (!Array_isint(arr))
         userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchInt requires ARRAY_INT");
     if (arr.len == 0)
         return -1;
-    int *found = (int*)bsearch(&val, arr.iv, arr.len, sizeof(int), pint_cmp);
+    pointer_comparator cmp = acs ? pint_cmp : pint_revcmp;
+    int *found = (int*)bsearch(&val, arr.iv, arr.len, sizeof(int), cmp);
     return found ? (int)(found - arr.iv) : -1;
 }
 
@@ -772,12 +773,13 @@ int ArrayBsearchInt(Array arr, int val) {
  * @param val value to search for
  * @return index of the found element (>=0), or -1 if not found
  */
-int ArrayBsearchLong(Array arr, long val) {
+int                         ArrayBsearchLongCommon(Array arr, long val, bool acs) {
     if (!Array_islong(arr))
         userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchLong requires ARRAY_LONG");
     if (arr.len == 0)
         return -1;
-    long *found = (long*)bsearch(&val, arr.lv, arr.len, sizeof(long), plong_cmp);
+    pointer_comparator cmp = acs ? plong_cmp : plong_revcmp;
+    long *found = (long*)bsearch(&val, arr.lv, arr.len, sizeof(long), cmp);
     return found ? (int)(found - arr.lv) : -1;
 }
 
@@ -790,12 +792,13 @@ int ArrayBsearchLong(Array arr, long val) {
  * @param val value to search for
  * @return index of the found element (>=0), or -1 if not found
  */
-int ArrayBsearchDbl(Array arr, double val) {
+int                         ArrayBsearchDblCommon(Array arr, double val, bool acs) {
     if (!Array_isdouble(arr))
         userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchDbl requires ARRAY_DOUBLE");
     if (arr.len == 0)
         return -1;
-    double *found = (double*)bsearch(&val, arr.dv, arr.len, sizeof(double), pdbl_cmp);
+    pointer_comparator cmp = acs ? pdbl_cmp : pdbl_revcmp;    
+    double *found = (double*)bsearch(&val, arr.dv, arr.len, sizeof(double), cmp);
     return found ? (int)(found - arr.dv) : -1;
 }
 
@@ -810,15 +813,18 @@ int ArrayBsearchDbl(Array arr, double val) {
  * @param asc true if array is sorted ascending, false if descending
  * @return index of the found element (>=0), or -1 if not found
  */
-int                     ArrayBsearchV64(Array arr, value64 val) {
+int                         ArrayBsearchV64Common(Array arr, value64 val, bool asc) {
     if (!Array_isv64(arr))
         userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchV64 requires ARRAY_V64");
-    if (arr.len == 0)
-        return -1;
+    if (arr.len == 0) return -1;
 
-    return value64_binsearch(val, arr.v64type, arr.v64, arr.len);
+    if (asc)
+        return value64_binsearch(val, arr.v64type, arr.v64, arr.len);
+    else
+        return value64_rev_binsearch(val, arr.v64type, arr.v64, arr.len);
 }
 
+// -----------------------------------------------------------------------------------------------------
 // if condition is 0-ptr == ALL
 int                         Array_foreach_proc(Array arr, Array_cond cond, Array_proc func){
     // TODO: use foreach here

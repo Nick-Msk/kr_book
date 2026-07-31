@@ -246,10 +246,39 @@ extern Array                    Array_increase(Array arr, int newcnt);
 
 extern void                     Array_shuffle(Array arr);
 extern void                     Array_qsort(Array arr, ArrayFillType ord);
-extern int                      ArrayBsearchInt(Array arr, int val);
-extern int                      ArrayBsearchLong(Array arr, long val);
-extern int                      ArrayBsearchDbl(Array arr, double val);
-extern int                      ArrayBsearchV64(Array arr, value64 val);
+// ---------------------------- binary searchers --------------------------------
+// int
+extern int                      ArrayBsearchIntCommon(Array arr, int val, bool acs);
+static inline int               ArrayBsearchInt(Array arr, int val) {
+    return ArrayBsearchIntCommon(arr, val, true);
+}
+static inline int               ArrayBsearchIntrev(Array arr, int val) {
+    return ArrayBsearchIntCommon(arr, val, false);
+}
+// long
+extern int                      ArrayBsearchLongCommon(Array arr, long val, bool acs);
+static inline int               ArrayBsearchLong(Array arr, long val) {
+    return ArrayBsearchLongCommon(arr, val, true);
+}
+static inline int               ArrayBsearchLongRev(Array arr, long val) {
+    return ArrayBsearchLongCommon(arr, val, false);
+}
+// double
+extern int                      ArrayBsearchDblCommon(Array arr, double val, bool acs);
+static inline int               ArrayBsearchDbl(Array arr, double val) {
+    return ArrayBsearchDblCommon(arr, val, true);
+}
+static inline int               ArrayBsearchDblRev(Array arr, double val) {
+    return ArrayBsearchDblCommon(arr, val, false);
+}
+// V64
+extern int                      ArrayBsearchV64Common(Array arr, value64 val, bool acs);
+static inline int               ArrayBsearchV64(Array arr, value64 val) {
+    return ArrayBsearchV64Common(arr, val, true);
+}
+static inline int               ArrayBsearchV64Rev(Array arr, value64 val) {
+    return ArrayBsearchV64Common(arr, val, false);
+}
 
 // if condition is 0-ptr == ALL
 extern int                      Array_foreach_proc(Array arr, Array_cond cond, Array_proc func);
