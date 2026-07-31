@@ -3525,10 +3525,229 @@ tf_genrnd(const char *name)
     logenter("%s", name);
     int subnum = 0;
 
-    test_sub("subtest %d: move normal ", ++subnum);
+    /* 1. Строчные буквы */
+    test_sub("subtest %d: fs_genrnd lowercase", ++subnum);
     {
-
+        fs s = fsinit(20);
+        fs_genrnd(&s, 10, 'a');
+        test_validatefree(
+            fs_len(&s) == 10,
+            fsfree(s),
+            "Length must be 10, got %d", fs_len(&s)
+        );
+        for (int i = 0; i < 10; i++) {
+            test_validatefree(
+                s.v[i] >= 'a' && s.v[i] <= 'z',
+                fsfree(s),
+                "Char at %d must be in 'a'..'z', got '%c'", i, s.v[i]
+            );
+        }
+        fsfree(s);
     }
+    fs_alloc_check(true);
+
+    /* 2. Заглавные буквы */
+    test_sub("subtest %d: fs_genrnd uppercase", ++subnum);
+    {
+        fs s = fsinit(20);
+        fs_genrnd(&s, 8, 'A');
+        test_validatefree(
+            fs_len(&s) == 8,
+            fsfree(s),
+            "Length must be 8, got %d", fs_len(&s)
+        );
+        for (int i = 0; i < 8; i++) {
+            test_validatefree(
+                s.v[i] >= 'A' && s.v[i] <= 'Z',
+                fsfree(s),
+                "Char at %d must be in 'A'..'Z', got '%c'", i, s.v[i]
+            );
+        }
+        fsfree(s);
+    }
+    fs_alloc_check(true);
+
+    /* 3. Цифры */
+    test_sub("subtest %d: fs_genrnd digits", ++subnum);
+    {
+        fs s = fsinit(20);
+        fs_genrnd(&s, 6, '0');
+        test_validatefree(
+            fs_len(&s) == 6,
+            fsfree(s),
+            "Length must be 6, got %d", fs_len(&s)
+        );
+        for (int i = 0; i < 6; i++) {
+            test_validatefree(
+                s.v[i] >= '0' && s.v[i] <= '9',
+                fsfree(s),
+                "Char at %d must be in '0'..'9', got '%c'", i, s.v[i]
+            );
+        }
+        fsfree(s);
+    }
+    fs_alloc_check(true);
+
+    /* 4. Нулевая длина */
+    test_sub("subtest %d: fs_genrnd zero length", ++subnum);
+    {
+        fs s = fsinit(10);
+        fs_genrnd(&s, 0, 'a');
+        test_validatefree(
+            fs_len(&s) == 0,
+            fsfree(s),
+            "Length must be 0, got %d", fs_len(&s)
+        );
+        fsfree(s);
+    }
+    fs_alloc_check(true);
+
+    /* 5. Отрицательная длина */
+    test_sub("subtest %d: fs_genrnd negative length", ++subnum);
+    {
+        fs s = fscopyf ("1234567890");
+        fs_genrnd(&s, -5, 'a');
+        test_validatefree(
+            fs_len(&s) == 10,
+            fsfree(s),
+            "Negative length must result in empty string, got len=%d", fs_len(&s)
+        );
+        fsfree(s);
+    }
+    fs_alloc_check(true);
+
+    /* 6. Неизвестный тип – должны быть '?' */
+    test_sub("subtest %d: fs_genrnd unknown type", ++subnum);
+    {
+        fs s = fsinit(10);
+        fs_genrnd(&s, 5, 'x');
+        test_validatefree(
+            fs_len(&s) >= 5,
+            fsfree(s),
+            "Length must be >= 5, got %d", fs_len(&s)
+        );
+        for (int i = 0; i < 5; i++) {
+            test_validatefree(
+                s.v[i] == '?',
+                fsfree(s),
+                "Char at %d must be '?', got '%c'", i, s.v[i]
+            );
+        }
+        fsfree(s);
+    }
+    fs_alloc_check(true);
+
+    /* 1. Строчные буквы */
+    test_sub("subtest %d: fs_genrnd lowercase zero init", ++subnum);
+    {
+        fs s = FS();
+        fs *res = fs_genrnd(&s, 10, 'a');
+        test_validatefree(
+            res == &s && fs_len(&s) == 10,
+            fsfree(s),
+            "Returned pointer must be &s, length must be 10, got %d", fs_len(&s)
+        );
+        for (int i = 0; i < 10; i++) {
+            test_validatefree(
+                s.v[i] >= 'a' && s.v[i] <= 'z',
+                fsfree(s),
+                "Char at %d must be in 'a'..'z', got '%c'", i, s.v[i]
+            );
+        }
+        fsfree(s);
+    }
+    fs_alloc_check(true);
+
+    /* 2. Заглавные буквы */
+    test_sub("subtest %d: fs_genrnd uppercase zero init", ++subnum);
+    {
+        fs s = FS();
+        fs_genrnd(&s, 8, 'A');
+        test_validatefree(
+            fs_len(&s) == 8,
+            fsfree(s),
+            "Length must be 8, got %d", fs_len(&s)
+        );
+        for (int i = 0; i < 8; i++) {
+            test_validatefree(
+                s.v[i] >= 'A' && s.v[i] <= 'Z',
+                fsfree(s),
+                "Char at %d must be in 'A'..'Z', got '%c'", i, s.v[i]
+            );
+        }
+        fsfree(s);
+    }
+    fs_alloc_check(true);
+
+    /* 3. Цифры */
+    test_sub("subtest %d: fs_genrnd digits zero init", ++subnum);
+    {
+        fs s = FS();
+        fs_genrnd(&s, 6, '0');
+        test_validatefree(
+            fs_len(&s) == 6,
+            fsfree(s),
+            "Length must be 6, got %d", fs_len(&s)
+        );
+        for (int i = 0; i < 6; i++) {
+            test_validatefree(
+                s.v[i] >= '0' && s.v[i] <= '9',
+                fsfree(s),
+                "Char at %d must be in '0'..'9', got '%c'", i, s.v[i]
+            );
+        }
+        fsfree(s);
+    }
+    fs_alloc_check(true);
+
+    /* 4. Нулевая длина */
+    test_sub("subtest %d: fs_genrnd zero length zero init", ++subnum);
+    {
+        fs s = FS();
+        fs_genrnd(&s, 0, 'a');
+        test_validatefree(
+            fs_len(&s) == 0,
+            fsfree(s),
+            "Length must be 0, got %d", fs_len(&s)
+        );
+        fsfree(s);
+    }
+    fs_alloc_check(true);
+
+    /* 5. Отрицательная длина (приведёт к пустой строке) */
+    test_sub("subtest %d: fs_genrnd negative length zero init", ++subnum);
+    {
+        fs s = FS();
+        fs_genrnd(&s, -5, 'a');
+        test_validatefree(
+            fs_len(&s) == 0,
+            fsfree(s),
+            "Negative length must result in empty string, got len=%d", fs_len(&s)
+        );
+        fsfree(s);
+    }
+    fs_alloc_check(true);
+
+    /* 6. Неизвестный тип – символ '?' */
+    test_sub("subtest %d: fs_genrnd unknown type zero init", ++subnum);
+    {
+        fs s = FS();
+        fs_genrnd(&s, 5, 'x');
+        test_validatefree(
+            fs_len(&s) == 5,
+            fsfree(s),
+            "Length must be 5, got %d", fs_len(&s)
+        );
+        for (int i = 0; i < 5; i++) {
+            test_validatefree(
+                s.v[i] == '?',
+                fsfree(s),
+                "Char at %d must be '?', got '%c'", i, s.v[i]
+            );
+        }
+        fsfree(s);
+    }
+    fs_alloc_check(true);
 
     return logret(TEST_PASSED, "done");
 }
