@@ -39,7 +39,7 @@ static void                     freeelems(Array *arr, int from, int to) {
         logsimple("freed %s  %d - %d", value64_typename(arr->v64type), from, to);
     }
 } 
-static int                      getsize(const Array *arr) {
+static int                      getelemsize(const Array *arr) {
     invraisecode(ERR_NULLABLE_PTR, arr != NULL, "Null pointer");
     int         elem_size = 0;
     ArrayType   typ = ArrayGetV64mappedType(*arr);
@@ -68,7 +68,7 @@ static int                      increase(Array *arr, int newsz){
     if (newsz > arr->sz)
         newsz = round_up_2(newsz);
 
-    int bytes = newsz * getsize(arr);
+    int bytes = newsz * getelemsize(arr);
     if (bytes < 0) 
         return logerr(-1, "Unknown type");
 
@@ -562,6 +562,10 @@ static int                      Array_fillrange_RND(Array a, int from, int to) {
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
                 set_double_element(a, i, rnddbl(10 * (to - from + 1) ) );
             break;
+        case ARRAY_CHAR:
+            for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
+                set_char_element(a, i, rndupperchar() );    // upper/lower must be in context.c
+            break;
         case ARRAY_UNKNOWN: {
             switch (a.v64type) {
                 case VALUE64_FS: {
@@ -620,6 +624,12 @@ static int                      Array_fillrange_ASC_SERIES(Array a, int from, in
                 set_double_element(a, i, val++);
             break;
         }
+        case ARRAY_CHAR: {
+            char val = 'A';
+            for (int i = from; i < to; i++)
+                set_double_element(a, i, val++);    // can be ERR_OUT_OF_RANGE
+            break;
+        }
         default:
             userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayGettypeName(a) );
             break;
@@ -650,6 +660,12 @@ static int                      Array_fillrange_DESC_SERIES(Array a, int from, i
             double val = to - 1;
             for (int i = from; i < to; i++)
                 set_double_element(a, i, val--);
+            break;
+        }
+        case ARRAY_CHAR: {
+            char val = 'Z';
+            for (int i = from; i < to; i++)
+                set_double_element(a, i, val--);    // can be ERR_OUT_OF_RANGE
             break;
         }
         default:
@@ -729,7 +745,7 @@ Array                           Array_shrink(Array arr, int newsz){
 }
 
 // TODO: probably shoube be reworked to use switch (type) + separate code
-void                     Array_shuffle(Array arr){
+/* void                     Array_shuffle(Array arr){
     srand(time(NULL) );
     for (int i = arr.len - 1; i > 0; i--){
         int j = rndint(i);
@@ -746,48 +762,70 @@ void                     Array_shuffle(Array arr){
         else
             logsimple("unsupported type for shuffle %s", ArrayGettypeName(arr) );
     }
+} */
+
+/**
+ * @brief Shuffle array elements using the Fisher–Yates algorithm.
+ * @param arr array (by value)
+ */
+void                        Array_shuffle(Array arr) {
+    int elem_size = getelemsize(&arr);
+    if (elem_size <= 0)
+        userraiseint(ERR_UNSUPPORTED_TYPE, "unsupported type for shuffle %s", ArrayGettypeName(arr));
+    // in case if arr.len < 2 that'll do nothing
+    char    *data = arr.v;  // raw byte pointer
+    for (int i = arr.len - 1; i > 0; i--) {
+        int j = rndint(i);
+        // swap elements at indices i and j
+        item_exch(data + i * elem_size, data + j * elem_size, elem_size);   
+    }
 }
 
-// TODO: probably shoube be reworked to use switch (type) + separate code
-void                     Array_qsort(Array arr, ArrayFillType ord){
-    int  sz = 0;
-    int (*cmp)(const void *, const void *) = 0;
-    // TODO: ref to switch
-    if (Array_isint(arr) ){
-        sz = sizeof(int);
-        if (ord == ARRAY_FILLTYPE_ASC)
-            cmp = pint_cmp;
-        else
-            cmp = pint_revcmp;
-    } else if (Array_islong(arr) ){
-        sz = sizeof(long);
-        if (ord == ARRAY_FILLTYPE_ASC)
-            cmp = plong_cmp;
-        else
-            cmp = plong_revcmp;
-    } else if (Array_isdouble(arr) ) {
-        sz = sizeof(double);
-        if (ord == ARRAY_FILLTYPE_ASC)
-            cmp = pdbl_cmp;
-        else
-            cmp = pdbl_revcmp;
-    } else if (Array_ispointer(arr) ) {
-        sz = sizeof(void *);
-        if (ord == ARRAY_FILLTYPE_ASC)
-            cmp = pptr_cmp;
-        else
-            cmp = pptr_revcmp;
-    } else if (Array_isv64(arr) ) {
-        // TODO:
-        sz = sizeof(value64);
-        if (ord == ARRAY_FILLTYPE_ASC)
-            cmp = value64_getPComparator(arr.v64type);
-        else
-            cmp = value64_getPRevComparator(arr.v64type);
-    } else
-        logsimple("Array_fill: unsupported type %s", ArrayGettypeName(arr) );
+/**
+ * @brief Sorts an array in ascending or descending order.
+ *
+ * Uses quicksort (qsort) with type‑specific comparators.
+ * For ARRAY_V64 the comparator is obtained via value64_getPComparator()
+ * / value64_getPRevComparator() according to the stored v64type.
+ *
+ * @param arr array (by value)
+ * @param ord sort order: ARRAY_FILLTYPE_ASC or ARRAY_FILLTYPE_DESC
+ *
+ * @throws ERR_UNSUPPORTED_TYPE if the array type cannot be sorted
+ */
+void                                Array_qsort(Array arr, ArrayFillType ord) {
+    int                 sz = getelemsize(&arr);
+    if (sz <= 0)
+        userraiseint(ERR_UNSUPPORTED_TYPE, "Unable to get type size %d/%s", Array_gettype(arr), ArrayGettypeName(arr));
+
+    pointer_comparator  cmp = NULL;
+   
+    ArrayType typ = Array_gettype(arr);
+    switch (typ) {
+        case ARRAY_INT:     
+            cmp = (ord == ARRAY_FILLTYPE_ASC) ? pint_cmp  : pint_revcmp;  
+            break;
+        case ARRAY_LONG:    cmp = (ord == ARRAY_FILLTYPE_ASC) ? plong_cmp : plong_revcmp; 
+            break;
+        case ARRAY_DOUBLE:  
+            cmp = (ord == ARRAY_FILLTYPE_ASC) ? pdbl_cmp  : pdbl_revcmp;  
+            break;
+        case ARRAY_POINTER: 
+            cmp = (ord == ARRAY_FILLTYPE_ASC) ? pptr_cmp  : pptr_revcmp;  
+            break;
+        case ARRAY_CHAR:    
+            cmp = (ord == ARRAY_FILLTYPE_ASC) ? pchar_cmp : pchar_revcmp; 
+        break;
+        case ARRAY_V64:
+            cmp = (ord == ARRAY_FILLTYPE_ASC) 
+                    ? value64_getPComparator(arr.v64type)
+                    : value64_getPRevComparator(arr.v64type);
+        break;
+        default:
+            userraiseint(ERR_UNSUPPORTED_TYPE, "Unsupported type %s", ArrayGettypeName(arr));
+    }
     
-    if (sz && cmp)
+    if (cmp)
         qsort(arr.v, arr.len, sz, cmp);
 }
 
@@ -866,7 +904,6 @@ int                         ArrayBsearchCharCommon(Array arr, char val, bool acs
     return found ? (int)(found - arr.cv) : -1;
 }
 
-
 /**
  * @brief Binary search for a value64 in a sorted V64 array.
  *
@@ -905,7 +942,7 @@ int                         Array_foreach_proc(Array arr, Array_cond cond, Array
 
 // -------------------------- (API) printers -----------------------
 
-int                         Array_fprint(FILE *f, Array val, int limit){
+/* int                         Array_fprint(FILE *f, Array val, int limit){
 
     int         cnt = 0, i;
     int         array_rec_line = 20;    // default
@@ -958,6 +995,71 @@ int                         Array_fprint(FILE *f, Array val, int limit){
         cnt += fprintf(f, "\n");
     return cnt;
 }
+*/
+
+/**
+ * @brief Prints the contents of an array to a file stream.
+ *
+ * Output format can be customised via the global variables
+ * `g_custom_print_line` and `g_array_rec_line`.
+ * For ARRAY_V64 the specialised printer `value64_techfprint()` is used.
+ *
+ * @param f     output stream (must be opened for writing)
+ * @param val   array (by value)
+ * @param limit maximum number of elements to print (0 = print all)
+ * @return      number of characters printed
+ */
+int Array_fprint(FILE *f, Array val, int limit) {
+    int cnt = 0, i;
+    int array_rec_line = 20;      // default value
+
+    limit = (limit == 0) ? val.len : (limit < val.len) ? limit : val.len;
+    if (g_array_rec_line)
+        array_rec_line = g_array_rec_line;
+
+    cnt += fprintf(f, "Array (%s[%d of total %d]):\n",
+                   ArrayTypeName(val.flags), limit, val.len);
+
+    const char *custom = g_custom_print_line;
+
+    for (i = 0; i < limit; i++) {
+        switch (Array_gettype(val)) {
+            case ARRAY_INT:
+                cnt += fprintf(f, custom ? custom : "[%d - %6d]\t", i, val.iv[i]);
+                break;
+            case ARRAY_LONG:
+                cnt += fprintf(f, custom ? custom : "[%ld - %6ld]\t", i, val.lv[i]);
+                break;
+            case ARRAY_DOUBLE:
+                cnt += fprintf(f, custom ? custom : "[%d - %.8lg]\t", i, val.dv[i]);
+                break;
+            case ARRAY_POINTER:
+                cnt += fprintf(f, custom ? custom : "[%p - %p]\t", i, val.pv[i]);
+                break;
+            case ARRAY_CHAR:
+                cnt += fprintf(f, custom ? custom : "[%d - %c]\t", i, val.iv[i]);
+                break;
+            case ARRAY_V64:
+                // custom format not supported for value64; always use dedicated printer
+                value64_techfprint(f, val.v64[i], val.v64type, "");
+                break;
+            default:
+                cnt += fprintf(f, "[%d - ?]\t", i);
+                break;
+        }
+
+        if (((i + 1) % array_rec_line) == 0)
+            cnt += fprintf(f, "\n");
+    }
+
+    if (i < val.len)
+        cnt += fprintf(f, "and more (%d) ...\n", val.len - i);
+    else
+        cnt += fprintf(f, "\n");
+
+    return cnt;
+}
+
 // save only values by delimeter
 long                        Array_savevalues(Array arr, const char *fname, char delim){
     logenter("%s, [%c]", fname, delim);
