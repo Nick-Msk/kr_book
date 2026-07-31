@@ -15,6 +15,9 @@
 				USEFUL MACRO AND FUNCTIONS
 ***************************************************************/
 
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+
 static const int    G_GLOB_AVERAGE = INT_MAX;
 
 // universale comparator (for simple type cast in qsort)
