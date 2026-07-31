@@ -3752,6 +3752,122 @@ tf_genrnd(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST fs_initrnd (constructor) -------------------------
+static TestStatus
+tf_initrnd(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Строчные буквы */
+    test_sub("subtest %d: fs_initrnd lowercase", ++subnum);
+    {
+        fs s = fs_initrnd(10, 'a');
+        test_validatefree(
+            fs_len(&s) == 10,
+            fsfree(s),
+            "Length must be 10, got %d", fs_len(&s)
+        );
+        for (int i = 0; i < 10; i++) {
+            test_validatefree(
+                s.v[i] >= 'a' && s.v[i] <= 'z',
+                fsfree(s),
+                "Char at %d must be in 'a'..'z', got '%c'", i, s.v[i]
+            );
+        }
+        fsfree(s);
+    }
+    fs_alloc_check(true);
+
+    /* 2. Заглавные буквы */
+    test_sub("subtest %d: fs_initrnd uppercase", ++subnum);
+    {
+        fs s = fs_initrnd(8, 'A');
+        test_validatefree(
+            fs_len(&s) == 8,
+            fsfree(s),
+            "Length must be 8, got %d", fs_len(&s)
+        );
+        for (int i = 0; i < 8; i++) {
+            test_validatefree(
+                s.v[i] >= 'A' && s.v[i] <= 'Z',
+                fsfree(s),
+                "Char at %d must be in 'A'..'Z', got '%c'", i, s.v[i]
+            );
+        }
+        fsfree(s);
+    }
+    fs_alloc_check(true);
+
+    /* 3. Цифры */
+    test_sub("subtest %d: fs_initrnd digits", ++subnum);
+    {
+        fs s = fs_initrnd(6, '0');
+        test_validatefree(
+            fs_len(&s) == 6,
+            fsfree(s),
+            "Length must be 6, got %d", fs_len(&s)
+        );
+        for (int i = 0; i < 6; i++) {
+            test_validatefree(
+                s.v[i] >= '0' && s.v[i] <= '9',
+                fsfree(s),
+                "Char at %d must be in '0'..'9', got '%c'", i, s.v[i]
+            );
+        }
+        fsfree(s);
+    }
+    fs_alloc_check(true);
+
+    /* 4. Нулевая длина */
+    test_sub("subtest %d: fs_initrnd zero length", ++subnum);
+    {
+        fs s = fs_initrnd(0, 'a');
+        test_validatefree(
+            fs_len(&s) == 0,
+            fsfree(s),
+            "Length must be 0, got %d", fs_len(&s)
+        );
+        fsfree(s);
+    }
+    fs_alloc_check(true);
+
+    /* 5. Отрицательная длина */
+    test_sub("subtest %d: fs_initrnd negative length", ++subnum);
+    {
+        fs s = fs_initrnd(-5, 'a');
+        test_validatefree(
+            fs_len(&s) == 0,
+            fsfree(s),
+            "Negative length must result in empty string, got len=%d", fs_len(&s)
+        );
+        fsfree(s);
+    }
+    fs_alloc_check(true);
+
+    /* 6. Неизвестный тип – символы '?' */
+    test_sub("subtest %d: fs_initrnd unknown type", ++subnum);
+    {
+        fs s = fs_initrnd(5, 'x');
+        test_validatefree(
+            fs_len(&s) == 5,
+            fsfree(s),
+            "Length must be 5, got %d", fs_len(&s)
+        );
+        for (int i = 0; i < 5; i++) {
+            test_validatefree(
+                s.v[i] == '?',
+                fsfree(s),
+                "Char at %d must be '?', got '%c'", i, s.v[i]
+            );
+        }
+        fsfree(s);
+    }
+    fs_alloc_check(true);
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -3793,6 +3909,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf_moveto_heapstr,    .num = 31, .name = "fs_moveto_heapstr() simple tests"           , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf_movefrom_heapstr,  .num = 32, .name = "fs_movefrom_heapstr() simple tests"         , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf_genrnd,            .num = 33, .name = "fs_genrnd() simple tests"                   , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf_initrnd,           .num = 34, .name = "fs_initrnd() simple tests"                  , .desc=""                , .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()
