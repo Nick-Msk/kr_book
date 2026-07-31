@@ -571,7 +571,7 @@ static int                      Array_fillrange_RND(Array a, int from, int to) {
                 case VALUE64_FS: {
                     fs s = FS();
                     for (int i = from; i < to; i++) {
-                        // fs_genrnd(&s, from - to + 1, 'A'); TODO:
+                        fs_genrnd(&s, from - to + 1, 'A');
                         set_v64fs_element(a, i, &s);  
                     }
                     fsfree(s);
@@ -580,7 +580,7 @@ static int                      Array_fillrange_RND(Array a, int from, int to) {
                 case VALUE64_STR: {
                     fs s = FS();
                     for (int i = from; i < to; i++) {
-                        // fs_genrnd(&s, from - to + 1, 'A'); TODO:
+                        fs_genrnd(&s, from - to + 1, 'A');
                         set_v64str_element(a, i, "");
                     }
                     fsfree(s);
