@@ -3517,6 +3517,22 @@ tf_movefrom_heapstr(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST fs_genrnd() simple tests ---------------------------------
+
+static TestStatus
+tf_genrnd(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: move normal ", ++subnum);
+    {
+
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -3557,6 +3573,7 @@ main( /* int argc, const char *argv[] */)
       , testnew(.f2 = tf_fs_heapcopy,       .num = 30, .name = "fs_heapcopy() simple tests"                 , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf_moveto_heapstr,    .num = 31, .name = "fs_moveto_heapstr() simple tests"           , .desc=""                , .mandatory=true)
       , testnew(.f2 = tf_movefrom_heapstr,  .num = 32, .name = "fs_movefrom_heapstr() simple tests"         , .desc=""                , .mandatory=true)
+      , testnew(.f2 = tf_genrnd,            .num = 33, .name = "fs_genrnd() simple tests"                   , .desc=""                , .mandatory=true)
     );
 
     return logret(0, "end...");  // as replace of logclose()

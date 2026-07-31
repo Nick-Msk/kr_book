@@ -515,6 +515,28 @@ static inline fs             fs_lpadstr(fs *restrict str, int len, const char *r
     return fs_lpad(str, len, &l);
 }
 
+/**
+ * @brief Fill a fs with random characters of a given class.
+ * @param s    pointer to fs to fill (its length is set to `len`)
+ * @param len  desired length
+ * @param type 'a' for lowercase, 'A' for uppercase, '0' for digits
+ */
+static inline fs            *fs_genrnd(fs *s, int len, char type) {
+    invraisecode(s != NULL, ERR_NULLABLE_PTR, "Nullable fs");
+    fs_setlen(s, len);
+    for (int i = 0; i < len; i++) {
+        char    c;
+        switch (type) {
+            case 'a': c = rndlowchar(); break;
+            case 'A': c = rndupperchar(); break;
+            case '0': c = rnddigitchar(); break;
+            default:  c = '?';
+        }
+        s->v[i] = c;
+    }
+    return s;
+}
+
 // ----------------------------------- Finders -----------------------------------
 // full scan version
 static inline bool           fs_notin(fs s, const char *strs[]){
