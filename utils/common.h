@@ -125,6 +125,14 @@ rndint(int max)
 {
     return (long)rand() * max / RAND_MAX;
 }
+static inline char 
+rndlowchar(void) {
+    return (char)('a' + rand() % 26);
+}
+static inline char 
+rndupperchar(void) {
+    return (char)('A' + rand() % 26);
+}
 // probably rework is required
 static inline unsigned
 rnduint(unsigned max)
