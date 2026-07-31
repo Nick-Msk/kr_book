@@ -2794,6 +2794,203 @@ tf_v64array_save_load(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST ArrayBsearch (INT / LONG / DBL / V64) -------------------------
+static TestStatus
+tf_array_bsearch(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== INT ========== */
+    test_sub("subtest %d: INT find existing", ++subnum);
+    {
+        Array arr = IArray_create(10, ARRAY_FILLTYPE_ASC_SERIES); // 0,1,2,...,9
+        int idx;
+        test_validatefree(
+            (idx = ArrayBsearchInt(arr, 5) ) == 5,
+            Arrayfree(arr),
+            "INT asc: expected idx=5, got %d", idx
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: INT find missing", ++subnum);
+    {
+        Array arr = IArray_create(10, ARRAY_FILLTYPE_ASC_SERIES);
+        int idx;
+        test_validatefree(
+            (idx = ArrayBsearchInt(arr, 99)) == -1,
+            Arrayfree(arr),
+            "INT asc missing: expected -1, got %d", idx
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: INT find first / last", ++subnum);
+    {
+        Array arr = IArray_create(5, ARRAY_FILLTYPE_ASC_SERIES);
+        test_validatefree(
+            ArrayBsearchInt(arr, 0) == 0 && ArrayBsearchInt(arr, 4) == 4,
+            Arrayfree(arr),
+            "INT first/last: must be 0 and 4"
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: INT rev search", ++subnum);
+    {
+        Array arr = IArray_create(10, ARRAY_FILLTYPE_DESC_SERIES); // 9,8,...,0
+        int idx;
+        test_validatefree(
+            (idx = ArrayBsearchIntrev(arr, 5)) == 4,   // 9(0),8(1),7(2),6(3),5(4)
+            Arrayfree(arr),
+            "INT desc: expected idx=4, got %d", idx
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: INT empty array", ++subnum);
+    {
+        Array arr = IArray_create(0, ARRAY_FILLTYPE_NONE);
+        test_validatefree(
+            ArrayBsearchInt(arr, 5) == -1,
+            Arrayfree(arr),
+            "Empty INT: must return -1"
+        );
+        Arrayfree(arr);
+    }
+
+    /* ========== LONG ========== */
+    test_sub("subtest %d: LONG find existing", ++subnum);
+    {
+        Array arr = LArray_create(10, ARRAY_FILLTYPE_ASC_SERIES);
+        int idx ;
+        test_validatefree(
+            (idx = ArrayBsearchLong(arr, 7L) ) == 7,
+            Arrayfree(arr),
+            "LONG asc: expected idx=7, got %d", idx
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: LONG rev missing", ++subnum);
+    {
+        Array arr = LArray_create(10, ARRAY_FILLTYPE_DESC_SERIES);
+        int idx;
+        test_validatefree(
+            (idx = ArrayBsearchLongRev(arr, 100L)) == -1,
+            Arrayfree(arr),
+            "LONG desc missing: expected -1, got %d", idx
+        );
+        Arrayfree(arr);
+    }
+
+    /* ========== DBL ========== */
+    test_sub("subtest %d: DBL find first / last", ++subnum);
+    {
+        Array arr = DArray_create(5, ARRAY_FILLTYPE_ASC_SERIES); // 0.0,1.0,...,4.0
+        test_validatefree(
+            ArrayBsearchDbl(arr, 0.0) == 0 && ArrayBsearchDbl(arr, 4.0) == 4,
+            Arrayfree(arr),
+            "DBL first/last: must be 0 and 4"
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: DBL rev search", ++subnum);
+    {
+        Array arr = DArray_create(5, ARRAY_FILLTYPE_DESC_SERIES); // 4.0,3.0,...,0.0
+        int idx;
+        test_validatefree(
+            (idx = ArrayBsearchDblRev(arr, 2.0)) == 2,   // 4(0),3(1),2(2)
+            Arrayfree(arr),
+            "DBL desc: expected idx=2, got %d", idx
+        );
+        Arrayfree(arr);
+    }
+
+    /* ========== V64 (STR) ========== */
+    test_sub("subtest %d: V64 STR find existing", ++subnum);
+    {
+        Array arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        // явно создаём отсортированный массив: "a","b","c","d"
+        arr.v64[0] = value64_createstr("a");
+        arr.v64[1] = value64_createstr("b");
+        arr.v64[2] = value64_createstr("c");
+        arr.v64[3] = value64_createstr("d");
+
+        value64 key = LITERAL64_STR("c");
+        int idx;
+        test_validatefree(
+            (idx  = ArrayBsearchV64(arr, key)) == 2,
+            Arrayfree(arr),
+            "STR asc: expected idx=2, got %d", idx
+        );
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: V64 STR rev missing", ++subnum);
+    {
+        Array arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        // отсортированный по убыванию: "d","c","b","a"
+        arr.v64[0] = value64_createstr("d");
+        arr.v64[1] = value64_createstr("c");
+        arr.v64[2] = value64_createstr("b");
+        arr.v64[3] = value64_createstr("a");
+
+        value64 key = LITERAL64_STR("x");
+        int idx;
+        test_validatefree(
+            (idx = ArrayBsearchV64Rev(arr, key)) == -1,
+            Arrayfree(arr),
+            "STR desc missing: expected -1, got %d", idx
+        );
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    /* ========== V64 (FS) ========== */
+    test_sub("subtest %d: V64 FS find existing", ++subnum);
+    {
+        Array arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        arr.v64[0] = value64_createfs_asstr("/alpha");
+        arr.v64[1] = value64_createfs_asstr("/beta");
+        arr.v64[2] = value64_createfs_asstr("/gamma");
+        arr.v64[3] = value64_createfs_asstr("/delta");
+
+        // предварительно отсортируем
+        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        // после сортировки: alpha, beta, delta, gamma
+
+        value64 key = value64_createfs_asstr("/beta");
+        int idx;
+        test_validatefree(
+            (idx = ArrayBsearchV64(arr, key)) == 1,
+            (Arrayfree(arr), value64_freefs(&key)),
+            "FS asc: expected idx=1, got %d", idx
+        );
+        value64_freefs(&key);
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    /* ========== Type mismatch (должно вызывать ошибку) ========== */
+    test_sub("subtest %d: type mismatch raises SIGINT", ++subnum);
+    {
+        Array arr = IArray_create(3, ARRAY_FILLTYPE_ASC_SERIES);
+        if (!try()) {
+            ArrayBsearchLong(arr, 5L);   // LONG на INT массиве
+            test_validatefree(false, Arrayfree(arr), "Should have raised SIGINT");
+        } else {
+            logsimple("Exception correctly raised on type mismatch");
+        }
+        Arrayfree(arr);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -2817,7 +3014,8 @@ main( /*int argc, char *argv[] */ )
         TESTADD(tf_v64array_str_fs,             "V64Array (STR / FS) simple test"),
         TESTADD(tf_v64array_shrink_increase,    "V64Array (STR / FS) shrink / increase simple test"),
         TESTADD(tf_v64array_sort,               "V64Array (STR / FS) sorting"),
-        TESTADD(tf_v64array_save_load,          "V64Array STR/FS save/load test")
+        TESTADD(tf_v64array_save_load,          "V64Array STR/FS save/load test"),
+        TESTADD(tf_array_bsearch,               "ArrayBsearch (INT / LONG / DBL / V64)")
     );
 
     return logret(0, "end...");  // as replace of logclose()

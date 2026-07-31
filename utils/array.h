@@ -279,7 +279,7 @@ static inline int               ArrayBsearchV64(Array arr, value64 val) {
 static inline int               ArrayBsearchV64Rev(Array arr, value64 val) {
     return ArrayBsearchV64Common(arr, val, false);
 }
-
+// -------------------------------------- foreach ---------------------------------------
 // if condition is 0-ptr == ALL
 extern int                      Array_foreach_proc(Array arr, Array_cond cond, Array_proc func);
 // if condition is 0-ptr == ALL
