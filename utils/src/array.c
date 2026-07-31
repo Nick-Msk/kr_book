@@ -3241,6 +3241,101 @@ tf_carray_create_fill_free(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST CARray (char) sort -------------------------
+static TestStatus
+tf_carray_sort(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Сортировка по возрастанию */
+    test_sub("subtest %d: CHAR sort ASC", ++subnum);
+    {
+        Array arr = CArray_create(6, ARRAY_FILLTYPE_RND);
+        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+
+        for (int i = 1; i < arr.len; i++) {
+            test_validatefree(
+                arr.cv[i - 1] <= arr.cv[i],
+                Arrayfree(arr),
+                "ASC CHAR: cv[%d]='%c' > cv[%d]='%c'",
+                i - 1, arr.cv[i - 1], i, arr.cv[i]
+            );
+        }
+        Arrayfree(arr);
+    }
+
+    /* 2. Сортировка по убыванию */
+    test_sub("subtest %d: CHAR sort DESC", ++subnum);
+    {
+        Array arr = CArray_create(6, ARRAY_FILLTYPE_RND);
+        Array_qsort(arr, ARRAY_FILLTYPE_DESC);
+
+        for (int i = 1; i < arr.len; i++) {
+            test_validatefree(
+                arr.cv[i - 1] >= arr.cv[i],
+                Arrayfree(arr),
+                "DESC CHAR: cv[%d]='%c' < cv[%d]='%c'",
+                i - 1, arr.cv[i - 1], i, arr.cv[i]
+            );
+        }
+        Arrayfree(arr);
+    }
+
+    /* 3. Пустой массив */
+    test_sub("subtest %d: CHAR sort empty", ++subnum);
+    {
+        Array arr = CArray_create(0, ARRAY_FILLTYPE_NONE);
+        Array_qsort(arr, ARRAY_FILLTYPE_ASC);   // не должно упасть
+        test_validatefree(arr.len == 0, Arrayfree(arr), "Empty array must stay empty after sort");
+        Arrayfree(arr);
+    }
+
+    /* 4. Один элемент */
+    test_sub("subtest %d: CHAR sort single element", ++subnum);
+    {
+        Array arr = CArray_create(1, ARRAY_FILLTYPE_NONE);
+        arr.cv[0] = 'x';
+        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        test_validatefree(
+            arr.cv[0] == 'x',
+            Arrayfree(arr),
+            "Single element 'x' must stay 'x', got '%c'", arr.cv[0]
+        );
+        Arrayfree(arr);
+    }
+
+    /* 5. Уже отсортированный */
+    test_sub("subtest %d: CHAR sort already sorted", ++subnum);
+    {
+        Array arr = CArray_create(3, ARRAY_FILLTYPE_NONE);
+        arr.cv[0] = 'a'; arr.cv[1] = 'b'; arr.cv[2] = 'c';
+        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        test_validatefree(
+            arr.cv[0] == 'a' && arr.cv[1] == 'b' && arr.cv[2] == 'c',
+            Arrayfree(arr),
+            "Already sorted array must stay 'a','b','c'"
+        );
+        Arrayfree(arr);
+    }
+
+    /* 6. Дубликаты */
+    test_sub("subtest %d: CHAR sort duplicates", ++subnum);
+    {
+        Array arr = CArray_create(4, ARRAY_FILLTYPE_NONE);
+        arr.cv[0] = 'b'; arr.cv[1] = 'a'; arr.cv[2] = 'b'; arr.cv[3] = 'c';
+        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        test_validatefree(
+            arr.cv[0] == 'a' && arr.cv[1] == 'b' && arr.cv[2] == 'b' && arr.cv[3] == 'c',
+            Arrayfree(arr),
+            "Duplicates must be sorted correctly"
+        );
+        Arrayfree(arr);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -3266,7 +3361,8 @@ main( /*int argc, char *argv[] */ )
         TESTADD(tf_v64array_sort,               "V64Array (STR / FS) sorting"),
         TESTADD(tf_v64array_save_load,          "V64Array STR/FS save/load test"),
         TESTADD(tf_array_bsearch,               "ArrayBsearch (INT / LONG / DBL / V64)"),
-        TESTADD(tf_carray_create_fill_free,     "ARRAY_CHAR (char) create/fill/free simple test")
+        TESTADD(tf_carray_create_fill_free,     "ARRAY_CHAR create/fill/free simple test"),
+        TESTADD(tf_carray_sort,                 "ARRAY_CHAR sorting simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
