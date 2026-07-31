@@ -875,8 +875,8 @@ int                         ArrayBsearchDblCommon(Array arr, double val, bool ac
  * @return index of the found element (>=0), or -1 if not found
  */
 int                         ArrayBsearchCharCommon(Array arr, char val, bool acs) {
-    if (!Array_isdouble(arr))
-        userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchDbl requires ARRAY_DOUBLE");
+    if (!Array_ischar(arr))
+        userraiseint(ERR_UNSUPPORTED_TYPE, "Requires ARRAY_CHAR");
     if (arr.len == 0)
         return -1;
     pointer_comparator  cmp = acs ? pchar_cmp : pchar_revcmp;    
@@ -3336,6 +3336,122 @@ tf_carray_sort(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST ArrayBsearch for CHAR / V64 (STR / FS) -------------------------
+static TestStatus
+tf_array_bsearch_char(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== CHAR ========== */
+    test_sub("subtest %d: CHAR find existing", ++subnum);
+    {
+        Array arr = CArray_create(5, ARRAY_FILLTYPE_NONE);
+        arr.cv[0] = 'a'; arr.cv[1] = 'b'; arr.cv[2] = 'c'; arr.cv[3] = 'd'; arr.cv[4] = 'e';
+        // массив уже отсортирован по возрастанию
+        int idx = ArrayBsearchChar(arr, 'c');
+        test_validatefree(
+            idx == 2,
+            Arrayfree(arr),
+            "CHAR asc: expected idx=2, got %d", idx
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: CHAR find missing", ++subnum);
+    {
+        Array arr = CArray_create(5, ARRAY_FILLTYPE_NONE);
+        arr.cv[0] = 'a'; arr.cv[1] = 'b'; arr.cv[2] = 'c'; arr.cv[3] = 'd'; arr.cv[4] = 'e';
+        int idx = ArrayBsearchChar(arr, 'z');
+        test_validatefree(
+            idx == -1,
+            Arrayfree(arr),
+            "CHAR asc missing: expected -1, got %d", idx
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: CHAR rev search", ++subnum);
+    {
+        Array arr = CArray_create(5, ARRAY_FILLTYPE_NONE);
+        arr.cv[0] = 'e'; arr.cv[1] = 'd'; arr.cv[2] = 'c'; arr.cv[3] = 'b'; arr.cv[4] = 'a';
+        int idx = ArrayBsearchCharRev(arr, 'b');
+        test_validatefree(
+            idx == 3,   // e(0),d(1),c(2),b(3),a(4)
+            Arrayfree(arr),
+            "CHAR desc: expected idx=3, got %d", idx
+        );
+        Arrayfree(arr);
+    }
+
+    /* ========== V64 STR ========== */
+    test_sub("subtest %d: V64 STR find existing", ++subnum);
+    {
+        Array arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        // создаём отсортированный массив: "a","b","c","d"
+        arr.v64[0] = value64_createstr("a");
+        arr.v64[1] = value64_createstr("b");
+        arr.v64[2] = value64_createstr("c");
+        arr.v64[3] = value64_createstr("d");
+
+        value64 key = LITERAL64_STR("c");
+        int idx = ArrayBsearchV64(arr, key);
+        test_validatefree(
+            idx == 2,
+            Arrayfree(arr),
+            "STR asc: expected idx=2, got %d", idx
+        );
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: V64 STR rev missing", ++subnum);
+    {
+        Array arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        arr.v64[0] = value64_createstr("d");
+        arr.v64[1] = value64_createstr("c");
+        arr.v64[2] = value64_createstr("b");
+        arr.v64[3] = value64_createstr("a");
+
+        value64 key = LITERAL64_STR("x");
+        int idx = ArrayBsearchV64Rev(arr, key);
+        test_validatefree(
+            idx == -1,
+            Arrayfree(arr),
+            "STR desc missing: expected -1, got %d", idx
+        );
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    /* ========== V64 FS ========== */
+    test_sub("subtest %d: V64 FS find existing", ++subnum);
+    {
+        Array arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        arr.v64[0] = value64_createfs_asstr("/alpha");
+        arr.v64[1] = value64_createfs_asstr("/beta");
+        arr.v64[2] = value64_createfs_asstr("/gamma");
+        arr.v64[3] = value64_createfs_asstr("/delta");
+
+        // сортируем по возрастанию
+        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        // после сортировки: alpha, beta, delta, gamma
+
+        value64 key = value64_createfs_asstr("/beta");
+        int idx = ArrayBsearchV64(arr, key);
+        test_validatefree(
+            idx == 1,
+            (Arrayfree(arr), value64_freefs(&key)),
+            "FS asc: expected idx=1, got %d", idx
+        );
+        value64_freefs(&key);
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    return logret(TEST_PASSED, "done");
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -3362,7 +3478,8 @@ main( /*int argc, char *argv[] */ )
         TESTADD(tf_v64array_save_load,          "V64Array STR/FS save/load test"),
         TESTADD(tf_array_bsearch,               "ArrayBsearch (INT / LONG / DBL / V64)"),
         TESTADD(tf_carray_create_fill_free,     "ARRAY_CHAR create/fill/free simple test"),
-        TESTADD(tf_carray_sort,                 "ARRAY_CHAR sorting simple test")
+        TESTADD(tf_carray_sort,                 "ARRAY_CHAR sorting simple test"),
+        TESTADD(tf_array_bsearch_char,          "ARRAY_CHAR ArrayBsearch simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
