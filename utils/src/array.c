@@ -1138,7 +1138,7 @@ Array                           ArrayFLoad(FILE *in) {
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Array header wrong format");
 
     Array arr = Array_init();       // zero-init
-    ArrayType atype = Array_type_from_name(typ);
+    ArrayType atype = ArrayTypeFromName(typ);
 
     switch (atype) {
         case ARRAY_V64: {
@@ -3384,70 +3384,92 @@ tf_array_bsearch_char(const char *name)
         Arrayfree(arr);
     }
 
-    /* ========== V64 STR ========== */
-    test_sub("subtest %d: V64 STR find existing", ++subnum);
+    return logret(TEST_PASSED, "done");
+}
+
+// ------------------------- TEST Array save/load (CHAR) -------------------------
+static TestStatus
+tf_array_save_load_char(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== CHAR ========== */
+    test_sub("subtest %d: CHAR save/load", ++subnum);
     {
-        Array arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_STR);
-        // создаём отсортированный массив: "a","b","c","d"
-        arr.v64[0] = value64_createstr("a");
-        arr.v64[1] = value64_createstr("b");
-        arr.v64[2] = value64_createstr("c");
-        arr.v64[3] = value64_createstr("d");
+        const char *fname = "res/array/carr.sv";
 
-        value64 key = LITERAL64_STR("c");
-        int idx = ArrayBsearchV64(arr, key);
+        // создаём массив и заполняем
+        Array orig = CArray_create(5, ARRAY_FILLTYPE_NONE);
+        orig.cv[0] = 'h'; orig.cv[1] = 'e'; orig.cv[2] = 'l';
+        orig.cv[3] = 'l'; orig.cv[4] = 'o';
+
+        // сохраняем
+        long written = Array_save(orig, fname);
+        test_validatefree(written > 0, Arrayfree(orig), "CHAR save failed");
+
+        // загружаем
+        Array loaded = Array_load(fname);
         test_validatefree(
-            idx == 2,
-            Arrayfree(arr),
-            "STR asc: expected idx=2, got %d", idx
+            loaded.len == orig.len,
+            (Arrayfree(orig), Arrayfree(loaded)),
+            "CHAR load: len=%d, expected %d", loaded.len, orig.len
         );
-        Arrayfree(arr);
-    }
-    fs_alloc_check(true);
 
-    test_sub("subtest %d: V64 STR rev missing", ++subnum);
+        // сравниваем поэлементно
+        for (int i = 0; i < orig.len; i++) {
+            test_validatefree(
+                orig.cv[i] == loaded.cv[i],
+                (Arrayfree(orig), Arrayfree(loaded)),
+                "CHAR[%d]: orig='%c', loaded='%c'",
+                i, orig.cv[i], loaded.cv[i]
+            );
+        }
+
+        Arrayfree(orig);
+        Arrayfree(loaded);
+    }
+
+    /* ========== CHAR: пустой массив ========== */
+    test_sub("subtest %d: CHAR save/load empty", ++subnum);
     {
-        Array arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_STR);
-        arr.v64[0] = value64_createstr("d");
-        arr.v64[1] = value64_createstr("c");
-        arr.v64[2] = value64_createstr("b");
-        arr.v64[3] = value64_createstr("a");
+        const char *fname = "res/array/carr_empty.sv";
 
-        value64 key = LITERAL64_STR("x");
-        int idx = ArrayBsearchV64Rev(arr, key);
+        Array orig = CArray_create(0, ARRAY_FILLTYPE_NONE);
+        long written = Array_save(orig, fname);
+        test_validatefree(written > 0, Arrayfree(orig), "CHAR empty save failed");
+
+        Array loaded = Array_load(fname);
         test_validatefree(
-            idx == -1,
-            Arrayfree(arr),
-            "STR desc missing: expected -1, got %d", idx
+            loaded.len == 0 && loaded.cv == NULL,
+            (Arrayfree(orig), Arrayfree(loaded)),
+            "Loaded empty CHAR: len=%d, cv=%p (expected 0, NULL)", loaded.len, loaded.cv
         );
-        Arrayfree(arr);
-    }
-    fs_alloc_check(true);
 
-    /* ========== V64 FS ========== */
-    test_sub("subtest %d: V64 FS find existing", ++subnum);
+        Arrayfree(orig);
+        Arrayfree(loaded);
+    }
+
+    /* ========== CHAR: один элемент ========== */
+    test_sub("subtest %d: CHAR save/load single", ++subnum);
     {
-        Array arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_FS);
-        arr.v64[0] = value64_createfs_asstr("/alpha");
-        arr.v64[1] = value64_createfs_asstr("/beta");
-        arr.v64[2] = value64_createfs_asstr("/gamma");
-        arr.v64[3] = value64_createfs_asstr("/delta");
+        const char *fname = "res/array/carr_single.sv";
 
-        // сортируем по возрастанию
-        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
-        // после сортировки: alpha, beta, delta, gamma
+        Array orig = CArray_create(1, ARRAY_FILLTYPE_NONE);
+        orig.cv[0] = 'Z';
+        long written = Array_save(orig, fname);
+        test_validatefree(written > 0, Arrayfree(orig), "CHAR single save failed");
 
-        value64 key = value64_createfs_asstr("/beta");
-        int idx = ArrayBsearchV64(arr, key);
+        Array loaded = Array_load(fname);
         test_validatefree(
-            idx == 1,
-            (Arrayfree(arr), value64_freefs(&key)),
-            "FS asc: expected idx=1, got %d", idx
+            loaded.len == 1 && loaded.cv[0] == 'Z',
+            (Arrayfree(orig), Arrayfree(loaded)),
+            "Loaded single CHAR: expected 'Z', got '%c'", loaded.cv[0]
         );
-        value64_freefs(&key);
-        Arrayfree(arr);
+
+        Arrayfree(orig);
+        Arrayfree(loaded);
     }
-    fs_alloc_check(true);
 
     return logret(TEST_PASSED, "done");
 }
@@ -3474,12 +3496,13 @@ main( /*int argc, char *argv[] */ )
         TESTADD(tf13,                           "Array_foreach_prod simple test"),
         TESTADD(tf_v64array_str_fs,             "V64Array (STR / FS) simple test"),
         TESTADD(tf_v64array_shrink_increase,    "V64Array (STR / FS) shrink / increase simple test"),
-        TESTADD(tf_v64array_sort,               "V64Array (STR / FS) sorting"),
-        TESTADD(tf_v64array_save_load,          "V64Array STR/FS save/load test"),
-        TESTADD(tf_array_bsearch,               "ArrayBsearch (INT / LONG / DBL / V64)"),
-        TESTADD(tf_carray_create_fill_free,     "ARRAY_CHAR create/fill/free simple test"),
-        TESTADD(tf_carray_sort,                 "ARRAY_CHAR sorting simple test"),
-        TESTADD(tf_array_bsearch_char,          "ARRAY_CHAR ArrayBsearch simple test")
+        TESTADD(tf_v64array_sort,               "V64Array (STR / FS) sorting simple test"),
+        TESTADD(tf_v64array_save_load,          "V64Array STR/FS save/load simple test"),
+        TESTADD(tf_array_bsearch,               "ArrayBsearch (INT / LONG / DBL / V64) simple test"),
+        TESTADD(tf_carray_create_fill_free,     "CHAR create/fill/free simple test"),
+        TESTADD(tf_carray_sort,                 "CHAR sorting simple test"),
+        TESTADD(tf_array_bsearch_char,          "CHAR ArrayBsearch simple test"),
+        TESTADD(tf_array_save_load_char,        "CHAR Array save/load simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()

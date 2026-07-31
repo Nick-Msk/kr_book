@@ -49,6 +49,7 @@ static inline const char        *ArrayTypeName(ArrayType t){
         CASE_RETURN(ARRAY_INT);
         CASE_RETURN(ARRAY_LONG);
         CASE_RETURN(ARRAY_POINTER);
+        CASE_RETURN(ARRAY_CHAR);
         CASE_RETURN(ARRAY_ERROR);
         CASE_RETURN(ARRAY_V64);
         default: return "";
@@ -74,7 +75,7 @@ static inline const char        *ArrayFillTypeName(ArrayFillType t){
  * @param name type name
  * @return ArrayType value, or ARRAY_UNKNOWN if the name is not recognised
  */
-static ArrayType Array_type_from_name(const char *name) {
+static ArrayType ArrayTypeFromName(const char *name) {
     if (!name)
         return ARRAY_UNKNOWN;
     if (strcmp(name, "ARRAY_INT")     == 0) 
