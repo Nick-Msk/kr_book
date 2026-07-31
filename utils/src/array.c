@@ -42,7 +42,7 @@ static void                     freeelems(Array *arr, int from, int to) {
 static int                      getelemsize(const Array *arr) {
     invraisecode(ERR_NULLABLE_PTR, arr != NULL, "Null pointer");
     int         elem_size = 0;
-    ArrayType   typ = ArrayGetV64mappedType(*arr);
+    ArrayType   typ = Array_gettype(*arr);
     switch (typ) {
         case ARRAY_INT:     elem_size = sizeof(int);        break;
         case ARRAY_LONG:    elem_size = sizeof(long);       break;
@@ -1198,17 +1198,21 @@ long                        Array_save(Array arr, const char *fname) {
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Wrong final piece '%s'", typ);
     return arr;
 } */
+
 Array                           ArrayFLoad(FILE *in) {
     invraisecode(ERR_NULLABLE_PTR, in != NULL, "Nullable input");
 
-    int         cnt = 0;
-    char        typ[20], v64typ[20] = "";   // 20 is magic number OMG
+    int                 cnt = 0;
+    char                typ[ARRAY_MAX_TYPE_STR], v64typ[ARRAY_MAX_TYPE_STR] = "";
 
     // Read header: "ARRAY: <type> / <v64type> : <count>"
-    if (fscanf(in, "ARRAY: %s / %s : %d ", typ, v64typ, &cnt) != 3)
+    if (fscanf(in, "ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s / %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s : %d ", 
+                typ, 
+                v64typ, 
+                &cnt) != 3)
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Array header wrong format");
 
-    Array arr = Array_init(cnt);
+    Array arr = Array_init();       // zero-init
     ArrayType atype = Array_type_from_name(typ);
 
     switch (atype) {
@@ -1241,7 +1245,8 @@ Array                           ArrayFLoad(FILE *in) {
     load_values(in, &arr);
 
     // Check footer "ARRAY: DONE"
-    if (fscanf(in, "ARRAY: %19s", typ) != 1 || strcmp(typ, "DONE") != 0)
+    if (fscanf(in, "ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s", typ) != 1 
+            || strcmp(typ, "DONE") != 0)
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Wrong final piece '%s'", typ);
 
     return arr;

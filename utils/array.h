@@ -19,7 +19,9 @@
 
 // ----------- CONSTANTS AND GLOBALS ---------------
 
-// array, but not IArray, because common for int and double
+#define                         ARRAY_MAX_TYPE_STR          20
+#define                         ARRAY_MAX_TYPE_STR_WO_LAST  19
+
 typedef enum ArrayFillType{
     ARRAY_FILLTYPE_NONE      = 0,
     ARRAY_FILLTYPE_DESC,
