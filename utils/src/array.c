@@ -310,7 +310,7 @@ static inline double           incdoublernd(double *val, int sign){
 /// @return adjusted value or OUT_OF_RANGE exception
 /// @note low level (no NULL pointer checking)
 static inline char             incchar(char *val, int sign){
-    if ( (toupper(*val) <= 'A' && sign > 0) || (toupper(*val) >= 'Z' && sign > 0) )
+    if ( (toupper(*val) >= 'Z' && sign > 0) || (toupper(*val) <= 'A' && sign < 0) )
         userraiseint(ERR_OUT_OF_RANGE, "Out of range %c with direction %d", *val, sign);
     return (*val += sign * 1);  // just 1, no random here
 }
@@ -744,26 +744,6 @@ Array                           Array_shrink(Array arr, int newsz){
     return logret(arr, "shrinked to (len %d == sz %d)", arr.len, arr.sz);
 }
 
-// TODO: probably shoube be reworked to use switch (type) + separate code
-/* void                     Array_shuffle(Array arr){
-    srand(time(NULL) );
-    for (int i = arr.len - 1; i > 0; i--){
-        int j = rndint(i);
-        if (Array_isint(arr) )
-            int_exch(arr.iv + i, arr.iv + j);
-        else if (Array_islong(arr) )
-            long_exch(arr.lv + i, arr.lv + j);
-        else if (Array_isdouble(arr) )
-            dbl_exch(arr.dv + i, arr.dv + j);
-        else if (Array_ispointer(arr) )
-            ptr_exch(arr.pv + i, arr.pv + j);
-        else if (Array_isv64(arr))
-            v64_exch(arr.v64 + i, arr.v64 + j);
-        else
-            logsimple("unsupported type for shuffle %s", ArrayGettypeName(arr) );
-    }
-} */
-
 /**
  * @brief Shuffle array elements using the Fisher–Yates algorithm.
  * @param arr array (by value)
@@ -942,61 +922,6 @@ int                         Array_foreach_proc(Array arr, Array_cond cond, Array
 
 // -------------------------- (API) printers -----------------------
 
-/* int                         Array_fprint(FILE *f, Array val, int limit){
-
-    int         cnt = 0, i;
-    int         array_rec_line = 20;    // default
-    const char *custom_print_line;    // for int or double
-
-    limit = (limit == 0)? val.len : (limit < val.len) ? limit : val.len;
-    if (g_array_rec_line)
-        array_rec_line = g_array_rec_line;
-
-    cnt += fprintf(f, "Array (%s[%d of total %d]):\n", ArrayTypeName(val.flags), limit, val.len);
-    for (i = 0; i < limit; i++){
-        if (Array_isint(val) ){
-            if (g_custom_print_line)    // TODO: refactor that!
-                custom_print_line = g_custom_print_line;
-            else  // standard behavior
-                custom_print_line = "[%d - %6d]\t";
-            cnt += fprintf(f, custom_print_line, i, val.iv[i]);
-        }
-        else if (Array_islong(val) ){
-            if (g_custom_print_line)    // TODO: refactor that!
-                custom_print_line = g_custom_print_line;
-            else  // standard behavior
-                custom_print_line = "[%ld - %6ld]\t";
-            cnt += fprintf(f, custom_print_line, i, val.lv[i]);
-        }
-        else if (Array_isdouble(val) ){
-            if (g_custom_print_line)    // TODO: refactor that!
-                custom_print_line = g_custom_print_line;
-            else
-                custom_print_line = "[%d - %.8lg]\t";
-            cnt += fprintf(f, custom_print_line, i, val.dv[i]);
-        } else if (Array_ispointer(val) ){
-            if (g_custom_print_line)    // TODO: refactor that!
-                custom_print_line = g_custom_print_line;
-            else
-                custom_print_line = "[%p - %p]\t";
-            cnt += fprintf(f, custom_print_line, i, val.dv[i]);
-        } else if (Array_isv64(val) ) {
-            // no custom here!
-            value64_techfprint(f, val.v64[i], val.v64type, "");
-        }
-        // delim
-        if ( ( (i + 1) % array_rec_line) == 0){
-            cnt += fprintf(f, "\n");
-        }
-    }
-    if (i < val.len)
-        cnt += fprintf(f, "and more (%d) ...\n", val.len - i);
-    else
-        cnt += fprintf(f, "\n");
-    return cnt;
-}
-*/
-
 /**
  * @brief Prints the contents of an array to a file stream.
  *
@@ -1037,7 +962,7 @@ int                     Array_fprint(FILE *f, Array val, int limit) {
                 cnt += fprintf(f, custom ? custom : "[%p - %p]\t", i, val.pv[i]);
                 break;
             case ARRAY_CHAR:
-                cnt += fprintf(f, custom ? custom : "[%d - %c]\t", i, val.iv[i]);
+                cnt += fprintf(f, custom ? custom : "[%d - %c]\t", i, val.cv[i]);
                 break;
             case ARRAY_V64:
                 // custom format not supported for value64; always use dedicated printer
@@ -3233,6 +3158,89 @@ tf_array_bsearch(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST CARray (char) create/fill/free -------------------------
+static TestStatus
+tf_carray_create_fill_free(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Создание пустого CHAR массива */
+    test_sub("subtest %d: create empty CHAR array", ++subnum);
+    {
+        Array arr = CArray_create(0, ARRAY_FILLTYPE_NONE);
+        test_validatefree(
+            arr.len == 0 && arr.sz == 0 && arr.cv == NULL,
+            Arrayfree(arr),
+            "Empty CHAR array: len=%d, sz=%d, cv=%p (expected 0,0,NULL)",
+            arr.len, arr.sz, (void*)arr.cv
+        );
+        Arrayfree(arr);
+    }
+
+    /* 2. Создание ZERO‑filled CHAR массива */
+    test_sub("subtest %d: create ZERO‑filled CHAR array", ++subnum);
+    {
+        Array arr = CArray_create(5, ARRAY_FILLTYPE_ZERO);
+        test_validatefree(
+            arr.len == 5 && arr.sz >= 5,
+            Arrayfree(arr),
+            "ZERO CHAR array: len=%d, sz=%d (expected 5, >=5)", arr.len, arr.sz
+        );
+        // Проверяем, что все элементы — '\0'
+        for (int i = 0; i < 5; i++) {
+            test_validatefree(
+                arr.cv[i] == '\0',
+                Arrayfree(arr),
+                "CHAR[%d] must be '\\0', got '%c'", i, arr.cv[i]
+            );
+        }
+        Arrayfree(arr);
+    }
+
+    /* 3. Создание ASC‑filled CHAR массива (случайные буквы) */
+    test_sub("subtest %d: create ASC‑filled CHAR array", ++subnum);
+    {
+        Array arr = CArray_create(4, ARRAY_FILLTYPE_ASC);
+        test_validatefree(
+            arr.len == 4,
+            Arrayfree(arr),
+            "ASC CHAR array: len=%d (expected 4)", arr.len
+        );
+        // Элементы не должны быть '\0' и должны следовать в алфавитном порядке
+        for (int i = 1; i < 4; i++) {
+            test_validatefree(
+                arr.cv[i - 1] <= arr.cv[i],
+                Arrayfree(arr),
+                "ASC CHAR: must be non‑decreasing"
+            );
+        }
+        Arrayfree(arr);
+    }
+
+    /* 4. Создание DESC‑filled CHAR массива (случайные буквы в обратном порядке) */
+    test_sub("subtest %d: create DESC‑filled CHAR array", ++subnum);
+    {
+        Array arr = CArray_create(4, ARRAY_FILLTYPE_DESC);
+        test_validatefree(
+            arr.len == 4,
+            Arrayfree(arr),
+            "DESC CHAR array: len=%d (expected 4)", arr.len
+        );
+        // Элементы должны быть не возрастающими
+        for (int i = 1; i < 4; i++) {
+            test_validatefree(
+                arr.cv[i - 1] >= arr.cv[i],
+                Arrayfree(arr),
+                "DESC CHAR: must be non‑increasing"
+            );
+        }
+        Arrayfree(arr);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -3257,7 +3265,8 @@ main( /*int argc, char *argv[] */ )
         TESTADD(tf_v64array_shrink_increase,    "V64Array (STR / FS) shrink / increase simple test"),
         TESTADD(tf_v64array_sort,               "V64Array (STR / FS) sorting"),
         TESTADD(tf_v64array_save_load,          "V64Array STR/FS save/load test"),
-        TESTADD(tf_array_bsearch,               "ArrayBsearch (INT / LONG / DBL / V64)")
+        TESTADD(tf_array_bsearch,               "ArrayBsearch (INT / LONG / DBL / V64)"),
+        TESTADD(tf_carray_create_fill_free,     "ARRAY_CHAR (char) create/fill/free simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
