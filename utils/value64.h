@@ -357,6 +357,10 @@ static inline bool                 value64_in(value64 val, value64_type typ, con
 }
 // value comparator
 extern int                         value64_compare(value64 v1, value64 v2, value64_type typ);
+static inline bool                 value64_equal(value64 v1, value64 v2, value64_type typ) {
+    return value64_compare(v1, v2, typ) == 0;
+}
+
 // value
 extern int                         value64_int_comp(value64 v1, value64 v2);
 extern int                         value64_long_comp(value64 v1, value64 v2);
