@@ -133,6 +133,10 @@ static inline char
 rndupperchar(void) {
     return (char)('A' + rand() % 26);
 }
+static inline char 
+rnddigitchar(void) {
+    return (char)('0' + rand() % 10);
+}
 // probably rework is required
 static inline unsigned
 rnduint(unsigned max)
