@@ -762,6 +762,67 @@ void                        Array_shuffle(Array arr) {
 }
 
 /**
+ * @brief Checks whether two arrays are *not* equal.
+ *
+ * Arrays are equal if they have the same type, the same length, and all
+ * elements compare equal.  The comparison is type‑aware:
+ * - Numeric types (INT, LONG, DOUBLE, CHAR) compare directly.
+ * - POINTER arrays compare the pointers themselves.
+ * - V64 arrays delegate to value64_equals().
+ *
+ * @param arr1 pointer to the first array
+ * @param arr2 pointer to the second array
+ * @return true if the arrays differ in type, length, or any element,
+ *         false if they are equal
+ *
+ * @throws ERR_NULLABLE_PTR if any of the pointers is NULL
+ * @throws ERR_UNSUPPORTED_TYPE if the type is not handled
+ */
+bool ArrayNoteq(const Array *restrict arr1, const Array *restrict arr2) {
+    invraisecode(ERR_NULLABLE_PTR, arr1 != NULL && arr2 != NULL,
+                 "Null pointers %p %p", (void*) arr1, (void*) arr2);
+    // raise exception if not equal
+    ArrayCheckComparable(arr1, arr2);
+
+    if (arr1->len != arr2->len)
+        return true;   // different lengths -> not equal
+
+    ArrayType typ = Array_gettype(*arr1);
+    switch (typ) {
+        case ARRAY_INT:
+            for (int i = 0; i < arr1->len; i++)
+                if (arr1->iv[i] != arr2->iv[i]) return true;
+            break;
+        case ARRAY_LONG:
+            for (int i = 0; i < arr1->len; i++)
+                if (arr1->lv[i] != arr2->lv[i]) return true;
+            break;
+        case ARRAY_DOUBLE:
+            for (int i = 0; i < arr1->len; i++)
+                if (arr1->dv[i] != arr2->dv[i]) return true;
+            break;
+        case ARRAY_POINTER:
+            for (int i = 0; i < arr1->len; i++)
+                if (arr1->pv[i] != arr2->pv[i]) return true;
+            break;
+        case ARRAY_CHAR:
+            for (int i = 0; i < arr1->len; i++)
+                if (arr1->cv[i] != arr2->cv[i]) return true;
+            break;
+        case ARRAY_V64:
+            for (int i = 0; i < arr1->len; i++)
+                if (!value64_equal(arr1->v64[i], arr2->v64[i], arr1->v64type))
+                    return true;
+            break;
+        default:
+            userraiseint(ERR_UNSUPPORTED_TYPE, "Unsupported type for comparison: %s",
+                         ArrayGettypeName(*arr1));
+            return true;
+    }
+    return false;   // all elements equal
+}
+
+/**
  * @brief Sorts an array in ascending or descending order.
  *
  * Uses quicksort (qsort) with type‑specific comparators.
@@ -3474,6 +3535,179 @@ tf_array_save_load_char(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST ArrayEq / ArrayNoteq (all types, edge cases) -------------------------
+static TestStatus
+tf_array_eq_noteq(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== INT ========== */
+    test_sub("subtest %d: INT equal", ++subnum);
+    {
+        Array a = IArray_create(3, ARRAY_FILLTYPE_NONE);
+        Array b = IArray_create(3, ARRAY_FILLTYPE_NONE);
+        a.iv[0] = 1; a.iv[1] = 2; a.iv[2] = 3;
+        b.iv[0] = 1; b.iv[1] = 2; b.iv[2] = 3;
+        test_validatefree(
+            ArrayEq(&a, &b) && !ArrayNoteq(&a, &b),
+            (Arrayfree(a), Arrayfree(b)),
+            "Identical INT arrays must be equal"
+        );
+        Arrayfree(a); Arrayfree(b);
+    }
+
+    test_sub("subtest %d: INT not equal (different values)", ++subnum);
+    {
+        Array a = IArray_create(2, ARRAY_FILLTYPE_NONE);
+        Array b = IArray_create(2, ARRAY_FILLTYPE_NONE);
+        a.iv[0] = 10; a.iv[1] = 20;
+        b.iv[0] = 10; b.iv[1] = 30;
+        test_validatefree(
+            !ArrayEq(&a, &b) && ArrayNoteq(&a, &b),
+            (Arrayfree(a), Arrayfree(b)),
+            "Different values must be not equal"
+        );
+        Arrayfree(a); Arrayfree(b);
+    }
+
+    test_sub("subtest %d: INT not equal (different lengths)", ++subnum);
+    {
+        Array a = IArray_create(2, ARRAY_FILLTYPE_NONE);
+        Array b = IArray_create(3, ARRAY_FILLTYPE_NONE);
+        test_validatefree(
+            !ArrayEq(&a, &b) && ArrayNoteq(&a, &b),
+            (Arrayfree(a), Arrayfree(b)),
+            "Different lengths must be not equal"
+        );
+        Arrayfree(a); Arrayfree(b);
+    }
+
+    test_sub("subtest %d: INT empty arrays", ++subnum);
+    {
+        Array a = IArray_create(0, ARRAY_FILLTYPE_NONE);
+        Array b = IArray_create(0, ARRAY_FILLTYPE_NONE);
+        test_validatefree(
+            ArrayEq(&a, &b) && !ArrayNoteq(&a, &b),
+            (Arrayfree(a), Arrayfree(b)),
+            "Empty INT arrays must be equal"
+        );
+        Arrayfree(a); Arrayfree(b);
+    }
+
+    /* ========== CHAR ========== */
+    test_sub("subtest %d: CHAR equal", ++subnum);
+    {
+        Array a = CArray_create(2, ARRAY_FILLTYPE_NONE);
+        Array b = CArray_create(2, ARRAY_FILLTYPE_NONE);
+        a.cv[0] = 'x'; a.cv[1] = 'y';
+        b.cv[0] = 'x'; b.cv[1] = 'y';
+        test_validatefree(
+            ArrayEq(&a, &b) && !ArrayNoteq(&a, &b),
+            (Arrayfree(a), Arrayfree(b)),
+            "Identical CHAR arrays must be equal"
+        );
+        Arrayfree(a); Arrayfree(b);
+    }
+
+    test_sub("subtest %d: CHAR not equal", ++subnum);
+    {
+        Array a = CArray_create(1, ARRAY_FILLTYPE_NONE);
+        Array b = CArray_create(1, ARRAY_FILLTYPE_NONE);
+        a.cv[0] = 'a';
+        b.cv[0] = 'b';
+        test_validatefree(
+            !ArrayEq(&a, &b) && ArrayNoteq(&a, &b),
+            (Arrayfree(a), Arrayfree(b)),
+            "Different CHAR must be not equal"
+        );
+        Arrayfree(a); Arrayfree(b);
+    }
+
+    /* ========== V64 STR ========== */
+    test_sub("subtest %d: V64 STR equal", ++subnum);
+    {
+        Array a = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array b = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        a.v64[0] = value64_createstr("hello");
+        a.v64[1] = value64_createstr("world");
+        b.v64[0] = value64_createstr("hello");
+        b.v64[1] = value64_createstr("world");
+        test_validatefree(
+            ArrayEq(&a, &b) && !ArrayNoteq(&a, &b),
+            (Arrayfree(a), Arrayfree(b)),
+            "Identical STR arrays must be equal"
+        );
+        Arrayfree(a); Arrayfree(b);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: V64 STR not equal", ++subnum);
+    {
+        Array a = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array b = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        a.v64[0] = value64_createstr("abc");
+        b.v64[0] = value64_createstr("xyz");
+        test_validatefree(
+            !ArrayEq(&a, &b) && ArrayNoteq(&a, &b),
+            (Arrayfree(a), Arrayfree(b)),
+            "Different STR must be not equal"
+        );
+        Arrayfree(a); Arrayfree(b);
+    }
+    fs_alloc_check(true);
+
+    /* ========== V64 FS ========== */
+    test_sub("subtest %d: V64 FS equal", ++subnum);
+    {
+        Array a = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array b = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        a.v64[0] = value64_createfs_asstr("/tmp/a");
+        a.v64[1] = value64_createfs_asstr("/tmp/b");
+        b.v64[0] = value64_createfs_asstr("/tmp/a");
+        b.v64[1] = value64_createfs_asstr("/tmp/b");
+        test_validatefree(
+            ArrayEq(&a, &b) && !ArrayNoteq(&a, &b),
+            (Arrayfree(a), Arrayfree(b)),
+            "Identical FS arrays must be equal"
+        );
+        Arrayfree(a); Arrayfree(b);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: V64 FS not equal", ++subnum);
+    {
+        Array a = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array b = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        a.v64[0] = value64_createfs_asstr("/first");
+        b.v64[0] = value64_createfs_asstr("/second");
+        test_validatefree(
+            !ArrayEq(&a, &b) && ArrayNoteq(&a, &b),
+            (Arrayfree(a), Arrayfree(b)),
+            "Different FS must be not equal"
+        );
+        Arrayfree(a); Arrayfree(b);
+    }
+    fs_alloc_check(true);
+
+    /* ========== Type mismatch (must raise SIGINT) ========== */
+    test_sub("subtest %d: type mismatch raises SIGINT", ++subnum);
+    {
+        Array a = IArray_create(1, ARRAY_FILLTYPE_NONE);
+        Array b = CArray_create(1, ARRAY_FILLTYPE_NONE);
+        if (!try()) {
+            ArrayNoteq(&a, &b);
+            test_validatefree(false, (Arrayfree(a), Arrayfree(b)),
+                             "Type mismatch should have raised SIGINT");
+        } else {
+            logsimple("Exception correctly raised on type mismatch");
+        }
+        Arrayfree(a); Arrayfree(b);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -3502,7 +3736,8 @@ main( /*int argc, char *argv[] */ )
         TESTADD(tf_carray_create_fill_free,     "CHAR create/fill/free simple test"),
         TESTADD(tf_carray_sort,                 "CHAR sorting simple test"),
         TESTADD(tf_array_bsearch_char,          "CHAR ArrayBsearch simple test"),
-        TESTADD(tf_array_save_load_char,        "CHAR Array save/load simple test")
+        TESTADD(tf_array_save_load_char,        "CHAR Array save/load simple test"),
+        TESTADD(tf_array_eq_noteq,              "ArrayEq / ArrayNoteq (all types, edge cases)")
     );
 
     return logret(0, "end...");  // as replace of logclose()

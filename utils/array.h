@@ -280,7 +280,66 @@ static inline int               ArrayGetcnt(Array a){
         cnt += a.pv[i] != 0;
     return logsimpleret(cnt, "Total valuable elem %d", cnt);
 }
+/**
+ * @brief Checks whether two arrays are comparable (i.e. have the exact same type).
+ *
+ * For now the arrays must have exactly the same type (e.g. ARRAY_INT,
+ * ARRAY_V64).  In the future a broader compatibility check may be introduced.
+ *
+ * @param arr1 pointer to the first array
+ * @param arr2 pointer to the second array
+ * @return true if the arrays are of the same type, false otherwise
+ */
+static inline bool              ArrayComparable(const Array *restrict arr1, const Array *restrict arr2) {
+    // for now must be EXACTLy the same type
+    return Array_gettype(*arr1) == Array_gettype(*arr2);
+}
+/**
+ * @brief Checks whether two arrays are comparable (i.e. have the exact same type).
+ *
+ * For now the arrays must have exactly the same type (e.g. ARRAY_INT,
+ * ARRAY_V64).  In the future a broader compatibility check may be introduced.
+ *
+ * @param arr1 pointer to the first array
+ * @param arr2 pointer to the second array
+ * @note raise ERR_TYPES_MISMATCH  if the arrays have diff types
+ */
+static inline void              ArrayCheckComparable(const Array *restrict arr1, const Array *restrict arr2) {
+    if (!ArrayComparable(arr1, arr2) )
+        userraiseint(ERR_TYPES_MISMATCH, "Type of arr1 %s and arr2 %s are not compatiple (equal for now)", ArrayGettypeName(*arr1), ArrayGettypeName(*arr2) );   // different types -> not equal
+}
 
+/**
+ * @brief Checks whether two arrays are *not* equal.
+ *
+ * Arrays are equal if they have the same type, the same length, and all
+ * elements compare equal.  The comparison is type‑aware:
+ * - Numeric types (INT, LONG, DOUBLE, CHAR) compare directly.
+ * - POINTER arrays compare the pointers themselves.
+ * - V64 arrays delegate to value64_equals().
+ *
+ * @param arr1 pointer to the first array
+ * @param arr2 pointer to the second array
+ * @return true if the arrays differ in type, length, or any element,
+ *         false if they are equal
+ *
+ * @throws ERR_NULLABLE_PTR if any of the pointers is NULL
+ * @throws ERR_UNSUPPORTED_TYPE if the type is not handled
+ */
+extern bool                     ArrayNoteq(const Array *restrict arr1, const Array *restrict arr2);
+/**
+ * @brief Checks whether two arrays are equal.
+ *
+ * Convenience wrapper around ArrayNoteq().
+ *
+ * @param arr1 pointer to the first array
+ * @param arr2 pointer to the second array
+ * @return true if the arrays are equal, false otherwise
+ */
+static inline bool              ArrayEq(const Array *restrict arr1, const Array *restrict arr2) {
+    ArrayCheckComparable(arr1, arr2);        
+    return !ArrayNoteq(arr1, arr2);
+}
 
 extern int                      Array_fill(Array arr, ArrayFillType typ);
 extern int                      Array_fillrange(Array a, ArrayFillType typ, int from, int to);
