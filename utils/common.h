@@ -117,13 +117,23 @@ rndinit(void){
     #endif
     srand(time(0));
 }
-
-// TODO: refactor here!
-// random from 0 till max
+/// @brief random [0, max]
+/// @param int value
+/// @return random between 0 and max
 static inline int
 rndint(int max)
 {
-    return (long)rand() * max / RAND_MAX;
+    if (max <= 0)
+        return 0;
+    // 
+    int range = max + 1; // Диапазон [0, max]
+    int limit = RAND_MAX - (RAND_MAX % range);
+    int r;
+    do {
+        r = rand();
+    } while (r >= limit);
+    //
+    return r % range;
 }
 static inline char 
 rndlowchar(void) {
@@ -285,23 +295,40 @@ static inline void              long_exch(long *i1, long *i2){
     *i2 = tmp;
 }
 // simple double exchanger  TODO: think about generic exchanger
-static inline void              dbl_exch(double *d1, double *d2){
+static inline void              dbl_exch(double *d1, double *d2) {
     double tmp = *d1;
     *d1 = *d2;
     *d2 = tmp;
 }
 
 // simple pointer exchanger  TODO: think about generic exchanger
-static inline void              ptr_exch(void **v1, void **v2){
+static inline void              ptr_exch(void **v1, void **v2) {
     void    *tmp = *v1;
     *v1 = *v2;
     *v2 = tmp;
 }
 // str exch
-static inline void              str_exch(const char **s1, const char **s2){
+static inline void              str_exch(const char **s1, const char **s2) {
     const char *tmp = *s1;
     *s1 = *s2;
     *s2 = tmp;
+}
+/// @brief generallized exchanger, any size of item
+/// @param v1 pointer to the elem
+/// @param v2 pointer to the elem
+/// @param sz size of elem
+static inline void              item_exch(void *restrict v1, void *restrict v2, size_t sz) {
+    char buffer[256]; // Маленький буфер на стеке
+    void *tmp;
+    if (sz <= sizeof(buffer)) {
+        tmp = buffer;
+    } else {
+        tmp = malloc(sz);
+        if (!tmp) return; 
+    }
+    memcpy(tmp, v1, sz);
+    memcpy(v1, v2, sz);
+    memcpy(v2, tmp, sz);
 }
 
 // -------------------------------- Converters ---------------------------
