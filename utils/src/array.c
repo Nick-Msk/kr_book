@@ -787,27 +787,27 @@ bool ArrayNoteq(const Array *restrict arr1, const Array *restrict arr2) {
     if (arr1->len != arr2->len)
         return true;   // different lengths -> not equal
 
+#define ArrayNoteq_COMPARE_LOOP(field) \
+    for (int i = 0; i < arr1->len; i++) \
+        if (arr1->field[i] != arr2->field[i]) return true;        
+
+
     ArrayType typ = Array_gettype(*arr1);
     switch (typ) {
-        case ARRAY_INT:
-            for (int i = 0; i < arr1->len; i++)
-                if (arr1->iv[i] != arr2->iv[i]) return true;
+        case ARRAY_INT: 
+            ArrayNoteq_COMPARE_LOOP(iv);
             break;
         case ARRAY_LONG:
-            for (int i = 0; i < arr1->len; i++)
-                if (arr1->lv[i] != arr2->lv[i]) return true;
+            ArrayNoteq_COMPARE_LOOP(lv);
             break;
         case ARRAY_DOUBLE:
-            for (int i = 0; i < arr1->len; i++)
-                if (arr1->dv[i] != arr2->dv[i]) return true;
+            ArrayNoteq_COMPARE_LOOP(dv);
             break;
         case ARRAY_POINTER:
-            for (int i = 0; i < arr1->len; i++)
-                if (arr1->pv[i] != arr2->pv[i]) return true;
+            ArrayNoteq_COMPARE_LOOP(pv);
             break;
         case ARRAY_CHAR:
-            for (int i = 0; i < arr1->len; i++)
-                if (arr1->cv[i] != arr2->cv[i]) return true;
+            ArrayNoteq_COMPARE_LOOP(cv);
             break;
         case ARRAY_V64:
             for (int i = 0; i < arr1->len; i++)
@@ -995,7 +995,7 @@ int                         Array_foreach_proc(Array arr, Array_cond cond, Array
  * @param limit maximum number of elements to print (0 = print all)
  * @return      number of characters printed
  */
-int                     Array_fprint(FILE *f, Array val, int limit) {
+int                         Array_fprint(FILE *f, Array val, int limit) {
     int cnt = 0, i;
     int array_rec_line = 20;      // default value
 
