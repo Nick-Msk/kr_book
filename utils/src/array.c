@@ -1009,7 +1009,7 @@ int                         Array_foreach_proc(Array arr, Array_cond cond, Array
  * @param limit maximum number of elements to print (0 = print all)
  * @return      number of characters printed
  */
-int Array_fprint(FILE *f, Array val, int limit) {
+int                     Array_fprint(FILE *f, Array val, int limit) {
     int cnt = 0, i;
     int array_rec_line = 20;      // default value
 
@@ -1060,27 +1060,49 @@ int Array_fprint(FILE *f, Array val, int limit) {
     return cnt;
 }
 
-// save only values by delimeter
-long                        Array_savevalues(Array arr, const char *fname, char delim){
+/**
+ * @brief Saves array values to a text file, separated by a delimiter.
+ *
+ * Each element is written on a single line, with the delimiter appended.
+ * For ARRAY_V64 the dedicated value64_fsave() is used.
+ *
+ * @param arr   array (by value)
+ * @param fname file name
+ * @param delim delimiter character
+ * @return number of bytes written, or -1 on error
+ */
+long                        Array_savevalues(Array arr, const char *fname, char delim) {
     logenter("%s, [%c]", fname, delim);
 
-    long    res = 0;
-    FILE   *f = fopen(fname, "w");
-    if (f == 0){
-        fprintf(stderr, "Unable to open %s for writinf\n", fname);
-        return logerr(-1, "Can't open for write");
+    FILE *f = fopen(fname, "w");
+    if (!f)
+        return logerr(-1, "Can't open '%s' for writing", fname);
+
+    long res = 0;
+    for (int i = 0; i < arr.len; i++) {
+        switch (Array_gettype(arr)) {
+            case ARRAY_INT:
+                res += fprintf(f, "%d%c", arr.iv[i], delim);
+                break;
+            case ARRAY_LONG:
+                res += fprintf(f, "%ld%c", arr.lv[i], delim);
+                break;
+            case ARRAY_DOUBLE:
+                res += fprintf(f, "%12.12f%c", arr.dv[i], delim);
+                break;
+            case ARRAY_POINTER:
+                res += fprintf(f, "%p%c", arr.pv[i], delim);
+                break;
+            case ARRAY_CHAR:
+                res += fprintf(f, "%c%c", arr.iv[i], delim);
+                break;
+            case ARRAY_V64:
+                res += value64_fsave(f, arr.v64[i], arr.v64type, true);
+                break;
+            default:
+                userraise(res = -1, ERR_UNSUPPORTED_TYPE, "Unsupported type %s\n", ArrayGettypeName(arr));
+        }
     }
-    for (int i = 0; i < arr.len; i++)
-        if (Array_isint(arr))
-            res += fprintf(f, "%d%c", arr.iv[i], delim);
-        else if (Array_islong(arr))
-            res += fprintf(f, "%ld%c", arr.lv[i], delim);
-        else if (Array_isdouble(arr))
-            res += fprintf(f, "%12.12f%c", arr.dv[i], delim);
-        else if (Array_ispointer(arr))
-            res += fprintf(f, "%p%c", arr.pv[i], delim);
-        else if (Array_isv64(arr))
-            res += value64_fsave(f, arr.v64[i], arr.v64type, true);
     fclose(f);
     return logret(res, "Done %ld", res);
 }
@@ -1142,13 +1164,13 @@ long                        Array_save(Array arr, const char *fname) {
  * @param in input stream, already opened for reading
  * @return loaded array, or an array with the error flag set
  */
-Array                      ArrayFLoad(FILE *in) {
+/* Array                      ArrayFLoad(FILE *in) {
     invraisecode(ERR_NULLABLE_PTR, in != NULL, "Nullable input");
 
     // TODO: to be refactored to json save/load model
     int         cnt = 0;
     char        typ[20], v64typ[20];   // 20 is magic number OMG
-    //fscanf(f, "ARRAY: %s : %d", typ, &cnt);
+
     if (fscanf(in, "ARRAY: %s / %s : %d ", typ, v64typ, &cnt) != 3)
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Array header wrong format");
 
@@ -1174,6 +1196,54 @@ Array                      ArrayFLoad(FILE *in) {
     
     if (fscanf(in, "ARRAY: %19s", typ) != 1 || strcmp(typ, "DONE") != 0)
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Wrong final piece '%s'", typ);
+    return arr;
+} */
+Array                           ArrayFLoad(FILE *in) {
+    invraisecode(ERR_NULLABLE_PTR, in != NULL, "Nullable input");
+
+    int         cnt = 0;
+    char        typ[20], v64typ[20] = "";   // 20 is magic number OMG
+
+    // Read header: "ARRAY: <type> / <v64type> : <count>"
+    if (fscanf(in, "ARRAY: %s / %s : %d ", typ, v64typ, &cnt) != 3)
+        userraiseint(ERR_WRONG_INPUT_FORMAT, "Array header wrong format");
+
+    Array arr = Array_init(cnt);
+    ArrayType atype = Array_type_from_name(typ);
+
+    switch (atype) {
+        case ARRAY_V64: {
+            value64_type vt = value64_gettype(v64typ);
+            if (vt == VALUE64_UNKNOWN)
+                userraiseint(ERR_WRONG_INPUT_FORMAT, "Array header V64 wrong format '%s'", v64typ);
+            arr = V64Array_create(cnt, ARRAY_FILLTYPE_NONE, vt);
+            break;
+        }
+        case ARRAY_INT:
+            arr = IArray_create(cnt, ARRAY_FILLTYPE_NONE);
+            break;
+        case ARRAY_LONG:
+            arr = LArray_create(cnt, ARRAY_FILLTYPE_NONE);
+            break;
+        case ARRAY_DOUBLE:
+            arr = DArray_create(cnt, ARRAY_FILLTYPE_NONE);
+            break;
+        case ARRAY_POINTER:
+            arr = PArray_create(cnt, ARRAY_FILLTYPE_NONE);
+            break;
+        case ARRAY_CHAR:
+            arr = CArray_create(cnt, ARRAY_FILLTYPE_NONE);
+            break;
+        default:
+            userraiseint(ERR_UNSUPPORTED_TYPE, "Unsupported type '%s'", typ);
+    }
+
+    load_values(in, &arr);
+
+    // Check footer "ARRAY: DONE"
+    if (fscanf(in, "ARRAY: %19s", typ) != 1 || strcmp(typ, "DONE") != 0)
+        userraiseint(ERR_WRONG_INPUT_FORMAT, "Wrong final piece '%s'", typ);
+
     return arr;
 }
 

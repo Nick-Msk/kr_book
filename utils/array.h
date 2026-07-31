@@ -66,6 +66,30 @@ static inline const char        *ArrayFillTypeName(ArrayFillType t){
     }
 }
 
+// TODO: ref to conv table is required
+/**
+ * @brief Converts a type name string (e.g., "ARRAY_INT") to an ArrayType enum.
+ * @param name type name
+ * @return ArrayType value, or ARRAY_UNKNOWN if the name is not recognised
+ */
+static ArrayType Array_type_from_name(const char *name) {
+    if (!name)
+        return ARRAY_UNKNOWN;
+    if (strcmp(name, "ARRAY_INT")     == 0) 
+        return ARRAY_INT;
+    if (strcmp(name, "ARRAY_LONG")    == 0) 
+        return ARRAY_LONG;
+    if (strcmp(name, "ARRAY_DOUBLE")  == 0) 
+        return ARRAY_DOUBLE;
+    if (strcmp(name, "ARRAY_POINTER") == 0) 
+        return ARRAY_POINTER;
+    if (strcmp(name, "ARRAY_CHAR")    == 0) 
+        return ARRAY_CHAR;
+    if (strcmp(name, "ARRAY_V64")     == 0) 
+        return ARRAY_V64;
+    return ARRAY_UNKNOWN;
+}
+
 extern int              g_array_rec_line;
 extern const char      *g_custom_print_line;
 // ------------------- TYPES -----------------------
