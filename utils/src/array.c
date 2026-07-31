@@ -15,6 +15,7 @@ const char              *g_save_format_double    = "%6d      %15.15lg\n";
 const char              *g_save_format_int       = "%6d\t%6d\n";
 const char              *g_save_format_long      = "%6d\t%6ld\n";
 const char              *g_save_format_pointer   = "%6d\t%p\n";
+const char              *g_save_format_char      = "%6d\t%c\n";
 // not possible to format v64 that way!
 const double             g_array_dbl_increment   = 0.01;
 
@@ -38,6 +39,22 @@ static void                     freeelems(Array *arr, int from, int to) {
         logsimple("freed %s  %d - %d", value64_typename(arr->v64type), from, to);
     }
 } 
+static int                      getsize(const Array *arr) {
+    invraisecode(ERR_NULLABLE_PTR, arr != NULL, "Null pointer");
+    int         elem_size = 0;
+    ArrayType   typ = ArrayGetV64mappedType(*arr);
+    switch (typ) {
+        case ARRAY_INT:     elem_size = sizeof(int);        break;
+        case ARRAY_LONG:    elem_size = sizeof(long);       break;
+        case ARRAY_DOUBLE:  elem_size = sizeof(double);     break;
+        case ARRAY_POINTER: elem_size = sizeof(void*);      break;
+        case ARRAY_CHAR:    elem_size = sizeof(char);       break;
+        case ARRAY_V64:     elem_size = sizeof(value64);    break;
+        default:
+            return logsimpleret(-1, "Unknown type %d", typ);
+    }
+    return elem_size;
+}
 /// @brief increase or descrease size of array
 /// @param arr pointer to array
 /// @param newsz new size
@@ -51,19 +68,8 @@ static int                      increase(Array *arr, int newsz){
     if (newsz > arr->sz)
         newsz = round_up_2(newsz);
 
-    int bytes = newsz;
-    // TODO: that need to be ref!
-    if (Array_isint(*arr))
-        bytes *= sizeof(int);
-    else if (Array_islong(*arr))
-        bytes *= sizeof(long);
-    else if (Array_isdouble(*arr))
-        bytes *= sizeof(double);
-    else if (Array_ispointer(*arr))
-        bytes *= sizeof(void *);
-    else if (Array_isv64(*arr))
-        bytes *= sizeof(value64);
-    else
+    int bytes = newsz * getsize(arr);
+    if (bytes < 0) 
         return logerr(-1, "Unknown type");
 
     if (newsz < arr->len)
@@ -133,6 +139,17 @@ static inline void set_pointer_element(Array a, int i, void *val) {
         a.pv[i] = val;
 }
 /**
+ * @brief Writes a pointer into an array (plain or value64).
+ * @see set_int_element
+ */
+static inline void set_char_element(Array a, int i, char val) {
+    if (Array_isv64(a))
+        //a.v64[i] = value64_createptr(val);
+        userraiseint(ERR_UNSUPPORTED_TYPE, "V64 container don't support char type for now");
+    else
+        a.cv[i] = val;
+}
+/**
  * @brief Writes an fs value into a value64 array.
  *
  * The array must be a value64 array (Array_isv64).  The fs object is
@@ -186,8 +203,12 @@ static bool                 load_values(FILE *restrict in, Array *restrict arr) 
             case ARRAY_POINTER:
                 fscanf(in, "%d %p\n", &tmp, arr->pv + i);
                 break;
+            case ARRAY_CHAR:
+                fscanf(in, "%d %c\n", &tmp, arr->cv + i);
+                break;
             case ARRAY_V64:
                 value64_fload(in, &arr->v64[i], arr->v64type, true, NULL);
+                break;
         }
     }
     return true;
@@ -218,8 +239,12 @@ static long                 save_values(FILE *restrict out, const Array *restric
             case ARRAY_POINTER:
                 res += fprintf(out, g_save_format_pointer, i, arr->pv[i]);
                 break;
+            case ARRAY_CHAR:
+                res += fprintf(out, g_save_format_char, i, arr->cv[i]);
+                break;
             case ARRAY_V64:
                 res += value64_fsave(out, arr->v64[i], arr->v64type, true);
+                break;
         }
     return res;
 }
@@ -249,11 +274,6 @@ Array                           Array_create(int cnt, ArrayFillType filltyp, Arr
 void                            Array_free(Array *val){
     if (val)        // Array_free must not failed even if val == NULL
         increase(val, 0);
-    /*if (val && val->iv){
-        freeelems(val, 0, val->len);
-        free(val->iv);
-        val->iv = 0;
-    }*/
 }
 /// @brief        Array filler (formatter) using fill type
 /// @param a  Array (by value now, will be reworked)
@@ -264,25 +284,35 @@ int                             Array_fill(Array a, ArrayFillType typ){
     return Array_fillrange(a, typ, 0, a.len);
 }
 /// @brief      int incrementer (or dec)
-/// @param val  int value 
+/// @param val  int value pointer
 /// @param sign sign (1/-1) 
 /// @return adjusted value
 static inline int               incintrnd(int *val, int sign){
     return (*val += sign * (rndint(10) + 1) );
 }
 /// @brief      long incrementer (or dec)
-/// @param val  long value 
+/// @param val  long value pointer
 /// @param sign sign (1/-1) 
 /// @return adjusted value
 static inline long              inclongrnd(long *val, int sign){
     return (*val += sign * (rndlong(10) + 1) );
 }
 /// @brief       double incrementer (or dec)
-/// @param val   double value
+/// @param val   double value pointer
 /// @param sign  sign (1/-1) 
 /// @return adjusted value
 static inline double           incdoublernd(double *val, int sign){
     return (*val += sign * (rnddbl(10) + g_array_dbl_increment) );
+}
+/// @brief       char incrementer (or dec)
+/// @param val   char value pointer
+/// @param sign  sign (1/-1) 
+/// @return adjusted value or OUT_OF_RANGE exception
+/// @note low level (no NULL pointer checking)
+static inline char             incchar(char *val, int sign){
+    if ( (toupper(*val) <= 'A' && sign > 0) || (toupper(*val) >= 'Z' && sign > 0) )
+        userraiseint(ERR_OUT_OF_RANGE, "Out of range %c with direction %d", *val, sign);
+    return (*val += sign * 1);  // just 1, no random here
 }
 /// @brief        const char* incrementer
 /// @param s      buffer fs pointer 
@@ -322,6 +352,12 @@ static int                      Array_fillrange_ASC(Array a, int from, int to){
             double val = 0.0;
             for (int i = from; i < to; i++, incdoublernd(&val, 1) )
                 set_double_element(a, i, val);
+            break;
+        }
+        case ARRAY_CHAR: {
+            char val = 'a';
+            for (int i = from; i < to; i++, incchar(&val, 1) )
+                set_char_element(a, i, val);
             break;
         }
         // V64, which not mapped to ARRAY_TYPES
@@ -384,6 +420,12 @@ static int                      Array_fillrange_DESC(Array a, int from, int to){
                 set_double_element(a, i, val);
             break;
         }
+        case ARRAY_CHAR: {
+            char val = 'z';
+            for (int i = from; i < to; i++, incchar(&val, -1) )
+                set_char_element(a, i, val);
+            break;
+        }
         // V64, which not mapped to ARRAY_TYPES
         case ARRAY_UNKNOWN: {
             switch (a.v64type) {
@@ -442,6 +484,10 @@ static int                      Array_fillrange_ZERO(Array a, int from, int to){
         case ARRAY_POINTER:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
                 set_pointer_element(a, i, NULL);
+            break;
+        case ARRAY_CHAR:
+            for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
+                set_char_element(a, i, '\0');
             break;
         // not real type => container v64
         case ARRAY_UNKNOWN: {
@@ -760,7 +806,7 @@ int                         ArrayBsearchIntCommon(Array arr, int val, bool acs) 
     if (arr.len == 0)
         return -1;
     pointer_comparator cmp = acs ? pint_cmp : pint_revcmp;
-    int *found = (int*)bsearch(&val, arr.iv, arr.len, sizeof(int), cmp);
+    const int *found = (const int*) bsearch(&val, arr.iv, arr.len, sizeof(int), cmp);
     return found ? (int)(found - arr.iv) : -1;
 }
 
@@ -779,7 +825,7 @@ int                         ArrayBsearchLongCommon(Array arr, long val, bool acs
     if (arr.len == 0)
         return -1;
     pointer_comparator cmp = acs ? plong_cmp : plong_revcmp;
-    long *found = (long*)bsearch(&val, arr.lv, arr.len, sizeof(long), cmp);
+    const long *found = (const long*) bsearch(&val, arr.lv, arr.len, sizeof(long), cmp);
     return found ? (int)(found - arr.lv) : -1;
 }
 
@@ -798,9 +844,28 @@ int                         ArrayBsearchDblCommon(Array arr, double val, bool ac
     if (arr.len == 0)
         return -1;
     pointer_comparator cmp = acs ? pdbl_cmp : pdbl_revcmp;    
-    double *found = (double*)bsearch(&val, arr.dv, arr.len, sizeof(double), cmp);
+    const double *found = (const double*)bsearch(&val, arr.dv, arr.len, sizeof(double), cmp);
     return found ? (int)(found - arr.dv) : -1;
 }
+/**
+ * @brief Binary search for a double in a sorted DOUBLE array.
+ *
+ * The array must be of type ARRAY_DOUBLE and sorted in ascending order.
+ *
+ * @param arr array (by value)
+ * @param val value to search for
+ * @return index of the found element (>=0), or -1 if not found
+ */
+int                         ArrayBsearchCharCommon(Array arr, char val, bool acs) {
+    if (!Array_isdouble(arr))
+        userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchDbl requires ARRAY_DOUBLE");
+    if (arr.len == 0)
+        return -1;
+    pointer_comparator  cmp = acs ? pchar_cmp : pchar_revcmp;    
+    const               char *found = (const char *) bsearch(&val, arr.cv, arr.len, sizeof(char), cmp);
+    return found ? (int)(found - arr.cv) : -1;
+}
+
 
 /**
  * @brief Binary search for a value64 in a sorted V64 array.

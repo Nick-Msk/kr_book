@@ -36,12 +36,13 @@ typedef enum ArrayType{
     ARRAY_INT       = 0x2,
     ARRAY_LONG      = 0x3,
     ARRAY_POINTER   = 0x4,
-    ARRAY_V64       = 0x5,      // value64 port
+    ARRAY_CHAR      = 0x5,       // to supply c-str/fs => Array conversion
+    ARRAY_V64       = 0x11,      // value64 port => change to 17
     ARRAY_ERROR     = 0x100
 } ArrayType;
 
 static inline const char        *ArrayTypeName(ArrayType t){
-    switch (t & (ARRAY_DOUBLE | ARRAY_INT | ARRAY_POINTER | ARRAY_ERROR) ){
+    switch (t & (ARRAY_DOUBLE | ARRAY_INT | ARRAY_LONG | ARRAY_POINTER | ARRAY_ERROR | ARRAY_CHAR | ARRAY_V64) ){
         CASE_RETURN(ARRAY_DOUBLE);
         CASE_RETURN(ARRAY_INT);
         CASE_RETURN(ARRAY_LONG);
@@ -80,6 +81,7 @@ typedef struct {
         long    *lv;
         double  *dv;
         void   **pv;    // pointer array
+        char    *cv;    // char array, NOT a char * array!
         value64 *v64;   // container type
     };
 } Array;
@@ -95,7 +97,10 @@ typedef         void (*Array_proc)(Array arr, int pos);
 #define                         LArray_init(...) (Array){.len = 0, .sz = 0, .lv = 0, .flags = ARRAY_LONG, __VA_ARGS__}
 #define                         DArray_init(...) (Array){.len = 0, .sz = 0, .dv = 0, .flags = ARRAY_DOUBLE, __VA_ARGS__}
 #define                         PArray_init(...) (Array){.len = 0, .sz = 0, .iv = 0, .flags = ARRAY_POINTER, __VA_ARGS__}
+#define                         CArray_init(...) (Array){.len = 0, .sz = 0, .iv = 0, .flags = ARRAY_CHAR, __VA_ARGS__}
+// this iv V64 container
 #define                         V64Array_init(...) (Array){.len = 0, .sz = 0, .iv = 0, .flags = ARRAY_V64, __VA_ARGS__}
+// 
 #define                         Array_init(...)  (Array){.len = 0, .sz = 0, .iv = 0, .flags = 0, __VA_ARGS__}
 #define                         Arrayfree(x)({ Array_free(&(x)); (x).iv = 0; })
 
@@ -116,6 +121,10 @@ static inline Array             DArray_create(int cnt, ArrayFillType typ){
 static inline Array             PArray_create(int cnt, ArrayFillType typ){
     return Array_create(cnt, typ, ARRAY_POINTER, VALUE64_UNKNOWN);
 }
+static inline Array             CArray_create(int cnt, ArrayFillType typ){
+    return Array_create(cnt, typ, ARRAY_CHAR, VALUE64_UNKNOWN);
+}
+// V64 container
 static inline Array             V64Array_create(int cnt, ArrayFillType typ, value64_type vt){
     return Array_create(cnt, typ, ARRAY_V64, vt);
 }
@@ -123,6 +132,7 @@ static inline Array             V64Array_create(int cnt, ArrayFillType typ, valu
 
 // -------------- ACCESS AND MODIFICATION --------------
 static inline bool              Array_isv64(Array a);
+static inline bool              Array_ischar(Array a);
 
 static inline int               Array_gettype(Array a) {
     return a.flags & 0xFF;
@@ -188,6 +198,12 @@ static inline bool              Array_isdouble(Array a){
 static inline bool              Array_ispointer(Array a){
     return Array_gettype(a) == ARRAY_POINTER;
 }
+/// @brief check if array is CHAR
+/// @param a array
+/// @return true if CHAR
+static inline bool              Array_ischar(Array a){
+    return Array_gettype(a) == ARRAY_CHAR;
+}
 /// @brief check if array is VALUE64
 /// @param a array
 /// @return true if VALUE64
@@ -212,7 +228,7 @@ static inline Array             Array_seterror(Array a){
 /// @return true if ok 
 static inline bool              Array_isvalid(Array a){
     return ( ( !(a.flags & ARRAY_ERROR) && a.flags &
-            (ARRAY_INT | ARRAY_LONG | ARRAY_DOUBLE | ARRAY_POINTER | ARRAY_V64
+            (ARRAY_INT | ARRAY_LONG | ARRAY_DOUBLE | ARRAY_POINTER | ARRAY_CHAR | ARRAY_V64
             ) ) > 0) && a.sz >= a.len && a.len >= 0 && a.iv != 0;
 }
 /// @brief get array length (count of formatted values)
@@ -270,6 +286,14 @@ static inline int               ArrayBsearchDbl(Array arr, double val) {
 }
 static inline int               ArrayBsearchDblRev(Array arr, double val) {
     return ArrayBsearchDblCommon(arr, val, false);
+}
+// char
+extern int                      ArrayBsearchCharCommon(Array arr, char val, bool acs);
+static inline int               ArrayBsearchChar(Array arr, char val) {
+    return ArrayBsearchCharCommon(arr, val, true);
+}
+static inline int               ArrayBsearchCharRev(Array arr, char val) {
+    return ArrayBsearchCharCommon(arr, val, false);
 }
 // V64
 extern int                      ArrayBsearchV64Common(Array arr, value64 val, bool acs);
