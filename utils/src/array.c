@@ -1064,33 +1064,57 @@ long                        Array_savevalues(Array arr, const char *fname, char 
     if (!f)
         return logerr(-1, "Can't open '%s' for writing", fname);
 
-    long res = 0;
+    long    total_written = 0;
+    int     typ = Array_gettype(arr), status = 0;
+
     for (int i = 0; i < arr.len; i++) {
-        switch (Array_gettype(arr)) {
+        if (i > 0) {
+            if (fputc(delim, f) == EOF) {
+                status = -1;
+                break;
+            }
+            total_written++;
+        }
+        int     written = 0;
+        switch (typ) {
             case ARRAY_INT:
-                res += fprintf(f, "%d%c", arr.iv[i], delim);
+                written = fprintf(f, "%d", arr.iv[i]);
                 break;
             case ARRAY_LONG:
-                res += fprintf(f, "%ld%c", arr.lv[i], delim);
+                written = fprintf(f, "%ld", arr.lv[i]);
                 break;
             case ARRAY_DOUBLE:
-                res += fprintf(f, "%12.12f%c", arr.dv[i], delim);
+                written = fprintf(f, "%12.12lf", arr.dv[i]);
                 break;
             case ARRAY_POINTER:
-                res += fprintf(f, "%p%c", arr.pv[i], delim);
+                written = fprintf(f, "%p", arr.pv[i]);
                 break;
             case ARRAY_CHAR:
-                res += fprintf(f, "%c%c", arr.iv[i], delim);
+                written = fprintf(f, "%c", arr.iv[i]);
                 break;
             case ARRAY_V64:
-                res += value64_fsave(f, arr.v64[i], arr.v64type, true);
+                written = value64_fsave(f, arr.v64[i], arr.v64type, true);
                 break;
             default:
-                userraise(res = -1, ERR_UNSUPPORTED_TYPE, "Unsupported type %s\n", ArrayGettypeName(arr));
+                fclose(f);
+                return userraise(-1, ERR_UNSUPPORTED_TYPE, "Unsupported type %s\n", ArrayGettypeName(arr));
         }
+        if (written < 0) {
+            status = -1;
+            break;
+        }
+        total_written += written;
     }
-    fclose(f);
-    return logret(res, "Done %ld", res);
+    if (status != 0) {
+        fclose(f);
+        return logerr(-1, "Write error in '%s'", fname);
+    }
+
+    if (fclose(f) != 0) {
+        return logerr(-1, "Error closing file '%s'", fname);
+    }
+
+    return logret(total_written, "Done %ld", total_written);
 }
 
 /**
@@ -1150,41 +1174,6 @@ long                        Array_save(Array arr, const char *fname) {
  * @param in input stream, already opened for reading
  * @return loaded array, or an array with the error flag set
  */
-/* Array                      ArrayFLoad(FILE *in) {
-    invraisecode(ERR_NULLABLE_PTR, in != NULL, "Nullable input");
-
-    // TODO: to be refactored to json save/load model
-    int         cnt = 0;
-    char        typ[20], v64typ[20];   // 20 is magic number OMG
-
-    if (fscanf(in, "ARRAY: %s / %s : %d ", typ, v64typ, &cnt) != 3)
-        userraiseint(ERR_WRONG_INPUT_FORMAT, "Array header wrong format");
-
-    Array       arr = Array_init(cnt);
-    if (strcmp(typ, "ARRAY_V64") == 0) {
-        value64_type vt = value64_gettype(v64typ);
-        if (vt == VALUE64_UNKNOWN)
-            userraiseint(ERR_WRONG_INPUT_FORMAT, "Array header V64 wrong format '%s'", v64typ);
-        arr = V64Array_create(cnt, ARRAY_FILLTYPE_NONE, vt);
-    } 
-    else if (strcmp(typ, "ARRAY_INT") == 0)
-        arr = IArray_create(cnt, ARRAY_FILLTYPE_NONE);
-    else if (strcmp(typ, "ARRAY_LONG") == 0)
-        arr = LArray_create(cnt, ARRAY_FILLTYPE_NONE);
-    else if (strcmp(typ, "ARRAY_DOUBLE") == 0)
-        arr = DArray_create(cnt, ARRAY_FILLTYPE_NONE);
-    else if (strcmp(typ, "ARRAY_POINTER") == 0)
-        arr = PArray_create(cnt, ARRAY_FILLTYPE_NONE);
-    else 
-        userraiseint(ERR_UNSUPPORTED_TYPE, "Unsupported format %s\n", typ);
-    
-    load_values(in, &arr);
-    
-    if (fscanf(in, "ARRAY: %19s", typ) != 1 || strcmp(typ, "DONE") != 0)
-        userraiseint(ERR_WRONG_INPUT_FORMAT, "Wrong final piece '%s'", typ);
-    return arr;
-} */
-
 Array                           ArrayFLoad(FILE *in) {
     invraisecode(ERR_NULLABLE_PTR, in != NULL, "Nullable input");
 
