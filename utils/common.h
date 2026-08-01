@@ -34,9 +34,14 @@ static inline int               countstrings(const char * const *p){
 }
 
 static inline const char        *skip_leading_spaces(const char *str) {
-    while (*str == ' ' || *str == '\t')
+    while ((unsigned char) *str == ' ' || (unsigned char) *str == '\t')
         str++;
     return str;
+}
+static inline const char        *skip_leading_spaces_nl(const char *data) {
+    while (*data && isspace( (unsigned char) *data))
+        data++;
+    return data;
 }
 
 static const char 	NULLSTR[] = "(null)";
