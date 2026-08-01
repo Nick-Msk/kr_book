@@ -227,7 +227,8 @@ static bool                 load_values(FILE *restrict in, Array *restrict arr) 
 static long                 save_values(FILE *restrict out, const Array *restrict arr) {
     long        total = 0L;
     ArrayType   typ = Array_gettype(*arr);
-    for (int i = 0; i < arr->len; i++)
+    //for (int i = 0; i < arr->len; i++)
+    Array_pforeach_idx(arr, i)
         switch (typ) {
             case ARRAY_INT:
                 IOCHECKER(written, fprintf(out, g_save_format_int, i, arr->iv[i]) )
@@ -250,6 +251,8 @@ static long                 save_values(FILE *restrict out, const Array *restric
                     total += written;
                 break;
             case ARRAY_V64:
+                IOCHECKER(written, fprintf(out, "%6d\t", i) )   // to supply format
+                    total += written;
                 IOCHECKER(written, value64_fsave(out, arr->v64[i], arr->v64type, true) )
                     total += written;
                 break;
@@ -288,9 +291,13 @@ static long                 serialize_values(fs *restrict s, const Array *restri
             case ARRAY_CHAR:
                 total += fs_sprintf_concat(s, g_save_format_char, i, arr->cv[i]);
                 break;
-            case ARRAY_V64:
-                total += value64_tostr(s, arr->v64[i], arr->v64type, VALUE64_2STR);
+            case ARRAY_V64: {
+                fs tmp = FS();      // TODO: rework to append logic
+                total += value64_tostr(&tmp, arr->v64[i], arr->v64type, VALUE64_2STR);
+                fs_cat(s, tmp);
+                fsfree(tmp);
                 break;
+            }
             default:
                 logsimple("Unknown type %s", ArrayTypeName(typ));
                 break;
@@ -342,18 +349,26 @@ static long             loadfs_values(const char *restrict initdata, Array *rest
                     return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Can't parse double value");
                 data = endptr;                break;
             case ARRAY_CHAR:
-                if (sscanf(data, "%c", &arr->cv[i]) < 0) 
-                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Can't parse char value");
-                data++;
+                data = skip_leading_spaces_nl(data);
+                
+                if (*data == '\0') 
+                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Unexpected EO Line");
+
+                arr->cv[ind] = *data; // Используем ind!
+                data++; 
+
+                // Пропускаем пробелы после символа, чтобы подготовить data к следующему strtol
+                data = skip_leading_spaces_nl(data);
                 break;
-            case ARRAY_V64:
+            case ARRAY_V64: {
                 // TODO:
-                //n = value64_fromstr(in, &arr->v64[i], arr->v64type, true, NULL);
+                //int cnt = value64_fromstr(in, &arr->v64[i], arr->v64type, true);
+
                 break;
+            }
             default:
                 return userraise(-1, ERR_UNSUPPORTED_TYPE, "%d", typ);   // unsupported type
         }
-        // while (*data == ' ' || *data == '\n' || *data == '\r') data++;
     }
     return data - initdata; // total read
 }
