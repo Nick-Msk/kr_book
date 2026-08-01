@@ -120,12 +120,15 @@ bool                    getconvstring(FILE *restrict in, fs *restrict str, bool 
                 skipped_first = true;
                 first_found = true;
                 continue;
+            } else {
+                elemend(iter);
+                return userraise(false, ERR_WRONG_INPUT_FORMAT, "Missing opening quote");
             }
         }
         if (c == '\\') {
             int tmp = getc(in);
             if (tmp != EOF)
-                c = charconv(c);
+                c = charconv(tmp);
             else
                 break; // EOF after /с
         }
@@ -133,11 +136,12 @@ bool                    getconvstring(FILE *restrict in, fs *restrict str, bool 
     }
     // skip last '"' if removequot
     if (removequot && iter.pos > 0) {
-        if ( (c = str->v[iter.pos - 1] ) == '"')
+        int last_char = str->v[iter.pos - 1];
+        if (last_char == '"')
             iter.pos--;
         else if (first_found) {
             elemend(iter);
-            return userraise(false, ERR_WRONG_INPUT_FORMAT, "No trailed \" found, instead '%c'", c);
+            return userraise(false, ERR_WRONG_INPUT_FORMAT, "No trailed \" found, instead '%c'", last_char);
         }
     }
     elemend(iter);
