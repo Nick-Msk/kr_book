@@ -416,7 +416,7 @@ extern int                      Array_foreach_rev_proc(Array arr, Array_cond con
 #define PArray_foreach(arr, elem)   _Array_foreach_gen((arr).pv, (arr).len, elem)
 #define V64Array_foreach(arr, elem) _Array_foreach_gen((arr).v64, (arr).len, elem)
 
-// ----------------- PRINTERS ----------------------
+// ----------------- PRINTERS/SERIALYZATION ----------------------
 
 extern int                      Array_fprint(FILE *f, Array val, int limit);
 
@@ -431,6 +431,9 @@ extern Array                    ArrayFLoad(FILE *in);
 
 // save only values by delimeter
 extern long                     Array_savevalues(Array arr, const char *fname, char delim);
+
+extern long                     ArraySerialyze(fs *s, const Array *arr);
+extern long                     ArrayLoadfs(const fs *s, Array *arr); 
 
 // ------------------ ETC. -------------------------
 

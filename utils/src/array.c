@@ -224,29 +224,38 @@ static bool                 load_values(FILE *restrict in, Array *restrict arr) 
  * @return number of bytes written
  */
 static long                 save_values(FILE *restrict out, const Array *restrict arr) {
-    long        res = 0L;
+    long        total = 0L;
+    ArrayType   typ = Array_gettype(*arr);
     for (int i = 0; i < arr->len; i++)
-        switch (Array_gettype(*arr)) {
+        switch (typ) {
             case ARRAY_INT:
-                res += fprintf(out, g_save_format_int, i, arr->iv[i]);
+                IOCHECKER(written, fprintf(out, g_save_format_int, i, arr->iv[i]) )
+                    total += written;
                 break;
             case ARRAY_LONG:
-                res += fprintf(out, g_save_format_long, i, arr->lv[i]);
+                IOCHECKER(written, fprintf(out, g_save_format_long, i, arr->lv[i]) )
+                    total += written;
                 break;
             case ARRAY_DOUBLE:
-                res += fprintf(out, g_save_format_double, i, arr->dv[i]);
+                IOCHECKER(written, fprintf(out, g_save_format_double, i, arr->dv[i]) )
+                    total += written;
                 break;
             case ARRAY_POINTER:
-                res += fprintf(out, g_save_format_pointer, i, arr->pv[i]);
+                IOCHECKER(written, fprintf(out, g_save_format_pointer, i, arr->pv[i]) )
+                    total += written;
                 break;
             case ARRAY_CHAR:
-                res += fprintf(out, g_save_format_char, i, arr->cv[i]);
+                IOCHECKER(written, fprintf(out, g_save_format_char, i, arr->cv[i]) )
+                    total += written;
                 break;
             case ARRAY_V64:
-                res += value64_fsave(out, arr->v64[i], arr->v64type, true);
+                IOCHECKER(written, value64_fsave(out, arr->v64[i], arr->v64type, true) )
+                    total += written;
+                break;
+            default:
                 break;
         }
-    return res;
+    return total;
 }
 
 // -------------------------- (Utility) printers -------------------
@@ -1129,18 +1138,22 @@ long                        Array_savevalues(Array arr, const char *fname, char 
  * @param arr array (by value)
  * @return number of bytes written
  */
-long                        ArrayFSave(FILE *out, Array arr) {
-    long res = 0L;
-    if (out) {
-        // g_save_format_double g_save_format_int
-        const char  *typ = ArrayTypeName(arr.flags);
 
-        res = fprintf(out, "ARRAY: %s / %s : %d\n", typ, 
-                    Array_isv64(arr) ? ArrayGetV64typeName(arr) : "NONV64_TYPE", arr.len);
-        res += save_values(out, &arr);
-        res += fprintf(out, "ARRAY: DONE\n");
-    }
-    return res;
+long                        ArrayFSave(FILE *out, Array arr) {  
+    if (!out)
+        return logsimpleret(0L, "Output is null"); 
+
+    long        total_written = 0L;
+    const char  *typ = ArrayTypeName(arr.flags);
+    const char  *v64_type  = Array_isv64(arr) ? ArrayGetV64typeName(arr) : "NONV64_TYPE";
+
+    IOCHECKER(written, fprintf(out, "ARRAY: %s / %s : %d\n", typ, v64_type, arr.len) )
+        total_written += written;
+    IOCHECKER(written, save_values(out, &arr) )
+        total_written += written;
+    IOCHECKER(written, fprintf(out, "ARRAY: DONE\n") )
+        total_written += written;
+    return total_written;
 }
 
 /**
@@ -1160,9 +1173,12 @@ long                        Array_save(Array arr, const char *fname) {
         return userraise(ERR_UNABLE_OPEN_FILE_WRITE, -1, "Can't open '%s' for write", fname);
 
     long        res = ArrayFSave(out, arr);
-
     fclose(out);
-    return logret(res, "Done %ld", res);
+
+    if(res < 0)
+        return logerr(res, "Unable to save array");
+    else
+        return logret(res, "Done %ld", res);
 }
 
 /**
@@ -1249,6 +1265,14 @@ Array                       Array_load(const char *fname) {
     fclose(in);
     return logret(arr, "Done %d", arr.len);
 }
+
+// -------------------------- (API) serialization -----------------------
+
+long                        ArraySerialyze(fs *s, const Array *arr) {
+
+
+}
+
 // -------------------------------Testing --------------------------
 
 #ifdef ARRAYTESTING
