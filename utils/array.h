@@ -513,7 +513,7 @@ extern long                     Array_savevalues(Array arr, const char *fname, c
  * @return    number of characters written, or 0 if `s` is NULL
  */
 
-extern long                     ArraySerialyze(fs *s, const Array *arr);
+extern long                     ArraySerialize(fs *restrict s, const Array *restrict arr);
 /**
  * @brief Deserializes an array from a fs previously created by ArraySerialyze().
  *
@@ -521,7 +521,7 @@ extern long                     ArraySerialyze(fs *s, const Array *arr);
  * @param arr pointer to the array to fill (must be already initialized with the correct type)
  * @return    number of characters consumed, or 0 on error
  */
-extern long                     ArrayLoadfs(const fs *s, Array *arr); 
+extern long                     ArrayLoadfs(const fs *restrict s, Array *restrict arr); 
 
 // ------------------ ETC. -------------------------
 

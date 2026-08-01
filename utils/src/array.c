@@ -258,6 +258,46 @@ static long                 save_values(FILE *restrict out, const Array *restric
         }
     return total;
 }
+/**
+ * @brief Writes the array elements into a fs.
+ *
+ * This function outputs only the element data, without header or footer.
+ *
+ * @param out pointer to initialized (via FS() at least) fs
+ * @param arr constant pointer to the array
+ * @return number of bytes written
+ */
+static long                 serialize_values(fs *restrict s, const Array *restrict arr) {
+    long        total = 0L;
+    ArrayType   typ = Array_gettype(*arr);
+    //for (int i = 0; i < arr->len; i++)
+    Array_pforeach_idx(arr, i) {
+        switch (typ) {
+            case ARRAY_INT:
+                total += fs_sprintf_concat(s, g_save_format_int, i, arr->iv[i]);
+                break;
+            case ARRAY_LONG:
+                total += fs_sprintf_concat(s, g_save_format_long, i, arr->lv[i]);
+                break;
+            case ARRAY_DOUBLE:
+                total += fs_sprintf_concat(s, g_save_format_double, i, arr->dv[i]);
+                break;
+            case ARRAY_POINTER:
+                total += fs_sprintf_concat(s, g_save_format_pointer, i, arr->pv[i]);
+                break;
+            case ARRAY_CHAR:
+                total += fs_sprintf_concat(s, g_save_format_char, i, arr->cv[i]);
+                break;
+            case ARRAY_V64:
+                total += value64_tostr(s, arr->v64[i], arr->v64type, VALUE64_2STR);
+                break;
+            default:
+                logsimple("Unknown type %s", ArrayTypeName(typ));
+                break;
+        }
+    }
+    return total;
+}
 
 // -------------------------- (Utility) printers -------------------
 
@@ -1271,9 +1311,18 @@ Array                       Array_load(const char *fname) {
 
 // -------------------------- (API) serialization -----------------------
 
-long                        ArraySerialyze(fs *s, const Array *arr) {
-    // TODO: 
+long                        ArraySerialize(fs *restrict s, const Array *restrict arr) {
+    invraisecode(ERR_NULLABLE_PTR, s != NULL && arr != NULL, 
+            "Fs nullable or arr is null %p %p", s, arr);
 
+    long        total_written = 0L;
+    const char  *typ = ArrayTypeName(arr->flags);
+    const char  *v64_type  = Array_isv64(*arr) ? ArrayGetV64typeName(*arr) : "NONV64_TYPE";
+
+    total_written += fs_sprintf_concat(s, "ARRAY: %s / %s : %d\n", typ, v64_type, arr->len);
+    total_written += serialize_values(s, arr);
+    total_written += fs_sprintf_concat(s, "ARRAY: DONE\n");
+    return total_written;
 }
 
 // -------------------------------Testing --------------------------
