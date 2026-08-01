@@ -189,7 +189,8 @@ static inline void set_v64str_element(Array a, int i, const char *val) {
  */
 static bool                 load_values(FILE *restrict in, Array *restrict arr) {
     int     tmp;
-    for (int i = 0; i < arr->len; i++){
+    //for (int i = 0; i < arr->len; i++){
+    Array_pforeach_idx(arr, i) {
         switch (Array_gettype(*arr)) {
             case ARRAY_INT:
                 fscanf(in, g_save_format_int, &tmp, arr->iv + i);
@@ -981,12 +982,14 @@ int                         ArrayBsearchV64Common(Array arr, value64 val, bool a
 int                         Array_foreach_proc(Array arr, Array_cond cond, Array_proc func){
     // TODO: use foreach here
     int     cnt = 0;
-    for (int i = 0; i < Arraylen(arr); i++)
-        if (cond == 0 || cond(arr, i) ){
+    //for (int i = 0; i < Arraylen(arr); i++)
+    Array_foreach_idx(arr, i) {
+        if (cond == NULL || cond(arr, i) ){
             if (func)
                 func(arr, i);
             cnt++;
         }
+    }
     return logsimpleret(cnt, "processed %d", cnt);
 }
 
@@ -1269,7 +1272,7 @@ Array                       Array_load(const char *fname) {
 // -------------------------- (API) serialization -----------------------
 
 long                        ArraySerialyze(fs *s, const Array *arr) {
-
+    // TODO: 
 
 }
 

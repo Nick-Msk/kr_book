@@ -341,12 +341,70 @@ static inline bool              ArrayEq(const Array *restrict arr1, const Array 
     return !ArrayNoteq(arr1, arr2);
 }
 
+/**
+ * @brief Fills the entire array with values according to a fill type.
+ *
+ * @param arr  array (by value)
+ * @param typ  fill type (e.g. ARRAY_FILLTYPE_ZERO, ARRAY_FILLTYPE_RND, …)
+ * @return     number of filled elements (arr.len)
+ */
 extern int                      Array_fill(Array arr, ArrayFillType typ);
+
+/**
+ * @brief Fills a portion of an array with values according to a fill type.
+ *
+ * The interval [from, to) is filled.  The bounds are normalized if they
+ * are out of range.
+ *
+ * @param a    array (by value)
+ * @param typ  fill type
+ * @param from start index (inclusive)
+ * @param to   end index (exclusive)
+ * @return     number of filled elements (to - from)
+ */
 extern int                      Array_fillrange(Array a, ArrayFillType typ, int from, int to);
+
+/**
+ * @brief Shrinks an array to the given size.
+ *
+ * Elements beyond `newsz` are freed (for owning types like FS/STR).
+ * The length is updated accordingly.
+ *
+ * @param arr   array (by value)
+ * @param newsz new size (must be non‑negative and ≤ current length)
+ * @return      the shrunk array
+ */
 extern Array                    Array_shrink(Array arr, int newsz);
+
+/**
+ * @brief Increases the capacity of an array to accommodate at least `newcnt` elements.
+ *
+ * The array is resized and the newly added area is zero‑filled
+ * (or filled with type‑appropriate empty values).
+ *
+ * @param arr    array (by value)
+ * @param newcnt new minimum capacity
+ * @return       the array with increased capacity
+ */
 extern Array                    Array_increase(Array arr, int newcnt);
 
+/**
+ * @brief Randomly shuffles the elements of an array using the Fisher‑Yates algorithm.
+ *
+ * Works for all array types (INT, LONG, DOUBLE, POINTER, CHAR, V64).
+ *
+ * @param arr array (by value)
+ */
 extern void                     Array_shuffle(Array arr);
+/**
+ * @brief Sorts the array in ascending or descending order.
+ *
+ * Uses the standard qsort() with type‑specific comparators.
+ * For ARRAY_V64 the comparator is chosen according to the stored v64type.
+ *
+ * @param arr array (by value)
+ * @param ord sort order (ARRAY_FILLTYPE_ASC or ARRAY_FILLTYPE_DESC)
+ */
 extern void                     Array_qsort(Array arr, ArrayFillType ord);
 // ---------------------------- binary searchers --------------------------------
 // int
@@ -407,7 +465,19 @@ extern int                      Array_foreach_rev_proc(Array arr, Array_cond con
  #define                         _Array_foreach_rev_gen(p, len, elem) \
     for (typeof_unqual(*(p)) *_begin_ = (p) + (len) - 1, *(elem) = _begin_; \
          (elem) >= _begin_ ; \
-         --(elem))        
+         --(elem))  
+// Использование:
+// Array_foreach_idx(my_array, i);
+#define Array_foreach_idx(arr, i) \
+    for (int i = 0; i < (arr).len; ++i) 
+// Array_foreach_idx_rev(my_array, i); 
+#define Array_foreach_idx_rev(arr, i) \
+    for (int i = (arr).len - 1; i >= 0; --i)  
+#define Array_pforeach_idx(arr, i) \
+    for (int i = 0; i < (arr)->len; ++i) 
+// Array_foreach_idx_rev(my_array, i); 
+#define Array_pforeach_idx_rev(arr, i) \
+    for (int i = (arr)->len - 1; i >= 0; --i)  
 
 // Публичные однобуквенные макросы
 #define IArray_foreach(arr, elem)   _Array_foreach_gen((arr).iv, (arr).len, elem)
@@ -432,7 +502,25 @@ extern Array                    ArrayFLoad(FILE *in);
 // save only values by delimeter
 extern long                     Array_savevalues(Array arr, const char *fname, char delim);
 
+
+/**
+ * @brief Serializes the whole array into a fast‑string (fs).
+ *
+ * The resulting string can later be deserialized with ArrayLoadfs().
+ *
+ * @param s   target fast‑string (will be modified)
+ * @param arr array to serialize
+ * @return    number of characters written, or 0 if `s` is NULL
+ */
+
 extern long                     ArraySerialyze(fs *s, const Array *arr);
+/**
+ * @brief Deserializes an array from a fs previously created by ArraySerialyze().
+ *
+ * @param s   source fs (not modified)
+ * @param arr pointer to the array to fill (must be already initialized with the correct type)
+ * @return    number of characters consumed, or 0 on error
+ */
 extern long                     ArrayLoadfs(const fs *s, Array *arr); 
 
 // ------------------ ETC. -------------------------
