@@ -6,8 +6,10 @@ LDLIBS=
 
 all:
 
-binsearch.3.1: src/binsearch.3.1.c lib/log.o lib/metric.o lib/common.o lib/checker.o lib/array.o
-	$(CC) $(CFLAGS)  $^ -o out/$@
+#binsearch.3.1: src/binsearch.3.1.c lib/log.o lib/metric.o lib/common.o lib/checker.o lib/array.o
+#	$(CC) $(CFLAGS)  $^ -o out/$@
+binsearch.3.1: src/binsearch.3.1.c  $(UTIL_PATH)/lib/cmutils.a
+	$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
 escape.3.2: src/escape.3.2.c lib/log.o lib/common.o lib/checker.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
