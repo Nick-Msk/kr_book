@@ -38,10 +38,11 @@ static inline const char        *skip_leading_spaces(const char *str) {
         str++;
     return str;
 }
-static inline const char        *skip_leading_spaces_nl(const char *data) {
-    while (*data && isspace( (unsigned char) *data))
-        data++;
-    return data;
+
+static inline const char        *skip_leading_spaces_nl(const char *str) {
+    while (*str && isspace( (unsigned char) *str))
+        str++;
+    return str;
 }
 
 static const char 	NULLSTR[] = "(null)";
