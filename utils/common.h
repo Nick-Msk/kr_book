@@ -538,4 +538,18 @@ extern bool              try_parse_double(const char *restrict str, double *rest
 extern bool              try_parse_uint(const char *restrict str, unsigned *restrict res);
 extern bool              try_parse_ulong(const char *restrict str, unsigned long *restrict res);
 
+// ----------------------------------- IO -------------------------------------
+#define IOCHECKER(w, cmd) \
+    for (int w = (cmd), _once = 1; _once; _once = 0) \
+        if (w < 0) \
+            return userraise(ERR_STREAM_ERROR, -1, "IO error"); \
+        else
+
+#define IOCHECKERACTION(w, cmd, act) \
+    for (int w = (cmd), _once = 1; _once; _once = 0) \
+        if (w < 0) {\
+            (act); \
+            return userraise(ERR_STREAM_ERROR, -1, "IO error"); \
+        } else
+
 #endif /* ! _COMMON_H */
