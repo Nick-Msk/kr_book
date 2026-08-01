@@ -362,7 +362,7 @@ static long             loadfs_values(const char *restrict initdata, Array *rest
                 break;
             case ARRAY_V64: {
                 // TODO:
-                //int cnt = value64_fromstr(in, &arr->v64[i], arr->v64type, true);
+                //int cnt = value64_fromstr(in, &arr->v64[ind], arr->v64type, true);
 
                 break;
             }
