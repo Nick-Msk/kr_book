@@ -70,7 +70,7 @@ static int                      increase(Array *arr, int newsz){
 
     int bytes = newsz * getelemsize(arr);
     if (bytes < 0) 
-        return logerr(-1, "Unknown type");
+        return userraise(-1, ERR_UNKNOWN_TYPE, "Unknown type");
 
     if (newsz < arr->len)
         freeelems(arr, newsz, arr->len);    
@@ -299,6 +299,65 @@ static long                 serialize_values(fs *restrict s, const Array *restri
     return total;
 }
 
+/**
+ * @brief Loads array element values from a text string.
+ *
+ * Reads values from the string pointed to by `*pdata`, advancing the
+ * pointer accordingly.  The array must already be created with the
+ * correct type and length.
+ *
+ * @param pdata pointer to a string pointer
+ * @param arr   pointer to the array to fill
+ * @return count of bytes read
+ */
+static long             loadfs_values(const char *restrict initdata, Array *restrict arr) {
+    const char     *data = initdata;
+    ArrayType       typ = Array_gettype(*arr);
+
+    for (int i = 0; i < arr->len; i++) { // foreach
+        char             *endptr;
+        
+        long             lind = strtol(data, &endptr, 10);
+        if (data == endptr)
+            return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Can't parse index");        
+        if (lind < 0 || lind >= (long) arr->len)
+            return userraise(-1, ERR_OUT_OF_RANGE, "%ld must be between 0 and %d", lind, arr->len);
+        data = endptr;
+        int              ind = lind;
+        switch (typ) {
+            case ARRAY_INT:
+                arr->iv[ind] = strtol(data, &endptr, 10);
+                if (data == endptr)
+                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Can't parse int value");
+                data = endptr;
+                break;
+            case ARRAY_LONG:
+                arr->lv[ind] = strtol(data, &endptr, 10);
+                if (data == endptr)
+                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Can't parse long value");
+                data = endptr;                break;
+            case ARRAY_DOUBLE:
+                arr->dv[ind] = strtod(data, &endptr);
+                if (data == endptr)
+                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Can't parse double value");
+                data = endptr;                break;
+            case ARRAY_CHAR:
+                if (sscanf(data, "%c", &arr->cv[i]) < 0) 
+                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Can't parse char value");
+                data++;
+                break;
+            case ARRAY_V64:
+                // TODO:
+                //n = value64_fromstr(in, &arr->v64[i], arr->v64type, true, NULL);
+                break;
+            default:
+                return userraise(-1, ERR_UNSUPPORTED_TYPE, "%d", typ);   // unsupported type
+        }
+        // while (*data == ' ' || *data == '\n' || *data == '\r') data++;
+    }
+    return data - initdata; // total read
+}
+
 // -------------------------- (Utility) printers -------------------
 
 // --------------------------- API ---------------------------------
@@ -313,10 +372,13 @@ Array                           Array_create(int cnt, ArrayFillType filltyp, Arr
     if (cnt <= 0)
         return logerr(res, "sz = %d", res.sz);
 
-    increase(&res, cnt);
-    res.len = cnt;
-    Array_fill(res, filltyp);
-    return logret(res, "sz = %d", res.sz);
+    if (increase(&res, cnt) < 0)
+        Array_seterror(res);
+    else {
+        res.len = cnt;
+        Array_fill(res, filltyp);
+    }
+    return logret(res, "sz = %d, errors? %s", res.sz, bool_str(Array_iserror(res) ) );
 }
 /// @brief free array
 /// @param val pointer to array
@@ -1323,6 +1385,56 @@ long                        ArraySerialize(fs *restrict s, const Array *restrict
     total_written += serialize_values(s, arr);
     total_written += fs_sprintf_concat(s, "ARRAY: DONE\n");
     return total_written;
+}
+
+long                            ArrayLoadfs(const fs *restrict s, Array *restrict arr) {
+    invraisecode(ERR_NULLABLE_PTR, fs_isnull(s),
+                 "Nullable input %p", (void*) s);
+
+    const char     *base = s->v, *data = base;
+
+    // ---------- 1. Parse header ----------
+    char            typ[ARRAY_MAX_TYPE_STR], v64typ[ARRAY_MAX_TYPE_STR] = "";
+    int             cnt = 0;
+    {
+        int         header_len = 0;
+        if (sscanf(base, "ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s / %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s : %d %n", 
+                typ, v64typ, &cnt, &header_len) != 3) {
+            return userraise(-1, ERR_WRONG_INPUT_FORMAT, "ArrayLoadfs: header mismatch");
+        } 
+        data += header_len;
+    }   
+    
+    // ---------- 2. Create array ----------
+    ArrayType       atype = ArrayTypeFromName(typ);
+    value64_type    vt = value64_gettype(v64typ);
+    // will set error flag if case of anything
+    Array           a = ArrayOnlyCreate(cnt, atype, vt);
+    if (Array_iserror(a) )  // 
+        return userraise(-1, ERR_UNSUPPORTED_TYPE, "ArrayLoadfs: unsupported type '%s'", typ);
+   
+    // ---------- 3. Load values ----------
+    {
+        int         data_len;
+        if ( (data_len = loadfs_values(data, &a) ) < 0) {
+            Arrayfree(a);
+            return userraise(-1, ERR_STREAM_ERROR, "Unable to read values");
+        }
+        data += data_len;
+    }
+
+    // ---------- 4. Check footer ----------
+    {
+        int         footer_len = 0;
+        if (sscanf(data, "ARRAY: DONE%n", &footer_len) != 1) {
+            Arrayfree(a);
+            return userraise(-1, ERR_WRONG_INPUT_FORMAT, "ArrayLoadfs: footer mismatch");
+        }
+        data += footer_len; // shift
+    }
+    if (arr)    // if arr is NULL then dump read
+        *arr = a;
+    return (long)(data - base);
 }
 
 // -------------------------------Testing --------------------------

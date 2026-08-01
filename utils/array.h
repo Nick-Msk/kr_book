@@ -132,7 +132,12 @@ typedef         void (*Array_proc)(Array arr, int pos);
 #define                         Arrayfree(x)({ Array_free(&(x)); (x).iv = 0; })
 
 // --------------- CREATE  and fill --------------------
+
 extern Array                    Array_create(int cnt, ArrayFillType filltyp, ArrayType typ, value64_type vt);
+
+static inline Array             ArrayOnlyCreate(int cnt, ArrayType typ, value64_type vt) {
+    return Array_create(cnt, ARRAY_FILLTYPE_NONE, typ, vt);
+}
 
 extern void                     Array_free(Array *val);
 
@@ -510,7 +515,7 @@ extern long                     Array_savevalues(Array arr, const char *fname, c
  *
  * @param s   target fast‑string (will be modified)
  * @param arr array to serialize
- * @return    number of characters written, or 0 if `s` is NULL
+ * @return    number of characters written, or -1 if `s` failed
  */
 
 extern long                     ArraySerialize(fs *restrict s, const Array *restrict arr);
@@ -518,8 +523,8 @@ extern long                     ArraySerialize(fs *restrict s, const Array *rest
  * @brief Deserializes an array from a fs previously created by ArraySerialyze().
  *
  * @param s   source fs (not modified)
- * @param arr pointer to the array to fill (must be already initialized with the correct type)
- * @return    number of characters consumed, or 0 on error
+ * @param arr pointer to the array to fill or NULL (dump read)
+ * @return    number of characters consumed, or -1 on error
  */
 extern long                     ArrayLoadfs(const fs *restrict s, Array *restrict arr); 
 
