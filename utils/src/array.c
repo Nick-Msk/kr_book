@@ -571,7 +571,7 @@ static int                      Array_fillrange_RND(Array a, int from, int to) {
                 case VALUE64_FS: {
                     fs s = FS();
                     for (int i = from; i < to; i++) {
-                        fs_genrnd(&s, from - to + 1, 'A');
+                        fs_genrnd(&s, to - from + 1, 'A');
                         set_v64fs_element(a, i, &s);  
                     }
                     fsfree(s);
@@ -580,8 +580,8 @@ static int                      Array_fillrange_RND(Array a, int from, int to) {
                 case VALUE64_STR: {
                     fs s = FS();
                     for (int i = from; i < to; i++) {
-                        fs_genrnd(&s, from - to + 1, 'A');
-                        set_v64str_element(a, i, "");
+                        fs_genrnd(&s, to - from + 1, 'A');
+                        set_v64str_element(a, i, fsstr(s) );
                     }
                     fsfree(s);
                     break;
@@ -2452,6 +2452,96 @@ tf_v64array_str_fs(const char *name)
                 fs_len(value64_fs(arr.v64[i])) <= fs_len(value64_fs(arr.v64[i-1])),
                 Arrayfree(arr),
                 "DESC FS: length must be non‑increasing"
+            );
+        }
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    /* ---------- RND заполнение ---------- */
+    test_sub("subtest %d: create RND‑filled STR array", ++subnum);
+    {
+        Array arr = V64Array_create(5, ARRAY_FILLTYPE_RND, VALUE64_STR);
+        test_validatefree(
+            arr.len == 5,
+            Arrayfree(arr),
+            "RND STR array: len=%d (expected 5)", arr.len
+        );
+        // проверяем, что строки непустые
+        for (int i = 0; i < 5; i++) {
+            const char *s = value64_str(arr.v64[i]);
+            logmsg("VALUE64_STR: ARRAY_FILLTYPE_RND: %s", s);
+            test_validatefree(
+                s != NULL && strlen(s) > 0,
+                Arrayfree(arr),
+                "RND STR[%d] must be non‑empty, got '%s'", i, s ? s : "NULL"
+            );
+        }
+    Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: create RND‑filled FS array", ++subnum);
+    {
+        Array arr = V64Array_create(5, ARRAY_FILLTYPE_RND, VALUE64_FS);
+        test_validatefree(
+            arr.len == 5,
+            Arrayfree(arr),
+            "RND FS array: len=%d (expected 5)", arr.len
+        );
+        for (int i = 0; i < 5; i++) {
+            fs *f = value64_fs(arr.v64[i]);
+            logmsg("VALUE64_FS: ARRAY_FILLTYPE_RND: %s", fs_str(f) );
+            test_validatefree(
+                f != NULL && fs_len(f) > 0,
+                Arrayfree(arr),
+                "RND FS[%d] must be non‑empty, got len=%d", i, f ? fs_len(f) : -1
+            );
+        }
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    /* ---------- ASC / DESC с проверкой длин ---------- */
+    test_sub("subtest %d: create ASC‑filled STR (lengths non‑decreasing)", ++subnum);
+    {
+        Array arr = V64Array_create(4, ARRAY_FILLTYPE_ASC, VALUE64_STR);
+        test_validatefree(arr.len == 4, Arrayfree(arr), "len check");
+        for (int i = 1; i < 4; i++) {
+            test_validatefree(
+                strlen(value64_str(arr.v64[i])) >= strlen(value64_str(arr.v64[i-1])),
+                Arrayfree(arr),
+                "ASC STR: length must be non‑decreasing"
+            );
+        }
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    test_sub("subtest %d: create DESC‑filled FS (lengths non‑increasing)", ++subnum);
+    {
+        Array arr = V64Array_create(4, ARRAY_FILLTYPE_DESC, VALUE64_FS);
+        test_validatefree(arr.len == 4, Arrayfree(arr), "len check");
+        for (int i = 1; i < 4; i++) {
+            test_validatefree(
+                fs_len(value64_fs(arr.v64[i])) <= fs_len(value64_fs(arr.v64[i-1])),
+                Arrayfree(arr),
+                "DESC FS: length must be non‑increasing"
+            );
+        }
+        Arrayfree(arr);
+    }
+    fs_alloc_check(true);
+
+    /* ---------- ZERO (пустые строки) ---------- */
+    test_sub("subtest %d: ZERO STR array must have empty strings", ++subnum);
+    {
+        Array arr = V64Array_create(3, ARRAY_FILLTYPE_ZERO, VALUE64_STR);
+        for (int i = 0; i < 3; i++) {
+            test_validatefree(
+                strcmp(value64_str(arr.v64[i]), "") == 0,
+                Arrayfree(arr),
+                "ZERO STR[%d] must be empty", i
             );
         }
         Arrayfree(arr);
