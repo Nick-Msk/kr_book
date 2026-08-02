@@ -339,6 +339,79 @@ tf_ds(const char *name)
         test_validate(c2 == 'X', "After first ungetc, char must be 'X' again");
     }
 
+    /* ========== 9. dsreplacec ========== */
+    test_sub("subtest %d: dsreplacec basic", ++subnum);
+    {
+        Ds ds;
+        char text[] = "Hello";
+        dsInitstr(&ds, text);
+
+        int c1 = dsgetc(&ds);  // 'H'
+        test_validate(c1 == 'H', "First char must be 'H'");
+        // заменяем 'H' на 'X'
+        int ret = dsreplacec('X', &ds);
+        test_validate(ret == 'X', "dsreplacec must return 'X'");
+        // перечитываем с той же позиции
+        int c2 = dsgetc(&ds);
+        test_validate(c2 == 'X', "After replace, char must be 'X'");
+        // следующий символ должен быть 'e'
+        int c3 = dsgetc(&ds);
+        test_validate(c3 == 'e', "Next char must be 'e'");
+    }
+
+    test_sub("subtest %d: dsreplacec with EOF", ++subnum);
+    {
+        Ds ds;
+        char text[] = "AB";
+        dsInitstr(&ds, text);
+        dsgetc(&ds);  // 'A'
+        // замена на EOF должна вернуть EOF и не менять позицию
+        int ret = dsreplacec(EOF, &ds);
+        test_validate(ret == EOF, "dsreplacec(EOF) must return EOF");
+        // повторное чтение должно вернуть 'B'
+        int c = dsgetc(&ds);
+        test_validate(c == 'B', "Next char must be 'B'");
+    }
+
+    test_sub("subtest %d: dsreplacec at pos 0", ++subnum);
+    {
+        Ds ds;
+        char text[] = "XY";
+        dsInitstr(&ds, text);
+        // позиция 0, замена невозможна
+        int ret = dsreplacec('Z', &ds);
+        test_validate(ret == EOF, "dsreplacec at pos 0 must return EOF");
+        // первое чтение должно вернуть 'X'
+        int c = dsgetc(&ds);
+        test_validate(c == 'X', "First char must be 'X'");
+    }
+
+    test_sub("subtest %d: dsreplacec on non‑string sources", ++subnum);
+    {
+        // файловый источник не поддерживает замену
+        const char *fname = "res/ds/test_replace.txt";
+        FILE *fp = fopen(fname, "w");
+        fprintf(fp, "File");
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        Ds ds;
+        dsInitf(&ds, fp);
+        int c = dsgetc(&ds);  // 'F'
+        test_validate(c == 'F', "First file char must be 'F'");
+        int ret = dsreplacec('G', &ds);
+        test_validate(ret == EOF, "dsreplacec on file must return EOF");
+        fclose(fp);
+
+        // константная строка также не поддерживает замену
+        const char *ctext = "Const";
+        dsInitconst(&ds, ctext);
+        c = dsgetc(&ds);  // 'C'
+        test_validate(c == 'C', "First const char must be 'C'");
+        ret = dsreplacec('D', &ds);
+        test_validate(ret == EOF, "dsreplacec on const string must return EOF");
+    }
+
     return logret(TEST_PASSED, "done");
 }
 
