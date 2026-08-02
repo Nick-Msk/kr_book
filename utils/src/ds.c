@@ -183,17 +183,164 @@ int dsTechFPrint(FILE *restrict out, const Ds *restrict ds, int printbufcnt) {
 #include "test.h"
 #include "checker.h"
 
-// ------------------------- TEST 1 ---------------------------------
-
+// ------------------------- TEST Ds (DataSource) -------------------------
 static TestStatus
-tf1(const char *name)
+tf_ds(const char *name)
 {
     logenter("%s", name);
-    int         subnum = 0;
+    int subnum = 0;
+
+    /* ========== 1. Строковый источник: чтение ========== */
+    test_sub("subtest %d: dsgetc from string", ++subnum);
     {
-        test_sub("subtest %d: get values", ++subnum);
+        Ds ds;
+        char text[] = "Hello";
+        dsInitstr(&ds, text);
+
+        test_validate(dsgetc(&ds) == 'H', "First char must be 'H'");
+        test_validate(dsgetc(&ds) == 'e', "Second char must be 'e'");
+        test_validate(dsgetc(&ds) == 'l', "Third char must be 'l'");
+        test_validate(dsgetc(&ds) == 'l', "Fourth char must be 'l'");
+        test_validate(dsgetc(&ds) == 'o', "Fifth char must be 'o'");
+        test_validate(dsgetc(&ds) == EOF, "After end must be EOF");
     }
-    return logret(TEST_PASSED, "done"); // TEST_FAILED
+
+    /* ========== 2. dsungetc для строки ========== */
+    test_sub("subtest %d: dsungetc for string", ++subnum);
+    {
+        Ds ds;
+        char text[] = "AB";
+        dsInitstr(&ds, text);
+
+        int c1 = dsgetc(&ds);  // 'A'
+        test_validate(c1 == 'A', "First char must be 'A'");
+        int ret = dsungetc(c1, &ds);
+        test_validate(ret == 'A', "dsungetc must return 'A'");
+        int c2 = dsgetc(&ds);  // снова 'A'
+        test_validate(c2 == 'A', "After ungetc, char must be 'A' again");
+        int c3 = dsgetc(&ds);  // 'B'
+        test_validate(c3 == 'B', "Next char must be 'B'");
+    }
+
+    /* ========== 3. Константный строковый источник ========== */
+    test_sub("subtest %d: const string source", ++subnum);
+    {
+        Ds ds;
+        const char *text = "World";
+        dsInitconst(&ds, text);
+
+        test_validate(dsgetc(&ds) == 'W', "First char must be 'W'");
+        test_validate(dsgetc(&ds) == 'o', "Second char must be 'o'");
+        test_validate(dsgetc(&ds) == 'r', "Third char must be 'r'");
+        test_validate(dsgetc(&ds) == 'l', "Fourth char must be 'l'");
+        test_validate(dsgetc(&ds) == 'd', "Fifth char must be 'd'");
+        test_validate(dsgetc(&ds) == EOF, "After end must be EOF");
+    }
+
+    /* ========== 4. dsungetc для константной строки ========== */
+    test_sub("subtest %d: dsungetc for const string", ++subnum);
+    {
+        Ds ds;
+        const char *text = "XY";
+        dsInitconst(&ds, text);
+
+        int c1 = dsgetc(&ds);  // 'X'
+        test_validate(c1 == 'X', "First char must be 'X'");
+        dsungetc(c1, &ds);
+        int c2 = dsgetc(&ds);
+        test_validate(c2 == 'X', "After ungetc, char must be 'X' again");
+    }
+
+    /* ========== 5. Файловый источник: чтение ========== */
+    test_sub("subtest %d: file source read", ++subnum);
+    {
+        const char *fname = "res/ds/test_ds_file.txt";
+        FILE *fp = fopen(fname, "w");
+        test_validate(fp != NULL, "Failed to create temporary file");
+        fprintf(fp, "Test");
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        Ds ds;
+        dsInitf(&ds, fp);
+        test_validate(dsgetc(&ds) == 'T', "First char must be 'T'");
+        test_validate(dsgetc(&ds) == 'e', "Second char must be 'e'");
+        test_validate(dsgetc(&ds) == 's', "Third char must be 's'");
+        test_validate(dsgetc(&ds) == 't', "Fourth char must be 't'");
+        test_validate(dsgetc(&ds) == EOF, "After end must be EOF");
+        fclose(fp);
+    }
+
+    /* ========== 6. dsungetc для файла ========== */
+    test_sub("subtest %d: dsungetc for file", ++subnum);
+    {
+        const char *fname = "res/ds/test_ds_ungetc.txt";
+        FILE *fp = fopen(fname, "w");
+        fprintf(fp, "Z");
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        Ds ds;
+        dsInitf(&ds, fp);
+        int c = dsgetc(&ds);
+        test_validate(c == 'Z', "Char must be 'Z'");
+        dsungetc(c, &ds);
+        int c2 = dsgetc(&ds);
+        test_validate(c2 == 'Z', "After ungetc, char must be 'Z' again");
+        fclose(fp);
+    }
+
+    /* ========== 7. dsTechFPrint для строки (вывод в файл) ========== */
+    test_sub("subtest %d: dsTechFPrint for string", ++subnum);
+    {
+        Ds ds;
+        char text[] = "Data";
+        dsInitstr(&ds, text);
+        dsgetc(&ds);  // 'D'
+        dsgetc(&ds);  // 'a'
+
+        const char *fname = "res/ds/test_techprint.txt";
+        FILE *out = fopen(fname, "w");
+        dsTechFPrint(out, &ds, 10);
+        fclose(out);
+
+        char buf[128];
+        FILE *in = fopen(fname, "r");
+        size_t n = fread(buf, 1, sizeof(buf) - 1, in);
+        buf[n] = '\0';
+        fclose(in);
+
+        test_validate(strstr(buf, "DS_STR") != NULL, "Techprint must contain 'DS_STR'");
+        test_validate(strstr(buf, "Data") != NULL, "Techprint must contain 'Data'");
+    }
+
+    /* ========== 8. Граничные случаи ========== */
+    test_sub("subtest %d: empty string", ++subnum);
+    {
+        Ds ds;
+        char text[] = "";
+        dsInitstr(&ds, text);
+        test_validate(dsgetc(&ds) == EOF, "Empty string must return EOF immediately");
+    }
+
+    test_sub("subtest %d: dsungetc on empty string (buffer underflow)", ++subnum);
+    {
+        Ds ds;
+        char text[] = "X";
+        dsInitstr(&ds, text);
+        int c = dsgetc(&ds);  // 'X'
+        // пробуем вернуть символ, когда позиция уже в начале (после возврата)
+        dsungetc(c, &ds);
+        // повторный ungetc должен вернуть EOF или последний символ? По реализации dsungetc_str возвращает EOF если pos==0.
+        // после первого ungetc pos стало 0, второй вызов:
+        int ret = dsungetc('Y', &ds);
+        test_validate(ret == EOF, "Second consecutive dsungetc on string must return EOF");
+        // но первый ungetc был успешен, поэтому 'X' снова доступен
+        int c2 = dsgetc(&ds);
+        test_validate(c2 == 'X', "After first ungetc, char must be 'X' again");
+    }
+
+    return logret(TEST_PASSED, "done");
 }
 
 // -------------------------------------------------------------------
@@ -203,7 +350,7 @@ main( /*int argc, char *argv[] */ )
     logsimpleinit("Start");
 
     testenginestd(
-        TESTADD(tf1,                            "Int/double creation/descr test")
+        TESTADD(tf_ds,           "Ds (DataSource) simple tests")
     );
 
     return logret(0, "end...");  // as replace of logclose()
