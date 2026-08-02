@@ -133,8 +133,8 @@ int                         dsTechFPrint(FILE *restrict out, const Ds *restrict 
 
     switch (ds->type) {
         case DS_FILE:
-            return fprintf(out, "[DS_FILE] %p\n", ds->fp);
-
+            total += fprintf(out, "[DS_FILE] %p\n", ds->fp);
+            break;
         case DS_STR:
         case DS_CONSTSTR: {
             const char *ptr = (ds->type == DS_STR) ? 
