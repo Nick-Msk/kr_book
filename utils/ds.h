@@ -51,13 +51,26 @@ typedef struct Ds {
     };
 } Ds;
 
+#define DS(...) (Ds) {.fp = NULL, .pos = 0, .ptr = NULL, __VA_ARGS__}
+
 /**
  * @brief Initializes a Ds object for reading from a file.
  * 
  * @param[out] Ds Pointer to the Ds structure to be initialized.
  * @param[in]  fp Pointer to the input file (FILE*).
  */
-extern void                    dsInitf(Ds *Dsgetc, FILE *fp);
+extern void                    dsInitf(Ds *ds, FILE *fp);
+/**
+ * @brief Initializes a Ds object for reading from a file. wrapper for dsInitf
+ * 
+ * @param[in]  fp Pointer to the input file (FILE*).
+ * @return     Ds (initialied or not)
+ */
+static inline Ds               dsCreatef(FILE *fp) {
+    Ds      tmp = DS();
+    dsInitf(&tmp, fp);
+    return tmp;
+}
 /**
  * @brief Initializes a Datasource (Ds) object for reading from a c-string.
  * 
@@ -66,12 +79,34 @@ extern void                    dsInitf(Ds *Dsgetc, FILE *fp);
  */
 extern void                    dsInitstr(Ds *ds, char *buf);
 /**
+ * @brief Initializes a Datasource (Ds) object for reading from a c-string.
+ * 
+ * @param[in]  buf Pointer to a null-terminated string (const char*).
+ * @return     Ds (initialied or not)
+ */
+static inline Ds               dsCreatestr(char *buf) {
+    Ds      tmp = DS();
+    dsInitstr(&tmp, buf);
+    return tmp;
+}
+/**
  * @brief Initializes a Datasource (Ds) object for reading from a const c-string.
  * 
  * @param[out] Ds Pointer to the Datasource (Ds) structure to be initialized.
  * @param[in]  buf Pointer to a null-terminated string (const char*).
  */
 extern void                    dsInitconst(Ds *ds, const char *buf);
+/**
+ * @brief Initializes a Datasource (Ds) object for reading from a const c-string.
+ * 
+ * @param[in]  buf Pointer to a null-terminated string (const char*).
+ * @return     Ds (initialied or not)
+ */
+static inline Ds               dsCreateconst(const char *buf) {
+    Ds      tmp = DS();
+    dsInitconst(&tmp, buf);
+    return tmp;
+}
 /**
  * @brief Reads the next character from the source.
  * 
@@ -88,7 +123,14 @@ extern int                     dsgetc(Ds *ds);
  * @return The character 'c' if successful, or @c EOF if the operation failed.
  */
 extern int                     dsungetc(int c, Ds *ds);
-
+/**
+ * @brief Pushes ANY character back into the stream (DS_STR)
+ *  
+ * @param[in]  c The character to push back.
+ * @param[in,out] ds Pointer to the data source.
+ * @return The character 'c' if successful, or @c EOF if the operation failed.
+ */
+extern int                     dsreplacec(int c, Ds *ds);
 /**
  * @brief Debugging print implementation.
  * Returns the number of characters printed.

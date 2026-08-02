@@ -19,7 +19,7 @@ static inline int           dsgetc_buffer(const char *ptr, size_t *pos) {
 /**
  * @brief Internal helper for mutable string unget.
  */
-static inline int           dsungetc_str(char *ptr, size_t *pos, int c) {
+static inline int           dsreplace_str(char *ptr, size_t *pos, int c) {
     if (*pos > 0)
         return ptr[--(*pos)] = (unsigned char) c;
     else
@@ -74,17 +74,23 @@ static int                  ds_print_buffer_content(FILE *out, const char *ptr, 
 // -------------------- CONSTRUCTOTS/DESTRUCTORS -------------------
 
 void                        dsInitf(Ds *ds, FILE *fp) {
+    if (ds == NULL || fp == NULL)
+        return;
     ds->type = DS_FILE;
     ds->fp = fp;
 }
 
 void                        dsInitstr(Ds *ds, char *buf) {
+    if (ds == NULL || buf == NULL)
+        return;
     ds->type = DS_STR;
     ds->ptr = buf;
     ds->pos = 0;
 }
 
 void                        dsInitconst(Ds *ds, const char *buf) {
+    if (ds == NULL || buf == NULL)
+        return;
     ds->type = DS_CONSTSTR;
     ds->constptr = buf;
     ds->pos = 0;
@@ -112,19 +118,28 @@ int                         dsungetc(int c, Ds *ds) {
         case DS_FILE:
             return ungetc(c, ds->fp);
         case DS_STR:
-            return dsungetc_str(ds->ptr, &ds->pos, c);
-        case DS_CONSTSTR:
-            return dsungetc_conststr(ds->constptr, &ds->pos, c);
+        case DS_CONSTSTR: {
+            const char *ptr = (ds->type == DS_STR) ? 
+                               ds->ptr : ds->constptr;
+            return dsungetc_conststr(ptr, &ds->pos, c);
+        }
         default:
             return EOF;
     }
 }
 
+// only for DS_STR
+int                        dsreplacec(int c, Ds *ds) {
+    if (c == EOF)
+        return EOF;
+    switch (ds->type) {
+        case DS_STR:
+            return dsreplace_str(ds->ptr, &ds->pos, c);
+        default:
+            return EOF;
+    }
+}
 
-/**
- * @brief Implementation of technical debug print.
- * @return Total bytes printed to 'out'.
- */
 int                         dsTechFPrint(FILE *restrict out, const Ds *restrict ds) {
     if (!ds || !out) 
         return -1;
