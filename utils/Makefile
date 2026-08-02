@@ -11,7 +11,7 @@ LDLIBS=
 .PHONY: getword systemutils command_executor fileutils value64_tarray seq all hashset_utils lwset
 
 all: checker error log common test metric numeric_ops context hashset value64 array buffer fs fs_iter fs_array \
-	getword systemutils command_executor fileutils value64_tarray seq hashset_utils lwset
+	getword systemutils command_executor fileutils value64_tarray seq hashset_utils lwset ds
 
 lib/checker.o: src/checker.c
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -70,6 +70,9 @@ lib/fileutils.o: src/fileutils.c
 lib/getword.o: src/getword.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+lib/ds.o: src/ds.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
 lib/command_executor.o: src/command_executor.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
@@ -123,6 +126,9 @@ test/getword_test: src/getword.c lib/log.o lib/test.o lib/error.o lib/checker.o 
 			 lib/buffer.o lib/fs_array.o lib/fileutils.o | lib/getword.o
 	$(CC) $(CFLAGS) -DGETWORDTESTING $^ -o $@ $(LDLIBS)
 
+test/ds_test: src/ds.c lib/test.o lib/log.o lib/error.o   | lib/ds.o
+	$(CC) $(CFLAGS) -DDS_TESTING $^ -o $@ $(LDLIBS)
+
 test/systemutils_test: src/systemutils.c lib/log.o lib/test.o lib/error.o lib/checker.o | lib/systemutils.o
 	$(CC) $(CFLAGS) -DSYSTEMUTILSTESTING $^ -o $@ $(LDLIBS)
 
@@ -161,7 +167,7 @@ UTIL_OBJS = lib/log.o lib/test.o lib/error.o lib/common.o lib/checker.o \
 	lib/numeric_ops.o lib/hashset.o lib/value64.o \
 	lib/context.o lib/systemutils.o\
 	lib/fs.o lib/fileutils.o lib/array.o lib/metric.o lib/value64_tarray.o \
-	lib/hashset_utils.o lib/seq.o lib/lwset.o
+	lib/hashset_utils.o lib/seq.o lib/lwset.o lib/ds.o 
 
 lib/cmutils.a: $(UTIL_OBJS)
 	ar rcs $@ $^
@@ -181,6 +187,7 @@ value64: test/value64_test
 value64_tarray: test/value64_tarray_test
 systemutils: test/systemutils_test
 getword: test/getword_test
+ds: test/ds_test
 fileutils: test/fileutils_test
 fs_array: test/fs_array_test
 fs_iter: test/fs_iter_test
