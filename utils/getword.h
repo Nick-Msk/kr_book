@@ -4,6 +4,7 @@
 #include "fs.h"
 #include "bool.h"
 #include "checker.h"
+#include "ds.h"
 
 extern fs                   getword(fs str, bool sens, bool comments, bool get_newline);
 
@@ -80,11 +81,12 @@ static inline void          lexem_free(Lexem *l){
 
 // not using buffer.c, VERY simple, empty line is OK, just "" empty fs
 extern bool                 getpurestring(FILE *restrict in, fs *restrict str);
-// conversion
+// conversion string from FILE *
 extern bool                 getconvstring(FILE *restrict in, fs *restrict str, bool removequot);
+// conversion string from const char *
+extern bool                 getconvstring_cstr(const char *restrict in, fs *restrict str, bool removequot);
 // parse only LEXEM_STR or LEXEM_CMD!
 extern bool                 getstring(Lexem *lex);
-
 // any lexem, word or number
 extern bool                 getlexem(Lexem *lex, bool ign_comments);
 

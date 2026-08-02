@@ -106,14 +106,15 @@ bool                    getpurestring(FILE *restrict in, fs *restrict str){
     else
         return logsimpleret(true, "line %d [%10s]", fs_len(str), fs_str(str) );
 }
+
 // not using buffer.c, VERY simple, empty line is OK, just "" empty fs
-bool                    getconvstring(FILE *restrict in, fs *restrict str, bool removequot){
+static bool                 getconvstring_ds(Ds *restrict in, fs *restrict str, bool removequot){
     invraisecode(in != NULL && str != NULL, ERR_NULLABLE_PTR, "%p - %p", in, str);
 
     int     c;
     bool    skipped_first = false, first_found = false;
     fsnew   iter = fsinew(str);
-    while ( (c = getc(in)) != EOF && c != '\n') {
+    while ( (c = dsgetc(in)) != EOF && c != '\n') {
         // skip first '"' if removequot
         if (removequot && !skipped_first && iter.pos == 0) {
             if (c == '"'){
@@ -126,7 +127,7 @@ bool                    getconvstring(FILE *restrict in, fs *restrict str, bool 
             }
         }
         if (c == '\\') {
-            int tmp = getc(in);
+            int tmp = dsgetc(in);
             if (tmp != EOF)
                 c = charconv(tmp);
             else
@@ -150,6 +151,23 @@ bool                    getconvstring(FILE *restrict in, fs *restrict str, bool 
     else
         return logsimpleret(true, "line %d [%.10s]", fs_len(str), fs_str(str) );
 }
+
+// conversion string from FILE *
+bool                 getconvstring(FILE *restrict in, fs *restrict str, bool removequot) {
+    invraisecode(in != NULL && str != NULL, ERR_NULLABLE_PTR,
+        "Nullable input %p %p", in, str);
+    Ds s = dsCreatef(in);
+    return getconvstring_ds(&s, str, removequot);
+}
+// conversion string from const char *
+bool                 getconvstring_cstr(const char *restrict in, fs *restrict str, bool removequot){
+    invraisecode(in != NULL && str != NULL, ERR_NULLABLE_PTR,
+        "Nullable input %p %p", in, str);
+    Ds s = dsCreateconst(in);
+    return getconvstring_ds(&s, str, removequot);
+}
+
+
 // parse only LEXEM_STR or LEXEM_CMD!
 bool                    getstring(Lexem *lex){
 
