@@ -63,12 +63,11 @@ static int                  ds_escape_print(FILE *out, unsigned char c) {
  */
 static int                  ds_print_buffer_content(FILE *out, const char *ptr, size_t start, size_t end) {
     int total = 0;
-    for (size_t i = start; i < end; i++) {
+    for (size_t i = start; ptr[i] != '\0' && (end ==0 || i < end); i++) {
         total += ds_escape_print(out, (unsigned char) ptr[i]);
     }
     return total;
 }
-
 
 // --------------------------- API ---------------------------------
 
@@ -76,19 +75,19 @@ static int                  ds_print_buffer_content(FILE *out, const char *ptr, 
 
 void                        dsInitf(Ds *ds, FILE *fp) {
     ds->type = DS_FILE;
-    ds->source.fp = fp;
+    ds->fp = fp;
 }
 
 void                        dsInitstr(Ds *ds, char *buf) {
     ds->type = DS_STR;
-    ds->source.buf.ptr = buf;
-    ds->source.buf.pos = 0;
+    ds->ptr = buf;
+    ds->pos = 0;
 }
 
 void                        dsInitconst(Ds *ds, const char *buf) {
     ds->type = DS_CONSTSTR;
-    ds->source.constbuf.ptr = buf;
-    ds->source.constbuf.pos = 0;
+    ds->constptr = buf;
+    ds->pos = 0;
 }
 
 // --------------------- ACCESS AND MODIFICATION --------------------
@@ -96,11 +95,11 @@ void                        dsInitconst(Ds *ds, const char *buf) {
 int                         dsgetc(Ds *ds) {
     switch (ds->type) {
         case DS_FILE:
-            return fgetc(ds->source.fp);
+            return fgetc(ds->fp);
         case DS_STR:
-            return dsgetc_buffer(ds->source.buf.ptr, &ds->source.buf.pos);
+            return dsgetc_buffer(ds->ptr, &ds->pos);
         case DS_CONSTSTR:
-            return dsgetc_buffer(ds->source.constbuf.ptr, &ds->source.constbuf.pos);
+            return dsgetc_buffer(ds->constptr, &ds->pos);
         default:
             return EOF;
     }
@@ -111,11 +110,11 @@ int                         dsungetc(int c, Ds *ds) {
         return EOF;
     switch (ds->type) {
         case DS_FILE:
-            return ungetc(c, ds->source.fp);
+            return ungetc(c, ds->fp);
         case DS_STR:
-            return dsungetc_str(ds->source.buf.ptr, &ds->source.buf.pos, c);
+            return dsungetc_str(ds->ptr, &ds->pos, c);
         case DS_CONSTSTR:
-            return dsungetc_conststr(ds->source.constbuf.ptr, &ds->source.constbuf.pos, c);
+            return dsungetc_conststr(ds->constptr, &ds->pos, c);
         default:
             return EOF;
     }
@@ -126,51 +125,36 @@ int                         dsungetc(int c, Ds *ds) {
  * @brief Implementation of technical debug print.
  * @return Total bytes printed to 'out'.
  */
-int dsTechFPrint(FILE *restrict out, const Ds *restrict ds, int printbufcnt) {
-    if (!ds || !out) return -1;
+int                         dsTechFPrint(FILE *restrict out, const Ds *restrict ds) {
+    if (!ds || !out) 
+        return -1;
 
     int total = 0;
 
     switch (ds->type) {
         case DS_FILE:
-            return fprintf(out, "[DS_FILE]\n");
+            return fprintf(out, "[DS_FILE] %p\n", ds->fp);
 
         case DS_STR:
         case DS_CONSTSTR: {
             const char *ptr = (ds->type == DS_STR) ? 
-                               ds->source.buf.ptr : ds->source.constbuf.ptr;
-            size_t start_pos = (ds->type == DS_STR) ? 
-                               ds->source.buf.pos : ds->source.constbuf.pos;
-            size_t end_pos;
-
-            // Determine print range
-            if (printbufcnt == 0) {
-                // Print entire buffer from start to null
-                end_pos = 0;
-                while (ptr[end_pos] != '\0') end_pos++;
-            } else {
-                // Print up to printbufcnt characters from current position
-                end_pos = start_pos + printbufcnt;
-                // Safety check: don't read past null or end of string
-                while (end_pos > start_pos && ptr[end_pos - 1] == '\0') end_pos--;
-            }
-
+                               ds->ptr : ds->constptr;
             total += fprintf(out, "[DS_%s] pos=%zu, data=\"", 
-                    (ds->type == DS_STR) ? "STR" : "CONSTSTR", start_pos);
-            total += ds_print_buffer_content(out, ptr, start_pos, end_pos);
+                    (ds->type == DS_STR) ? "STR" : "CONSTSTR", ds->pos);
+            //
+            total += ds_print_buffer_content(out, ptr, 0, ds->pos);
+            total += fprintf(out, "\" => \"");
+            total += ds_print_buffer_content(out, ptr, ds->pos, 0);
             total += fprintf(out, "\"\n");
             break;
         }
-
         case DS_FS:
             total += fprintf(out, "[DS_FS (Not supported)]\n");
             break;
-
         default:
             total += fprintf(out, "[DS_UNKNOWN]\n");
             break;
     }
-
     return total;
 }
 
@@ -301,7 +285,7 @@ tf_ds(const char *name)
 
         const char *fname = "res/ds/test_techprint.txt";
         FILE *out = fopen(fname, "w");
-        dsTechFPrint(out, &ds, 10);
+        dsTechFPrint(out, &ds);
         fclose(out);
 
         char buf[128];
@@ -311,7 +295,7 @@ tf_ds(const char *name)
         fclose(in);
 
         test_validate(strstr(buf, "DS_STR") != NULL, "Techprint must contain 'DS_STR'");
-        test_validate(strstr(buf, "Data") != NULL, "Techprint must contain 'Data'");
+        test_validate(strstr(buf, "\"Da\" => \"ta\"") != NULL, "Techprint must show read part 'Da' and remaining 'ta'");
     }
 
     /* ========== 8. Граничные случаи ========== */

@@ -13,6 +13,7 @@
 
 #include <stdio.h>
 #include <ctype.h>
+#include <string.h>
 
 // ---------------------------------------------------------------------------------
 // --------------------------- Public datasource API -------------------------------
@@ -41,15 +42,13 @@ typedef struct Ds {
     union {         
         FILE *fp;               /**< Pointer to the file (used in @c DS_FILE mode). */
         struct {
-            char    *ptr;       /**< Pointer to the start of the string (used in @c DS_STR mode). */
+            union {
+                char          *ptr; /**< Pointer to the start of the string (used in @c DS_STR mode). */
+                const char    *constptr; /**< Pointer to the start of the constant string (used in @c DS_STR mode). */
+            };
             size_t  pos;        /**< Current read position in the buffer. */
-        } buf;                  /**< Buffer details. */
-        struct {
-            const char    *ptr; /**< Pointer to the start of the constant string (used in @c DS_STR mode). */
-            size_t         pos; /**< Current read position in the buffer. */
-            // int     ungetchsym; /**< Current read position in the buffer. */
-        } constbuf;             /**< Buffer details. */
-    } source;
+        };                  /**< Buffer details. */
+    };
 } Ds;
 
 /**
@@ -94,9 +93,9 @@ extern int                     dsungetc(int c, Ds *ds);
  * @brief Debugging print implementation.
  * Returns the number of characters printed.
  */
-extern int                     dsTechFPrint(FILE *restrict out, const Ds *restrict ds, int printbufcnt);
-static inline int       dsTechPrint(const Ds * ds, int printbufcnt) {
-    return dsTechFPrint(stdout, ds, printbufcnt);
+extern int                     dsTechFPrint(FILE *restrict out, const Ds *restrict ds);
+static inline int       dsTechPrint(const Ds * ds) {
+    return dsTechFPrint(stdout, ds);
 }
 
 #endif /* !_DS_H */
