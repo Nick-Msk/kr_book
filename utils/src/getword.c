@@ -719,6 +719,125 @@ tf_getconvstring_removequot(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST getconvstring_str() simple test ---------------------------------
+
+static TestStatus
+tf_getconvstring_str(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: getconvstring from file (quoted)", ++subnum);
+    {
+        const char *fname = "res/ds/test_getconv_file.txt";
+        FILE *fp = fopen(fname, "w");
+        fprintf(fp, "\"hello world\"");
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        fs buf = FS();
+        test_validatefree(
+            getconvstring(fp, &buf, true) && fs_len(&buf) == 11 &&
+            strcmp(fs_str(&buf), "hello world") == 0,
+            fsfree(buf),
+            "getconvstring file quoted: len=%d, str='%s' (expected 11, 'hello world')",
+            fs_len(&buf), fs_str(&buf)
+        );
+        fsfree(buf);
+    }
+
+    test_sub("subtest %d: getconvstring_cstr (quoted)", ++subnum);
+    {
+        const char *input = "\"Hello, World!\"";
+        fs buf = FS();
+        test_validatefree(
+            getconvstring_cstr(input, &buf, true) && fs_len(&buf) == 13 &&
+            strcmp(fs_str(&buf), "Hello, World!") == 0,
+            fsfree(buf),
+            "getconvstring_cstr quoted: len=%d, str='%s'", fs_len(&buf), fs_str(&buf)
+        );
+        fsfree(buf);
+    }
+
+    test_sub("subtest %d: getconvstring_cstr (unquoted)", ++subnum);
+    {
+        const char *input = "plain";
+        fs buf = FS();
+        test_validatefree(
+            getconvstring_cstr(input, &buf, false) && fs_len(&buf) == 5 &&
+            strcmp(fs_str(&buf), "plain") == 0,
+            fsfree(buf),
+            "getconvstring_cstr unquoted: len=%d, str='%s'", fs_len(&buf), fs_str(&buf)
+        );
+        fsfree(buf);
+    }
+
+    test_sub("subtest %d: getconvstring_cstr empty", ++subnum);
+    {
+        const char *input = "";
+        fs buf = FS();
+        test_validatefree(
+            !getconvstring_cstr(input, &buf, true),
+            fsfree(buf),
+            "getconvstring_cstr empty: must return false, len=%d", fs_len(&buf)
+        );
+        fsfree(buf);
+    }
+
+    test_sub("subtest %d: getconvstring_cstr missing opening quote", ++subnum);
+    {
+        const char *input = "noquote\"";
+        fs buf = FS();
+        test_validatefree(
+            !getconvstring_cstr(input, &buf, true),
+            fsfree(buf),
+            "getconvstring_cstr missing opening quote: must return false"
+        );
+        fsfree(buf);
+    }
+
+    test_sub("subtest %d: getconvstring_cstr escape sequences", ++subnum);
+    {
+        const char *input = "\"a\\nb\"";
+        fs buf = FS();
+        test_validatefree(
+            getconvstring_cstr(input, &buf, true) && fs_len(&buf) == 3 &&
+            buf.v[0] == 'a' && buf.v[1] == '\n' && buf.v[2] == 'b',
+            fsfree(buf),
+            "getconvstring_cstr escape: len=%d, expected 3, chars='a','\\n','b'", fs_len(&buf)
+        );
+        fsfree(buf);
+    }
+    /* ========== 11. getconvstring_cstr empty quoted ========== */
+    test_sub("subtest %d: getconvstring_cstr empty quoted", ++subnum);
+    {
+        const char *input = "\"\"";
+        fs buf = FS();
+        test_validatefree(
+            getconvstring_cstr(input, &buf, true) && fs_len(&buf) == 0,
+            fsfree(buf),
+            "Empty quoted string must succeed and produce empty buffer, len=%d", fs_len(&buf)
+        );
+        fsfree(buf);
+    }
+
+    /* ========== 12. getconvstring_cstr hanging backslash ========== */
+    test_sub("subtest %d: getconvstring_cstr hanging backslash", ++subnum);
+    {
+        const char *input = "\"value\\";
+        fs buf = FS();
+        test_validatefree(
+            !getconvstring_cstr(input, &buf, true),
+            fsfree(buf),
+            "Hanging backslash must cause error"
+        );
+        fsfree(buf);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -726,11 +845,12 @@ main( /* int argc, const char *argv[] */)
     logsimpleinit("Start");
 
     testenginestd(
-        testnew(.f2 = tf1,                              .num =  1, .name = "getstring() simple file test"                       , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf2,                              .num =  2, .name = "getpurestring() simple file test"                   , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf_getconvstring,                 .num =  3, .name = "getconvstring() simple file test"                   , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf_getconvstring_removequot,      .num =  4, .name = "getconvstring() removequot==true  simple file test" , .desc=""                , .mandatory=true)
-);
+        TESTADD(tf1,                         "getstring() simple file test"),
+        TESTADD(tf2,                         "getpurestring() simple file test"),
+        TESTADD(tf_getconvstring,            "getconvstring() simple file test"),
+        TESTADD(tf_getconvstring_removequot, "getconvstring() removequot==true simple file test"),
+        TESTADD(tf_getconvstring_str,        "getconvstring_str() simple test")
+    );
 
     return logret(0, "end...");  // as replace of logclose()
 }

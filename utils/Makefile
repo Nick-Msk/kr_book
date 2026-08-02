@@ -123,7 +123,7 @@ test/fileutils_test: src/fileutils.c lib/log.o lib/test.o lib/error.o lib/checke
 	$(CC) $(CFLAGS) -DFILEUTILSTESTING $^ -o $@ $(LDLIBS)
 
 test/getword_test: src/getword.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fs.o\
-			 lib/buffer.o lib/fs_array.o lib/fileutils.o | lib/getword.o
+			 lib/buffer.o lib/fs_array.o lib/fileutils.o lib/ds.o | lib/getword.o
 	$(CC) $(CFLAGS) -DGETWORDTESTING $^ -o $@ $(LDLIBS)
 
 test/ds_test: src/ds.c lib/test.o lib/log.o lib/error.o   | lib/ds.o
