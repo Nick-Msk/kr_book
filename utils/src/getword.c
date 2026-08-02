@@ -1,7 +1,7 @@
-#include "log.h"
-#include "fs_iter.h"
-#include "buffer.h"
+
 #include "getword.h"
+
+// ------------------------------------ PUBLIC API ----------------------------------------
 
 // probably some configuration is required to  gather tolower, comments, skip_newline
 static inline int       skip_spaces(bool get_newline){
@@ -62,6 +62,95 @@ static inline int       charconv(int c){
     }
 }
 
+/**
+ * @brief Reads a text token from a generic data source (file, string, const string).
+ *
+ * The token may be quoted.  When `removequot` is true the surrounding
+ * double quotes are stripped and escape sequences (`\\n`, `\\r`, `\\t`,
+ * `\\\\`) are converted to their real characters.  An empty quoted string
+ * `""` is recognised as a valid empty token.
+ *
+ * @param in          data source (already initialised)
+ * @param str         output fast‑string – will be resized and filled
+ * @param removequot  if true, remove surrounding quotes and process escapes
+ * @return true on success, false on format error or EOF
+ * @throws ERR_NULLABLE_PTR if `in` or `str` is NULL
+ * @throws ERR_WRONG_INPUT_FORMAT on missing / unterminated quotes or
+ *         a dangling backslash at the end of input
+ */
+static bool                     getconvstring_ds(Ds *restrict in, fs *restrict str, bool removequot) {
+    invraisecode(in != NULL && str != NULL, ERR_NULLABLE_PTR, 
+        "Null pointers %p - %p", in, str);
+
+    int         c;
+    bool        skipped_first = false;   // true after the opening quote has been consumed
+    fsnew       iter = fsinew(str);     // append iterator for the fast‑string
+
+    while ((c = dsgetc(in)) != EOF && c != '\n') {
+        // ---------- opening quote ----------
+        if (removequot && !skipped_first && iter.pos == 0) {
+            if (c == '"') {
+                skipped_first = true;
+                // peek ahead – might be an empty quoted string ""
+                int next = dsgetc(in);
+                if (next == '"') {
+                    // empty string – success, buffer stays empty
+                    elemend(iter);
+                    return logsimpleret(true, "empty quoted string");
+                } else if (next == EOF) {
+                    elemend(iter);
+                    return userraise(false, ERR_WRONG_INPUT_FORMAT,
+                                     "Unterminated empty quoted string");
+                } else {
+                    // put the character back; it is the first content byte
+                    dsungetc(next, in);
+                    continue;   // next iteration will write it into the buffer
+                }
+            } else {
+                elemend(iter);
+                return userraise(false, ERR_WRONG_INPUT_FORMAT, "Missing opening quote");
+            }
+        }
+
+        // ---------- closing quote (when inside a quoted string) ----------
+        if (removequot && skipped_first && c == '"') {
+            // closing quote – end of token, do NOT store it
+            elemend(iter);
+            return logsimpleret(true, "line %d [%.10s]", fs_len(str), fs_str(str));
+        }
+
+        // ---------- escape sequences ----------
+        if (c == '\\') {
+            int tmp = dsgetc(in);
+            if (tmp == EOF) {
+                elemend(iter);
+                return userraise(false, ERR_WRONG_INPUT_FORMAT,
+                                 "Escape at end of input");
+            }
+            c = charconv(tmp);   // convert \n, \r, \t, \\ to real characters
+        }
+
+        // ---------- ordinary character ----------
+        elemnext(iter) = c;
+    }
+
+    // after the loop: if we expected a closing quote but didn't get one
+    if (removequot && skipped_first) {
+        elemend(iter);
+        return userraise(false, ERR_WRONG_INPUT_FORMAT, "No trailing \" found");
+    }
+
+    elemend(iter);
+
+    // no data at all
+    if (c == EOF && fs_len(str) == 0)
+        return logsimpleret(false, "EOF");
+
+    return logsimpleret(true, "line %d [%.10s]", fs_len(str), fs_str(str));
+}
+
+// ------------------------------------ PUBLIC API ----------------------------------------
+
 // str must have heap alloc
 fs                      getword(fs str, bool lower, bool comments, bool get_newline){
 
@@ -107,72 +196,6 @@ bool                    getpurestring(FILE *restrict in, fs *restrict str){
         return logsimpleret(true, "line %d [%10s]", fs_len(str), fs_str(str) );
 }
 
-// not using buffer.c, VERY simple, empty line is OK, just "" empty fs
-static bool getconvstring_ds(Ds *restrict in, fs *restrict str, bool removequot) {
-    invraisecode(in != NULL && str != NULL, ERR_NULLABLE_PTR, "%p - %p", in, str);
-
-    int c;
-    bool skipped_first = false;
-    fsnew iter = fsinew(str);
-
-    while ((c = dsgetc(in)) != EOF && c != '\n') {
-        // Обработка открывающей кавычки
-        if (removequot && !skipped_first && iter.pos == 0) {
-            if (c == '"') {
-                skipped_first = true;
-                // Проверяем, не пустая ли строка ""
-                int next = dsgetc(in);
-                if (next == '"') {
-                    // Пустая строка "" — успешно, буфер остаётся пустым
-                    elemend(iter);
-                    return logsimpleret(true, "empty quoted string");
-                } else if (next == EOF) {
-                    elemend(iter);
-                    return userraise(false, ERR_WRONG_INPUT_FORMAT, "Unterminated empty quoted string");
-                } else {
-                    // Вернём символ обратно, это начало содержимого
-                    if (dsungetc(next, in) == EOF)
-                        return userraise(false, ERR_STREAM_ERROR, "Unable to dsungetc '%c'", next);
-                    continue;   // на следующей итерации начнём заполнять
-                }
-            } else {
-                elemend(iter);
-                return userraise(false, ERR_WRONG_INPUT_FORMAT, "Missing opening quote");
-            }
-        }
-
-        // Обработка закрывающей кавычки (если уже внутри строки)
-        if (removequot && skipped_first && c == '"') {
-            // Закрывающая кавычка — конец строки, не записываем её
-            elemend(iter);
-            return logsimpleret(true, "line %d [%.10s]", fs_len(str), fs_str(str));
-        }
-
-        // Обработка escape-последовательностей
-        if (c == '\\') {
-            int tmp = dsgetc(in);
-            if (tmp == EOF) {
-                elemend(iter);
-                return userraise(false, ERR_WRONG_INPUT_FORMAT, "Escape at end of input");
-            }
-            c = charconv(tmp);
-        }
-
-        elemnext(iter) = c;
-    }
-
-    // После цикла: если не было закрывающей кавычки, но она ожидалась
-    if (removequot && skipped_first) {
-        elemend(iter);
-        return userraise(false, ERR_WRONG_INPUT_FORMAT, "No trailing \" found");
-    }
-
-    elemend(iter);
-    if (c == EOF && fs_len(str) == 0)
-        return logsimpleret(false, "EOF");
-    else
-        return logsimpleret(true, "line %d [%.10s]", fs_len(str), fs_str(str));
-}
 
 // conversion string from FILE *
 bool                 getconvstring(FILE *restrict in, fs *restrict str, bool removequot) {
