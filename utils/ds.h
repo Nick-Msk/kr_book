@@ -143,9 +143,19 @@ static inline int       dsTechPrint(const Ds *ds) {
  * @brief Return pointer to buffer for DS_STR and DS_CONSTSTR
  *  
  * @param[in,out] ds Pointer to the data source.
+ * @return pointer to c-str buffer
  */
 static inline const char       *dsStrbuf(const Ds *ds) {
     return ds->type == DS_STR ? ds->ptr : ds->type == DS_CONSTSTR ? ds->constptr : NULL;
+}
+/**
+ * @brief Return pointer to buffer for DS_STR and DS_CONSTSTR
+ *  
+ * @param[in,out] ds Pointer to the data source.
+ * @return true if Ds is c-string source
+ */
+static inline bool              dbIsstr(const Ds *pds) {
+    return pds->type == DS_CONSTSTR || pds->type == DS_STR;
 }
 
 #endif /* !_DS_H */
