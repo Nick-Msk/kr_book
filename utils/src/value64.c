@@ -871,7 +871,7 @@ static value64_type             value64_parse_header(Ds *pds, bool loadtypeinfo,
     }
     #undef VALUE64_FLOAD_FORMAT_LEN
     #undef VALUE64_FLOAD_FORMAT_MUNUS1
-    return typ;
+    return loadedtyp;
 }
 
 // Ds loader, both for FILE * and const char *
