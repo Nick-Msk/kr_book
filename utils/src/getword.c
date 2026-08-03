@@ -68,7 +68,7 @@ bool                        getconvstring_ds(Ds *restrict in, fs *restrict str, 
 
     int         c;
     bool        skipped_first = false;   // true after the opening quote has been consumed
-    fsnew       iter = fsinew(str);     // append iterator for the fast‑string
+    fsnew       iter = fsinew(str);     //  iterator for the fast‑string
 
     while ((c = dsgetc(in)) != EOF && c != '\n') {
         // ---------- opening quote ----------

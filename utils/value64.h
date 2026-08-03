@@ -53,10 +53,10 @@ typedef enum value64_type {
     VALUE64_TYPE_COUNT
 } value64_type;
 
-typedef enum value64_serialize_type {
+/* typedef enum value64_serialize_type {
     VALUE64_2STR,
     VALUE64_2JSON       // not implemented
-} value64_serialize_type;
+} value64_serialize_type; not used for now */
 
 typedef struct {
     const char  *name;
@@ -582,8 +582,8 @@ static inline bool                  value64_freadval(FILE *restrict in, value64_
     return value64_dsreadval(&ds, typ, val, buf);
 }
 
-// generic save/load for FILE *
-extern int                          value64_fsave(FILE *out, value64 val, value64_type typ, bool savetypeinfo);
+// generic save for FILE *
+extern int                          value64_tofile(FILE *out, value64 val, value64_type typ, bool savetypeinfo);
 
 /**
  * @brief Loads a value64 from Ds source
@@ -650,14 +650,14 @@ static inline bool          value64_loadfile(FILE *restrict in, value64 *restric
  *                     is allocated and freed)
  * @return number of characters consumed, or a negative value on error
  */
-static inline bool          value64_loadstr(const char *restrict source, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf) {
+static inline bool                  value64_loadstr(const char *restrict source, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf) {
     Ds ds = dsCreateconst(source);
     return value64_loadds(&ds, val, typ, loadtypeinfo, buf);
 }
 
 
 // generic to string: fs MUST be initialized
-extern int                          value64_tostr(fs *target, value64 val, value64_type typ, value64_serialize_type serit);
+extern int                          value64_tostr(fs *target, value64 val, value64_type typ, bool savetypeinfo);
 
 // type to string
 extern int                          value64_tostr_str(fs *target, value64 val);

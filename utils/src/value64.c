@@ -633,7 +633,8 @@ static int                  sprint_str_escaped(fs *restrict out, const char *res
     invraisecode(out != NULL && s != NULL, ERR_NULLABLE_PTR, 
             "Null pointers %p %p", out, s);
 
-    fsnew iter = fsinew(out);
+    int    len = fs_len(out); 
+    fsnew  iter = fsiapp(out);   //  not fsinew(out);, concat logic
 
     elemnext(iter) = '"';
     for (char p = *s; p; p = *++s) {
@@ -648,8 +649,7 @@ static int                  sprint_str_escaped(fs *restrict out, const char *res
     }
     elemnext(iter) = '"';
     elemend(iter);
-
-    return fs_len(out);
+    return fs_len(out) - len;
 }
 // print adapters, actually format must be configurable in context.c
 int                         value64_fprint_int(FILE *restrict out, value64 val) {
@@ -744,7 +744,7 @@ int                        value64_techfprint(FILE *restrict out, value64 val, v
 
 // --------------------------------- SERIALIZATION -----------------------------------------
 
-int                             value64_fsave(FILE *out, value64 val, value64_type typ, bool savetypeinfo) {
+int                             value64_tofile(FILE *out, value64 val, value64_type typ, bool savetypeinfo) {
     invraisecode(out != NULL, ERR_NULLABLE_PTR,
         "Null pointer");
     int cnt = 0;
@@ -846,13 +846,14 @@ static value64_type             value64_parse_header(Ds *pds, bool loadtypeinfo,
 
     value64_type    loadedtyp = VALUE64_UNKNOWN;
     char            type_str[VALUE64_FLOAD_FORMAT_LEN];
+    int             headercnt;
     if (loadtypeinfo) {
         // Format: VALUE64(INT) : или VALUE64(STR) :
         if (pds->type == DS_FILE) {
             if (fscanf(pds->fp, "VALUE64(%" TOSTRING(VALUE64_FLOAD_FORMAT_MUNUS1) "[^)]) :", type_str) != 1)
                 return userraise(ERR_WRONG_INPUT_FORMAT, false, "Missing or invalid VALUE64 header");
-        } else if (pds->type == DS_CONSTSTR || pds->type == DS_STR) {
-            if (sscanf(dsStrbuf(pds), "VALUE64(%" TOSTRING(VALUE64_FLOAD_FORMAT_MUNUS1) "[^)]) :", type_str) != 1)
+        } else if (dbIsstr(pds) ) {
+            if (sscanf(dsStrbuf(pds), "VALUE64(%" TOSTRING(VALUE64_FLOAD_FORMAT_MUNUS1) "[^)]) :%n", type_str, &headercnt) != 1)
                 return userraise(ERR_WRONG_INPUT_FORMAT, false, "Missing or invalid VALUE64 header");
         }
         loadedtyp = value64_gettype(type_str);
@@ -863,12 +864,14 @@ static value64_type             value64_parse_header(Ds *pds, bool loadtypeinfo,
         if (pds->type == DS_FILE) {
             if (fscanf(pds->fp, "VALUE64 :") != 0)   // fscanf returns 0 if ok
                 return userraise(ERR_WRONG_INPUT_FORMAT, false, "Missing VALUE64 header");
-        } else if (pds->type == DS_CONSTSTR || pds->type == DS_STR) {
-            if (sscanf(dsStrbuf(pds), "VALUE64 :") != 0)   // fscanf returns 0 if ok
+        } else if (dbIsstr(pds) ) {
+            if (sscanf(dsStrbuf(pds), "VALUE64 :%n", &headercnt) != 0)   // fscanf returns 0 if ok
                 return userraise(ERR_WRONG_INPUT_FORMAT, false, "Missing VALUE64 header");
         }
         loadedtyp = typ;    // use imcoming
     }
+    if (dbIsstr(pds) )
+        pds->pos += headercnt;
     #undef VALUE64_FLOAD_FORMAT_LEN
     #undef VALUE64_FLOAD_FORMAT_MUNUS1
     return loadedtyp;
@@ -903,16 +906,16 @@ bool                        value64_loadds(Ds *restrict pds, value64 *restrict v
 
 // to string adapters, actually format must be configurable in context.c
 int                         value64_tostr_int(fs *target, value64 val) {
-    return fs_sprintf(target, "%d", value64_int(val) );
+    return fs_sprintf_concat(target, "\"%d\"", value64_int(val) );
 }
 int                         value64_tostr_long(fs *target, value64 val) {
-    return fs_sprintf(target, "%ld", value64_long(val) );
+    return fs_sprintf_concat(target, "\"%ld\"", value64_long(val) );
 }
 int                         value64_tostr_dbl(fs *target, value64 val) {
-    return fs_sprintf(target, "%.*g", DBL_DECIMAL_DIG, value64_dbl(val) );
+    return fs_sprintf_concat(target, "\"%.*g\"", DBL_DECIMAL_DIG, value64_dbl(val) );
 }
 int                         value64_tostr_ptr(fs *target, value64 val) {
-    return fs_sprintf(target, "%p", value64_ptr(val) );
+    return fs_sprintf_concat(target, "\"%p\"", value64_ptr(val) );
 }
 int                         value64_tostr_str(fs *target, value64 val) {
     return sprint_str_escaped(target, value64_str(val) );
@@ -922,27 +925,39 @@ int                         value64_tostr_fs(fs *target, value64 val) {
     //fs_fprint(out, value64_fs(val), 0);
 }
 // to string : fs MUST be initialized
-int                          value64_tostr(fs *target, value64 val, value64_type typ, value64_serialize_type serit){
+int                          value64_tostr(fs *target, value64 val, value64_type typ, bool savetypeinfo){
     invraisecode(fs_isheapalloc(target), ERR_NULLABLE_PTR,
         "Not heap allocated or null %p %d", target, target ? target->flags : -1);
-    if (serit != VALUE64_2STR)
-        userraiseint(ERR_UNSUPPORTED_TYPE, "Only VALUE64_2STR is suppoted (%d)", serit);
+    
+    int     cnt = 0;
+    if (savetypeinfo)
+        cnt += fs_sprintf(target, "VALUE64(%s):", value64_typename(typ) );
+    else 
+        cnt += fs_sprintf(target, "VALUE64:");
+
     switch (typ) {
         case VALUE64_INT:
-            return value64_tostr_int(target, val);
+            cnt += value64_tostr_int(target, val);
+            break;
         case VALUE64_LNG:
-            return value64_tostr_long(target, val);
+            cnt += value64_tostr_long(target, val);
+            break;
         case VALUE64_DBL:
-            return value64_tostr_dbl(target, val);
+            cnt += value64_tostr_dbl(target, val);
+            break;
         case VALUE64_PTR:
-            return value64_tostr_ptr(target, val);
+            cnt += value64_tostr_ptr(target, val);
+            break;
         case VALUE64_STR:
-            return value64_tostr_str(target, val);
+            cnt += value64_tostr_str(target, val);
+            break;
         case VALUE64_FS:
-            return value64_tostr_fs(target, val);
+            cnt += value64_tostr_fs(target, val);
+            break;
         default:
-            return userraise(false, ERR_UNSUPPORTED_TYPE, "Type %d isn't supported", typ); 
+            return userraise(-1, ERR_UNSUPPORTED_TYPE, "Type %d isn't supported", typ); 
     }
+    return cnt;
 }
 
 // ---------------------------------------- Filters ------------------------------------------------
@@ -3882,7 +3897,7 @@ tf_sort(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
-// ------------------------- TEST value64_fsave -----------------------------
+// ------------------------- TEST value64_tofile -----------------------------
 static TestStatus
 tf_fsave(const char *name)
 {
@@ -3896,7 +3911,7 @@ tf_fsave(const char *name)
         FILE       *f = fopen(fname, "w");
         if (!f)
             return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
-        int         written = value64_fsave(f, v, VALUE64_INT, true);
+        int         written = value64_tofile(f, v, VALUE64_INT, true);
         fclose(f);
         logmsg("Saved INT to '%s', written=%d", fname, written);
     }
@@ -3908,7 +3923,7 @@ tf_fsave(const char *name)
         FILE       *f = fopen(fname, "w");
         if (!f)
             return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
-        int         written = value64_fsave(f, v, VALUE64_LNG, true);
+        int         written = value64_tofile(f, v, VALUE64_LNG, true);
         fclose(f);
         logmsg("Saved LONG to '%s', written=%d", fname, written);
     }
@@ -3920,7 +3935,7 @@ tf_fsave(const char *name)
         FILE       *f = fopen(fname, "w");
         if (!f)
             return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
-        int         written = value64_fsave(f, v, VALUE64_DBL, true);
+        int         written = value64_tofile(f, v, VALUE64_DBL, true);
         fclose(f);
         logmsg("Saved DBL to '%s', written=%d", fname, written);
     }
@@ -3932,7 +3947,7 @@ tf_fsave(const char *name)
         FILE       *f = fopen(fname, "w");
         if (!f)
             return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
-        int         written = value64_fsave(f, v, VALUE64_STR, true);
+        int         written = value64_tofile(f, v, VALUE64_STR, true);
         fclose(f);
         value64freestr(v);
         logmsg("Saved STR to '%s', written=%d", fname, written);
@@ -3945,7 +3960,7 @@ tf_fsave(const char *name)
         FILE       *f = fopen(fname, "w");
         if (!f)
             return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
-        int         written = value64_fsave(f, v, VALUE64_STR, true);
+        int         written = value64_tofile(f, v, VALUE64_STR, true);
         fclose(f);
         value64freestr(v);
         logmsg("Saved empty STR to '%s', written=%d", fname, written);
@@ -3960,7 +3975,7 @@ tf_fsave(const char *name)
         FILE       *f = fopen(fname, "w");
         if (!f)
             return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
-        int         written = value64_fsave(f, v, VALUE64_FS, true);
+        int         written = value64_tofile(f, v, VALUE64_FS, true);
         fclose(f);
         value64free(v, VALUE64_FS);
         logmsg("Saved FS to '%s', written=%d", fname, written);
@@ -3975,7 +3990,7 @@ tf_fsave(const char *name)
         FILE       *f = fopen(fname, "w");
         if (!f)
             return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
-        int         written = value64_fsave(f, v, VALUE64_PTR, true);
+        int         written = value64_tofile(f, v, VALUE64_PTR, true);
         fclose(f);
         logmsg("Saved PTR to '%s', written=%d", fname, written);
     }
@@ -3987,7 +4002,7 @@ tf_fsave(const char *name)
         FILE       *f = fopen(fname, "w");
         if (!f)
             return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
-        int         written = value64_fsave(f, v, VALUE64_INT, false);
+        int         written = value64_tofile(f, v, VALUE64_INT, false);
         fclose(f);
         logmsg("Saved INT (no type) to '%s', written=%d", fname, written);
     }
@@ -3995,7 +4010,7 @@ tf_fsave(const char *name)
     return logret(TEST_MANUAL, "PLEASE CHECK");
 }
 
-// ------------------------- TEST value64_fsave/fload -----------------------------
+// ------------------------- TEST value64_tofile/fload -----------------------------
 static TestStatus
 tf_fsave_fload(const char *name)
 {
@@ -4011,7 +4026,7 @@ tf_fsave_fload(const char *name)
         FILE *f = fopen(fname, "w");
         if (!f)
             return logerr(TEST_FAILED, "Cannot open %s for writing", fname);
-        value64_fsave(f, orig, VALUE64_INT, true);
+        value64_tofile(f, orig, VALUE64_INT, true);
         fclose(f);
 
         f = fopen(fname, "r");
@@ -4039,7 +4054,7 @@ tf_fsave_fload(const char *name)
         FILE *f = fopen(fname, "w");
         if (!f)
             return logerr(TEST_FAILED, "Cannot open %s for writing", fname);
-        value64_fsave(f, orig, VALUE64_LNG, true);
+        value64_tofile(f, orig, VALUE64_LNG, true);
         fclose(f);
 
         f = fopen(fname, "r");
@@ -4067,7 +4082,7 @@ tf_fsave_fload(const char *name)
         FILE *f = fopen(fname, "w");
         if (!f)
             return logerr(TEST_FAILED, "Cannot open %s for writing", fname);
-        value64_fsave(f, orig, VALUE64_DBL, true);
+        value64_tofile(f, orig, VALUE64_DBL, true);
         fclose(f);
 
         f = fopen(fname, "r");
@@ -4095,7 +4110,7 @@ tf_fsave_fload(const char *name)
         FILE *f = fopen(fname, "w");
         if (!f)
             return logerr(TEST_FAILED, "Cannot open %s for writing", fname);
-        value64_fsave(f, orig, VALUE64_STR, true);
+        value64_tofile(f, orig, VALUE64_STR, true);
         fclose(f);
 
         f = fopen(fname, "r");
@@ -4127,7 +4142,7 @@ tf_fsave_fload(const char *name)
         FILE *f = fopen(fname, "w");
         if (!f)
             return logerr(TEST_FAILED, "Cannot open %s for writing", fname);
-        value64_fsave(f, orig, VALUE64_STR, true);
+        value64_tofile(f, orig, VALUE64_STR, true);
         fclose(f);
 
         f = fopen(fname, "r");
@@ -4161,7 +4176,7 @@ tf_fsave_fload(const char *name)
         FILE *f = fopen(fname, "w");
         if (!f)
             return logerr(TEST_FAILED, "Cannot open %s for writing", fname);
-        value64_fsave(f, orig, VALUE64_FS, true);
+        value64_tofile(f, orig, VALUE64_FS, true);
         fclose(f);
 
         f = fopen(fname, "r");
@@ -4193,7 +4208,7 @@ tf_fsave_fload(const char *name)
         FILE *f = fopen(fname, "w");
         if (!f)
             return logerr(TEST_FAILED, "Cannot open %s for writing", fname);
-        value64_fsave(f, orig, VALUE64_INT, false);
+        value64_tofile(f, orig, VALUE64_INT, false);
         fclose(f);
 
         f = fopen(fname, "r");
@@ -4215,158 +4230,127 @@ tf_fsave_fload(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
-// ------------------------- TEST value64_fsave/fload -----------------------------
+// ------------------------- TEST value64_tostr (savetypeinfo=true) -------------------------
 static TestStatus
 tf_tostr(const char *name)
 {
     logenter("%s", name);
     int subnum = 0;
 
-    /* ---------- 1. INT ---------- */
+    /* ========== INT ========== */
     test_sub("subtest %d: INT to string", ++subnum);
     {
-        value64 v = value64_createint(42);
-        fs      buf = FS();
-        int written = value64_tostr(&buf, v, VALUE64_INT, VALUE64_2STR);
+        value64 v = LITERAL64_INT(42);
+        fs buf = FS();
+        int written = value64_tostr(&buf, v, VALUE64_INT, true);
         test_validatefree(
-            written == 2 && strcmp(fs_str(&buf), "42") == 0,
+            written == 17 &&
+            strcmp(fs_str(&buf), "VALUE64(INT):\"42\"") == 0,
             fsfree(buf),
-            "INT: expected '42', got '%s' (written=%d)", fs_str(&buf), written
+            "INT: expected 'VALUE64(INT):\"42\"', got '%s' (written=%d)",
+            fs_str(&buf), written
         );
         fsfree(buf);
-        fs_alloc_check(true);
     }
 
-    /* ---------- 2. LONG ---------- */
+    /* ========== LONG ========== */
     test_sub("subtest %d: LONG to string", ++subnum);
     {
-        value64 v = value64_createlong(-123456789L);
-        fs buf = fsinit(32);
-        int written = value64_tostr(&buf, v, VALUE64_LNG, VALUE64_2STR);
+        value64 v = LITERAL64_LONG(123456789L);
+        fs buf = FS();
+        int written = value64_tostr(&buf, v, VALUE64_LNG, true);
         test_validatefree(
-            written == 10 && strcmp(fs_str(&buf), "-123456789") == 0,
+            written == 24 &&
+            strcmp(fs_str(&buf), "VALUE64(LNG):\"123456789\"") == 0,
             fsfree(buf),
-            "LONG: expected '-123456789', got '%s' (written=%d)", fs_str(&buf), written
+            "LONG: expected 'VALUE64(LNG):\"123456789\"', got '%s' (written=%d)",
+            fs_str(&buf), written
         );
         fsfree(buf);
-        fs_alloc_check(true);
     }
 
-    /* ---------- 3. DBL ---------- */
+    /* ========== DBL ========== */
     test_sub("subtest %d: DBL to string", ++subnum);
     {
-        value64 v = value64_createdbl(3.141592653589793);
+        value64 v = LITERAL64_DBL(3.141592653589793);
         fs buf = FS();
-        int written = value64_tostr(&buf, v, VALUE64_DBL, VALUE64_2STR);
-        // DBL_DECIMAL_DIG = 17, строка будет содержать 17 значащих цифр
+        int written = value64_tostr(&buf, v, VALUE64_DBL, true);
+        // количество знаков после запятой зависит от DBL_DECIMAL_DIG,
+        // поэтому проверяем только наличие заголовка и первых цифр
         test_validatefree(
-            written > 0 && strncmp(fs_str(&buf), "3.141592653589793", DBL_DECIMAL_DIG) == 0,
+            strstr(fs_str(&buf), "VALUE64(DBL):\"3.14159") != NULL,
             fsfree(buf),
-            "DBL: expected '3.141592653589793', got '%s' (written=%d)", fs_str(&buf), written
+            "DBL: expected 'VALUE64(DBL):\"3.14159…\"', got '%s' (written=%d)",
+            fs_str(&buf), written
         );
         fsfree(buf);
-        fs_alloc_check(true);
     }
 
-    /* ---------- 4. PTR ---------- */
+    /* ========== PTR ========== */
     test_sub("subtest %d: PTR to string", ++subnum);
     {
-        int x = 77;
-        value64 v = value64_createptr(&x);
-        fs buf = fsinit(32);
-        int written = value64_tostr(&buf, v, VALUE64_PTR, VALUE64_2STR);
-        // Адрес может быть любым, проверяем только что не пусто
+        int dummy = 99;
+        value64 v = LITERAL64_PTR(&dummy);
+        fs buf = FS();
+        int written = value64_tostr(&buf, v, VALUE64_PTR, true);
         test_validatefree(
-            written > 0,
+            strstr(fs_str(&buf), "VALUE64(PTR):\"") != NULL,
             fsfree(buf),
-            "PTR: expected non-empty string, got '%s' (written=%d)", fs_str(&buf), written
+            "PTR: expected 'VALUE64(PTR):\"…\"', got '%s' (written=%d)",
+            fs_str(&buf), written
         );
         fsfree(buf);
-        fs_alloc_check(true);
     }
 
-    /* ---------- 5. STR (обычная) ---------- */
+    /* ========== STR ========== */
     test_sub("subtest %d: STR to string", ++subnum);
     {
-        value64 v = value64_createstr("hello world");
-        fs buf = fsinit(32);
-        int written = value64_tostr(&buf, v, VALUE64_STR, VALUE64_2STR);
+        value64 v = value64_createstr("Hello");
+        fs buf = FS();
+        int written = value64_tostr(&buf, v, VALUE64_STR, true);
         test_validatefree(
-            written > 0 && strcmp(fs_str(&buf), "\"hello world\"") == 0,
-            (value64free(v, VALUE64_STR), fsfree(buf)),
-            "STR: expected '\"hello world\"', got '%s'", fs_str(&buf)
+            written == 20 &&
+            strcmp(fs_str(&buf), "VALUE64(STR):\"Hello\"") == 0,
+            (value64_freestr(&v), fsfree(buf)),
+            "STR: expected 'VALUE64(STR):\"Hello\"', got '%s' (written=%d)",
+            fs_str(&buf), written
         );
-        value64free(v, VALUE64_STR);
+        value64_freestr(&v);
         fsfree(buf);
-        fs_alloc_check(true);
     }
 
-    /* 6. STR (пустая) */
-    test_sub("subtest %d: STR empty", ++subnum);
-    {
-        value64 v = value64_createstr("");
-        fs buf = fsinit(16);
-        int written = value64_tostr(&buf, v, VALUE64_STR, VALUE64_2STR);
-        test_validatefree(
-            written > 0 && strcmp(fs_str(&buf), "\"\"") == 0,
-            (value64free(v, VALUE64_STR), fsfree(buf)),
-            "STR empty: expected '\"\"', got '%s'", fs_str(&buf)
-        );
-        value64free(v, VALUE64_STR);
-        fsfree(buf);
-        fs_alloc_check(true);
-    }
-
-    /* 7. STR (с escape-символами) */
-    test_sub("subtest %d: STR with escapes", ++subnum);
-    {
-        value64 v = value64_createstr("line1\nline2\t\"quote\"\\end");
-        fs buf = fsinit(64);
-        int written = value64_tostr(&buf, v, VALUE64_STR, VALUE64_2STR);
-        test_validatefree(
-            written > 0 && strcmp(fs_str(&buf), "\"line1\\nline2\\t\\\"quote\\\"\\\\end\"") == 0,
-            (value64free(v, VALUE64_STR), fsfree(buf)),
-            "STR escapes: got '%s'", fs_str(&buf)
-        );
-        value64free(v, VALUE64_STR);
-        fsfree(buf);
-        fs_alloc_check(true);
-    }
-
-    /* ---------- 8. FS ---------- */
+    /* ========== FS ========== */
     test_sub("subtest %d: FS to string", ++subnum);
     {
-        fs tmp = fscopy("fs-data");
-        value64 v = value64_createfs(&tmp);
-        fsfree(tmp);
-        fs buf = fsinit(32);
-        int written = value64_tostr(&buf, v, VALUE64_FS, VALUE64_2STR);
+        value64 v = value64_createfs_asstr("/tmp/file");
+        fs buf = FS();
+        int written = value64_tostr(&buf, v, VALUE64_FS, true);
         test_validatefree(
-            written > 0 && strcmp(fs_str(&buf), "\"fs-data\"") == 0,
-            (value64free(v, VALUE64_FS), fsfree(buf)),
-            "FS: expected '\"fs-data\"', got '%s'", fs_str(&buf)
+            written == 23 &&
+            strcmp(fs_str(&buf), "VALUE64(FS):\"/tmp/file\"") == 0,
+            (value64_freefs(&v), fsfree(buf)),
+            "FS: expected 'VALUE64(FS):\"/tmp/file\"', got '%s' (written=%d)",
+            fs_str(&buf), written
         );
-        value64free(v, VALUE64_FS);
+        value64_freefs(&v);
         fsfree(buf);
-        fs_alloc_check(true);
     }
 
-    /* 9. FS с escape-символами */
-    test_sub("subtest %d: FS with escapes", ++subnum);
+    /* ========== Edge: empty STR ========== */
+    test_sub("subtest %d: Empty STR to string", ++subnum);
     {
-        fs tmp = fscopy("tab\there");
-        value64 v = value64_createfs(&tmp);
-        fsfree(tmp);
-        fs buf = fsinit(32);
-        int written = value64_tostr(&buf, v, VALUE64_FS, VALUE64_2STR);
+        value64 v = value64_createstr("");
+        fs buf = FS();
+        int written = value64_tostr(&buf, v, VALUE64_STR, true);
         test_validatefree(
-            written > 0 && strcmp(fs_str(&buf), "\"tab\\there\"") == 0,
-            (value64free(v, VALUE64_FS), fsfree(buf)),
-            "FS escapes: got '%s'", fs_str(&buf)
+            written == 15 &&
+            strcmp(fs_str(&buf), "VALUE64(STR):\"\"") == 0,
+            (value64_freestr(&v), fsfree(buf)),
+            "Empty STR: expected 'VALUE64(STR):\"\"', got '%s' (written=%d)",
+            fs_str(&buf), written
         );
-        value64free(v, VALUE64_FS);
+        value64_freestr(&v);
         fsfree(buf);
-        fs_alloc_check(true);
     }
 
     return logret(TEST_PASSED, "done");
@@ -4643,7 +4627,7 @@ tf_techfprint(const char *name)
         value64 v = LITERAL64_INT(5);
         VALUE64_TECHFPRINT(stdout, v, VALUE64_INT);
     }
-    test_sub("subtest %d:  INT", ++subnum);
+    test_sub("subtest %d:  LONG", ++subnum);
     {
         value64 v = LITERAL64_INT(5);
         VALUE64_TECHFPRINT(stdout, v, VALUE64_LNG);
@@ -4653,12 +4637,12 @@ tf_techfprint(const char *name)
         value64 v = LITERAL64_DBL(8.9);
         VALUE64_TECHFPRINT(stdout, v, VALUE64_DBL);
     }
-    test_sub("subtest %d:  DOUBLE", ++subnum);
+    test_sub("subtest %d:  STR", ++subnum);
     {
         value64 v = LITERAL64_STR("bla bla");
         VALUE64_TECHFPRINT(stdout, v, VALUE64_STR);
     }
-    test_sub("subtest %d:  DOUBLE", ++subnum);
+    test_sub("subtest %d:  FS", ++subnum);
     {
         value64 v = value64_createfs_asstr("qwertyui1");
         VALUE64_TECHFPRINT(stdout, v, VALUE64_FS);
@@ -4667,52 +4651,198 @@ tf_techfprint(const char *name)
     fs_alloc_check(true);
     return logret(TEST_MANUAL, "done");
 }
+
+// ------------------------- TEST value64_str_serialization -------------------------
+static TestStatus
+tf_str_serialization(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== INT ========== */
+    test_sub("subtest %d: INT save/load to string", ++subnum);
+    {
+        value64 orig = LITERAL64_INT(42);
+        fs buf = FS();
+        value64_tostr(&buf, orig, VALUE64_INT, true);
+        fstechprint(buf);
+
+        VALUE64_TECHPRINT(orig, VALUE64_INT);
+
+        value64 loaded;
+        test_validatefree(
+            value64_loadstr(fs_str(&buf), &loaded, VALUE64_UNKNOWN, true, NULL) &&
+            value64_equal(orig, loaded, VALUE64_INT),
+            fsfree(buf),
+            "INT str round-trip failed (string='%s')", fs_str(&buf)
+        );
+        fsfree(buf);
+    }
+
+    /* ========== LONG ========== */
+    test_sub("subtest %d: LONG save/load to string", ++subnum);
+    {
+        value64 orig = LITERAL64_LONG(123456789L);
+        fs buf = FS();
+        value64_tostr(&buf, orig, VALUE64_LNG, true);
+
+        value64 loaded;
+        test_validatefree(
+            value64_loadstr(fs_str(&buf), &loaded, VALUE64_UNKNOWN, true, NULL) &&
+            value64_equal(orig, loaded, VALUE64_LNG),
+            fsfree(buf),
+            "LONG str round-trip failed"
+        );
+        fsfree(buf);
+    }
+
+    /* ========== DBL ========== */
+    test_sub("subtest %d: DBL save/load to string", ++subnum);
+    {
+        value64 orig = LITERAL64_DBL(3.141592653589793);
+        fs buf = FS();
+        value64_tostr(&buf, orig, VALUE64_DBL, true);
+
+        value64 loaded;
+        test_validatefree(
+            value64_loadstr(fs_str(&buf), &loaded, VALUE64_UNKNOWN, true, NULL) &&
+            value64_equal(orig, loaded, VALUE64_DBL),
+            fsfree(buf),
+            "DBL str round-trip failed"
+        );
+        fsfree(buf);
+    }
+
+    /* ========== STR (обычная) ========== */
+    test_sub("subtest %d: STR save/load to string", ++subnum);
+    {
+        value64 orig = value64_createstr("Hello, World!");
+        fs buf = FS();
+        value64_tostr(&buf, orig, VALUE64_STR, true);
+
+        value64 loaded;
+        test_validatefree(
+            value64_loadstr(fs_str(&buf), &loaded, VALUE64_UNKNOWN, true, NULL) &&
+            value64_equal(orig, loaded, VALUE64_STR),
+            (value64_freestr(&orig), fsfree(buf)),
+            "STR round-trip failed (string='%s')", fs_str(&buf)
+        );
+        value64_freestr(&orig);
+        fsfree(buf);
+    }
+
+    /* ========== STR (спецсимволы) ========== */
+    test_sub("subtest %d: STR with quotes and escapes", ++subnum);
+    {
+        value64 orig = value64_createstr("Line1\nLine2\t\"quoted\"\\end");
+        fs buf = FS();
+        value64_tostr(&buf, orig, VALUE64_STR, true);
+
+        value64 loaded;
+        test_validatefree(
+            value64_loadstr(fs_str(&buf), &loaded, VALUE64_UNKNOWN, true, NULL) &&
+            value64_equal(orig, loaded, VALUE64_STR),
+            (value64_freestr(&orig), fsfree(buf)),
+            "STR escapes round-trip failed"
+        );
+        value64_freestr(&orig);
+        fsfree(buf);
+    }
+
+    /* ========== FS ========== */
+    test_sub("subtest %d: FS save/load to string", ++subnum);
+    {
+        value64 orig = value64_createfs_asstr("/home/user/file.txt");
+        fs buf = FS();
+        value64_tostr(&buf, orig, VALUE64_FS, true);
+
+        value64 loaded;
+        test_validatefree(
+            value64_loadstr(fs_str(&buf), &loaded, VALUE64_UNKNOWN, true, NULL) &&
+            value64_equal(orig, loaded, VALUE64_FS),
+            (value64_freefs(&orig), fsfree(buf)),
+            "FS round-trip failed (string='%s')", fs_str(&buf)
+        );
+        value64_freefs(&orig);
+        fsfree(buf);
+    }
+
+    /* ========== PTR (только проверка заголовка) ========== */
+    test_sub("subtest %d: PTR save to string", ++subnum);
+    {
+        int dummy = 99;
+        value64 orig = LITERAL64_PTR(&dummy);
+        fs buf = FS();
+        value64_tostr(&buf, orig, VALUE64_PTR, true);
+        test_validatefree(
+            strstr(fs_str(&buf), "VALUE64(PTR)") != NULL,
+            fsfree(buf),
+            "PTR serialization must contain VALUE64(PTR) header"
+        );
+        fsfree(buf);
+    }
+
+    /* ========== Edge cases ========== */
+    test_sub("subtest %d: empty string round-trip", ++subnum);
+    {
+        value64 orig = value64_createstr("");
+        fs buf = FS();
+        value64_tostr(&buf, orig, VALUE64_STR, true);
+
+        value64 loaded;
+        test_validatefree(
+            value64_loadstr(fs_str(&buf), &loaded, VALUE64_UNKNOWN, true, NULL) &&
+            value64_equal(orig, loaded, VALUE64_STR),
+            (value64_freestr(&orig), fsfree(buf)),
+            "Empty STR round-trip failed"
+        );
+        value64_freestr(&orig);
+        fsfree(buf);
+    }
+
+    test_sub("subtest %d: load from malformed string fails", ++subnum);
+    {
+        value64 loaded;
+        test_validate(
+            !value64_loadstr("not a valid header", &loaded, VALUE64_UNKNOWN, true, NULL),
+            "Malformed string must return false"
+        );
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
-main(int argc, const char *argv[])
+main(/* int argc, const char *argv[] */)
 {
 
- logsimpleinit("Start");
-    bool    runall = argc == 1;
-    printf("%d\n", argc);
-
-    while (runall || *++argv){
-        int     num = INT_MAX;    // INT_MAX for all test
-        if (!runall){
-            num = atoi(*argv);
-            if (num < 0){
-                fprintf(stderr,"Invalid test num %d\n", num);
-                continue;
-            }
-        }
-        printf("Num %d\n", num);
-            testenginestd_run(num,
-                testnew(.f2 = tf_init_free,        .num =  1, .name = "Simple init and validate test"              , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_point_init,       .num =  2, .name = "Simple value64_pcopy_move() test"           , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_clone,            .num =  3, .name = "Simple value64_clone() test"                , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_move,             .num =  4, .name = "Simple value64_moveto() test"               , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_lhash,            .num =  5, .name = "Simple value64_lhash() test"                , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_compare,          .num =  6, .name = "Simple value64_compare() test"              , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_convert,          .num =  7, .name = "Simple value64_convert() test"              , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_convert_move,     .num =  8, .name = "Simple value64_convert_move() test"         , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_is_convertable,   .num =  9, .name = "Simple value64_is_convertable() test"       , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_pt_compare,       .num = 10, .name = "Simple value64_pt_compare() test"           , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_search,           .num = 11, .name = "Simple value64_(rev)search test"            , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_getComparator,    .num = 12, .name = "Simple value64_get(Rev)Comparator test"     , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_getPComparator,   .num = 13, .name = "Simple value64_getP(Rev)Comparator test"    , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_binsearch,        .num = 14, .name = "Simple value64_(rev_)binsearch test"        , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_sort,             .num = 15, .name = "Simple value64_(rev_)sort test"             , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_fsave,            .num = 16, .name = "Simple value64_fsave manual test"           , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_fsave_fload,      .num = 17, .name = "Simple value64_fsave/fload test"            , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_tostr,            .num = 18, .name = "Simple value64_tostr_<type> test"           , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_createfs_asstr,   .num = 19, .name = "Simple value64_createfs_asstr test"         , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_setzero,          .num = 20, .name = "Simple value64_setzero test"                , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_value64_move,     .num = 21, .name = "Simple value64_move() test"                 , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_techfprint,       .num = 22, .name = "Simple value64_techfprint() manual test"    , .desc="", .mandatory=true)
-            );
-        if (runall)
-            break;
-    }
+    logsimpleinit("Start");
+    testenginestd(
+        TESTADD(tf_init_free,           "Simple init and validate test"),
+        TESTADD(tf_point_init,          "Simple value64_pcopy_move() test"),
+        TESTADD(tf_clone,               "Simple value64_clone() test"),
+        TESTADD(tf_move,                "Simple value64_moveto() test"),
+        TESTADD(tf_lhash,               "Simple value64_lhash() test"),
+        TESTADD(tf_compare,             "Simple value64_compare() test"),
+        TESTADD(tf_convert,             "Simple value64_convert() test"),
+        TESTADD(tf_convert_move,        "Simple value64_convert_move() test"),
+        TESTADD(tf_is_convertable,      "Simple value64_is_convertable() test"),
+        TESTADD(tf_pt_compare,          "Simple value64_pt_compare() test"),
+        TESTADD(tf_search,              "Simple value64_(rev)search test"),
+        TESTADD(tf_getComparator,       "Simple value64_get(Rev)Comparator test"),
+        TESTADD(tf_getPComparator,      "Simple value64_getP(Rev)Comparator test"),
+        TESTADD(tf_binsearch,           "Simple value64_(rev_)binsearch test"),
+        TESTADD(tf_sort,                "Simple value64_(rev_)sort test"),
+        TESTADD(tf_fsave,               "Simple value64_tofile manual test"),
+        TESTADD(tf_fsave_fload,         "Simple value64_tofile/fload test"),
+        TESTADD(tf_tostr,               "Simple value64_tostr_<type> test"),
+        TESTADD(tf_createfs_asstr,      "Simple value64_createfs_asstr test"),
+        TESTADD(tf_setzero,             "Simple value64_setzero test"),
+        TESTADD(tf_value64_move,        "Simple value64_move() test"),
+        TESTADD(tf_techfprint,          "Simple value64_techfprint() manual test"),
+        TESTADD(tf_str_serialization,   "Simple serialization (tostr/loadstr) test")
+    );
 
     return logret(0, "end...");  // as replace of logclose()
 }
