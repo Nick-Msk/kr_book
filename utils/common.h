@@ -246,12 +246,10 @@ static inline int               compare_dbl(double v1, double v2){
     return 0; // равны (включая случай +0.0 и -0.0)
 }
 static inline int               compare_ptr(const void *restrict v1, const void *restrict v2){
-
-    const void  *a = *(const void **)v1;
-    const void  *b = *(const void **)v2;
-    uintptr_t   ua = (uintptr_t)a;
-    uintptr_t   ub = (uintptr_t)b;
+    uintptr_t ua = (uintptr_t) v1;
+    uintptr_t ub = (uintptr_t) v2;
     return (ua > ub) - (ua < ub);
+    //return (v1 > v2) - (v2 < v1);
 }
 
 // ------------------- Pointer comparators -------------------
