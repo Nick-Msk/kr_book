@@ -320,6 +320,7 @@ static long                 serialize_values(fs *restrict s, const Array *restri
 static long             loadfs_values(const char *restrict initdata, Array *restrict arr) {
     const char     *data = initdata;
     ArrayType       typ = Array_gettype(*arr);
+    fs              buf = FS();
 
     for (int i = 0; i < arr->len; i++) { // foreach
         char             *endptr;
@@ -361,22 +362,21 @@ static long             loadfs_values(const char *restrict initdata, Array *rest
                 data = skip_leading_spaces_nl(data);
                 break;
             case ARRAY_V64: {
-                // TODO:
-                //int cnt = value64_fromstr(in, &arr->v64[ind], arr->v64type, true);
-
+                // data will be NOT correct now
+                data += value64_loadstr(initdata, &arr->v64[ind], arr->v64type, true, &buf);
                 break;
             }
             default:
                 return userraise(-1, ERR_UNSUPPORTED_TYPE, "%d", typ);   // unsupported type
         }
     }
+    fsfree(buf);
     return data - initdata; // total read
 }
 
 // -------------------------- (Utility) printers -------------------
 
 // --------------------------- API ---------------------------------
-
 // ------------- CONSTRUCTOTS/DESTRUCTORS --------------
 
 // CREATE  and fill with method
@@ -4007,7 +4007,7 @@ main( /*int argc, char *argv[] */ )
         TESTADD(tf8,                            "Array_increase simple test"),
         TESTADD(tf9,                            "PArray simple test"),
         TESTADD(tf10,                           "Creation with ARRAY_(DE)ASC_SERIES simple test"),
-        TESTADD(tf11,                           `"Array_fillrange simple test"),
+        TESTADD(tf11,                           "Array_fillrange simple test"),
         TESTADD(tf12,                           "Array_foreach macro simple test"),
         TESTADD(tf13,                           "Array_foreach_prod simple test"),
         TESTADD(tf_v64array_str_fs,             "V64Array (STR / FS) simple test"),
