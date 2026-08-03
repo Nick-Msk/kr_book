@@ -154,7 +154,7 @@ test/hashset_utils_test: src/hashset_utils.c lib/log.o lib/test.o lib/error.o li
 	$(CC) $(CFLAGS) -DHASHSET_UTILS_TESTING $^ -o $@ $(LDLIBS)
 
 test/value64_test: src/value64.c lib/log.o lib/test.o lib/error.o lib/common.o lib/fs.o lib/fileutils.o\
-	lib/getword.o lib/buffer.o lib/numeric_ops.o lib/common.o | lib/value64.o
+	lib/getword.o lib/buffer.o lib/numeric_ops.o lib/common.o lib/ds.o | lib/value64.o
 	$(CC) $(CFLAGS) -DVALUE64TESTING $^ -o $@ $(LDLIBS)
 
 test/value64_tarray_test: src/value64_tarray.c lib/log.o lib/test.o lib/error.o lib/common.o lib/fs.o lib/common.o \

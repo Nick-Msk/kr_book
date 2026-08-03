@@ -311,33 +311,34 @@ int                         value64_ptr_rev_comp(value64 v1, value64 v2) {
 
 // common value comparator (slow, for single-use), NULL checking
 int                     value64_compare(value64 v1, value64 v2, value64_type typ){
+    int     res = 0;
     switch (typ){
         case VALUE64_INT:
-            return compare_int(v1.ival, v2.ival);
+            res = compare_int(v1.ival, v2.ival);
         break;
         case VALUE64_LNG:
-            return compare_long(v1.lval, v2.lval);
+            res = compare_long(v1.lval, v2.lval);
         break;
         case VALUE64_DBL:
-            return compare_dbl(v1.dval, v2.dval);
+            res = compare_dbl(v1.dval, v2.dval);
         break;
-        case VALUE64_PTR:
-            return compare_ptr(v1.pval, v2.pval);
+        case VALUE64_PTR: 
+            res = compare_ptr(v1.pval, v2.pval);
         break;
         case VALUE64_FS:
             if (!v1.fsval || !v2.fsval)
                 userraiseint(ERR_NULLABLE_PTR, "Null pointers %p %p", v1.fsval, v2.fsval);
-            return fs_cmp(v1.fsval, v2.fsval);
+            res = fs_cmp(v1.fsval, v2.fsval);
         break;
         case VALUE64_STR:
             if (!v1.sval || !v2.sval)
                 userraiseint(ERR_NULLABLE_PTR, "Null pointers %p %p", v1.sval, v2.sval);
-            return strcmp(v1.sval, v2.sval);
+            res = strcmp(v1.sval, v2.sval);
         break;
         default:
             userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
-            return 0;
     }
+    return res;
 }
 // pointer comparator, switch fow now, but probably table-function is required
 // slow, for single-use, with NUL-check
@@ -678,17 +679,17 @@ int                         value64_fprint_msg(FILE *restrict out, const char *r
             cnt += fprintf(out, "%s ", msg);
         switch (typ){
             case VALUE64_INT:
-                return value64_fprint_int(out, val) + cnt;
+                cnt += value64_fprint_int(out, val);
             case VALUE64_LNG:
-                return value64_fprint_long(out, val) + cnt;
+                cnt += value64_fprint_long(out, val);
             case VALUE64_DBL:
-                return value64_fprint_dbl(out, val) + cnt;
+                cnt += value64_fprint_dbl(out, val);
             case VALUE64_PTR:
-                return value64_fprint_ptr(out, val) + cnt;
+                cnt += value64_fprint_ptr(out, val);
             case VALUE64_STR:
-                return value64_fprint_str(out, val) + cnt;
+                cnt += value64_fprint_str(out, val);
             case VALUE64_FS:
-                return value64_fprint_fs(out, val) + cnt;
+                cnt += value64_fprint_fs(out, val);
             default:
                 fprintf(out, "Unsupported %d!\n", typ);
                 return logsimpleerr(-1, "Unsupported %d!\n", typ);
@@ -748,7 +749,7 @@ int                         value64_fsave(FILE *out, value64 val, value64_type t
 
     cnt += value64_fprint(out, val, typ);
     cnt += fprintf(out, "\n");
-    return logsimpleret(cnt, "Saved 1 value");
+    return cnt; //logsimpleret(cnt, "Saved 1 value");
 }
 // string readers
 // fs must be initialized, val can be NULL, it means just check
@@ -835,9 +836,24 @@ bool                        value64_fload(FILE *restrict in, value64 *restrict v
     invraisecode(in != NULL, ERR_NULLABLE_PTR,
         "Null pointers %p", in);
 
-    // Проверяем заголовок "VALUE64"
-    if (!freadpattern(in, "VALUE64") )
-        return logsimpleerr(false, "Missing 'VALUE64' header");
+    #define VALUE64_FLOAD_FORMAT_LEN        32
+    #define VALUE64_FLOAD_FORMAT_MUNUS1     31
+
+    char            type_str[VALUE64_FLOAD_FORMAT_LEN];
+    if (loadtypeinfo) {
+        // Format: VALUE64(INT) : или VALUE64(STR) :
+        if (fscanf(in, "VALUE64(%" TOSTRING(VALUE64_FLOAD_FORMAT_MUNUS1) "[^)]) :", type_str) != 1)
+            return userraise(ERR_WRONG_INPUT_FORMAT, false, "Missing or invalid VALUE64 header");
+        typ = value64_gettype(type_str);
+        if (typ == VALUE64_UNKNOWN)
+            return userraise(ERR_UNKNOWN_TYPE, false, "Unknown type '%s'", type_str);
+    } else {
+        // Без информации о типе – просто VALUE64:
+        if (fscanf(in, "VALUE64 :") != 0)   // fscanf returns 0 if ok
+            return userraise(ERR_WRONG_INPUT_FORMAT, false, "Missing VALUE64 header");
+    }
+    #undef VALUE64_FLOAD_FORMAT_LEN
+    #undef VALUE64_FLOAD_FORMAT_MUNUS1
 
     // Temporary fs, will be ref here to avoid allocation and free
     fs      tmp = FS();
@@ -848,24 +864,13 @@ bool                        value64_fload(FILE *restrict in, value64 *restrict v
         localalloc = true;
     }
 
-    if (loadtypeinfo) {
-        if (fscanf(in, "(%31[^)])", fs_str(buf) ) != 1) // not sure
-            return logsimpleerr(false, "Missing type in parentheses");
-
-        typ = value64_gettype(fs_str(buf) );
-    } else
-        freadpattern(in, " ()");
-
-    if (!freadpattern(in, ":") )
-        return logsimpleerr(false, "Missing ':' after type");
-
     // Generic reader
     if (!value64_freadval(in, typ, val, buf))
         return logsimpleerr(false, "Failed to read value");
 
     if (localalloc)
         fsfree(tmp);
-    return logsimpleret(true, "Loaded 1 value");
+    return true; // logsimpleret(true, "Loaded 1 value");
 }
 
 // to string adapters, actually format must be configurable in context.c
@@ -911,6 +916,32 @@ int                          value64_tostr(fs *target, value64 val, value64_type
             return userraise(false, ERR_UNSUPPORTED_TYPE, "Type %d isn't supported", typ); 
     }
 }
+
+int                          value64_fromstr(const char *restrict source, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf) {
+    invraisecode(source != NULL, ERR_NULLABLE_PTR,
+            "Nullable str %p", source);
+
+    if (!getconvstring_cstr(source, buf, true) )
+        return logsimpleerr(false, "EOF or wrong format");
+    //fs_resize(buf, 100);    // 100 is magic number to make buf capcatle to accept double and others simple types
+    switch (typ) {
+        case VALUE64_INT:
+            return value64_sreadval_int(val, buf);
+        case VALUE64_LNG:
+            return value64_sreadval_lng(val, buf);
+        case VALUE64_DBL:
+            return value64_sreadval_dbl(val, buf);
+        case VALUE64_PTR:
+            return userraise(false, ERR_UNSUPPORTED_TYPE, "Reading of %s isn't supported", value64_typename(typ) );
+        case VALUE64_STR:
+            return value64_sreadval_str(val, buf);
+        case VALUE64_FS:
+            return value64_sreadval_fs(val, buf);
+        default:
+            return userraise(false, ERR_UNSUPPORTED_TYPE, "Type %d isn't supported", typ);
+     }
+}
+
 
 // ---------------------------------------- Filters ------------------------------------------------
 // trivial, common
