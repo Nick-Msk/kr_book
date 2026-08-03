@@ -154,7 +154,7 @@ static inline const char       *dsStrbuf(const Ds *ds) {
  * @param[in,out] ds Pointer to the data source.
  * @return true if Ds is c-string source
  */
-static inline bool              dbIsstr(const Ds *pds) {
+static inline bool              dsIsstr(const Ds *pds) {
     return pds->type == DS_CONSTSTR || pds->type == DS_STR;
 }
 

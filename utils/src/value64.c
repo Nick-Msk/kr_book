@@ -846,13 +846,13 @@ static value64_type             value64_parse_header(Ds *pds, bool loadtypeinfo,
 
     value64_type    loadedtyp = VALUE64_UNKNOWN;
     char            type_str[VALUE64_FLOAD_FORMAT_LEN];
-    int             headercnt;
+    int             headercnt = 0;
     if (loadtypeinfo) {
         // Format: VALUE64(INT) : или VALUE64(STR) :
         if (pds->type == DS_FILE) {
             if (fscanf(pds->fp, "VALUE64(%" TOSTRING(VALUE64_FLOAD_FORMAT_MUNUS1) "[^)]) :", type_str) != 1)
                 return userraise(ERR_WRONG_INPUT_FORMAT, false, "Missing or invalid VALUE64 header");
-        } else if (dbIsstr(pds) ) {
+        } else if (dsIsstr(pds) ) {
             if (sscanf(dsStrbuf(pds), "VALUE64(%" TOSTRING(VALUE64_FLOAD_FORMAT_MUNUS1) "[^)]) :%n", type_str, &headercnt) != 1)
                 return userraise(ERR_WRONG_INPUT_FORMAT, false, "Missing or invalid VALUE64 header");
         }
@@ -864,13 +864,13 @@ static value64_type             value64_parse_header(Ds *pds, bool loadtypeinfo,
         if (pds->type == DS_FILE) {
             if (fscanf(pds->fp, "VALUE64 :") != 0)   // fscanf returns 0 if ok
                 return userraise(ERR_WRONG_INPUT_FORMAT, false, "Missing VALUE64 header");
-        } else if (dbIsstr(pds) ) {
+        } else if (dsIsstr(pds) ) {
             if (sscanf(dsStrbuf(pds), "VALUE64 :%n", &headercnt) != 0)   // fscanf returns 0 if ok
                 return userraise(ERR_WRONG_INPUT_FORMAT, false, "Missing VALUE64 header");
         }
         loadedtyp = typ;    // use imcoming
     }
-    if (dbIsstr(pds) )
+    if (dsIsstr(pds) )
         pds->pos += headercnt;
     #undef VALUE64_FLOAD_FORMAT_LEN
     #undef VALUE64_FLOAD_FORMAT_MUNUS1
@@ -878,17 +878,18 @@ static value64_type             value64_parse_header(Ds *pds, bool loadtypeinfo,
 }
 
 // Ds loader, both for FILE * and const char *
-bool                        value64_loadds(Ds *restrict pds, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf) {
+int                         value64_loadds(Ds *restrict pds, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf) {
     invraisecode(pds != NULL, ERR_NULLABLE_PTR,
         "Null pointers %p", pds);
 
-    value64_type  newtyp = value64_parse_header(pds, loadtypeinfo, typ);
+    int             currpos = dsIsstr(pds) ? pds->pos : 0;
+    value64_type    newtyp = value64_parse_header(pds, loadtypeinfo, typ);
     if (newtyp == VALUE64_UNKNOWN)
-        userraise(ERR_UNKNOWN_TYPE, false, "Unknown type parsed");
+        userraise(-1, ERR_UNKNOWN_TYPE, "Unknown type parsed");
 
     // Temporary fs, will be ref here to avoid allocation and free
-    fs      tmp = FS();
-    bool    localalloc = false;
+    fs              tmp = FS();
+    bool            localalloc = false;
     if (!buf) {
         tmp = fsinit(32);
         buf = &tmp;
@@ -897,11 +898,13 @@ bool                        value64_loadds(Ds *restrict pds, value64 *restrict v
 
     // Generic reader
     if (!value64_dsreadval(pds, newtyp, val, buf))
-        return logsimpleerr(false, "Failed to read value");
+        return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Failed to read value");
 
     if (localalloc)
         fsfree(tmp);
-    return true; // logsimpleret(true, "Loaded 1 value");
+    // TODO: 1 for FILE * stream is NOT correct, value64_dsreadval must be refactored
+    currpos = dsIsstr(pds) ? pds->pos - currpos : 1;
+    return currpos;
 }
 
 // to string adapters, actually format must be configurable in context.c
@@ -4804,8 +4807,8 @@ tf_str_serialization(const char *name)
     {
         value64 loaded;
         test_validate(
-            !value64_loadstr("not a valid header", &loaded, VALUE64_UNKNOWN, true, NULL),
-            "Malformed string must return false"
+            value64_loadstr("not a valid header", &loaded, VALUE64_UNKNOWN, true, NULL) < 0,
+            "Malformed string must return < 0>"
         );
     }
 

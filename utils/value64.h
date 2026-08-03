@@ -606,7 +606,7 @@ extern int                          value64_tofile(FILE *out, value64 val, value
  * @throws ERR_NULLABLE_PTR if `in` is NULL
  * @throws ERR_UNSUPPORTED_TYPE on unknown or unsupported type
  */
-extern bool                         value64_loadds(Ds *restrict ds, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf);
+extern int                          value64_loadds(Ds *restrict ds, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf);
 
 /**
  * @brief Loads a value64 from a text stream (formatted).
@@ -629,7 +629,7 @@ extern bool                         value64_loadds(Ds *restrict ds, value64 *res
  * @throws ERR_NULLABLE_PTR if `in` is NULL
  * @throws ERR_UNSUPPORTED_TYPE on unknown or unsupported type
  */
-static inline bool          value64_loadfile(FILE *restrict in, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf) {
+static inline int           value64_loadfile(FILE *restrict in, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf) {
     Ds ds = dsCreatef(in);
     return value64_loadds(&ds, val, typ, loadtypeinfo, buf);
 }
@@ -650,7 +650,7 @@ static inline bool          value64_loadfile(FILE *restrict in, value64 *restric
  *                     is allocated and freed)
  * @return number of characters consumed, or a negative value on error
  */
-static inline bool                  value64_loadstr(const char *restrict source, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf) {
+static inline int                   value64_loadstr(const char *restrict source, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf) {
     Ds ds = dsCreateconst(source);
     return value64_loadds(&ds, val, typ, loadtypeinfo, buf);
 }
