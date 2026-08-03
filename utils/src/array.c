@@ -4007,7 +4007,7 @@ main( /*int argc, char *argv[] */ )
         TESTADD(tf8,                            "Array_increase simple test"),
         TESTADD(tf9,                            "PArray simple test"),
         TESTADD(tf10,                           "Creation with ARRAY_(DE)ASC_SERIES simple test"),
-        TESTADD(tf11,                           "Array_fillrange simple test"),
+        TESTADD(tf11,                           `"Array_fillrange simple test"),
         TESTADD(tf12,                           "Array_foreach macro simple test"),
         TESTADD(tf13,                           "Array_foreach_prod simple test"),
         TESTADD(tf_v64array_str_fs,             "V64Array (STR / FS) simple test"),
