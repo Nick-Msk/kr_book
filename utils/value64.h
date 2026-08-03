@@ -567,10 +567,46 @@ extern bool                         value64_sreadval_int(value64 *restrict val, 
 extern bool                         value64_sreadval_lng(value64 *restrict val, fs *restrict buf);
 extern bool                         value64_sreadval_dbl(value64 *restrict val, fs *restrict buf);
 
-// generic reader, NOTE: it calls value64_sreadval_<type>
-extern bool                         value64_freadval(FILE *restrict out, value64_type typ, value64 *restrict val, fs *restrict buf);
-// generic save/load
+// generic Ds reader, NOTE: it calls value64_sreadval_<type>
+extern bool                         value64_dsreadval(Ds *restrict ds, value64_type typ, value64 *restrict val, fs *restrict buf);
+
+// generic c-str reader, NOTE: it calls value64_sreadval_<type>
+static inline bool                  value64_strreadval(const char *restrict str, value64_type typ, value64 *restrict val, fs *restrict buf) {
+    Ds ds = dsCreateconst(str);
+    return value64_dsreadval(&ds, typ, val, buf);
+}
+
+// generic FILE  reader, NOTE: it calls value64_sreadval_<type>
+static inline bool                  value64_freadval(FILE *restrict in, value64_type typ, value64 *restrict val, fs *restrict buf) {
+    Ds ds = dsCreatef(in);
+    return value64_dsreadval(&ds, typ, val, buf);
+}
+
+// generic save/load for FILE *
 extern int                          value64_fsave(FILE *out, value64 val, value64_type typ, bool savetypeinfo);
+
+/**
+ * @brief Loads a value64 from Ds source
+ *
+ * The expected format is:
+ *   VALUE64(<type>): <value>
+ * where <type> is the type name (INT, LNG, DBL, STR, FS, …) and <value>
+ * is the textual representation of the value (quoted for strings).
+ *
+ * @param in           input stream (already opened for reading)
+ * @param val          pointer to the value64 to fill
+ * @param typ          expected type; will be updated from the header if
+ *                     `loadtypeinfo` is true
+ * @param loadtypeinfo if true, the type is read from the header, otherwise
+ *                     the value is read assuming the given `typ`
+ * @param buf          optional fast‑string buffer (if NULL, a temporary one
+ *                     is allocated and freed)
+ * @return true on success, false on format error or EOF
+ *
+ * @throws ERR_NULLABLE_PTR if `in` is NULL
+ * @throws ERR_UNSUPPORTED_TYPE on unknown or unsupported type
+ */
+extern bool                         value64_loadds(Ds *restrict ds, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf);
 
 /**
  * @brief Loads a value64 from a text stream (formatted).
@@ -593,20 +629,36 @@ extern int                          value64_fsave(FILE *out, value64 val, value6
  * @throws ERR_NULLABLE_PTR if `in` is NULL
  * @throws ERR_UNSUPPORTED_TYPE on unknown or unsupported type
  */
-extern bool                         value64_fload(FILE *restrict out, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf);
-
-// generic to string: fs MUST be initialized
-extern int                          value64_tostr(fs *target, value64 val, value64_type typ, value64_serialize_type serit);
+static inline bool          value64_loadfile(FILE *restrict in, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf) {
+    Ds ds = dsCreatef(in);
+    return value64_loadds(&ds, val, typ, loadtypeinfo, buf);
+}
 /**
  * @brief Deserializes a value64 from a text string.
+ *
+ * The expected format is:
+ *   VALUE64(<type>): <value>
+ * where <type> is the type name (INT, LNG, DBL, STR, FS, …) and <value>
+ * is the textual representation of the value (quoted for strings).
  *
  * @param source input string (must be null-terminated)
  * @param val    pointer to the value64 to fill
  * @param typ    expected type of the value
- * @param serit  serialization format only VALUE64_2STR expected
+ * @param loadtypeinfo if true, the type is read from the header, otherwise
+ *                     the value is read assuming the given `typ`
+ * @param buf          optional fast‑string buffer (if NULL, a temporary one
+ *                     is allocated and freed)
  * @return number of characters consumed, or a negative value on error
  */
-extern int                          value64_fromstr(const char *restrict source, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf);
+static inline bool          value64_loadstr(const char *restrict source, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf) {
+    Ds ds = dsCreateconst(source);
+    return value64_loadds(&ds, val, typ, loadtypeinfo, buf);
+}
+
+
+// generic to string: fs MUST be initialized
+extern int                          value64_tostr(fs *target, value64 val, value64_type typ, value64_serialize_type serit);
+
 // type to string
 extern int                          value64_tostr_str(fs *target, value64 val);
 extern int                          value64_tostr_int(fs *target, value64 val);

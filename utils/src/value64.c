@@ -744,7 +744,7 @@ int                        value64_techfprint(FILE *restrict out, value64 val, v
 
 // --------------------------------- SERIALIZATION -----------------------------------------
 
-int                         value64_fsave(FILE *out, value64 val, value64_type typ, bool savetypeinfo) {
+int                             value64_fsave(FILE *out, value64 val, value64_type typ, bool savetypeinfo) {
     invraisecode(out != NULL, ERR_NULLABLE_PTR,
         "Null pointer");
     int cnt = 0;
@@ -759,7 +759,7 @@ int                         value64_fsave(FILE *out, value64 val, value64_type t
 }
 // string readers
 // fs must be initialized, val can be NULL, it means just check
-bool                         value64_sreadval_str(value64 *restrict pval, fs *restrict buf) {
+bool                            value64_sreadval_str(value64 *restrict pval, fs *restrict buf) {
     invraisecode(buf != NULL, ERR_NULLABLE_PTR,
         "Null pointers %p", buf);
 
@@ -768,7 +768,7 @@ bool                         value64_sreadval_str(value64 *restrict pval, fs *re
         *pval = v;
     return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );
 }
-bool                         value64_sreadval_int(value64 *restrict pval, fs *restrict buf){
+bool                            value64_sreadval_int(value64 *restrict pval, fs *restrict buf){
     invraisecode(buf != NULL, ERR_NULLABLE_PTR,
         "Null pointers %p", buf);
 
@@ -780,7 +780,7 @@ bool                         value64_sreadval_int(value64 *restrict pval, fs *re
         *pval = v;
     return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );
 }
-bool                         value64_sreadval_lng( value64 *restrict pval, fs *restrict buf){
+bool                            value64_sreadval_lng( value64 *restrict pval, fs *restrict buf){
     invraisecode(buf != NULL, ERR_NULLABLE_PTR,
         "Null pointers %p", buf);
 
@@ -792,7 +792,7 @@ bool                         value64_sreadval_lng( value64 *restrict pval, fs *r
         *pval = v;
     return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );
 }
-bool                         value64_sreadval_dbl(value64 *restrict pval, fs *restrict buf){
+bool                            value64_sreadval_dbl(value64 *restrict pval, fs *restrict buf){
     invraisecode(buf != NULL, ERR_NULLABLE_PTR,
         "Null pointers %p", buf);
     double  dval;
@@ -804,7 +804,7 @@ bool                         value64_sreadval_dbl(value64 *restrict pval, fs *re
     return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );
 }
 // extern bool                         value64_readval_ptr(FILE *restrict f, value64 *restrict val, fs *restrict buf);
-bool                         value64_sreadval_fs(value64 *restrict pval, fs *restrict buf){
+bool                            value64_sreadval_fs(value64 *restrict pval, fs *restrict buf){
     invraisecode(buf != NULL, ERR_NULLABLE_PTR,
         "Null pointers %p", buf);
     value64  v = value64_createfs(buf);
@@ -813,11 +813,13 @@ bool                         value64_sreadval_fs(value64 *restrict pval, fs *res
     return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );
 }
 
-
 //  switcher, cab be implement via distatcher table
-// val != NULL here
-bool                         value64_freadval(FILE *restrict in, value64_type typ, value64 *restrict val, fs *restrict buf){
-    if (!getconvstring(in, buf, true) )
+// val can be NULL (dummy read)
+bool                            value64_dsreadval(Ds *restrict ds, value64_type typ, value64 *restrict val, fs *restrict buf) {
+    invraisecode(ds != NULL && buf != NULL, ERR_NULLABLE_PTR,
+        "Null pointers %p %p", ds, buf);
+
+    if (!getconvstring_ds(ds, buf, true) )
         return logsimpleerr(false, "EOF or wrong format");
     //fs_resize(buf, 100);    // 100 is magic number to make buf capcatle to accept double and others simple types
     switch (typ) {
@@ -837,29 +839,49 @@ bool                         value64_freadval(FILE *restrict in, value64_type ty
             return userraise(false, ERR_UNSUPPORTED_TYPE, "Type %d isn't supported", typ);
      }
 }
-// format checker, then exec generic reader
-bool                        value64_fload(FILE *restrict in, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf) {
-    invraisecode(in != NULL, ERR_NULLABLE_PTR,
-        "Null pointers %p", in);
 
+static value64_type             value64_parse_header(Ds *pds, bool loadtypeinfo, value64_type typ) {
     #define VALUE64_FLOAD_FORMAT_LEN        32
     #define VALUE64_FLOAD_FORMAT_MUNUS1     31
 
+    value64_type    loadedtyp = VALUE64_UNKNOWN;
     char            type_str[VALUE64_FLOAD_FORMAT_LEN];
     if (loadtypeinfo) {
         // Format: VALUE64(INT) : или VALUE64(STR) :
-        if (fscanf(in, "VALUE64(%" TOSTRING(VALUE64_FLOAD_FORMAT_MUNUS1) "[^)]) :", type_str) != 1)
-            return userraise(ERR_WRONG_INPUT_FORMAT, false, "Missing or invalid VALUE64 header");
-        typ = value64_gettype(type_str);
-        if (typ == VALUE64_UNKNOWN)
+        if (pds->type == DS_FILE) {
+            if (fscanf(pds->fp, "VALUE64(%" TOSTRING(VALUE64_FLOAD_FORMAT_MUNUS1) "[^)]) :", type_str) != 1)
+                return userraise(ERR_WRONG_INPUT_FORMAT, false, "Missing or invalid VALUE64 header");
+        } else if (pds->type == DS_CONSTSTR || pds->type == DS_STR) {
+            if (sscanf(dsStrbuf(pds), "VALUE64(%" TOSTRING(VALUE64_FLOAD_FORMAT_MUNUS1) "[^)]) :", type_str) != 1)
+                return userraise(ERR_WRONG_INPUT_FORMAT, false, "Missing or invalid VALUE64 header");
+        }
+        loadedtyp = value64_gettype(type_str);
+        if (loadedtyp == VALUE64_UNKNOWN)
             return userraise(ERR_UNKNOWN_TYPE, false, "Unknown type '%s'", type_str);
     } else {
         // Без информации о типе – просто VALUE64:
-        if (fscanf(in, "VALUE64 :") != 0)   // fscanf returns 0 if ok
-            return userraise(ERR_WRONG_INPUT_FORMAT, false, "Missing VALUE64 header");
+        if (pds->type == DS_FILE) {
+            if (fscanf(pds->fp, "VALUE64 :") != 0)   // fscanf returns 0 if ok
+                return userraise(ERR_WRONG_INPUT_FORMAT, false, "Missing VALUE64 header");
+        } else if (pds->type == DS_CONSTSTR || pds->type == DS_STR) {
+            if (sscanf(dsStrbuf(pds), "VALUE64 :") != 0)   // fscanf returns 0 if ok
+                return userraise(ERR_WRONG_INPUT_FORMAT, false, "Missing VALUE64 header");
+        }
+        loadedtyp = typ;    // use imcoming
     }
     #undef VALUE64_FLOAD_FORMAT_LEN
     #undef VALUE64_FLOAD_FORMAT_MUNUS1
+    return typ;
+}
+
+// Ds loader, both for FILE * and const char *
+bool                        value64_loadds(Ds *restrict pds, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf) {
+    invraisecode(pds != NULL, ERR_NULLABLE_PTR,
+        "Null pointers %p", pds);
+
+    value64_type  newtyp = value64_parse_header(pds, loadtypeinfo, typ);
+    if (newtyp == VALUE64_UNKNOWN)
+        userraise(ERR_UNKNOWN_TYPE, false, "Unknown type parsed");
 
     // Temporary fs, will be ref here to avoid allocation and free
     fs      tmp = FS();
@@ -871,7 +893,7 @@ bool                        value64_fload(FILE *restrict in, value64 *restrict v
     }
 
     // Generic reader
-    if (!value64_freadval(in, typ, val, buf))
+    if (!value64_dsreadval(pds, newtyp, val, buf))
         return logsimpleerr(false, "Failed to read value");
 
     if (localalloc)
@@ -922,32 +944,6 @@ int                          value64_tostr(fs *target, value64 val, value64_type
             return userraise(false, ERR_UNSUPPORTED_TYPE, "Type %d isn't supported", typ); 
     }
 }
-
-int                          value64_fromstr(const char *restrict source, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf) {
-    invraisecode(source != NULL, ERR_NULLABLE_PTR,
-            "Nullable str %p", source);
-
-    if (!getconvstring_cstr(source, buf, true) )
-        return logsimpleerr(false, "EOF or wrong format");
-    //fs_resize(buf, 100);    // 100 is magic number to make buf capcatle to accept double and others simple types
-    switch (typ) {
-        case VALUE64_INT:
-            return value64_sreadval_int(val, buf);
-        case VALUE64_LNG:
-            return value64_sreadval_lng(val, buf);
-        case VALUE64_DBL:
-            return value64_sreadval_dbl(val, buf);
-        case VALUE64_PTR:
-            return userraise(false, ERR_UNSUPPORTED_TYPE, "Reading of %s isn't supported", value64_typename(typ) );
-        case VALUE64_STR:
-            return value64_sreadval_str(val, buf);
-        case VALUE64_FS:
-            return value64_sreadval_fs(val, buf);
-        default:
-            return userraise(false, ERR_UNSUPPORTED_TYPE, "Type %d isn't supported", typ);
-     }
-}
-
 
 // ---------------------------------------- Filters ------------------------------------------------
 // trivial, common
@@ -4023,7 +4019,7 @@ tf_fsave_fload(const char *name)
             return logerr(TEST_FAILED, "Cannot open %s for reading", fname);
         value64 loaded;
         test_validate(
-            value64_fload(f, &loaded, VALUE64_UNKNOWN, true, NULL) == 1,
+            value64_loadfile(f, &loaded, VALUE64_UNKNOWN, true, NULL) == 1,
             "INT load must return 1"
         );
         fclose(f);
@@ -4051,7 +4047,7 @@ tf_fsave_fload(const char *name)
             return logerr(TEST_FAILED, "Cannot open %s for reading", fname);
         value64 loaded;
         test_validate(
-            value64_fload(f, &loaded, VALUE64_UNKNOWN, true, NULL) == 1,
+            value64_loadfile(f, &loaded, VALUE64_UNKNOWN, true, NULL) == 1,
             "LONG load must return 1"
         );
         fclose(f);
@@ -4079,7 +4075,7 @@ tf_fsave_fload(const char *name)
             return logerr(TEST_FAILED, "Cannot open %s for reading", fname);
         value64 loaded;
         test_validate(
-            value64_fload(f, &loaded, VALUE64_UNKNOWN, true, NULL) == 1,
+            value64_loadfile(f, &loaded, VALUE64_UNKNOWN, true, NULL) == 1,
             "DBL load must return 1"
         );
         fclose(f);
@@ -4107,7 +4103,7 @@ tf_fsave_fload(const char *name)
             return logerr(TEST_FAILED, "Cannot open %s for reading", fname);
         value64 loaded;
         test_validate(
-            value64_fload(f, &loaded, VALUE64_UNKNOWN, true, NULL) == 1,
+            value64_loadfile(f, &loaded, VALUE64_UNKNOWN, true, NULL) == 1,
             "STR normal load must return 1"
         );
         fclose(f);
@@ -4139,7 +4135,7 @@ tf_fsave_fload(const char *name)
             return logerr(TEST_FAILED, "Cannot open %s for reading", fname);
         value64 loaded;
         test_validate(
-            value64_fload(f, &loaded, VALUE64_UNKNOWN, true, NULL) == 1,
+            value64_loadfile(f, &loaded, VALUE64_UNKNOWN, true, NULL) == 1,
             "STR empty load must return 1"
         );
         fclose(f);
@@ -4173,7 +4169,7 @@ tf_fsave_fload(const char *name)
             return logerr(TEST_FAILED, "Cannot open %s for reading", fname);
         value64 loaded;
         test_validate(
-            value64_fload(f, &loaded, VALUE64_UNKNOWN, true, NULL) == 1,
+            value64_loadfile(f, &loaded, VALUE64_UNKNOWN, true, NULL) == 1,
             "FS load must return 1"
         );
         fclose(f);
@@ -4205,7 +4201,7 @@ tf_fsave_fload(const char *name)
             return logerr(TEST_FAILED, "Cannot open %s for reading", fname);
         value64 loaded;
         test_validate(
-            value64_fload(f, &loaded, VALUE64_INT, false, NULL) == 1,
+            value64_loadfile(f, &loaded, VALUE64_INT, false, NULL) == 1,
             "INT no-type load must return 1"
         );
         fclose(f);
