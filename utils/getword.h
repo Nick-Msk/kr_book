@@ -86,6 +86,24 @@ static inline void                  lexem_free(Lexem *l){
 extern bool                         getpurestring(FILE *restrict in, fs *restrict str);
 
 /**
+ * @brief Reads a text token from a generic data source (file, string, const string).
+ *
+ * The token may be quoted.  When `removequot` is true the surrounding
+ * double quotes are stripped and escape sequences (`\\n`, `\\r`, `\\t`,
+ * `\\\\`) are converted to their real characters.  An empty quoted string
+ * `""` is recognised as a valid empty token.
+ *
+ * @param in          data source (already initialised)
+ * @param str         output fast‑string – will be resized and filled
+ * @param removequot  if true, remove surrounding quotes and process escapes
+ * @return true on success, false on format error or EOF
+ * @throws ERR_NULLABLE_PTR if `in` or `str` is NULL
+ * @throws ERR_WRONG_INPUT_FORMAT on missing / unterminated quotes or
+ *         a dangling backslash at the end of input
+ */
+bool                        getconvstring_ds(Ds *restrict in, fs *restrict str, bool removequot);
+
+/**
  * @brief Reads a text token from a FILE
  *
  * The token may be quoted.  When `removequot` is true the surrounding
