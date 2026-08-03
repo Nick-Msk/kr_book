@@ -111,13 +111,18 @@ int                             plong_revcmp(const void *l1, const void *l2){
     return -compare_long( *(const long *) l1, *(const long *) l2);
 }
 // simple comparator pointer to pointer
-int                             pptr_cmp(const void *p1, const void *p2){
-    return compare_ptr(p1, p2);
+int                             pptr_cmp(const void *p1, const void *p2) {
+    const void *pa = *(const void **) p1;
+    const void *pb = *(const void **) p2;
+    return compare_ptr(pa, pb);
 }
 // simple reverse comparator pointer to pointer
 int                             pptr_revcmp(const void *p1, const void *p2){
-    return -compare_ptr(p1, p2);
+    const void *pa = *(const void **) p1;
+    const void *pb = *(const void **) p2;
+    return -compare_ptr(pa, pb);
 }
+
 // simple comparator pointer double
 int                             pdbl_cmp(const void *d1, const void *d2){
     return compare_dbl( *(const double *) d1, *(const double *) d2);
