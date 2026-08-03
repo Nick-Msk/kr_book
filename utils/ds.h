@@ -136,8 +136,16 @@ extern int                     dsreplacec(int c, Ds *ds);
  * Returns the number of characters printed.
  */
 extern int                     dsTechFPrint(FILE *restrict out, const Ds *restrict ds);
-static inline int       dsTechPrint(const Ds * ds) {
+static inline int       dsTechPrint(const Ds *ds) {
     return dsTechFPrint(stdout, ds);
+}
+/**
+ * @brief Return pointer to buffer for DS_STR and DS_CONSTSTR
+ *  
+ * @param[in,out] ds Pointer to the data source.
+ */
+static inline const char       *dsStrbuf(const Ds *ds) {
+    return ds->type == DS_STR ? ds->ptr : ds->type == DS_CONSTSTR ? ds->constptr : NULL;
 }
 
 #endif /* !_DS_H */
