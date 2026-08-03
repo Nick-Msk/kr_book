@@ -653,16 +653,16 @@ static int                  sprint_str_escaped(fs *restrict out, const char *res
 }
 // print adapters, actually format must be configurable in context.c
 int                         value64_fprint_int(FILE *restrict out, value64 val) {
-    return fprintf(out, "%d", value64_int(val) );
+    return fprintf(out, "\"%d\"", value64_int(val) );
 }
 int                         value64_fprint_long(FILE *restrict out, value64 val) {
-    return fprintf(out, "%ld", value64_long(val) );
+    return fprintf(out, "\"%ld\"", value64_long(val) );
 }
 int                         value64_fprint_dbl(FILE *restrict out, value64 val) {
-    return fprintf(out, "%.*g", DBL_DECIMAL_DIG, value64_dbl(val) );
+    return fprintf(out, "\"%.*g\"", DBL_DECIMAL_DIG, value64_dbl(val) );
 }
 int                         value64_fprint_ptr(FILE *restrict out, value64 val) {
-    return fprintf(out, "%p", value64_ptr(val) );
+    return fprintf(out, "\"%p\"", value64_ptr(val) );
 }
 int                         value64_fprint_str(FILE *restrict out, value64 val) {
     return fprint_str_escaped(out, value64_str(val) );
@@ -680,16 +680,22 @@ int                         value64_fprint_msg(FILE *restrict out, const char *r
         switch (typ){
             case VALUE64_INT:
                 cnt += value64_fprint_int(out, val);
+                break;
             case VALUE64_LNG:
                 cnt += value64_fprint_long(out, val);
+                break;
             case VALUE64_DBL:
                 cnt += value64_fprint_dbl(out, val);
+                break;
             case VALUE64_PTR:
                 cnt += value64_fprint_ptr(out, val);
+                break;
             case VALUE64_STR:
                 cnt += value64_fprint_str(out, val);
+                break;
             case VALUE64_FS:
                 cnt += value64_fprint_fs(out, val);
+                break;
             default:
                 fprintf(out, "Unsupported %d!\n", typ);
                 return logsimpleerr(-1, "Unsupported %d!\n", typ);
