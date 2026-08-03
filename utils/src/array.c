@@ -208,7 +208,7 @@ static bool                 load_values(FILE *restrict in, Array *restrict arr) 
                 fscanf(in, "%d %c\n", &tmp, arr->cv + i);
                 break;
             case ARRAY_V64:
-                value64_fload(in, &arr->v64[i], arr->v64type, true, NULL);
+                value64_loadfile(in, &arr->v64[i], arr->v64type, true, NULL);
                 break;
         }
     }
@@ -253,7 +253,7 @@ static long                 save_values(FILE *restrict out, const Array *restric
             case ARRAY_V64:
                 IOCHECKER(written, fprintf(out, "%6d\t", i) )   // to supply format
                     total += written;
-                IOCHECKER(written, value64_fsave(out, arr->v64[i], arr->v64type, true) )
+                IOCHECKER(written, value64_tofile(out, arr->v64[i], arr->v64type, true) )
                     total += written;
                 break;
             default:
@@ -293,7 +293,7 @@ static long                 serialize_values(fs *restrict s, const Array *restri
                 break;
             case ARRAY_V64: {
                 fs tmp = FS();      // TODO: rework to append logic
-                total += value64_tostr(&tmp, arr->v64[i], arr->v64type, VALUE64_2STR);
+                total += value64_tostr(&tmp, arr->v64[i], arr->v64type, true);
                 fs_cat(s, tmp);
                 fsfree(tmp);
                 break;
@@ -1179,7 +1179,7 @@ int                         Array_fprint(FILE *f, Array val, int limit) {
  * @brief Saves array values to a text file, separated by a delimiter.
  *
  * Each element is written on a single line, with the delimiter appended.
- * For ARRAY_V64 the dedicated value64_fsave() is used.
+ * For ARRAY_V64 the dedicated value64_tofile() is used.
  *
  * @param arr   array (by value)
  * @param fname file name
@@ -1222,7 +1222,7 @@ long                        Array_savevalues(Array arr, const char *fname, char 
                 written = fprintf(f, "%c", arr.iv[i]);
                 break;
             case ARRAY_V64:
-                written = value64_fsave(f, arr.v64[i], arr.v64type, true);
+                written = value64_tofile(f, arr.v64[i], arr.v64type, true);
                 break;
             default:
                 fclose(f);

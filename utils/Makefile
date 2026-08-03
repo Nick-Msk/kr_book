@@ -104,7 +104,7 @@ test/metric_test: src/metric.c lib/log.o lib/test.o lib/error.o | lib/metric.o
 	$(CC) $(CFLAGS) -DMETRICTESTING $^ -o $@ $(LDLIBS)
 
 test/array_test: src/array.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o \
-	lib/value64.o lib/fs.o lib/numeric_ops.o lib/fileutils.o lib/getword.o lib/buffer.o | lib/array.o
+	lib/value64.o lib/fs.o lib/numeric_ops.o lib/fileutils.o lib/getword.o lib/buffer.o lib/ds.o  | lib/array.o
 	$(CC) $(CFLAGS) -DARRAYTESTING $^ -o $@ $(LDLIBS)
 
 test/buffer_test:       src/buffer.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o | lib/buffer.o
@@ -116,7 +116,8 @@ test/fs_test:   src/fs.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/comm
 test/fs_iter_test: src/fs_iter.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fs.o | lib/fs_iter.o
 	$(CC) $(CFLAGS) -DFSITERTESTING $^ -o $@ $(LDLIBS)
 
-test/fs_array_test: src/fs_array.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fs.o lib/fileutils.o  | lib/fs_array.o
+test/fs_array_test: src/fs_array.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fs.o \
+		lib/fileutils.o | lib/fs_array.o
 	$(CC) $(CFLAGS) -DFSARRAYTESTING $^ -o $@ $(LDLIBS)
 
 test/fileutils_test: src/fileutils.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fs.o lib/getword.o lib/buffer.o | lib/fileutils.o
