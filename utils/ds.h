@@ -162,6 +162,11 @@ static inline bool              dsIsstr(const Ds *pds) {
     return pds->type == DS_CONSTSTR || pds->type == DS_STR;
 }
 
+/**
+ * @brief Saves the current position of the data source for later restoration.
+ * 
+ * @param pds Pointer to the data source.
+ */
 static inline void              dsSavepos(Ds *pds) {
     switch (pds->type) {
         case DS_FILE:
@@ -175,6 +180,12 @@ static inline void              dsSavepos(Ds *pds) {
     }
 }
 
+/**
+ * @brief Restores the position of the data source to the last saved state.
+ * 
+ * @param pds Pointer to the data source.
+ * @return true if successful, false otherwise.
+ */
 static inline bool              dsRestorepos(Ds *pds) {
     switch (pds->type) {
         case DS_FILE:
@@ -187,5 +198,24 @@ static inline bool              dsRestorepos(Ds *pds) {
     }
     return true;
 }
+
+/**
+ * @brief Resets the position of the data source to the beginning.
+ * 
+ * @param pds Pointer to the data source.
+ * @return true if successful, false otherwise.
+ */
+static inline bool              dsReset(Ds *pds) {
+    switch (pds->type) {
+        case DS_FILE:
+            return fseek(pds->fp, 0L, SEEK_SET) == 0;
+        case DS_STR: case DS_CONSTSTR:
+            pds->pos = 0;
+            break;
+        case DS_FS:
+            // noting we can do here
+    }
+    return true;
+} 
 
 #endif /* !_DS_H */

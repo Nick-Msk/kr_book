@@ -412,6 +412,35 @@ tf_ds(const char *name)
         test_validate(ret == EOF, "dsreplacec on const string must return EOF");
     }
 
+    /* ========== dsReset ========== */
+    test_sub("subtest %d: dsReset on DS_STR", ++subnum);
+    {
+        char text[] = "XYZ";
+        Ds ds = dsCreatestr(text);
+        dsgetc(&ds); // 'X'
+        dsgetc(&ds); // 'Y'
+        dsReset(&ds);
+        int c = dsgetc(&ds); // должно быть 'X'
+        test_validate(c == 'X', "After reset, next char must be 'X', got '%c'", c);
+    }
+
+    test_sub("subtest %d: dsReset on DS_FILE", ++subnum);
+    {
+        const char *fname = "res/ds/tmp_reset.ds";
+        FILE *fp = fopen(fname, "w");
+        fprintf(fp, "ABC");
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        Ds ds = dsCreatef(fp);
+        dsgetc(&ds); // 'A'
+        dsgetc(&ds); // 'B'
+        dsReset(&ds);
+        int c = dsgetc(&ds); // должно быть 'A'
+        test_validate(c == 'A', "After reset on file, next char must be 'A', got '%c'", c);
+        fclose(fp);
+    }
+
     return logret(TEST_PASSED, "done");
 }
 
