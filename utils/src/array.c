@@ -1432,7 +1432,7 @@ Array                       Array_load(const char *fname) {
 
 // -------------------------- (API) serialization -----------------------
 
-long                        ArraySerialize(fs *restrict s, const Array *restrict arr) {
+long                        ArraySavefs(fs *restrict s, const Array *restrict arr) {
     invraisecode(ERR_NULLABLE_PTR, s != NULL && arr != NULL, 
             "Fs nullable or arr is null %p %p", s, arr);
 

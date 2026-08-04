@@ -509,7 +509,10 @@ extern long                     ArraySavefile(FILE *out, Array arr);
 extern Array                    Array_load(const char *fname);
 extern Array                    ArrayLoadfile(FILE *in);
 
-// save only values by delimeter
+/** 
+ * @brief   Value-only Saver by delim for file
+ * @note    Deprecated
+ */
 extern long                     Array_savevalues(Array arr, const char *fname, char delim);
 
 
@@ -523,7 +526,7 @@ extern long                     Array_savevalues(Array arr, const char *fname, c
  * @return    number of characters written, or -1 if `s` failed
  */
 
-extern long                     ArraySerialize(fs *restrict s, const Array *restrict arr);
+extern long                     ArraySavefs(fs *restrict s, const Array *restrict arr);
 /**
  * @brief Deserializes an array from a fs previously created by ArraySerialyze().
  *
