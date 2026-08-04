@@ -186,8 +186,9 @@ fs                                       fs_move(fs *orig){
         userraiseint(ERR_FS_NOT_ALLOC_FLAG, "Unable to move not allocated fs (type %s)", fs_flag_str(orig->flags) );    // 10001 interrupt
     fs tmp = *orig;
     *orig = FS();
-    return logsimpleret(tmp, "fs moved %d: %p", tmp.sz, tmp.v);
+    return tmp; // logsimpleret(tmp, "fs moved %d: %p", tmp.sz, tmp.v);
 }
+
 // move whole fs (body and string)
 fs                                      *fs_moveto_heap(fs *orig){
     invraisecode(orig != NULL, ERR_NULLABLE_PTR, "Null pointer");
