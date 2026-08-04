@@ -1282,7 +1282,7 @@ long                        Array_savevalues(Array arr, const char *fname, char 
  * @return number of bytes written
  */
 
-long                        ArrayFSave(FILE *out, Array arr) {  
+long                        ArraySavefile(FILE *out, Array arr) {  
     if (!out)
         return logsimpleret(0L, "Output is null"); 
 
@@ -1302,7 +1302,7 @@ long                        ArrayFSave(FILE *out, Array arr) {
 /**
  * @brief Saves an array to a file.
  *
- * Opens the file for writing, calls ArrayFSave(), and closes the file.
+ * Opens the file for writing, calls ArraySavefile(), and closes the file.
  *
  * @param arr   array (by value)
  * @param fname file path
@@ -1315,7 +1315,7 @@ long                        Array_save(Array arr, const char *fname) {
     if (out == 0)
         return userraise(ERR_UNABLE_OPEN_FILE_WRITE, -1, "Can't open '%s' for write", fname);
 
-    long        res = ArrayFSave(out, arr);
+    long        res = ArraySavefile(out, arr);
     fclose(out);
 
     if(res < 0)
@@ -1387,7 +1387,7 @@ static bool                     ArrayParseFooter(FILE *in) {
  * @param in input stream, already opened for reading
  * @return loaded array, or an array with the error flag set
  */
-Array                           ArrayFLoad(FILE *in) {
+Array                           ArrayLoadfile(FILE *in) {
     invraisecode(ERR_NULLABLE_PTR, in != NULL, "Nullable input");
 
     Array arr = ArrayParseHeader(in); 
@@ -1410,7 +1410,7 @@ Array                           ArrayFLoad(FILE *in) {
 /**
  * @brief Loads an array from a file.
  *
- * Opens the file for reading, calls ArrayFLoad(), and closes the file.
+ * Opens the file for reading, calls ArrayLoadfile(), and closes the file.
  *
  * @param fname file path
  * @return loaded array, or an array with the error flag set
@@ -1424,7 +1424,7 @@ Array                       Array_load(const char *fname) {
     if (in == 0)
         userraiseint(ERR_UNABLE_OPEN_FILE_READ, "Can't open for read '%s'", fname);
     
-    Array arr = ArrayFLoad(in);
+    Array arr = ArrayLoadfile(in);
     
     fclose(in);
     return logret(arr, "Done %d", arr.len);

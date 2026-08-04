@@ -253,6 +253,13 @@ static inline Array             Array_seterror(Array a){
     a.flags |= ARRAY_ERROR;
     return a;
 }
+/// @brief clear error state to array /* NOT USED */
+/// @param a array
+/// @return array
+static inline Array             ArrayClearerror(Array a){
+    a.flags &= ~ARRAY_ERROR;
+    return a;
+}
 /// @brief check if array is valie
 /// @param a array
 /// @return true if ok 
@@ -498,9 +505,9 @@ static inline int               Array_print(Array val, int limit){
 }
 
 extern long                     Array_save(Array arr, const char *fname);
-extern long                     ArrayFSave(FILE *out, Array arr);
+extern long                     ArraySavefile(FILE *out, Array arr);
 extern Array                    Array_load(const char *fname);
-extern Array                    ArrayFLoad(FILE *in);
+extern Array                    ArrayLoadfile(FILE *in);
 
 // save only values by delimeter
 extern long                     Array_savevalues(Array arr, const char *fname, char delim);
