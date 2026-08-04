@@ -9,7 +9,7 @@
 /**
  * @brief Internal helper for reading from a memory buffer.
  */
-static inline int           dsgetc_buffer(const char *ptr, size_t *pos) {
+static inline int           dsgetc_buffer(const char *restrict ptr, size_t *restrict pos) {
     if (ptr[*pos] == '\0') {
         return EOF;
     }
@@ -19,7 +19,7 @@ static inline int           dsgetc_buffer(const char *ptr, size_t *pos) {
 /**
  * @brief Internal helper for mutable string unget.
  */
-static inline int           dsreplace_str(char *ptr, size_t *pos, int c) {
+static inline int           dsreplace_str(char *restrict ptr, size_t *restrict pos, int c) {
     if (*pos > 0)
         return ptr[--(*pos)] = (unsigned char) c;
     else
@@ -29,7 +29,7 @@ static inline int           dsreplace_str(char *ptr, size_t *pos, int c) {
 /**
  * @brief Internal helper for constant string unget (conditional rollback).
  */
-static inline int           dsungetc_conststr(const char *ptr, size_t *pos, int c) {
+static inline int           dsungetc_conststr(const char *restrict ptr, size_t *restrict pos, int c) {
     if (*pos > 0 && (unsigned char) ptr[*pos - 1] == (unsigned char) c) {
         (*pos)--;
         return c;
@@ -61,7 +61,7 @@ static int                  ds_escape_print(FILE *out, unsigned char c) {
  * @brief Helper to print the buffer content and closing delimiters.
  * @return Total characters written to 'out'.
  */
-static int                  ds_print_buffer_content(FILE *out, const char *ptr, size_t start, size_t end) {
+static int                  ds_print_buffer_content(FILE *restrict out, const char *restrict ptr, size_t start, size_t end) {
     int total = 0;
     for (size_t i = start; ptr[i] != '\0' && (end ==0 || i < end); i++) {
         total += ds_escape_print(out, (unsigned char) ptr[i]);
@@ -73,101 +73,144 @@ static int                  ds_print_buffer_content(FILE *out, const char *ptr, 
 
 // -------------------- CONSTRUCTOTS/DESTRUCTORS -------------------
 
-void                        dsInitf(Ds *ds, FILE *fp) {
-    if (ds == NULL || fp == NULL)
-        return;
-    ds->type = DS_FILE;
-    ds->fp = fp;
+bool                        dsInitf(Ds *restrict pds, FILE *restrict fp) {
+    if (pds == NULL || fp == NULL)
+        return false;
+    pds->type = DS_FILE;
+    pds->fp = fp;
+    return true;
 }
 
-void                        dsInitstr(Ds *ds, char *buf) {
+bool                        dsInitstr(Ds *restrict ds, char *restrict buf) {
     if (ds == NULL || buf == NULL)
-        return;
+        return false;
     ds->type = DS_STR;
     ds->ptr = buf;
     ds->pos = 0;
+    return true;
 }
 
-void                        dsInitconst(Ds *ds, const char *buf) {
-    if (ds == NULL || buf == NULL)
-        return;
-    ds->type = DS_CONSTSTR;
-    ds->constptr = buf;
-    ds->pos = 0;
+bool                        dsInitconst(Ds *restrict pds, const char *restrict buf) {
+    if (pds == NULL || buf == NULL)
+        return false;
+    pds->type = DS_CONSTSTR;
+    pds->constptr = buf;
+    pds->pos = 0;
+    return true;
 }
+
+#ifndef NO_FSDS
+    bool                    dsInitfs(Ds *restrict pds, fs *restrict s) {
+        if (pds == NULL || s == NULL)
+            return false;
+        pds->type = DS_FS;
+        pds->pos = 0;        // iterator
+        pds->s = fs_move(s);    // clear s
+        // pds->s = *s;
+        // *s = FS();      // make it empty!
+        return true;
+    }
+#endif  /* !NO_FSDS */   
 
 // --------------------- ACCESS AND MODIFICATION --------------------
 
-int                         dsgetc(Ds *ds) {
-    switch (ds->type) {
+int                         dsgetc(Ds *pds) {
+    switch (pds->type) {
         case DS_FILE:
-            return fgetc(ds->fp);
+            return fgetc(pds->fp);
         case DS_STR:
-            return dsgetc_buffer(ds->ptr, &ds->pos);
+            return dsgetc_buffer(pds->ptr, &pds->pos);
         case DS_CONSTSTR:
-            return dsgetc_buffer(ds->constptr, &ds->pos);
-        default:
+            return dsgetc_buffer(pds->constptr, &pds->pos);
+        case DS_FS:
+#ifndef NO_FSDS
+            return dsgetc_buffer(pds->s.v, &pds->pos);    // is it correct in any cases?
+#else
             return EOF;
+#endif  /* !NO_FSDS */ 
     }
 }
 
-int                         dsungetc(int c, Ds *ds) {
+int                         dsungetc(int c, Ds *pds) {
     if (c == EOF)   // NOT SURE, LET IT BE FOR NOW
         return EOF;
-    switch (ds->type) {
+    switch (pds->type) {
         case DS_FILE:
-            return ungetc(c, ds->fp);
+            return ungetc(c, pds->fp);
         case DS_STR:
+#ifndef NO_FSDS
+        case DS_FS:
+#endif  /* !NO_FSDS */ 
         case DS_CONSTSTR: {
-            const char *ptr = (ds->type == DS_STR) ? 
-                               ds->ptr : ds->constptr;
-            return dsungetc_conststr(ptr, &ds->pos, c);
+            const char *ptr = dsStrbuf(pds);
+            // the same logic for FS, STR and CONSTSTR
+            return dsungetc_conststr(ptr, &pds->pos, c);
         }
-        default:
+        default:      
+            //*elemnull(pds->s, pds->pos++) = (unsigned char) c;
             return EOF;
     }
 }
 
-// only for DS_STR
-int                        dsreplacec(int c, Ds *ds) {
+// only for DS_STR and DS_FS
+int                        dsreplacec(int c, Ds *pds) {
     if (c == EOF)
         return EOF;
-    switch (ds->type) {
+    switch (pds->type) {
         case DS_STR:
-            return dsreplace_str(ds->ptr, &ds->pos, c);
+#ifndef NO_FSDS
+        case DS_FS:
+#endif  /* !NO_FSDS */      
+            char *ptr = (char *) dsStrbuf(pds);
+            // the same logic for FS and STR
+            return dsreplace_str(ptr, &pds->pos, c);
         default:
             return EOF;
     }
 }
 
-int                         dsTechFPrint(FILE *restrict out, const Ds *restrict ds) {
-    if (!ds || !out) 
+int                         dsTechFPrint(FILE *restrict out, const Ds *restrict pds) {
+    if (!pds || !out) 
         return -1;
 
     int total = 0;
 
-    switch (ds->type) {
+    switch (pds->type) {
         case DS_FILE:
-            total += fprintf(out, "[DS_FILE] %p\n", ds->fp);
+            IOCHECKERSIMPLE(written, fprintf(out, "[DS_FILE] %p\n", pds->fp), -1)
+                total += written;
             break;
         case DS_STR:
         case DS_CONSTSTR: {
-            const char *ptr = (ds->type == DS_STR) ? 
-                               ds->ptr : ds->constptr;
-            total += fprintf(out, "[DS_%s] pos=%zu, data=\"", 
-                    (ds->type == DS_STR) ? "STR" : "CONSTSTR", ds->pos);
+            const char *ptr = dsStrbuf(pds);
+            IOCHECKERSIMPLE(written, fprintf(out, "[DS_%s] pos=%zu, data=\"", 
+                    (pds->type == DS_STR) ? "STR" : "CONSTSTR", pds->pos), -1)
+                    total += written;
             //
-            total += ds_print_buffer_content(out, ptr, 0, ds->pos);
-            total += fprintf(out, "\" => \"");
-            total += ds_print_buffer_content(out, ptr, ds->pos, 0);
-            total += fprintf(out, "\"\n");
+            IOCHECKERSIMPLE(written, ds_print_buffer_content(out, ptr, 0, pds->pos), -1)
+                total += written;
+            IOCHECKERSIMPLE(written, fprintf(out, "\" => \""), -1)
+                total += written;
+            IOCHECKERSIMPLE(written, ds_print_buffer_content(out, ptr, pds->pos, 0), -1)
+                total += written;
+            IOCHECKERSIMPLE(written, fprintf(out, "\"\n"), -1)
+                total += written;
             break;
         }
         case DS_FS:
-            total += fprintf(out, "[DS_FS (Not supported)]\n");
+#ifndef NO_FSDS
+            IOCHECKERSIMPLE(written, fprintf(out, "[DS_FS] pos=%zu ", pds->pos), -1)
+                total += written;
+            IOCHECKERSIMPLE(written, fs_techfprint(out, &pds->s, NULL), -1)
+                total += written;
+#else
+            IOCHECKERSIMPLE(written, fprintf(out, "[DS_FS (Not supported)]\n"), -1)
+                total += written;
+#endif  /* !NO_FSDS */ 
             break;
         default:
-            total += fprintf(out, "[DS_UNKNOWN]\n");
+            IOCHECKERSIMPLE(written, fprintf(out, "[DS_UNKNOWN]\n"), -1)
+                total += written;
             break;
     }
     return total;

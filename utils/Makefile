@@ -9,6 +9,7 @@ LDLIBS=
 .PHONY: clean cleanlog cleanall no_targets__ list
 .PHONY: checker error log common test metric numeric_ops context hashset value64 array buffer fs fs_iter fs_array
 .PHONY: getword systemutils command_executor fileutils value64_tarray seq all hashset_utils lwset
+.PHONY: ds ds_nofs
 
 all: checker error log common test metric numeric_ops context hashset value64 array buffer fs fs_iter fs_array \
 	getword systemutils command_executor fileutils value64_tarray seq hashset_utils lwset ds
@@ -127,8 +128,15 @@ test/getword_test: src/getword.c lib/log.o lib/test.o lib/error.o lib/checker.o 
 			 lib/buffer.o lib/fs_array.o lib/fileutils.o lib/ds.o | lib/getword.o
 	$(CC) $(CFLAGS) -DGETWORDTESTING $^ -o $@ $(LDLIBS)
 
-test/ds_test: src/ds.c lib/test.o lib/log.o lib/error.o   | lib/ds.o
+# NOTE: need 2 version of ds - normal and  NO_FSDS
+test/ds_test: src/ds.c lib/test.o lib/log.o lib/error.o  \
+		 lib/fs.o lib/fileutils.o lib/common.o lib/getword.o lib/buffer.o \
+		  | lib/ds.o
 	$(CC) $(CFLAGS) -DDS_TESTING $^ -o $@ $(LDLIBS)
+
+test/ds_test_nofs: src/ds.c lib/test.o lib/log.o lib/error.o  \
+		  | lib/ds.o
+	$(CC) $(CFLAGS) -DDS_NOFS -DDS_TESTING $^ -o $@ $(LDLIBS)
 
 test/systemutils_test: src/systemutils.c lib/log.o lib/test.o lib/error.o lib/checker.o | lib/systemutils.o
 	$(CC) $(CFLAGS) -DSYSTEMUTILSTESTING $^ -o $@ $(LDLIBS)
@@ -189,6 +197,7 @@ value64_tarray: test/value64_tarray_test
 systemutils: test/systemutils_test
 getword: test/getword_test
 ds: test/ds_test
+ds_nofs: test/ds_test_nofs
 fileutils: test/fileutils_test
 fs_array: test/fs_array_test
 fs_iter: test/fs_iter_test

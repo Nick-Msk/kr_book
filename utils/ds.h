@@ -5,7 +5,7 @@
  * This module provides a @ref Ds abstraction that allows the same 
  * code to read characters from both standard I/O streams (FILE*) and 
  * memory buffers (const char*).
- * This is low-level code, NO FS, LOG OR USERRASE allowed!
+ * This is low-level code, NO FS (#ifndef), LOG OR USERRASE allowed!
  */
 
 #ifndef _DS_H
@@ -14,6 +14,10 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
+
+#ifndef NO_FSDS
+    #include "fs.h"
+#endif /* !NO_FSDS */
 
 // ---------------------------------------------------------------------------------
 // --------------------------- Public datasource API -------------------------------
@@ -48,6 +52,9 @@ typedef struct Ds {
             union {
                 char          *ptr; /**< Pointer to the start of the string (used in @c DS_STR mode). */
                 const char    *constptr; /**< Pointer to the start of the constant string (used in @c DS_STR mode). */
+#ifndef NO_FSDS
+                fs    s;                /**< fs autoextendable string */
+#endif  /* !NO_FSDS */             
             };
             size_t  pos;        /**< Current read position in the buffer. */
             size_t  strssavepos;      /**< For save/resrote position  */
@@ -55,7 +62,15 @@ typedef struct Ds {
     };
 } Ds;
 
-#define DS(...) (Ds) {.fp = NULL, .filesavepos = 0L, .pos = 0L, .ptr = NULL, .strssavepos = 0L, __VA_ARGS__}
+#define DS(...) (Ds) {.type = DS_STR, .pos = 0L, .ptr = NULL, .strssavepos = 0L, __VA_ARGS__}
+#define DSFILE(...) (Ds) {.type = DS_FILE, .fp = NULL, .filesavepos = 0L, __VA_ARGS__}
+#define DSSTR(...) (Ds) {.type = DS_STR, .pos = 0L, .ptr = NULL, .strssavepos = 0L, __VA_ARGS__}
+#define DSCONST(...) (Ds) {.type = DS_CONSTSTR, .pos = 0L, .constptr = NULL, .strssavepos = 0L, __VA_ARGS__}
+
+#ifndef NO_FSDS
+    #define DSFS(...) (Ds) {.type = DS_FS, .pos = 0L, .s = FS(), .strssavepos = 0L, __VA_ARGS__}
+#endif  /* !NO_FSDS */    
+
 
 /**
  * @brief Initializes a Ds object for reading from a file.
@@ -63,7 +78,7 @@ typedef struct Ds {
  * @param[out] Ds Pointer to the Ds structure to be initialized.
  * @param[in]  fp Pointer to the input file (FILE*).
  */
-extern void                    dsInitf(Ds *pds, FILE *fp);
+extern bool                    dsInitf(Ds *restrict pds, FILE *restrict fp);
 /**
  * @brief Initializes a Ds object for reading from a file. wrapper for dsInitf
  * 
@@ -71,7 +86,7 @@ extern void                    dsInitf(Ds *pds, FILE *fp);
  * @return     Ds (initialied or not)
  */
 static inline Ds               dsCreatef(FILE *fp) {
-    Ds      tmp = DS();
+    Ds      tmp = DSFILE();
     dsInitf(&tmp, fp);
     return tmp;
 }
@@ -81,7 +96,7 @@ static inline Ds               dsCreatef(FILE *fp) {
  * @param[out] Ds Pointer to the Datasource (Ds) structure to be initialized.
  * @param[in]  buf Pointer to a null-terminated string (const char*).
  */
-extern void                    dsInitstr(Ds *ds, char *buf);
+extern bool                    dsInitstr(Ds *restrict ds, char *restrict buf);
 /**
  * @brief Initializes a Datasource (Ds) object for reading from a c-string.
  * 
@@ -89,7 +104,7 @@ extern void                    dsInitstr(Ds *ds, char *buf);
  * @return     Ds (initialied or not)
  */
 static inline Ds               dsCreatestr(char *buf) {
-    Ds      tmp = DS();
+    Ds      tmp = DSSTR();
     dsInitstr(&tmp, buf);
     return tmp;
 }
@@ -99,7 +114,7 @@ static inline Ds               dsCreatestr(char *buf) {
  * @param[out] Ds Pointer to the Datasource (Ds) structure to be initialized.
  * @param[in]  buf Pointer to a null-terminated string (const char*).
  */
-extern void                    dsInitconst(Ds *pds, const char *buf);
+extern bool                    dsInitconst(Ds *restrict pds, const char *restrict buf);
 /**
  * @brief Initializes a Datasource (Ds) object for reading from a const c-string.
  * 
@@ -107,10 +122,35 @@ extern void                    dsInitconst(Ds *pds, const char *buf);
  * @return     Ds (initialied or not)
  */
 static inline Ds               dsCreateconst(const char *buf) {
-    Ds      tmp = DS();
+    Ds      tmp = DSCONST();
     dsInitconst(&tmp, buf);
     return tmp;
 }
+// ----------------------------------------------------------------------
+#ifndef NO_FSDS
+/**
+ * @brief Initializes a Ds object for reading from a fs.
+ * 
+ * @param[out] Ds Pointer to the Ds structure to be initialized.
+ * @param[in]  s Pointer to the fs.
+ * @note       fs s is MOVED into Ds structure!
+ */
+extern bool                    dsInitfs(Ds *restrict pds, fs *restrict s);
+/**
+ * @brief Initializes a Ds object for reading from a file. wrapper for dsInitf
+ * 
+ * @param[in]  s Pointer to the fs.
+ * @return     Ds (initialied or not).
+ * @note       fs s is MOVED into Ds structure!
+ */
+static inline Ds               dsCreatefs(fs *s) {
+    Ds      tmp = DSFS();
+    dsInitfs(&tmp, s);
+    return tmp;
+}
+// ----------------------------------------------------------------------
+#endif  /* !NO_FSDS */   
+
 /**
  * @brief Reads the next character from the source.
  * 
@@ -144,13 +184,22 @@ static inline int       dsTechPrint(const Ds *pds) {
     return dsTechFPrint(stdout, pds);
 }
 /**
- * @brief Return pointer to buffer for DS_STR and DS_CONSTSTR
+ * @brief Return pointer to buffer for DS_STR, DS_FS and DS_CONSTSTR
  *  
  * @param[in,out] ds Pointer to the data source.
  * @return pointer to c-str buffer
  */
 static inline const char       *dsStrbuf(const Ds *pds) {
-    return pds->type == DS_STR ? pds->ptr : pds->type == DS_CONSTSTR ? pds->constptr : NULL;
+    switch (pds->type) {
+        case DS_STR:
+            return pds->ptr;
+        case DS_CONSTSTR:
+            return pds->constptr;
+        case DS_FS:
+            return pds->s.v;
+        default:
+            return NULL;
+    }
 }
 /**
  * @brief Return pointer to buffer for DS_STR and DS_CONSTSTR
@@ -172,11 +221,9 @@ static inline void              dsSavepos(Ds *pds) {
         case DS_FILE:
             pds->filesavepos = ftell(pds->fp);
             break;
-        case DS_STR: case DS_CONSTSTR:
+        case DS_STR: case DS_CONSTSTR: case DS_FS:
             pds->strssavepos = pds->pos;
             break;
-        case DS_FS:
-            // noting we can do here
     }
 }
 
@@ -190,11 +237,9 @@ static inline bool              dsRestorepos(Ds *pds) {
     switch (pds->type) {
         case DS_FILE:
             return fseek(pds->fp, pds->filesavepos, SEEK_SET) == 0;
-        case DS_STR: case DS_CONSTSTR:
+        case DS_STR: case DS_CONSTSTR: case DS_FS:
             pds->pos = pds->strssavepos;
             break;
-        case DS_FS:
-            // noting we can do here
     }
     return true;
 }
@@ -209,11 +254,9 @@ static inline bool              dsReset(Ds *pds) {
     switch (pds->type) {
         case DS_FILE:
             return fseek(pds->fp, 0L, SEEK_SET) == 0;
-        case DS_STR: case DS_CONSTSTR:
+        case DS_STR: case DS_CONSTSTR: case DS_FS:
             pds->pos = 0;
             break;
-        case DS_FS:
-            // noting we can do here
     }
     return true;
 } 
