@@ -253,7 +253,7 @@ tf_ds(const char *name)
     /* ========== 5. Файловый источник: чтение ========== */
     test_sub("subtest %d: file source read", ++subnum);
     {
-        const char *fname = "res/ds/test_ds_file.txt";
+        const char *fname = "res/ds/test_ds_file.ds";
         FILE *fp = fopen(fname, "w");
         test_validate(fp != NULL, "Failed to create temporary file");
         fprintf(fp, "Test");
@@ -273,7 +273,7 @@ tf_ds(const char *name)
     /* ========== 6. dsungetc для файла ========== */
     test_sub("subtest %d: dsungetc for file", ++subnum);
     {
-        const char *fname = "res/ds/test_ds_ungetc.txt";
+        const char *fname = "res/ds/test_ds_ungetc.ds";
         FILE *fp = fopen(fname, "w");
         fprintf(fp, "Z");
         fclose(fp);
@@ -298,7 +298,7 @@ tf_ds(const char *name)
         dsgetc(&ds);  // 'D'
         dsgetc(&ds);  // 'a'
 
-        const char *fname = "res/ds/test_techprint.txt";
+        const char *fname = "res/ds/test_techprint.ds";
         FILE *out = fopen(fname, "w");
         dsTechFPrint(out, &ds);
         fclose(out);
@@ -389,7 +389,7 @@ tf_ds(const char *name)
     test_sub("subtest %d: dsreplacec on non‑string sources", ++subnum);
     {
         // файловый источник не поддерживает замену
-        const char *fname = "res/ds/test_replace.txt";
+        const char *fname = "res/ds/test_replace.ds";
         FILE *fp = fopen(fname, "w");
         fprintf(fp, "File");
         fclose(fp);
@@ -415,6 +415,138 @@ tf_ds(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST Ds additional functions -------------------------
+static TestStatus
+tf_ds_extra(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. dsStrbuf – строка */
+    test_sub("subtest %d: dsStrbuf on DS_STR", ++subnum);
+    {
+        char text[] = "Hello";
+        Ds ds = dsCreatestr(text);
+        const char *p = dsStrbuf(&ds);
+        test_validate(p == text, "dsStrbuf must return original buffer pointer");
+    }
+
+    /* 2. dsStrbuf – константная строка */
+    test_sub("subtest %d: dsStrbuf on DS_CONSTSTR", ++subnum);
+    {
+        const char *text = "World";
+        Ds ds = dsCreateconst(text);
+        const char *p = dsStrbuf(&ds);
+        test_validate(p == text, "dsStrbuf must return original const pointer");
+    }
+
+    /* 3. dsStrbuf – файловый источник должен вернуть NULL */
+    test_sub("subtest %d: dsStrbuf on DS_FILE returns NULL", ++subnum);
+    {
+        const char *fname = "res/ds/tmp_strbuf.ds";
+        FILE *fp = fopen(fname, "w");
+        fprintf(fp, "ignored");
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        Ds ds = dsCreatef(fp);
+        const char *p = dsStrbuf(&ds);
+        test_validate(p == NULL, "dsStrbuf on file must return NULL");
+        fclose(fp);
+    }
+
+    /* 4. dsIsstr – строковые источники */
+    test_sub("subtest %d: dsIsstr true for DS_STR and DS_CONSTSTR", ++subnum);
+    {
+        Ds ds1 = dsCreatestr("a");
+        Ds ds2 = dsCreateconst("b");
+        test_validate(dsIsstr(&ds1) && dsIsstr(&ds2), "Both DS_STR and DS_CONSTSTR must be recognised as strings");
+    }
+
+    /* 5. dsIsstr – файловый источник не строка */
+    test_sub("subtest %d: dsIsstr false for DS_FILE", ++subnum);
+    {
+        const char *fname = "res/ds/tmp_isstr.ds";
+        FILE *fp = fopen(fname, "w");
+        fprintf(fp, "x");
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        Ds ds = dsCreatef(fp);
+        test_validate(!dsIsstr(&ds), "File source must not be a string");
+        fclose(fp);
+    }
+
+    /* 6. dsSavepos / dsRestorepos – строковый источник */
+    test_sub("subtest %d: dsSavepos/dsRestorepos on DS_STR", ++subnum);
+    {
+        char text[] = "ABCDEF";
+        Ds ds = dsCreatestr(text);
+        // читаем несколько символов
+        dsgetc(&ds); // 'A'
+        dsgetc(&ds); // 'B'
+        dsSavepos(&ds);
+        dsgetc(&ds); // 'C'
+        dsgetc(&ds); // 'D'
+        dsRestorepos(&ds);
+        int c = dsgetc(&ds); // должно быть 'C'
+        test_validate(c == 'C', "After restore, next char must be 'C', got '%c'", c);
+    }
+
+    /* 7. dsSavepos / dsRestorepos – файловый источник */
+    test_sub("subtest %d: dsSavepos/dsRestorepos on DS_FILE", ++subnum);
+    {
+        const char *fname = "res/ds/tmp_savepos.ds";
+        FILE *fp = fopen(fname, "w");
+        fprintf(fp, "12345");
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        Ds ds = dsCreatef(fp);
+        dsgetc(&ds); // '1'
+        dsgetc(&ds); // '2'
+        dsSavepos(&ds);
+        dsgetc(&ds); // '3'
+        dsgetc(&ds); // '4'
+        dsRestorepos(&ds);
+        int c = dsgetc(&ds); // должно быть '3'
+        test_validate(c == '3', "After restore on file, next char must be '3', got '%c'", c);
+        fclose(fp);
+    }
+
+    /* 8. dsRestorepos без предварительного Save – не ломается, просто возвращается в начало? */
+    test_sub("subtest %d: dsRestorepos without Save (DS_STR)", ++subnum);
+    {
+        char text[] = "XYZ";
+        Ds ds = dsCreatestr(text);
+        dsgetc(&ds); // 'X'
+        dsgetc(&ds); // 'Y'
+        dsRestorepos(&ds); // без Save – поведение не определено, но не должно падать
+        // просто проверяем, что не краш
+        int c = dsgetc(&ds);
+        test_validate(c == 'X', "Restore without save must not crash");
+    }
+    /* 9. dsRestorepos without Save (DS_FILE) */
+    test_sub("subtest %d: dsRestorepos without Save (DS_FILE)", ++subnum);
+    {
+        const char *fname = "res/ds/tmp_restore_nosave.ds";
+        FILE *fp = fopen(fname, "w");
+        fprintf(fp, "ABC");
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        Ds ds = dsCreatef(fp);
+        dsgetc(&ds); // 'A'
+        dsgetc(&ds); // 'B'
+        dsRestorepos(&ds); // без Save – filesavepos == 0
+        int c = dsgetc(&ds); // должно быть 'A'
+        test_validate(c == 'A', "Restore without save on file must reset to beginning, got '%c'", c);
+        fclose(fp);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -422,7 +554,8 @@ main( /*int argc, char *argv[] */ )
     logsimpleinit("Start");
 
     testenginestd(
-        TESTADD(tf_ds,           "Ds (DataSource) simple tests")
+        TESTADD(tf_ds,           "Ds (DataSource) simple tests"),
+        TESTADD(tf_ds_extra,     "Ds additional functions")
     );
 
     return logret(0, "end...");  // as replace of logclose()

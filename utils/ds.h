@@ -27,7 +27,7 @@ typedef enum {
     DS_FILE,     /**< Data source is a standard file (FILE*). */
     DS_STR,      /**< Data source is a memory buffer (null-terminated string). */
     DS_CONSTSTR, /**< Data source is a memory const buffer (null-terminated string). */
-    DS_FS        /**< FS, Not suppoted now */
+    DS_FS        /**< FS, Not suppoted here, for DS_FS adapted only */
 } DSType;
 
 /**
@@ -39,19 +39,23 @@ typedef enum {
  */
 typedef struct Ds {
     DSType type;                /**< Determines which union member is active. */
-    union {         
-        FILE *fp;               /**< Pointer to the file (used in @c DS_FILE mode). */
+    union {     
+        struct {    
+            FILE *fp;               /**< Pointer to the file (used in @c DS_FILE mode). */
+            off_t   filesavepos;       /**< For save FILE position */
+        };
         struct {
             union {
                 char          *ptr; /**< Pointer to the start of the string (used in @c DS_STR mode). */
                 const char    *constptr; /**< Pointer to the start of the constant string (used in @c DS_STR mode). */
             };
             size_t  pos;        /**< Current read position in the buffer. */
+            size_t  strssavepos;      /**< For save/resrote position  */
         };                  /**< Buffer details. */
     };
 } Ds;
 
-#define DS(...) (Ds) {.fp = NULL, .pos = 0, .ptr = NULL, __VA_ARGS__}
+#define DS(...) (Ds) {.fp = NULL, .filesavepos = 0L, .pos = 0L, .ptr = NULL, .strssavepos = 0L, __VA_ARGS__}
 
 /**
  * @brief Initializes a Ds object for reading from a file.
@@ -59,7 +63,7 @@ typedef struct Ds {
  * @param[out] Ds Pointer to the Ds structure to be initialized.
  * @param[in]  fp Pointer to the input file (FILE*).
  */
-extern void                    dsInitf(Ds *ds, FILE *fp);
+extern void                    dsInitf(Ds *pds, FILE *fp);
 /**
  * @brief Initializes a Ds object for reading from a file. wrapper for dsInitf
  * 
@@ -95,7 +99,7 @@ static inline Ds               dsCreatestr(char *buf) {
  * @param[out] Ds Pointer to the Datasource (Ds) structure to be initialized.
  * @param[in]  buf Pointer to a null-terminated string (const char*).
  */
-extern void                    dsInitconst(Ds *ds, const char *buf);
+extern void                    dsInitconst(Ds *pds, const char *buf);
 /**
  * @brief Initializes a Datasource (Ds) object for reading from a const c-string.
  * 
@@ -114,7 +118,7 @@ static inline Ds               dsCreateconst(const char *buf) {
  * @return The next character (0-255) or @c EOF if the end of the source is reached.
  * @note For @c DS_BUFFER mode, EOF is returned when the '\0' character is encountered.
  */
-extern int                     dsgetc(Ds *ds);
+extern int                     dsgetc(Ds *pds);
 /**
  * @brief Pushes a character back into the stream or rolls back the position.
  * 
@@ -122,7 +126,7 @@ extern int                     dsgetc(Ds *ds);
  * @param[in,out] ds Pointer to the data source.
  * @return The character 'c' if successful, or @c EOF if the operation failed.
  */
-extern int                     dsungetc(int c, Ds *ds);
+extern int                     dsungetc(int c, Ds *pds);
 /**
  * @brief Pushes ANY character back into the stream (DS_STR)
  *  
@@ -130,14 +134,14 @@ extern int                     dsungetc(int c, Ds *ds);
  * @param[in,out] ds Pointer to the data source.
  * @return The character 'c' if successful, or @c EOF if the operation failed.
  */
-extern int                     dsreplacec(int c, Ds *ds);
+extern int                     dsreplacec(int c, Ds *pds);
 /**
  * @brief Debugging print implementation.
  * Returns the number of characters printed.
  */
 extern int                     dsTechFPrint(FILE *restrict out, const Ds *restrict ds);
-static inline int       dsTechPrint(const Ds *ds) {
-    return dsTechFPrint(stdout, ds);
+static inline int       dsTechPrint(const Ds *pds) {
+    return dsTechFPrint(stdout, pds);
 }
 /**
  * @brief Return pointer to buffer for DS_STR and DS_CONSTSTR
@@ -145,8 +149,8 @@ static inline int       dsTechPrint(const Ds *ds) {
  * @param[in,out] ds Pointer to the data source.
  * @return pointer to c-str buffer
  */
-static inline const char       *dsStrbuf(const Ds *ds) {
-    return ds->type == DS_STR ? ds->ptr : ds->type == DS_CONSTSTR ? ds->constptr : NULL;
+static inline const char       *dsStrbuf(const Ds *pds) {
+    return pds->type == DS_STR ? pds->ptr : pds->type == DS_CONSTSTR ? pds->constptr : NULL;
 }
 /**
  * @brief Return pointer to buffer for DS_STR and DS_CONSTSTR
@@ -156,6 +160,32 @@ static inline const char       *dsStrbuf(const Ds *ds) {
  */
 static inline bool              dsIsstr(const Ds *pds) {
     return pds->type == DS_CONSTSTR || pds->type == DS_STR;
+}
+
+static inline void              dsSavepos(Ds *pds) {
+    switch (pds->type) {
+        case DS_FILE:
+            pds->filesavepos = ftell(pds->fp);
+            break;
+        case DS_STR: case DS_CONSTSTR:
+            pds->strssavepos = pds->pos;
+            break;
+        case DS_FS:
+            // noting we can do here
+    }
+}
+
+static inline bool              dsRestorepos(Ds *pds) {
+    switch (pds->type) {
+        case DS_FILE:
+            return fseek(pds->fp, pds->filesavepos, SEEK_SET) == 0;
+        case DS_STR: case DS_CONSTSTR:
+            pds->pos = pds->strssavepos;
+            break;
+        case DS_FS:
+            // noting we can do here
+    }
+    return true;
 }
 
 #endif /* !_DS_H */
