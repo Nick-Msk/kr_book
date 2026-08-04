@@ -398,6 +398,98 @@ static long             loadfs_values(const char *restrict initdata, Array *rest
     return data - initdata; // total read
 }
 
+static Array                   ArrayParseHeaderFile(FILE *in) {
+    int                 cnt = 0;
+    char                typ[ARRAY_MAX_TYPE_STR], v64typ[ARRAY_MAX_TYPE_STR] = "";
+
+    // Read header: "ARRAY: <type> / <v64type> : <count>"
+    if (fscanf(in, "ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s / %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s : %d ", 
+                typ, 
+                v64typ, 
+                &cnt) != 3)
+        userraiseint(ERR_WRONG_INPUT_FORMAT, "Array header wrong format");
+
+    Array arr = Array_init();       // zero-init
+    ArrayType atype = ArrayTypeFromName(typ);
+    switch (atype) {
+        case ARRAY_V64: {
+            value64_type vt = value64_gettype(v64typ);
+            if (vt == VALUE64_UNKNOWN)
+                userraiseint(ERR_WRONG_INPUT_FORMAT, "Array header V64 wrong format '%s'", v64typ);
+            arr = V64Array_create(cnt, ARRAY_FILLTYPE_NONE, vt);
+            break;
+        }
+        case ARRAY_INT:
+            arr = IArray_create(cnt, ARRAY_FILLTYPE_NONE);
+            break;
+        case ARRAY_LONG:
+            arr = LArray_create(cnt, ARRAY_FILLTYPE_NONE);
+            break;
+        case ARRAY_DOUBLE:
+            arr = DArray_create(cnt, ARRAY_FILLTYPE_NONE);
+            break;
+        case ARRAY_POINTER:
+            arr = PArray_create(cnt, ARRAY_FILLTYPE_NONE);
+            break;
+        case ARRAY_CHAR:
+            arr = CArray_create(cnt, ARRAY_FILLTYPE_NONE);
+            break;
+        default:
+            ArraySeterror(&arr);
+            break;
+    }
+    if (ArrayIserror(arr) )
+        return userraise(arr, ERR_UNSUPPORTED_TYPE, "Unsupported type '%s'", typ);
+    else
+        return arr;
+}
+
+static Array                    ArrayParseHeaderStr(const char **base) {
+    // ---------- 1. Parse header ----------
+    char            typ[ARRAY_MAX_TYPE_STR], v64typ[ARRAY_MAX_TYPE_STR] = "";
+    int             cnt = 0, header_len = 0;
+    Array           a = Array_init();
+    const char     *data = *base;
+
+    if (sscanf(data, "ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s / %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s : %d %n", typ, v64typ, &cnt, &header_len) != 3) {
+        ArraySeterror(&a);
+        return userraise(a, ERR_WRONG_INPUT_FORMAT, "ArrayLoadfs: header mismatch");
+    } 
+    data += header_len;
+
+    // ---------- Create empty array ----------
+    ArrayType       atype = ArrayTypeFromName(typ);
+    value64_type    vt = value64_gettype(v64typ);
+    // will set error flag if case of anything
+    a = ArrayOnlyCreate(cnt, atype, vt);
+    if (ArrayIserror(a) )  // 
+        return userraise(a, ERR_UNSUPPORTED_TYPE, "ArrayLoadfs: unsupported type '%s'", typ);
+
+    *base = data;
+    return a;
+}
+
+static bool                     ArrayParseFooterFile(FILE *in) {
+    char            typ[ARRAY_MAX_TYPE_STR];
+    if (fscanf(in, " ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s", typ) != 1 || strcmp(typ, "DONE") != 0)
+        return userraise(false, ERR_WRONG_INPUT_FORMAT, "Wrong final piece '%s'", typ);
+    else
+        return true;
+}
+
+static bool                     ArrayParseFooterStr(const char **base) {
+    const char     *data = *base;
+    int             footer_len = 0;
+    if (sscanf(data, "ARRAY: DONE%n", &footer_len) != 1) {
+        return userraise(false, ERR_WRONG_INPUT_FORMAT, 
+            "ArrayLoadfs: footer mismatch '%.30s'", data);
+    }
+    data += footer_len;
+    *base = data;
+    return true;
+}
+
+
 // -------------------------- (Utility) printers -------------------
 
 // --------------------------- API ---------------------------------
@@ -412,12 +504,12 @@ Array                           Array_create(int cnt, ArrayFillType filltyp, Arr
         return logerr(res, "sz = %d", res.sz);
 
     if (increase(&res, cnt) < 0)
-        Array_seterror(res);
+        ArraySeterror(&res);
     else {
         res.len = cnt;
         Array_fill(res, filltyp);
     }
-    return logret(res, "sz = %d, errors? %s", res.sz, bool_str(Array_iserror(res) ) );
+    return logret(res, "sz = %d, errors? %s", res.sz, bool_str(ArrayIserror(res) ) );
 }
 /// @brief free array
 /// @param val pointer to array
@@ -1324,60 +1416,6 @@ long                        Array_save(Array arr, const char *fname) {
         return logret(res, "Done %ld", res);
 }
 
-static Array                   ArrayParseHeader(FILE *in) {
-    int                 cnt = 0;
-    char                typ[ARRAY_MAX_TYPE_STR], v64typ[ARRAY_MAX_TYPE_STR] = "";
-
-    // Read header: "ARRAY: <type> / <v64type> : <count>"
-    if (fscanf(in, "ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s / %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s : %d ", 
-                typ, 
-                v64typ, 
-                &cnt) != 3)
-        userraiseint(ERR_WRONG_INPUT_FORMAT, "Array header wrong format");
-
-    Array arr = Array_init();       // zero-init
-    ArrayType atype = ArrayTypeFromName(typ);
-    switch (atype) {
-        case ARRAY_V64: {
-            value64_type vt = value64_gettype(v64typ);
-            if (vt == VALUE64_UNKNOWN)
-                userraiseint(ERR_WRONG_INPUT_FORMAT, "Array header V64 wrong format '%s'", v64typ);
-            arr = V64Array_create(cnt, ARRAY_FILLTYPE_NONE, vt);
-            break;
-        }
-        case ARRAY_INT:
-            arr = IArray_create(cnt, ARRAY_FILLTYPE_NONE);
-            break;
-        case ARRAY_LONG:
-            arr = LArray_create(cnt, ARRAY_FILLTYPE_NONE);
-            break;
-        case ARRAY_DOUBLE:
-            arr = DArray_create(cnt, ARRAY_FILLTYPE_NONE);
-            break;
-        case ARRAY_POINTER:
-            arr = PArray_create(cnt, ARRAY_FILLTYPE_NONE);
-            break;
-        case ARRAY_CHAR:
-            arr = CArray_create(cnt, ARRAY_FILLTYPE_NONE);
-            break;
-        default:
-            Array_seterror(arr);
-            break;
-    }
-    if (Array_iserror(arr) )
-        return userraise(arr, ERR_UNSUPPORTED_TYPE, "Unsupported type '%s'", typ);
-    else
-        return arr;
-}
-
-static bool                     ArrayParseFooter(FILE *in) {
-    char                typ[ARRAY_MAX_TYPE_STR];
-    if (fscanf(in, " ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s", typ) != 1 || strcmp(typ, "DONE") != 0)
-        return userraise(false, ERR_WRONG_INPUT_FORMAT, "Wrong final piece '%s'", typ);
-    else
-        return true;
-}
-
 /**
  * @brief Loads an array from a text stream in the full ARRAY format.
  *
@@ -1390,8 +1428,8 @@ static bool                     ArrayParseFooter(FILE *in) {
 Array                           ArrayLoadfile(FILE *in) {
     invraisecode(ERR_NULLABLE_PTR, in != NULL, "Nullable input");
 
-    Array arr = ArrayParseHeader(in); 
-    if (Array_iserror(arr) )
+    Array arr = ArrayParseHeaderFile(in); 
+    if (ArrayIserror(arr) )
         return userraise(arr, ERR_UNSUPPORTED_TYPE, "Unable to create array");
 
     if (load_values(in, &arr) < 0) {
@@ -1399,7 +1437,7 @@ Array                           ArrayLoadfile(FILE *in) {
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read value from file");
     }
 
-    if (!ArrayParseFooter(in) ) {
+    if (!ArrayParseFooterFile(in) ) {
         Array_free(&arr);
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to finish create array");
     }
@@ -1446,54 +1484,34 @@ long                        ArraySavefs(fs *restrict s, const Array *restrict ar
     return total_written;
 }
 
+
+
 long                            ArrayLoadfs(const fs *restrict s, Array *restrict arr) {
     invraisecode(ERR_NULLABLE_PTR, fs_isnull(s),
                  "Nullable input %p", (void*) s);
 
-    const char     *base = s->v, *data = base;
+    const char     *data = s->v;
+    int             data_len;
+    Array           a = ArrayParseHeaderStr(&data); 
 
-    // ---------- 1. Parse header ----------
-    char            typ[ARRAY_MAX_TYPE_STR], v64typ[ARRAY_MAX_TYPE_STR] = "";
-    int             cnt = 0;
-    {
-        int         header_len = 0;
-        if (sscanf(base, "ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s / %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s : %d %n", 
-                typ, v64typ, &cnt, &header_len) != 3) {
-            return userraise(-1, ERR_WRONG_INPUT_FORMAT, "ArrayLoadfs: header mismatch");
-        } 
-        data += header_len;
-    }   
-    
-    // ---------- 2. Create array ----------
-    ArrayType       atype = ArrayTypeFromName(typ);
-    value64_type    vt = value64_gettype(v64typ);
-    // will set error flag if case of anything
-    Array           a = ArrayOnlyCreate(cnt, atype, vt);
-    if (Array_iserror(a) )  // 
-        return userraise(-1, ERR_UNSUPPORTED_TYPE, "ArrayLoadfs: unsupported type '%s'", typ);
+    if (ArrayIserror(a) )
+        return userraise(-1, ERR_UNSUPPORTED_TYPE, "Unable to create array");
+
+    if ( (data_len = loadfs_values(data, &a) )  < 0) {
+        Array_free(&a);
+        userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read value from str");
+    } else
+        data += data_len;   // shift
+
+    if (!ArrayParseFooterStr(&data) ) {
+        Array_free(&a);
+        userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to finish create array");
+    }
+
    
-    // ---------- 3. Load values ----------
-    {
-        int         data_len;
-        if ( (data_len = loadfs_values(data, &a) ) < 0) {
-            Arrayfree(a);
-            return userraise(-1, ERR_STREAM_ERROR, "Unable to read values");
-        }
-        data += data_len;
-    }
-
-    // ---------- 4. Check footer ----------
-    {
-        int         footer_len = 0;
-        if (sscanf(data, "ARRAY: DONE%n", &footer_len) != 1) {
-            Arrayfree(a);
-            return userraise(-1, ERR_WRONG_INPUT_FORMAT, "ArrayLoadfs: footer mismatch");
-        }
-        data += footer_len; // shift
-    }
     if (arr)    // if arr is NULL then dump read
         *arr = a;
-    return (long)(data - base);
+    return (long)(data - s->v);
 }
 
 // -------------------------------Testing --------------------------

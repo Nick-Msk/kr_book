@@ -243,21 +243,21 @@ static inline bool              Array_isv64(Array a){
 /// @brief check if array is in error state /* NOT USED */
 /// @param a array
 /// @return true if error state 
-static inline bool              Array_iserror(Array a){
+static inline bool              ArrayIserror(Array a){
     return a.flags & ARRAY_ERROR;
 }
 /// @brief set error state to array /* NOT USED */
 /// @param a array
 /// @return array
-static inline Array             Array_seterror(Array a){
-    a.flags |= ARRAY_ERROR;
+static inline Array            *ArraySeterror(Array *a){
+    a->flags |= ARRAY_ERROR;
     return a;
 }
 /// @brief clear error state to array /* NOT USED */
 /// @param a array
 /// @return array
-static inline Array             ArrayClearerror(Array a){
-    a.flags &= ~ARRAY_ERROR;
+static inline Array            *ArrayClearerror(Array *a){
+    a->flags &= ~ARRAY_ERROR;
     return a;
 }
 /// @brief check if array is valie
