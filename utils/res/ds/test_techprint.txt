@@ -1,1 +1,0 @@
-[DS_STR] pos=2, data="Da" => "ta"
