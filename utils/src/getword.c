@@ -130,7 +130,7 @@ bool                        getconvstring_ds(Ds *restrict in, fs *restrict str, 
     if (c == EOF && fs_len(str) == 0)
         return logsimpleret(false, "EOF");
 
-    return logsimpleret(true, "line %d [%.10s]", fs_len(str), fs_str(str));
+    return logsimpleret(true, "line %d [%.30s]", fs_len(str), fs_str(str));
 }
 
 // ------------------------------------ PUBLIC API ----------------------------------------
