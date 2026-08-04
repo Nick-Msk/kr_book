@@ -185,34 +185,52 @@ static inline void set_v64str_element(Array a, int i, const char *val) {
  *
  * @param in  input stream, already opened for reading
  * @param arr pointer to the array to fill
- * @return true on success, false on error
+ * @return positive value in suceess, -1 if failed 
  */
-static bool                 load_values(FILE *restrict in, Array *restrict arr) {
-    int     tmp;
-    //for (int i = 0; i < arr->len; i++){
+static int                  load_values(FILE *restrict in, Array *restrict arr) {
+    ArrayType   typ = Array_gettype(*arr);
+    fs          buf = FS();
+    int         cnt = 0;
+    
     Array_pforeach_idx(arr, i) {
-        switch (Array_gettype(*arr)) {
+        int         ind;
+        if (fscanf(in, "%6d\t", &ind) != 1)
+            return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Can't parse index");        
+        if (ind < 0 || ind >= arr->len)
+            return userraise(-1, ERR_OUT_OF_RANGE, "%d must be between 0 and %d", ind, arr->len);
+
+        switch (typ) {
             case ARRAY_INT:
-                fscanf(in, g_save_format_int, &tmp, arr->iv + i);
+                if (fscanf(in, "%d\n", arr->iv + ind) != 1)
+                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Unable to fscanf a int value");
                 break;
             case ARRAY_LONG:
-                fscanf(in, g_save_format_long, &tmp, arr->lv + i);
+                if (fscanf(in, "%ld\n", arr->lv + ind) != 1)
+                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Unable to fscanf a long value");
                 break;
             case ARRAY_DOUBLE:
-                fscanf(in, "%d %lg\n", &tmp, arr->dv + i);
+                if (fscanf(in, "%lg\n", arr->dv + ind) != 1)
+                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Unable to fscanf a double value");
                 break;
             case ARRAY_POINTER:
-                fscanf(in, "%d %p\n", &tmp, arr->pv + i);
+                if (fscanf(in, "%p\n", arr->pv + ind) != 1)
+                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Unable to fscanf a ptr value");
                 break;
             case ARRAY_CHAR:
-                fscanf(in, "%d %c\n", &tmp, arr->cv + i);
+                if (fscanf(in, "%c\n", arr->cv + ind) != 1)
+                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Unable to fscanf a char value");
                 break;
             case ARRAY_V64:
-                value64_loadfile(in, &arr->v64[i], arr->v64type, true, NULL);
+                if (value64_loadfile(in, &arr->v64[ind], arr->v64type, true, &buf) != 1)
+                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Unable to fscanf a V64 containered value");
                 break;
+            default:
+                return userraise(-1, ERR_UNSUPPORTED_TYPE, "%d", typ);
         }
+        cnt++;
     }
-    return true;
+    fsfree(buf);
+    return logsimpleret(cnt, "Readed %d", cnt);
 }
 
 /**
@@ -227,7 +245,6 @@ static bool                 load_values(FILE *restrict in, Array *restrict arr) 
 static long                 save_values(FILE *restrict out, const Array *restrict arr) {
     long        total = 0L;
     ArrayType   typ = Array_gettype(*arr);
-    //for (int i = 0; i < arr->len; i++)
     Array_pforeach_idx(arr, i)
         switch (typ) {
             case ARRAY_INT:
@@ -277,30 +294,34 @@ static long                 serialize_values(fs *restrict s, const Array *restri
     Array_pforeach_idx(arr, i) {
         switch (typ) {
             case ARRAY_INT:
-                total += fs_sprintf_concat(s, g_save_format_int, i, arr->iv[i]);
+                IOCHECKER(written, fs_sprintf_concat(s, g_save_format_int, i, arr->iv[i]) )
+                    total += written;
                 break;
             case ARRAY_LONG:
-                total += fs_sprintf_concat(s, g_save_format_long, i, arr->lv[i]);
+                IOCHECKER(written, fs_sprintf_concat(s, g_save_format_long, i, arr->lv[i]) )
+                    total += written;
                 break;
             case ARRAY_DOUBLE:
-                total += fs_sprintf_concat(s, g_save_format_double, i, arr->dv[i]);
+                IOCHECKER(written, fs_sprintf_concat(s, g_save_format_double, i, arr->dv[i]) )
+                    total += written;
                 break;
             case ARRAY_POINTER:
-                total += fs_sprintf_concat(s, g_save_format_pointer, i, arr->pv[i]);
+                IOCHECKER(written, fs_sprintf_concat(s, g_save_format_pointer, i, arr->pv[i]) )
+                    total += written;
                 break;
             case ARRAY_CHAR:
-                total += fs_sprintf_concat(s, g_save_format_char, i, arr->cv[i]);
+                IOCHECKER(written, fs_sprintf_concat(s, g_save_format_char, i, arr->cv[i]) )
+                    total += written;
                 break;
             case ARRAY_V64: {
-                fs tmp = FS();      // TODO: rework to append logic
-                total += value64_tostr(&tmp, arr->v64[i], arr->v64type, true);
-                fs_cat(s, tmp);
-                fsfree(tmp);
+                //fs tmp = FS();      // TODO: rework to append logic
+                total += value64_tostr(s, arr->v64[i], arr->v64type, true);
+               //fs_cat(s, tmp);
+                //fsfree(tmp);
                 break;
             }
             default:
-                logsimple("Unknown type %s", ArrayTypeName(typ));
-                break;
+                userraise(-1, ERR_UNKNOWN_TYPE, "Unknown type %s", ArrayTypeName(typ));
         }
     }
     return total;
@@ -362,8 +383,7 @@ static long             loadfs_values(const char *restrict initdata, Array *rest
                 data = skip_leading_spaces_nl(data);
                 break;
             case ARRAY_V64: {
-                // data will be NOT correct now
-                data += value64_loadstr(initdata, &arr->v64[ind], arr->v64type, true, &buf);
+                data += value64_loadstr(data, &arr->v64[ind], arr->v64type, true, &buf);
                 break;
             }
             default:
@@ -1097,7 +1117,6 @@ int                         ArrayBsearchV64Common(Array arr, value64 val, bool a
 // -----------------------------------------------------------------------------------------------------
 // if condition is 0-ptr == ALL
 int                         Array_foreach_proc(Array arr, Array_cond cond, Array_proc func){
-    // TODO: use foreach here
     int     cnt = 0;
     //for (int i = 0; i < Arraylen(arr); i++)
     Array_foreach_idx(arr, i) {
@@ -1316,6 +1335,8 @@ Array                           ArrayFLoad(FILE *in) {
     int                 cnt = 0;
     char                typ[ARRAY_MAX_TYPE_STR], v64typ[ARRAY_MAX_TYPE_STR] = "";
 
+    // TODO: array_parse_header
+
     // Read header: "ARRAY: <type> / <v64type> : <count>"
     if (fscanf(in, "ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s / %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s : %d ", 
                 typ, 
@@ -1353,12 +1374,17 @@ Array                           ArrayFLoad(FILE *in) {
             userraiseint(ERR_UNSUPPORTED_TYPE, "Unsupported type '%s'", typ);
     }
 
-    load_values(in, &arr);
+    if (load_values(in, &arr) < 0) {
+        Array_free(&arr);
+        userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read value from file");
+    }
 
     // Check footer "ARRAY: DONE"
-    if (fscanf(in, "ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s", typ) != 1 
-            || strcmp(typ, "DONE") != 0)
+    if (fscanf(in, " ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s", typ) != 1 
+            || strcmp(typ, "DONE") != 0) {
+        Array_free(&arr);
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Wrong final piece '%s'", typ);
+    }
 
     return arr;
 }

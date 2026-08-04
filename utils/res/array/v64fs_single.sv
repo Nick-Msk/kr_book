@@ -1,3 +1,3 @@
 ARRAY: ARRAY_V64 / FS : 1
-VALUE64(FS):"/only"
+     0	VALUE64(FS):"/only"
 ARRAY: DONE
