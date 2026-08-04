@@ -543,10 +543,10 @@ extern bool              try_parse_uint(const char *restrict str, unsigned *rest
 extern bool              try_parse_ulong(const char *restrict str, unsigned long *restrict res);
 
 // ----------------------------------- IO -------------------------------------
-#define IOCHECKER(w, cmd) \
+#define IOCHECKER(w, cmd, ret) \
     for (int w = (cmd), _once = 1; _once; _once = 0) \
         if (w < 0) \
-            return userraise(ERR_STREAM_ERROR, -1, "IO error"); \
+            return userraise(ERR_STREAM_ERROR, (ret), "IO error"); \
         else
 
 // simple return
