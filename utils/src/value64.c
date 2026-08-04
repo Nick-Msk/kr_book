@@ -934,9 +934,9 @@ int                          value64_tostr(fs *target, value64 val, value64_type
     
     int     cnt = 0;
     if (savetypeinfo)
-        cnt += fs_sprintf(target, "VALUE64(%s):", value64_typename(typ) );
+        cnt += fs_sprintf_concat(target, "VALUE64(%s):", value64_typename(typ) );
     else 
-        cnt += fs_sprintf(target, "VALUE64:");
+        cnt += fs_sprintf_concat(target, "VALUE64:");
 
     switch (typ) {
         case VALUE64_INT:
