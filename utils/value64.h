@@ -624,7 +624,7 @@ extern int                          value64_loadds(Ds *restrict ds, value64 *res
  *                     the value is read assuming the given `typ`
  * @param buf          optional fast‑string buffer (if NULL, a temporary one
  *                     is allocated and freed)
- * @return true on success, false on format error or EOF
+ * @return value on success, -1 format error or EOF
  *
  * @throws ERR_NULLABLE_PTR if `in` is NULL
  * @throws ERR_UNSUPPORTED_TYPE on unknown or unsupported type
