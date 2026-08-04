@@ -19,8 +19,6 @@
 
 // ----------- CONSTANTS AND GLOBALS ---------------
 
-#define                         ARRAY_MAX_TYPE_STR          20
-#define                         ARRAY_MAX_TYPE_STR_WO_LAST  19
 
 typedef enum ArrayFillType{
     ARRAY_FILLTYPE_NONE      = 0,

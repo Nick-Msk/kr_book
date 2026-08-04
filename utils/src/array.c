@@ -19,6 +19,10 @@ const char              *g_save_format_char      = "%6d\t%c\n";
 // not possible to format v64 that way!
 const double             g_array_dbl_increment   = 0.01;
 
+
+#define                         ARRAY_MAX_TYPE_STR          20
+#define                         ARRAY_MAX_TYPE_STR_WO_LAST  19
+
 // internal type
 
 // ---------- pseudo-header for utility procedures -----------------
@@ -1320,22 +1324,9 @@ long                        Array_save(Array arr, const char *fname) {
         return logret(res, "Done %ld", res);
 }
 
-/**
- * @brief Loads an array from a text stream in the full ARRAY format.
- *
- * Reads the header, creates the array, fills its elements, and checks the
- * footer.
- *
- * @param in input stream, already opened for reading
- * @return loaded array, or an array with the error flag set
- */
-Array                           ArrayFLoad(FILE *in) {
-    invraisecode(ERR_NULLABLE_PTR, in != NULL, "Nullable input");
-
+static Array                   ArrayParseHeader(FILE *in) {
     int                 cnt = 0;
     char                typ[ARRAY_MAX_TYPE_STR], v64typ[ARRAY_MAX_TYPE_STR] = "";
-
-    // TODO: array_parse_header
 
     // Read header: "ARRAY: <type> / <v64type> : <count>"
     if (fscanf(in, "ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s / %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s : %d ", 
@@ -1346,7 +1337,6 @@ Array                           ArrayFLoad(FILE *in) {
 
     Array arr = Array_init();       // zero-init
     ArrayType atype = ArrayTypeFromName(typ);
-
     switch (atype) {
         case ARRAY_V64: {
             value64_type vt = value64_gettype(v64typ);
@@ -1371,19 +1361,47 @@ Array                           ArrayFLoad(FILE *in) {
             arr = CArray_create(cnt, ARRAY_FILLTYPE_NONE);
             break;
         default:
-            userraiseint(ERR_UNSUPPORTED_TYPE, "Unsupported type '%s'", typ);
+            Array_seterror(arr);
+            break;
     }
+    if (Array_iserror(arr) )
+        return userraise(arr, ERR_UNSUPPORTED_TYPE, "Unsupported type '%s'", typ);
+    else
+        return arr;
+}
+
+static bool                     ArrayParseFooter(FILE *in) {
+    char                typ[ARRAY_MAX_TYPE_STR];
+    if (fscanf(in, " ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s", typ) != 1 || strcmp(typ, "DONE") != 0)
+        return userraise(false, ERR_WRONG_INPUT_FORMAT, "Wrong final piece '%s'", typ);
+    else
+        return true;
+}
+
+/**
+ * @brief Loads an array from a text stream in the full ARRAY format.
+ *
+ * Reads the header, creates the array, fills its elements, and checks the
+ * footer.
+ *
+ * @param in input stream, already opened for reading
+ * @return loaded array, or an array with the error flag set
+ */
+Array                           ArrayFLoad(FILE *in) {
+    invraisecode(ERR_NULLABLE_PTR, in != NULL, "Nullable input");
+
+    Array arr = ArrayParseHeader(in); 
+    if (Array_iserror(arr) )
+        return userraise(arr, ERR_UNSUPPORTED_TYPE, "Unable to create array");
 
     if (load_values(in, &arr) < 0) {
         Array_free(&arr);
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read value from file");
     }
 
-    // Check footer "ARRAY: DONE"
-    if (fscanf(in, " ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s", typ) != 1 
-            || strcmp(typ, "DONE") != 0) {
+    if (!ArrayParseFooter(in) ) {
         Array_free(&arr);
-        userraiseint(ERR_WRONG_INPUT_FORMAT, "Wrong final piece '%s'", typ);
+        userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to finish create array");
     }
 
     return arr;
