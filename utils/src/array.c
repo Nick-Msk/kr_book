@@ -252,29 +252,29 @@ static long                 save_values(FILE *restrict out, const Array *restric
     Array_pforeach_idx(arr, i)
         switch (typ) {
             case ARRAY_INT:
-                IOCHECKER(written, fprintf(out, g_save_format_int, i, arr->iv[i]) )
+                IOCHECKER(written, fprintf(out, g_save_format_int, i, arr->iv[i]), -1)
                     total += written;
                 break;
             case ARRAY_LONG:
-                IOCHECKER(written, fprintf(out, g_save_format_long, i, arr->lv[i]) )
+                IOCHECKER(written, fprintf(out, g_save_format_long, i, arr->lv[i]), -1)
                     total += written;
                 break;
             case ARRAY_DOUBLE:
-                IOCHECKER(written, fprintf(out, g_save_format_double, i, arr->dv[i]) )
+                IOCHECKER(written, fprintf(out, g_save_format_double, i, arr->dv[i]), -1)
                     total += written;
                 break;
             case ARRAY_POINTER:
-                IOCHECKER(written, fprintf(out, g_save_format_pointer, i, arr->pv[i]) )
+                IOCHECKER(written, fprintf(out, g_save_format_pointer, i, arr->pv[i]), -1)
                     total += written;
                 break;
             case ARRAY_CHAR:
-                IOCHECKER(written, fprintf(out, g_save_format_char, i, arr->cv[i]) )
+                IOCHECKER(written, fprintf(out, g_save_format_char, i, arr->cv[i]), -1)
                     total += written;
                 break;
             case ARRAY_V64:
-                IOCHECKER(written, fprintf(out, "%6d\t", i) )   // to supply format
+                IOCHECKER(written, fprintf(out, "%6d\t", i), -1)   // to supply format
                     total += written;
-                IOCHECKER(written, value64_tofile(out, arr->v64[i], arr->v64type, true) )
+                IOCHECKER(written, value64_tofile(out, arr->v64[i], arr->v64type, true), -1)
                     total += written;
                 break;
             default:
@@ -298,23 +298,23 @@ static long                 serialize_values(fs *restrict s, const Array *restri
     Array_pforeach_idx(arr, i) {
         switch (typ) {
             case ARRAY_INT:
-                IOCHECKER(written, fs_sprintf_concat(s, g_save_format_int, i, arr->iv[i]) )
+                IOCHECKER(written, fs_sprintf_concat(s, g_save_format_int, i, arr->iv[i]), -1)
                     total += written;
                 break;
             case ARRAY_LONG:
-                IOCHECKER(written, fs_sprintf_concat(s, g_save_format_long, i, arr->lv[i]) )
+                IOCHECKER(written, fs_sprintf_concat(s, g_save_format_long, i, arr->lv[i]), -1)
                     total += written;
                 break;
             case ARRAY_DOUBLE:
-                IOCHECKER(written, fs_sprintf_concat(s, g_save_format_double, i, arr->dv[i]) )
+                IOCHECKER(written, fs_sprintf_concat(s, g_save_format_double, i, arr->dv[i]), -1)
                     total += written;
                 break;
             case ARRAY_POINTER:
-                IOCHECKER(written, fs_sprintf_concat(s, g_save_format_pointer, i, arr->pv[i]) )
+                IOCHECKER(written, fs_sprintf_concat(s, g_save_format_pointer, i, arr->pv[i]), -1)
                     total += written;
                 break;
             case ARRAY_CHAR:
-                IOCHECKER(written, fs_sprintf_concat(s, g_save_format_char, i, arr->cv[i]) )
+                IOCHECKER(written, fs_sprintf_concat(s, g_save_format_char, i, arr->cv[i]), -1)
                     total += written;
                 break;
             case ARRAY_V64: {
@@ -1382,11 +1382,11 @@ long                        ArraySavefile(FILE *out, Array arr) {
     const char  *typ = ArrayTypeName(arr.flags);
     const char  *v64_type  = Array_isv64(arr) ? ArrayGetV64typeName(arr) : "NONV64_TYPE";
 
-    IOCHECKER(written, fprintf(out, "ARRAY: %s / %s : %d\n", typ, v64_type, arr.len) )
+    IOCHECKER(written, fprintf(out, "ARRAY: %s / %s : %d\n", typ, v64_type, arr.len), -1)
         total_written += written;
-    IOCHECKER(written, save_values(out, &arr) )
+    IOCHECKER(written, save_values(out, &arr), -1)
         total_written += written;
-    IOCHECKER(written, fprintf(out, "ARRAY: DONE\n") )
+    IOCHECKER(written, fprintf(out, "ARRAY: DONE\n"), -1)
         total_written += written;
     return total_written;
 }
