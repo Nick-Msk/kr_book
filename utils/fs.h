@@ -208,8 +208,30 @@ static inline char          *fs_get(const fs *s, int pos){
     return s->v + pos;
 }
 
-// automatically adjust len (??) and sz (realloc)
+/**
+ * @brief Retrieves the element at the specified position.
+ * 
+ * If the requested position exceeds the current capacity, the buffer 
+ * is automatically resized to accommodate the new index.
+ *
+ * @param s Pointer to the file system structure.
+ * @param pos The index of the element to retrieve.
+ * @return Pointer to the character at the specified position.
+ */
 extern char                 *fs_elem(fs *s, int pos);
+
+/**
+ * @brief Retrieves an element and ensures space for a null terminator.
+ * 
+ * Automatically expands the buffer capacity if the position plus one 
+ * exceeds current bounds. Also updates the logical length to include 
+ * the space for a null terminator at (pos + 1).
+ *
+ * @param s Pointer to the file system structure.
+ * @param pos The index of the element to retrieve.
+ * @return Pointer to the character at the specified position.
+ */
+extern char                 *fs_elem0(fs *s, int pos);
 
 static inline char          *fs_setlen(fs *s, int poslen){
     s->len = poslen;
@@ -638,6 +660,7 @@ static inline double          fs_getdouble(const fs *ps){
 #define                      get(s, pos) *fs_get(&(s), (pos) )
 #define                      getv(s) (s.v)
 #define                      elem(s, pos) *fs_elem( &(s), (pos) )
+#define                      elem0(s, pos) *fs_elem0( &(s), (pos) )
 
 #define                      fsetlen(s, poslen) *fs_setlen( (&s), (poslen) )
 // NOT sure if need fsend()

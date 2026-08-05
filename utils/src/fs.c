@@ -1,13 +1,14 @@
 #include <stdarg.h>
 
-#include "getword.h"
-#include "common.h"
-#include "log.h"
+
 #include "fs.h"
 #include "error.h"
 #include "fileutils.h"
 #include "checker.h"
 #include "guard.h"
+#include "getword.h"
+#include "common.h"
+#include "log.h"
 
 /********************************************************************
                     FAST STRING MODULE IMPLEMENTATION
@@ -239,12 +240,19 @@ fs                                      *fs_shrink(fs *s){
         return logsimpleret(s, "Not heap: shrink is skipped");
 }
 
-// can increase sz and len
 char                                    *fs_elem(fs *s, int pos){
     if (pos >= s->sz){
         increasesize(s, pos < FS_MIN_ACCOC ? FS_MIN_ACCOC : pos, true);   // len remains the same here! sz is changed
-        logsimple("size is adjusted to %d (pos %d)", s->sz, pos);
     }
+    return fs_get(s, pos);
+}
+
+char                                    *fs_elem0(fs *s, int pos){
+    if (pos + 1 >= s->sz){ // + 1 for '\0'
+        increasesize(s, pos < FS_MIN_ACCOC ? FS_MIN_ACCOC : pos, true);   // len remains the same here! sz is changed
+    }
+    if (s->len <= pos)   // check
+        fs_setlen(s, pos + 1);
     return fs_get(s, pos);
 }
 
@@ -820,7 +828,7 @@ tf2(const char *name)
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
-// ------------------------- TEST 3 ---------------------------------
+// ------------------------- TEST 3 fs_elem / fs_elem0 ---------------------------------
 
 static TestStatus
 tf3(const char *name)
@@ -843,6 +851,115 @@ tf3(const char *name)
         fsfree(s);
     }
     check_leak(true);
+
+    /* ========== fs_elem ========== */
+    test_sub("subtest %d: fs_elem within bounds (no grow)", ++subnum);
+    {
+        fs s = FS();                   // sz = 0, len = 0
+        *fs_elem(&s, 3) = 'A';        // автоматически расширится
+        test_validatefree(
+            s.sz >= 4 && s.len == 0,  // len не должен измениться
+            fsfree(s),
+            "fs_elem within bounds: sz=%d (expected >=4), len=%d (expected 0)", s.sz, s.len
+        );
+        test_validatefree(
+            *fs_elem(&s, 3) == 'A',
+            fsfree(s),
+            "Character at pos 3 must be 'A'"
+        );
+        fsfree(s);
+    }
+    check_leak(true);
+
+    test_sub("subtest %d: fs_elem forces grow", ++subnum);
+    {
+        fs s = FS();
+        // sz=0, обращение к pos=10 должно увеличить sz
+        *fs_elem(&s, 10) = 'X';
+        test_validatefree(
+            s.sz >= 11 && s.len == 0,
+            fsfree(s),
+            "fs_elem force grow: sz=%d (expected >=11), len=%d (expected 0)", s.sz, s.len
+        );
+        test_validatefree(
+            *fs_elem(&s, 10) == 'X',
+            fsfree(s),
+            "Character at pos 10 must be 'X'"
+        );
+        fsfree(s);
+    }
+    check_leak(true);
+
+    /* ========== fs_elem0 ========== */
+    test_sub("subtest %d: fs_elem0 updates len and ensures null terminator", ++subnum);
+    {
+        fs s = FS();
+        *fs_elem0(&s, 0) = '0';
+        *fs_elem0(&s, 1) = '1';
+        *fs_elem0(&s, 2) = 'Y';       // pos=2, должно дать len=3 и '\0' в pos=3
+        test_validatefree(
+            s.sz >= 4 && s.len == 3,
+            fsfree(s),
+            "fs_elem0 pos=2: sz=%d (expected >=4), len=%d (expected 3)", s.sz, s.len
+        );
+        // проверяем, что строка корректна и заканчивается '\0'
+        test_validatefree(
+            s.v[0] == '0' && s.v[1] == '1' && s.v[2] == 'Y' && s.v[3] == '\0',
+            fsfree(s),
+            "fs_elem0 must leave '\\0' at positions < len and at len"
+        );
+        fsfree(s);
+    }
+    check_leak(true);
+
+    test_sub("subtest %d: fs_elem0 grow and len update", ++subnum);
+    {
+        fs s = FS();
+        *fs_elem0(&s, 5) = 'Z';       // большой скачок
+        test_validatefree(
+            s.sz >= 7 && s.len == 6,
+            fsfree(s),
+            "fs_elem0 pos=5: sz=%d (expected >=7), len=%d (expected 6)", s.sz, s.len
+        );
+        // строка должна читаться без вылета
+        test_validatefree(
+            s.v[5] == 'Z' && s.v[6] == '\0',
+            fsfree(s),
+            "fs_elem0 must correctly set char and null terminator"
+        );
+        fsfree(s);
+    }
+    check_leak(true);
+
+    test_sub("subtest %d: fs_elem0 does not shrink len", ++subnum);
+    {
+        fs s = FS();
+        *fs_elem0(&s, 3) = 'A';
+        int old_len = s.len;
+        *fs_elem0(&s, 1) = 'B';       // позиция меньше текущей len
+        test_validatefree(
+            s.len == old_len,         // len не должен уменьшиться
+            fsfree(s),
+            "fs_elem0 pos=1 after pos=3: len must stay %d, got %d", old_len, s.len
+        );
+        fsfree(s);
+    }
+    check_leak(true);
+
+    /* ========== Edge cases ========== */
+    test_sub("subtest %d: fs_elem0 on empty fs (pos=0)", ++subnum);
+    {
+        fs s = FS();
+        *fs_elem0(&s, 0) = 'H';
+        test_validatefree(
+            s.sz >= 2 && s.len == 1 && s.v[0] == 'H' && s.v[1] == '\0',
+            fsfree(s),
+            "fs_elem0 pos=0 on empty fs: sz=%d, len=%d, str='%s'", s.sz, s.len, fs_str(&s)
+        );
+        fsfree(s);
+    }
+    check_leak(true);
+
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
@@ -3876,41 +3993,41 @@ main( /* int argc, const char *argv[] */)
     logsimpleinit("Start");
 
     testenginestd(
-        testnew(.f2 = tf1,                  .num =  1, .name = "Simple init and validate test"              , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf2,                  .num =  2, .name = "Access read/write test"                     , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf3,                  .num =  3, .name = "Elem() test"                                , .desc=""                , .mandatory=true)
-    // non numeral
-      , testnew(.f2 = tf_fs_clone,          .num =  4, .name = "fs_clone() simple test"                     , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf4,                  .num =  5, .name = "fs_cat/fs_catstr test"                      , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf5,                  .num =  6, .name = "fs_cpy/fs_cpystr test"                      , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf6,                  .num =  7, .name = "fsfreeall test"                             , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf7,                  .num =  8, .name = "fsprint/printlim manual test"               , .desc="always ok, for the manual check"                , .mandatory=true)
-      , testnew(.f2 = tf8,                  .num =  9, .name = "fsprint_arr manual test"                    , .desc="always ok, for the manual check"                , .mandatory=true)
-      , testnew(.f2 = tf9,                  .num = 10, .name = "fs_sprintf formatted test"                  , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf10,                 .num = 11, .name = "fslocal simple test"                        , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf11,                 .num = 12, .name = "fs_save/load test"                          , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf12,                 .num = 13, .name = "fs_free_alloc_checker test"                 , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf13,                 .num = 14, .name = "fs_move simple test"                        , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf14,                 .num = 15, .name = "fs_substr/newsubstr simple test"            , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf15,                 .num = 16, .name = "fs_ifnotin/fs_ifinotin simple test"         , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf16,                 .num = 17, .name = "fs_instr/fs_iinstr simple test"             , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf17,                 .num = 18, .name = "fs_(n)(i)chr simple tests"                  , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf18,                 .num = 19, .name = "fs_(i)rchr simple tests"                    , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf19,                 .num = 20, .name = "fs_n(i)instr simple tests"                  , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf20,                 .num = 21, .name = "fs_rev_catstr simple tests"                 , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf21,                 .num = 22, .name = "fs_str simple tests"                        , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf22,                 .num = 23, .name = "fs_get<int/long/double>pos simple tests"    , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf23,                 .num = 24, .name = "fs_cmp_strict simple tests"                 , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf24,                 .num = 25, .name = "fs_moveto_heap simple tests"                , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf25,                 .num = 26, .name = "fs_fscanf simple tests"                     , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf26,                 .num = 27, .name = "fscopyf simple tests"                       , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf27,                 .num = 28, .name = "fs_rpad()/lpad() simple tests"              , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf28,                 .num = 29, .name = "fs_heapcreate() simple tests"               , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf_fs_heapcopy,       .num = 30, .name = "fs_heapcopy() simple tests"                 , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf_moveto_heapstr,    .num = 31, .name = "fs_moveto_heapstr() simple tests"           , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf_movefrom_heapstr,  .num = 32, .name = "fs_movefrom_heapstr() simple tests"         , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf_genrnd,            .num = 33, .name = "fs_genrnd() simple tests"                   , .desc=""                , .mandatory=true)
-      , testnew(.f2 = tf_initrnd,           .num = 34, .name = "fs_initrnd() simple tests"                  , .desc=""                , .mandatory=true)
+        TESTADD(tf1,               "Simple init and validate test"),
+        TESTADD(tf2,               "Access read/write test"),
+        TESTADD(tf3,               "Elem() test"),
+        // 
+        TESTADD(tf_fs_clone,       "fs_clone() simple test"),
+        TESTADD(tf4,               "fs_cat/fs_catstr test"),
+        TESTADD(tf5,               "fs_cpy/fs_cpystr test"),
+        TESTADD(tf6,               "fsfreeall test"),
+        TESTADD(tf7,               "fsprint/printlim manual test"),
+        TESTADD(tf8,               "fsprint_arr manual test"),
+        TESTADD(tf9,               "fs_sprintf formatted test"),
+        TESTADD(tf10,              "fslocal simple test"),
+        TESTADD(tf11,              "fs_save/load test"),
+        TESTADD(tf12,              "fs_free_alloc_checker test"),
+        TESTADD(tf13,              "fs_move simple test"),
+        TESTADD(tf14,              "fs_substr/newsubstr simple test"),
+        TESTADD(tf15,              "fs_ifnotin/fs_ifinotin simple test"),
+        TESTADD(tf16,              "fs_instr/fs_iinstr simple test"),
+        TESTADD(tf17,              "fs_(n)(i)chr simple tests"),
+        TESTADD(tf18,              "fs_(i)rchr simple tests"),
+        TESTADD(tf19,              "fs_n(i)instr simple tests"),
+        TESTADD(tf20,              "fs_rev_catstr simple tests"),
+        TESTADD(tf21,              "fs_str simple tests"),
+        TESTADD(tf22,              "fs_get<int/long/double>pos simple tests"),
+        TESTADD(tf23,              "fs_cmp_strict simple tests"),
+        TESTADD(tf24,              "fs_moveto_heap simple tests"),
+        TESTADD(tf25,              "fs_fscanf simple tests"),
+        TESTADD(tf26,              "fscopyf simple tests"),
+        TESTADD(tf27,              "fs_rpad()/lpad() simple tests"),
+        TESTADD(tf28,              "fs_heapcreate() simple tests"),
+        TESTADD(tf_fs_heapcopy,    "fs_heapcopy() simple tests"),
+        TESTADD(tf_moveto_heapstr, "fs_moveto_heapstr() simple tests"),
+        TESTADD(tf_movefrom_heapstr, "fs_movefrom_heapstr() simple tests"),
+        TESTADD(tf_genrnd,         "fs_genrnd() simple tests"),
+        TESTADD(tf_initrnd,        "fs_initrnd() simple tests")
     );
 
     return logret(0, "end...");  // as replace of logclose()
