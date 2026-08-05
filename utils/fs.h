@@ -115,6 +115,28 @@ static inline bool          fs_bodyalloc(const fs *s){
  */
 static inline fs             fscopyf(const char *fmt, ...) __attribute__ (( format (printf, 1, 2) ) );
 
+/**
+ * @brief Writes a formatted string into the buffer starting at the current position.
+ *
+ * This function acts like @c sprintf, but it is aware of the buffer's capacity.
+ * It writes the formatted string into the @c fs buffer starting at @p s->pos.
+ * If the resulting string exceeds the current capacity, the buffer will be 
+ * automatically resized via @ref increasesize.
+ *
+ * @param[in,out] s      The target @c fs buffer.
+ * @param[in]     fmt    Format control string (standard printf syntax).
+ * @param[...]    args   Variable arguments for formatting.
+ *
+ * @return Returns the number of characters written (not including the null terminator), 
+ *         or a negative value if an error or expansion failure occurs.
+ *
+ * @note The function automatically updates @p s->pos and @p s->len after 
+ *       a successful write. It also ensures the buffer is null-terminated 
+ *       if @c FS_FLAG_ALLOC is set.
+ * @warning This function may trigger a `realloc` and/or throw a system 
+ *          exception if memory allocation fails.
+ */
+extern int                   fs_sprintf_position(fs *restrict s, int pos, const char *restrict fmt, va_list ap);
 
 #define             FSEMPTY (fs){.sz = 0, .len = 0, .flags = FS_FLAG_STATIC, .v = ""};
 #define             FSLITERAL(val) (fs){.sz = strlen(val) + 1, .len = strlen(val), .flags = FS_FLAG_STATIC, .v = (char *) (val) }
@@ -221,29 +243,6 @@ static inline fs            fscopyf(const char *fmt, ...) {
 }
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
-
-/**
- * @brief Writes a formatted string into the buffer starting at the current position.
- *
- * This function acts like @c sprintf, but it is aware of the buffer's capacity.
- * It writes the formatted string into the @c fs buffer starting at @p s->pos.
- * If the resulting string exceeds the current capacity, the buffer will be 
- * automatically resized via @ref increasesize.
- *
- * @param[in,out] s      The target @c fs buffer.
- * @param[in]     fmt    Format control string (standard printf syntax).
- * @param[...]    args   Variable arguments for formatting.
- *
- * @return Returns the number of characters written (not including the null terminator), 
- *         or a negative value if an error or expansion failure occurs.
- *
- * @note The function automatically updates @p s->pos and @p s->len after 
- *       a successful write. It also ensures the buffer is null-terminated 
- *       if @c FS_FLAG_ALLOC is set.
- * @warning This function may trigger a `realloc` and/or throw a system 
- *          exception if memory allocation fails.
- */
-extern int                   fs_sprintf_position(fs *restrict s, int pos, const char *restrict fmt, va_list ap);
 
 static inline int            fs_sprintf(fs *restrict s, const char *restrict fmt, ...) __attribute__ (( format (printf, 2, 3) ) );
 static inline int            fs_sprintf_concat(fs *restrict s, const char *restrict fmt, ...)  __attribute__ (( format (printf, 2, 3) ) );
