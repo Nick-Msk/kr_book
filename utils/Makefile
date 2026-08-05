@@ -9,10 +9,10 @@ LDLIBS=
 .PHONY: clean cleanlog cleanall no_targets__ list
 .PHONY: checker error log common test metric numeric_ops context hashset value64 array buffer fs fs_iter fs_array
 .PHONY: getword systemutils command_executor fileutils value64_tarray seq all hashset_utils lwset
-.PHONY: ds ds_nofs
+.PHONY: ds ds_nofs ds_adapter
 
 all: checker error log common test metric numeric_ops context hashset value64 array buffer fs fs_iter fs_array \
-	getword systemutils command_executor fileutils value64_tarray seq hashset_utils lwset ds
+	getword systemutils command_executor fileutils value64_tarray seq hashset_utils lwset ds ds_adapter
 
 lib/checker.o: src/checker.c
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -72,6 +72,12 @@ lib/getword.o: src/getword.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 lib/ds.o: src/ds.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+lib/ds_nofs.o: src/ds.c
+	$(CC) $(CFLAGS) -DDS_NOFS -c $< -o $@
+
+lib/ds_adapter.o: src/ds_adapter.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 lib/command_executor.o: src/command_executor.c
@@ -135,6 +141,11 @@ test/ds_test: src/ds.c lib/test.o lib/log.o lib/error.o  \
 		  | lib/ds.o
 	$(CC) $(CFLAGS) -DDS_TESTING $^ -o $@ $(LDLIBS)
 
+test/ds_adapter_test: src/ds_adapter.c lib/test.o lib/log.o lib/error.o  \
+		 lib/fs.o lib/fileutils.o lib/common.o lib/getword.o lib/buffer.o lib/ds.o \
+		  | lib/ds_adapter.o
+	$(CC) $(CFLAGS) -DDS_ADAPTER_TESTING $^ -o $@ $(LDLIBS)
+
 test/ds_test_nofs: src/ds.c lib/test.o lib/log.o lib/error.o  \
 		  | lib/ds.o
 	$(CC) $(CFLAGS) -DDS_NOFS -DDS_TESTING $^ -o $@ $(LDLIBS)
@@ -177,7 +188,7 @@ UTIL_OBJS = lib/log.o lib/test.o lib/error.o lib/common.o lib/checker.o \
 	lib/numeric_ops.o lib/hashset.o lib/value64.o \
 	lib/context.o lib/systemutils.o\
 	lib/fs.o lib/fileutils.o lib/array.o lib/metric.o lib/value64_tarray.o \
-	lib/hashset_utils.o lib/seq.o lib/lwset.o lib/ds.o 
+	lib/hashset_utils.o lib/seq.o lib/lwset.o lib/ds.o lib/ds_adapter.o
 
 lib/cmutils.a: $(UTIL_OBJS)
 	ar rcs $@ $^
@@ -198,6 +209,7 @@ value64_tarray: test/value64_tarray_test
 systemutils: test/systemutils_test
 getword: test/getword_test
 ds: test/ds_test
+ds_adapter: test/ds_adapter_test
 ds_nofs: test/ds_test_nofs
 fileutils: test/fileutils_test
 fs_array: test/fs_array_test
