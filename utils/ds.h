@@ -34,6 +34,16 @@ typedef enum {
     DS_FS        /**< FS, suppoerted via ifndef NO_FSDS */
 } DSType;
 
+static const char               *DSTypeName(DSType typ) {
+    switch (typ) {
+        CASE_RETURN(DS_FILE);
+        CASE_RETURN(DS_STR);
+        CASE_RETURN(DS_CONSTSTR);
+        CASE_RETURN(DS_FS);
+        default: return "Unknown DS type";
+    }
+}
+
 /**
  * @struct Ds
  * @brief A wrapper for the data source.
