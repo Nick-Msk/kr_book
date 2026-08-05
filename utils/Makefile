@@ -111,7 +111,8 @@ test/array_test: src/array.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/
 test/buffer_test:       src/buffer.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o | lib/buffer.o
 	$(CC) $(CFLAGS) -DBUFFERTESTING $^ -o $@ $(LDLIBS)
 
-test/fs_test:   src/fs.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fileutils.o lib/getword.o lib/buffer.o | lib/fs.o
+test/fs_test:   src/fs.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o \
+			lib/fileutils.o lib/getword.o lib/buffer.o  lib/ds.o| lib/fs.o
 	$(CC) $(CFLAGS) -DFSTESTING $^ -o $@ $(LDLIBS)
 
 test/fs_iter_test: src/fs_iter.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fs.o | lib/fs_iter.o
