@@ -61,13 +61,15 @@ static int dsVScanf(const char *buf, size_t cap, size_t *ppos, const char *fmt, 
         return userraise(-1, ERR_UNABLE_OPEN_FILE_READ, "Unable to fmemopen");
 
     int ret = vfscanf(mem, fmt, ap);
-    if (ret < 0)
+    if (ret < 0) {
+        fclose(mem);
         return userraise(-1, ERR_STREAM_ERROR, "vfscanf error");
+    }
     long offset = ftell(mem);
     fclose(mem);
 
     if (offset > 0)
-        *ppos += offset;
+        *ppos += (size_t) offset;
     return ret;
 }
 
