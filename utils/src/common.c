@@ -925,6 +925,50 @@ tf_round_up_2(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST calcnewsize -------------------------
+static TestStatus
+tf_calcnewsize(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: SIZE_NONE returns same value", ++subnum);
+    {
+        test_validate(calcnewsize(SIZE_NONE, 0)   == 0,   "SIZE_NONE(0) must be 0");
+        test_validate(calcnewsize(SIZE_NONE, 1)   == 1,   "SIZE_NONE(1) must be 1");
+        test_validate(calcnewsize(SIZE_NONE, 100) == 100, "SIZE_NONE(100) must be 100");
+    }
+
+    test_sub("subtest %d: SIZE_MIN10 ensures at least 10", ++subnum);
+    {
+        test_validate(calcnewsize(SIZE_MIN10, 0)  == 10, "SIZE_MIN10(0) must be 10");
+        test_validate(calcnewsize(SIZE_MIN10, 5)  == 10, "SIZE_MIN10(5) must be 10");
+        test_validate(calcnewsize(SIZE_MIN10, 9)  == 10, "SIZE_MIN10(9) must be 10");
+        test_validate(calcnewsize(SIZE_MIN10, 10) == 10, "SIZE_MIN10(10) must be 10");
+        test_validate(calcnewsize(SIZE_MIN10, 15) == 15, "SIZE_MIN10(15) must be 15");
+        test_validate(calcnewsize(SIZE_MIN10, 99) == 99, "SIZE_MIN10(99) must be 99");
+    }
+
+    test_sub("subtest %d: SIZE_POWER2 rounds up to next power of two", ++subnum);
+    {
+        test_validate(calcnewsize(SIZE_POWER2, 0)  == 0,  "SIZE_POWER2(0) must be 0");
+        test_validate(calcnewsize(SIZE_POWER2, 1)  == 2,  "SIZE_POWER2(1) must be 2");
+        test_validate(calcnewsize(SIZE_POWER2, 2)  == 4,  "SIZE_POWER2(2) must be 4");
+        test_validate(calcnewsize(SIZE_POWER2, 3)  == 4,  "SIZE_POWER2(3) must be 4");
+        test_validate(calcnewsize(SIZE_POWER2, 4)  == 8,  "SIZE_POWER2(4) must be 8");
+        test_validate(calcnewsize(SIZE_POWER2, 5)  == 8,  "SIZE_POWER2(5) must be 8");
+        test_validate(calcnewsize(SIZE_POWER2, 15) == 16, "SIZE_POWER2(15) must be 16");
+        test_validate(calcnewsize(SIZE_POWER2, 16) == 32, "SIZE_POWER2(16) must be 32");
+    }
+
+    test_sub("subtest %d: unknown type returns -1", ++subnum);
+    {
+        test_validate(calcnewsize((Tincrease)999, 42) == -1, "Unknown type must return -1");
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // -------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */ )
@@ -936,7 +980,8 @@ main( /* int argc, const char *argv[] */ )
         TESTADD(tf_int_in,           "Simple tf_int_(not)in test"),
         TESTADD(tf_comparators,      "Simple compare_<type> test"),
         TESTADD(tf_comparators_ptr,  "Simple pointer compare_<type> test"),
-        TESTADD(tf_round_up_2,       "round_up_2() simple test")
+        TESTADD(tf_round_up_2,       "round_up_2() simple test"),
+        TESTADD(tf_calcnewsize,      "calcnewsize() simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
