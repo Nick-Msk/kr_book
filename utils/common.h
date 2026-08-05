@@ -8,6 +8,13 @@
 #include <time.h>
 #include <math.h>
 
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L && __has_include(<stdbit.h>)
+    #include <stdbit.h>
+    #define HAS_STDC_BIT_CEIL 1
+#else
+    #define HAS_STDC_BIT_CEIL 0
+#endif
+
 #include "bool.h"
 #include "log.h"
 
@@ -433,12 +440,35 @@ static inline int               printn(const char *str, int sz){
     return fprintn(stdout, str, sz);
 }
 
-// next 2^x
-static inline unsigned          round_up_2(unsigned val){
-#if __STDC_VERSION__ >= 202311L
-    return stdc_bit_ceil( (unsigned long long) val + 1);
+/**
+ * @brief Calculates the next power of two strictly greater than the input value.
+ *
+ * This function is designed for memory capacity expansion strategies. 
+ * Unlike standard bit-ceil implementations, this function ensures that 
+ * the result is always strictly greater than @p val, even if @p val 
+ * is already a power of two.
+ *
+ * @note This behavior is critical for preventing buffer overflows when 
+ *       appending a null terminator at the end of a buffer, ensuring 
+ *       there is always enough room for the extra byte.
+ *
+ * @example
+ * round_up_2(3) -> 4
+ * round_up_2(4) -> 8
+ * round_up_2(7) -> 8
+ *
+ * @param val The input ulong value.
+ * @return The smallest power of two that is strictly greater than @p val. 
+ *         Returns 0 if @p val is 0.
+ *
+ * @complexity O(1) if using C23 (via @c stdc_bit_ceil), 
+ *             otherwise O(k) where k is the number of set bits.
+ */
+static inline unsigned long   round_up_2(unsigned long val){
+#if HAS_STDC_BIT_CEIL
+    return stdc_bit_ceil(val + 1);
 #else /* !__STDC_VERSION__ >= 202311L */
-    unsigned    prev = 0;
+    unsigned long   prev = 0;
     while (val)
         val &= ( (prev = val) - 1);
     return prev << 1;
@@ -478,15 +508,39 @@ static inline int cupper(int c, bool upper){
 
 typedef enum {SIZE_NONE = 0, SIZE_POWER2, SIZE_MIN10 } Tincrease;
 
-// should depent on increase strategy, simplest return n + 1;
-static inline int               calcnewsize(Tincrease t, int n){
-    int sz = n;
+/**
+ * @brief Computes the target allocation size based on the specified growth strategy.
+ *
+ * This function transforms a requested minimum size into a concrete allocation 
+ * size by applying the chosen growth policy. It includes defensive checks for 
+ * minimum bounds and error handling for invalid strategies.
+ *
+ * @details The result depends on the @p t parameter:
+ * - @c SIZE_NONE: Returns the requested size @p n exactly.
+ * - @c SIZE_MIN10: Returns @p n, but ensures the result is at least 10. 
+ *   This provides a safety buffer even if @p n is less than 10 or negative.
+ * - @c SIZE_POWER2: Rounds the size up to the next power of two using 
+ *   @ref round_up_2.
+ * - @c DEFAULT: If an unknown strategy is provided, returns -1 as an error sentinel.
+ *
+ * @param t The growth strategy to apply (@c Tincrease).
+ * @param n The minimum requested size.
+ * @return The calculated size, or -1 if an invalid strategy is provided.
+ *
+ * @note The return value -1 serves as an error marker. Callers should check 
+ *       if the return value is negative before using it for allocation.
+ *
+ * @complexity O(1) for most strategies, or O(k) when using @c SIZE_POWER2 
+ *             (where k is the number of set bits in @p n).
+ */
+ static inline long               calcnewsize(Tincrease t, long n){
+    long        sz = n;
     switch (t){
         case SIZE_NONE:
             // do, nothing
         break;
         case SIZE_MIN10:
-            if (sz < 10)
+            if (sz < 10)    // even if negative: be carefull!
                 sz = 10;
         break;
         case SIZE_POWER2:
@@ -494,10 +548,12 @@ static inline int               calcnewsize(Tincrease t, int n){
         break;
         default:
             logsimple("Unknow size grouth type %d", t);
+            sz = -1;    // fail mark
         break;
     }
     return sz; //logsimpleret(sz, "newsz = %d", sz);
 }
+
 // int SQL not in ver2 (with size)
 static inline bool              common_int_notin2(int val, const int *arr, int sz){
     const int *iter = arr;

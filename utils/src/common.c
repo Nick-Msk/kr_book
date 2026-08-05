@@ -797,22 +797,129 @@ tf_comparators_ptr(const char *name)
     /* ---------- pptr_cmp ---------- */
     test_sub("subtest %d: pptr_cmp equal", ++subnum);
     {
-        int x = 0;
-        test_validate(pptr_cmp(&x, &x) == 0, "same address must be equal");
+        int dummy;
+        void *p1 = &dummy;
+        void *p2 = &dummy;          // тот же адрес
+        test_validate(pptr_cmp(&p1, &p2) == 0, "same pointer must be equal");
     }
 
-    test_sub("subtest %d: pptr_cmp not equal", ++subnum);
+    test_sub("subtest %d: pptr_cmp less / greater", ++subnum);
     {
-        int a = 1, b = 2;
-        // Порядок адресов на стеке не гарантирован, но результат должен быть ненулевым
-        test_validate(pptr_cmp(&a, &b) != 0, "different addresses must not be equal");
+        int a, b;
+        void *pa = &a;
+        void *pb = &b;
+        test_validate(pptr_cmp(&pa, &pb) != 0, "different pointers must not be equal");
+        // знак зависит от реализации compare_ptr, но хотя бы !=0
     }
 
     test_sub("subtest %d: pptr_revcmp", ++subnum);
     {
-        int a = 1, b = 2;
-        int cmp = pptr_cmp(&a, &b);
-        test_validate(pptr_revcmp(&a, &b) == -cmp, "reverse must negate the result");
+        int a, b;
+        void *pa = &a;
+        void *pb = &b;
+        int forward = pptr_cmp(&pa, &pb);
+        int reverse = pptr_revcmp(&pa, &pb);
+        test_validate(forward == -reverse, "revcmp must negate the result");
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
+// ------------------------- TEST round_up_2 -------------------------
+static TestStatus
+tf_round_up_2(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: round_up_2(0)", ++subnum);
+    {
+        unsigned res = round_up_2(0);
+        test_validate(res == 0, "round_up_2(0) must be 0, got %u", res);
+    }
+
+    test_sub("subtest %d: round_up_2(1)", ++subnum);
+    {
+        unsigned res = round_up_2(1);
+        test_validate(res == 2, "round_up_2(1) must be 2, got %u", res);
+    }
+
+    test_sub("subtest %d: round_up_2(2)", ++subnum);
+    {
+        unsigned res = round_up_2(2);
+        test_validate(res == 4, "round_up_2(2) must be 4, got %u", res);
+    }
+
+    test_sub("subtest %d: round_up_2(3)", ++subnum);
+    {
+        unsigned res = round_up_2(3);
+        test_validate(res == 4, "round_up_2(3) must be 4, got %u", res);
+    }
+
+    test_sub("subtest %d: round_up_2(4)", ++subnum);
+    {
+        unsigned res = round_up_2(4);
+        test_validate(res == 8, "round_up_2(4) must be 8, got %u", res);
+    }
+
+    test_sub("subtest %d: round_up_2(5)", ++subnum);
+    {
+        unsigned res = round_up_2(5);
+        test_validate(res == 8, "round_up_2(5) must be 8, got %u", res);
+    }
+
+    test_sub("subtest %d: round_up_2(7)", ++subnum);
+    {
+        unsigned res = round_up_2(7);
+        test_validate(res == 8, "round_up_2(7) must be 8, got %u", res);
+    }
+
+    test_sub("subtest %d: round_up_2(8)", ++subnum);
+    {
+        unsigned res = round_up_2(8);
+        test_validate(res == 16, "round_up_2(8) must be 16, got %u", res);
+    }
+
+    test_sub("subtest %d: round_up_2(9)", ++subnum);
+    {
+        unsigned res = round_up_2(9);
+        test_validate(res == 16, "round_up_2(9) must be 16, got %u", res);
+    }
+
+    test_sub("subtest %d: round_up_2(15)", ++subnum);
+    {
+        unsigned res = round_up_2(15);
+        test_validate(res == 16, "round_up_2(15) must be 16, got %u", res);
+    }
+
+    test_sub("subtest %d: round_up_2(16)", ++subnum);
+    {
+        unsigned res = round_up_2(16);
+        test_validate(res == 32, "round_up_2(16) must be 32, got %u", res);
+    }
+
+    test_sub("subtest %d: round_up_2(17)", ++subnum);
+    {
+        unsigned res = round_up_2(17);
+        test_validate(res == 32, "round_up_2(17) must be 32, got %u", res);
+    }
+
+    test_sub("subtest %d: round_up_2(1023)", ++subnum);
+    {
+        unsigned res = round_up_2(1023);
+        test_validate(res == 1024, "round_up_2(1023) must be 1024, got %u", res);
+    }
+
+    test_sub("subtest %d: round_up_2(1024)", ++subnum);
+    {
+        unsigned res = round_up_2(1024);
+        test_validate(res == 2048, "round_up_2(1024) must be 2048, got %u", res);
+    }
+
+    test_sub("subtest %d: round_up_2(UINT_MAX)", ++subnum);
+    {
+        unsigned res = round_up_2(UINT_MAX);
+        test_validate(res == 0, "round_up_2(UINT_MAX) must be 0 (overflow), got %u", res);
     }
 
     return logret(TEST_PASSED, "done");
@@ -820,31 +927,18 @@ tf_comparators_ptr(const char *name)
 
 // -------------------------------------------------------------------
 int
-main(int argc, const char *argv[])
+main( /* int argc, const char *argv[] */ )
 {
-
     logsimpleinit("Start");
-    bool    runall = argc == 1;
 
-    while (runall || *++argv){
-        int     num = INT_MAX;    // INT_MAX for all test
-        if (!runall){
-            num = atoi(*argv);
-            if (num < 0){
-                fprintf(stderr,"Invalid test num %d\n", num);
-                continue;
-            }
-        }
-        printf("Num %d\n", num);
-            testenginestd_run(num,
-                testnew(.f2 = tf_try_parse,        .num =  1, .name = "Simple try_parse_<type> test"              , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_int_in,           .num =  2, .name = "Simple tf_int_(not)in test"                , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_comparators,      .num =  3, .name = "Simple compare_<type> test"                , .desc="", .mandatory=true)
-              , testnew(.f2 = tf_comparators_ptr,  .num =  4, .name = "Simple pointer compare_<type> test"        , .desc="", .mandatory=true)
-            );
-        if (runall)
-            break;
-    }
+    testenginestd(
+        TESTADD(tf_try_parse,        "Simple try_parse_<type> test"),
+        TESTADD(tf_int_in,           "Simple tf_int_(not)in test"),
+        TESTADD(tf_comparators,      "Simple compare_<type> test"),
+        TESTADD(tf_comparators_ptr,  "Simple pointer compare_<type> test"),
+        TESTADD(tf_round_up_2,       "round_up_2() simple test")
+    );
+
     return logret(0, "end...");  // as replace of logclose()
 }
 
