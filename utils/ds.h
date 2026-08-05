@@ -1,6 +1,6 @@
 /**
  * @file ds.h
- * @brief Universal interface for reading data from various sources.
+ * @brief Universal interface for reading/writing data from various sources.
  *
  * This module provides a @ref Ds abstraction that allows the same 
  * code to read characters from both standard I/O streams (FILE*) and 
@@ -31,7 +31,7 @@ typedef enum {
     DS_FILE,     /**< Data source is a standard file (FILE*). */
     DS_STR,      /**< Data source is a memory buffer (null-terminated string). */
     DS_CONSTSTR, /**< Data source is a memory const buffer (null-terminated string). */
-    DS_FS        /**< FS, Not suppoted here, for DS_FS adapted only */
+    DS_FS        /**< FS, suppoerted via ifndef NO_FSDS */
 } DSType;
 
 /**
@@ -167,14 +167,25 @@ extern int                     dsgetc(Ds *pds);
  * @return The character 'c' if successful, or @c EOF if the operation failed.
  */
 extern int                     dsungetc(int c, Ds *pds);
+
 /**
- * @brief Pushes ANY character back into the stream (DS_STR)
+ * @brief Pushes ANY character back into the stream (DS_STR, DS_FS)
  *  
  * @param[in]  c The character to push back.
  * @param[in,out] ds Pointer to the data source.
  * @return The character 'c' if successful, or @c EOF if the operation failed.
  */
-extern int                     dsreplacec(int c, Ds *pds);
+extern int                      dsreplacec(int c, Ds *pds);
+
+/**
+ * @brief Pushes ANY character into the stream (DS_STR, DS_FS)
+ *  
+ * @param[in]  c The character to push back.
+ * @param[in,out] ds Pointer to the data source.
+ * @return The character 'c' if successful, or @c EOF if the operation failed.
+ */
+extern int                      dsput(int c, Ds *pds);
+
 /**
  * @brief Debugging print implementation.
  * Returns the number of characters printed.

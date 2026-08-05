@@ -27,6 +27,16 @@ static inline int           dsreplace_str(char *restrict ptr, size_t *restrict p
 }
 
 /**
+ * @brief Internal helper for mutable string put.
+ */
+static inline int           dsput_str(char *restrict ptr, size_t *restrict pos, int c) {
+    if (ptr[*pos] != '\0')
+        return ptr[++(*pos)] = (unsigned char) c;
+    else
+        return EOF;
+}
+
+/**
  * @brief Internal helper for constant string unget (conditional rollback).
  */
 static inline int           dsungetc_conststr(const char *restrict ptr, size_t *restrict pos, int c) {
@@ -131,7 +141,7 @@ int                         dsgetc(Ds *pds) {
     }
 }
 
-int                         dsungetc(int c, Ds *pds) {
+int                             dsungetc(int c, Ds *pds) {
     if (c == EOF)   // NOT SURE, LET IT BE FOR NOW
         return EOF;
     switch (pds->type) {
@@ -153,7 +163,7 @@ int                         dsungetc(int c, Ds *pds) {
 }
 
 // only for DS_STR and DS_FS
-int                        dsreplacec(int c, Ds *pds) {
+int                         dsreplacec(int c, Ds *pds) {
     if (c == EOF)
         return EOF;
     switch (pds->type) {
@@ -166,6 +176,25 @@ int                        dsreplacec(int c, Ds *pds) {
             return dsreplace_str(ptr, &pds->pos, c);
         default:
             return EOF;
+    }
+}
+
+int                         dsput(int c, Ds *pds) {
+    if (c == EOF)
+        return EOF;
+    switch (pds->type) {
+        case DS_CONSTSTR:
+            return EOF;     // N/A
+        case DS_STR:
+            return dsput_str(pds->ptr, &pds->pos, c); // TODO: write till '\0'
+        case DS_FILE:
+            return fputc(c, pds->fp);
+        case DS_FS:
+#ifndef NO_FSDS
+            return *(fs_elem0(&pds->s, pds->pos++) ) = c;   // autoextend with final '\0'
+#else
+            return EOF;
+#endif  /* !NO_FSDS */  
     }
 }
 
