@@ -37,6 +37,53 @@ int                         dsVPrintStr(char *ptr, size_t pos, size_t cap, const
     return written;
 }
 
+/**
+ * @brief Helper that performs sscanf with automatic position advance.
+ *
+ * The format string is extended with a trailing " %n" to capture the
+ * number of consumed characters.  The position `*ppos` is updated
+ * accordingly.  This requires a second pass, therefore a copy of the
+ * variadic argument list is used.
+ *
+ * @param buf   input string (null‑terminated)
+ * @param ppos  pointer to the current read position, will be advanced
+ * @param fmt   scanf‑style format string
+ * @param ap    variadic argument list (as passed to dsScanf)
+ * @return      number of successfully matched items, or EOF on error
+ */
+static int                  dsVScanf(const char *buf, size_t *ppos, const char *fmt, va_list ap) {
+    int ret = 0;
+    size_t pos = *ppos;
+
+    // Первый проход: получаем количество успешных присваиваний
+    va_list ap1;
+    va_copy(ap1, ap);
+    ret = vsscanf(buf + pos, fmt, ap1);
+    va_end(ap1);
+
+    if (ret > 0) {
+        // Выделяем память под новый формат с " %n" в конце
+        size_t fmt_len = strlen(fmt);
+        char *new_fmt = malloc(fmt_len + 4); // " %n" + '\0'
+        if (new_fmt) {
+            memcpy(new_fmt, fmt, fmt_len);
+            memcpy(new_fmt + fmt_len, " %n", 4);
+
+            // Второй проход с обновлением consumed
+            va_list ap2;
+            va_copy(ap2, ap);
+            int consumed = 0;
+            vsscanf(buf + pos, new_fmt, ap2, &consumed);
+            va_end(ap2);
+
+            pos += consumed;
+            *ppos = pos;
+            free(new_fmt);
+        }
+    }
+    return ret;
+}
+
 // --------------------------- API ---------------------------------
 
 int                         dsPrintf(Ds *restrict pds, const char *restrict msg, ...) {
@@ -60,7 +107,7 @@ int                         dsPrintf(Ds *restrict pds, const char *restrict msg,
         case DS_FS:     // this is autoextendable
             IOCHECKER(wr, fs_sprintf_position(&pds->s, pds->pos, msg, ap), -1) {
                 total += wr;
-                pds->pos += wr; // iterator ovwe fs pds->s
+                pds->pos += wr; // iterator over fs pds->s
             }
             break;
         default:
@@ -73,7 +120,31 @@ int                         dsPrintf(Ds *restrict pds, const char *restrict msg,
 }
 
 int                         dsScanf(Ds *restrict pds, const char *restrict msg, ...) {
+    invraisecode(pds != NULL && msg != NULL, ERR_NULLABLE_PTR, 
+        "Null input %p %p", pds, msg);
+    
+    va_list     ap;
+    int         ret;
+    va_start(ap, msg);
 
+    switch (pds->type) {
+        case DS_FILE: {
+            ret = vfscanf(pds->fp, msg, ap);
+            break;
+        }
+        case DS_STR:
+        case DS_FS:
+        case DS_CONSTSTR: {
+            const char *buf = dsStrbuf(pds);
+            ret = dsVScanf(buf, &pds->pos, msg, ap);
+            }
+            break;
+        default:
+            ret = -1;
+    }
+
+    va_end(ap);
+    return ret;
 }
 
 // -------------------- CONSTRUCTOTS/DESTRUCTORS -------------------
