@@ -53,12 +53,16 @@ int                         dsVPrintStr(char *ptr, size_t pos, size_t cap, const
  */
 static int dsVScanf(const char *buf, size_t cap, size_t *ppos, const char *fmt, va_list ap) {
     size_t remaining = cap - *ppos;
-    if (remaining == 0) return -1;
+    if (remaining == 0)
+        return userraise(-1, ERR_OUT_OF_BUFFER, "Buffer exhausted");
 
-    FILE *mem = fmemopen((void *)(buf + *ppos), remaining, "r");
-    if (!mem) return -1;
+    FILE *mem = fmemopen((void *) (buf + *ppos), remaining, "r");
+    if (!mem)
+        return userraise(-1, ERR_UNABLE_OPEN_FILE_READ, "Unable to fmemopen");
 
     int ret = vfscanf(mem, fmt, ap);
+    if (ret < 0)
+        return userraise(-1, ERR_STREAM_ERROR, "vfscanf error");
     long offset = ftell(mem);
     fclose(mem);
 
