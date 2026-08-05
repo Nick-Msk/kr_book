@@ -297,21 +297,21 @@ char                                    *fs_elem0(fs *s, int pos){
 // sprintf to particular position
 int                                     fs_sprintf_position(fs *restrict s, int pos, const char *restrict fmt, va_list ap)
 {
-    logenter("len %d pos %d", s->len, pos);
+    // logenter("len %d pos %d", s->len, pos);
     va_list ap2;
     va_copy(ap2, ap);
     int needed = vsnprintf(NULL, 0, fmt, ap);
     // va_end(ap);
     if (needed < 0)
-        return logret(-1, "vsnprintf length failed");
+        return logsimpleerr(-1, "vsnprintf length failed");
 
     if (s->sz < pos + 1 + needed)
         increasesize(s, pos + 1 + needed, true);
     int cnt = vsnprintf(fs_str(s) + pos, s->sz - pos, fmt, ap2);
-    //if (pos + needed > s->len)
+
     s->len = pos + needed;      // note: string CAN BE CUTTED!
     va_end(ap2);
-    return logret(cnt, "printed %d to pos %d", cnt, pos);
+    return logsimpleret(cnt, "printed %d to pos %d", cnt, pos);
 }
 
 fs                                      *fs_resize(fs *s, int newsz){
