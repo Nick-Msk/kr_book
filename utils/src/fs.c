@@ -145,7 +145,45 @@ static inline int                       attach(int pos, char *v){
 }
 #endif /* FS_ALLOCATOR */
 
-// only for FS_FLAG_ALLOC
+/**
+ * @brief Manages the capacity of an fs (file system) object.
+ *
+ * This function handles memory expansion for buffers allocated on the heap.
+ * If the buffer is a fixed-size/static buffer (does not have @c FS_FLAG_ALLOC),
+ * this function performs no resizing operations.
+ *
+ * @param[in,out] s      Pointer to the fs structure.
+ * @param[in]     newsz  The target capacity in bytes.
+ * @param[in]     init   Growth strategy flag:
+ *                      - If @c true: Uses exponential growth (via @ref calcnewsize)
+ *                        to ensure amortized O(1) complexity for heap-allocated buffers.
+ *                      - If @c false: Attempts to resize to the exact @p newsz.
+ *
+ * @return Returns a log/status object containing information about the
+ *         result (e.g., the final size @c s->sz).
+ *
+ * @note **Conditional Behavior**: The resizing logic (reallocation) is only 
+ *      executed if @ref fs_alloc(s) returns true (i.e., the buffer was 
+ *      initialized with @c FS_FLAG_ALLOC).
+ * 
+ * @warning **Pointer Invalidation**: For heap-allocated buffers, a successful 
+ *          reallocation invalidates all existing pointers previously obtained 
+ *          from this buffer (e.g., via @ref elem0).
+ * 
+ * @warning **Exception Handling**: For heap-allocated buffers, this function 
+ *          may raise a system exception via @ref userraiseint if memory 
+ *          allocation fails.
+ * 
+ * @details 
+ * The internal execution flow is as follows:
+ * 1. Check if @ref fs_alloc(s) is true. If false, return immediately.
+ * 2. Check if the current capacity `s->sz` is sufficient for `newsz`.
+ * 3. If more space is needed:
+ *    a. Calculate new target size (exponential if @p init is true).
+ *    b. Attempt to allocate new memory using `realloc`.
+ *    c. If successful, update `s->v` and `s->sz`.
+ *    d. If allocation fails, raise exception via @ref userraiseint.
+ */
 static fs                               increasesize(fs *s, int newsz, bool init){
     logenter("oldsz %d, newsz %d, init %s v %p, is alloc? %s", s->sz, newsz, bool_str(init), s->v, bool_str(fs_alloc(s)) );
     if (fs_alloc(s) ){
@@ -167,7 +205,7 @@ static fs                               increasesize(fs *s, int newsz, bool init
                 s->sz = newsz;
          }
     }
-    return logret(*s, "increased to %d", s->sz);
+    return logret(*s, "%s%d", fs_alloc(s) ? "increased to " :"No change because non-heap ", s->sz);
 }
 
 // low level copy, NOT check anything
