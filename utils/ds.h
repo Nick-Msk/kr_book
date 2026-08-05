@@ -104,8 +104,10 @@ extern bool                    dsInitf(Ds *restrict pds, FILE *restrict fp);
  */
 static inline Ds               dsCreatef(FILE *fp) {
     Ds      tmp = DSFILE();
-    dsInitf(&tmp, fp);
-    return tmp;
+    if (dsInitf(&tmp, fp) )
+        return tmp;
+    Ds      empty = {0};
+    return empty;
 }
 /**
  * @brief Initializes a Datasource (Ds) object for reading from a c-string.
@@ -122,8 +124,10 @@ extern bool                    dsInitstr(Ds *restrict ds, char *restrict buf);
  */
 static inline Ds               dsCreatestr(char *buf) {
     Ds      tmp = DSSTR();
-    dsInitstr(&tmp, buf);
-    return tmp;
+    if (dsInitstr(&tmp, buf) )
+        return tmp;
+    Ds      empty = {0};
+    return empty;
 }
 /**
  * @brief Initializes a Datasource (Ds) object for reading from a const c-string.
@@ -140,8 +144,10 @@ extern bool                    dsInitconst(Ds *restrict pds, const char *restric
  */
 static inline Ds               dsCreateconst(const char *buf) {
     Ds      tmp = DSCONST();
-    dsInitconst(&tmp, buf);
-    return tmp;
+    if (dsInitconst(&tmp, buf) )
+        return tmp;
+    Ds      empty = {0};
+    return empty;
 }
 // ----------------------------------------------------------------------
 #ifndef NO_FSDS
@@ -162,8 +168,10 @@ extern bool                     dsInitfs(Ds *restrict pds, fs *restrict s);
  */
 static inline Ds                dsCreatefs(fs *s) {
     Ds      tmp = DSFS();
-    dsInitfs(&tmp, s);
-    return tmp;
+    if (dsInitfs(&tmp, s) )
+        return tmp;
+    Ds      empty = {0};
+    return empty;
 }
 // for wrire mostly
 static inline Ds                dsCreatefsempty(void) {
