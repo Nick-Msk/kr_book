@@ -15,51 +15,51 @@
 
 // typedef struct { int errcode; const char *errm; bool iserror; } Error;
 // TODO: make a enum from that: typedef enum { {ERR_NULLABLE_PTR, "Nullable pointer", true}, ... {WARN_MEM_LEAK_DETECTED, "Memory leak detected", false} } Errors;
-static const int                        ERROR_MESSAGE_MAX_LENGTH    = 512;
 
-// ERRORS HERE
-static const int                        ERR_NULLABLE_PTR            = 10;
-static const int                        ERR_OUT_OF_RANGE            = 11;
+// ----------- CONSTANTS AND GLOBALS ---------------
 
-static const int                        ERR_UNABLE_ALLOCATE         = 15;
+static const int ERROR_MESSAGE_MAX_LENGTH = 512;
 
-static const int                        ERR_WRONG_INPUT_FORMAT      = 20;
-static const int                        ERR_NOT_ENOGH_VALUES        = 21;
-static const int                        ERR_WRONG_PARAMETER         = 22;
-static const int                        ERR_TYPES_MISMATCH          = 23;
-static const int                        ERR_INVALID_BINARY_DATA     = 24;
+// ------------------- TYPES -----------------------
 
-static const int                        ERR_UNABLE_OPEN_FILE        = 50;
-static const int                        ERR_UNABLE_OPEN_FILE_READ   = 51;
-static const int                        ERR_UNABLE_OPEN_FILE_WRITE  = 52;
-static const int                        ERR_STREAM_ERROR            = 53;
-static const int                        ERR_UNABLE_SET_FILE_PARAM   = 54;
-static const int                        ERR_CANT_GET_STAT           = 55;
+typedef enum {
+    // --- Core / Standard Errors ---
+    ERR_NULLABLE_PTR            = 10,
+    ERR_OUT_OF_RANGE            = 11,
+    ERR_UNABLE_ALLOCATE         = 15,
+    ERR_WRONG_INPUT_FORMAT      = 20,
+    ERR_NOT_ENOGH_VALUES        = 21,
+    ERR_WRONG_PARAMETER         = 22,
+    ERR_TYPES_MISMATCH          = 23,
+    ERR_INVALID_BINARY_DATA     = 24,
+    ERR_UNABLE_OPEN_FILE        = 50,
+    ERR_UNABLE_OPEN_FILE_READ   = 51,
+    ERR_UNABLE_OPEN_FILE_WRITE  = 52,
+    ERR_STREAM_ERROR            = 53,
+    ERR_UNABLE_SET_FILE_PARAM   = 54,
+    ERR_CANT_GET_STAT           = 55,
+    ERR_WRONG_INPUT_PARAMETERS  = 60,
+    ERR_SHELL_NOT_AVAILABLE     = 65,
+    ERRNUM_INVARIANT_VIOLATION  = 100,
+    ERR_NOT_IMPLEMENTED_FEATURE = 200,
 
-static const int                        ERR_WRONG_INPUT_PARAMETERS  = 60;
-static const int                        ERR_SHELL_NOT_AVAILABLE     = 65;
+    // --- Warnings ---
+    WARN_MEM_LEAK_DETECTED      = 1001,
 
-static const int                        ERRNUM_INVARIANT_VIOLATION  = 100;       // Error code for error.h
-static const int                        ERR_NOT_IMPLEMENTED_FEATURE = 200;
-
-// WARNINGS HEHE
-static const int                        WARN_MEM_LEAK_DETECTED      = 1001;
-
-// CUSTOM ERROR 10000+
-static const int                        ERR_FS_NOT_ALLOC_FLAG       = 10001;
-static const int                        ERR_TOO_LONG_LINE           = 10010;
-static const int                        ERR_GUARD_RAISE             = 10100;
-static const int                        ERR_ACTION_NOT_APPLICABLE   = 10200;
-static const int                        ERR_UNABLE_ALLOCATE_SEQ     = 10201;
-
-static const int                        ERR_UNABLE_LOAD_FSARRAY     = 10220;
-static const int                        ERR_UNSUPPORTED_TYPE        = 10230;
-static const int                        ERR_UNSUPPORTED_TYPE_CONV   = 10231;
-static const int                        ERR_INVALID_CONVERSION      = 10232;
-static const int                        ERR_UNKNOWN_TYPE            = 10233;
-
-static const int                        ERR_UNABLE_TO_EXEC_FILE     = 10300;
-static const int                        ERR_UNABLE_TO_RUN_MAKE      = 10301;
+    // --- Custom / Domain Errors ---
+    ERR_FS_NOT_ALLOC_FLAG       = 10001,
+    ERR_TOO_LONG_LINE           = 10010,
+    ERR_GUARD_RAISE             = 10100,
+    ERR_ACTION_NOT_APPLICABLE   = 10200,
+    ERR_UNABLE_ALLOCATE_SEQ     = 10201,
+    ERR_UNABLE_LOAD_FSARRAY     = 10220,
+    ERR_UNSUPPORTED_TYPE        = 10230,
+    ERR_UNSUPPORTED_TYPE_CONV   = 10231,
+    ERR_INVALID_CONVERSION      = 10232,
+    ERR_UNKNOWN_TYPE            = 10233,
+    ERR_UNABLE_TO_EXEC_FILE     = 10300,
+    ERR_UNABLE_TO_RUN_MAKE      = 10301
+} ErrorCode;
 
 // ------------------- TYPES -----------------------
 
