@@ -34,7 +34,7 @@ typedef enum {
     DS_FS        /**< FS, suppoerted via ifndef NO_FSDS */
 } DSType;
 
-static const char               *DSTypeName(DSType typ) {
+static inline const char               *DSTypeName(DSType typ) {
     switch (typ) {
         CASE_RETURN(DS_FILE);
         CASE_RETURN(DS_STR);
