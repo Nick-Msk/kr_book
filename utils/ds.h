@@ -135,7 +135,7 @@ static inline Ds               dsCreateconst(const char *buf) {
  * @param[in]  s Pointer to the fs.
  * @note       fs s is MOVED into Ds structure!
  */
-extern bool                    dsInitfs(Ds *restrict pds, fs *restrict s);
+extern bool                     dsInitfs(Ds *restrict pds, fs *restrict s);
 /**
  * @brief Initializes a Ds object for reading from a file. wrapper for dsInitf
  * 
@@ -143,13 +143,26 @@ extern bool                    dsInitfs(Ds *restrict pds, fs *restrict s);
  * @return     Ds (initialied or not).
  * @note       fs s is MOVED into Ds structure!
  */
-static inline Ds               dsCreatefs(fs *s) {
+static inline Ds                dsCreatefs(fs *s) {
     Ds      tmp = DSFS();
     dsInitfs(&tmp, s);
     return tmp;
 }
-// ----------------------------------------------------------------------
+// for wrire mostly
+static inline Ds                dsCreatefsempty(void) {
+    fs  tmp = FS();
+    return dsCreatefs(&tmp);
+}
+
+// DS_FS only
+static inline void              dsFree(Ds *pds) {
+    if (pds && pds->type == DS_FS)
+        fsfree(pds->s);
+}
+
 #endif  /* !NO_FSDS */   
+
+// ----------------------------------------------------------------------
 
 /**
  * @brief Reads the next character from the source.
@@ -184,16 +197,20 @@ extern int                      dsreplacec(int c, Ds *pds);
  * @param[in,out] ds Pointer to the data source.
  * @return The character 'c' if successful, or @c EOF if the operation failed.
  */
-extern int                      dsput(int c, Ds *pds);
+extern int                      dsputc(int c, Ds *pds);
 
 /**
  * @brief Debugging print implementation.
  * Returns the number of characters printed.
  */
-extern int                     dsTechFPrint(FILE *restrict out, const Ds *restrict ds);
-static inline int       dsTechPrint(const Ds *pds) {
-    return dsTechFPrint(stdout, pds);
+extern int                     dsTechFPrint(FILE *restrict out, const Ds *restrict ds, const char *restrict name);
+static inline int              dsTechPrint(const Ds *restrict pds, const char *restrict name) {
+    return dsTechFPrint(stdout, pds, name);
 }
+
+#define DSTECHFPRINT(out, ds)   dsTechFPrint((out), &(ds), #ds)   
+#define DSTECHPRINT(ds)         dsTechPrint( &(ds), #ds)
+
 /**
  * @brief Return pointer to buffer for DS_STR, DS_FS and DS_CONSTSTR
  *  
