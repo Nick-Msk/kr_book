@@ -433,12 +433,16 @@ static inline int               printn(const char *str, int sz){
     return fprintn(stdout, str, sz);
 }
 
-// stdc_bit_ceil_ TODO: check
+// next 2^x
 static inline unsigned          round_up_2(unsigned val){
-    int prev = 0;
+#if __STDC_VERSION__ >= 202311L
+    return stdc_bit_ceil( (unsigned long long) val + 1);
+#else /* !__STDC_VERSION__ >= 202311L */
+    unsigned    prev = 0;
     while (val)
         val &= ( (prev = val) - 1);
     return prev << 1;
+#endif 
 }
 
 // reverse string
