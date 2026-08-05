@@ -106,6 +106,7 @@ bool                        dsInitconst(Ds *restrict pds, const char *restrict b
         return false;
     pds->type = DS_CONSTSTR;
     pds->constptr = buf;
+    pds->cap = strlen(buf);
     pds->pos = 0;
     return true;
 }

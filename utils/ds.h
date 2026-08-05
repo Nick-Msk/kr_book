@@ -61,10 +61,12 @@ typedef struct Ds {
         struct {
             union {
                 struct {
-                    char          *ptr; /**< Pointer to the start of the string (used in @c DS_STR mode). */
+                    union {
+                        char          *ptr; /**< Pointer to the start of the string (used in @c DS_STR mode). */
+                        const char    *constptr; /**< Pointer to the start of the constant string (used in @c DS_STR mode). */
+                    }; 
                     size_t  cap;        /**< Capacity of STR and CONSTSTR */
-                };    
-                const char    *constptr; /**< Pointer to the start of the constant string (used in @c DS_STR mode). */
+                };
 #ifndef NO_FSDS
                 fs    s;                /**< fs autoextendable string */
 #endif  /* !NO_FSDS */             
