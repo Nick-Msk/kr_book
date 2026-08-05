@@ -167,4 +167,4 @@ main( /*int argc, char *argv[] */ )
     return logret(0, "end...");  // as replace of logclose()
 }
 
-#endif /* DS_FS_ADAPTER_TESTING */
+#endif /* DS_ADAPTER_TESTING */
