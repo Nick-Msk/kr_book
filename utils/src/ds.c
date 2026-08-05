@@ -96,6 +96,7 @@ bool                        dsInitstr(Ds *restrict ds, char *restrict buf) {
         return false;
     ds->type = DS_STR;
     ds->ptr = buf;
+    ds->cap = strlen(buf);
     ds->pos = 0;
     return true;
 }
@@ -214,8 +215,9 @@ int                         dsTechFPrint(FILE *restrict out, const Ds *restrict 
         case DS_STR:
         case DS_CONSTSTR: {
             const char *ptr = dsStrbuf(pds);
-            IOCHECKERSIMPLE(written, fprintf(out, "[DS_%s %s] pos=%zu, data=\"", 
-                    (pds->type == DS_STR) ? "STR" : "CONSTSTR", name ? name : "", pds->pos), -1)
+            IOCHECKERSIMPLE(written, fprintf(out, "[DS_%s %s] pos=%zu, cap=%zu, data=\"", 
+                    (pds->type == DS_STR) ? "STR" : "CONSTSTR", 
+                        name ? name : "", pds->pos, pds->type == DS_STR ? pds->cap : 0), -1)
                     total += written;
             //
             IOCHECKERSIMPLE(written, ds_print_buffer_content(out, ptr, 0, pds->pos), -1)

@@ -60,7 +60,10 @@ typedef struct Ds {
         };
         struct {
             union {
-                char          *ptr; /**< Pointer to the start of the string (used in @c DS_STR mode). */
+                struct {
+                    char          *ptr; /**< Pointer to the start of the string (used in @c DS_STR mode). */
+                    size_t  cap;        /**< Capacity of STR and CONSTSTR */
+                };    
                 const char    *constptr; /**< Pointer to the start of the constant string (used in @c DS_STR mode). */
 #ifndef NO_FSDS
                 fs    s;                /**< fs autoextendable string */
@@ -72,10 +75,14 @@ typedef struct Ds {
     };
 } Ds;
 
-#define DS(...) (Ds) {.type = DS_STR, .pos = 0L, .ptr = NULL, .strssavepos = 0L, __VA_ARGS__}
-#define DSFILE(...) (Ds) {.type = DS_FILE, .fp = NULL, .filesavepos = 0L, __VA_ARGS__}
-#define DSSTR(...) (Ds) {.type = DS_STR, .pos = 0L, .ptr = NULL, .strssavepos = 0L, __VA_ARGS__}
-#define DSCONST(...) (Ds) {.type = DS_CONSTSTR, .pos = 0L, .constptr = NULL, .strssavepos = 0L, __VA_ARGS__}
+#define DS(...) (Ds) {.type = DS_STR, .pos = 0L, .ptr = NULL,\
+     .strssavepos = 0L, __VA_ARGS__}
+#define DSFILE(...) (Ds) {.type = DS_FILE, .fp = NULL,\
+     .filesavepos = 0L, __VA_ARGS__}
+#define DSSTR(...) (Ds) {.type = DS_STR, .pos = 0L, .ptr = NULL,\
+     .strssavepos = 0L, .cap = 0L, __VA_ARGS__}
+#define DSCONST(...) (Ds) {.type = DS_CONSTSTR, .pos = 0L, .constptr = NULL, \
+     .strssavepos = 0L, __VA_ARGS__}
 
 #ifndef NO_FSDS
     #define DSFS(...) (Ds) {.type = DS_FS, .pos = 0L, .s = FS(), .strssavepos = 0L, __VA_ARGS__}

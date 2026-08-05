@@ -1,1 +1,1 @@
-[DS_STR ds] pos=2, data="Da" => "ta"
+[DS_STR ds] pos=2, cap=4, data="Da" => "ta"
