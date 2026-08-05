@@ -26,6 +26,7 @@ typedef enum {
     // --- Core / Standard Errors ---
     ERR_NULLABLE_PTR            = 10,
     ERR_OUT_OF_RANGE            = 11,
+    ERR_OUT_OF_BUFFER           = 12,
     ERR_UNABLE_ALLOCATE         = 15,
     ERR_WRONG_INPUT_FORMAT      = 20,
     ERR_NOT_ENOGH_VALUES        = 21,
