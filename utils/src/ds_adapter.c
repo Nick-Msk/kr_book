@@ -45,42 +45,25 @@ int                         dsVPrintStr(char *ptr, size_t pos, size_t cap, const
  * accordingly.  This requires a second pass, therefore a copy of the
  * variadic argument list is used.
  *
- * @param buf   input string (null‑terminated)
- * @param ppos  pointer to the current read position, will be advanced
+ * @param buf   null‑terminated input buffer
+ * @param ppos  pointer to the current read offset (will be updated)
  * @param fmt   scanf‑style format string
- * @param ap    variadic argument list (as passed to dsScanf)
- * @return      number of successfully matched items, or EOF on error
+ * @param ap    variadic argument list (as passed to vfscanf)
+ * @return      number of successfully matched items, or a negative value on error
  */
-static int                  dsVScanf(const char *buf, size_t *ppos, const char *fmt, va_list ap) {
-    int ret = 0;
-    size_t pos = *ppos;
+static int dsVScanf(const char *buf, size_t cap, size_t *ppos, const char *fmt, va_list ap) {
+    size_t remaining = cap - *ppos;
+    if (remaining == 0) return -1;
 
-    // Первый проход: получаем количество успешных присваиваний
-    va_list ap1;
-    va_copy(ap1, ap);
-    ret = vsscanf(buf + pos, fmt, ap1);
-    va_end(ap1);
+    FILE *mem = fmemopen((void *)(buf + *ppos), remaining, "r");
+    if (!mem) return -1;
 
-    if (ret > 0) {
-        // Выделяем память под новый формат с " %n" в конце
-        size_t fmt_len = strlen(fmt);
-        char *new_fmt = malloc(fmt_len + 4); // " %n" + '\0'
-        if (new_fmt) {
-            memcpy(new_fmt, fmt, fmt_len);
-            memcpy(new_fmt + fmt_len, " %n", 4);
+    int ret = vfscanf(mem, fmt, ap);
+    long offset = ftell(mem);
+    fclose(mem);
 
-            // Второй проход с обновлением consumed
-            va_list ap2;
-            va_copy(ap2, ap);
-            int consumed = 0;
-            vsscanf(buf + pos, new_fmt, ap2, &consumed);
-            va_end(ap2);
-
-            pos += consumed;
-            *ppos = pos;
-            free(new_fmt);
-        }
-    }
+    if (offset > 0)
+        *ppos += offset;
     return ret;
 }
 
@@ -136,7 +119,7 @@ int                         dsScanf(Ds *restrict pds, const char *restrict msg, 
         case DS_FS:
         case DS_CONSTSTR: {
             const char *buf = dsStrbuf(pds);
-            ret = dsVScanf(buf, &pds->pos, msg, ap);
+            ret = dsVScanf(buf, pds->type == DS_FS ? pds->s.len : pds->cap, &pds->pos, msg, ap);
             }
             break;
         default:
