@@ -98,7 +98,7 @@ bool                        dsInitstrCap(Ds *restrict pds, char *restrict buf, s
     pds->ptr = buf;
     if (cap != 0L) { // write or read/write => need to empty buffer
         pds->cap = cap;
-        memset(pds->ptr, '\0', cap);
+        // memset(pds->ptr, '\0', cap);
     } else
         pds->cap = strlen(buf);
     pds->pos = 0;
