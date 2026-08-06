@@ -234,8 +234,9 @@ tf_ds_printf(const char *name)
     /* 4. DS_STR: запись ровно на границе буфера (без переполнения) */
     test_sub("subtest %d: dsPrintf string boundary (no overflow)", ++subnum);
     {
-        char buf[11] = "..........";   // strlen = 10 → cap = 10 (достаточно для "123456789" + '\0')
+        char buf[] = "..........";   // strlen = 10 → cap = 10 (достаточно для "123456789" + '\0')
         Ds ds = dsCreatestr(buf);
+
         int written = dsPrintf(&ds, "123456789");   // нужно 9 символов + '\0' → 10
         test_validate(written == 9,
                     "dsPrintf must return 9, got %d", written);
@@ -265,10 +266,12 @@ tf_ds_printf(const char *name)
     /* 6. DS_STR: множественная запись */
     test_sub("subtest %d: dsPrintf to string multiple calls", ++subnum);
     {
-        char buf[] = "1111111111111111111111111111111111";
-        Ds ds = dsCreatestr(buf);
+        const int cnt = 50;
+        char buf[cnt];
+        Ds ds = dsCreatestrCap(buf, cnt);
         dsPrintf(&ds, "Line1\n");
         dsPrintf(&ds, "Line2");
+
         test_validate(strcmp(buf, "Line1\nLine2") == 0,
                       "Buffer must contain 'Line1\\nLine2', got '%s'", buf);
     }
