@@ -386,7 +386,99 @@ tf_ds_scanf(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST dsScanf() and dsPrintf() combined tests -------------------------
+static TestStatus
+tf_ds_scanf_printf(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
 
+    test_sub("subtest %d: dsPrintf + dsScanf round-trip (position)", ++subnum);
+    {
+        char buf[128];
+        Ds ds = dsCreatestrCap(buf, sizeof(buf));   // cap = 128
+
+        // Записываем несколько значений
+        size_t written_pos = dsPrintf(&ds, "%d %s %c", 42, "test", 'X');
+
+        // Сбрасываем позицию для чтения
+        dsReset(&ds);
+
+        // Читаем обратно
+        int i;
+        char s[10];
+        char c;
+        int ret = dsScanf(&ds, "%d %s %c", &i, s, &c);
+        size_t read_pos = ds.pos;       // позиция после чтения
+
+        test_validate(ret == 3, "Scanf must read 3 items, got %d", ret);
+        test_validate(i == 42 && strcmp(s, "test") == 0 && c == 'X',
+                    "Values: i=%d, s='%s', c='%c' (expected 42, 'test', 'X')",
+                    i, s, c);
+        test_validate(written_pos == read_pos,
+                    "Position after read (%zu) must equal position after write (%zu)",
+                    read_pos, written_pos);
+    }
+
+    test_sub("subtest %d: multiple printf / scanf round‑trip", ++subnum);
+    {
+        char buf[256];
+        Ds ds = dsCreatestrCap(buf, sizeof(buf));
+
+        // ---------- запись ----------
+        int pt1 = dsPrintf(&ds, "%d ", 10);      // "10 "
+        int pt2 = dsPrintf(&ds, "%s ", "hello"); // "10 hello "
+        int pt3 = dsPrintf(&ds, "%c", '!');      // "10 hello !"
+        int pt4 = dsPrintf(&ds, "%s ", " ?");
+        //int pt4 = dsPrintf(&ds, "%c", '?');
+        int total_written = pt1 + pt2 + pt3 + pt4;                 // позиция после третьей записи
+        DSTECHPRINT(ds);
+
+        // ---------- чтение ----------
+        dsReset(&ds);
+
+        int i;
+        char s[10];
+        char c, c1, c2, c3;
+        DSTECHPRINT(ds);
+        int r1 = dsScanf(&ds, "%d", &i);         // "10"
+        test_validate(
+            r1 == 1,
+            "r1 must be 1, got '%d'", r1
+        );
+        DSTECHPRINT(ds);
+        int r2 = dsScanf(&ds, "%s", s);          // "hello"
+        test_validate(
+            r2 == 1,
+            "r2 must be 1, got '%d'", r2
+        );
+        DSTECHPRINT(ds);
+        int r3 = dsScanf(&ds, "%c%c", &c1, &c);         // "!"
+        test_validate(
+            r3 == 2,
+            "r3 must be 2, got '%d'", r3
+        );
+        DSTECHPRINT(ds);
+        int r4 = dsScanf(&ds, " %c%c", &c2, &c3);         // "? "
+        test_validate(
+            r4 == 2,
+            "r3 must be 1, got '%d'", r4
+        );
+        DSTECHPRINT(ds);
+        size_t total_read = ds.pos;
+
+        test_validate(i == 10, "First scanf: i=%d (expected 10)", i);
+        test_validate(strcmp(s, "hello") == 0, "Second scanf: s='%s' (expected 'hello')", s);
+        test_validate(c == '!', "Third scanf: c='%c' (expected '!')", c);
+        test_validate(c2 == '?', "Forth scanf: c2='%c' (expected '?')", c2);
+        test_validate(c3 == ' ', "Forth scanf: c3='%c' (expected ' ')", c3);
+        test_validate( (int) total_read == total_written,
+                    "Total positions must match: written=%d, read=%zu",
+                    total_written, total_read);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
 
 // -------------------------------------------------------------------
 int
@@ -397,6 +489,7 @@ main( /*int argc, char *argv[] */ )
     testenginestd(
         TESTADD(tf_ds_printf,          "dsPrintf() simple tests")
       , TESTADD(tf_ds_scanf,           "dsScanf() simple tests")
+      , TESTADD(tf_ds_scanf_printf,    "dsScanf() and dsPrintf() combined tests")
     );
 
     return logret(0, "end...");  // as replace of logclose()
