@@ -132,12 +132,12 @@ static inline bool             dsInitstr(Ds *restrict ds, char *restrict buf) {
  * @brief Initializes a Datasource (Ds) object for reading from a c-string.
  * 
  * @param[in]  buf Pointer to a null-terminated string (const char*).
- * @param[in]  cap Capacity, if 0L then till '\0' 
+ * @param[in]  cap Capacity must be > 0L
  * @return     Ds (initialied or not)
  */
 static inline Ds               dsCreatestrCap(char *buf, size_t cap) {
     Ds      tmp = DSSTR();
-    if (dsInitstrCap(&tmp, buf, cap) )
+    if (cap > 0L && dsInitstrCap(&tmp, buf, cap) )
         return tmp;
     Ds      empty = {0};
     return empty;
