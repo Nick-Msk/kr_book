@@ -91,13 +91,17 @@ bool                        dsInitf(Ds *restrict pds, FILE *restrict fp) {
     return true;
 }
 
-bool                        dsInitstrCap(Ds *restrict ds, char *restrict buf, size_t cap) {
-    if (ds == NULL || buf == NULL)
+bool                        dsInitstrCap(Ds *restrict pds, char *restrict buf, size_t cap) {
+    if (pds == NULL || buf == NULL)
         return false;
-    ds->type = DS_STR;
-    ds->ptr = buf;
-    ds->cap = cap == 0L ? strlen(buf) : cap;
-    ds->pos = 0;
+    pds->type = DS_STR;
+    pds->ptr = buf;
+    if (cap == 0L) { // write or read/write => need to empty buffer
+        pds->cap = cap;
+        memset(pds->ptr, '\0', cap);
+    } else
+        pds->cap = strlen(buf);
+    pds->pos = 0;
     return true;
 }
 
