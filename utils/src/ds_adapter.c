@@ -146,15 +146,244 @@ int                         dsScanf(Ds *restrict pds, const char *restrict msg, 
 
 #include "test.h"
 
-// ------------------------- TEST Ds (DataSource) -------------------------
+// ------------------------- TEST dsPrintf -------------------------
 static TestStatus
-tf_ds(const char *name)
+tf_ds_printf(const char *name)
 {
     logenter("%s", name);
     int subnum = 0;
 
+    /* 1. DS_FILE: простая запись */
+    test_sub("subtest %d: dsPrintf to file", ++subnum);
+    {
+        const char *fname = "res/ds/test_printf_file.dsadp";
+        FILE *fp = fopen(fname, "w");
+        Ds ds = dsCreatef(fp);
+
+        int written = dsPrintf(&ds, "Hello %d", 42);
+        fclose(fp);
+        test_validate(written > 0, "dsPrintf must return > 0, got %d", written);
+
+        fp = fopen(fname, "r");
+        char buf[32] = {0};
+        fread(buf, 1, sizeof(buf)-1, fp);
+        fclose(fp);
+        test_validate(strcmp(buf, "Hello 42") == 0,
+                      "File must contain 'Hello 42', got '%s'", buf);
+    }
+
+    /* 2. DS_FILE: запись с форматированием */
+    test_sub("subtest %d: dsPrintf to file with multiple args", ++subnum);
+    {
+        const char *fname = "res/ds/test_printf_multi.dsadp";
+        FILE *fp = fopen(fname, "w");
+        Ds ds = dsCreatef(fp);
+
+        int written = dsPrintf(&ds, "%d + %d = %d", 2, 3, 5);
+        fclose(fp);
+        test_validate(written > 0, "dsPrintf must return > 0");
+
+        fp = fopen(fname, "r");
+        char buf[32] = {0};
+        fread(buf, 1, sizeof(buf)-1, fp);
+        fclose(fp);
+        test_validate(strcmp(buf, "2 + 3 = 5") == 0,
+                      "File must contain '2 + 3 = 5', got '%s'", buf);
+    }
+
+#ifndef NO_FSDS
+    /* 3. DS_FS: запись в fs */
+    test_sub("subtest %d: dsPrintf to FS", ++subnum);
+    {
+        fs s = FS();
+        Ds ds = dsCreatefs(&s);
+        int written = dsPrintf(&ds, "Value=%d", 99);
+        test_validate(written > 0, "dsPrintf must return > 0");
+
+        // после dsCreatefs переменная s перемещена, читаем из ds.s
+        test_validate(strcmp(ds.s.v, "Value=99") == 0,
+                      "FS must contain 'Value=99', got '%s'", ds.s.v);
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* 4. DS_FS: множественная запись */
+    test_sub("subtest %d: dsPrintf to FS multiple calls", ++subnum);
+    {
+        fs s = FS();
+        Ds ds = dsCreatefs(&s);
+        dsPrintf(&ds, "Line1\n");
+        dsPrintf(&ds, "Line2");
+        test_validate(strcmp(ds.s.v, "Line1\nLine2") == 0,
+                      "FS must contain 'Line1\\nLine2', got '%s'", ds.s.v);
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+#endif /* !NO_FSDS */
+
+    /* 5. NULL Ds должен вызвать исключение */
+    test_sub("subtest %d: dsPrintf with NULL Ds raises SIGINT", ++subnum);
+    {
+        if (!try()) {
+            dsPrintf(NULL, "test");
+            test_validate(false, "Should have raised SIGINT for NULL Ds");
+        } else {
+            logsimple("Exception correctly raised for NULL Ds");
+        }
+    }
+    /* 4. DS_STR: запись ровно на границе буфера (без переполнения) */
+    test_sub("subtest %d: dsPrintf string boundary (no overflow)", ++subnum);
+    {
+        char buf[11] = "..........";   // strlen = 10 → cap = 10 (достаточно для "123456789" + '\0')
+        Ds ds = dsCreatestr(buf);
+        int written = dsPrintf(&ds, "123456789");   // нужно 9 символов + '\0' → 10
+        test_validate(written == 9,
+                    "dsPrintf must return 9, got %d", written);
+        test_validate(strcmp(buf, "123456789") == 0,
+                    "Buffer must contain '123456789', got '%s'", buf);
+        test_validate(ds.pos == 9,
+                    "pos must be 9, got %zu", ds.pos);
+    }
+
+    /* 5. DS_STR: переполнение буфера */
+    test_sub("subtest %d: dsPrintf string overflow", ++subnum);
+    {
+        char buf[5] = "12";               // strlen = 2 → cap = 2
+        Ds ds = dsCreatestr(buf);
+        int written = dsPrintf(&ds, "Hello World");   // нужно 11 символов
+        test_validate(written == -1,
+                    "dsPrintf overflow must return -1, got %d", written);
+        test_validate(buf[0] == '1',
+                    "Buffer must remain unchanged, got '%s'", buf);
+        test_validate(buf[1] == '2',
+                    "Buffer must remain unchanged, got '%s'", buf);
+        test_validate(buf[2] == '\0',
+                    "Buffer must remain unchanged, got '%s'", buf);
+        test_validate(ds.pos == 0,
+                    "pos must stay 0, got %zu", ds.pos);
+    }
+    /* 6. DS_STR: множественная запись */
+    test_sub("subtest %d: dsPrintf to string multiple calls", ++subnum);
+    {
+        char buf[] = "1111111111111111111111111111111111";
+        Ds ds = dsCreatestr(buf);
+        dsPrintf(&ds, "Line1\n");
+        dsPrintf(&ds, "Line2");
+        test_validate(strcmp(buf, "Line1\nLine2") == 0,
+                      "Buffer must contain 'Line1\\nLine2', got '%s'", buf);
+    }
+
     return logret(TEST_PASSED, "done");
 }
+
+// ------------------------- TEST dsScanf -------------------------
+static TestStatus
+tf_ds_scanf(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. DS_FILE: чтение из файла */
+    test_sub("subtest %d: dsScanf from file", ++subnum);
+    {
+        const char *fname = "res/ds/test_scanf_file.dsadp";
+        FILE *fp = fopen(fname, "w");
+        fprintf(fp, "42 3.14 hello");
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        Ds ds = dsCreatef(fp);
+        int i;
+        double d;
+        char s[10];
+        int ret = dsScanf(&ds, "%d %lf %s", &i, &d, s);
+        fclose(fp);
+        test_validate(ret == 3, "dsScanf must return 3, got %d", ret);
+        test_validate(i == 42 && d == 3.14 && strcmp(s, "hello") == 0,
+                      "File values: i=%d, d=%.2f, s='%s' (expected 42, 3.14, 'hello')",
+                      i, d, s);
+    }
+
+    /* 2. DS_STR: чтение из строки с авто‑сдвигом */
+    test_sub("subtest %d: dsScanf from mutable string", ++subnum);
+    {
+        char buf[32] = "10 20 30";
+        Ds ds = dsCreatestr(buf);
+        int a, b, c;
+        dsScanf(&ds, "%d", &a);
+        dsScanf(&ds, "%d", &b);
+        dsScanf(&ds, "%d", &c);
+        test_validate(a == 10 && b == 20 && c == 30,
+                      "STR values: a=%d, b=%d, c=%d (expected 10,20,30)", a, b, c);
+        test_validate(ds.pos == 8, "After three scans pos must be 8, got %zu", ds.pos);
+    }
+
+    /* 3. DS_CONSTSTR: чтение из константной строки */
+    test_sub("subtest %d: dsScanf from const string", ++subnum);
+    {
+        const char *text = "3.14";
+        Ds ds = dsCreateconst(text);
+        double d;
+        int ret = dsScanf(&ds, "%lf", &d);
+        test_validate(ret == 1, "dsScanf must return 1, got %d", ret);
+        test_validate(d == 3.14, "CONSTSTR: d=%.2f (expected 3.14)", d);
+        test_validate(ds.pos == 4, "pos must be 4, got %zu", ds.pos);
+    }
+
+#ifndef NO_FSDS
+    /* 4. DS_FS: чтение из fs */
+    test_sub("subtest %d: dsScanf from FS", ++subnum);
+    {
+        fs s = FS();
+        Ds ds = dsCreatefs(&s);
+        dsputc('A', &ds);
+        dsputc('B', &ds);
+        ds.pos = 0;
+        char ch1, ch2;
+        int ret = dsScanf(&ds, "%c%c", &ch1, &ch2);
+        test_validate(ret == 2, "dsScanf must return 2, got %d", ret);
+        test_validate(ch1 == 'A' && ch2 == 'B',
+                      "FS chars: ch1='%c', ch2='%c' (expected 'A','B')", ch1, ch2);
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+#endif /* !NO_FSDS */
+
+    /* 5. Ошибка: пустая строка */
+    test_sub("subtest %d: dsScanf on empty string", ++subnum);
+    {
+        char buf[4] = "";
+        Ds ds = dsCreatestr(buf);
+        int val;
+        int ret = dsScanf(&ds, "%d", &val);
+        test_validate(ret <= 0, "dsScanf on empty string must fail, got %d", ret);
+    }
+
+    /* 6. Ошибка: неверный формат */
+    test_sub("subtest %d: dsScanf with invalid format", ++subnum);
+    {
+        char buf[8] = "abc";
+        Ds ds = dsCreatestr(buf);
+        int val;
+        int ret = dsScanf(&ds, "%d", &val);
+        test_validate(ret <= 0, "dsScanf on non‑numeric string must fail, got %d", ret);
+    }
+
+    test_sub("subtest %d: dsScanf with NULL Ds raises SIGINT", ++subnum);
+    {
+        if (!try()) {
+            int dummy;
+            dsScanf(NULL, "%d", &dummy);
+            test_validate(false, "Should have raised SIGINT for NULL Ds");
+        } else {
+            logsimple("Exception correctly raised for NULL Ds");
+        }
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
+
 
 // -------------------------------------------------------------------
 int
@@ -163,7 +392,8 @@ main( /*int argc, char *argv[] */ )
     logsimpleinit("Start");
 
     testenginestd(
-        TESTADD(tf_ds,           "Ds (DataSource) simple tests")
+        TESTADD(tf_ds_printf,          "dsPrintf() simple tests")
+      , TESTADD(tf_ds_scanf,           "dsScanf() simple tests")
     );
 
     return logret(0, "end...");  // as replace of logclose()

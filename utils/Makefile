@@ -186,7 +186,7 @@ UTIL_OBJS = lib/log.o lib/test.o lib/error.o lib/common.o lib/checker.o \
 	lib/fs.o lib/fileutils.o lib/getword.o lib/buffer.o \
 	lib/fs_iter.o lib/fs_array.o lib/command_executor.o \
 	lib/numeric_ops.o lib/hashset.o lib/value64.o \
-	lib/context.o lib/systemutils.o\
+	lib/context.o lib/systemutils.o \
 	lib/fs.o lib/fileutils.o lib/array.o lib/metric.o lib/value64_tarray.o \
 	lib/hashset_utils.o lib/seq.o lib/lwset.o lib/ds.o lib/ds_adapter.o
 
