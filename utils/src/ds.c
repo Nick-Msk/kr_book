@@ -91,12 +91,12 @@ bool                        dsInitf(Ds *restrict pds, FILE *restrict fp) {
     return true;
 }
 
-bool                        dsInitstr(Ds *restrict ds, char *restrict buf) {
+bool                        dsInitstrCap(Ds *restrict ds, char *restrict buf, size_t cap) {
     if (ds == NULL || buf == NULL)
         return false;
     ds->type = DS_STR;
     ds->ptr = buf;
-    ds->cap = strlen(buf);
+    ds->cap = cap == 0L ? strlen(buf) : cap;
     ds->pos = 0;
     return true;
 }
@@ -106,7 +106,7 @@ bool                        dsInitconst(Ds *restrict pds, const char *restrict b
         return false;
     pds->type = DS_CONSTSTR;
     pds->constptr = buf;
-    pds->cap = strlen(buf);
+    pds->cap = strlen(buf); // MUST BE '\0' at the EOL
     pds->pos = 0;
     return true;
 }

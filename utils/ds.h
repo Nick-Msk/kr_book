@@ -115,9 +115,33 @@ static inline Ds               dsCreatef(FILE *fp) {
  * @brief Initializes a Datasource (Ds) object for reading from a c-string.
  * 
  * @param[out] Ds Pointer to the Datasource (Ds) structure to be initialized.
+ * @param[in]  cap Capacity, if 0L then till '\0' 
  * @param[in]  buf Pointer to a null-terminated string (const char*).
  */
-extern bool                    dsInitstr(Ds *restrict ds, char *restrict buf);
+extern bool                    dsInitstrCap(Ds *restrict ds, char *restrict buf, size_t cap);
+/**
+ * @brief Initializes a Datasource (Ds) object for reading from a c-string.
+ * 
+ * @param[out] Ds Pointer to the Datasource (Ds) structure to be initialized.
+ * @param[in]  buf Pointer to a null-terminated string (const char*).
+ */
+extern bool                    dsInitstr(Ds *restrict ds, char *restrict buf) {
+    return dsInitstrCap(ds, buf, 0L);
+}
+/**
+ * @brief Initializes a Datasource (Ds) object for reading from a c-string.
+ * 
+ * @param[in]  buf Pointer to a null-terminated string (const char*).
+ * @param[in]  cap Capacity, if 0L then till '\0' 
+ * @return     Ds (initialied or not)
+ */
+static inline Ds               dsCreatestrCap(char *buf, size_t cap) {
+    Ds      tmp = DSSTR();
+    if (dsInitstrCap(&tmp, buf, cap) )
+        return tmp;
+    Ds      empty = {0};
+    return empty;
+}
 /**
  * @brief Initializes a Datasource (Ds) object for reading from a c-string.
  * 
