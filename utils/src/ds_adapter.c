@@ -22,7 +22,7 @@
  * @return The number of characters written (excluding null terminator), 
  *         or -1 if the buffer is too small or an error occurred.
  */
-int                         dsVPrintStr(char *ptr, size_t pos, size_t cap, const char *fmt, va_list ap) {
+int                         dsHelperVPrintStr(char *ptr, size_t pos, size_t cap, const char *fmt, va_list ap) {
     int needed = vsnprintf(NULL, 0, fmt, ap);
     if (needed < 0)
         return userraise(-1, ERR_STREAM_ERROR, "Unable to vsnprintf NULL");
@@ -51,7 +51,7 @@ int                         dsVPrintStr(char *ptr, size_t pos, size_t cap, const
  * @param ap    variadic argument list (as passed to vfscanf)
  * @return      number of successfully matched items, or a negative value on error
  */
-static int dsVScanf(const char *buf, size_t cap, size_t *ppos, const char *fmt, va_list ap) {
+static int dsHelperVScanf(const char *buf, size_t cap, size_t *ppos, const char *fmt, va_list ap) {
     size_t remaining = cap - *ppos;
     if (remaining == 0)
         return userraise(-1, ERR_OUT_OF_BUFFER, "Buffer exhausted");
@@ -73,6 +73,129 @@ static int dsVScanf(const char *buf, size_t cap, size_t *ppos, const char *fmt, 
     return ret;
 }
 
+/**
+ * @brief Internal helper to parse an integer from a c-string.
+ *
+ * This function uses @c strtol to convert a string to a long, then verifies 
+ * that the result fits within the bounds of a standard integer (@c INT_MIN to @c INT_MAX).
+ *
+ * @param[in]  str  The source null-terminated string.
+ * @param[out] plval Pointer to the long where the parsed value will be stored.
+ *
+ * @return true if parsing was successful and the value is within integer bounds, 
+ *         false otherwise (raises error via @c userraise).
+ */
+static bool dsHelperParseLong(const char *restrict str, long *restrict plval, size_t *restrict pos) {
+    char    *endptr;
+    errno = 0;
+    long    val = strtol(str, &endptr, 10);
+
+    if (str == endptr)
+        return userraise(false, ERR_UNABLE_PARSE_DATA, "err parse int/long %ld, errno %s", val, strerror(errno));
+    
+    *pos = endptr - str;
+    if (plval)
+        *plval = val;
+    return true;
+}
+
+/**
+ * @brief Wrapper for parsing int, including bounds checking.
+ */
+static bool                     dsHelperParseInt(const char *restrict str, int *restrict pival, size_t *restrict pos) {
+    long temp_val;
+    if (!dsHelperParseLong(str, &temp_val, pos)) {
+        return false; 
+    }
+    // check int borders
+    if (temp_val > INT_MAX || temp_val < INT_MIN)
+        return userraise(false, ERR_UNABLE_PARSE_DATA, "value %ld out of int range", temp_val);
+    
+    if (pival)
+        *pival = (int)temp_val;
+    return true;
+}
+
+/**
+ * @brief Internal helper to parse a double from a null-terminated string.
+ *
+ * @param[in]  str    The source string.
+ * @param[out] pdval  Pointer to store the double value.
+ *
+ * @return true if parsing was successful, false otherwise.
+ */
+static bool                     dsHelperParseDouble(const char *restrict str, double *restrict pdval, size_t *restrict pos) {
+    char *endptr;
+    errno = 0;
+    double val = strtod(str, &endptr);
+
+    // Проверяем, что:
+    // 1. endptr не равен str (значит, хотя бы одна цифра была прочитана)
+    // 2. errno не содержит ошибок (например, переполнение RANGE)
+    if (str == endptr || errno != 0) 
+        return userraise(false, ERR_UNABLE_PARSE_DATA, "err parse double, errno %s", strerror(errno));
+
+    *pos += endptr - str;
+    if (pdval)
+        *pdval = val;
+    return true;
+}
+
+/**
+ * @brief Internal helper to parse a char from a string.
+ */
+static bool                     dsHelperParseChar(const char *restrict str, char *restrict pval, size_t *restrict pos) {
+    // Skip leading whitespace to find the first character
+    size_t skip = 0;
+    while (str[skip] && isspace((unsigned char)str[skip]))
+        skip++;
+    if (str[skip] == '\0')
+        return userraise(false, ERR_UNABLE_PARSE_DATA, "Empty or whitespace string for char");
+    
+    *pos += skip;          // spaces
+    if (pval)
+        *pval = str[skip];
+    *pos += 1;             // sym
+    return true;
+}
+
+
+/**
+ * @brief Internal helper to parse an unsigned long from a string.
+ */
+static bool                     dsHelperParseUnsignedLong(const char *restrict str, unsigned long *restrict plval, size_t *restrict pos) {
+    char *endptr;
+    errno = 0;
+    unsigned long val = strtoul(str, &endptr, 10);
+
+    if (str == endptr || errno != 0) {
+        return userraise(false, ERR_UNABLE_PARSE_DATA, "err parse unsigned long, errno %s", strerror(errno));
+    }
+
+    *pos += endptr - str;
+    if (plval)
+        *plval = val;
+    return true;
+}
+
+/**
+ * @brief Wrapper for parsing unsigned int, including bounds checking.
+ */
+static bool                     dsHelperParseUnsigned(const char *restrict str, unsigned *restrict pival, size_t *restrict pos) {
+    unsigned long temp_val;
+    if (!dsHelperParseUnsignedLong(str, &temp_val, pos) )
+        return false; 
+
+    // check int borders
+    if (temp_val > UINT_MAX)
+        return userraise(false, ERR_UNABLE_PARSE_DATA, "value %ld out of int range", temp_val);
+    
+    if (pival)
+        *pival = (int)temp_val;
+    return true;
+}
+
+
 // --------------------------- API ---------------------------------
 
 int                         dsPrintf(Ds *restrict pds, const char *restrict msg, ...) {
@@ -88,7 +211,7 @@ int                         dsPrintf(Ds *restrict pds, const char *restrict msg,
                 total += wr;
             break;
         case DS_STR: // this is NOT autoextendable, till end of pds->ptr only
-            IOCHECKER(wr, dsVPrintStr(pds->ptr, pds->pos, pds->cap, msg, ap), -1) {
+            IOCHECKER(wr, dsHelperVPrintStr(pds->ptr, pds->pos, pds->cap, msg, ap), -1) {
                 total += wr;
                 pds->pos += wr;
             }
@@ -125,20 +248,132 @@ int                         dsScanf(Ds *restrict pds, const char *restrict msg, 
         case DS_FS:
         case DS_CONSTSTR: {
             const char *buf = dsStrbuf(pds);
-            ret = dsVScanf(buf, pds->type == DS_FS ? pds->s.len : pds->cap, &pds->pos, msg, ap);
+            ret = dsHelperVScanf(buf, pds->type == DS_FS ? pds->s.len : pds->cap, &pds->pos, msg, ap);
             }
             break;
         default:
-            ret = -1;
+            ret = userraise(-1, ERR_UNSUPPORTED_TYPE, "Unsupported %s", DSTypeName(pds->type) );
     }
 
     va_end(ap);
     return ret;
 }
 
+
+bool                        dsParseInt(Ds *restrict pds, int *restrict pval) {
+    invraisecode(pds != NULL && pval != NULL, ERR_NULLABLE_PTR, 
+        "Null input %p %p", pds, pval);
+    switch (pds->type) {
+        case DS_FILE:
+            if (fscanf(pds->fp, "%d", pval) != 1)
+                return userraise(false, ERR_UNABLE_PARSE_DATA, "Failed to parse int from file");
+            break;
+        case DS_STR:
+        case DS_FS:
+        case DS_CONSTSTR: 
+                return dsHelperParseInt(dsStrbuf(pds) + pds->pos, pval, &pds->pos);
+            break;
+        default:
+            return userraise(false, ERR_UNSUPPORTED_TYPE, "Unsupported %s", DSTypeName(pds->type) );
+    }
+    return true;
+}
+
+bool                        dsParseLong(Ds *restrict pds, long *restrict pval) {
+    invraisecode(pds != NULL && pval != NULL, ERR_NULLABLE_PTR, 
+        "Null input %p %p", pds, pval);
+    switch (pds->type) {
+        case DS_FILE:
+            if (fscanf(pds->fp, "%ld", pval) != 1)
+                return userraise(false, ERR_UNABLE_PARSE_DATA, "Failed to parse int from file");
+            break;
+        case DS_STR:
+        case DS_FS:
+        case DS_CONSTSTR: 
+                return dsHelperParseLong(dsStrbuf(pds) + pds->pos, pval, &pds->pos);
+            break;
+        default:
+            return userraise(false, ERR_UNSUPPORTED_TYPE, "Unsupported %s", DSTypeName(pds->type) );
+    }
+    return true;
+}
+
+bool                        dsParseUnsigned(Ds *restrict pds, unsigned int *restrict pval) {
+    invraisecode(pds != NULL && pval != NULL, ERR_NULLABLE_PTR, "Null input %p %p", pds, pval);
+    switch (pds->type) {
+        case DS_FILE:
+            if (fscanf(pds->fp, "%u", pval) != 1)
+                return userraise(false, ERR_UNABLE_PARSE_DATA, "Failed to read unsigned int from file");
+            break;
+        case DS_STR:
+        case DS_FS:
+        case DS_CONSTSTR:
+            return dsHelperParseUnsigned(dsStrbuf(pds) + pds->pos, pval, &pds->pos);
+        default:
+            return userraise(false, ERR_UNSUPPORTED_TYPE, "Unsupported %s", DSTypeName(pds->type));
+    }
+    return true;
+}
+
+bool                        dsParseUnsignedLong(Ds *restrict pds, unsigned long *restrict pval) {
+    invraisecode(pds != NULL && pval != NULL, ERR_NULLABLE_PTR, "Null input %p %p", pds, pval);
+    switch (pds->type) {
+        case DS_FILE:
+            if (fscanf(pds->fp, "%lu", pval) != 1)
+                return userraise(false, ERR_UNABLE_PARSE_DATA, "Failed to read unsigned long from file");
+            break;
+        case DS_STR:
+        case DS_FS:
+        case DS_CONSTSTR:
+            return dsHelperParseUnsignedLong(dsStrbuf(pds) + pds->pos, pval, &pds->pos);
+        default:
+            return userraise(false, ERR_UNSUPPORTED_TYPE, "Unsupported %s", DSTypeName(pds->type));
+    }
+    return true;
+}
+
+bool                        dsParseDouble(Ds *restrict pds, double *restrict pdval) {
+    invraisecode(pds != NULL && pdval != NULL, ERR_NULLABLE_PTR, 
+        "Null input %p %p", pds, pdval);
+
+    switch (pds->type) {
+        case DS_FILE: {
+            // %lf - double в fscanf
+            if (fscanf(pds->fp, "%lf", pdval) != 1)
+                return userraise(false, ERR_UNABLE_PARSE_DATA, "Failed to parse double from file");
+            break;
+        }
+        case DS_STR:
+        case DS_FS:
+        case DS_CONSTSTR: {
+            return dsHelperParseDouble(dsStrbuf(pds) + pds->pos, pdval, &pds->pos);
+        }
+        default:
+            return userraise(false, ERR_UNSUPPORTED_TYPE, "Unsupported %s", DSTypeName(pds->type));
+    }
+    return true;
+}
+
+bool                        dsParseChar(Ds *restrict pds, char *restrict pval) {
+    invraisecode(pds != NULL && pval != NULL, ERR_NULLABLE_PTR, "Null input %p %p", pds, pval);
+    switch (pds->type) {
+        case DS_FILE:
+            if (fscanf(pds->fp, " %c", pval) != 1) // " %c" skips whitespace
+                return userraise(false, ERR_UNABLE_PARSE_DATA, "Failed to read char from file");
+            break;
+        case DS_STR:
+        case DS_FS:
+        case DS_CONSTSTR:
+            return dsHelperParseChar(dsStrbuf(pds) + pds->pos, pval, &pds->pos);
+        default:
+            return userraise(false, ERR_UNSUPPORTED_TYPE, "Unsupported %s", DSTypeName(pds->type));
+    }
+    return true;
+}
+
 // -------------------- CONSTRUCTOTS/DESTRUCTORS -------------------
 
-// -------------------------- (API) printers -----------------------
+// N/A
 
 // -------------------------------Testing --------------------------
 
@@ -440,31 +675,31 @@ tf_ds_scanf_printf(const char *name)
         int i;
         char s[10];
         char c, c1, c2, c3;
-        DSTECHPRINT(ds);
+
         int r1 = dsScanf(&ds, "%d", &i);         // "10"
         test_validate(
             r1 == 1,
             "r1 must be 1, got '%d'", r1
         );
-        DSTECHPRINT(ds);
+
         int r2 = dsScanf(&ds, "%s", s);          // "hello"
         test_validate(
             r2 == 1,
             "r2 must be 1, got '%d'", r2
         );
-        DSTECHPRINT(ds);
+
         int r3 = dsScanf(&ds, "%c%c", &c1, &c);         // "!"
         test_validate(
             r3 == 2,
             "r3 must be 2, got '%d'", r3
         );
-        DSTECHPRINT(ds);
+
         int r4 = dsScanf(&ds, " %c%c", &c2, &c3);         // "? "
         test_validate(
             r4 == 2,
             "r3 must be 1, got '%d'", r4
         );
-        DSTECHPRINT(ds);
+
         size_t total_read = ds.pos;
 
         test_validate(i == 10, "First scanf: i=%d (expected 10)", i);
@@ -480,6 +715,185 @@ tf_ds_scanf_printf(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// --------------------------- TEST dsParse*  ---------------------------------
+static TestStatus
+tf_ds_parsers(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== dsParseInt ========== */
+    test_sub("subtest %d: dsParseInt from mutable string", ++subnum);
+    {
+        char buf[64] = "42 123";
+        Ds ds = dsCreatestrCap(buf, sizeof(buf));
+        int val;
+        test_validate(dsParseInt(&ds, &val) && val == 42,
+                      "dsParseInt: expected 42, got %d", val);
+        test_validate(ds.pos == 2, "pos must be 2, got %zu", ds.pos);
+    }
+
+    test_sub("subtest %d: dsParseInt from const string", ++subnum);
+    {
+        const char *text = "-10 999";
+        Ds ds = dsCreateconst(text);
+        int val;
+        test_validate(dsParseInt(&ds, &val) && val == -10,
+                      "dsParseInt const: expected -10, got %d", val);
+        test_validate(ds.pos == 3, "pos must be 3, got %zu", ds.pos);
+    }
+
+    test_sub("subtest %d: dsParseInt from file", ++subnum);
+    {
+        const char *fname = "res/ds/test_parse_int.dsadp";
+        FILE *fp = fopen(fname, "w");
+        fprintf(fp, "77");
+        fclose(fp);
+        fp = fopen(fname, "r");
+        Ds ds = dsCreatef(fp);
+        int val;
+        test_validatefree(dsParseInt(&ds, &val) && val == 77,
+                          fclose(fp),
+                          "dsParseInt file: expected 77, got %d", val);
+        fclose(fp);
+    }
+
+    test_sub("subtest %d: dsParseInt fails on non‑numeric", ++subnum);
+    {
+        char buf[32] = "abc";
+        Ds ds = dsCreatestrCap(buf, sizeof(buf));
+        int val;
+        test_validate(!dsParseInt(&ds, &val),
+                      "dsParseInt on 'abc' must fail, got val=%d", val);
+        test_validate(ds.pos == 0, "pos must stay 0, got %zu", ds.pos);
+    }
+
+    test_sub("subtest %d: dsParseInt NULL Ds raises", ++subnum);
+    {
+        if (!try()) {
+            int v;
+            dsParseInt(NULL, &v);
+            test_validate(false, "Should have raised SIGINT");
+        } else {
+            logsimple("Exception correctly raised");
+        }
+    }
+
+    /* ========== dsParseLong ========== */
+    test_sub("subtest %d: dsParseLong basic", ++subnum);
+    {
+        char buf[64] = "123456789012";
+        Ds ds = dsCreatestrCap(buf, sizeof(buf));
+        long val;
+        test_validate(dsParseLong(&ds, &val) && val == 123456789012L,
+                      "dsParseLong: expected 123456789012, got %ld", val);
+    }
+
+    test_sub("subtest %d: dsParseLong fails on empty", ++subnum);
+    {
+        char buf[4] = "";
+        Ds ds = dsCreatestrCap(buf, sizeof(buf));
+        long val;
+        test_validate(!dsParseLong(&ds, &val),
+                      "dsParseLong on empty must fail");
+    }
+
+    /* ========== dsParseUnsigned ========== */
+    test_sub("subtest %d: dsParseUnsigned basic", ++subnum);
+    {
+        char buf[64] = "3000000000";
+        Ds ds = dsCreatestrCap(buf, sizeof(buf));
+        unsigned int val;
+        test_validate(dsParseUnsigned(&ds, &val) && val == 3000000000u,
+                      "dsParseUnsigned: expected 3000000000u, got %u", val);
+    }
+
+    /* ========== dsParseUnsignedLong ========== */
+    test_sub("subtest %d: dsParseUnsignedLong basic", ++subnum);
+    {
+        char buf[64] = "18446744073709551615";
+        Ds ds = dsCreatestrCap(buf, sizeof(buf));
+        unsigned long val;
+        test_validate(dsParseUnsignedLong(&ds, &val) && val == 18446744073709551615UL,
+                      "dsParseUnsignedLong: expected max, got %lu", val);
+    }
+
+    /* ========== dsParseDouble ========== */
+    test_sub("subtest %d: dsParseDouble basic", ++subnum);
+    {
+        char buf[64] = "3.1415 -2.5e1";
+        Ds ds = dsCreatestrCap(buf, sizeof(buf));
+        double val;
+        test_validate(dsParseDouble(&ds, &val) && val == 3.1415,
+                      "dsParseDouble: expected 3.1415, got %lf", val);
+        test_validate(dsParseDouble(&ds, &val) && val == -25.0,
+                      "dsParseDouble second: expected -25.0, got %lf", val);
+    }
+
+    test_sub("subtest %d: dsParseDouble fails on text", ++subnum);
+    {
+        char buf[16] = "hello";
+        Ds ds = dsCreatestrCap(buf, sizeof(buf));
+        double val;
+        test_validate(!dsParseDouble(&ds, &val),
+                      "dsParseDouble on text must fail");
+    }
+
+    /* ========== dsParseChar ========== */
+    test_sub("subtest %d: dsParseChar basic", ++subnum);
+    {
+        char buf[64] = "A B";
+        Ds ds = dsCreatestrCap(buf, sizeof(buf));
+        char c;
+        test_validate(dsParseChar(&ds, &c) && c == 'A',
+                      "dsParseChar: expected 'A', got '%c'", c);
+        test_validate(ds.pos == 1, "pos must be 1, got %zu", ds.pos);
+        test_validate(dsParseChar(&ds, &c) && c == 'B',
+                      "dsParseChar second: expected 'B', got '%c'", c);
+        test_validate(ds.pos == 3, "pos must be 3, got %zu", ds.pos);
+    }
+
+    test_sub("subtest %d: dsParseChar fails on empty", ++subnum);
+    {
+        char buf[4] = "";
+        Ds ds = dsCreatestrCap(buf, sizeof(buf));
+        char c;
+        test_validate(!dsParseChar(&ds, &c),
+                      "dsParseChar on empty must fail");
+    }
+
+    /* ========== DS_FS (если доступно) ========== */
+#ifndef NO_FSDS
+    test_sub("subtest %d: dsParseInt from FS", ++subnum);
+    {
+        fs s = FS();
+        Ds ds = dsCreatefs(&s);
+        dsPrintf(&ds, "%d", 202);
+        dsReset(&ds);
+        int val;
+        test_validatefree(dsParseInt(&ds, &val) && val == 202,
+                          dsFree(&ds),
+                          "dsParseInt FS: expected 202, got %d", val);
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+#endif
+
+    /* ========== Переполнение буфера при записи + чтение ========== */
+    test_sub("subtest %d: dsParseInt after overflow", ++subnum);
+    {
+        char buf[8] = "";   // cap = 8
+        Ds ds = dsCreatestrCap(buf, sizeof(buf));
+        dsPrintf(&ds, "12345678");   // попытка записи не влезет
+        dsReset(&ds);
+        int val;
+        test_validate(!dsParseInt(&ds, &val),
+                      "dsParseInt on overflowed buffer must fail");
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -490,6 +904,7 @@ main( /*int argc, char *argv[] */ )
         TESTADD(tf_ds_printf,          "dsPrintf() simple tests")
       , TESTADD(tf_ds_scanf,           "dsScanf() simple tests")
       , TESTADD(tf_ds_scanf_printf,    "dsScanf() and dsPrintf() combined tests")
+      , TESTADD(tf_ds_parsers,         "dsParse<type> simple tests")
     );
 
     return logret(0, "end...");  // as replace of logclose()

@@ -50,7 +50,123 @@ extern int                         dsPrintf(Ds *restrict ds, const char *restric
  * @param ...  pointers to store the parsed values
  * @return     number of successfully matched items, or -1 on error
  */
-extern int                         dsScanf(Ds *restrict ds, const char *restrict msg, ...) __attribute__ ((format (scanf, 2, 3)));
+extern int                         dsScanf(Ds *restrict pds, const char *restrict msg, ...) __attribute__ ((format (scanf, 2, 3)));
+
+// ------------------------------- SCANNERS ----------------------------------------
+
+/**
+ * @brief Parses an integer from the provided data source.
+ *
+ * This function acts as an adapter that handles different data source types 
+ * defined in the @c Ds structure. It supports:
+ * - @c DS_FILE: Reads an integer from a file stream using @c fscanf.
+ * - @c DS_STR, @c DS_FS, @c DS_CONSTSTR: Parses an integer from a memory buffer.
+ *
+ * @param[in,out] pds  Pointer to the @c Ds structure containing the data source.
+ * @param[out] pval    Pointer to the integer where the parsed value will be stored.
+ *
+ * @return true if the integer was successfully parsed and stored in @p pval, 
+ *         false otherwise.
+ * 
+ * @note For @c DS_FILE, the file position is advanced after a successful read.
+ * @retval false if input pointers are NULL, the source type is unsupported, or parsing fails.
+ */
+extern bool                        dsParseInt(Ds *restrict pds, int *restrict val);
+
+/**
+ * @brief Parses an long from the provided data source.
+ *
+ * This function acts as an adapter that handles different data source types 
+ * defined in the @c Ds structure. It supports:
+ * - @c DS_FILE: Reads an integer from a file stream using @c fscanf.
+ * - @c DS_STR, @c DS_FS, @c DS_CONSTSTR: Parses an integer from a memory buffer.
+ *
+ * @param[in,out] pds  Pointer to the @c Ds structure containing the data source.
+ * @param[out] pval    Pointer to the long where the parsed value will be stored.
+ *
+ * @return true if the integer was successfully parsed and stored in @p pval, 
+ *         false otherwise.
+ * 
+ * @note the position is advanced after a successful read.
+ * @retval false if input pointers are NULL, the source type is unsupported, or parsing fails.
+ */
+extern bool                        dsParseLong(Ds *restrict pds, long *restrict pval);
+
+/**
+ * @brief Parses a unsigned int from the provided data source.
+ *
+ * This function acts as an adapter that handles different data source types 
+ * defined in the @c Ds structure. It supports:
+ * - @c DS_FILE: Reads an integer from a file stream using @c fscanf.
+ * - @c DS_STR, @c DS_FS, @c DS_CONSTSTR: Parses an integer from a memory buffer.
+ *
+ * @param[in,out] pds  Pointer to the @c Ds structure containing the data source.
+ * @param[out] pval    Pointer to the unsigned int where the parsed value will be stored.
+ *
+ * @return true if the integer was successfully parsed and stored in @p pval, 
+ *         false otherwise.
+ * 
+ * @note the position is advanced after a successful read.
+ * @retval false if input pointers are NULL, the source type is unsupported, or parsing fails.
+ */
+extern bool                        dsParseUnsigned(Ds *restrict pds, unsigned int *restrict pval);
+
+/**
+ * @brief Parses a unsigned long from the provided data source.
+ *
+ * This function acts as an adapter that handles different data source types 
+ * defined in the @c Ds structure. It supports:
+ * - @c DS_FILE: Reads an integer from a file stream using @c fscanf.
+ * - @c DS_STR, @c DS_FS, @c DS_CONSTSTR: Parses an integer from a memory buffer.
+ *
+ * @param[in,out] pds  Pointer to the @c Ds structure containing the data source.
+ * @param[out] pval    Pointer to the unsigned long where the parsed value will be stored.
+ *
+ * @return true if the integer was successfully parsed and stored in @p pval, 
+ *         false otherwise.
+ * 
+ * @note the position is advanced after a successful read.
+ * @retval false if input pointers are NULL, the source type is unsupported, or parsing fails.
+ */
+extern bool                        dsParseUnsignedLong(Ds *restrict pds, unsigned long *restrict pval);
+
+/**
+ * @brief Parses a double from the provided data source.
+ *
+ * This function acts as an adapter that handles different data source types 
+ * defined in the @c Ds structure. It supports:
+ * - @c DS_FILE: Reads an integer from a file stream using @c fscanf.
+ * - @c DS_STR, @c DS_FS, @c DS_CONSTSTR: Parses an integer from a memory buffer.
+ *
+ * @param[in,out] pds  Pointer to the @c Ds structure containing the data source.
+ * @param[out] pval    Pointer to the double int where the parsed value will be stored.
+ *
+ * @return true if the integer was successfully parsed and stored in @p pval, 
+ *         false otherwise.
+ * 
+ * @note the position is advanced after a successful read.
+ * @retval false if input pointers are NULL, the source type is unsupported, or parsing fails.
+ */
+extern bool                         dsParseDouble(Ds *restrict pds, double *restrict pdval);
+
+/**
+ * @brief Parses a char from the provided data source.
+ *
+ * This function acts as an adapter that handles different data source types 
+ * defined in the @c Ds structure. It supports:
+ * - @c DS_FILE: Reads an integer from a file stream using @c fscanf.
+ * - @c DS_STR, @c DS_FS, @c DS_CONSTSTR: Parses an integer from a memory buffer.
+ *
+ * @param[in,out] pds  Pointer to the @c Ds structure containing the data source.
+ * @param[out] pval    Pointer to the char where the parsed value will be stored.
+ *
+ * @return true if the integer was successfully parsed and stored in @p pval, 
+ *         false otherwise.
+ * 
+ * @note the position is advanced after a successful read.
+ * @retval false if input pointers are NULL, the source type is unsupported, or parsing fails.
+ */
+extern bool                         dsParseChar(Ds *restrict pds, char *restrict pval);
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
