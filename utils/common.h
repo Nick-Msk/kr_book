@@ -606,7 +606,7 @@ extern bool              try_parse_ulong(const char *restrict str, unsigned long
 #define IOCHECKER(w, cmd, ret) \
     for (int w = (cmd), _once = 1; _once; _once = 0) \
         if (w < 0) \
-            return userraise(ERR_STREAM_ERROR, (ret), "IO error"); \
+            return userraise( (ret), ERR_STREAM_ERROR, "IO error"); \
         else
 
 // simple return
@@ -620,7 +620,7 @@ extern bool              try_parse_ulong(const char *restrict str, unsigned long
     for (int w = (cmd), _once = 1; _once; _once = 0) \
         if (w < 0) {\
             (act); \
-            return userraise(ERR_STREAM_ERROR, (ret), "IO error"); \
+            return userraise( (ret), ERR_STREAM_ERROR, "IO error"); \
         } else
 
 #endif /* ! _COMMON_H */
