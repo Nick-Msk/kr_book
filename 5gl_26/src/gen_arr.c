@@ -89,7 +89,7 @@ int                             main(int argc, const char *argv[]){
 
     Array arr = DArray_create(cnt, typ);
 
-    if (Array_savevalues(arr, fname, '\n') < 0){
+    if (ArraySaveFilevalues(arr, fname, '\n') < 0){
         fprintf(stderr, "Unable to open [%s] for writing\n", fname);
         Arrayfree(arr);
         return 2;
