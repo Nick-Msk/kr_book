@@ -596,6 +596,7 @@ static inline bool              common_int_in(int val, const int *arr){
 #define                         int_in(val, ...)    common_int_in( (val),     (const int []) { __VA_ARGS__, INT_MIN} )
 */
 
+// THAT IS OBSOLETE! Use ds_adapter API
 extern bool              try_parse_int(const char *restrict str, int *restrict res);
 extern bool              try_parse_long(const char *restrict str, long *restrict res);
 extern bool              try_parse_double(const char *restrict str, double *restrict res);
