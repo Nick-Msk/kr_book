@@ -17,6 +17,7 @@
 #include "ds.h"
 #include "checker.h"
 #include "common.h"
+#include "value64.h"
 
 // ---------------------------------------------------------------------------------
 // --------------------------- Public Ds - fs adapter API --------------------------
@@ -167,6 +168,9 @@ extern bool                         dsParseDouble(Ds *restrict pds, double *rest
  * @retval false if input pointers are NULL, the source type is unsupported, or parsing fails.
  */
 extern bool                         dsParseChar(Ds *restrict pds, char *restrict pval);
+
+// TODO: not sure about that since V64 has own value64_loadds/value64_loadfile/value64_loadstr
+extern bool                         dsParseV64(Ds *restrict pds, value64 *restrict pval, value64_type v64typ);
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 

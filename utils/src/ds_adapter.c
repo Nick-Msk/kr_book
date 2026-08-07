@@ -356,6 +356,7 @@ bool                        dsParseDouble(Ds *restrict pds, double *restrict pdv
 
 bool                        dsParseChar(Ds *restrict pds, char *restrict pval) {
     invraisecode(pds != NULL && pval != NULL, ERR_NULLABLE_PTR, "Null input %p %p", pds, pval);
+
     switch (pds->type) {
         case DS_FILE:
             if (fscanf(pds->fp, " %c", pval) != 1) // " %c" skips whitespace
