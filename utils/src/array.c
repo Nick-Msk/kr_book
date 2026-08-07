@@ -620,51 +620,51 @@ void                           Array_free(Array *val){
 /// @param vt   V64 type, only for for V64
 /// @return Count of formatter data
 int                             Array_fill(Array *parr, ArrayFillType typ){
-    invraisecode(parr != NULL, "Null input");
+    invraisecode(parr != NULL, ERR_NULLABLE_PTR, "Null input");
     return ArrayFillRange(parr, typ, 0, parr->len);
 }
 
 
 /// @brief        ascending filler
-/// @param a      array 
+/// @param parr   array 
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      ArrayFillRange_ASC(Array a, int from, int to){
-    switch (ArrayGetV64mappedType(a) ) {
+static int                      ArrayFillRange_ASC(Array *parr, int from, int to){
+    switch (ArrayGetV64mappedType(parr) ) {
         case ARRAY_INT: {
             int val = 0;
             for (int i = from; i < to; i++, incintrnd(&val, 1) )
-                ArraySetIntElem(a, i, val);
+                ArraySetIntElem(parr, i, val);
             break;
         }
         case ARRAY_LONG: {
             long val = 0;
             for (int i = from; i < to; i++, inclongrnd(&val, 1) )
-                ArraySetLongElem(a, i, val);
+                ArraySetLongElem(parr, i, val);
             break;
         }
         case ARRAY_DOUBLE: {
             double val = 0.0;
             for (int i = from; i < to; i++, incdoublernd(&val, 1) )
-                ArraySetDblElem(a, i, val);
+                ArraySetDblElem(parr, i, val);
             break;
         }
         case ARRAY_CHAR: {
             char val = 'a';
             for (int i = from; i < to; i++, incchar(&val, 1) )
-                ArraySetCharElem(a, i, val);
+                ArraySetCharElem(parr, i, val);
             break;
         }
         // V64, which not mapped to ARRAY_TYPES
         case ARRAY_UNKNOWN: {
-            switch (a.v64type) {
+            switch (parr->v64type) {
                 case VALUE64_FS: {
                     fs s = FS();
                     // fs увеличивающейся длины
                     for (int i = from; i < to; i++) {
                         incfs(&s);   // длина i+1
-                        ArraySetV64fsElem(a, i, &s);  
+                        ArraySetV64fsElem(parr, i, &s);  
                     }
                     fsfree(s);
                     break;
@@ -674,57 +674,57 @@ static int                      ArrayFillRange_ASC(Array a, int from, int to){
                     // C‑строки увеличивающейся длины
                     for (int i = from; i < to; i++) {
                         incfs(&s);   // длина i+1
-                        ArraySetV64strElem(a, i, fsstr(s));
+                        ArraySetV64strElem(parr, i, fsstr(s));
                     }
                     fsfree(s);
                     break;
                 }
                 default:
-                    userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ASC fill %s", ArrayGetV64typeName(a) );
+                    userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ASC fill %s", ArrayGetV64typeName(parr) );
                     break;
             }
             break;
         }
         default:
-            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayTypeGetName(a) );
+            userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayTypeGetName(parr) );
             break;
     }
     return to - from;
 }
 /// @brief        descending filler
-/// @param a      array 
+/// @param parr   array 
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      ArrayFillRange_DESC(Array a, int from, int to){
-    switch (ArrayGetV64mappedType(a) ) {
+static int                      ArrayFillRange_DESC(Array *parr, int from, int to){
+    switch (ArrayGetV64mappedType(parr) ) {
         case ARRAY_INT: {
-            int val = 10 * a.len;   // hope it'll ne owerwelhm int;
+            int val = 10 * parr->len;   // hope it'll ne owerwelhm int;
             for (int i = from; i < to; i++, incintrnd(&val, -1) )
-                ArraySetIntElem(a, i, val);
+                ArraySetIntElem(parr, i, val);
             break;
         }
         case ARRAY_LONG: {
-            long val = 100L * a.len;
+            long val = 100L * parr->len;
             for (int i = from; i < to; i++, inclongrnd(&val, -1) )
-                ArraySetLongElem(a, i, val);
+                ArraySetLongElem(parr, i, val);
             break;
         }
         case ARRAY_DOUBLE: {
             double val = 0.0;
             for (int i = from; i < to; i++, incdoublernd(&val, -1) )
-                ArraySetDblElem(a, i, val);
+                ArraySetDblElem(parr, i, val);
             break;
         }
         case ARRAY_CHAR: {
             char val = 'z';
             for (int i = from; i < to; i++, incchar(&val, -1) )
-                ArraySetCharElem(a, i, val);
+                ArraySetCharElem(parr, i, val);
             break;
         }
         // V64, which not mapped to ARRAY_TYPES
         case ARRAY_UNKNOWN: {
-            switch (a.v64type) {
+            switch (parr->v64type) {
                 case VALUE64_FS: {
                     fs s = fscopyf("%*s", to - from + 1,  "A");    // buf
                     // fs desc length
@@ -740,50 +740,50 @@ static int                      ArrayFillRange_DESC(Array a, int from, int to){
                     // c-str desc length
                     for (int i = from; i < to; i++) {
                         decfs(&s);   // длина i+1
-                        ArraySetV64strElem(a, i, fsstr(s));
+                        ArraySetV64strElem(parr, i, fsstr(s));
                     }
                     fsfree(s);
                     break;
                 }
                 default:
-                    userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for DESC fill %s", ArrayGetV64typeName(a) );
+                    userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for DESC fill %s", ArrayGetV64typeName(parr) );
                     break;
             }
             break;
         }
         default:
-            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for DESC fill %s", ArrayTypeGetName(a) );
+            userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for DESC fill %s", ArrayTypeGetName(parr) );
             break;
     }
     return to - from;
 }
 
 /// @brief        zero filler
-/// @param a      array 
+/// @param parr   array 
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      ArrayFillRange_ZERO(Array a, int from, int to){
-    switch (ArrayGetV64mappedType(a) ) {
+static int                      ArrayFillRange_ZERO(Array *parr, int from, int to){
+    switch (ArrayGetV64mappedType(parr) ) {
         case ARRAY_INT:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                ArraySetIntElem(a, i, 0);
+                ArraySetIntElem(parr, i, 0);
             break;
         case ARRAY_LONG:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                ArraySetLongElem(a, i, 0L);
+                ArraySetLongElem(parr, i, 0L);
             break;
         case ARRAY_DOUBLE:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                ArraySetDblElem(a, i, 0.0);
+                ArraySetDblElem(parr, i, 0.0);
             break;
         case ARRAY_POINTER:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                ArraySetPtrElem(a, i, NULL);
+                ArraySetPtrElem(parr, i, NULL);
             break;
         case ARRAY_CHAR:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                ArraySetCharElem(a, i, '\0');
+                ArraySetCharElem(parr, i, '\0');
             break;
         // not real type => container v64
         case ARRAY_UNKNOWN: {
@@ -791,44 +791,49 @@ static int                      ArrayFillRange_ZERO(Array a, int from, int to){
                 case VALUE64_FS: {
                     fs s = FSLITERAL("");
                     for (int i = from; i < to; i++)
-                        ArraySetV64fsElem(a, i, &s);  
+                        ArraySetV64fsElem(parr, i, &s);  
                     break;
                 }
                 case VALUE64_STR: {
                     for (int i = from; i < to; i++)
-                        ArraySetV64strElem(a, i, "");
+                        ArraySetV64strElem(parr, i, "");
                     break;
                 }
                 default:
-                    userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ZERO v64 type %s", ArrayGetV64typeName(a) );
+                    userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ZERO v64 type %s", ArrayGetV64typeName(parr) );
                     break;
             }
             break;
         }
         default:
-            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ZERO fill %s", ArrayTypeGetName(a) );
+            userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ZERO fill %s", ArrayTypeGetName(parr) );
             break;
     }
     return to - from;
 }
 
-static int                      ArrayFillRange_NONE(Array a, int from, int to) {
-    switch (ArrayGetV64mappedType(a) ) {
-        case ARRAY_UNKNOWN: {
-            switch (a.v64type) {
+/// @brief        none filler (fs & str)
+/// @param parr   array 
+/// @param from   start index 
+/// @param to     end index 
+/// @return       count of filled elements
+static int                      ArrayFillRange_NONE(Array *parr, int from, int to) {
+    switch (ArrayGetV64mappedType(parr) ) {
+        case ARRAY_UNKNOWN: {   // V64
+            switch (parr->v64type) {
                 case VALUE64_FS: {
                     fs s = FS();
                     for (int i = from; i < to; i++)
-                        a.v64[i] = LITERAL64_FS(s);;  
+                        parr->v64[i] = LITERAL64_FS(s);;  
                     break;
                 }
                 case VALUE64_STR: {
                     for (int i = from; i < to; i++)
-                        a.v64[i] = LITERAL64_STR("");
+                        parr->v64[i] = LITERAL64_STR("");
                     break;
                 }
                 default:
-                    userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ZERO v64 type %s", ArrayGetV64typeName(a) );
+                    userraiseint(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ZERO v64 type %s", ArrayGetV64typeName(parr) );
                     break;
             }
             break;
@@ -840,11 +845,11 @@ static int                      ArrayFillRange_NONE(Array a, int from, int to) {
 }
 
 /// @brief        random value filler
-/// @param a      array 
+/// @param parr      array 
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      ArrayFillRange_RND(Array a, int from, int to) {
+static int                      ArrayFillRange_RND(Array *parr, int from, int to) {
     switch (ArrayGetV64mappedType(a) ) {
         case ARRAY_INT:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
@@ -868,7 +873,7 @@ static int                      ArrayFillRange_RND(Array a, int from, int to) {
                     fs s = FS();
                     for (int i = from; i < to; i++) {
                         fs_genrnd(&s, to - from + 1, 'A');
-                        ArraySetV64fsElem(a, i, &s);  
+                        ArraySetV64fsElem(parr, i, &s);  
                     }
                     fsfree(s);
                     break;
@@ -877,19 +882,19 @@ static int                      ArrayFillRange_RND(Array a, int from, int to) {
                     fs s = FS();
                     for (int i = from; i < to; i++) {
                         fs_genrnd(&s, to - from + 1, 'A');
-                        ArraySetV64strElem(a, i, fsstr(s) );
+                        ArraySetV64strElem(parr, i, fsstr(s) );
                     }
                     fsfree(s);
                     break;
                 }
                 default:
-                    userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ZERO v64 fill %s", ArrayGetV64typeName(a) );
+                    userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ZERO v64 fill %s", ArrayGetV64typeName(parr) );
                     break;
             }
             break;
         }
         default:
-            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ZERO fill %s", ArrayTypeGetName(a) );
+            userraiseint(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ZERO fill %s", ArrayTypeGetName(parr) );
             break;
     }
     return to - from;
@@ -900,34 +905,34 @@ static int                      ArrayFillRange_RND(Array a, int from, int to) {
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      ArrayFillRange_ASC_SERIES(Array a, int from, int to){
-    switch (ArrayGetV64mappedType(a) ) {
+static int                      ArrayFillRange_ASC_SERIES(Array *parr, int from, int to){
+    switch (ArrayGetV64mappedType(parr) ) {
         case ARRAY_INT: {
             int val = from;
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                 ArraySetIntElem(a, i, val++);
+                 ArraySetIntElem(parr, i, val++);
             break;
         }
         case ARRAY_LONG: {
             long val = from;
             for (int i = from; i < to; i++)
-                ArraySetLongElem(a, i, val++);
+                ArraySetLongElem(parr, i, val++);
             break;
         }
         case ARRAY_DOUBLE: {
             double val = from + 0.0;
             for (int i = from; i < to; i++)
-                ArraySetDblElem(a, i, val++);
+                ArraySetDblElem(parr, i, val++);
             break;
         }
         case ARRAY_CHAR: {
             char val = 'A';
             for (int i = from; i < to; i++)
-                ArraySetDblElem(a, i, val++);    // can be ERR_OUT_OF_RANGE
+                ArraySetDblElem(parr, i, val++);    // can be ERR_OUT_OF_RANGE
             break;
         }
         default:
-            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayTypeGetName(a) );
+            userraiseint(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayTypeGetName(parr) );
             break;
     }
     return to - from;
@@ -938,34 +943,34 @@ static int                      ArrayFillRange_ASC_SERIES(Array a, int from, int
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      ArrayFillRange_DESC_SERIES(Array a, int from, int to){
-    switch (ArrayGetV64mappedType(a) ) {
+static int                      ArrayFillRange_DESC_SERIES(Array *parr, int from, int to){
+    switch (ArrayGetV64mappedType(parr) ) {
         case ARRAY_INT: {
             int val = to - 1;
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                 ArraySetIntElem(a, i, val--);
+                 ArraySetIntElem(parr, i, val--);
             break;
         }
         case ARRAY_LONG: {
             long val = to - 1;
             for (int i = from; i < to; i++)
-                ArraySetLongElem(a, i, val--);
+                ArraySetLongElem(parr, i, val--);
             break;
         }
         case ARRAY_DOUBLE: {
             double val = to - 1;
             for (int i = from; i < to; i++)
-                ArraySetDblElem(a, i, val--);
+                ArraySetDblElem(parr, i, val--);
             break;
         }
         case ARRAY_CHAR: {
             char val = 'Z';
             for (int i = from; i < to; i++)
-                ArraySetDblElem(a, i, val--);    // can be ERR_OUT_OF_RANGE
+                ArraySetDblElem(parr, i, val--);    // can be ERR_OUT_OF_RANGE
             break;
         }
         default:
-            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayTypeGetName(a) );
+            userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayTypeGetName(parr) );
             break;
     }
     return to - from;
