@@ -29,503 +29,6 @@ const double             g_array_dbl_increment   = 0.01;
 
 // ------------------------------ Utilities ------------------------
 
-/// @brief free elements of array
-/// @param arr pointer to array
-/// @param from from
-/// @param to to
-static void                     freeelems(Array *arr, int from, int to) {
-    invraisecode(ERR_NULLABLE_PTR, arr != NULL, "Null pointer");
-    invraisecode(ERR_OUT_OF_RANGE, from >= 0 && to <= arr->sz, "Invalid range");
-    if (arr->v64type == VALUE64_STR || arr->v64type == VALUE64_FS) {   
-        for (int i = from; i < to; i++) {
-            value64free(arr->v64[i], arr->v64type);
-        }
-        logsimple("freed %s  %d - %d", value64_typename(arr->v64type), from, to);
-    }
-} 
-static int                      getelemsize(const Array *arr) {
-    invraisecode(ERR_NULLABLE_PTR, arr != NULL, "Null pointer");
-    int         elem_size = 0;
-    ArrayType   typ = Array_gettype(*arr);
-    switch (typ) {
-        case ARRAY_INT:     elem_size = sizeof(int);        break;
-        case ARRAY_LONG:    elem_size = sizeof(long);       break;
-        case ARRAY_DOUBLE:  elem_size = sizeof(double);     break;
-        case ARRAY_POINTER: elem_size = sizeof(void*);      break;
-        case ARRAY_CHAR:    elem_size = sizeof(char);       break;
-        case ARRAY_V64:     elem_size = sizeof(value64);    break;
-        default:
-            return logsimpleret(-1, "Unknown type %d", typ);
-    }
-    return elem_size;
-}
-/// @brief increase or descrease size of array
-/// @param arr pointer to array
-/// @param newsz new size
-/// @return 
-static int                      increase(Array *arr, int newsz){
-    invraisecode(ERR_NULLABLE_PTR, arr != NULL, "Null pointer");
-    invraisecode(ERR_OUT_OF_RANGE, newsz >= 0, "Size must be >= 0");
-    logenter("newsz %d", newsz);
-    if (newsz == arr->sz)
-        return logret(arr->sz, "No change sz %d", arr->sz);
-    if (newsz > arr->sz)
-        newsz = round_up_2(newsz);
-
-    int bytes = newsz * getelemsize(arr);
-    if (bytes < 0) 
-        return userraise(-1, ERR_UNKNOWN_TYPE, "Unknown type");
-
-    if (newsz < arr->len)
-        freeelems(arr, newsz, arr->len);    
-    logmsg("Arr: bytes=%d, sz=%d", bytes, newsz);
-    void *p = NULL;  
-    if (bytes > 0) {
-        if ( (p = realloc(arr->v, bytes) ) == NULL)
-            userraiseint(ERR_UNABLE_ALLOCATE, "Unable to allocate %d", bytes);
-    } else
-        free(arr->v);
-    arr->v = p; // iv/dv/pv... is the same
-    if (arr->len > newsz)   // shrink case
-        arr->len = newsz;
-    arr->sz = newsz;
-    return logret(arr->sz, "New sz %d", arr->sz);
-}
-
-/**
- * @brief Writes an integer value into an array (plain or value64).
- *
- * If the array is a value64 array (Array_isv64), the value is wrapped
- * via value64_createint and stored in a.v64[i].  Otherwise it is written
- * directly to a.iv[i].
- *
- * @param a   array
- * @param i   element index
- * @param val value to write
- */
-static inline void set_int_element(Array a, int i, int val) {
-    if (Array_isv64(a))
-        a.v64[i] = value64_createint(val);
-    else
-        a.iv[i] = val;
-}
-
-/**
- * @brief Writes a long integer into an array (plain or value64).
- * @see set_int_element
- */
-static inline void set_long_element(Array a, int i, long val) {
-    if (Array_isv64(a))
-        a.v64[i] = value64_createlong(val);
-    else
-        a.lv[i] = val;
-}
-
-/**
- * @brief Writes a double into an array (plain or value64).
- * @see set_int_element
- */
-static inline void set_double_element(Array a, int i, double val) {
-    if (Array_isv64(a))
-        a.v64[i] = value64_createdbl(val);
-    else
-        a.dv[i] = val;
-}
-
-/**
- * @brief Writes a pointer into an array (plain or value64).
- * @see set_int_element
- */
-static inline void set_pointer_element(Array a, int i, void *val) {
-    if (Array_isv64(a))
-        a.v64[i] = value64_createptr(val);
-    else
-        a.pv[i] = val;
-}
-/**
- * @brief Writes a pointer into an array (plain or value64).
- * @see set_int_element
- */
-static inline void set_char_element(Array a, int i, char val) {
-    if (Array_isv64(a))
-        //a.v64[i] = value64_createptr(val);
-        userraiseint(ERR_UNSUPPORTED_TYPE, "V64 container don't support char type for now");
-    else
-        a.cv[i] = val;
-}
-/**
- * @brief Writes an fs value into a value64 array.
- *
- * The array must be a value64 array (Array_isv64).  The fs object is
- * deep‑copied into the array element.
- *
- * @param a   value64 array
- * @param i   element index
- * @param val pointer to the fs object to copy
- */
-static inline void set_v64fs_element(Array a, int i, const fs *val) {
-    a.v64[i] = value64_createfs(val);
-}
-
-/**
- * @brief Writes a C‑string into a value64 array (owned copy).
- *
- * The array must be a value64 array (Array_isv64).  The string is
- * duplicated and stored as a VALUE64_STR element.
- *
- * @param a   value64 array
- * @param i   element index
- * @param val C‑string to copy
- */
-static inline void set_v64str_element(Array a, int i, const char *val) {
-    a.v64[i] = value64_createstr(val);
-}
-
-/**
- * @brief Loads array elements from a text stream.
- *
- * The array header must already be read, and the array must be correctly
- * created before calling this function.
- *
- * @param in  input stream, already opened for reading
- * @param arr pointer to the array to fill
- * @return positive value in suceess, -1 if failed 
- */
-static int                  load_values(FILE *restrict in, Array *restrict arr) {
-    ArrayType   typ = Array_gettype(*arr);
-    fs          buf = FS();
-    int         cnt = 0;
-    
-    Array_pforeach_idx(arr, i) {
-        int         ind;
-        if (fscanf(in, "%6d\t", &ind) != 1)
-            return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Can't parse index");        
-        if (ind < 0 || ind >= arr->len)
-            return userraise(-1, ERR_OUT_OF_RANGE, "%d must be between 0 and %d", ind, arr->len);
-
-        switch (typ) {
-            case ARRAY_INT:
-                if (fscanf(in, "%d\n", arr->iv + ind) != 1)
-                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Unable to fscanf a int value");
-                break;
-            case ARRAY_LONG:
-                if (fscanf(in, "%ld\n", arr->lv + ind) != 1)
-                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Unable to fscanf a long value");
-                break;
-            case ARRAY_DOUBLE:
-                if (fscanf(in, "%lg\n", arr->dv + ind) != 1)
-                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Unable to fscanf a double value");
-                break;
-            case ARRAY_POINTER:
-                if (fscanf(in, "%p\n", arr->pv + ind) != 1)
-                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Unable to fscanf a ptr value");
-                break;
-            case ARRAY_CHAR:
-                if (fscanf(in, "%c\n", arr->cv + ind) != 1)
-                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Unable to fscanf a char value");
-                break;
-            case ARRAY_V64:
-                if (value64_loadfile(in, &arr->v64[ind], arr->v64type, true, &buf) != 1)
-                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Unable to fscanf a V64 containered value");
-                break;
-            default:
-                return userraise(-1, ERR_UNSUPPORTED_TYPE, "%d", typ);
-        }
-        cnt++;
-    }
-    fsfree(buf);
-    return logsimpleret(cnt, "Readed %d", cnt);
-}
-
-/**
- * @brief Writes the array elements into a text stream.
- *
- * This function outputs only the element data, without header or footer.
- *
- * @param out output stream, already opened for writing
- * @param arr constant pointer to the array
- * @return number of bytes written
- */
-static long                 save_values(FILE *restrict out, const Array *restrict arr) {
-    long        total = 0L;
-    ArrayType   typ = Array_gettype(*arr);
-    Array_pforeach_idx(arr, i)
-        switch (typ) {
-            case ARRAY_INT:
-                IOCHECKER(written, fprintf(out, g_save_format_int, i, arr->iv[i]), -1)
-                    total += written;
-                break;
-            case ARRAY_LONG:
-                IOCHECKER(written, fprintf(out, g_save_format_long, i, arr->lv[i]), -1)
-                    total += written;
-                break;
-            case ARRAY_DOUBLE:
-                IOCHECKER(written, fprintf(out, g_save_format_double, i, arr->dv[i]), -1)
-                    total += written;
-                break;
-            case ARRAY_POINTER:
-                IOCHECKER(written, fprintf(out, g_save_format_pointer, i, arr->pv[i]), -1)
-                    total += written;
-                break;
-            case ARRAY_CHAR:
-                IOCHECKER(written, fprintf(out, g_save_format_char, i, arr->cv[i]), -1)
-                    total += written;
-                break;
-            case ARRAY_V64:
-                IOCHECKER(written, fprintf(out, "%6d\t", i), -1)   // to supply format
-                    total += written;
-                IOCHECKER(written, value64_tofile(out, arr->v64[i], arr->v64type, true), -1)
-                    total += written;
-                break;
-            default:
-                break;
-        }
-    return total;
-}
-/**
- * @brief Writes the array elements into a fs.
- *
- * This function outputs only the element data, without header or footer.
- *
- * @param out pointer to initialized (via FS() at least) fs
- * @param arr constant pointer to the array
- * @return number of bytes written
- */
-static long                 serialize_values(fs *restrict s, const Array *restrict arr) {
-    long        total = 0L;
-    ArrayType   typ = Array_gettype(*arr);
-    //for (int i = 0; i < arr->len; i++)
-    Array_pforeach_idx(arr, i) {
-        switch (typ) {
-            case ARRAY_INT:
-                IOCHECKER(written, fs_sprintf_concat(s, g_save_format_int, i, arr->iv[i]), -1)
-                    total += written;
-                break;
-            case ARRAY_LONG:
-                IOCHECKER(written, fs_sprintf_concat(s, g_save_format_long, i, arr->lv[i]), -1)
-                    total += written;
-                break;
-            case ARRAY_DOUBLE:
-                IOCHECKER(written, fs_sprintf_concat(s, g_save_format_double, i, arr->dv[i]), -1)
-                    total += written;
-                break;
-            case ARRAY_POINTER:
-                IOCHECKER(written, fs_sprintf_concat(s, g_save_format_pointer, i, arr->pv[i]), -1)
-                    total += written;
-                break;
-            case ARRAY_CHAR:
-                IOCHECKER(written, fs_sprintf_concat(s, g_save_format_char, i, arr->cv[i]), -1)
-                    total += written;
-                break;
-            case ARRAY_V64: {
-                //fs tmp = FS();      // TODO: rework to append logic
-                total += value64_tostr(s, arr->v64[i], arr->v64type, true);
-               //fs_cat(s, tmp);
-                //fsfree(tmp);
-                break;
-            }
-            default:
-                userraise(-1, ERR_UNKNOWN_TYPE, "Unknown type %s", ArrayTypeName(typ));
-        }
-    }
-    return total;
-}
-
-/**
- * @brief Loads array element values from a text string.
- *
- * Reads values from the string pointed to by `*pdata`, advancing the
- * pointer accordingly.  The array must already be created with the
- * correct type and length.
- *
- * @param pdata pointer to a string pointer
- * @param arr   pointer to the array to fill
- * @return count of bytes read
- */
-static long             loadfs_values(const char *restrict initdata, Array *restrict arr) {
-    const char     *data = initdata;
-    ArrayType       typ = Array_gettype(*arr);
-    fs              buf = FS();
-
-    for (int i = 0; i < arr->len; i++) { // foreach
-        char             *endptr;
-        
-        long             lind = strtol(data, &endptr, 10);
-        if (data == endptr)
-            return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Can't parse index");        
-        if (lind < 0 || lind >= (long) arr->len)
-            return userraise(-1, ERR_OUT_OF_RANGE, "%ld must be between 0 and %d", lind, arr->len);
-        data = endptr;
-        int              ind = lind;
-        switch (typ) {
-            case ARRAY_INT:
-                arr->iv[ind] = strtol(data, &endptr, 10);
-                if (data == endptr)
-                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Can't parse int value");
-                data = endptr;
-                break;
-            case ARRAY_LONG:
-                arr->lv[ind] = strtol(data, &endptr, 10);
-                if (data == endptr)
-                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Can't parse long value");
-                data = endptr;                break;
-            case ARRAY_DOUBLE:
-                arr->dv[ind] = strtod(data, &endptr);
-                if (data == endptr)
-                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Can't parse double value");
-                data = endptr;                break;
-            case ARRAY_CHAR:
-                data = skip_leading_spaces_nl(data);
-                
-                if (*data == '\0') 
-                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Unexpected EO Line");
-
-                arr->cv[ind] = *data; // Используем ind!
-                data++; 
-
-                // Пропускаем пробелы после символа, чтобы подготовить data к следующему strtol
-                data = skip_leading_spaces_nl(data);
-                break;
-            case ARRAY_V64: {
-                data += value64_loadstr(data, &arr->v64[ind], arr->v64type, true, &buf);
-                break;
-            }
-            default:
-                return userraise(-1, ERR_UNSUPPORTED_TYPE, "%d", typ);   // unsupported type
-        }
-    }
-    fsfree(buf);
-    return data - initdata; // total read
-}
-
-static Array                   ArrayParseHeaderFile(FILE *in) {
-    int                 cnt = 0;
-    char                typ[ARRAY_MAX_TYPE_STR], v64typ[ARRAY_MAX_TYPE_STR] = "";
-
-    // Read header: "ARRAY: <type> / <v64type> : <count>"
-    if (fscanf(in, "ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s / %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s : %d ", 
-                typ, 
-                v64typ, 
-                &cnt) != 3)
-        userraiseint(ERR_WRONG_INPUT_FORMAT, "Array header wrong format");
-
-    Array arr = Array_init();       // zero-init
-    ArrayType atype = ArrayTypeFromName(typ);
-    switch (atype) {
-        case ARRAY_V64: {
-            value64_type vt = value64_gettype(v64typ);
-            if (vt == VALUE64_UNKNOWN)
-                userraiseint(ERR_WRONG_INPUT_FORMAT, "Array header V64 wrong format '%s'", v64typ);
-            arr = V64Array_create(cnt, ARRAY_FILLTYPE_NONE, vt);
-            break;
-        }
-        case ARRAY_INT:
-            arr = IArray_create(cnt, ARRAY_FILLTYPE_NONE);
-            break;
-        case ARRAY_LONG:
-            arr = LArray_create(cnt, ARRAY_FILLTYPE_NONE);
-            break;
-        case ARRAY_DOUBLE:
-            arr = DArray_create(cnt, ARRAY_FILLTYPE_NONE);
-            break;
-        case ARRAY_POINTER:
-            arr = PArray_create(cnt, ARRAY_FILLTYPE_NONE);
-            break;
-        case ARRAY_CHAR:
-            arr = CArray_create(cnt, ARRAY_FILLTYPE_NONE);
-            break;
-        default:
-            ArraySeterror(&arr);
-            break;
-    }
-    if (ArrayIserror(arr) )
-        return userraise(arr, ERR_UNSUPPORTED_TYPE, "Unsupported type '%s'", typ);
-    else
-        return arr;
-}
-
-static Array                    ArrayParseHeaderStr(const char **base) {
-    // ---------- 1. Parse header ----------
-    char            typ[ARRAY_MAX_TYPE_STR], v64typ[ARRAY_MAX_TYPE_STR] = "";
-    int             cnt = 0, header_len = 0;
-    Array           a = Array_init();
-    const char     *data = *base;
-
-    if (sscanf(data, "ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s / %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s : %d %n", typ, v64typ, &cnt, &header_len) != 3) {
-        ArraySeterror(&a);
-        return userraise(a, ERR_WRONG_INPUT_FORMAT, "ArrayLoadfs: header mismatch");
-    } 
-    data += header_len;
-
-    // ---------- Create empty array ----------
-    ArrayType       atype = ArrayTypeFromName(typ);
-    value64_type    vt = value64_gettype(v64typ);
-    // will set error flag if case of anything
-    a = ArrayOnlyCreate(cnt, atype, vt);
-    if (ArrayIserror(a) )  // 
-        return userraise(a, ERR_UNSUPPORTED_TYPE, "ArrayLoadfs: unsupported type '%s'", typ);
-
-    *base = data;
-    return a;
-}
-
-static bool                     ArrayParseFooterFile(FILE *in) {
-    char            typ[ARRAY_MAX_TYPE_STR];
-    if (fscanf(in, " ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s", typ) != 1 || strcmp(typ, "DONE") != 0)
-        return userraise(false, ERR_WRONG_INPUT_FORMAT, "Wrong final piece '%s'", typ);
-    else
-        return true;
-}
-
-static bool                     ArrayParseFooterStr(const char **base) {
-    const char     *data = *base;
-    int             footer_len = 0;
-    if (sscanf(data, "ARRAY: DONE%n", &footer_len) != 1) {
-        return userraise(false, ERR_WRONG_INPUT_FORMAT, 
-            "ArrayLoadfs: footer mismatch '%.30s'", data);
-    }
-    data += footer_len;
-    *base = data;
-    return true;
-}
-
-
-// -------------------------- (Utility) printers -------------------
-
-// --------------------------- API ---------------------------------
-// ------------- CONSTRUCTOTS/DESTRUCTORS --------------
-
-// CREATE  and fill with method
-Array                           Array_create(int cnt, ArrayFillType filltyp, ArrayType typ, value64_type vt){
-    logenter("cnt %d, filltyp %s typ %s", cnt, ArrayFillTypeName(filltyp), ArrayTypeName(typ) );
-    // TODO: refactor via Array_increase
-    Array       res = Array_init(.flags = typ, .v64type = vt);
-    if (cnt <= 0)
-        return logerr(res, "sz = %d", res.sz);
-
-    if (increase(&res, cnt) < 0)
-        ArraySeterror(&res);
-    else {
-        res.len = cnt;
-        Array_fill(res, filltyp);
-    }
-    return logret(res, "sz = %d, errors? %s", res.sz, bool_str(ArrayIserror(res) ) );
-}
-/// @brief free array
-/// @param val pointer to array
-/// @note: Array_free must not failed even if val == NULL
-void                            Array_free(Array *val){
-    if (val)        // Array_free must not failed even if val == NULL
-        increase(val, 0);
-}
-/// @brief        Array filler (formatter) using fill type
-/// @param a  Array (by value now, will be reworked)
-/// @param typ  Array type 
-/// @param vt   V64 type, only for for V64
-/// @return Count of formatter data
-int                             Array_fill(Array a, ArrayFillType typ){
-    return Array_fillrange(a, typ, 0, a.len);
-}
 /// @brief      int incrementer (or dec)
 /// @param val  int value pointer
 /// @param sign sign (1/-1) 
@@ -557,6 +60,7 @@ static inline char             incchar(char *val, int sign){
         userraiseint(ERR_OUT_OF_RANGE, "Out of range %c with direction %d", *val, sign);
     return (*val += sign * 1);  // just 1, no random here
 }
+// TODO: think about moving to fs.h
 /// @brief        const char* incrementer
 /// @param s      buffer fs pointer 
 /// @return       inctremented fs
@@ -572,35 +76,584 @@ static inline fs               *decfs(fs *s) {
     return s;
 }
 
+/**
+ * @brief Allocates and initializes a new Array descriptor.
+ * 
+ * @details This is a low-level constructor that allocates memory for the 
+ *          Array structure itself. It uses @ref Array_init to set the 
+ *          initial state of the descriptor. 
+ * 
+ * @note This function does NOT allocate the data buffer (the `v` pointer). 
+ *       It only prepares the container structure. The caller is responsible 
+ *       for the lifetime of the returned pointer and must call @ref Array_free 
+ *       to prevent memory leaks.
+ * 
+ * @param typ The primary type assigned to the array (e.g., ARRAY_INT, ARRAY_V64).
+ * @param vt  The specialized value64 subtype (only relevant if `typ` is ARRAY_V64).
+ * 
+ * @return Array* A pointer to the newly allocated Array structure. 
+ *         Returns NULL (via @ref userraise) if memory allocation fails.
+ */
+static Array                   *arraycreate(ArrayType typ, value64_type vt) {
+    Array *arr = malloc(sizeof(Array));
+    if (!arr)
+        return userraise(NULL, ERR_UNABLE_ALLOCATE, "Unable create Array structure");
+    *arr = Array_init(.flags = typ, .v64type = vt);
+    return arr;
+}
+
+static Array                   *arraycreateempty(void) {
+    return arraycreate(ARRAY_UNKNOWN, VALUE64_UNKNOWN);
+}
+
+/// @brief free value64 elements of array
+/// @param arr pointer to array
+/// @param from from
+/// @param to to
+static void                     freeV64elems(Array *arr, int from, int to) {
+    invraisecode(ERR_NULLABLE_PTR, arr != NULL, "Null pointer");
+    invraisecode(ERR_OUT_OF_RANGE, from >= 0 && to <= arr->sz, "Invalid range");
+    if (arr->v64type == VALUE64_STR || arr->v64type == VALUE64_FS) {   
+        for (int i = from; i < to; i++) {
+            value64free(arr->v64[i], arr->v64type);
+        }
+        logsimple("freed %s  %d - %d", value64_typename(arr->v64type), from, to);
+    }
+} 
+
+/**
+ * @brief Retrieves the size of a single element in bytes.
+ * 
+ * @details This function is a high-performance utility used for pointer 
+ *          arithmetic and calculating memory offsets. It queries the 
+ *          centralized metadata table to determine the element size 
+ *          based on the array's type.
+ * 
+ * @param parr Pointer to the array instance.
+ * @return size_t The size of one element in bytes.
+ * 
+ * @note This function assumes that the array type is valid and 
+ *       matches a known entry in the metadata table.
+ */
+static int                      getelemsize(const Array *parr) {
+    invraisecode(ERR_NULLABLE_PTR, parr != NULL, "Null pointer");
+
+    return ArrayGetTypeInfo(ArrayGettype(parr) )->elem_size;
+    /* int         elem_size = 0;
+    ArrayType   typ = ArrayGettype(arr);
+    switch (typ) {
+        case ARRAY_INT:     elem_size = sizeof(int);        break;
+        case ARRAY_LONG:    elem_size = sizeof(long);       break;
+        case ARRAY_DOUBLE:  elem_size = sizeof(double);     break;
+        case ARRAY_POINTER: elem_size = sizeof(void*);      break;
+        case ARRAY_CHAR:    elem_size = sizeof(char);       break;
+        case ARRAY_V64:     elem_size = sizeof(value64);    break;
+        default:
+            return logsimpleret(-1, "Unknown type %d", typ);
+    }
+    return elem_size; */
+}
+/// @brief increase or descrease size of array
+/// @param arr pointer to array
+/// @param newsz new size
+/// @return 
+static int                      increase(Array *arr, int newsz){
+    invraisecode(ERR_NULLABLE_PTR, arr != NULL, "Null pointer");
+    invraisecode(ERR_OUT_OF_RANGE, newsz >= 0, "Size must be >= 0");
+    logenter("newsz %d", newsz);
+    if (newsz == arr->sz)
+        return logret(arr->sz, "No change sz %d", arr->sz);
+    if (newsz > arr->sz)
+        newsz = round_up_2(newsz);
+
+    int bytes = newsz * getelemsize(arr);
+    if (bytes < 0) 
+        return userraise(-1, ERR_UNKNOWN_TYPE, "Unknown type");
+
+    if (newsz < arr->len)
+        freeV64elems(arr, newsz, arr->len);    
+    logmsg("Arr: bytes=%d, sz=%d", bytes, newsz);
+    void *p = NULL;  
+    if (bytes > 0) {
+        if ( (p = realloc(arr->v, bytes) ) == NULL)
+            userraiseint(ERR_UNABLE_ALLOCATE, "Unable to allocate %d", bytes);
+    } else
+        free(arr->v);
+    arr->v = p; // iv/dv/pv... is the same
+    if (arr->len > newsz)   // shrink case
+        arr->len = newsz;
+    arr->sz = newsz;
+    return logret(arr->sz, "New sz %d", arr->sz);
+}
+
+/**
+ * @brief Writes an integer value into an array (plain or value64).
+ *
+ * If the array is a value64 array (ArrayIsV64), the value is wrapped
+ * via value64_createint and stored in a.v64[i].  Otherwise it is written
+ * directly to a.iv[i].
+ *
+ * @param a   array
+ * @param i   element index
+ * @param val value to write
+ */
+static inline void ArraySetIntElem(Array *parr, int i, int val) {
+    if (ArrayIsV64(parr))
+        parr->v64[i] = value64_createint(val);
+    else
+        parr->iv[i] = val;
+}
+
+/**
+ * @brief Writes a long integer into an array (plain or value64).
+ * @see ArraySetIntElem
+ */
+static inline void ArraySetLongElem(Array *parr, int i, long val) {
+    if (ArrayIsV64(parr))
+        parr->v64[i] = value64_createlong(val);
+    else
+        parr->lv[i] = val;
+}
+
+/**
+ * @brief Writes a double into an array (plain or value64).
+ * @see ArraySetIntElem
+ */
+static inline void ArraySetDblElem(Array *parr, int i, double val) {
+    if (ArrayIsV64(parr))
+        parr->v64[i] = value64_createdbl(val);
+    else
+        parr->dv[i] = val;
+}
+
+/**
+ * @brief Writes a pointer into an array (plain or value64).
+ * @see ArraySetIntElem
+ */
+static inline void ArraySetPtrElem(Array *parr, int i, void *val) {
+    if (ArrayIsV64(parr))
+        parr->v64[i] = value64_createptr(val);
+    else
+        parr->pv[i] = val;
+}
+/**
+ * @brief Writes a pointer into an array (plain or value64).
+ * @see ArraySetIntElem
+ */
+static inline void ArraySetCharElem(Array *parr, int i, char val) {
+    if (ArrayIsV64(parr))
+        //a.v64[i] = value64_createptr(val);
+        userraiseint(ERR_UNSUPPORTED_TYPE, "V64 container don't support char type for now");
+    else
+        parr->cv[i] = val;
+}
+/**
+ * @brief Writes an fs value into a value64 array.
+ *
+ * The array must be a value64 array (Array_isv64).  The fs object is
+ * deep‑copied into the array element.
+ *
+ * @param a   value64 array
+ * @param i   element index
+ * @param val pointer to the fs object to copy
+ */
+static inline void ArraySetV64fsElem(Array *restrict parr, int i, const fs *restrict val) {
+    parr->v64[i] = value64_createfs(val);
+}
+
+/**
+ * @brief Writes a C‑string into a value64 array (owned copy).
+ *
+ * The array must be a value64 array (Array_isv64).  The string is
+ * duplicated and stored as a VALUE64_STR element.
+ *
+ * @param a   value64 array
+ * @param i   element index
+ * @param val C‑string to copy
+ */
+static inline void ArraySetV64strElem(Array *restrict parr, int i, const char *restrict val) {
+    parr->v64[i] = value64_createstr(val);
+}
+
+/**
+ * @brief Loads array elements from a text stream.
+ *
+ * The array header must already be read, and the array must be correctly
+ * created before calling this function.
+ *
+ * @param in  input stream, already opened for reading
+ * @param arr pointer to the array to fill
+ * @return positive value in suceess, -1 if failed 
+ */
+static int                  ArrayFileLoadValues(FILE *restrict in, Array *restrict parr) {
+    ArrayType   typ = ArrayGettype(parr);
+    fs          buf = FS();
+    int         cnt = 0;
+    
+    Array_pforeach_idx(parr, i) {
+        int         ind;
+        if (fscanf(in, "%6d\t", &ind) != 1)
+            return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Can't parse index");        
+        if (ind < 0 || ind >= arr->len)
+            return userraise(-1, ERR_OUT_OF_RANGE, "%d must be between 0 and %d", ind, parr->len);
+
+        switch (typ) {
+            case ARRAY_INT:
+                if (fscanf(in, "%d\n", parr->iv + ind) != 1)
+                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Unable to fscanf a int value");
+                break;
+            case ARRAY_LONG:
+                if (fscanf(in, "%ld\n", parr->lv + ind) != 1)
+                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Unable to fscanf a long value");
+                break;
+            case ARRAY_DOUBLE:
+                if (fscanf(in, "%lg\n", parr->dv + ind) != 1)
+                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Unable to fscanf a double value");
+                break;
+            case ARRAY_POINTER:
+                if (fscanf(in, "%p\n", parr->pv + ind) != 1)
+                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Unable to fscanf a ptr value");
+                break;
+            case ARRAY_CHAR:
+                if (fscanf(in, "%c\n", parr->cv + ind) != 1)
+                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Unable to fscanf a char value");
+                break;
+            case ARRAY_V64:
+                if (value64_loadfile(in, &parr->v64[ind], parr->v64type, true, &buf) != 1)
+                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Unable to fscanf a V64 containered value");
+                break;
+            default:
+                return userraise(-1, ERR_UNSUPPORTED_TYPE, "%d", typ);
+        }
+        cnt++;
+    }
+    fsfree(buf);
+    return logsimpleret(cnt, "Readed %d", cnt);
+}
+
+/**
+ * @brief Writes the array elements into a text stream.
+ *
+ * This function outputs only the element data, without header or footer.
+ *
+ * @param out output stream, already opened for writing
+ * @param arr constant pointer to the array
+ * @return number of bytes written
+ */
+static long                 ArraySaveValues(FILE *restrict out, const Array *restrict parr) {
+    long        total = 0L;
+    ArrayType   typ = ArrayGettype(parr);
+    Array_pforeach_idx(parr, i)
+        switch (typ) {
+            case ARRAY_INT:
+                IOCHECKER(written, fprintf(out, g_save_format_int, i, parr->iv[i]), -1)
+                    total += written;
+                break;
+            case ARRAY_LONG:
+                IOCHECKER(written, fprintf(out, g_save_format_long, i, parr->lv[i]), -1)
+                    total += written;
+                break;
+            case ARRAY_DOUBLE:
+                IOCHECKER(written, fprintf(out, g_save_format_double, i, parr->dv[i]), -1)
+                    total += written;
+                break;
+            case ARRAY_POINTER:
+                IOCHECKER(written, fprintf(out, g_save_format_pointer, i, parr->pv[i]), -1)
+                    total += written;
+                break;
+            case ARRAY_CHAR:
+                IOCHECKER(written, fprintf(out, g_save_format_char, i, parr->cv[i]), -1)
+                    total += written;
+                break;
+            case ARRAY_V64:
+                IOCHECKER(written, fprintf(out, "%6d\t", i), -1)   // to supply format
+                    total += written;
+                IOCHECKER(written, value64_tofile(out, parr->v64[i], parr->v64type, true), -1)
+                    total += written;
+                break;
+            default:
+                break;
+        }
+    return total;
+}
+/**
+ * @brief Writes the array elements into a fs.
+ *
+ * This function outputs only the element data, without header or footer.
+ *
+ * @param out pointer to initialized (via FS() at least) fs
+ * @param arr constant pointer to the array
+ * @return number of bytes written
+ */
+static long                 ArraySerializeValues(fs *restrict s, const Array *restrict parr) {
+    long        total = 0L;
+    ArrayType   typ = ArrayGettype(parr);
+
+    Array_pforeach_idx(parr, i) {
+        switch (typ) {
+            case ARRAY_INT:
+                IOCHECKER(written, fs_sprintf_concat(s, g_save_format_int, i, parr->iv[i]), -1)
+                    total += written;
+                break;
+            case ARRAY_LONG:
+                IOCHECKER(written, fs_sprintf_concat(s, g_save_format_long, i, parr->lv[i]), -1)
+                    total += written;
+                break;
+            case ARRAY_DOUBLE:
+                IOCHECKER(written, fs_sprintf_concat(s, g_save_format_double, i, parr->dv[i]), -1)
+                    total += written;
+                break;
+            case ARRAY_POINTER:
+                IOCHECKER(written, fs_sprintf_concat(s, g_save_format_pointer, i, parr->pv[i]), -1)
+                    total += written;
+                break;
+            case ARRAY_CHAR:
+                IOCHECKER(written, fs_sprintf_concat(s, g_save_format_char, i, parr->cv[i]), -1)
+                    total += written;
+                break;
+            case ARRAY_V64: {
+                //fs tmp = FS();      // TODO: rework to append logic
+                total += value64_tostr(s, parr->v64[i], parr->v64type, true);
+               //fs_cat(s, tmp);
+                //fsfree(tmp);
+                break;
+            }
+            default:
+                userraise(-1, ERR_UNKNOWN_TYPE, "Unknown type %s", ArrayTypeGetName(typ));
+        }
+    }
+    return total;
+}
+
+/**
+ * @brief Loads array element values from a text string.
+ *
+ * Reads values from the string pointed to by `*pdata`, advancing the
+ * pointer accordingly.  The array must already be created with the
+ * correct type and length.
+ *
+ * @param pdata pointer to a string pointer
+ * @param arr   pointer to the array to fill
+ * @return count of bytes read
+ */
+static long             ArrayFsLoadValues(const char *restrict initdata, Array *restrict parr) {
+    const char     *data = initdata;
+    ArrayType       typ = ArrayGettype(parr);
+    fs              buf = FS();
+
+    //for (int i = 0; i < arr->len; i++) { // foreach
+    Array_pforeach_idx(parr, i) {
+        char             *endptr;
+        
+        long             lind = strtol(data, &endptr, 10);
+        if (data == endptr)
+            return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Can't parse index");        
+        if (lind < 0 || lind >= (long) parr->len)
+            return userraise(-1, ERR_OUT_OF_RANGE, "%ld must be between 0 and %d", lind, parr->len);
+        data = endptr;
+        int              ind = lind;
+        switch (typ) {
+            case ARRAY_INT:
+                parr->iv[ind] = strtol(data, &endptr, 10);
+                if (data == endptr)
+                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Can't parse int value");
+                data = endptr;
+                break;
+            case ARRAY_LONG:
+                parr->lv[ind] = strtol(data, &endptr, 10);
+                if (data == endptr)
+                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Can't parse long value");
+                data = endptr;                break;
+            case ARRAY_DOUBLE:
+                parr->dv[ind] = strtod(data, &endptr);
+                if (data == endptr)
+                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Can't parse double value");
+                data = endptr;                break;
+            case ARRAY_CHAR:
+                data = skip_leading_spaces_nl(data);
+                
+                if (*data == '\0') 
+                    return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Unexpected EO Line");
+
+                parr->cv[ind] = *data; // Используем ind!
+                data++; 
+
+                // Пропускаем пробелы после символа, чтобы подготовить data к следующему strtol
+                data = skip_leading_spaces_nl(data);
+                break;
+            case ARRAY_V64: {
+                data += value64_loadstr(data, &parr->v64[ind], parr->v64type, true, &buf);
+                break;
+            }
+            default:
+                return userraise(-1, ERR_UNSUPPORTED_TYPE, "%d", typ);   // unsupported type
+        }
+    }
+    fsfree(buf);
+    return data - initdata; // total read
+}
+
+static Array                  *ArrayParseHeaderFile(FILE *in) {
+    int                 cnt = 0;
+    char                typ[ARRAY_MAX_TYPE_STR], v64typ[ARRAY_MAX_TYPE_STR] = "";
+
+    // Read header: "ARRAY: <type> / <v64type> : <count>"
+    if (fscanf(in, "ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s / %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s : %d ", 
+                typ, 
+                v64typ, 
+                &cnt) != 3)
+        userraiseint(ERR_WRONG_INPUT_FORMAT, "Array header wrong format");
+
+    Array *parr;// = arraycreateempty();  //Array_init();       // zero-init
+    ArrayType atype =  ArrayTypeFromName(typ);
+    switch (atype) {
+        case ARRAY_V64: {
+            value64_type vt = value64_gettype(v64typ);
+            if (vt == VALUE64_UNKNOWN)
+                userraiseint(ERR_WRONG_INPUT_FORMAT, "Array header V64 wrong format '%s'", v64typ);
+            parr = V64Array_create(cnt, ARRAY_FILLTYPE_NONE, vt);
+            break;
+        }
+        case ARRAY_INT:
+            parr = IArray_create(cnt, ARRAY_FILLTYPE_NONE);
+            break;
+        case ARRAY_LONG:
+            parr = LArray_create(cnt, ARRAY_FILLTYPE_NONE);
+            break;
+        case ARRAY_DOUBLE:
+            parr = DArray_create(cnt, ARRAY_FILLTYPE_NONE);
+            break;
+        case ARRAY_POINTER:
+            parr = PArray_create(cnt, ARRAY_FILLTYPE_NONE);
+            break;
+        case ARRAY_CHAR:
+            parr = CArray_create(cnt, ARRAY_FILLTYPE_NONE);
+            break;
+        /*default:
+            ArraySeterror(&arr);
+            break;*/
+    }
+    if (!parr)
+        return userraise(parr, ERR_UNSUPPORTED_TYPE, "Unsupported type '%s'", typ);
+    else
+        return parr;
+}
+
+static Array                   *ArrayParseHeaderStr(const char **base) {
+    // ---------- 1. Parse header ----------
+    char            typ[ARRAY_MAX_TYPE_STR], v64typ[ARRAY_MAX_TYPE_STR] = "";
+    int             cnt = 0, header_len = 0;
+    Array           *parr = NULL;  // = Array_init();
+    const char     *data = *base;
+
+    if (sscanf(data, "ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s / %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s : %d %n", typ, v64typ, &cnt, &header_len) != 3) {
+        return userraise(parr, ERR_WRONG_INPUT_FORMAT, "ArrayLoadfs: header mismatch");
+    } 
+    data += header_len;
+
+    // ---------- Create empty array ----------
+    ArrayType       atype = ArrayTypeFromName(typ);
+    value64_type    vt = value64_gettype(v64typ);
+    // will set error flag if case of anything
+    parr = ArrayOnlyCreate(cnt, atype, vt);
+    if (!parr)  // 
+        return userraise(parr, ERR_UNSUPPORTED_TYPE, "ArrayLoadfs: unsupported type '%s'", typ);
+
+    *base = data;
+    return parr;
+}
+
+static bool                     ArrayParseFooterFile(FILE *in) {
+    char            typ[ARRAY_MAX_TYPE_STR];
+    if (fscanf(in, " ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s", typ) != 1 || strcmp(typ, "DONE") != 0)
+        return userraise(false, ERR_WRONG_INPUT_FORMAT, "Wrong final piece '%s'", typ);
+    else
+        return true;
+}
+
+static bool                     ArrayParseFooterStr(const char **base) {
+    const char     *data = *base;
+    int             footer_len = 0;
+    if (sscanf(data, "ARRAY: DONE%n", &footer_len) != 1) {
+        return userraise(false, ERR_WRONG_INPUT_FORMAT, 
+            "ArrayLoadfs: footer mismatch '%.30s'", data);
+    }
+    data += footer_len;
+    *base = data;
+    return true;
+}
+
+
+// -------------------------- (Utility) printers -------------------
+
+// --------------------------- API ---------------------------------
+// ------------- CONSTRUCTOTS/DESTRUCTORS --------------
+
+// CREATE  and fill with method
+Array                          *Array_create(int cnt, ArrayFillType filltyp, ArrayType typ, value64_type vt){
+    logenter("cnt %d, filltyp %s typ %s", cnt, ArrayFillTypeName(filltyp), ArrayTypeGetName(typ) );
+    // TODO: refactor via Array_increase
+    Array   *res = arraycreate(typ, vt);      
+    if (cnt <= 0)
+        return userraise(res, ERR_WRONG_INPUT_PARAMETERS, "sz = %d must be > 0", res->sz);
+
+    if (increase(&res, cnt) < 0)
+        ArraySeterror(&res);
+    else {
+        res->len = cnt;
+        Array_fill(res, filltyp);
+    }
+    return logret(res, "sz = %d, len = %d", res->sz, res->len );
+}
+/// @brief free array
+/// @param val pointer to array
+/// @note: Array_free must not failed even if val == NULL
+void                           Array_free(Array *val){
+    if (val) {      // Array_free must not failed even if val == NULL
+        increase(val, 0);
+        free(val);
+    }
+}
+/// @brief        Array filler (formatter) using fill type
+/// @param a  Array (by value now, will be reworked)
+/// @param typ  Array type 
+/// @param vt   V64 type, only for for V64
+/// @return Count of formatter data
+int                             Array_fill(Array *parr, ArrayFillType typ){
+    invraisecode(parr != NULL, "Null input");
+    return ArrayFillRange(parr, typ, 0, parr->len);
+}
+
+
 /// @brief        ascending filler
 /// @param a      array 
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      Array_fillrange_ASC(Array a, int from, int to){
+static int                      ArrayFillRange_ASC(Array a, int from, int to){
     switch (ArrayGetV64mappedType(a) ) {
         case ARRAY_INT: {
             int val = 0;
             for (int i = from; i < to; i++, incintrnd(&val, 1) )
-                set_int_element(a, i, val);
+                ArraySetIntElem(a, i, val);
             break;
         }
         case ARRAY_LONG: {
             long val = 0;
             for (int i = from; i < to; i++, inclongrnd(&val, 1) )
-                set_long_element(a, i, val);
+                ArraySetLongElem(a, i, val);
             break;
         }
         case ARRAY_DOUBLE: {
             double val = 0.0;
             for (int i = from; i < to; i++, incdoublernd(&val, 1) )
-                set_double_element(a, i, val);
+                ArraySetDblElem(a, i, val);
             break;
         }
         case ARRAY_CHAR: {
             char val = 'a';
             for (int i = from; i < to; i++, incchar(&val, 1) )
-                set_char_element(a, i, val);
+                ArraySetCharElem(a, i, val);
             break;
         }
         // V64, which not mapped to ARRAY_TYPES
@@ -611,7 +664,7 @@ static int                      Array_fillrange_ASC(Array a, int from, int to){
                     // fs увеличивающейся длины
                     for (int i = from; i < to; i++) {
                         incfs(&s);   // длина i+1
-                        set_v64fs_element(a, i, &s);  
+                        ArraySetV64fsElem(a, i, &s);  
                     }
                     fsfree(s);
                     break;
@@ -621,7 +674,7 @@ static int                      Array_fillrange_ASC(Array a, int from, int to){
                     // C‑строки увеличивающейся длины
                     for (int i = from; i < to; i++) {
                         incfs(&s);   // длина i+1
-                        set_v64str_element(a, i, fsstr(s));
+                        ArraySetV64strElem(a, i, fsstr(s));
                     }
                     fsfree(s);
                     break;
@@ -633,7 +686,7 @@ static int                      Array_fillrange_ASC(Array a, int from, int to){
             break;
         }
         default:
-            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayGettypeName(a) );
+            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayTypeGetName(a) );
             break;
     }
     return to - from;
@@ -643,30 +696,30 @@ static int                      Array_fillrange_ASC(Array a, int from, int to){
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      Array_fillrange_DESC(Array a, int from, int to){
+static int                      ArrayFillRange_DESC(Array a, int from, int to){
     switch (ArrayGetV64mappedType(a) ) {
         case ARRAY_INT: {
             int val = 10 * a.len;   // hope it'll ne owerwelhm int;
             for (int i = from; i < to; i++, incintrnd(&val, -1) )
-                set_int_element(a, i, val);
+                ArraySetIntElem(a, i, val);
             break;
         }
         case ARRAY_LONG: {
             long val = 100L * a.len;
             for (int i = from; i < to; i++, inclongrnd(&val, -1) )
-                set_long_element(a, i, val);
+                ArraySetLongElem(a, i, val);
             break;
         }
         case ARRAY_DOUBLE: {
             double val = 0.0;
             for (int i = from; i < to; i++, incdoublernd(&val, -1) )
-                set_double_element(a, i, val);
+                ArraySetDblElem(a, i, val);
             break;
         }
         case ARRAY_CHAR: {
             char val = 'z';
             for (int i = from; i < to; i++, incchar(&val, -1) )
-                set_char_element(a, i, val);
+                ArraySetCharElem(a, i, val);
             break;
         }
         // V64, which not mapped to ARRAY_TYPES
@@ -677,7 +730,7 @@ static int                      Array_fillrange_DESC(Array a, int from, int to){
                     // fs desc length
                     for (int i = from; i < to; i++) {
                         decfs(&s);   // длина i+1
-                        set_v64fs_element(a, i, &s);  
+                        ArraySetV64fsElem(a, i, &s);  
                     }
                     fsfree(s);
                     break;
@@ -687,7 +740,7 @@ static int                      Array_fillrange_DESC(Array a, int from, int to){
                     // c-str desc length
                     for (int i = from; i < to; i++) {
                         decfs(&s);   // длина i+1
-                        set_v64str_element(a, i, fsstr(s));
+                        ArraySetV64strElem(a, i, fsstr(s));
                     }
                     fsfree(s);
                     break;
@@ -699,7 +752,7 @@ static int                      Array_fillrange_DESC(Array a, int from, int to){
             break;
         }
         default:
-            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for DESC fill %s", ArrayGettypeName(a) );
+            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for DESC fill %s", ArrayTypeGetName(a) );
             break;
     }
     return to - from;
@@ -710,27 +763,27 @@ static int                      Array_fillrange_DESC(Array a, int from, int to){
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      Array_fillrange_ZERO(Array a, int from, int to){
+static int                      ArrayFillRange_ZERO(Array a, int from, int to){
     switch (ArrayGetV64mappedType(a) ) {
         case ARRAY_INT:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                set_int_element(a, i, 0);
+                ArraySetIntElem(a, i, 0);
             break;
         case ARRAY_LONG:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                set_long_element(a, i, 0L);
+                ArraySetLongElem(a, i, 0L);
             break;
         case ARRAY_DOUBLE:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                set_double_element(a, i, 0.0);
+                ArraySetDblElem(a, i, 0.0);
             break;
         case ARRAY_POINTER:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                set_pointer_element(a, i, NULL);
+                ArraySetPtrElem(a, i, NULL);
             break;
         case ARRAY_CHAR:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                set_char_element(a, i, '\0');
+                ArraySetCharElem(a, i, '\0');
             break;
         // not real type => container v64
         case ARRAY_UNKNOWN: {
@@ -738,12 +791,12 @@ static int                      Array_fillrange_ZERO(Array a, int from, int to){
                 case VALUE64_FS: {
                     fs s = FSLITERAL("");
                     for (int i = from; i < to; i++)
-                        set_v64fs_element(a, i, &s);  
+                        ArraySetV64fsElem(a, i, &s);  
                     break;
                 }
                 case VALUE64_STR: {
                     for (int i = from; i < to; i++)
-                        set_v64str_element(a, i, "");
+                        ArraySetV64strElem(a, i, "");
                     break;
                 }
                 default:
@@ -753,13 +806,13 @@ static int                      Array_fillrange_ZERO(Array a, int from, int to){
             break;
         }
         default:
-            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ZERO fill %s", ArrayGettypeName(a) );
+            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ZERO fill %s", ArrayTypeGetName(a) );
             break;
     }
     return to - from;
 }
 
-static int                      Array_fillrange_NONE(Array a, int from, int to) {
+static int                      ArrayFillRange_NONE(Array a, int from, int to) {
     switch (ArrayGetV64mappedType(a) ) {
         case ARRAY_UNKNOWN: {
             switch (a.v64type) {
@@ -791,23 +844,23 @@ static int                      Array_fillrange_NONE(Array a, int from, int to) 
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      Array_fillrange_RND(Array a, int from, int to) {
+static int                      ArrayFillRange_RND(Array a, int from, int to) {
     switch (ArrayGetV64mappedType(a) ) {
         case ARRAY_INT:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                 set_int_element(a, i, rndint(10 * (to - from + 1) ) );
+                 ArraySetIntElem(a, i, rndint(10 * (to - from + 1) ) );
             break;
         case ARRAY_LONG:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                 set_long_element(a, i, rndlong(10 * (to - from + 1) ) );
+                 ArraySetLongElem(a, i, rndlong(10 * (to - from + 1) ) );
             break;
         case ARRAY_DOUBLE:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                set_double_element(a, i, rnddbl(10 * (to - from + 1) ) );
+                ArraySetDblElem(a, i, rnddbl(10 * (to - from + 1) ) );
             break;
         case ARRAY_CHAR:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                set_char_element(a, i, rndupperchar() );    // upper/lower must be in context.c
+                ArraySetCharElem(a, i, rndupperchar() );    // upper/lower must be in context.c
             break;
         case ARRAY_UNKNOWN: {
             switch (a.v64type) {
@@ -815,7 +868,7 @@ static int                      Array_fillrange_RND(Array a, int from, int to) {
                     fs s = FS();
                     for (int i = from; i < to; i++) {
                         fs_genrnd(&s, to - from + 1, 'A');
-                        set_v64fs_element(a, i, &s);  
+                        ArraySetV64fsElem(a, i, &s);  
                     }
                     fsfree(s);
                     break;
@@ -824,7 +877,7 @@ static int                      Array_fillrange_RND(Array a, int from, int to) {
                     fs s = FS();
                     for (int i = from; i < to; i++) {
                         fs_genrnd(&s, to - from + 1, 'A');
-                        set_v64str_element(a, i, fsstr(s) );
+                        ArraySetV64strElem(a, i, fsstr(s) );
                     }
                     fsfree(s);
                     break;
@@ -836,7 +889,7 @@ static int                      Array_fillrange_RND(Array a, int from, int to) {
             break;
         }
         default:
-            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ZERO fill %s", ArrayGettypeName(a) );
+            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ZERO fill %s", ArrayTypeGetName(a) );
             break;
     }
     return to - from;
@@ -847,34 +900,34 @@ static int                      Array_fillrange_RND(Array a, int from, int to) {
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      Array_fillrange_ASC_SERIES(Array a, int from, int to){
+static int                      ArrayFillRange_ASC_SERIES(Array a, int from, int to){
     switch (ArrayGetV64mappedType(a) ) {
         case ARRAY_INT: {
             int val = from;
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                 set_int_element(a, i, val++);
+                 ArraySetIntElem(a, i, val++);
             break;
         }
         case ARRAY_LONG: {
             long val = from;
             for (int i = from; i < to; i++)
-                set_long_element(a, i, val++);
+                ArraySetLongElem(a, i, val++);
             break;
         }
         case ARRAY_DOUBLE: {
             double val = from + 0.0;
             for (int i = from; i < to; i++)
-                set_double_element(a, i, val++);
+                ArraySetDblElem(a, i, val++);
             break;
         }
         case ARRAY_CHAR: {
             char val = 'A';
             for (int i = from; i < to; i++)
-                set_double_element(a, i, val++);    // can be ERR_OUT_OF_RANGE
+                ArraySetDblElem(a, i, val++);    // can be ERR_OUT_OF_RANGE
             break;
         }
         default:
-            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayGettypeName(a) );
+            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayTypeGetName(a) );
             break;
     }
     return to - from;
@@ -885,34 +938,34 @@ static int                      Array_fillrange_ASC_SERIES(Array a, int from, in
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      Array_fillrange_DESC_SERIES(Array a, int from, int to){
+static int                      ArrayFillRange_DESC_SERIES(Array a, int from, int to){
     switch (ArrayGetV64mappedType(a) ) {
         case ARRAY_INT: {
             int val = to - 1;
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                 set_int_element(a, i, val--);
+                 ArraySetIntElem(a, i, val--);
             break;
         }
         case ARRAY_LONG: {
             long val = to - 1;
             for (int i = from; i < to; i++)
-                set_long_element(a, i, val--);
+                ArraySetLongElem(a, i, val--);
             break;
         }
         case ARRAY_DOUBLE: {
             double val = to - 1;
             for (int i = from; i < to; i++)
-                set_double_element(a, i, val--);
+                ArraySetDblElem(a, i, val--);
             break;
         }
         case ARRAY_CHAR: {
             char val = 'Z';
             for (int i = from; i < to; i++)
-                set_double_element(a, i, val--);    // can be ERR_OUT_OF_RANGE
+                ArraySetDblElem(a, i, val--);    // can be ERR_OUT_OF_RANGE
             break;
         }
         default:
-            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayGettypeName(a) );
+            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayTypeGetName(a) );
             break;
     }
     return to - from;
@@ -924,41 +977,41 @@ static int                      Array_fillrange_DESC_SERIES(Array a, int from, i
 /// @param from from (will be normilized if out of range)
 /// @param to  to (will be normilized if out of range)
 /// @return Count of formatter data
-int                             Array_fillrange(Array a, ArrayFillType typ, int from, int to) {
-    logenter("%d - %d, %s (v64: %s)", from, to, ArrayFillTypeName(typ), ArrayGetV64typeName(a) );
+int                             ArrayFillRange(Array *parr, ArrayFillType typ, int from, int to) {
+    logenter("%d - %d, %s (v64: %s)", from, to, ArrayFillTypeName(typ), ArrayGetV64typeName(parr) );
     // Нормализация границ
     if (from < 0) {
         from = 0;
         logmsg("'from' was negative, normalized to 0");
     }
-    if (to > a.sz){
-        to = a.sz;
-        logmsg("'to' was out of range - normalized to sz %d", a.sz);
+    if (to > parr->sz){
+        to = parr->sz;
+        logmsg("'to' was out of range - normalized to sz %d", parr->sz);
     }
     switch (typ) {
         case ARRAY_FILLTYPE_ASC:
             // ----- Заполнение по возрастанию -----
-            Array_fillrange_ASC(a, from, to);
+            ArrayFillRange_ASC(parr, from, to);
             break;
         case ARRAY_FILLTYPE_DESC:
             // ----- Заполнение по убыванию -----
-            Array_fillrange_DESC(a, from, to);
+            ArrayFillRange_DESC(parr, from, to);
             break;
         case ARRAY_FILLTYPE_ZERO:
-            Array_fillrange_ZERO(a, from, to);
+            ArrayFillRange_ZERO(parr, from, to);
             break;
         case ARRAY_FILLTYPE_RND:
-            Array_fillrange_RND(a, from, to);
+            ArrayFillRange_RND(parr, from, to);
             break;
         case ARRAY_FILLTYPE_NONE:
             // just do nothing for scalar types
-            Array_fillrange_NONE(a, from, to);
+            ArrayFillRange_NONE(parr, from, to);
             break;
         case ARRAY_FILLTYPE_ASC_SERIES:
-            Array_fillrange_ASC_SERIES(a, from, to);
+            ArrayFillRange_ASC_SERIES(parr, from, to);
             break;
         case ARRAY_FILLTYPE_DESC_SERIES:
-            Array_fillrange_DESC_SERIES(a, from, to);
+            ArrayFillRange_DESC_SERIES(parr, from, to);
             break;
         default:
             userraiseint(ERR_ACTION_NOT_APPLICABLE, "Not supported filltype %s", ArrayFillTypeName(typ));
@@ -969,35 +1022,35 @@ int                             Array_fillrange(Array a, ArrayFillType typ, int 
 
 // -------------- ACCESS AND MODIFICATION --------------
 
-Array                           Array_increase(Array arr, int newcnt){
-    if (newcnt > Arraysz(arr) )
-        increase(&arr, newcnt);
-    Array_fillrange(arr, ARRAY_FILLTYPE_ZERO, arr.len, newcnt);
-    arr.len = newcnt;
-    return arr;
+Array                           Array_increase(Array *parr, int newcnt){
+    if (newcnt > Arraysz(parr) )
+        increase(parr, newcnt);
+    ArrayFillRange(parr, ARRAY_FILLTYPE_ZERO, parr->len, newcnt);
+    parr->len = newcnt;
+    return parr;
 }
 
-Array                           Array_shrink(Array arr, int newsz){
+Array                          *Array_shrink(Array *parr, int newsz){
     logenter("newsz %d", newsz);
     if (newsz < 0)
         newsz = 0;
-    if (newsz > arr.sz)
-        newsz = arr.sz;
-    increase(&arr, newsz);
-    return logret(arr, "shrinked to (len %d == sz %d)", arr.len, arr.sz);
+    if (newsz > parr->sz)
+        newsz = parr->sz;
+    increase(parr, newsz);
+    return logret(parr, "shrinked to (len %d == sz %d)", parr->len, parr->sz);
 }
 
 /**
  * @brief Shuffle array elements using the Fisher–Yates algorithm.
  * @param arr array (by value)
  */
-void                        Array_shuffle(Array arr) {
-    int elem_size = getelemsize(&arr);
+void                        Array_shuffle(Array *parr) {
+    int elem_size = getelemsize(parr);
     if (elem_size <= 0)
-        userraiseint(ERR_UNSUPPORTED_TYPE, "unsupported type for shuffle %s", ArrayGettypeName(arr));
+        userraiseint(ERR_UNSUPPORTED_TYPE, "unsupported type for shuffle %s", ArrayTypeGetName(parr));
     // in case if arr.len < 2 that'll do nothing
-    char    *data = arr.v;  // raw byte pointer
-    for (int i = arr.len - 1; i > 0; i--) {
+    char    *data = parr->v;  // raw byte pointer
+    for (int i = parr->len - 1; i > 0; i--) {
         int j = rndint(i);
         // swap elements at indices i and j
         item_exch(data + i * elem_size, data + j * elem_size, elem_size);   
@@ -1021,21 +1074,21 @@ void                        Array_shuffle(Array arr) {
  * @throws ERR_NULLABLE_PTR if any of the pointers is NULL
  * @throws ERR_UNSUPPORTED_TYPE if the type is not handled
  */
-bool ArrayNoteq(const Array *restrict arr1, const Array *restrict arr2) {
-    invraisecode(ERR_NULLABLE_PTR, arr1 != NULL && arr2 != NULL,
-                 "Null pointers %p %p", (void*) arr1, (void*) arr2);
+bool                            ArrayNoteq(const Array *restrict parr1, const Array *restrict parr2) {
+    invraisecode(ERR_NULLABLE_PTR, parr1 != NULL && parr2 != NULL,
+                 "Null pointers %p %p", (void*) parr1, (void*) parr2);
     // raise exception if not equal
-    ArrayCheckComparable(arr1, arr2);
+    ArrayCheckComparable(parr1, parr2);
 
-    if (arr1->len != arr2->len)
+    if (parr1->len != parr2->len)
         return true;   // different lengths -> not equal
 
 #define ArrayNoteq_COMPARE_LOOP(field) \
-    for (int i = 0; i < arr1->len; i++) \
-        if (arr1->field[i] != arr2->field[i]) return true;        
+    for (int i = 0; i < parr1->len; i++) \
+        if (parr1->field[i] != parr2->field[i]) return true;        
 
 
-    ArrayType typ = Array_gettype(*arr1);
+    ArrayType typ = ArrayGettype(parr1);
     switch (typ) {
         case ARRAY_INT: 
             ArrayNoteq_COMPARE_LOOP(iv);
@@ -1053,13 +1106,13 @@ bool ArrayNoteq(const Array *restrict arr1, const Array *restrict arr2) {
             ArrayNoteq_COMPARE_LOOP(cv);
             break;
         case ARRAY_V64:
-            for (int i = 0; i < arr1->len; i++)
-                if (!value64_equal(arr1->v64[i], arr2->v64[i], arr1->v64type))
+            for (int i = 0; i < parr1->len; i++)
+                if (!value64_equal(parr1->v64[i], parr2->v64[i], parr1->v64type))
                     return true;
             break;
         default:
             userraiseint(ERR_UNSUPPORTED_TYPE, "Unsupported type for comparison: %s",
-                         ArrayGettypeName(*arr1));
+                         ArrayTypeGetName(parr1));
             return true;
     }
     return false;   // all elements equal
@@ -1077,14 +1130,14 @@ bool ArrayNoteq(const Array *restrict arr1, const Array *restrict arr2) {
  *
  * @throws ERR_UNSUPPORTED_TYPE if the array type cannot be sorted
  */
-void                                Array_qsort(Array arr, ArrayFillType ord) {
-    int                 sz = getelemsize(&arr);
+void                                Array_qsort(Array *parr, ArrayFillType ord) {
+    int                 sz = getelemsize(parr);
     if (sz <= 0)
-        userraiseint(ERR_UNSUPPORTED_TYPE, "Unable to get type size %d/%s", Array_gettype(arr), ArrayGettypeName(arr));
+        userraiseint(ERR_UNSUPPORTED_TYPE, "Unable to get type size %d/%s", ArrayGettype(parr), ArrayTypeGetName(parr));
 
     pointer_comparator  cmp = NULL;
    
-    ArrayType typ = Array_gettype(arr);
+    ArrayType typ = ArrayGettype(parr);
     switch (typ) {
         case ARRAY_INT:     
             cmp = (ord == ARRAY_FILLTYPE_ASC) ? pint_cmp  : pint_revcmp;  
@@ -1102,15 +1155,15 @@ void                                Array_qsort(Array arr, ArrayFillType ord) {
         break;
         case ARRAY_V64:
             cmp = (ord == ARRAY_FILLTYPE_ASC) 
-                    ? value64_getPComparator(arr.v64type)
-                    : value64_getPRevComparator(arr.v64type);
+                    ? value64_getPComparator(parr->v64type)
+                    : value64_getPRevComparator(parr->v64type);
         break;
         default:
-            userraiseint(ERR_UNSUPPORTED_TYPE, "Unsupported type %s", ArrayGettypeName(arr));
+            userraiseint(ERR_UNSUPPORTED_TYPE, "Unsupported type %s", ArrayTypeGetName(parr));
     }
     
     if (cmp)
-        qsort(arr.v, arr.len, sz, cmp);
+        qsort(parr->v, parr->len, sz, cmp);
 }
 
 /**
@@ -1122,14 +1175,14 @@ void                                Array_qsort(Array arr, ArrayFillType ord) {
  * @param val value to search for
  * @return index of the found element (>=0), or -1 if not found
  */
-int                         ArrayBsearchIntCommon(Array arr, int val, bool acs) {
-    if (!Array_isint(arr))
+int                         ArrayBsearchIntCommon(const Array *parr, int val, bool acs) {
+    if (!Array_isint(parr))
         userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchInt requires ARRAY_INT");
-    if (arr.len == 0)
+    if (parr->len == 0)
         return -1;
     pointer_comparator cmp = acs ? pint_cmp : pint_revcmp;
-    const int *found = (const int*) bsearch(&val, arr.iv, arr.len, sizeof(int), cmp);
-    return found ? (int)(found - arr.iv) : -1;
+    const int *found = (const int*) bsearch(&val, parr->iv, parr->len, sizeof(int), cmp);
+    return found ? (int)(found - parr->iv) : -1;
 }
 
 /**
@@ -1141,14 +1194,14 @@ int                         ArrayBsearchIntCommon(Array arr, int val, bool acs) 
  * @param val value to search for
  * @return index of the found element (>=0), or -1 if not found
  */
-int                         ArrayBsearchLongCommon(Array arr, long val, bool acs) {
-    if (!Array_islong(arr))
+int                         ArrayBsearchLongCommon(const Array *parr, long val, bool acs) {
+    if (!Array_islong(parr))
         userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchLong requires ARRAY_LONG");
-    if (arr.len == 0)
+    if (parr->len == 0)
         return -1;
     pointer_comparator cmp = acs ? plong_cmp : plong_revcmp;
-    const long *found = (const long*) bsearch(&val, arr.lv, arr.len, sizeof(long), cmp);
-    return found ? (int)(found - arr.lv) : -1;
+    const long *found = (const long*) bsearch(&val, parr->lv, parr->len, sizeof(long), cmp);
+    return found ? (int)(found - parr->lv) : -1;
 }
 
 /**
@@ -1160,14 +1213,14 @@ int                         ArrayBsearchLongCommon(Array arr, long val, bool acs
  * @param val value to search for
  * @return index of the found element (>=0), or -1 if not found
  */
-int                         ArrayBsearchDblCommon(Array arr, double val, bool acs) {
-    if (!Array_isdouble(arr))
+int                         ArrayBsearchDblCommon(const Array *parr, double val, bool acs) {
+    if (!Array_isdouble(parr))
         userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchDbl requires ARRAY_DOUBLE");
-    if (arr.len == 0)
+    if (parr->len == 0)
         return -1;
     pointer_comparator cmp = acs ? pdbl_cmp : pdbl_revcmp;    
-    const double *found = (const double*)bsearch(&val, arr.dv, arr.len, sizeof(double), cmp);
-    return found ? (int)(found - arr.dv) : -1;
+    const double *found = (const double*)bsearch(&val, parr->dv, parr->len, sizeof(double), cmp);
+    return found ? (int)(found - parr.dv) : -1;
 }
 /**
  * @brief Binary search for a double in a sorted DOUBLE array.
@@ -1178,13 +1231,13 @@ int                         ArrayBsearchDblCommon(Array arr, double val, bool ac
  * @param val value to search for
  * @return index of the found element (>=0), or -1 if not found
  */
-int                         ArrayBsearchCharCommon(Array arr, char val, bool acs) {
-    if (!Array_ischar(arr))
+int                         ArrayBsearchCharCommon(const Array *parr, char val, bool acs) {
+    if (!ArrayIschar(parr))
         userraiseint(ERR_UNSUPPORTED_TYPE, "Requires ARRAY_CHAR");
-    if (arr.len == 0)
+    if (parr->len == 0)
         return -1;
     pointer_comparator  cmp = acs ? pchar_cmp : pchar_revcmp;    
-    const               char *found = (const char *) bsearch(&val, arr.cv, arr.len, sizeof(char), cmp);
+    const               char *found = (const char *) bsearch(&val, parr->cv, arr.len, sizeof(char), cmp);
     return found ? (int)(found - arr.cv) : -1;
 }
 
@@ -1199,23 +1252,24 @@ int                         ArrayBsearchCharCommon(Array arr, char val, bool acs
  * @param asc true if array is sorted ascending, false if descending
  * @return index of the found element (>=0), or -1 if not found
  */
-int                         ArrayBsearchV64Common(Array arr, value64 val, bool asc) {
-    if (!Array_isv64(arr))
+int                         ArrayBsearchV64Common(const Array *parr, value64 val, bool asc) {
+    if (!ArrayIsV64(parr))
         userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchV64 requires ARRAY_V64");
-    if (arr.len == 0) return -1;
+    if (parr->len == 0)
+        return -1;
 
     if (asc)
-        return value64_binsearch(val, arr.v64type, arr.v64, arr.len);
+        return value64_binsearch(val, parr->v64type, parr->v64, parr->len);
     else
-        return value64_rev_binsearch(val, arr.v64type, arr.v64, arr.len);
+        return value64_rev_binsearch(val, parr->v64type, parr->v64, parr->len);
 }
 
 // -----------------------------------------------------------------------------------------------------
 // if condition is 0-ptr == ALL
-int                         Array_foreach_proc(Array arr, Array_cond cond, Array_proc func){
+int                         Array_foreach_proc(Array *restrict arr, Array_cond cond, Array_proc func){
     int     cnt = 0;
     //for (int i = 0; i < Arraylen(arr); i++)
-    Array_foreach_idx(arr, i) {
+    Array_pforeach_idx(arr, i) {
         if (cond == NULL || cond(arr, i) ){
             if (func)
                 func(arr, i);
@@ -1239,53 +1293,63 @@ int                         Array_foreach_proc(Array arr, Array_cond cond, Array
  * @param limit maximum number of elements to print (0 = print all)
  * @return      number of characters printed
  */
-int                         Array_fprint(FILE *f, Array val, int limit) {
-    int cnt = 0, i;
-    int array_rec_line = 20;      // default value
+long                         Arrayfprint(FILE *restrict out, const Array *restrict val, int limit) {
+    invraisecode(val != NULL, ERR_NULLABLE_PTR, "Input array is null");
+    if (!out)
+        return logsimpleerr(0L, "Output file is null");
+    long    cnt = 0, i;
+    int     array_rec_line = 20;      // default value
 
-    limit = (limit == 0) ? val.len : (limit < val.len) ? limit : val.len;
+    limit = (limit == 0) ? val->len : (limit < val->len) ? limit : val->len;
     if (g_array_rec_line)
         array_rec_line = g_array_rec_line;
 
-    cnt += fprintf(f, "Array (%s[%d of total %d]):\n",
-                   ArrayTypeName(val.flags), limit, val.len);
+    cnt += fprintf(out, "Array (%s[%d of total %d]):\n",
+                   ArrayTypeGetName(val->flags), limit, val->len);
 
     const char *custom = g_custom_print_line;
 
     for (i = 0; i < limit; i++) {
-        switch (Array_gettype(val)) {
+        switch (ArrayGettype(val)) {
             case ARRAY_INT:
-                cnt += fprintf(f, custom ? custom : "[%d - %6d]\t", i, val.iv[i]);
+                IOCHECKER(written, fprintf(out, custom ? custom : "[%d - %6d]\t", i, val->iv[i]), -1L)
+                     cnt += written;
                 break;
             case ARRAY_LONG:
-                cnt += fprintf(f, custom ? custom : "[%ld - %6ld]\t", i, val.lv[i]);
+                IOCHECKER(written, fprintf(out, custom ? custom : "[%ld - %6ld]\t", i, val->lv[i]), -1L)
+                    cnt += written;
                 break;
             case ARRAY_DOUBLE:
-                cnt += fprintf(f, custom ? custom : "[%d - %.8lg]\t", i, val.dv[i]);
+                IOCHECKER(written, fprintf(out, custom ? custom : "[%d - %.8lg]\t", i, val->dv[i]), -1L)
+                    cnt += written;
                 break;
             case ARRAY_POINTER:
-                cnt += fprintf(f, custom ? custom : "[%p - %p]\t", i, val.pv[i]);
+                IOCHECKER(written, fprintf(out, custom ? custom : "[%p - %p]\t", i, val->pv[i]), -1L)
+                    cnt += written;
                 break;
             case ARRAY_CHAR:
-                cnt += fprintf(f, custom ? custom : "[%d - %c]\t", i, val.cv[i]);
+                IOCHECKER(written, fprintf(out, custom ? custom : "[%d - %c]\t", i, val->cv[i]), -1L)
+                    cnt += written;
                 break;
             case ARRAY_V64:
                 // custom format not supported for value64; always use dedicated printer
-                value64_techfprint(f, val.v64[i], val.v64type, "");
+                IOCHECKER(written, value64_techfprint(out, val->v64[i], val->v64type, "") -1L)
+                    cnt += written;
                 break;
             default:
-                cnt += fprintf(f, "[%d - ?]\t", i);
+                IOCHECKER(written, fprintf(out, "[%d - ?]\t", i), -1L )
+                    cnt += written;
                 break;
         }
 
         if (((i + 1) % array_rec_line) == 0)
-            cnt += fprintf(f, "\n");
+            cnt += fprintf(out, "\n");
     }
 
-    if (i < val.len)
-        cnt += fprintf(f, "and more (%d) ...\n", val.len - i);
+    if (i < val->len)
+        cnt += fprintf(out, "and more (%d) ...\n", val->len - i);
     else
-        cnt += fprintf(f, "\n");
+        cnt += fprintf(out, "\n");
 
     return cnt;
 }
@@ -1301,17 +1365,17 @@ int                         Array_fprint(FILE *f, Array val, int limit) {
  * @param delim delimiter character
  * @return number of bytes written, or -1 on error
  */
-long                        Array_savevalues(Array arr, const char *fname, char delim) {
+long                        ArraySaveFilevalues(const Array *restrict parr, const char *restrict fname, char delim) {
     logenter("%s, [%c]", fname, delim);
 
     FILE *f = fopen(fname, "w");
     if (!f)
-        return logerr(-1, "Can't open '%s' for writing", fname);
+        return userraise(-1L, ERR_UNABLE_OPEN_FILE_WRITE, "Can't open '%s' for writing", fname);
 
     long    total_written = 0;
-    int     typ = Array_gettype(arr), status = 0;
+    int     typ = ArrayGettype(parr), status = 0;
 
-    for (int i = 0; i < arr.len; i++) {
+    for (int i = 0; i < parr->len; i++) {
         if (i > 0) {
             if (fputc(delim, f) == EOF) {
                 status = -1;
@@ -1322,26 +1386,26 @@ long                        Array_savevalues(Array arr, const char *fname, char 
         int     written = 0;
         switch (typ) {
             case ARRAY_INT:
-                written = fprintf(f, "%d", arr.iv[i]);
+                written = fprintf(f, "%d", parr->iv[i]);
                 break;
             case ARRAY_LONG:
-                written = fprintf(f, "%ld", arr.lv[i]);
+                written = fprintf(f, "%ld", parr->lv[i]);
                 break;
             case ARRAY_DOUBLE:
-                written = fprintf(f, "%12.12lf", arr.dv[i]);
+                written = fprintf(f, "%12.12lf", parr->dv[i]);
                 break;
             case ARRAY_POINTER:
-                written = fprintf(f, "%p", arr.pv[i]);
+                written = fprintf(f, "%p", parr->pv[i]);
                 break;
             case ARRAY_CHAR:
-                written = fprintf(f, "%c", arr.iv[i]);
+                written = fprintf(f, "%c", parr->iv[i]);
                 break;
             case ARRAY_V64:
-                written = value64_tofile(f, arr.v64[i], arr.v64type, true);
+                written = value64_tofile(f, parr->v64[i], parr->v64type, true);
                 break;
             default:
                 fclose(f);
-                return userraise(-1, ERR_UNSUPPORTED_TYPE, "Unsupported type %s\n", ArrayGettypeName(arr));
+                return userraise(-1L, ERR_UNSUPPORTED_TYPE, "Unsupported type %s\n", ArrayTypeGetName(parr));
         }
         if (written < 0) {
             status = -1;
@@ -1351,11 +1415,11 @@ long                        Array_savevalues(Array arr, const char *fname, char 
     }
     if (status != 0) {
         fclose(f);
-        return logerr(-1, "Write error in '%s'", fname);
+        return userraise(-1L, ERR_STREAM_ERROR, "Write error in '%s'", fname);
     }
 
-    if (fclose(f) != 0) {
-        return logerr(-1, "Error closing file '%s'", fname);
+    if (fclose(f) != 0) {   // NOT SURE
+        return userraise(-1L, ERR_STREAM_ERROR, "Error closing file '%s'", fname);
     }
 
     return logret(total_written, "Done %ld", total_written);
@@ -1374,17 +1438,18 @@ long                        Array_savevalues(Array arr, const char *fname, char 
  * @return number of bytes written
  */
 
-long                        ArraySavefile(FILE *out, Array arr) {  
+long                        ArraySavefile(FILE *restrict out, const Array *restrict parr) {  
+    invraisecode(parr == NULL, ERR_NULLABLE_PTR, "Array is null");
     if (!out)
-        return logsimpleret(0L, "Output is null"); 
+        return logsimpleret(0L,  "Output is null"); 
 
     long        total_written = 0L;
-    const char  *typ = ArrayTypeName(arr.flags);
-    const char  *v64_type  = Array_isv64(arr) ? ArrayGetV64typeName(arr) : "NONV64_TYPE";
+    const char  *typ = ArrayTypeGetName(ArrayGettype(parr) );
+    const char  *v64_type  = ArrayIsV64(parr) ? ArrayGetV64typeName(parr) : "NONV64_TYPE";
 
-    IOCHECKER(written, fprintf(out, "ARRAY: %s / %s : %d\n", typ, v64_type, arr.len), -1)
+    IOCHECKER(written, fprintf(out, "ARRAY: %s / %s : %d\n", typ, v64_type, parr->len), -1)
         total_written += written;
-    IOCHECKER(written, save_values(out, &arr), -1)
+    IOCHECKER(written, ArraySaveValues(out, parr), -1)
         total_written += written;
     IOCHECKER(written, fprintf(out, "ARRAY: DONE\n"), -1)
         total_written += written;
@@ -1400,7 +1465,7 @@ long                        ArraySavefile(FILE *out, Array arr) {
  * @param fname file path
  * @return number of bytes written, or a negative value on error
  */
-long                        Array_save(Array arr, const char *fname) {
+long                        ArraySaveFile(Array arr, const char *fname) {
     logenter("%s", fname);
 
     FILE        *out = fopen(fname, "w");
@@ -1423,26 +1488,26 @@ long                        Array_save(Array arr, const char *fname) {
  * footer.
  *
  * @param in input stream, already opened for reading
- * @return loaded array, or an array with the error flag set
+ * @return loaded array, or NULL
  */
-Array                           ArrayLoadfile(FILE *in) {
+Array                           *ArrayLoadfile(FILE *in) {
     invraisecode(ERR_NULLABLE_PTR, in != NULL, "Nullable input");
 
-    Array arr = ArrayParseHeaderFile(in); 
-    if (ArrayIserror(arr) )
-        return userraise(arr, ERR_UNSUPPORTED_TYPE, "Unable to create array");
+    Array *parr = ArrayParseHeaderFile(in); 
+    if (!parr)
+        return userraise(parr, ERR_UNSUPPORTED_TYPE, "Unable to create array");
 
-    if (load_values(in, &arr) < 0) {
-        Array_free(&arr);
-        userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read value from file");
+    if (ArrayFileLoadValues(in, parr) < 0) {
+        Array_free(parr);
+        userraise(parr, ERR_WRONG_INPUT_FORMAT, "Unable to read value from file");
     }
 
     if (!ArrayParseFooterFile(in) ) {
-        Array_free(&arr);
-        userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to finish create array");
+        Array_free(parr);
+        userraise(parr, ERR_WRONG_INPUT_FORMAT, "Unable to finish create array");
     }
 
-    return arr;
+    return parr;
 }
 
 /**
@@ -1470,47 +1535,47 @@ Array                       Array_load(const char *fname) {
 
 // -------------------------- (API) serialization -----------------------
 
-long                        ArraySavefs(fs *restrict s, const Array *restrict arr) {
-    invraisecode(ERR_NULLABLE_PTR, s != NULL && arr != NULL, 
-            "Fs nullable or arr is null %p %p", s, arr);
+long                        ArraySavefs(fs *restrict s, const Array *restrict parr) {
+    invraisecode(ERR_NULLABLE_PTR, s != NULL && parr != NULL, 
+            "Fs nullable or arr is null %p %p", s, parr);
 
     long        total_written = 0L;
-    const char  *typ = ArrayTypeName(arr->flags);
-    const char  *v64_type  = Array_isv64(*arr) ? ArrayGetV64typeName(*arr) : "NONV64_TYPE";
+    const char  *typ = ArrayTypeGetName(parr->flags);
+    const char  *v64_type  = ArrayIsV64(parr) ? ArrayGetV64typeName(parr) : "NONV64_TYPE";
 
-    total_written += fs_sprintf_concat(s, "ARRAY: %s / %s : %d\n", typ, v64_type, arr->len);
-    total_written += serialize_values(s, arr);
+    total_written += fs_sprintf_concat(s, "ARRAY: %s / %s : %d\n", typ, v64_type, parr->len);
+    total_written += ArraySerializeValues(s, parr);
     total_written += fs_sprintf_concat(s, "ARRAY: DONE\n");
     return total_written;
 }
 
 
 
-long                            ArrayLoadfs(const fs *restrict s, Array *restrict arr) {
+long                            ArrayLoadfs(const fs *restrict s, Array *restrict parr) {
     invraisecode(ERR_NULLABLE_PTR, fs_isnull(s),
                  "Nullable input %p", (void*) s);
 
     const char     *data = s->v;
     int             data_len;
-    Array           a = ArrayParseHeaderStr(&data); 
+    Array           *pa = ArrayParseHeaderStr(&data); 
 
-    if (ArrayIserror(a) )
+    if (!pa)
         return userraise(-1, ERR_UNSUPPORTED_TYPE, "Unable to create array");
 
-    if ( (data_len = loadfs_values(data, &a) )  < 0) {
-        Array_free(&a);
+    if ( (data_len = ArrayFsLoadValues(data, pa) )  < 0) {
+        Array_free(pa);
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read value from str");
     } else
         data += data_len;   // shift
 
     if (!ArrayParseFooterStr(&data) ) {
-        Array_free(&a);
+        Array_free(pa);
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to finish create array");
     }
 
    
-    if (arr)    // if arr is NULL then dump read
-        *arr = a;
+    if (parr)    // if arr is NULL then dump read
+        *parr = *pa;
     return (long)(data - s->v);
 }
 
@@ -1633,7 +1698,7 @@ tf3(const char *name){
     {
         Array darr = DArray_create(100, ARRAY_FILLTYPE_ASC);
 
-        Array_fprint(logfile, darr, 0);
+        Arrayfprint(logfile, darr, 0);
 
         darr = Array_shrink(darr, 10);
         if (!Array_isvalid(darr))
@@ -1647,7 +1712,7 @@ tf3(const char *name){
     {
         Array iarr = IArray_create(100, ARRAY_FILLTYPE_ASC);
 
-        Array_fprint(logfile, iarr, 0);
+        Arrayfprint(logfile, iarr, 0);
 
         iarr = Array_shrink(iarr, 10);
         if (!Array_isvalid(iarr))
@@ -1661,7 +1726,7 @@ tf3(const char *name){
     {
         Array larr = LArray_create(100, ARRAY_FILLTYPE_ASC);
 
-        Array_fprint(logfile, larr, 0);
+        Arrayfprint(logfile, larr, 0);
 
         larr = Array_shrink(larr, 10);
         if (!Array_isvalid(larr))
@@ -1686,7 +1751,7 @@ tf4(const char *name){
         Array iarr = IArray_create(100, ARRAY_FILLTYPE_RND);
         const char *filename =  "res/array/iarr.sv";
 
-        Array_save(iarr, filename);
+        ArraySaveFile(iarr, filename);
 
         Array iarr2 = Array_load(filename);
 
@@ -1712,7 +1777,7 @@ tf4(const char *name){
         Array larr = LArray_create(100, ARRAY_FILLTYPE_RND);
         const char *filename =  "res/array/larr.sv";
 
-        Array_save(larr, filename);
+        ArraySaveFile(larr, filename);
 
         Array larr2 = Array_load(filename);
 
@@ -1749,7 +1814,7 @@ tf5(const char *name){
         const char *filename =  "res/array/darr.sv";
 
         Array_print(darr, 0);
-        Array_save(darr, filename);
+        ArraySaveFile(darr, filename);
 
         Array darr2 = Array_load(filename);
 
@@ -1975,7 +2040,7 @@ tf9(const char *name){
         const char *filename = "res/array/parr.sv";
         Array parr = PArray_create(100, ARRAY_FILLTYPE_ZERO);
 
-        Array_save(parr, filename);
+        ArraySaveFile(parr, filename);
 
         Array parr2 = Array_load(filename);
 
@@ -2223,7 +2288,7 @@ tf11(const char *name)
         Array   arr = IArray_create(cnt, ARRAY_FILLTYPE_ZERO);
         int     from = 10, to = 20;
 
-        Array_fillrange(arr, ARRAY_FILLTYPE_ASC_SERIES, from, to);
+        ArrayFillRange(arr, ARRAY_FILLTYPE_ASC_SERIES, from, to);
 
         // Проверка общей длины
         int     len = Arraylen(arr);
@@ -2259,7 +2324,7 @@ tf11(const char *name)
     {
         int     cnt = 30;
         Array   arr = LArray_create(cnt, ARRAY_FILLTYPE_NONE);
-        Array_fillrange(arr, ARRAY_FILLTYPE_DESC_SERIES, 0, cnt);
+        ArrayFillRange(arr, ARRAY_FILLTYPE_DESC_SERIES, 0, cnt);
 
         int     len = Arraylen(arr);
         test_validatefree(
@@ -2283,7 +2348,7 @@ tf11(const char *name)
     {
         int     cnt = 20;
         Array   arr = IArray_create(cnt, ARRAY_FILLTYPE_ASC_SERIES);  // [0..19]
-        Array_fillrange(arr, ARRAY_FILLTYPE_RND, 5, 5);
+        ArrayFillRange(arr, ARRAY_FILLTYPE_RND, 5, 5);
 
         int     len = Arraylen(arr);
         test_validatefree(
@@ -2306,7 +2371,7 @@ tf11(const char *name)
     {
         int     cnt = 10;
         Array   arr = IArray_create(cnt, ARRAY_FILLTYPE_ZERO);
-        Array_fillrange(arr, ARRAY_FILLTYPE_ASC_SERIES, -5, cnt + 5);
+        ArrayFillRange(arr, ARRAY_FILLTYPE_ASC_SERIES, -5, cnt + 5);
 
         int     len = Arraylen(arr);
         test_validatefree(
@@ -2322,7 +2387,7 @@ tf11(const char *name)
     {
         int     cnt = 25, from = 5, to = 15;
         Array   arr = DArray_create(cnt, ARRAY_FILLTYPE_ZERO);
-        Array_fillrange(arr, ARRAY_FILLTYPE_ASC_SERIES, from, to);
+        ArrayFillRange(arr, ARRAY_FILLTYPE_ASC_SERIES, from, to);
 
         int     len = Arraylen(arr);
         test_validatefree(
@@ -3175,7 +3240,7 @@ tf_v64array_sort(const char *name)
 
 // ------------------------- TEST V64Array (STR / FS) save/load -------------------------
 static TestStatus
-tf_v64array_save_load(const char *name)
+tf_v64ArraySaveFile_load(const char *name)
 {
     logenter("%s", name);
     int subnum = 0;
@@ -3192,7 +3257,7 @@ tf_v64array_save_load(const char *name)
         orig.v64[2] = value64_createstr("three");
 
         // сохраняем
-        long written = Array_save(orig, fname);
+        long written = ArraySaveFile(orig, fname);
         test_validatefree(
             written > 0,
             Arrayfree(orig),
@@ -3234,7 +3299,7 @@ tf_v64array_save_load(const char *name)
         orig.v64[2] = value64_createfs_asstr("/gamma");
 
         // сохраняем
-        long written = Array_save(orig, fname);
+        long written = ArraySaveFile(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "FS save failed");
 
         // загружаем
@@ -3270,7 +3335,7 @@ tf_v64array_save_load(const char *name)
         const char *fname = "res/array/v64str_empty.sv";
 
         Array orig = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_STR);
-        long written = Array_save(orig, fname);
+        long written = ArraySaveFile(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "STR empty save failed");
 
         Array loaded = Array_load(fname);
@@ -3291,7 +3356,7 @@ tf_v64array_save_load(const char *name)
 
         Array orig = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_STR);
         orig.v64[0] = value64_createstr("single");
-        long written = Array_save(orig, fname);
+        long written = ArraySaveFile(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "STR single save failed");
 
         Array loaded = Array_load(fname);
@@ -3319,7 +3384,7 @@ tf_v64array_save_load(const char *name)
         const char *fname = "res/array/v64fs_empty.sv";
 
         Array orig = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_FS);
-        long written = Array_save(orig, fname);
+        long written = ArraySaveFile(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "FS empty save failed");
 
         Array loaded = Array_load(fname);
@@ -3340,7 +3405,7 @@ tf_v64array_save_load(const char *name)
 
         Array orig = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_FS);
         orig.v64[0] = value64_createfs_asstr("/only");
-        long written = Array_save(orig, fname);
+        long written = ArraySaveFile(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "FS single save failed");
 
         Array loaded = Array_load(fname);
@@ -3794,7 +3859,7 @@ tf_array_bsearch_char(const char *name)
 
 // ------------------------- TEST Array save/load (CHAR) -------------------------
 static TestStatus
-tf_array_save_load_char(const char *name)
+tf_ArraySaveFile_load_char(const char *name)
 {
     logenter("%s", name);
     int subnum = 0;
@@ -3810,7 +3875,7 @@ tf_array_save_load_char(const char *name)
         orig.cv[3] = 'l'; orig.cv[4] = 'o';
 
         // сохраняем
-        long written = Array_save(orig, fname);
+        long written = ArraySaveFile(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "CHAR save failed");
 
         // загружаем
@@ -3841,7 +3906,7 @@ tf_array_save_load_char(const char *name)
         const char *fname = "res/array/carr_empty.sv";
 
         Array orig = CArray_create(0, ARRAY_FILLTYPE_NONE);
-        long written = Array_save(orig, fname);
+        long written = ArraySaveFile(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "CHAR empty save failed");
 
         Array loaded = Array_load(fname);
@@ -3862,7 +3927,7 @@ tf_array_save_load_char(const char *name)
 
         Array orig = CArray_create(1, ARRAY_FILLTYPE_NONE);
         orig.cv[0] = 'Z';
-        long written = Array_save(orig, fname);
+        long written = ArraySaveFile(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "CHAR single save failed");
 
         Array loaded = Array_load(fname);
@@ -4069,18 +4134,18 @@ main( /*int argc, char *argv[] */ )
         TESTADD(tf8,                            "Array_increase simple test"),
         TESTADD(tf9,                            "PArray simple test"),
         TESTADD(tf10,                           "Creation with ARRAY_(DE)ASC_SERIES simple test"),
-        TESTADD(tf11,                           "Array_fillrange simple test"),
+        TESTADD(tf11,                           "ArrayFillRange simple test"),
         TESTADD(tf12,                           "Array_foreach macro simple test"),
         TESTADD(tf13,                           "Array_foreach_prod simple test"),
         TESTADD(tf_v64array_str_fs,             "V64Array (STR / FS) simple test"),
         TESTADD(tf_v64array_shrink_increase,    "V64Array (STR / FS) shrink / increase simple test"),
         TESTADD(tf_v64array_sort,               "V64Array (STR / FS) sorting simple test"),
-        TESTADD(tf_v64array_save_load,          "V64Array STR/FS save/load simple test"),
+        TESTADD(tf_v64ArraySaveFile_load,          "V64Array STR/FS save/load simple test"),
         TESTADD(tf_array_bsearch,               "ArrayBsearch (INT / LONG / DBL / V64) simple test"),
         TESTADD(tf_carray_create_fill_free,     "CHAR create/fill/free simple test"),
         TESTADD(tf_carray_sort,                 "CHAR sorting simple test"),
         TESTADD(tf_array_bsearch_char,          "CHAR ArrayBsearch simple test"),
-        TESTADD(tf_array_save_load_char,        "CHAR Array save/load simple test"),
+        TESTADD(tf_ArraySaveFile_load_char,        "CHAR Array save/load simple test"),
         TESTADD(tf_array_eq_noteq,              "ArrayEq / ArrayNoteq (all types, edge cases)")
     );
 
