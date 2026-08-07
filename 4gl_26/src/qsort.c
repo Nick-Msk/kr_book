@@ -78,7 +78,7 @@ static void             qsort_rec(Array arr, int left, int right){
     metric_inc(m);
     int_exch(arr.iv + left, arr.iv + last);
 
-    Array_fprint(logfile, arr, 100);
+    Arrayfprint(logfile, arr, 100);
 
     qsort_rec(arr, left, last - 1);
     qsort_rec(arr, last + 1, right);
