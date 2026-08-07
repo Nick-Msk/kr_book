@@ -1,6 +1,11 @@
 #ifndef _ARRAY_H
 #define _ARRAY_H
 
+/**
+ * @file array.h
+ * @brief Utility functions and metadata for Array type management.
+ */
+
 #include <stdio.h>
 #include <limits.h>
 #include <time.h>
@@ -19,7 +24,10 @@
 
 // ----------- CONSTANTS AND GLOBALS ---------------
 
-
+/**
+ * @enum ArrayFillType
+ * @brief Defines strategies for initializing array elements.
+ */
 typedef enum ArrayFillType{
     ARRAY_FILLTYPE_NONE      = 0,
     ARRAY_FILLTYPE_DESC,
@@ -30,6 +38,19 @@ typedef enum ArrayFillType{
     ARRAY_FILLTYPE_DESC_SERIES
 } ArrayFillType;
 
+/**
+ * @struct ArrayFillTypeInfo
+ * @brief Internal metadata containing properties of an ArrayFillType.
+ */
+typedef struct {
+    ArrayFillType    type;
+    const char      *name;
+} ArrayFillTypeInfo;
+
+/**
+ * @enum ArrayType
+ * @brief Identifies the primitive data type stored within an Array.
+ */
 typedef enum ArrayType{
     ARRAY_UNKNOWN   = 0x0,
     ARRAY_DOUBLE    = 0x1,
@@ -38,68 +59,51 @@ typedef enum ArrayType{
     ARRAY_POINTER   = 0x4,
     ARRAY_CHAR      = 0x5,       // to supply c-str/fs => Array conversion
     ARRAY_V64       = 0x11,      // value64 port => change to 17
-    ARRAY_ERROR     = 0x100
+    ARRAY_ERROR     = 0x100     // TODO: delete that
 } ArrayType;
 
-static inline const char        *ArrayTypeName(ArrayType t){
-    switch (t & (ARRAY_DOUBLE | ARRAY_INT | ARRAY_LONG | ARRAY_POINTER | ARRAY_ERROR | ARRAY_CHAR | ARRAY_V64) ){
-        CASE_RETURN(ARRAY_DOUBLE);
-        CASE_RETURN(ARRAY_INT);
-        CASE_RETURN(ARRAY_LONG);
-        CASE_RETURN(ARRAY_POINTER);
-        CASE_RETURN(ARRAY_CHAR);
-        CASE_RETURN(ARRAY_ERROR);
-        CASE_RETURN(ARRAY_V64);
-        default: return "";
-    }
-}
-
-static inline const char        *ArrayFillTypeName(ArrayFillType t){
-    switch (t){
-        CASE_RETURN(ARRAY_FILLTYPE_NONE);
-        CASE_RETURN(ARRAY_FILLTYPE_DESC);
-        CASE_RETURN(ARRAY_FILLTYPE_ASC);
-        CASE_RETURN(ARRAY_FILLTYPE_RND);
-        CASE_RETURN(ARRAY_FILLTYPE_ZERO);
-        CASE_RETURN(ARRAY_FILLTYPE_ASC_SERIES);
-        CASE_RETURN(ARRAY_FILLTYPE_DESC_SERIES);
-        default: return "";
-    }
-}
-
-// TODO: ref to conv table is required
 /**
- * @brief Converts a type name string (e.g., "ARRAY_INT") to an ArrayType enum.
- * @param name type name
- * @return ArrayType value, or ARRAY_UNKNOWN if the name is not recognised
+ * @struct ArrayTypeInfo
+ * @brief Internal metadata containing all properties of an ArrayType.
  */
-static ArrayType ArrayTypeFromName(const char *name) {
-    if (!name)
-        return ARRAY_UNKNOWN;
-    if (strcmp(name, "ARRAY_INT")     == 0) 
-        return ARRAY_INT;
-    if (strcmp(name, "ARRAY_LONG")    == 0) 
-        return ARRAY_LONG;
-    if (strcmp(name, "ARRAY_DOUBLE")  == 0) 
-        return ARRAY_DOUBLE;
-    if (strcmp(name, "ARRAY_POINTER") == 0) 
-        return ARRAY_POINTER;
-    if (strcmp(name, "ARRAY_CHAR")    == 0) 
-        return ARRAY_CHAR;
-    if (strcmp(name, "ARRAY_V64")     == 0) 
-        return ARRAY_V64;
-    return ARRAY_UNKNOWN;
-}
+typedef struct {
+    ArrayType       type;
+    const char     *name;
+    const char     *name_raw;
+    size_t          elem_size;
+} ArrayTypeInfo;
+
+static const ArrayTypeInfo          ARRAY_TYPE_TABLE[] = {
+    { ARRAY_UNKNOWN, "UNKNOWN",  "ARRAY_UNKNOWN",  0 },
+    { ARRAY_DOUBLE,  "DOUBLE",   "ARRAY_DOUBLE",   sizeof(double) },
+    { ARRAY_INT,     "INT",      "ARRAY_INT",      sizeof(int) },
+    { ARRAY_LONG,    "LONG",     "ARRAY_LONG",     sizeof(long) },
+    { ARRAY_POINTER, "POINTER",  "ARRAY_POINTER",  sizeof(void*) },
+    { ARRAY_CHAR,    "CHAR",     "ARRAY_CHAR",     sizeof(char) },
+    { ARRAY_V64,     "V64",       "ARRAY_V64",     sizeof(value64) },
+    { ARRAY_ERROR,   "ERROR",    "ARRAY_ERROR",    0 }
+};
+
+static const ArrayFillTypeInfo      ARRAY_FILLTYPE_TABLE[] = {
+    { ARRAY_FILLTYPE_NONE,           "NONE" },
+    { ARRAY_FILLTYPE_DESC,           "DESC" },
+    { ARRAY_FILLTYPE_ASC,            "ASC" },
+    { ARRAY_FILLTYPE_RND,            "RND" },
+    { ARRAY_FILLTYPE_ZERO,           "ZERO" },
+    { ARRAY_FILLTYPE_ASC_SERIES,     "ASC_SERIES" },
+    { ARRAY_FILLTYPE_DESC_SERIES,    "DESC_SERIES" }
+};
 
 extern int              g_array_rec_line;
 extern const char      *g_custom_print_line;
 // ------------------- TYPES -----------------------
 
+typedef struct ArraySlice ArraySlice;
+
 typedef struct {
     int             len;
     int             sz; // total size, > len + 1
     int             flags; // ARRAY_DOUBLE || ARRAY_INT || ARRAY_POINTER || ARRAY_V64
-    value64_type    v64type;        // applicable only for ARRAY_V64
     union {
         void    *v;
         int     *iv;
@@ -107,13 +111,103 @@ typedef struct {
         double  *dv;
         void   **pv;    // pointer array
         char    *cv;    // char array, NOT a char * array!
-        value64 *v64;   // container type
+        struct {
+            value64 *v64;   // container type
+            value64_type    v64type;        // applicable only for ARRAY_V64
+        };
     };
+    // Slice API support
+    int             max_slice_end_pos;
+    ArraySlice      *first_child;
 } Array;
 // condition func
 typedef         bool (*Array_cond)(Array arr, int pos);
 // prosessing func
 typedef         void (*Array_proc)(Array arr, int pos);
+
+typedef struct ArraySlice {
+    Array       *parent;       // Ссылка на владельца
+    int          offset;        // Смещение относительно начала родителя
+    int          len;           // Длина среза
+    union {
+        void    *v;
+        int     *iv;
+        long    *lv;
+        double  *dv;
+        void   **pv;    // pointer array
+        char    *cv;    // char array, NOT a char * array!
+        struct {
+            value64 *v64;   // container type
+            value64_type    v64type;        // applicable only for ARRAY_V64
+        };
+    };            // Указатель на начало данных среза (parent->v + offset)
+    ArraySlice  *next_sibling; // Для связного списка в родителе NOT CLEAR WHAT FOR
+} ArraySlice;
+
+/* =========================================================
+ * PUBLIC API
+ * ========================================================= */
+
+/**
+ * @brief Retrieves the human-readable name of an ArrayType.
+ * 
+ * @param t The ArrayType enum value.
+ * @return const char* A pointer to the pretty name (e.g., "DOUBLE"). 
+ *         Returns "UNKNOWN" if the type is not recognized.
+ */
+static inline const char           *ArrayTypeName(ArrayType t) {
+    for (size_t i = 0; i < COUNT(ARRAY_TYPE_TABLE); i++) {
+        if (ARRAY_TYPE_TABLE[i].type == t) return ARRAY_TYPE_TABLE[i].name_raw;
+    }
+    return "UNKNOWN";
+}
+
+/**
+ * @brief Retrieves the size of a single element for a given ArrayType.
+ * 
+ * @details This function is essential for calculating pointer offsets 
+ *          during array slicing and resizing operations.
+ * 
+ * @param t The ArrayType enum value.
+ * @return size_t The size of the element in bytes. Returns 0 if type is unknown.
+ */
+static inline size_t                ArrayGetElemSize(ArrayType t) {
+    for (size_t i = 0; i < COUNT(ARRAY_TYPE_TABLE); i++) {
+        if (ARRAY_TYPE_TABLE[i].type == t) return ARRAY_TYPE_TABLE[i].elem_size;
+    }
+    return 0;
+}
+
+/**
+ * @brief Converts a raw string representation of an ArrayType into its enum value.
+ * 
+ * @param name The string to parse (e.g., "ARRAY_INT").
+ * @return ArrayType The corresponding enum value, or ARRAY_UNKNOWN if no match is found.
+ */
+static ArrayType                    ArrayTypeFromName(const char *name) {
+    if (!name)
+        return ARRAY_UNKNOWN;
+    for (size_t i = 0; i < COUNT(ARRAY_TYPE_TABLE); i++) {
+        if (strcmp(name, ARRAY_TYPE_TABLE[i].name_raw) == 0) {
+            return ARRAY_TYPE_TABLE[i].type;
+        }
+    }
+    return ARRAY_UNKNOWN;
+}
+
+/**
+ * @brief Retrieves the human-readable name of an ArrayFillType.
+ * 
+ * @param t The ArrayFillType enum value.
+ * @return const char* A pointer to the name string. Returns an empty string if not found.
+ */
+static inline const char           *ArrayFillTypeName(ArrayFillType t) {
+    for (size_t i = 0; i < COUNT(ARRAY_FILLTYPE_TABLE); i++) {
+        if (ARRAY_FILLTYPE_TABLE[i].type == t)
+            return ARRAY_FILLTYPE_TABLE[i].name;
+    }
+    return "";
+}
 
 // ------------- CONSTRUCTOTS/DESTRUCTORS --------------
 
