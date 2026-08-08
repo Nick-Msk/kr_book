@@ -168,7 +168,7 @@ static int                      increase(Array *arr, int newsz){
     } else
         free(arr->v);
     arr->v = p; // iv/dv/pv... is the same
-    if (arr->len > newsz)   // shrink case
+    if (arr->len > newsz)   // shrink case, 0 if newsz == 0 (free)
         arr->len = newsz;
     arr->sz = newsz;
     return logret(arr->sz, "New sz %d", arr->sz);
@@ -599,6 +599,7 @@ void                           Array_free(Array *val){
     if (val) {      // Array_free must not failed even if val == NULL
         increase(val, 0);
         free(val);
+        val = NULL;
     }
 }
 /// @brief        Array filler (formatter) using fill type
@@ -1581,505 +1582,662 @@ static TestStatus
 tf1(const char *name)
 {
     logenter("%s", name);
-    int         subnum = 0;
+    int subnum = 0;
+
+    test_sub("subtest %d: double", ++subnum);
     {
-        test_sub("subtest %d: double", ++subnum);
-        Array darr = DArray_create(100, ARRAY_FILLTYPE_ZERO);
-        for (int i = 0; i < darr.len; i++)
-            if (darr.dv[i] != 0.0)
-                return logret(TEST_FAILED, "%d: Element must be 0.0. but not %lf", i, darr.dv[i]);
-        if (!ArrayIsvalid(darr))
-            return logret(TEST_FAILED, "Validation is failed");
-        Arrayfree(darr);
-        if (darr.dv != 0)
-            return logret(TEST_FAILED, "Array is'nt freed");
+        Array *arr = DArray_create(100, ARRAY_FILLTYPE_ZERO);
+        for (int i = 0; i < arr->len; i++)
+            test_validatefree(
+                arr->dv[i] == 0.0,
+                Arrayfree(arr),
+                "%d: Element must be 0.0, but not %lf", i, arr->dv[i]
+            );
+        test_validatefree(
+            ArrayIsvalid(arr),
+            Arrayfree(arr),
+            "Validation is failed"
+        );
+        Arrayfree(arr);
+        test_validate(arr == NULL, "Array isn't freed (pointer must be NULL)");
     }
+
+    test_sub("subtest %d: int", ++subnum);
     {
-        test_sub("subtest %d: int", ++subnum);
-        Array iarr = IArray_create(100, ARRAY_FILLTYPE_ZERO);
-        for (int i = 0; i < iarr.len; i++)
-            if (iarr.iv[i] != 0)
-                return logret(TEST_FAILED, "%d: Element must be 0 but not %d", i, iarr.iv[i]);
-        if (!ArrayIsvalid(iarr))
-            return logret(TEST_FAILED, "Validation is failed");
-        Arrayfree(iarr);
-        if (iarr.dv != 0)
-            return logret(TEST_FAILED, "Array is'nt freed");
+        Array *arr = IArray_create(100, ARRAY_FILLTYPE_ZERO);
+        for (int i = 0; i < arr->len; i++)
+            test_validatefree(
+                arr->iv[i] == 0,
+                Arrayfree(arr),
+                "%d: Element must be 0 but not %d", i, arr->iv[i]
+            );
+        test_validatefree(
+            ArrayIsvalid(arr),
+            Arrayfree(arr),
+            "Validation is failed"
+        );
+        Arrayfree(arr);
+        test_validate(arr == NULL, "Array isn't freed (pointer must be NULL)");
     }
+
+    test_sub("subtest %d: long", ++subnum);
     {
-        test_sub("subtest %d: long", ++subnum);
-        Array larr = LArray_create(100, ARRAY_FILLTYPE_ZERO);
-        for (int i = 0; i < larr.len; i++)
-            if (larr.lv[i] != 0)
-                return logret(TEST_FAILED, "%d: Element must be 0L but not %ld", i, larr.lv[i]);
-        if (!ArrayIsvalid(larr))
-            return logret(TEST_FAILED, "Validation is failed");
-        Arrayfree(larr);
-        if (larr.dv != 0)
-            return logret(TEST_FAILED, "Array is'nt freed");
+        Array *arr = LArray_create(100, ARRAY_FILLTYPE_ZERO);
+        for (int i = 0; i < arr->len; i++)
+            test_validatefree(
+                arr->lv[i] == 0L,
+                Arrayfree(arr),
+                "%d: Element must be 0L but not %ld", i, arr->lv[i]
+            );
+        test_validatefree(
+            ArrayIsvalid(arr),
+            Arrayfree(arr),
+            "Validation is failed"
+        );
+        Arrayfree(arr);
+        test_validate(arr == NULL, "Array isn't freed (pointer must be NULL)");
     }
-    return logret(TEST_PASSED, "done"); // TEST_FAILED
+
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 2 ---------------------------------
 static TestStatus
-tf2(const char *name){
-
+tf2(const char *name)
+{
     logenter("%s", name);
-    int         subnum = 0;
+    int subnum = 0;
 
-    test_sub("subtest %d: double asc", ++subnum);
+    test_sub("subtest %d: double asc/desc", ++subnum);
     {
-        Array darr = DArray_create(100, ARRAY_FILLTYPE_ASC);
-        for (int i = 0; i < darr.len - 1; i++)
-            if (darr.dv[i] > darr.dv[i + 1])
-                return logactret(Arrayfree(darr), TEST_FAILED, "Violation for ACS gen: arr[%d] = %f > arr[%d+1] = %f", i, darr.dv[i], i, darr.dv[i + 1]);
-
-        test_sub("subtest %d: double desc", ++subnum);
-        Array_fill(darr, ARRAY_FILLTYPE_DESC);
-        for (int i = 0; i < darr.len - 1; i++)
-            if (darr.dv[i] < darr.dv[i + 1])
-                return logactret(Arrayfree(darr), TEST_FAILED, "Violation for DESC gen: arr[%d] = %f < arr[%d+1] = %f", i, darr.dv[i], i, darr.dv[i + 1]);
-        Arrayfree(darr);
+        Array *arr = DArray_create(100, ARRAY_FILLTYPE_ASC);
+        // ASC check
+        for (int i = 0; i < arr->len - 1; i++)
+            test_validatefree(
+                arr->dv[i] <= arr->dv[i + 1],
+                Arrayfree(arr),
+                "ASC violation: arr[%d]=%f > arr[%d]=%f",
+                i, arr->dv[i], i + 1, arr->dv[i + 1]
+            );
+        // refill to DESC
+        Array_fill(arr, ARRAY_FILLTYPE_DESC);
+        // DESC check
+        for (int i = 0; i < arr->len - 1; i++)
+            test_validatefree(
+                arr->dv[i] >= arr->dv[i + 1],
+                Arrayfree(arr),
+                "DESC violation: arr[%d]=%f < arr[%d]=%f",
+                i, arr->dv[i], i + 1, arr->dv[i + 1]
+            );
+        Arrayfree(arr);
     }
-    test_sub("subtest %d: int asc", ++subnum);
+
+    test_sub("subtest %d: int asc/desc", ++subnum);
     {
-        Array iarr = IArray_create(100, ARRAY_FILLTYPE_ASC);
-        for (int i = 0; i < iarr.len - 1; i++)
-            if (iarr.iv[i] > iarr.iv[i + 1])
-                return logactret(Arrayfree(iarr), TEST_FAILED, "Violation for ACS gen: arr[%d] = %d > arr[%d+1] = %d", i, iarr.iv[i], i, iarr.iv[i + 1]);
-
-        test_sub("subtest %d: int desc", ++subnum);
-        Array_fill(iarr, ARRAY_FILLTYPE_DESC);
-        for (int i = 0; i < iarr.len - 1; i++)
-            if (iarr.iv[i] < iarr.iv[i + 1])
-                return logactret(Arrayfree(iarr), TEST_FAILED, "Violation for DESC gen: arr[%d] = %d < arr[%d+1] = %d", i, iarr.iv[i], i, iarr.iv[i + 1]);
-        Arrayfree(iarr);
+        Array *arr = IArray_create(100, ARRAY_FILLTYPE_ASC);
+        for (int i = 0; i < arr->len - 1; i++)
+            test_validatefree(
+                arr->iv[i] <= arr->iv[i + 1],
+                Arrayfree(arr),
+                "ASC violation: arr[%d]=%d > arr[%d]=%d",
+                i, arr->iv[i], i + 1, arr->iv[i + 1]
+            );
+        Array_fill(arr, ARRAY_FILLTYPE_DESC);
+        for (int i = 0; i < arr->len - 1; i++)
+            test_validatefree(
+                arr->iv[i] >= arr->iv[i + 1],
+                Arrayfree(arr),
+                "DESC violation: arr[%d]=%d < arr[%d]=%d",
+                i, arr->iv[i], i + 1, arr->iv[i + 1]
+            );
+        Arrayfree(arr);
     }
-    test_sub("subtest %d: long asc", ++subnum);
+
+    test_sub("subtest %d: long asc/desc", ++subnum);
     {
-        Array larr = LArray_create(100, ARRAY_FILLTYPE_ASC);
-        for (int i = 0; i < larr.len - 1; i++)
-            if (larr.lv[i] > larr.lv[i + 1])
-                return logactret(Arrayfree(larr), TEST_FAILED, "Violation for ACS gen: arr[%d] = %ld > arr[%d+1] = %ld", i, larr.lv[i], i, larr.lv[i + 1]);
-
-        test_sub("subtest %d: long desc", ++subnum);
-        Array_fill(larr, ARRAY_FILLTYPE_DESC);
-        for (int i = 0; i < larr.len - 1; i++)
-            if (larr.lv[i] < larr.lv[i + 1])
-                return logactret(Arrayfree(larr), TEST_FAILED, "Violation for DESC gen: arr[%d] = %ld < arr[%d+1] = %ld", i, larr.lv[i], i, larr.lv[i + 1]);
-        Arrayfree(larr);
+        Array *arr = LArray_create(100, ARRAY_FILLTYPE_ASC);
+        for (int i = 0; i < arr->len - 1; i++)
+            test_validatefree(
+                arr->lv[i] <= arr->lv[i + 1],
+                Arrayfree(arr),
+                "ASC violation: arr[%d]=%ld > arr[%d]=%ld",
+                i, arr->lv[i], i + 1, arr->lv[i + 1]
+            );
+        Array_fill(arr, ARRAY_FILLTYPE_DESC);
+        for (int i = 0; i < arr->len - 1; i++)
+            test_validatefree(
+                arr->lv[i] >= arr->lv[i + 1],
+                Arrayfree(arr),
+                "DESC violation: arr[%d]=%ld < arr[%d]=%ld",
+                i, arr->lv[i], i + 1, arr->lv[i + 1]
+            );
+        Arrayfree(arr);
     }
-    return logret(TEST_PASSED, "done"); // TEST_FAILED
+
+    return logret(TEST_PASSED, "done");
 }
-
+/**
+ * @brief Test suite for Array Shrink and Validation.
+ * 
+ * @details This test ensures that shrinking an array works correctly, 
+ *          the data remains valid, and the internal properties (len, sz) 
+ *          are updated properly.
+ * 
+ * @return TestStatus TEST_PASSED if all subtests pass, otherwise TEST_FAILED.
+ */
 // ------------------------- TEST 3 ---------------------------------
 static TestStatus
-tf3(const char *name){
-
+tf3(const char *name)
+{
     logenter("%s", name);
-    int         subnum = 0;
+    int subnum = 0;
 
     test_sub("subtest %d: double", ++subnum);
     {
-        Array darr = DArray_create(100, ARRAY_FILLTYPE_ASC);
+        Array *arr = DArray_create(100, ARRAY_FILLTYPE_ASC);
+        Arrayfprint(logfile, arr, 0);
 
-        Arrayfprint(logfile, darr, 0);
-
-        darr = ArrayShrink(darr, 10);
-        if (!ArrayIsvalid(darr))
-            return logactret(Arrayfree(darr), TEST_FAILED, "Validation is failed");
-
-        if (! inv(darr.len == 10 && darr.sz == 10 && darr.iv != 0, "Broken array!") )
-            return logactret(Arrayfree(darr), TEST_FAILED, "Validatation is failed, len %d - sz %d - v %p", darr.len, darr.sz, darr.dv);
-        Arrayfree(darr);
+        arr = ArrayShrink(arr, 10);
+        test_validatefree(
+            ArrayIsvalid(arr) && arr->len == 10 && arr->sz >= 10 && arr->dv != NULL,
+            Arrayfree(arr),
+            "Shrink failed: len=%d, sz=%d, v=%p", arr->len, arr->sz, (void*)arr->dv
+        );
+        Arrayfree(arr);
     }
+
     test_sub("subtest %d: int", ++subnum);
     {
-        Array iarr = IArray_create(100, ARRAY_FILLTYPE_ASC);
+        Array *arr = IArray_create(100, ARRAY_FILLTYPE_ASC);
+        Arrayfprint(logfile, arr, 0);
 
-        Arrayfprint(logfile, iarr, 0);
-
-        iarr = ArrayShrink(iarr, 10);
-        if (!ArrayIsvalid(iarr))
-            return logactret(Arrayfree(iarr), TEST_FAILED, "Validation is failed");
-
-        if (! inv(iarr.len == 10 && iarr.sz == 10 && iarr.iv != 0, "Broken array!") )
-            return logactret(Arrayfree(iarr), TEST_FAILED, "Validatation is failed, len %d - sz %d - v %p", iarr.len, iarr.sz, iarr.iv);
-        Arrayfree(iarr);
+        arr = ArrayShrink(arr, 10);
+        test_validatefree(
+            ArrayIsvalid(arr) && arr->len == 10 && arr->sz >= 10 && arr->iv != NULL,
+            Arrayfree(arr),
+            "Shrink failed: len=%d, sz=%d, v=%p", arr->len, arr->sz, (void*)arr->iv
+        );
+        Arrayfree(arr);
     }
+
     test_sub("subtest %d: long", ++subnum);
     {
-        Array larr = LArray_create(100, ARRAY_FILLTYPE_ASC);
+        Array *arr = LArray_create(100, ARRAY_FILLTYPE_ASC);
+        Arrayfprint(logfile, arr, 0);
 
-        Arrayfprint(logfile, larr, 0);
-
-        larr = ArrayShrink(larr, 10);
-        if (!ArrayIsvalid(larr))
-            return logactret(Arrayfree(larr), TEST_FAILED, "Validation is failed");
-
-        if (! inv(larr.len == 10 && larr.sz == 10 && larr.iv != 0, "Broken array!") )
-            return logactret(Arrayfree(larr), TEST_FAILED, "Validatation is failed, len %d - sz %d - v %p", larr.len, larr.sz, larr.dv);
-        Arrayfree(larr);
+        arr = ArrayShrink(arr, 10);
+        test_validatefree(
+            ArrayIsvalid(arr) && arr->len == 10 && arr->sz >= 10 && arr->lv != NULL,
+            Arrayfree(arr),
+            "Shrink failed: len=%d, sz=%d, v=%p", arr->len, arr->sz, (void*)arr->lv
+        );
+        Arrayfree(arr);
     }
-    return logret(TEST_PASSED, "done"); // TEST_FAILED
+
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 4 ---------------------------------
 static TestStatus
-tf4(const char *name){
-
+tf4(const char *name)
+{
     logenter("%s", name);
-    int         subnum = 0;
+    int subnum = 0;
 
     test_sub("subtest %d: int save/load", ++subnum);
     {
-        Array iarr = IArray_create(100, ARRAY_FILLTYPE_RND);
-        const char *filename =  "res/array/iarr.sv";
+        Array *arr = IArray_create(100, ARRAY_FILLTYPE_RND);
+        const char *filename = "res/array/iarr.sv";
 
-        ArraySaveFileName(iarr, filename);
+        long written = ArraySaveFileName(arr, filename);
+        test_validatefree(written > 0, Arrayfree(arr), "Int save failed");
 
-        Array iarr2 = Array_load(filename);
+        Array *loaded = ArrayLoadFileName(filename);
+        test_validatefree(
+            loaded != NULL && ArrayIsvalid(loaded) &&
+            arr->len == loaded->len && arr->flags == loaded->flags,
+            (Arrayfree(arr), Arrayfree(loaded)),
+            "Length or flags mismatch: len %d vs %d, flags %d vs %d",
+            arr->len, loaded->len, arr->flags, loaded->flags
+        );
 
-        if (!ArrayIsvalid(iarr2))
-            return logactret(Arrayfree(iarr), TEST_FAILED, "Validation is failed");
+        // поэлементное сравнение
+        for (int i = 0; i < arr->len; i++)
+            test_validatefree(
+                arr->iv[i] == loaded->iv[i],
+                (Arrayfree(arr), Arrayfree(loaded)),
+                "arr[%d] = %d != arr2[%d] = %d",
+                i, arr->iv[i], i, loaded->iv[i]
+            );
 
-        test_sub("subtest %d: check", ++subnum);
-        if (!inv(iarr.len == iarr2.len && iarr.flags == iarr2.flags, "not equal") )
-            return logactret( (Array_free(&iarr), Array_free(&iarr2) ), TEST_FAILED, "Not equal len %d - %d, flags %d - %d",
-                iarr.len, iarr2.len, iarr.flags, iarr2.flags);
-
-        test_sub("subtest %d: check2", ++subnum);
-        for (int i = 0; i < iarr.len; i++)
-            if (iarr.iv[i] != iarr2.iv[i])
-                return logacterr( (Array_free(&iarr), Array_free(&iarr2) ), TEST_FAILED,
-                                "arr[%d] = %d != arr2[%d] = %d", i, iarr.iv[i], i, iarr2.iv[i]);
-
-        Array_free(&iarr);
-        Array_free(&iarr2);
+        Arrayfree(arr);
+        Arrayfree(loaded);
     }
+
     test_sub("subtest %d: long save/load", ++subnum);
     {
-        Array larr = LArray_create(100, ARRAY_FILLTYPE_RND);
-        const char *filename =  "res/array/larr.sv";
+        Array *arr = LArray_create(100, ARRAY_FILLTYPE_RND);
+        const char *filename = "res/array/larr.sv";
 
-        ArraySaveFileName(larr, filename);
+        long written = ArraySaveFileName(arr, filename);
+        test_validatefree(written > 0, Arrayfree(arr), "Long save failed");
 
-        Array larr2 = Array_load(filename);
+        Array *loaded = ArrayLoadFileName(filename);
+        test_validatefree(
+            loaded != NULL && ArrayIsvalid(loaded) &&
+            arr->len == loaded->len && arr->flags == loaded->flags,
+            (Arrayfree(arr), Arrayfree(loaded)),
+            "Length or flags mismatch: len %d vs %d, flags %d vs %d",
+            arr->len, loaded->len, arr->flags, loaded->flags
+        );
 
-        if (!ArrayIsvalid(larr2))
-            return logactret(Arrayfree(larr), TEST_FAILED, "Validation is failed");
+        for (int i = 0; i < arr->len; i++)
+            test_validatefree(
+                arr->lv[i] == loaded->lv[i],
+                (Arrayfree(arr), Arrayfree(loaded)),
+                "arr[%d] = %ld != arr2[%d] = %ld",
+                i, arr->lv[i], i, loaded->lv[i]
+            );
 
-        test_sub("subtest %d: check", ++subnum);
-        if (!inv(larr.len == larr2.len && larr.flags == larr2.flags, "not equal") )
-            return logactret( (Array_free(&larr), Array_free(&larr2) ), TEST_FAILED, "Not equal len %d - %d, flags %d - %d",
-                larr.len, larr2.len, larr.flags, larr2.flags);
-
-        test_sub("subtest %d: check2", ++subnum);
-        for (int i = 0; i < larr.len; i++)
-            if (larr.lv[i] != larr2.lv[i])
-                return logacterr( (Array_free(&larr), Array_free(&larr2) ), TEST_FAILED,
-                                "arr[%d] = %ld != arr2[%d] = %ld", i, larr.lv[i], i, larr2.lv[i]);
-
-        Array_free(&larr);
-        Array_free(&larr2);
+        Arrayfree(arr);
+        Arrayfree(loaded);
     }
-    return logret(TEST_PASSED, "done"); // TEST_FAILED
+
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 5 ---------------------------------
 static TestStatus
-tf5(const char *name){
-
+tf5(const char *name)
+{
     logenter("%s", name);
-    int         subnum = 0;
+    int subnum = 0;
 
     test_sub("subtest %d", ++subnum);
     {
-        Array darr = DArray_create(100, ARRAY_FILLTYPE_RND);
-        const char *filename =  "res/array/darr.sv";
+        Array *arr = DArray_create(100, ARRAY_FILLTYPE_RND);
+        const char *filename = "res/array/darr.sv";
 
-        Array_print(darr, 0);
-        ArraySaveFileName(darr, filename);
+        Arrayfprint(logfile, arr, 0);
+        long written = ArraySaveFileName(arr, filename);
+        test_validatefree(written > 0, Arrayfree(arr), "Double save failed");
 
-        Array darr2 = Array_load(filename);
+        Array *loaded = ArrayLoadFileName(filename);
+        test_validatefree(
+            loaded != NULL && ArrayIsvalid(loaded) &&
+            arr->len == loaded->len && arr->flags == loaded->flags,
+            (Arrayfree(arr), Arrayfree(loaded)),
+            "Length or flags mismatch: len %d vs %d, flags %d vs %d",
+            arr->len, loaded->len, arr->flags, loaded->flags
+        );
 
-        if (!ArrayIsvalid(darr2))
-            return logactret(Arrayfree(darr), TEST_FAILED, "Validation is failed");
+        for (int i = 0; i < arr->len; i++)
+            test_validatefree(
+                fabs(arr->dv[i] - loaded->dv[i]) <= FLT_EPSILON / 100,
+                (Arrayfree(arr), Arrayfree(loaded)),
+                "arr[%d] = %15.15lf != arr2[%d] = %15.15lf",
+                i, arr->dv[i], i, loaded->dv[i]
+            );
 
-        test_sub("subtest %d", ++subnum);
-        if (!inv(darr.len == darr2.len && darr.flags == darr2.flags, "not equal") )
-            return logactret( (Array_free(&darr), Array_free(&darr2) ), TEST_FAILED, "Not equal len %d - %d, flags %d - %d",
-                darr.len, darr2.len, darr.flags, darr2.flags);
-
-        test_sub("subtest %d", ++subnum);
-        for (int i = 0; i < darr.len; i++)
-            if (fabs(darr.dv[i] - darr2.dv[i]) > FLT_EPSILON / 100)
-                return logacterr( (Array_free(&darr), Array_free(&darr2) ), TEST_FAILED,
-                                "arr[%d] = %15.15lf != arr2[%d] = %15.15lf", i, darr.dv[i], i, darr2.dv[i]);
-
-        Array_free(&darr);
-        Array_free(&darr2);
+        Arrayfree(arr);
+        Arrayfree(loaded);
     }
-    return logret(TEST_PASSED, "done"); // TEST_FAILED
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 6 ---------------------------------
 static TestStatus
-tf6(const char *name){
+tf6(const char *name)
+{
     logenter("%s", name);
+    int subnum = 0;
+    g_custom_print_line = NULL;   // сбрасываем формат печати
 
-    int         subnum = 0;
-
+    /* ---------- double ---------- */
     test_sub("subtest %d: double", ++subnum);
     {
-        Array darr = DArray_create(50, ARRAY_FILLTYPE_ASC);
+        Array *arr = DArray_create(50, ARRAY_FILLTYPE_ASC);
+        ArrayShuffle(arr);
 
-        ArrayShuffle(darr);
-        g_custom_print_line = 0;
-        Array_print(darr, 0);
-        Arrayfree(darr);
+        // проверяем, что порядок нарушен (не все элементы строго возрастают)
+        bool ordered = true;
+        for (int i = 0; i < arr->len - 1; i++) {
+            if (arr->dv[i] > arr->dv[i + 1]) {
+                ordered = false;
+                break;
+            }
+        }
+        test_validatefree(
+            !ordered,
+            Arrayfree(arr),
+            "Double shuffle: array must not be perfectly ordered after shuffle"
+        );
+        Arrayfree(arr);
     }
+
+    /* ---------- int ---------- */
     test_sub("subtest %d: int", ++subnum);
     {
-        Array iarr = IArray_create(50, ARRAY_FILLTYPE_ASC);
-        ArrayShuffle(iarr);
-        Array_print(iarr, 0);
-        Arrayfree(iarr);
+        Array *arr = IArray_create(50, ARRAY_FILLTYPE_ASC);
+        ArrayShuffle(arr);
+
+        bool ordered = true;
+        for (int i = 0; i < arr->len - 1; i++) {
+            if (arr->iv[i] > arr->iv[i + 1]) {
+                ordered = false;
+                break;
+            }
+        }
+        test_validatefree(
+            !ordered,
+            Arrayfree(arr),
+            "Int shuffle: array must not be perfectly ordered"
+        );
+        Arrayfree(arr);
     }
+
+    /* ---------- long ---------- */
     test_sub("subtest %d: long", ++subnum);
     {
-        Array larr = LArray_create(50, ARRAY_FILLTYPE_ASC);
-        ArrayShuffle(larr);
-        Array_print(larr, 0);
-        Arrayfree(larr);
+        Array *arr = LArray_create(50, ARRAY_FILLTYPE_ASC);
+        ArrayShuffle(arr);
+
+        bool ordered = true;
+        for (int i = 0; i < arr->len - 1; i++) {
+            if (arr->lv[i] > arr->lv[i + 1]) {
+                ordered = false;
+                break;
+            }
+        }
+        test_validatefree(
+            !ordered,
+            Arrayfree(arr),
+            "Long shuffle: array must not be perfectly ordered"
+        );
+        Arrayfree(arr);
     }
-    return logret(TEST_MANUAL, "done"); // TEST_FAILED
+
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 7 ---------------------------------
 static TestStatus
-tf7(const char *name){
-
+tf7(const char *name)
+{
     logenter("%s", name);
-    int         subnum = 0;
+    int subnum = 0;
 
-    test_sub("subtest %d: double acs", ++subnum);
+    /* ---------- double ---------- */
+    test_sub("subtest %d: double asc/desc", ++subnum);
     {
-        Array darr = DArray_create(10000, ARRAY_FILLTYPE_RND);
+        Array *arr = DArray_create(10000, ARRAY_FILLTYPE_RND);
+        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        for (int i = 1; i < arr->len; i++)
+            test_validatefree(
+                arr->dv[i - 1] <= arr->dv[i],
+                Arrayfree(arr),
+                "ASC violation: arr[%d]=%f > arr[%d]=%f",
+                i - 1, arr->dv[i - 1], i, arr->dv[i]
+            );
 
-        Array_qsort(darr, ARRAY_FILLTYPE_ASC);
-        //Array_print(darr, 50);
-        // check asc
-        for (int i = 1; i < darr.len; i++)
-            if (darr.dv[i - 1] > darr.dv[i])
-                return logactret(Arrayfree(darr), TEST_FAILED, "array[%d] = %f > array[%d] = %f, should be <=", i - 1, darr.dv[i - 1], i, darr.dv[i]);
-
-        test_sub("subtest %d: double desc", ++subnum);
-        Array_qsort(darr, ARRAY_FILLTYPE_DESC);
-        for (int i = 1; i < darr.len; i++)
-            if (darr.dv[i - 1] < darr.dv[i])
-                return logactret(Arrayfree(darr), TEST_FAILED, "array[%d] = %f < array[%d] = %f, should be >=", i - 1, darr.dv[i - 1], i, darr.dv[i]);
-        Arrayfree(darr);
-    }
-    test_sub("subtest %d: int acs", ++subnum);
-    {
-
-        Array iarr = IArray_create(100000, ARRAY_FILLTYPE_RND);
-        Array_qsort(iarr, ARRAY_FILLTYPE_ASC);
-        // check asc
-        for (int i = 1; i < iarr.len; i++)
-            if (iarr.iv[i - 1] > iarr.iv[i])
-                return logactret(Arrayfree(iarr), TEST_FAILED, "array[%d] = %d > array[%d] = %d, should be <=", i - 1, iarr.iv[i - 1], i, iarr.iv[i]);
-
-        test_sub("subtest %d: int desc", ++subnum);
-        Array_qsort(iarr, ARRAY_FILLTYPE_DESC);
-        // check desc
-        for (int i = 1; i < iarr.len; i++)
-            if (iarr.iv[i - 1] < iarr.iv[i])
-                return logactret(Arrayfree(iarr), TEST_FAILED, "array[%d] = %d < array[%d] = %d, should be >=", i - 1, iarr.iv[i - 1], i, iarr.iv[i]);
-        //Array_print(iarr, 50);
-        Arrayfree(iarr);
-    }
-    test_sub("subtest %d: long asc", ++subnum);
-    {
-
-        Array larr = LArray_create(100000, ARRAY_FILLTYPE_RND);
-        Array_qsort(larr, ARRAY_FILLTYPE_ASC);
-        Array_print(larr, 50);
-        // check asc
-        for (int i = 1; i < larr.len; i++)
-            if (larr.lv[i - 1] > larr.lv[i])
-                return logactret(Arrayfree(larr), TEST_FAILED, "array[%d] = %ld > array[%d] = %ld, should be <=", i - 1, larr.lv[i - 1], i, larr.lv[i]);
-
-        test_sub("subtest %d: long desc", ++subnum);
-        Array_qsort(larr, ARRAY_FILLTYPE_DESC);
-        // check desc
-        for (int i = 1; i < larr.len; i++)
-            if (larr.lv[i - 1] < larr.lv[i])
-                return logactret(Arrayfree(larr), TEST_FAILED, "array[%d] = %ld < array[%d] = %ld, should be >=", i - 1, larr.lv[i - 1], i, larr.lv[i]);
-        //Array_print(iarr, 50);
-        Arrayfree(larr);
+        Array_qsort(arr, ARRAY_FILLTYPE_DESC);
+        for (int i = 1; i < arr->len; i++)
+            test_validatefree(
+                arr->dv[i - 1] >= arr->dv[i],
+                Arrayfree(arr),
+                "DESC violation: arr[%d]=%f < arr[%d]=%f",
+                i - 1, arr->dv[i - 1], i, arr->dv[i]
+            );
+        Arrayfree(arr);
     }
 
-    return logret(TEST_PASSED, "done"); // TEST_FAILED
+    /* ---------- int ---------- */
+    test_sub("subtest %d: int asc/desc", ++subnum);
+    {
+        Array *arr = IArray_create(100000, ARRAY_FILLTYPE_RND);
+        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        for (int i = 1; i < arr->len; i++)
+            test_validatefree(
+                arr->iv[i - 1] <= arr->iv[i],
+                Arrayfree(arr),
+                "ASC violation: arr[%d]=%d > arr[%d]=%d",
+                i - 1, arr->iv[i - 1], i, arr->iv[i]
+            );
+
+        Array_qsort(arr, ARRAY_FILLTYPE_DESC);
+        for (int i = 1; i < arr->len; i++)
+            test_validatefree(
+                arr->iv[i - 1] >= arr->iv[i],
+                Arrayfree(arr),
+                "DESC violation: arr[%d]=%d < arr[%d]=%d",
+                i - 1, arr->iv[i - 1], i, arr->iv[i]
+            );
+        Arrayfree(arr);
+    }
+
+    /* ---------- long ---------- */
+    test_sub("subtest %d: long asc/desc", ++subnum);
+    {
+        Array *arr = LArray_create(100000, ARRAY_FILLTYPE_RND);
+        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        for (int i = 1; i < arr->len; i++)
+            test_validatefree(
+                arr->lv[i - 1] <= arr->lv[i],
+                Arrayfree(arr),
+                "ASC violation: arr[%d]=%ld > arr[%d]=%ld",
+                i - 1, arr->lv[i - 1], i, arr->lv[i]
+            );
+
+        Array_qsort(arr, ARRAY_FILLTYPE_DESC);
+        for (int i = 1; i < arr->len; i++)
+            test_validatefree(
+                arr->lv[i - 1] >= arr->lv[i],
+                Arrayfree(arr),
+                "DESC violation: arr[%d]=%ld < arr[%d]=%ld",
+                i - 1, arr->lv[i - 1], i, arr->lv[i]
+            );
+        Arrayfree(arr);
+    }
+
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 8 ---------------------------------
 static TestStatus
-tf8(const char *name){
+tf8(const char *name)
+{
     logenter("%s", name);
+    int subnum = 0;
 
-    int         subnum = 0;
+    test_sub("subtest %d: increase int array", ++subnum);
     {
-        test_sub("subtest %d increase int array", ++subnum);
-
         int initsz = 25;
-        Array arr = IArray_create(initsz, ARRAY_FILLTYPE_RND);
+        Array *arr = IArray_create(initsz, ARRAY_FILLTYPE_RND);
 
         arr = ArrayIncrease(arr, initsz * 3);
 
         test_validatefree(
-            Arraylen(arr) == initsz * 3, 
-            Arrayfree(arr), 
-            "Array length %d must be %d", Arraylen(arr), 
-            initsz * 3
+            arr->len == initsz * 3,
+            Arrayfree(arr),
+            "Array length %d must be %d", arr->len, initsz * 3
         );
-        for (int i = initsz; i < Arraylen(arr); i++){
+        for (int i = initsz; i < arr->len; i++)
             test_validatefree(
-                arr.iv[i] == 0,
+                arr->iv[i] == 0,
                 Arrayfree(arr),
-                "arr[%d] must be zero,  but not %d", i, arr.iv[i]
+                "arr[%d] must be zero, but not %d", i, arr->iv[i]
             );
-        }
-
         Arrayfree(arr);
     }
-    test_sub("subtest %d increas double array", ++subnum);
-    {
 
+    test_sub("subtest %d: increase double array", ++subnum);
+    {
         int initsz = 25;
-        Array arr = DArray_create(initsz, ARRAY_FILLTYPE_RND);
+        Array *arr = DArray_create(initsz, ARRAY_FILLTYPE_RND);
 
         arr = ArrayIncrease(arr, initsz * 3);
 
-        test_validatefree(Arraylen(arr) == initsz * 3, Arrayfree(arr), "Array length %d must be %d", Arraylen(arr), initsz * 3);
-        for (int i = initsz; i < Arraylen(arr); i++){
-            test_validatefree(arr.dv[i] == 0.0, Arrayfree(arr), "arr[%d] must be zero,  but not %lf", i, arr.dv[i]);
-        }
-
+        test_validatefree(
+            arr->len == initsz * 3,
+            Arrayfree(arr),
+            "Array length %d must be %d", arr->len, initsz * 3
+        );
+        for (int i = initsz; i < arr->len; i++)
+            test_validatefree(
+                arr->dv[i] == 0.0,
+                Arrayfree(arr),
+                "arr[%d] must be zero, but not %lf", i, arr->dv[i]
+            );
         Arrayfree(arr);
     }
-    test_sub("subtest %d increas long array", ++subnum);
-    {
 
+    test_sub("subtest %d: increase long array", ++subnum);
+    {
         int initsz = 25;
-        Array arr = LArray_create(initsz, ARRAY_FILLTYPE_RND);
+        Array *arr = LArray_create(initsz, ARRAY_FILLTYPE_RND);
 
         arr = ArrayIncrease(arr, initsz * 5);
 
-        test_validatefree(Arraylen(arr) == initsz * 5, Arrayfree(arr), "Array length %d must be %d", Arraylen(arr), initsz * 5);
-        for (int i = initsz; i < Arraylen(arr); i++){
-            test_validatefree(arr.lv[i] == 0L, Arrayfree(arr), "arr[%d] must be zero,  but not %ld", i, arr.lv[i]);
-        }
-
+        test_validatefree(
+            arr->len == initsz * 5,
+            Arrayfree(arr),
+            "Array length %d must be %d", arr->len, initsz * 5
+        );
+        for (int i = initsz; i < arr->len; i++)
+            test_validatefree(
+                arr->lv[i] == 0L,
+                Arrayfree(arr),
+                "arr[%d] must be zero, but not %ld", i, arr->lv[i]
+            );
         Arrayfree(arr);
     }
 
-    return logret(TEST_PASSED, "done"); // TEST_FAILED
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 9 ---------------------------------
 static TestStatus
-tf9(const char *name){
+tf9(const char *name)
+{
     logenter("%s", name);
+    int subnum = 0;
 
-    int         subnum = 0;
-    test_sub("subtest %d creating pointer array", ++subnum);
+    test_sub("subtest %d: creating pointer array", ++subnum);
     {
-        int     cnt = 100;
-        Array   parr = PArray_create(cnt, ARRAY_FILLTYPE_ZERO);
-
-        for (int i = 0; i < parr.len; i++)
-            test_validatefree(parr.pv[i] == 0x0, Arrayfree(parr),
-                "Element %d must be 0x0 but not %p", i, parr.pv[i]);
-        test_validatefree(ArrayIsvalid(parr), Arrayfree(parr),
-                "Validation is failed");
-
+        Array *parr = PArray_create(100, ARRAY_FILLTYPE_ZERO);
+        for (int i = 0; i < parr->len; i++)
+            test_validatefree(
+                parr->pv[i] == NULL,
+                Arrayfree(parr),
+                "Element %d must be NULL, but not %p", i, (void*)parr->pv[i]
+            );
+        test_validatefree(
+            ArrayIsvalid(parr),
+            Arrayfree(parr),
+            "Validation is failed"
+        );
         Arrayfree(parr);
     }
-    test_sub("subtest %d shrinking", ++subnum);
+
+    test_sub("subtest %d: shrinking", ++subnum);
     {
-
-        Array   parr = PArray_create(100, ARRAY_FILLTYPE_ZERO);
-
-        int     cnt = 10;
+        Array *parr = PArray_create(100, ARRAY_FILLTYPE_ZERO);
+        int cnt = 10;
         parr = ArrayShrink(parr, cnt);
-        test_validatefree(ArrayIsvalid(parr), Arrayfree(parr), "Validation is failed");
-
-        test_validatefree(parr.len == cnt && parr.sz == cnt && parr.iv != 0, Arrayfree(parr),
-                 "Validatation is failed, len %d - sz %d - v %p", parr.len, parr.sz, parr.pv);
+        test_validatefree(
+            ArrayIsvalid(parr),
+            Arrayfree(parr),
+            "Validation is failed"
+        );
+        test_validatefree(
+            parr->len == cnt && parr->sz >= cnt && parr->pv != NULL,
+            Arrayfree(parr),
+            "Shrink failed: len=%d, sz=%d, v=%p", parr->len, parr->sz, (void*)parr->pv
+        );
         Arrayfree(parr);
     }
-    test_sub("subtest %d, pointer array save/load", ++subnum);
+
+    test_sub("subtest %d: pointer array save/load", ++subnum);
     {
         const char *filename = "res/array/parr.sv";
-        Array parr = PArray_create(100, ARRAY_FILLTYPE_ZERO);
-
+        Array *parr = PArray_create(100, ARRAY_FILLTYPE_ZERO);
         ArraySaveFileName(parr, filename);
 
-        Array parr2 = Array_load(filename);
+        Array *loaded = ArrayLoadFileName(filename);
+        test_validatefree(
+            ArrayIsvalid(loaded),
+            (Arrayfree(parr), Arrayfree(loaded)),
+            "Loaded array validation failed"
+        );
+        test_validatefree(
+            parr->len == loaded->len && parr->flags == loaded->flags,
+            (Arrayfree(parr), Arrayfree(loaded)),
+            "Length or flags mismatch: len %d vs %d, flags %d vs %d",
+            parr->len, loaded->len, parr->flags, loaded->flags
+        );
 
-        test_validatefree(ArrayIsvalid(parr2), (Arrayfree(parr), Arrayfree(parr2) ), "Validation is failed");
-
-        test_validatefree(parr.len == parr2.len && parr.flags == parr2.flags,  (Arrayfree(parr), Arrayfree(parr2) ),
-                "Not equal len %d - %d, flags %d - %d", parr.len, parr2.len, parr.flags, parr2.flags);
-
-        for (int i = 0; i < parr.len; i++)
-            test_validatefree(parr.pv[i] == parr2.pv[i], (Arrayfree(parr), Arrayfree(parr2) ),
-                 "arr[%d] = %p != arr2[%d] = %p", i, parr.pv[i], i, parr2.pv[i]);
+        for (int i = 0; i < parr->len; i++)
+            test_validatefree(
+                parr->pv[i] == loaded->pv[i],
+                (Arrayfree(parr), Arrayfree(loaded)),
+                "arr[%d] = %p != arr2[%d] = %p",
+                i, (void*)parr->pv[i], i, (void*)loaded->pv[i]
+            );
 
         Arrayfree(parr);
-        Arrayfree(parr2);
+        Arrayfree(loaded);
     }
-    test_sub("subtest %d, pointer array sorting", ++subnum);
+
+    test_sub("subtest %d: pointer array sorting", ++subnum);
     {
         int cnt = 10000;
-        Array parr = PArray_create(cnt, ARRAY_FILLTYPE_ZERO);
+        Array *parr = PArray_create(cnt, ARRAY_FILLTYPE_ZERO);
 
-        // fiil array manually
-        for (int i = 0; i < parr.len; i++)
-            parr.pv[i] = parr.pv + cnt - 1 - i;
+        // fill array with descending addresses
+        for (int i = 0; i < parr->len; i++)
+            parr->pv[i] = parr->pv + cnt - 1 - i;
 
         Array_qsort(parr, ARRAY_FILLTYPE_ASC);
-        //Array_print(darr, 50);
-        // check asc
-        for (int i = 1; i < parr.len; i++)
-            test_validatefree(parr.pv[i - 1] <= parr.pv[i], Arrayfree(parr),
-                            "array[%d] = %p > array[%d] = %p, should be <=", i - 1, parr.pv[i - 1], i, parr.pv[i]);
-        // resort descending
+        for (int i = 1; i < parr->len; i++)
+            test_validatefree(
+                (uintptr_t)parr->pv[i - 1] <= (uintptr_t)parr->pv[i],
+                Arrayfree(parr),
+                "ASC violation: arr[%d]=%p > arr[%d]=%p",
+                i - 1, (void*)parr->pv[i - 1], i, (void*)parr->pv[i]
+            );
+
         Array_qsort(parr, ARRAY_FILLTYPE_DESC);
-        for (int i = 1; i < parr.len; i++)
-            test_validatefree(parr.pv[i - 1] >= parr.pv[i], Arrayfree(parr),
-                            "array[%d] = %p < array[%d] = %p, should be >=", i - 1, parr.pv[i - 1], i, parr.pv[i]);
+        for (int i = 1; i < parr->len; i++)
+            test_validatefree(
+                (uintptr_t)parr->pv[i - 1] >= (uintptr_t)parr->pv[i],
+                Arrayfree(parr),
+                "DESC violation: arr[%d]=%p < arr[%d]=%p",
+                i - 1, (void*)parr->pv[i - 1], i, (void*)parr->pv[i]
+            );
         Arrayfree(parr);
     }
-    test_sub("subtest %d increase pointer array", ++subnum);
+
+    test_sub("subtest %d: increase pointer array", ++subnum);
     {
         int initsz = 25;
-        Array arr = PArray_create(initsz, ARRAY_FILLTYPE_ZERO);
-
+        Array *arr = PArray_create(initsz, ARRAY_FILLTYPE_ZERO);
         arr = ArrayIncrease(arr, initsz * 3);
 
-        test_validatefree(Arraylen(arr) == initsz * 3, Arrayfree(arr), "Array length %d must be %d", Arraylen(arr), initsz * 3);
-
-        for (int i = initsz; i < Arraylen(arr); i++){
-            test_validatefree(arr.pv[i] == 0x0, Arrayfree(arr), "arr[%d] must be null, but not %p", i, arr.pv[i]);
-        }
-
+        test_validatefree(
+            arr->len == initsz * 3,
+            Arrayfree(arr),
+            "Array length %d must be %d", arr->len, initsz * 3
+        );
+        for (int i = initsz; i < arr->len; i++)
+            test_validatefree(
+                arr->pv[i] == NULL,
+                Arrayfree(arr),
+                "arr[%d] must be NULL, but not %p", i, (void*)arr->pv[i]
+            );
         Arrayfree(arr);
     }
-    return logret(TEST_PASSED, "done"); // TEST_FAILED
+
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 10 ---------------------------------
@@ -2093,7 +2251,7 @@ tf10(const char *name)
     test_sub("subtest %d: int asc series", ++subnum);
     {
         int     cnt = 100;
-        Array   arr = IArray_create(cnt, ARRAY_FILLTYPE_ASC_SERIES);
+        Array   *arr = IArray_create(cnt, ARRAY_FILLTYPE_ASC_SERIES);
 
         int     len = Arraylen(arr);
         test_validatefree(
@@ -2104,9 +2262,9 @@ tf10(const char *name)
 
         for (int i = 0; i < cnt; i++) {
             test_validatefree(
-                arr.iv[i] == i,
+                arr->iv[i] == i,
                 Arrayfree(arr),
-                "Int asc series: arr[%d] = %d, expected %d", i, arr.iv[i], i
+                "Int asc series: arr[%d] = %d, expected %d", i, arr->iv[i], i
             );
         }
     }
@@ -2115,7 +2273,7 @@ tf10(const char *name)
     test_sub("subtest %d: int desc series", ++subnum);
     {
         int     cnt = 50;
-        Array   arr = IArray_create(cnt, ARRAY_FILLTYPE_DESC_SERIES);
+        Array   *arr = IArray_create(cnt, ARRAY_FILLTYPE_DESC_SERIES);
 
         int     len = Arraylen(arr);
         test_validatefree(
@@ -2127,9 +2285,9 @@ tf10(const char *name)
         for (int i = 0; i < cnt; i++) {
             int expected = cnt - 1 - i;
             test_validatefree(
-                arr.iv[i] == expected,
+                arr->iv[i] == expected,
                 Arrayfree(arr),
-                "Int desc series: arr[%d] = %d, expected %d", i, arr.iv[i], expected
+                "Int desc series: arr[%d] = %d, expected %d", i, arr->iv[i], expected
             );
         }
     }
@@ -2138,7 +2296,7 @@ tf10(const char *name)
     test_sub("subtest %d: long asc series", ++subnum);
     {
         int     cnt = 70;
-        Array   arr = LArray_create(cnt, ARRAY_FILLTYPE_ASC_SERIES);
+        Array   *arr = LArray_create(cnt, ARRAY_FILLTYPE_ASC_SERIES);
 
         int     len = Arraylen(arr);
         test_validatefree(
@@ -2149,9 +2307,9 @@ tf10(const char *name)
 
         for (int i = 0; i < cnt; i++) {
             test_validatefree(
-                arr.lv[i] == (long)i,
+                arr->lv[i] == (long)i,
                 Arrayfree(arr),
-                "Long asc series: arr[%d] = %ld, expected %ld", i, arr.lv[i], (long)i
+                "Long asc series: arr[%d] = %ld, expected %ld", i, arr->lv[i], (long)i
             );
         }
     }
@@ -2160,7 +2318,7 @@ tf10(const char *name)
     test_sub("subtest %d: long desc series", ++subnum);
     {
         int     cnt = 40;
-        Array   arr = LArray_create(cnt, ARRAY_FILLTYPE_DESC_SERIES);
+        Array   *arr = LArray_create(cnt, ARRAY_FILLTYPE_DESC_SERIES);
 
         int     len = Arraylen(arr);
         test_validatefree(
@@ -2172,9 +2330,9 @@ tf10(const char *name)
         for (int i = 0; i < cnt; i++) {
             long expected = (long)(cnt - 1 - i);
             test_validatefree(
-                arr.lv[i] == expected,
+                arr->lv[i] == expected,
                 Arrayfree(arr),
-                "Long desc series: arr[%d] = %ld, expected %ld", i, arr.lv[i], expected
+                "Long desc series: arr[%d] = %ld, expected %ld", i, arr->lv[i], expected
             );
         }
     }
@@ -2183,7 +2341,7 @@ tf10(const char *name)
     test_sub("subtest %d: double asc series", ++subnum);
     {
         int     cnt = 30;
-        Array   arr = DArray_create(cnt, ARRAY_FILLTYPE_ASC_SERIES);
+        Array   *arr = DArray_create(cnt, ARRAY_FILLTYPE_ASC_SERIES);
 
         int     len = Arraylen(arr);
         test_validatefree(
@@ -2194,9 +2352,9 @@ tf10(const char *name)
 
         for (int i = 0; i < cnt; i++) {
             test_validatefree(
-                arr.dv[i] == (double)i,
+                arr->dv[i] == (double)i,
                 Arrayfree(arr),
-                "Double asc series: arr[%d] = %f, expected %f", i, arr.dv[i], (double)i
+                "Double asc series: arr[%d] = %f, expected %f", i, arr->dv[i], (double)i
             );
         }
     }
@@ -2205,7 +2363,7 @@ tf10(const char *name)
     test_sub("subtest %d: double desc series", ++subnum);
     {
         int     cnt = 25;
-        Array   arr = DArray_create(cnt, ARRAY_FILLTYPE_DESC_SERIES);
+        Array   *arr = DArray_create(cnt, ARRAY_FILLTYPE_DESC_SERIES);
 
         int     len = Arraylen(arr);
         test_validatefree(
@@ -2217,9 +2375,9 @@ tf10(const char *name)
         for (int i = 0; i < cnt; i++) {
             double expected = (double)(cnt - 1 - i);
             test_validatefree(
-                arr.dv[i] == expected,
+                arr->dv[i] == expected,
                 Arrayfree(arr),
-                "Double desc series: arr[%d] = %f, expected %f", i, arr.dv[i], expected
+                "Double desc series: arr[%d] = %f, expected %f", i, arr->dv[i], expected
             );
         }
     }
@@ -2227,7 +2385,7 @@ tf10(const char *name)
     /* 7. Empty array */
     test_sub("subtest %d: empty series", ++subnum);
     {
-        Array   arr = IArray_create(0, ARRAY_FILLTYPE_ASC_SERIES);
+        Array   *arr = IArray_create(0, ARRAY_FILLTYPE_ASC_SERIES);
         int     len = Arraylen(arr);
         test_validatefree(
             len == 0,
@@ -2236,27 +2394,27 @@ tf10(const char *name)
         );
     }
 
-    /* 8. Неподдерживаемый тип (указатели) – должен вернуть ошибку, но не упасть */
+    /* 8. Unsupported type (pointers) – must raise error */
     test_sub("subtest %d: pointer series (unsupported)", ++subnum);
     {
         if (!try()) {
-            Array arr = PArray_create(10, ARRAY_FILLTYPE_ASC_SERIES);
-            // Если мы здесь, значит, программа не упала, хотя должна была вызвать invraise
+            Array *arr = PArray_create(10, ARRAY_FILLTYPE_ASC_SERIES);
+            // We should not reach here
             test_validate(
                 false,
                 "Pointer series should have raised an error but didn't"
             );
-            // just to avoid warning unused variable 'arr' [-Wunused-variable], that NEVER be used
+            // to avoid unused variable warning, but it will never be used
             Array_print(arr, 0);
         } else {
-            // Сигнал перехвачен – это ожидаемое поведение
-            // Ничего не освобождаем, так как массив, скорее всего, не создался
+            // Signal caught – expected behavior
             test_validate(
                 true,
                 "Pointer series correctly raised error"
             );
         }
     }
+
     return logret(TEST_PASSED, "done");
 }
 
@@ -2267,16 +2425,15 @@ tf11(const char *name)
     logenter("%s", name);
     int subnum = 0;
 
-    /* 1. Заполнение середины int массива возрастающей серией */
+    /* 1. Fill middle of int array with ascending series */
     test_sub("subtest %d: fill middle with asc series", ++subnum);
     {
         int     cnt = 50;
-        Array   arr = IArray_create(cnt, ARRAY_FILLTYPE_ZERO);
+        Array   *arr = IArray_create(cnt, ARRAY_FILLTYPE_ZERO);
         int     from = 10, to = 20;
 
         ArrayFillRange(arr, ARRAY_FILLTYPE_ASC_SERIES, from, to);
 
-        // Проверка общей длины
         int     len = Arraylen(arr);
         test_validatefree(
             len == cnt,
@@ -2284,32 +2441,32 @@ tf11(const char *name)
             "Array length = %d, expected %d", len, cnt
         );
 
-        // Элементы до from и после to должны остаться нулями
+        // Elements before 'from' and after 'to' must remain zero
         for (int i = 0; i < cnt; i++) {
             if (i >= from && i < to)
                 continue;
             test_validatefree(
-                arr.iv[i] == 0,
+                arr->iv[i] == 0,
                 Arrayfree(arr),
-                "Element [%d] = %d, expected 0 (outside range)", i, arr.iv[i]
+                "Element [%d] = %d, expected 0 (outside range)", i, arr->iv[i]
             );
         }
 
-        // Внутри диапазона значения равны индексу
+        // Inside the range, values must equal the index
         for (int i = from; i < to; i++) {
             test_validatefree(
-                arr.iv[i] == i,
+                arr->iv[i] == i,
                 Arrayfree(arr),
-                "Element [%d] = %d, expected %d (inside range)", i, arr.iv[i], i
+                "Element [%d] = %d, expected %d (inside range)", i, arr->iv[i], i
             );
         }
     }
 
-    /* 2. Заполнение всего long массива убывающей серией */
+    /* 2. Full fill of long array with descending series */
     test_sub("subtest %d: full fill with desc series (long)", ++subnum);
     {
         int     cnt = 30;
-        Array   arr = LArray_create(cnt, ARRAY_FILLTYPE_NONE);
+        Array   *arr = LArray_create(cnt, ARRAY_FILLTYPE_NONE);
         ArrayFillRange(arr, ARRAY_FILLTYPE_DESC_SERIES, 0, cnt);
 
         int     len = Arraylen(arr);
@@ -2322,18 +2479,18 @@ tf11(const char *name)
         for (int i = 0; i < cnt; i++) {
             long expected = (long)(cnt - 1 - i);
             test_validatefree(
-                arr.lv[i] == expected,
+                arr->lv[i] == expected,
                 Arrayfree(arr),
-                "Element [%d] = %ld, expected %ld", i, arr.lv[i], expected
+                "Element [%d] = %ld, expected %ld", i, arr->lv[i], expected
             );
         }
     }
 
-    /* 3. Пустой диапазон (from == to) – массив не меняется */
+    /* 3. Empty range (from == to) – array remains unchanged */
     test_sub("subtest %d: from == to leaves array unchanged", ++subnum);
     {
         int     cnt = 20;
-        Array   arr = IArray_create(cnt, ARRAY_FILLTYPE_ASC_SERIES);  // [0..19]
+        Array   *arr = IArray_create(cnt, ARRAY_FILLTYPE_ASC_SERIES);  // [0..19]
         ArrayFillRange(arr, ARRAY_FILLTYPE_RND, 5, 5);
 
         int     len = Arraylen(arr);
@@ -2345,18 +2502,18 @@ tf11(const char *name)
 
         for (int i = 0; i < cnt; i++) {
             test_validatefree(
-                arr.iv[i] == i,
+                arr->iv[i] == i,
                 Arrayfree(arr),
-                "Element [%d] = %d, expected %d (unchanged after empty fill)", i, arr.iv[i], i
+                "Element [%d] = %d, expected %d (unchanged after empty fill)", i, arr->iv[i], i
             );
         }
     }
 
-    /* 4. Выход за границы – программа не должна упасть */
+    /* 4. Out-of-bounds – program must not crash */
     test_sub("subtest %d: out-of-bounds does not crash", ++subnum);
     {
         int     cnt = 10;
-        Array   arr = IArray_create(cnt, ARRAY_FILLTYPE_ZERO);
+        Array   *arr = IArray_create(cnt, ARRAY_FILLTYPE_ZERO);
         ArrayFillRange(arr, ARRAY_FILLTYPE_ASC_SERIES, -5, cnt + 5);
 
         int     len = Arraylen(arr);
@@ -2365,14 +2522,14 @@ tf11(const char *name)
             Arrayfree(arr),
             "After out-of-bounds fill, length = %d, expected %d", len, cnt
         );
-        // Дополнительно можно не проверять содержимое, так как поведение не определено
+        // Content is not checked, as behavior is undefined
     }
 
-    /* 5. Double массив, заполнение возрастающей серией в поддиапазоне */
+    /* 5. Double array, ascending series fill in a sub-range */
     test_sub("subtest %d: double asc series fill range", ++subnum);
     {
         int     cnt = 25, from = 5, to = 15;
-        Array   arr = DArray_create(cnt, ARRAY_FILLTYPE_ZERO);
+        Array   *arr = DArray_create(cnt, ARRAY_FILLTYPE_ZERO);
         ArrayFillRange(arr, ARRAY_FILLTYPE_ASC_SERIES, from, to);
 
         int     len = Arraylen(arr);
@@ -2382,22 +2539,22 @@ tf11(const char *name)
             "Array length = %d, expected %d", len, cnt
         );
 
-        // Элементы вне диапазона остались нулями
+        // Elements outside the range must remain zero
         for (int i = 0; i < cnt; i++) {
             if (i >= from && i < to) continue;
             test_validatefree(
-                arr.dv[i] == 0.0,
+                arr->dv[i] == 0.0,
                 Arrayfree(arr),
-                "Element [%d] = %f, expected 0.0 (outside range)", i, arr.dv[i]
+                "Element [%d] = %f, expected 0.0 (outside range)", i, arr->dv[i]
             );
         }
 
-        // Внутри диапазона значения равны индексу
+        // Inside the range, values must equal the index
         for (int i = from; i < to; i++) {
             test_validatefree(
-                arr.dv[i] == (double)i,
+                arr->dv[i] == (double)i,
                 Arrayfree(arr),
-                "Element [%d] = %f, expected %f", i, arr.dv[i], (double)i
+                "Element [%d] = %f, expected %f", i, arr->dv[i], (double)i
             );
         }
     }
@@ -2417,7 +2574,7 @@ tf12(const char *name)
     test_sub("subtest %d: int array (even half, odd zero)", ++subnum);
     {
         int     cnt = 10;
-        Array   arr = IArray_create(cnt, ARRAY_FILLTYPE_ASC_SERIES);   // 0..9
+        Array   *arr = IArray_create(cnt, ARRAY_FILLTYPE_ASC_SERIES);   // 0..9
 
         IArray_foreach(arr, elem) {
             if (*elem % 2 == 0)
@@ -2430,8 +2587,8 @@ tf12(const char *name)
 
         int expected[] = {0, 0, 1, 0, 2, 0, 3, 0, 4, 0};
         for (int i = 0; i < cnt; i++)
-            test_validatefree(arr.iv[i] == expected[i], Arrayfree(arr),
-                "int[%d]=%d expected %d", i, arr.iv[i], expected[i]);
+            test_validatefree(arr->iv[i] == expected[i], Arrayfree(arr),
+                "int[%d]=%d expected %d", i, arr->iv[i], expected[i]);
 
         Arrayfree(arr);
     }
@@ -2440,7 +2597,7 @@ tf12(const char *name)
     test_sub("subtest %d: long array", ++subnum);
     {
         int     cnt = 8;
-        Array   arr = LArray_create(cnt, ARRAY_FILLTYPE_ASC_SERIES);
+        Array   *arr = LArray_create(cnt, ARRAY_FILLTYPE_ASC_SERIES);
 
         LArray_foreach(arr, elem) {
             if (*elem % 2 == 0)
@@ -2453,8 +2610,8 @@ tf12(const char *name)
 
         long expected[] = {0L, 0L, 1L, 0L, 2L, 0L, 3L, 0L};
         for (int i = 0; i < cnt; i++)
-            test_validatefree(arr.lv[i] == expected[i], Arrayfree(arr),
-                "long[%d]=%ld expected %ld", i, arr.lv[i], expected[i]);
+            test_validatefree(arr->lv[i] == expected[i], Arrayfree(arr),
+                "long[%d]=%ld expected %ld", i, arr->lv[i], expected[i]);
 
         Arrayfree(arr);
     }
@@ -2463,7 +2620,7 @@ tf12(const char *name)
     test_sub("subtest %d: double array", ++subnum);
     {
         int     cnt = 6;
-        Array   arr = DArray_create(cnt, ARRAY_FILLTYPE_ASC_SERIES);
+        Array   *arr = DArray_create(cnt, ARRAY_FILLTYPE_ASC_SERIES);
 
         DArray_foreach(arr, elem) {
             if (fmod(*elem, 2.0) == 0.0)
@@ -2476,8 +2633,8 @@ tf12(const char *name)
 
         double expected[] = {0.0, 0.0, 1.0, 0.0, 2.0, 0.0};
         for (int i = 0; i < cnt; i++)
-            test_validatefree(arr.dv[i] == expected[i], Arrayfree(arr),
-                "double[%d]=%f expected %f", i, arr.dv[i], expected[i]);
+            test_validatefree(arr->dv[i] == expected[i], Arrayfree(arr),
+                "double[%d]=%f expected %f", i, arr->dv[i], expected[i]);
 
         Arrayfree(arr);
     }
@@ -2486,17 +2643,17 @@ tf12(const char *name)
     test_sub("subtest %d: pointer array (no‑op)", ++subnum);
     {
         int     cnt = 3;
-        Array   arr = PArray_create(cnt, ARRAY_FILLTYPE_NONE);
-        arr.pv[0] = (void*)1; arr.pv[1] = (void*)2; arr.pv[2] = (void*)3;
+        Array   *arr = PArray_create(cnt, ARRAY_FILLTYPE_NONE);
+        arr->pv[0] = (void*)1; arr->pv[1] = (void*)2; arr->pv[2] = (void*)3;
 
         PArray_foreach(arr, elem) {
-            // ничего не делаем
+            // nothing
         }
 
         test_validatefree(Arraylen(arr) == cnt, Arrayfree(arr), "Length changed");
-        test_validatefree(arr.pv[0] == (void*)1, Arrayfree(arr), "ptr[0] mismatch");
-        test_validatefree(arr.pv[1] == (void*)2, Arrayfree(arr), "ptr[1] mismatch");
-        test_validatefree(arr.pv[2] == (void*)3, Arrayfree(arr), "ptr[2] mismatch");
+        test_validatefree(arr->pv[0] == (void*)1, Arrayfree(arr), "ptr[0] mismatch");
+        test_validatefree(arr->pv[1] == (void*)2, Arrayfree(arr), "ptr[1] mismatch");
+        test_validatefree(arr->pv[2] == (void*)3, Arrayfree(arr), "ptr[2] mismatch");
 
         Arrayfree(arr);
     }
@@ -2505,22 +2662,21 @@ tf12(const char *name)
 }
 
 // ------------------------- TEST 13 ---------------------------------
-
-static bool keep_if_index_not_multiple_of_3(Array arr, int pos) {
+static bool keep_if_index_not_multiple_of_3(Array *arr, int pos) {
     (void)arr;
     return (pos % 3) != 0;
 }
 
-static void square_int(Array arr, int pos) {
-    int val = arr.iv[pos];
-    arr.iv[pos] = val * val;
+static void square_int(Array *arr, int pos) {
+    int val = arr->iv[pos];
+    arr->iv[pos] = val * val;
 }
-static void square_long(Array arr, int pos) {
-    long val = arr.lv[pos];
-    arr.lv[pos] = val * val;
+static void square_long(Array *arr, int pos) {
+    long val = arr->lv[pos];
+    arr->lv[pos] = val * val;
 }
-static void mul_one_point_five_double(Array arr, int pos) {
-    arr.dv[pos] *= 1.5;
+static void mul_one_point_five_double(Array *arr, int pos) {
+    arr->dv[pos] *= 1.5;
 }
 
 static TestStatus
@@ -2529,11 +2685,11 @@ tf13(const char *name)
     logenter("%s", name);
     int subnum = 0;
 
-    /* 1. int array: возводим в квадрат, если индекс не кратен 3 */
+    /* 1. int array */
     test_sub("subtest %d: int array (square non‑multiples of 3)", ++subnum);
     {
         int     cnt = 10;
-        Array   arr = IArray_create(cnt, ARRAY_FILLTYPE_ASC_SERIES);   // 0,1,2,3,4,5,6,7,8,9
+        Array   *arr = IArray_create(cnt, ARRAY_FILLTYPE_ASC_SERIES);
 
         Array_foreach_proc(arr, keep_if_index_not_multiple_of_3, square_int);
 
@@ -2546,9 +2702,9 @@ tf13(const char *name)
         int expected[] = {0, 1, 4, 3, 16, 25, 6, 49, 64, 9};
         for (int i = 0; i < cnt; i++) {
             test_validatefree(
-                arr.iv[i] == expected[i],
+                arr->iv[i] == expected[i],
                 Arrayfree(arr),
-                "int proc: arr[%d] = %d, expected %d", i, arr.iv[i], expected[i]
+                "int proc: arr[%d] = %d, expected %d", i, arr->iv[i], expected[i]
             );
         }
 
@@ -2559,7 +2715,7 @@ tf13(const char *name)
     test_sub("subtest %d: long array", ++subnum);
     {
         int     cnt = 8;
-        Array   arr = LArray_create(cnt, ARRAY_FILLTYPE_ASC_SERIES);   // 0L..7L
+        Array   *arr = LArray_create(cnt, ARRAY_FILLTYPE_ASC_SERIES);
 
         Array_foreach_proc(arr, keep_if_index_not_multiple_of_3, square_long);
 
@@ -2572,20 +2728,20 @@ tf13(const char *name)
         long expected[] = {0L, 1L, 4L, 3L, 16L, 25L, 6L, 49L};
         for (int i = 0; i < cnt; i++) {
             test_validatefree(
-                arr.lv[i] == expected[i],
+                arr->lv[i] == expected[i],
                 Arrayfree(arr),
-                "long proc: arr[%d] = %ld, expected %ld", i, arr.lv[i], expected[i]
+                "long proc: arr[%d] = %ld, expected %ld", i, arr->lv[i], expected[i]
             );
         }
 
         Arrayfree(arr);
     }
 
-    /* 3. double array: умножаем на 1.5, если индекс не кратен 3 */
+    /* 3. double array */
     test_sub("subtest %d: double array", ++subnum);
     {
         int     cnt = 6;
-        Array   arr = DArray_create(cnt, ARRAY_FILLTYPE_ASC_SERIES);   // 0.0..5.0
+        Array   *arr = DArray_create(cnt, ARRAY_FILLTYPE_ASC_SERIES);
 
         Array_foreach_proc(arr, keep_if_index_not_multiple_of_3, mul_one_point_five_double);
 
@@ -2598,9 +2754,9 @@ tf13(const char *name)
         double expected[] = {0.0, 1.5, 3.0, 3.0, 6.0, 7.5};
         for (int i = 0; i < cnt; i++) {
             test_validatefree(
-                arr.dv[i] == expected[i],
+                arr->dv[i] == expected[i],
                 Arrayfree(arr),
-                "double proc: arr[%d] = %f, expected %f", i, arr.dv[i], expected[i]
+                "double proc: arr[%d] = %f, expected %f", i, arr->dv[i], expected[i]
             );
         }
 
@@ -2620,57 +2776,55 @@ tf_v64array_str_fs(const char *name)
     /* ---------- VALUE64_STR ---------- */
     test_sub("subtest %d: create empty STR array", ++subnum);
     {
-        Array arr = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array *arr = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_STR);
         test_validatefree(
-            arr.len == 0 && arr.sz == 0 && arr.v64 == NULL,
+            arr->len == 0 && arr->sz == 0 && arr->v64 == NULL,
             Arrayfree(arr),
             "Empty STR array: len=%d, sz=%d, v64=%p (expected 0,0,NULL)",
-            arr.len, arr.sz, (void*)arr.v64
+            arr->len, arr->sz, (void*)arr->v64
         );
         Arrayfree(arr);
     }
 
     test_sub("subtest %d: create ZERO‑filled STR array", ++subnum);
     {
-        Array arr = V64Array_create(5, ARRAY_FILLTYPE_ZERO, VALUE64_STR);
+        Array *arr = V64Array_create(5, ARRAY_FILLTYPE_ZERO, VALUE64_STR);
         test_validatefree(
-            arr.len == 5 && arr.sz >= 5,
+            arr->len == 5 && arr->sz >= 5,
             Arrayfree(arr),
-            "ZERO STR array: len=%d, sz=%d (expected 5, >=5)", arr.len, arr.sz
+            "ZERO STR array: len=%d, sz=%d (expected 5, >=5)", arr->len, arr->sz
         );
-        // проверяем, что каждый элемент – пустая строка
         for (int i = 0; i < 5; i++) {
             test_validatefree(
-                value64_str(arr.v64[i]) != NULL &&
-                strcmp(value64_str(arr.v64[i]), "") == 0,
+                value64_str(arr->v64[i]) != NULL &&
+                strcmp(value64_str(arr->v64[i]), "") == 0,
                 Arrayfree(arr),
                 "STR[%d] must be empty string, got '%s'",
-                i, value64_str(arr.v64[i])
+                i, value64_str(arr->v64[i])
             );
         }
         Arrayfree(arr);
     }
-    fs_alloc_check(true);   // STR не связан с FS, но для порядка
+    fs_alloc_check(true);   // STR not related to FS, but kept for consistency
 
-    test_sub("subtest %d: create NONE fs array", ++subnum);
-    {   
-        Array arrtmp = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+    test_sub("subtest %d: create NONE FS array", ++subnum);
+    {
+        Array *arrtmp = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_FS);
         Arrayfree(arrtmp);
     }
     fs_alloc_check(true);
 
     test_sub("subtest %d: create ASC‑filled STR array", ++subnum);
     {
-        Array arr = V64Array_create(4, ARRAY_FILLTYPE_ASC, VALUE64_STR);
+        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_ASC, VALUE64_STR);
         test_validatefree(
-            arr.len == 4,
+            arr->len == 4,
             Arrayfree(arr),
-            "ASC STR array: len=%d (expected 4)", arr.len
+            "ASC STR array: len=%d (expected 4)", arr->len
         );
-        // строки должны быть непустыми и увеличиваться по длине
         for (int i = 1; i < 4; i++) {
             test_validatefree(
-                strlen(value64_str(arr.v64[i])) >= strlen(value64_str(arr.v64[i-1])),
+                strlen(value64_str(arr->v64[i])) >= strlen(value64_str(arr->v64[i-1])),
                 Arrayfree(arr),
                 "ASC STR: length must be non‑decreasing"
             );
@@ -2681,16 +2835,15 @@ tf_v64array_str_fs(const char *name)
 
     test_sub("subtest %d: create DESC‑filled STR array", ++subnum);
     {
-        Array arr = V64Array_create(4, ARRAY_FILLTYPE_DESC, VALUE64_STR);
+        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_DESC, VALUE64_STR);
         test_validatefree(
-            arr.len == 4,
+            arr->len == 4,
             Arrayfree(arr),
-            "DESC STR array: len=%d (expected 4)", arr.len
+            "DESC STR array: len=%d (expected 4)", arr->len
         );
-        // строки должны уменьшаться по длине (или быть пустыми к концу)
         for (int i = 1; i < 4; i++) {
             test_validatefree(
-                strlen(value64_str(arr.v64[i])) <= strlen(value64_str(arr.v64[i-1])),
+                strlen(value64_str(arr->v64[i])) <= strlen(value64_str(arr->v64[i-1])),
                 Arrayfree(arr),
                 "DESC STR: length must be non‑increasing"
             );
@@ -2702,12 +2855,12 @@ tf_v64array_str_fs(const char *name)
     /* ---------- VALUE64_FS ---------- */
     test_sub("subtest %d: create empty FS array", ++subnum);
     {
-        Array arr = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *arr = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_FS);
         test_validatefree(
-            arr.len == 0 && arr.sz == 0 && arr.v64 == NULL,
+            arr->len == 0 && arr->sz == 0 && arr->v64 == NULL,
             Arrayfree(arr),
             "Empty FS array: len=%d, sz=%d, v64=%p (expected 0,0,NULL)",
-            arr.len, arr.sz, (void*)arr.v64
+            arr->len, arr->sz, (void*)arr->v64
         );
         Arrayfree(arr);
     }
@@ -2715,15 +2868,14 @@ tf_v64array_str_fs(const char *name)
 
     test_sub("subtest %d: create ZERO‑filled FS array", ++subnum);
     {
-        Array arr = V64Array_create(5, ARRAY_FILLTYPE_ZERO, VALUE64_FS);
+        Array *arr = V64Array_create(5, ARRAY_FILLTYPE_ZERO, VALUE64_FS);
         test_validatefree(
-            arr.len == 5 && arr.sz >= 5,
+            arr->len == 5 && arr->sz >= 5,
             Arrayfree(arr),
-            "ZERO FS array: len=%d, sz=%d (expected 5, >=5)", arr.len, arr.sz
+            "ZERO FS array: len=%d, sz=%d (expected 5, >=5)", arr->len, arr->sz
         );
-        // каждый элемент – FS с пустой строкой
         for (int i = 0; i < 5; i++) {
-            fs *f = value64_fs(arr.v64[i]);
+            fs *f = value64_fs(arr->v64[i]);
             test_validatefree(
                 f != NULL && fs_len(f) == 0 && fs_str(f)[0] == '\0',
                 Arrayfree(arr),
@@ -2736,16 +2888,15 @@ tf_v64array_str_fs(const char *name)
 
     test_sub("subtest %d: create ASC‑filled FS array", ++subnum);
     {
-        Array arr = V64Array_create(3, ARRAY_FILLTYPE_ASC, VALUE64_FS);
+        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_ASC, VALUE64_FS);
         test_validatefree(
-            arr.len == 3,
+            arr->len == 3,
             Arrayfree(arr),
-            "ASC FS array: len=%d (expected 3)", arr.len
+            "ASC FS array: len=%d (expected 3)", arr->len
         );
-        // длины FS должны возрастать
         for (int i = 1; i < 3; i++) {
             test_validatefree(
-                fs_len(value64_fs(arr.v64[i])) >= fs_len(value64_fs(arr.v64[i-1])),
+                fs_len(value64_fs(arr->v64[i])) >= fs_len(value64_fs(arr->v64[i-1])),
                 Arrayfree(arr),
                 "ASC FS: length must be non‑decreasing"
             );
@@ -2756,16 +2907,15 @@ tf_v64array_str_fs(const char *name)
 
     test_sub("subtest %d: create DESC‑filled FS array", ++subnum);
     {
-        Array arr = V64Array_create(3, ARRAY_FILLTYPE_DESC, VALUE64_FS);
+        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_DESC, VALUE64_FS);
         test_validatefree(
-            arr.len == 3,
+            arr->len == 3,
             Arrayfree(arr),
-            "DESC FS array: len=%d (expected 3)", arr.len
+            "DESC FS array: len=%d (expected 3)", arr->len
         );
-        // длины FS должны убывать
         for (int i = 1; i < 3; i++) {
             test_validatefree(
-                fs_len(value64_fs(arr.v64[i])) <= fs_len(value64_fs(arr.v64[i-1])),
+                fs_len(value64_fs(arr->v64[i])) <= fs_len(value64_fs(arr->v64[i-1])),
                 Arrayfree(arr),
                 "DESC FS: length must be non‑increasing"
             );
@@ -2774,18 +2924,17 @@ tf_v64array_str_fs(const char *name)
     }
     fs_alloc_check(true);
 
-    /* ---------- RND заполнение ---------- */
+    /* ---------- RND fill ---------- */
     test_sub("subtest %d: create RND‑filled STR array", ++subnum);
     {
-        Array arr = V64Array_create(5, ARRAY_FILLTYPE_RND, VALUE64_STR);
+        Array *arr = V64Array_create(5, ARRAY_FILLTYPE_RND, VALUE64_STR);
         test_validatefree(
-            arr.len == 5,
+            arr->len == 5,
             Arrayfree(arr),
-            "RND STR array: len=%d (expected 5)", arr.len
+            "RND STR array: len=%d (expected 5)", arr->len
         );
-        // проверяем, что строки непустые
         for (int i = 0; i < 5; i++) {
-            const char *s = value64_str(arr.v64[i]);
+            const char *s = value64_str(arr->v64[i]);
             logmsg("VALUE64_STR: ARRAY_FILLTYPE_RND: %s", s);
             test_validatefree(
                 s != NULL && strlen(s) > 0,
@@ -2793,21 +2942,21 @@ tf_v64array_str_fs(const char *name)
                 "RND STR[%d] must be non‑empty, got '%s'", i, s ? s : "NULL"
             );
         }
-    Arrayfree(arr);
+        Arrayfree(arr);
     }
     fs_alloc_check(true);
 
     test_sub("subtest %d: create RND‑filled FS array", ++subnum);
     {
-        Array arr = V64Array_create(5, ARRAY_FILLTYPE_RND, VALUE64_FS);
+        Array *arr = V64Array_create(5, ARRAY_FILLTYPE_RND, VALUE64_FS);
         test_validatefree(
-            arr.len == 5,
+            arr->len == 5,
             Arrayfree(arr),
-            "RND FS array: len=%d (expected 5)", arr.len
+            "RND FS array: len=%d (expected 5)", arr->len
         );
         for (int i = 0; i < 5; i++) {
-            fs *f = value64_fs(arr.v64[i]);
-            logmsg("VALUE64_FS: ARRAY_FILLTYPE_RND: %s", fs_str(f) );
+            fs *f = value64_fs(arr->v64[i]);
+            logmsg("VALUE64_FS: ARRAY_FILLTYPE_RND: %s", fs_str(f));
             test_validatefree(
                 f != NULL && fs_len(f) > 0,
                 Arrayfree(arr),
@@ -2818,14 +2967,14 @@ tf_v64array_str_fs(const char *name)
     }
     fs_alloc_check(true);
 
-    /* ---------- ASC / DESC с проверкой длин ---------- */
+    /* ---------- ASC / DESC with length check ---------- */
     test_sub("subtest %d: create ASC‑filled STR (lengths non‑decreasing)", ++subnum);
     {
-        Array arr = V64Array_create(4, ARRAY_FILLTYPE_ASC, VALUE64_STR);
-        test_validatefree(arr.len == 4, Arrayfree(arr), "len check");
+        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_ASC, VALUE64_STR);
+        test_validatefree(arr->len == 4, Arrayfree(arr), "len check");
         for (int i = 1; i < 4; i++) {
             test_validatefree(
-                strlen(value64_str(arr.v64[i])) >= strlen(value64_str(arr.v64[i-1])),
+                strlen(value64_str(arr->v64[i])) >= strlen(value64_str(arr->v64[i-1])),
                 Arrayfree(arr),
                 "ASC STR: length must be non‑decreasing"
             );
@@ -2836,11 +2985,11 @@ tf_v64array_str_fs(const char *name)
 
     test_sub("subtest %d: create DESC‑filled FS (lengths non‑increasing)", ++subnum);
     {
-        Array arr = V64Array_create(4, ARRAY_FILLTYPE_DESC, VALUE64_FS);
-        test_validatefree(arr.len == 4, Arrayfree(arr), "len check");
+        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_DESC, VALUE64_FS);
+        test_validatefree(arr->len == 4, Arrayfree(arr), "len check");
         for (int i = 1; i < 4; i++) {
             test_validatefree(
-                fs_len(value64_fs(arr.v64[i])) <= fs_len(value64_fs(arr.v64[i-1])),
+                fs_len(value64_fs(arr->v64[i])) <= fs_len(value64_fs(arr->v64[i-1])),
                 Arrayfree(arr),
                 "DESC FS: length must be non‑increasing"
             );
@@ -2849,13 +2998,13 @@ tf_v64array_str_fs(const char *name)
     }
     fs_alloc_check(true);
 
-    /* ---------- ZERO (пустые строки) ---------- */
+    /* ---------- ZERO (empty strings) ---------- */
     test_sub("subtest %d: ZERO STR array must have empty strings", ++subnum);
     {
-        Array arr = V64Array_create(3, ARRAY_FILLTYPE_ZERO, VALUE64_STR);
+        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_ZERO, VALUE64_STR);
         for (int i = 0; i < 3; i++) {
             test_validatefree(
-                strcmp(value64_str(arr.v64[i]), "") == 0,
+                strcmp(value64_str(arr->v64[i]), "") == 0,
                 Arrayfree(arr),
                 "ZERO STR[%d] must be empty", i
             );
@@ -2877,23 +3026,23 @@ tf_v64array_shrink_increase(const char *name)
     /* ========== STR array: increase then shrink ========== */
     test_sub("subtest %d: STR increase + shrink", ++subnum);
     {
-        Array arr = V64Array_create(3, ARRAY_FILLTYPE_ZERO, VALUE64_STR);
+        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_ZERO, VALUE64_STR);
         // заполним явно, чтобы потом проверять
-        arr.v64[0] = value64_createstr("first");
-        arr.v64[1] = value64_createstr("second");
-        arr.v64[2] = value64_createstr("third");
+        arr->v64[0] = value64_createstr("first");
+        arr->v64[1] = value64_createstr("second");
+        arr->v64[2] = value64_createstr("third");
 
         // увеличиваем до 6
         arr = ArrayIncrease(arr, 6);
         test_validatefree(
-            arr.len == 6 && arr.sz >= 6,
+            arr->len == 6 && arr->sz >= 6,
             Arrayfree(arr),
-            "After increase len=%d (expected 6)", arr.len
+            "After increase len=%d (expected 6)", arr->len
         );
         // новые элементы должны быть пустыми строками
         for (int i = 3; i < 6; i++) {
             test_validatefree(
-                value64_str(arr.v64[i]) != NULL && strcmp(value64_str(arr.v64[i]), "") == 0,
+                value64_str(arr->v64[i]) != NULL && strcmp(value64_str(arr->v64[i]), "") == 0,
                 Arrayfree(arr),
                 "STR[%d] must be empty after increase", i
             );
@@ -2902,15 +3051,15 @@ tf_v64array_shrink_increase(const char *name)
         // уменьшаем обратно до 3
         arr = ArrayShrink(arr, 3);
         test_validatefree(
-            arr.len == 3 && arr.sz >= 3,
+            arr->len == 3 && arr->sz >= 3,
             Arrayfree(arr),
-            "After shrink len=%d (expected 3)", arr.len
+            "After shrink len=%d (expected 3)", arr->len
         );
         // старые элементы должны сохраниться
         test_validatefree(
-            strcmp(value64_str(arr.v64[0]), "first") == 0 &&
-            strcmp(value64_str(arr.v64[1]), "second") == 0 &&
-            strcmp(value64_str(arr.v64[2]), "third") == 0,
+            strcmp(value64_str(arr->v64[0]), "first") == 0 &&
+            strcmp(value64_str(arr->v64[1]), "second") == 0 &&
+            strcmp(value64_str(arr->v64[2]), "third") == 0,
             Arrayfree(arr),
             "STR elements must survive shrink"
         );
@@ -2922,22 +3071,21 @@ tf_v64array_shrink_increase(const char *name)
     /* ========== FS array: increase then shrink ========== */
     test_sub("subtest %d: FS increase + shrink", ++subnum);
     {
-        //
-        Array arr = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *arr = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_FS);
         // заполним явно
-        arr.v64[0] = value64_createfs_asstr("/first");
-        arr.v64[1] = value64_createfs_asstr("/second");
+        arr->v64[0] = value64_createfs_asstr("/first");
+        arr->v64[1] = value64_createfs_asstr("/second");
 
         // увеличиваем до 4
         arr = ArrayIncrease(arr, 4);
         test_validatefree(
-            arr.len == 4 && arr.sz >= 4,
+            arr->len == 4 && arr->sz >= 4,
             Arrayfree(arr),
-            "After increase len=%d (expected 4)", arr.len
+            "After increase len=%d (expected 4)", arr->len
         );
         // новые элементы – пустые fs
         for (int i = 2; i < 4; i++) {
-            fs *f = value64_fs(arr.v64[i]);
+            fs *f = value64_fs(arr->v64[i]);
             test_validatefree(
                 f != NULL && fs_len(f) == 0,
                 Arrayfree(arr),
@@ -2948,13 +3096,13 @@ tf_v64array_shrink_increase(const char *name)
         // уменьшаем до 1
         arr = ArrayShrink(arr, 1);
         test_validatefree(
-            arr.len == 1 && arr.sz >= 1,
+            arr->len == 1 && arr->sz >= 1,
             Arrayfree(arr),
-            "After shrink len=%d (expected 1)", arr.len
+            "After shrink len=%d (expected 1)", arr->len
         );
         // первый элемент должен сохраниться
         test_validatefree(
-            strcmp(fs_str(value64_fs(arr.v64[0])), "/first") == 0,
+            strcmp(fs_str(value64_fs(arr->v64[0])), "/first") == 0,
             Arrayfree(arr),
             "FS[0] must survive shrink"
         );
@@ -2966,20 +3114,20 @@ tf_v64array_shrink_increase(const char *name)
     /* ========== Shrink to zero ========== */
     test_sub("subtest %d: shrink to zero", ++subnum);
     {
-        Array arr = V64Array_create(3, ARRAY_FILLTYPE_ZERO, VALUE64_STR);
-        arr.v64[0] = value64_createstr("a");
-        arr.v64[1] = value64_createstr("b");
-        arr.v64[2] = value64_createstr("c");
+        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_ZERO, VALUE64_STR);
+        arr->v64[0] = value64_createstr("a");
+        arr->v64[1] = value64_createstr("b");
+        arr->v64[2] = value64_createstr("c");
 
         arr = ArrayShrink(arr, 0);
         test_validatefree(
-            arr.len == 0 && arr.sz == 0,
+            arr->len == 0 && arr->sz == 0,
             Arrayfree(arr),
-            "Shrink to zero: len=%d sz=%d (expected 0,0)", arr.len, arr.sz
+            "Shrink to zero: len=%d sz=%d (expected 0,0)", arr->len, arr->sz
         );
         // v64 должен быть NULL (память освобождена)
         test_validatefree(
-            arr.v64 == NULL,
+            arr->v64 == NULL,
             Arrayfree(arr),
             "v64 must be NULL after shrinking to zero"
         );
@@ -3000,21 +3148,21 @@ tf_v64array_sort(const char *name)
     /* ========== STR sorting ========== */
     test_sub("subtest %d: STR sort ASC", ++subnum);
     {
-        Array arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_STR);
-        arr.v64[0] = value64_createstr("delta");
-        arr.v64[1] = value64_createstr("alpha");
-        arr.v64[2] = value64_createstr("charlie");
-        arr.v64[3] = value64_createstr("beta");
+        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        arr->v64[0] = value64_createstr("delta");
+        arr->v64[1] = value64_createstr("alpha");
+        arr->v64[2] = value64_createstr("charlie");
+        arr->v64[3] = value64_createstr("beta");
 
         Array_qsort(arr, ARRAY_FILLTYPE_ASC);
 
         const char *expected[] = {"alpha", "beta", "charlie", "delta"};
         for (int i = 0; i < 4; i++) {
             test_validatefree(
-                strcmp(value64_str(arr.v64[i]), expected[i]) == 0,
+                strcmp(value64_str(arr->v64[i]), expected[i]) == 0,
                 Arrayfree(arr),
                 "STR ASC [%d]: expected '%s', got '%s'",
-                i, expected[i], value64_str(arr.v64[i])
+                i, expected[i], value64_str(arr->v64[i])
             );
         }
         Arrayfree(arr);
@@ -3023,21 +3171,21 @@ tf_v64array_sort(const char *name)
 
     test_sub("subtest %d: STR sort DESC", ++subnum);
     {
-        Array arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_STR);
-        arr.v64[0] = value64_createstr("delta");
-        arr.v64[1] = value64_createstr("alpha");
-        arr.v64[2] = value64_createstr("charlie");
-        arr.v64[3] = value64_createstr("beta");
+        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        arr->v64[0] = value64_createstr("delta");
+        arr->v64[1] = value64_createstr("alpha");
+        arr->v64[2] = value64_createstr("charlie");
+        arr->v64[3] = value64_createstr("beta");
 
         Array_qsort(arr, ARRAY_FILLTYPE_DESC);
 
         const char *expected[] = {"delta", "charlie", "beta", "alpha"};
         for (int i = 0; i < 4; i++) {
             test_validatefree(
-                strcmp(value64_str(arr.v64[i]), expected[i]) == 0,
+                strcmp(value64_str(arr->v64[i]), expected[i]) == 0,
                 Arrayfree(arr),
                 "STR DESC [%d]: expected '%s', got '%s'",
-                i, expected[i], value64_str(arr.v64[i])
+                i, expected[i], value64_str(arr->v64[i])
             );
         }
         Arrayfree(arr);
@@ -3047,21 +3195,21 @@ tf_v64array_sort(const char *name)
     /* ========== FS sorting ========== */
     test_sub("subtest %d: FS sort ASC", ++subnum);
     {
-        Array arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_FS);
-        arr.v64[0] = value64_createfs_asstr("/zzz");
-        arr.v64[1] = value64_createfs_asstr("/aaa");
-        arr.v64[2] = value64_createfs_asstr("/mmm");
-        arr.v64[3] = value64_createfs_asstr("/bbb");
+        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        arr->v64[0] = value64_createfs_asstr("/zzz");
+        arr->v64[1] = value64_createfs_asstr("/aaa");
+        arr->v64[2] = value64_createfs_asstr("/mmm");
+        arr->v64[3] = value64_createfs_asstr("/bbb");
 
         Array_qsort(arr, ARRAY_FILLTYPE_ASC);
 
         const char *expected[] = {"/aaa", "/bbb", "/mmm", "/zzz"};
         for (int i = 0; i < 4; i++) {
             test_validatefree(
-                strcmp(fs_str(value64_fs(arr.v64[i])), expected[i]) == 0,
+                strcmp(fs_str(value64_fs(arr->v64[i])), expected[i]) == 0,
                 Arrayfree(arr),
                 "FS ASC [%d]: expected '%s', got '%s'",
-                i, expected[i], fs_str(value64_fs(arr.v64[i]))
+                i, expected[i], fs_str(value64_fs(arr->v64[i]))
             );
         }
         Arrayfree(arr);
@@ -3070,35 +3218,35 @@ tf_v64array_sort(const char *name)
 
     test_sub("subtest %d: FS sort DESC", ++subnum);
     {
-        Array arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_FS);
-        arr.v64[0] = value64_createfs_asstr("/zzz");
-        arr.v64[1] = value64_createfs_asstr("/aaa");
-        arr.v64[2] = value64_createfs_asstr("/mmm");
-        arr.v64[3] = value64_createfs_asstr("/bbb");
+        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        arr->v64[0] = value64_createfs_asstr("/zzz");
+        arr->v64[1] = value64_createfs_asstr("/aaa");
+        arr->v64[2] = value64_createfs_asstr("/mmm");
+        arr->v64[3] = value64_createfs_asstr("/bbb");
 
         Array_qsort(arr, ARRAY_FILLTYPE_DESC);
 
         const char *expected[] = {"/zzz", "/mmm", "/bbb", "/aaa"};
         for (int i = 0; i < 4; i++) {
             test_validatefree(
-                strcmp(fs_str(value64_fs(arr.v64[i])), expected[i]) == 0,
+                strcmp(fs_str(value64_fs(arr->v64[i])), expected[i]) == 0,
                 Arrayfree(arr),
                 "FS DESC [%d]: expected '%s', got '%s'",
-                i, expected[i], fs_str(value64_fs(arr.v64[i]))
+                i, expected[i], fs_str(value64_fs(arr->v64[i]))
             );
         }
         Arrayfree(arr);
     }
     fs_alloc_check(true);
 
-    /* ========== граничные случаи ========== */
+    /* ========== edge cases ========== */
 
     test_sub("subtest %d: STR sort empty array", ++subnum);
     {
-        Array arr = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_STR);
-        Array_qsort(arr, ARRAY_FILLTYPE_ASC);   // не должно падать
+        Array *arr = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array_qsort(arr, ARRAY_FILLTYPE_ASC);   // must not crash
         test_validatefree(
-            arr.len == 0,
+            arr->len == 0,
             Arrayfree(arr),
             "Empty STR array after sort must still be empty"
         );
@@ -3108,11 +3256,11 @@ tf_v64array_sort(const char *name)
 
     test_sub("subtest %d: STR sort single element", ++subnum);
     {
-        Array arr = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_STR);
-        arr.v64[0] = value64_createstr("single");
+        Array *arr = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        arr->v64[0] = value64_createstr("single");
         Array_qsort(arr, ARRAY_FILLTYPE_ASC);
         test_validatefree(
-            strcmp(value64_str(arr.v64[0]), "single") == 0,
+            strcmp(value64_str(arr->v64[0]), "single") == 0,
             Arrayfree(arr),
             "Single STR element must survive sorting"
         );
@@ -3122,15 +3270,15 @@ tf_v64array_sort(const char *name)
 
     test_sub("subtest %d: STR sort already sorted", ++subnum);
     {
-        Array arr = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_STR);
-        arr.v64[0] = value64_createstr("a");
-        arr.v64[1] = value64_createstr("b");
-        arr.v64[2] = value64_createstr("c");
+        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        arr->v64[0] = value64_createstr("a");
+        arr->v64[1] = value64_createstr("b");
+        arr->v64[2] = value64_createstr("c");
         Array_qsort(arr, ARRAY_FILLTYPE_ASC);
         const char *exp[] = {"a", "b", "c"};
         for (int i = 0; i < 3; i++) {
             test_validatefree(
-                strcmp(value64_str(arr.v64[i]), exp[i]) == 0,
+                strcmp(value64_str(arr->v64[i]), exp[i]) == 0,
                 Arrayfree(arr),
                 "Already sorted STR [%d] must stay '%s'", i, exp[i]
             );
@@ -3141,16 +3289,16 @@ tf_v64array_sort(const char *name)
 
     test_sub("subtest %d: STR sort with duplicates", ++subnum);
     {
-        Array arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_STR);
-        arr.v64[0] = value64_createstr("a");
-        arr.v64[1] = value64_createstr("b");
-        arr.v64[2] = value64_createstr("a");
-        arr.v64[3] = value64_createstr("c");
+        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        arr->v64[0] = value64_createstr("a");
+        arr->v64[1] = value64_createstr("b");
+        arr->v64[2] = value64_createstr("a");
+        arr->v64[3] = value64_createstr("c");
         Array_qsort(arr, ARRAY_FILLTYPE_ASC);
         const char *exp[] = {"a", "a", "b", "c"};
         for (int i = 0; i < 4; i++) {
             test_validatefree(
-                strcmp(value64_str(arr.v64[i]), exp[i]) == 0,
+                strcmp(value64_str(arr->v64[i]), exp[i]) == 0,
                 Arrayfree(arr),
                 "Duplicates STR [%d] must be '%s'", i, exp[i]
             );
@@ -3161,20 +3309,20 @@ tf_v64array_sort(const char *name)
 
     test_sub("subtest %d: FS sort empty array", ++subnum);
     {
-        Array arr = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *arr = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_FS);
         Array_qsort(arr, ARRAY_FILLTYPE_ASC);
-        test_validatefree(arr.len == 0, Arrayfree(arr), "Empty FS array after sort must still be empty");
+        test_validatefree(arr->len == 0, Arrayfree(arr), "Empty FS array after sort must still be empty");
         Arrayfree(arr);
     }
     fs_alloc_check(true);
 
     test_sub("subtest %d: FS sort single element", ++subnum);
     {
-        Array arr = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_FS);
-        arr.v64[0] = value64_createfs_asstr("/only");
+        Array *arr = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        arr->v64[0] = value64_createfs_asstr("/only");
         Array_qsort(arr, ARRAY_FILLTYPE_ASC);
         test_validatefree(
-            strcmp(fs_str(value64_fs(arr.v64[0])), "/only") == 0,
+            strcmp(fs_str(value64_fs(arr->v64[0])), "/only") == 0,
             Arrayfree(arr),
             "Single FS element must survive sorting"
         );
@@ -3184,15 +3332,15 @@ tf_v64array_sort(const char *name)
 
     test_sub("subtest %d: FS sort already sorted", ++subnum);
     {
-        Array arr = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_FS);
-        arr.v64[0] = value64_createfs_asstr("/a");
-        arr.v64[1] = value64_createfs_asstr("/b");
-        arr.v64[2] = value64_createfs_asstr("/c");
+        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        arr->v64[0] = value64_createfs_asstr("/a");
+        arr->v64[1] = value64_createfs_asstr("/b");
+        arr->v64[2] = value64_createfs_asstr("/c");
         Array_qsort(arr, ARRAY_FILLTYPE_ASC);
         const char *exp[] = {"/a", "/b", "/c"};
         for (int i = 0; i < 3; i++) {
             test_validatefree(
-                strcmp(fs_str(value64_fs(arr.v64[i])), exp[i]) == 0,
+                strcmp(fs_str(value64_fs(arr->v64[i])), exp[i]) == 0,
                 Arrayfree(arr),
                 "Already sorted FS [%d] must stay '%s'", i, exp[i]
             );
@@ -3203,16 +3351,16 @@ tf_v64array_sort(const char *name)
 
     test_sub("subtest %d: FS sort with duplicates", ++subnum);
     {
-        Array arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_FS);
-        arr.v64[0] = value64_createfs_asstr("/a");
-        arr.v64[1] = value64_createfs_asstr("/b");
-        arr.v64[2] = value64_createfs_asstr("/a");
-        arr.v64[3] = value64_createfs_asstr("/c");
+        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        arr->v64[0] = value64_createfs_asstr("/a");
+        arr->v64[1] = value64_createfs_asstr("/b");
+        arr->v64[2] = value64_createfs_asstr("/a");
+        arr->v64[3] = value64_createfs_asstr("/c");
         Array_qsort(arr, ARRAY_FILLTYPE_ASC);
         const char *exp[] = {"/a", "/a", "/b", "/c"};
         for (int i = 0; i < 4; i++) {
             test_validatefree(
-                strcmp(fs_str(value64_fs(arr.v64[i])), exp[i]) == 0,
+                strcmp(fs_str(value64_fs(arr->v64[i])), exp[i]) == 0,
                 Arrayfree(arr),
                 "Duplicates FS [%d] must be '%s'", i, exp[i]
             );
@@ -3236,13 +3384,11 @@ tf_v64ArraySaveFile_load(const char *name)
     {
         const char *fname = "res/array/v64str.sv";
 
-        // создаём массив и заполняем
-        Array orig = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_STR);
-        orig.v64[0] = value64_createstr("one");
-        orig.v64[1] = value64_createstr("two");
-        orig.v64[2] = value64_createstr("three");
+        Array *orig = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        orig->v64[0] = value64_createstr("one");
+        orig->v64[1] = value64_createstr("two");
+        orig->v64[2] = value64_createstr("three");
 
-        // сохраняем
         long written = ArraySaveFileName(orig, fname);
         test_validatefree(
             written > 0,
@@ -3250,21 +3396,19 @@ tf_v64ArraySaveFile_load(const char *name)
             "STR save failed"
         );
 
-        // загружаем
-        Array loaded = Array_load(fname);
+        Array *loaded = ArrayLoadFileName(fname);
         test_validatefree(
-            loaded.len == orig.len,
+            loaded->len == orig->len,
             (Arrayfree(orig), Arrayfree(loaded)),
-            "STR load: len=%d, expected %d", loaded.len, orig.len
+            "STR load: len=%d, expected %d", loaded->len, orig->len
         );
 
-        // сравниваем поэлементно
-        for (int i = 0; i < orig.len; i++) {
+        for (int i = 0; i < orig->len; i++) {
             test_validatefree(
-                strcmp(value64_str(orig.v64[i]), value64_str(loaded.v64[i])) == 0,
+                strcmp(value64_str(orig->v64[i]), value64_str(loaded->v64[i])) == 0,
                 (Arrayfree(orig), Arrayfree(loaded)),
                 "STR[%d]: orig='%s', loaded='%s'",
-                i, value64_str(orig.v64[i]), value64_str(loaded.v64[i])
+                i, value64_str(orig->v64[i]), value64_str(loaded->v64[i])
             );
         }
 
@@ -3278,28 +3422,24 @@ tf_v64ArraySaveFile_load(const char *name)
     {
         const char *fname = "res/array/v64fs.sv";
 
-        // создаём массив и заполняем
-        Array orig = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_FS);
-        orig.v64[0] = value64_createfs_asstr("/alpha");
-        orig.v64[1] = value64_createfs_asstr("/beta");
-        orig.v64[2] = value64_createfs_asstr("/gamma");
+        Array *orig = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        orig->v64[0] = value64_createfs_asstr("/alpha");
+        orig->v64[1] = value64_createfs_asstr("/beta");
+        orig->v64[2] = value64_createfs_asstr("/gamma");
 
-        // сохраняем
         long written = ArraySaveFileName(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "FS save failed");
 
-        // загружаем
-        Array loaded = Array_load(fname);
+        Array *loaded = ArrayLoadFileName(fname);
         test_validatefree(
-            loaded.len == orig.len,
+            loaded->len == orig->len,
             (Arrayfree(orig), Arrayfree(loaded)),
-            "FS load: len=%d, expected %d", loaded.len, orig.len
+            "FS load: len=%d, expected %d", loaded->len, orig->len
         );
 
-        // сравниваем поэлементно (строки, лежащие внутри fs)
-        for (int i = 0; i < orig.len; i++) {
-            fs *f_orig = value64_fs(orig.v64[i]);
-            fs *f_load = value64_fs(loaded.v64[i]);
+        for (int i = 0; i < orig->len; i++) {
+            fs *f_orig = value64_fs(orig->v64[i]);
+            fs *f_load = value64_fs(loaded->v64[i]);
             test_validatefree(
                 f_orig && f_load && strcmp(fs_str(f_orig), fs_str(f_load)) == 0,
                 (Arrayfree(orig), Arrayfree(loaded)),
@@ -3314,21 +3454,21 @@ tf_v64ArraySaveFile_load(const char *name)
     }
     fs_alloc_check(true);
 
-    /* ========== STR save/load: граничные случаи ========== */
+    /* ========== STR save/load: edge cases ========== */
 
     test_sub("subtest %d: STR save/load empty array", ++subnum);
     {
         const char *fname = "res/array/v64str_empty.sv";
 
-        Array orig = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array *orig = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_STR);
         long written = ArraySaveFileName(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "STR empty save failed");
 
-        Array loaded = Array_load(fname);
+        Array *loaded = ArrayLoadFileName(fname);
         test_validatefree(
-            loaded.len == 0 && loaded.v64 == NULL,
+            loaded->len == 0 && loaded->v64 == NULL,
             (Arrayfree(orig), Arrayfree(loaded)),
-            "Loaded empty STR: len=%d, v64=%p (expected 0, NULL)", loaded.len, loaded.v64
+            "Loaded empty STR: len=%d, v64=%p (expected 0, NULL)", loaded->len, (void*)loaded->v64
         );
 
         Arrayfree(orig);
@@ -3340,22 +3480,22 @@ tf_v64ArraySaveFile_load(const char *name)
     {
         const char *fname = "res/array/v64str_single.sv";
 
-        Array orig = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_STR);
-        orig.v64[0] = value64_createstr("single");
+        Array *orig = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        orig->v64[0] = value64_createstr("single");
         long written = ArraySaveFileName(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "STR single save failed");
 
-        Array loaded = Array_load(fname);
+        Array *loaded = ArrayLoadFileName(fname);
         test_validatefree(
-            loaded.len == 1,
+            loaded->len == 1,
             (Arrayfree(orig), Arrayfree(loaded)),
-            "Loaded single STR: len=%d, expected 1", loaded.len
+            "Loaded single STR: len=%d, expected 1", loaded->len
         );
         test_validatefree(
-            strcmp(value64_str(orig.v64[0]), value64_str(loaded.v64[0])) == 0,
+            strcmp(value64_str(orig->v64[0]), value64_str(loaded->v64[0])) == 0,
             (Arrayfree(orig), Arrayfree(loaded)),
             "STR single: orig='%s', loaded='%s'",
-            value64_str(orig.v64[0]), value64_str(loaded.v64[0])
+            value64_str(orig->v64[0]), value64_str(loaded->v64[0])
         );
 
         Arrayfree(orig);
@@ -3363,21 +3503,21 @@ tf_v64ArraySaveFile_load(const char *name)
     }
     fs_alloc_check(true);
 
-    /* ========== FS save/load: граничные случаи ========== */
+    /* ========== FS save/load: edge cases ========== */
 
     test_sub("subtest %d: FS save/load empty array", ++subnum);
     {
         const char *fname = "res/array/v64fs_empty.sv";
 
-        Array orig = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *orig = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_FS);
         long written = ArraySaveFileName(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "FS empty save failed");
 
-        Array loaded = Array_load(fname);
+        Array *loaded = ArrayLoadFileName(fname);
         test_validatefree(
-            loaded.len == 0 && loaded.v64 == NULL,
+            loaded->len == 0 && loaded->v64 == NULL,
             (Arrayfree(orig), Arrayfree(loaded)),
-            "Loaded empty FS: len=%d, v64=%p (expected 0, NULL)", loaded.len, loaded.v64
+            "Loaded empty FS: len=%d, v64=%p (expected 0, NULL)", loaded->len, (void*)loaded->v64
         );
 
         Arrayfree(orig);
@@ -3389,19 +3529,19 @@ tf_v64ArraySaveFile_load(const char *name)
     {
         const char *fname = "res/array/v64fs_single.sv";
 
-        Array orig = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_FS);
-        orig.v64[0] = value64_createfs_asstr("/only");
+        Array *orig = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        orig->v64[0] = value64_createfs_asstr("/only");
         long written = ArraySaveFileName(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "FS single save failed");
 
-        Array loaded = Array_load(fname);
+        Array *loaded = ArrayLoadFileName(fname);
         test_validatefree(
-            loaded.len == 1,
+            loaded->len == 1,
             (Arrayfree(orig), Arrayfree(loaded)),
-            "Loaded single FS: len=%d, expected 1", loaded.len
+            "Loaded single FS: len=%d, expected 1", loaded->len
         );
-        fs *f_orig = value64_fs(orig.v64[0]);
-        fs *f_load = value64_fs(loaded.v64[0]);
+        fs *f_orig = value64_fs(orig->v64[0]);
+        fs *f_load = value64_fs(loaded->v64[0]);
         test_validatefree(
             f_orig && f_load && strcmp(fs_str(f_orig), fs_str(f_load)) == 0,
             (Arrayfree(orig), Arrayfree(loaded)),
@@ -3427,10 +3567,10 @@ tf_array_bsearch(const char *name)
     /* ========== INT ========== */
     test_sub("subtest %d: INT find existing", ++subnum);
     {
-        Array arr = IArray_create(10, ARRAY_FILLTYPE_ASC_SERIES); // 0,1,2,...,9
+        Array *arr = IArray_create(10, ARRAY_FILLTYPE_ASC_SERIES); // 0,1,2,...,9
         int idx;
         test_validatefree(
-            (idx = ArrayBsearchInt(arr, 5) ) == 5,
+            (idx = ArrayBsearchInt(arr, 5)) == 5,
             Arrayfree(arr),
             "INT asc: expected idx=5, got %d", idx
         );
@@ -3439,7 +3579,7 @@ tf_array_bsearch(const char *name)
 
     test_sub("subtest %d: INT find missing", ++subnum);
     {
-        Array arr = IArray_create(10, ARRAY_FILLTYPE_ASC_SERIES);
+        Array *arr = IArray_create(10, ARRAY_FILLTYPE_ASC_SERIES);
         int idx;
         test_validatefree(
             (idx = ArrayBsearchInt(arr, 99)) == -1,
@@ -3451,7 +3591,7 @@ tf_array_bsearch(const char *name)
 
     test_sub("subtest %d: INT find first / last", ++subnum);
     {
-        Array arr = IArray_create(5, ARRAY_FILLTYPE_ASC_SERIES);
+        Array *arr = IArray_create(5, ARRAY_FILLTYPE_ASC_SERIES);
         test_validatefree(
             ArrayBsearchInt(arr, 0) == 0 && ArrayBsearchInt(arr, 4) == 4,
             Arrayfree(arr),
@@ -3462,7 +3602,7 @@ tf_array_bsearch(const char *name)
 
     test_sub("subtest %d: INT rev search", ++subnum);
     {
-        Array arr = IArray_create(10, ARRAY_FILLTYPE_DESC_SERIES); // 9,8,...,0
+        Array *arr = IArray_create(10, ARRAY_FILLTYPE_DESC_SERIES); // 9,8,...,0
         int idx;
         test_validatefree(
             (idx = ArrayBsearchIntrev(arr, 5)) == 4,   // 9(0),8(1),7(2),6(3),5(4)
@@ -3474,7 +3614,7 @@ tf_array_bsearch(const char *name)
 
     test_sub("subtest %d: INT empty array", ++subnum);
     {
-        Array arr = IArray_create(0, ARRAY_FILLTYPE_NONE);
+        Array *arr = IArray_create(0, ARRAY_FILLTYPE_NONE);
         test_validatefree(
             ArrayBsearchInt(arr, 5) == -1,
             Arrayfree(arr),
@@ -3486,10 +3626,10 @@ tf_array_bsearch(const char *name)
     /* ========== LONG ========== */
     test_sub("subtest %d: LONG find existing", ++subnum);
     {
-        Array arr = LArray_create(10, ARRAY_FILLTYPE_ASC_SERIES);
-        int idx ;
+        Array *arr = LArray_create(10, ARRAY_FILLTYPE_ASC_SERIES);
+        int idx;
         test_validatefree(
-            (idx = ArrayBsearchLong(arr, 7L) ) == 7,
+            (idx = ArrayBsearchLong(arr, 7L)) == 7,
             Arrayfree(arr),
             "LONG asc: expected idx=7, got %d", idx
         );
@@ -3498,7 +3638,7 @@ tf_array_bsearch(const char *name)
 
     test_sub("subtest %d: LONG rev missing", ++subnum);
     {
-        Array arr = LArray_create(10, ARRAY_FILLTYPE_DESC_SERIES);
+        Array *arr = LArray_create(10, ARRAY_FILLTYPE_DESC_SERIES);
         int idx;
         test_validatefree(
             (idx = ArrayBsearchLongRev(arr, 100L)) == -1,
@@ -3511,7 +3651,7 @@ tf_array_bsearch(const char *name)
     /* ========== DBL ========== */
     test_sub("subtest %d: DBL find first / last", ++subnum);
     {
-        Array arr = DArray_create(5, ARRAY_FILLTYPE_ASC_SERIES); // 0.0,1.0,...,4.0
+        Array *arr = DArray_create(5, ARRAY_FILLTYPE_ASC_SERIES); // 0.0,1.0,...,4.0
         test_validatefree(
             ArrayBsearchDbl(arr, 0.0) == 0 && ArrayBsearchDbl(arr, 4.0) == 4,
             Arrayfree(arr),
@@ -3522,7 +3662,7 @@ tf_array_bsearch(const char *name)
 
     test_sub("subtest %d: DBL rev search", ++subnum);
     {
-        Array arr = DArray_create(5, ARRAY_FILLTYPE_DESC_SERIES); // 4.0,3.0,...,0.0
+        Array *arr = DArray_create(5, ARRAY_FILLTYPE_DESC_SERIES); // 4.0,3.0,...,0.0
         int idx;
         test_validatefree(
             (idx = ArrayBsearchDblRev(arr, 2.0)) == 2,   // 4(0),3(1),2(2)
@@ -3535,17 +3675,16 @@ tf_array_bsearch(const char *name)
     /* ========== V64 (STR) ========== */
     test_sub("subtest %d: V64 STR find existing", ++subnum);
     {
-        Array arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_STR);
-        // явно создаём отсортированный массив: "a","b","c","d"
-        arr.v64[0] = value64_createstr("a");
-        arr.v64[1] = value64_createstr("b");
-        arr.v64[2] = value64_createstr("c");
-        arr.v64[3] = value64_createstr("d");
+        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        arr->v64[0] = value64_createstr("a");
+        arr->v64[1] = value64_createstr("b");
+        arr->v64[2] = value64_createstr("c");
+        arr->v64[3] = value64_createstr("d");
 
         value64 key = LITERAL64_STR("c");
         int idx;
         test_validatefree(
-            (idx  = ArrayBsearchV64(arr, key)) == 2,
+            (idx = ArrayBsearchV64(arr, key)) == 2,
             Arrayfree(arr),
             "STR asc: expected idx=2, got %d", idx
         );
@@ -3555,12 +3694,11 @@ tf_array_bsearch(const char *name)
 
     test_sub("subtest %d: V64 STR rev missing", ++subnum);
     {
-        Array arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_STR);
-        // отсортированный по убыванию: "d","c","b","a"
-        arr.v64[0] = value64_createstr("d");
-        arr.v64[1] = value64_createstr("c");
-        arr.v64[2] = value64_createstr("b");
-        arr.v64[3] = value64_createstr("a");
+        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        arr->v64[0] = value64_createstr("d");
+        arr->v64[1] = value64_createstr("c");
+        arr->v64[2] = value64_createstr("b");
+        arr->v64[3] = value64_createstr("a");
 
         value64 key = LITERAL64_STR("x");
         int idx;
@@ -3576,15 +3714,13 @@ tf_array_bsearch(const char *name)
     /* ========== V64 (FS) ========== */
     test_sub("subtest %d: V64 FS find existing", ++subnum);
     {
-        Array arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_FS);
-        arr.v64[0] = value64_createfs_asstr("/alpha");
-        arr.v64[1] = value64_createfs_asstr("/beta");
-        arr.v64[2] = value64_createfs_asstr("/gamma");
-        arr.v64[3] = value64_createfs_asstr("/delta");
+        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        arr->v64[0] = value64_createfs_asstr("/alpha");
+        arr->v64[1] = value64_createfs_asstr("/beta");
+        arr->v64[2] = value64_createfs_asstr("/gamma");
+        arr->v64[3] = value64_createfs_asstr("/delta");
 
-        // предварительно отсортируем
         Array_qsort(arr, ARRAY_FILLTYPE_ASC);
-        // после сортировки: alpha, beta, delta, gamma
 
         value64 key = value64_createfs_asstr("/beta");
         int idx;
@@ -3598,12 +3734,12 @@ tf_array_bsearch(const char *name)
     }
     fs_alloc_check(true);
 
-    /* ========== Type mismatch (должно вызывать ошибку) ========== */
+    /* ========== Type mismatch (must raise error) ========== */
     test_sub("subtest %d: type mismatch raises SIGINT", ++subnum);
     {
-        Array arr = IArray_create(3, ARRAY_FILLTYPE_ASC_SERIES);
+        Array *arr = IArray_create(3, ARRAY_FILLTYPE_ASC_SERIES);
         if (!try()) {
-            ArrayBsearchLong(arr, 5L);   // LONG на INT массиве
+            ArrayBsearchLong(arr, 5L);
             test_validatefree(false, Arrayfree(arr), "Should have raised SIGINT");
         } else {
             logsimple("Exception correctly raised on type mismatch");
@@ -3624,12 +3760,12 @@ tf_carray_create_fill_free(const char *name)
     /* 1. Создание пустого CHAR массива */
     test_sub("subtest %d: create empty CHAR array", ++subnum);
     {
-        Array arr = CArray_create(0, ARRAY_FILLTYPE_NONE);
+        Array *arr = CArray_create(0, ARRAY_FILLTYPE_NONE);
         test_validatefree(
-            arr.len == 0 && arr.sz == 0 && arr.cv == NULL,
+            arr->len == 0 && arr->sz == 0 && arr->cv == NULL,
             Arrayfree(arr),
             "Empty CHAR array: len=%d, sz=%d, cv=%p (expected 0,0,NULL)",
-            arr.len, arr.sz, (void*)arr.cv
+            arr->len, arr->sz, (void*)arr->cv
         );
         Arrayfree(arr);
     }
@@ -3637,18 +3773,18 @@ tf_carray_create_fill_free(const char *name)
     /* 2. Создание ZERO‑filled CHAR массива */
     test_sub("subtest %d: create ZERO‑filled CHAR array", ++subnum);
     {
-        Array arr = CArray_create(5, ARRAY_FILLTYPE_ZERO);
+        Array *arr = CArray_create(5, ARRAY_FILLTYPE_ZERO);
         test_validatefree(
-            arr.len == 5 && arr.sz >= 5,
+            arr->len == 5 && arr->sz >= 5,
             Arrayfree(arr),
-            "ZERO CHAR array: len=%d, sz=%d (expected 5, >=5)", arr.len, arr.sz
+            "ZERO CHAR array: len=%d, sz=%d (expected 5, >=5)", arr->len, arr->sz
         );
         // Проверяем, что все элементы — '\0'
         for (int i = 0; i < 5; i++) {
             test_validatefree(
-                arr.cv[i] == '\0',
+                arr->cv[i] == '\0',
                 Arrayfree(arr),
-                "CHAR[%d] must be '\\0', got '%c'", i, arr.cv[i]
+                "CHAR[%d] must be '\\0', got '%c'", i, arr->cv[i]
             );
         }
         Arrayfree(arr);
@@ -3657,16 +3793,16 @@ tf_carray_create_fill_free(const char *name)
     /* 3. Создание ASC‑filled CHAR массива (случайные буквы) */
     test_sub("subtest %d: create ASC‑filled CHAR array", ++subnum);
     {
-        Array arr = CArray_create(4, ARRAY_FILLTYPE_ASC);
+        Array *arr = CArray_create(4, ARRAY_FILLTYPE_ASC);
         test_validatefree(
-            arr.len == 4,
+            arr->len == 4,
             Arrayfree(arr),
-            "ASC CHAR array: len=%d (expected 4)", arr.len
+            "ASC CHAR array: len=%d (expected 4)", arr->len
         );
         // Элементы не должны быть '\0' и должны следовать в алфавитном порядке
         for (int i = 1; i < 4; i++) {
             test_validatefree(
-                arr.cv[i - 1] <= arr.cv[i],
+                arr->cv[i - 1] <= arr->cv[i],
                 Arrayfree(arr),
                 "ASC CHAR: must be non‑decreasing"
             );
@@ -3677,16 +3813,16 @@ tf_carray_create_fill_free(const char *name)
     /* 4. Создание DESC‑filled CHAR массива (случайные буквы в обратном порядке) */
     test_sub("subtest %d: create DESC‑filled CHAR array", ++subnum);
     {
-        Array arr = CArray_create(4, ARRAY_FILLTYPE_DESC);
+        Array *arr = CArray_create(4, ARRAY_FILLTYPE_DESC);
         test_validatefree(
-            arr.len == 4,
+            arr->len == 4,
             Arrayfree(arr),
-            "DESC CHAR array: len=%d (expected 4)", arr.len
+            "DESC CHAR array: len=%d (expected 4)", arr->len
         );
         // Элементы должны быть не возрастающими
         for (int i = 1; i < 4; i++) {
             test_validatefree(
-                arr.cv[i - 1] >= arr.cv[i],
+                arr->cv[i - 1] >= arr->cv[i],
                 Arrayfree(arr),
                 "DESC CHAR: must be non‑increasing"
             );
@@ -3707,15 +3843,15 @@ tf_carray_sort(const char *name)
     /* 1. Сортировка по возрастанию */
     test_sub("subtest %d: CHAR sort ASC", ++subnum);
     {
-        Array arr = CArray_create(6, ARRAY_FILLTYPE_RND);
+        Array *arr = CArray_create(6, ARRAY_FILLTYPE_RND);
         Array_qsort(arr, ARRAY_FILLTYPE_ASC);
 
-        for (int i = 1; i < arr.len; i++) {
+        for (int i = 1; i < arr->len; i++) {
             test_validatefree(
-                arr.cv[i - 1] <= arr.cv[i],
+                arr->cv[i - 1] <= arr->cv[i],
                 Arrayfree(arr),
                 "ASC CHAR: cv[%d]='%c' > cv[%d]='%c'",
-                i - 1, arr.cv[i - 1], i, arr.cv[i]
+                i - 1, arr->cv[i - 1], i, arr->cv[i]
             );
         }
         Arrayfree(arr);
@@ -3724,15 +3860,15 @@ tf_carray_sort(const char *name)
     /* 2. Сортировка по убыванию */
     test_sub("subtest %d: CHAR sort DESC", ++subnum);
     {
-        Array arr = CArray_create(6, ARRAY_FILLTYPE_RND);
+        Array *arr = CArray_create(6, ARRAY_FILLTYPE_RND);
         Array_qsort(arr, ARRAY_FILLTYPE_DESC);
 
-        for (int i = 1; i < arr.len; i++) {
+        for (int i = 1; i < arr->len; i++) {
             test_validatefree(
-                arr.cv[i - 1] >= arr.cv[i],
+                arr->cv[i - 1] >= arr->cv[i],
                 Arrayfree(arr),
                 "DESC CHAR: cv[%d]='%c' < cv[%d]='%c'",
-                i - 1, arr.cv[i - 1], i, arr.cv[i]
+                i - 1, arr->cv[i - 1], i, arr->cv[i]
             );
         }
         Arrayfree(arr);
@@ -3741,22 +3877,22 @@ tf_carray_sort(const char *name)
     /* 3. Пустой массив */
     test_sub("subtest %d: CHAR sort empty", ++subnum);
     {
-        Array arr = CArray_create(0, ARRAY_FILLTYPE_NONE);
+        Array *arr = CArray_create(0, ARRAY_FILLTYPE_NONE);
         Array_qsort(arr, ARRAY_FILLTYPE_ASC);   // не должно упасть
-        test_validatefree(arr.len == 0, Arrayfree(arr), "Empty array must stay empty after sort");
+        test_validatefree(arr->len == 0, Arrayfree(arr), "Empty array must stay empty after sort");
         Arrayfree(arr);
     }
 
     /* 4. Один элемент */
     test_sub("subtest %d: CHAR sort single element", ++subnum);
     {
-        Array arr = CArray_create(1, ARRAY_FILLTYPE_NONE);
-        arr.cv[0] = 'x';
+        Array *arr = CArray_create(1, ARRAY_FILLTYPE_NONE);
+        arr->cv[0] = 'x';
         Array_qsort(arr, ARRAY_FILLTYPE_ASC);
         test_validatefree(
-            arr.cv[0] == 'x',
+            arr->cv[0] == 'x',
             Arrayfree(arr),
-            "Single element 'x' must stay 'x', got '%c'", arr.cv[0]
+            "Single element 'x' must stay 'x', got '%c'", arr->cv[0]
         );
         Arrayfree(arr);
     }
@@ -3764,11 +3900,11 @@ tf_carray_sort(const char *name)
     /* 5. Уже отсортированный */
     test_sub("subtest %d: CHAR sort already sorted", ++subnum);
     {
-        Array arr = CArray_create(3, ARRAY_FILLTYPE_NONE);
-        arr.cv[0] = 'a'; arr.cv[1] = 'b'; arr.cv[2] = 'c';
+        Array *arr = CArray_create(3, ARRAY_FILLTYPE_NONE);
+        arr->cv[0] = 'a'; arr->cv[1] = 'b'; arr->cv[2] = 'c';
         Array_qsort(arr, ARRAY_FILLTYPE_ASC);
         test_validatefree(
-            arr.cv[0] == 'a' && arr.cv[1] == 'b' && arr.cv[2] == 'c',
+            arr->cv[0] == 'a' && arr->cv[1] == 'b' && arr->cv[2] == 'c',
             Arrayfree(arr),
             "Already sorted array must stay 'a','b','c'"
         );
@@ -3778,11 +3914,11 @@ tf_carray_sort(const char *name)
     /* 6. Дубликаты */
     test_sub("subtest %d: CHAR sort duplicates", ++subnum);
     {
-        Array arr = CArray_create(4, ARRAY_FILLTYPE_NONE);
-        arr.cv[0] = 'b'; arr.cv[1] = 'a'; arr.cv[2] = 'b'; arr.cv[3] = 'c';
+        Array *arr = CArray_create(4, ARRAY_FILLTYPE_NONE);
+        arr->cv[0] = 'b'; arr->cv[1] = 'a'; arr->cv[2] = 'b'; arr->cv[3] = 'c';
         Array_qsort(arr, ARRAY_FILLTYPE_ASC);
         test_validatefree(
-            arr.cv[0] == 'a' && arr.cv[1] == 'b' && arr.cv[2] == 'b' && arr.cv[3] == 'c',
+            arr->cv[0] == 'a' && arr->cv[1] == 'b' && arr->cv[2] == 'b' && arr->cv[3] == 'c',
             Arrayfree(arr),
             "Duplicates must be sorted correctly"
         );
@@ -3802,9 +3938,8 @@ tf_array_bsearch_char(const char *name)
     /* ========== CHAR ========== */
     test_sub("subtest %d: CHAR find existing", ++subnum);
     {
-        Array arr = CArray_create(5, ARRAY_FILLTYPE_NONE);
-        arr.cv[0] = 'a'; arr.cv[1] = 'b'; arr.cv[2] = 'c'; arr.cv[3] = 'd'; arr.cv[4] = 'e';
-        // массив уже отсортирован по возрастанию
+        Array *arr = CArray_create(5, ARRAY_FILLTYPE_NONE);
+        arr->cv[0] = 'a'; arr->cv[1] = 'b'; arr->cv[2] = 'c'; arr->cv[3] = 'd'; arr->cv[4] = 'e';
         int idx = ArrayBsearchChar(arr, 'c');
         test_validatefree(
             idx == 2,
@@ -3816,8 +3951,8 @@ tf_array_bsearch_char(const char *name)
 
     test_sub("subtest %d: CHAR find missing", ++subnum);
     {
-        Array arr = CArray_create(5, ARRAY_FILLTYPE_NONE);
-        arr.cv[0] = 'a'; arr.cv[1] = 'b'; arr.cv[2] = 'c'; arr.cv[3] = 'd'; arr.cv[4] = 'e';
+        Array *arr = CArray_create(5, ARRAY_FILLTYPE_NONE);
+        arr->cv[0] = 'a'; arr->cv[1] = 'b'; arr->cv[2] = 'c'; arr->cv[3] = 'd'; arr->cv[4] = 'e';
         int idx = ArrayBsearchChar(arr, 'z');
         test_validatefree(
             idx == -1,
@@ -3829,8 +3964,8 @@ tf_array_bsearch_char(const char *name)
 
     test_sub("subtest %d: CHAR rev search", ++subnum);
     {
-        Array arr = CArray_create(5, ARRAY_FILLTYPE_NONE);
-        arr.cv[0] = 'e'; arr.cv[1] = 'd'; arr.cv[2] = 'c'; arr.cv[3] = 'b'; arr.cv[4] = 'a';
+        Array *arr = CArray_create(5, ARRAY_FILLTYPE_NONE);
+        arr->cv[0] = 'e'; arr->cv[1] = 'd'; arr->cv[2] = 'c'; arr->cv[3] = 'b'; arr->cv[4] = 'a';
         int idx = ArrayBsearchCharRev(arr, 'b');
         test_validatefree(
             idx == 3,   // e(0),d(1),c(2),b(3),a(4)
@@ -3856,29 +3991,29 @@ tf_ArraySaveFile_load_char(const char *name)
         const char *fname = "res/array/carr.sv";
 
         // создаём массив и заполняем
-        Array orig = CArray_create(5, ARRAY_FILLTYPE_NONE);
-        orig.cv[0] = 'h'; orig.cv[1] = 'e'; orig.cv[2] = 'l';
-        orig.cv[3] = 'l'; orig.cv[4] = 'o';
+        Array *orig = CArray_create(5, ARRAY_FILLTYPE_NONE);
+        orig->cv[0] = 'h'; orig->cv[1] = 'e'; orig->cv[2] = 'l';
+        orig->cv[3] = 'l'; orig->cv[4] = 'o';
 
         // сохраняем
         long written = ArraySaveFileName(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "CHAR save failed");
 
         // загружаем
-        Array loaded = Array_load(fname);
+        Array *loaded = ArrayLoadFileName(fname);
         test_validatefree(
-            loaded.len == orig.len,
+            loaded->len == orig->len,
             (Arrayfree(orig), Arrayfree(loaded)),
-            "CHAR load: len=%d, expected %d", loaded.len, orig.len
+            "CHAR load: len=%d, expected %d", loaded->len, orig->len
         );
 
         // сравниваем поэлементно
-        for (int i = 0; i < orig.len; i++) {
+        for (int i = 0; i < orig->len; i++) {
             test_validatefree(
-                orig.cv[i] == loaded.cv[i],
+                orig->cv[i] == loaded->cv[i],
                 (Arrayfree(orig), Arrayfree(loaded)),
                 "CHAR[%d]: orig='%c', loaded='%c'",
-                i, orig.cv[i], loaded.cv[i]
+                i, orig->cv[i], loaded->cv[i]
             );
         }
 
@@ -3891,15 +4026,15 @@ tf_ArraySaveFile_load_char(const char *name)
     {
         const char *fname = "res/array/carr_empty.sv";
 
-        Array orig = CArray_create(0, ARRAY_FILLTYPE_NONE);
+        Array *orig = CArray_create(0, ARRAY_FILLTYPE_NONE);
         long written = ArraySaveFileName(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "CHAR empty save failed");
 
-        Array loaded = Array_load(fname);
+        Array *loaded = ArrayLoadFileName(fname);
         test_validatefree(
-            loaded.len == 0 && loaded.cv == NULL,
+            loaded->len == 0 && loaded->cv == NULL,
             (Arrayfree(orig), Arrayfree(loaded)),
-            "Loaded empty CHAR: len=%d, cv=%p (expected 0, NULL)", loaded.len, loaded.cv
+            "Loaded empty CHAR: len=%d, cv=%p (expected 0, NULL)", loaded->len, (void*)loaded->cv
         );
 
         Arrayfree(orig);
@@ -3911,16 +4046,16 @@ tf_ArraySaveFile_load_char(const char *name)
     {
         const char *fname = "res/array/carr_single.sv";
 
-        Array orig = CArray_create(1, ARRAY_FILLTYPE_NONE);
-        orig.cv[0] = 'Z';
+        Array *orig = CArray_create(1, ARRAY_FILLTYPE_NONE);
+        orig->cv[0] = 'Z';
         long written = ArraySaveFileName(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "CHAR single save failed");
 
-        Array loaded = ArrayLoadFileName(fname);
+        Array *loaded = ArrayLoadFileName(fname);
         test_validatefree(
-            loaded.len == 1 && loaded.cv[0] == 'Z',
+            loaded->len == 1 && loaded->cv[0] == 'Z',
             (Arrayfree(orig), Arrayfree(loaded)),
-            "Loaded single CHAR: expected 'Z', got '%c'", loaded.cv[0]
+            "Loaded single CHAR: expected 'Z', got '%c'", loaded->cv[0]
         );
 
         Arrayfree(orig);
@@ -3940,12 +4075,12 @@ tf_array_eq_noteq(const char *name)
     /* ========== INT ========== */
     test_sub("subtest %d: INT equal", ++subnum);
     {
-        Array a = IArray_create(3, ARRAY_FILLTYPE_NONE);
-        Array b = IArray_create(3, ARRAY_FILLTYPE_NONE);
-        a.iv[0] = 1; a.iv[1] = 2; a.iv[2] = 3;
-        b.iv[0] = 1; b.iv[1] = 2; b.iv[2] = 3;
+        Array *a = IArray_create(3, ARRAY_FILLTYPE_NONE);
+        Array *b = IArray_create(3, ARRAY_FILLTYPE_NONE);
+        a->iv[0] = 1; a->iv[1] = 2; a->iv[2] = 3;
+        b->iv[0] = 1; b->iv[1] = 2; b->iv[2] = 3;
         test_validatefree(
-            ArrayEq(&a, &b) && !ArrayNoteq(&a, &b),
+            ArrayEq(a, b) && !ArrayNoteq(a, b),
             (Arrayfree(a), Arrayfree(b)),
             "Identical INT arrays must be equal"
         );
@@ -3954,12 +4089,12 @@ tf_array_eq_noteq(const char *name)
 
     test_sub("subtest %d: INT not equal (different values)", ++subnum);
     {
-        Array a = IArray_create(2, ARRAY_FILLTYPE_NONE);
-        Array b = IArray_create(2, ARRAY_FILLTYPE_NONE);
-        a.iv[0] = 10; a.iv[1] = 20;
-        b.iv[0] = 10; b.iv[1] = 30;
+        Array *a = IArray_create(2, ARRAY_FILLTYPE_NONE);
+        Array *b = IArray_create(2, ARRAY_FILLTYPE_NONE);
+        a->iv[0] = 10; a->iv[1] = 20;
+        b->iv[0] = 10; b->iv[1] = 30;
         test_validatefree(
-            !ArrayEq(&a, &b) && ArrayNoteq(&a, &b),
+            !ArrayEq(a, b) && ArrayNoteq(a, b),
             (Arrayfree(a), Arrayfree(b)),
             "Different values must be not equal"
         );
@@ -3968,10 +4103,10 @@ tf_array_eq_noteq(const char *name)
 
     test_sub("subtest %d: INT not equal (different lengths)", ++subnum);
     {
-        Array a = IArray_create(2, ARRAY_FILLTYPE_NONE);
-        Array b = IArray_create(3, ARRAY_FILLTYPE_NONE);
+        Array *a = IArray_create(2, ARRAY_FILLTYPE_NONE);
+        Array *b = IArray_create(3, ARRAY_FILLTYPE_NONE);
         test_validatefree(
-            !ArrayEq(&a, &b) && ArrayNoteq(&a, &b),
+            !ArrayEq(a, b) && ArrayNoteq(a, b),
             (Arrayfree(a), Arrayfree(b)),
             "Different lengths must be not equal"
         );
@@ -3980,10 +4115,10 @@ tf_array_eq_noteq(const char *name)
 
     test_sub("subtest %d: INT empty arrays", ++subnum);
     {
-        Array a = IArray_create(0, ARRAY_FILLTYPE_NONE);
-        Array b = IArray_create(0, ARRAY_FILLTYPE_NONE);
+        Array *a = IArray_create(0, ARRAY_FILLTYPE_NONE);
+        Array *b = IArray_create(0, ARRAY_FILLTYPE_NONE);
         test_validatefree(
-            ArrayEq(&a, &b) && !ArrayNoteq(&a, &b),
+            ArrayEq(a, b) && !ArrayNoteq(a, b),
             (Arrayfree(a), Arrayfree(b)),
             "Empty INT arrays must be equal"
         );
@@ -3993,12 +4128,12 @@ tf_array_eq_noteq(const char *name)
     /* ========== CHAR ========== */
     test_sub("subtest %d: CHAR equal", ++subnum);
     {
-        Array a = CArray_create(2, ARRAY_FILLTYPE_NONE);
-        Array b = CArray_create(2, ARRAY_FILLTYPE_NONE);
-        a.cv[0] = 'x'; a.cv[1] = 'y';
-        b.cv[0] = 'x'; b.cv[1] = 'y';
+        Array *a = CArray_create(2, ARRAY_FILLTYPE_NONE);
+        Array *b = CArray_create(2, ARRAY_FILLTYPE_NONE);
+        a->cv[0] = 'x'; a->cv[1] = 'y';
+        b->cv[0] = 'x'; b->cv[1] = 'y';
         test_validatefree(
-            ArrayEq(&a, &b) && !ArrayNoteq(&a, &b),
+            ArrayEq(a, b) && !ArrayNoteq(a, b),
             (Arrayfree(a), Arrayfree(b)),
             "Identical CHAR arrays must be equal"
         );
@@ -4007,12 +4142,12 @@ tf_array_eq_noteq(const char *name)
 
     test_sub("subtest %d: CHAR not equal", ++subnum);
     {
-        Array a = CArray_create(1, ARRAY_FILLTYPE_NONE);
-        Array b = CArray_create(1, ARRAY_FILLTYPE_NONE);
-        a.cv[0] = 'a';
-        b.cv[0] = 'b';
+        Array *a = CArray_create(1, ARRAY_FILLTYPE_NONE);
+        Array *b = CArray_create(1, ARRAY_FILLTYPE_NONE);
+        a->cv[0] = 'a';
+        b->cv[0] = 'b';
         test_validatefree(
-            !ArrayEq(&a, &b) && ArrayNoteq(&a, &b),
+            !ArrayEq(a, b) && ArrayNoteq(a, b),
             (Arrayfree(a), Arrayfree(b)),
             "Different CHAR must be not equal"
         );
@@ -4022,14 +4157,14 @@ tf_array_eq_noteq(const char *name)
     /* ========== V64 STR ========== */
     test_sub("subtest %d: V64 STR equal", ++subnum);
     {
-        Array a = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_STR);
-        Array b = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_STR);
-        a.v64[0] = value64_createstr("hello");
-        a.v64[1] = value64_createstr("world");
-        b.v64[0] = value64_createstr("hello");
-        b.v64[1] = value64_createstr("world");
+        Array *a = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array *b = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        a->v64[0] = value64_createstr("hello");
+        a->v64[1] = value64_createstr("world");
+        b->v64[0] = value64_createstr("hello");
+        b->v64[1] = value64_createstr("world");
         test_validatefree(
-            ArrayEq(&a, &b) && !ArrayNoteq(&a, &b),
+            ArrayEq(a, b) && !ArrayNoteq(a, b),
             (Arrayfree(a), Arrayfree(b)),
             "Identical STR arrays must be equal"
         );
@@ -4039,12 +4174,12 @@ tf_array_eq_noteq(const char *name)
 
     test_sub("subtest %d: V64 STR not equal", ++subnum);
     {
-        Array a = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_STR);
-        Array b = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_STR);
-        a.v64[0] = value64_createstr("abc");
-        b.v64[0] = value64_createstr("xyz");
+        Array *a = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array *b = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        a->v64[0] = value64_createstr("abc");
+        b->v64[0] = value64_createstr("xyz");
         test_validatefree(
-            !ArrayEq(&a, &b) && ArrayNoteq(&a, &b),
+            !ArrayEq(a, b) && ArrayNoteq(a, b),
             (Arrayfree(a), Arrayfree(b)),
             "Different STR must be not equal"
         );
@@ -4055,14 +4190,14 @@ tf_array_eq_noteq(const char *name)
     /* ========== V64 FS ========== */
     test_sub("subtest %d: V64 FS equal", ++subnum);
     {
-        Array a = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_FS);
-        Array b = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_FS);
-        a.v64[0] = value64_createfs_asstr("/tmp/a");
-        a.v64[1] = value64_createfs_asstr("/tmp/b");
-        b.v64[0] = value64_createfs_asstr("/tmp/a");
-        b.v64[1] = value64_createfs_asstr("/tmp/b");
+        Array *a = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *b = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        a->v64[0] = value64_createfs_asstr("/tmp/a");
+        a->v64[1] = value64_createfs_asstr("/tmp/b");
+        b->v64[0] = value64_createfs_asstr("/tmp/a");
+        b->v64[1] = value64_createfs_asstr("/tmp/b");
         test_validatefree(
-            ArrayEq(&a, &b) && !ArrayNoteq(&a, &b),
+            ArrayEq(a, b) && !ArrayNoteq(a, b),
             (Arrayfree(a), Arrayfree(b)),
             "Identical FS arrays must be equal"
         );
@@ -4072,12 +4207,12 @@ tf_array_eq_noteq(const char *name)
 
     test_sub("subtest %d: V64 FS not equal", ++subnum);
     {
-        Array a = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_FS);
-        Array b = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_FS);
-        a.v64[0] = value64_createfs_asstr("/first");
-        b.v64[0] = value64_createfs_asstr("/second");
+        Array *a = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *b = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        a->v64[0] = value64_createfs_asstr("/first");
+        b->v64[0] = value64_createfs_asstr("/second");
         test_validatefree(
-            !ArrayEq(&a, &b) && ArrayNoteq(&a, &b),
+            !ArrayEq(a, b) && ArrayNoteq(a, b),
             (Arrayfree(a), Arrayfree(b)),
             "Different FS must be not equal"
         );
@@ -4088,10 +4223,10 @@ tf_array_eq_noteq(const char *name)
     /* ========== Type mismatch (must raise SIGINT) ========== */
     test_sub("subtest %d: type mismatch raises SIGINT", ++subnum);
     {
-        Array a = IArray_create(1, ARRAY_FILLTYPE_NONE);
-        Array b = CArray_create(1, ARRAY_FILLTYPE_NONE);
+        Array *a = IArray_create(1, ARRAY_FILLTYPE_NONE);
+        Array *b = CArray_create(1, ARRAY_FILLTYPE_NONE);
         if (!try()) {
-            ArrayNoteq(&a, &b);
+            ArrayNoteq(a, b);
             test_validatefree(false, (Arrayfree(a), Arrayfree(b)),
                              "Type mismatch should have raised SIGINT");
         } else {

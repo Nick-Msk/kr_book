@@ -237,7 +237,7 @@ static inline const char           *ArrayFillTypeName(ArrayFillType t) {
 #define                         V64Array_init(...) (Array){.len = 0, .sz = 0, .iv = 0, .flags = ARRAY_V64, __VA_ARGS__}
 // 
 #define                         Array_init(...)  (Array){.len = 0, .sz = 0, .iv = 0, .flags = 0, __VA_ARGS__}
-#define                         Arrayfree(x)({ Array_free(&(x)); (x).iv = 0; })
+#define                         Arrayfree(x)({ Array_free((x)); (x) = NULL; })
 
 // --------------------------------- CREATE and FILL ------------------------------------
 
@@ -247,7 +247,7 @@ static inline const char           *ArrayFillTypeName(ArrayFillType t) {
  * 
  * @details This function allocates memory for the Array descriptor and the 
  *          underlying data buffer. If successful, the caller takes ownership 
- *          of the returned pointer and must eventually call @ref Array_free.
+ *          of the returned pointer and must eventually call @ref ArrayFree.
  * 
  * @param cnt        Number of elements to allocate.
  * @param fill_type  The initialization pattern (e.g., zero, random, ascending).
@@ -667,11 +667,11 @@ extern int                      Array_foreach_rev_proc(Array *restrict parr, Arr
     for (int i = (parr)->len - 1; i >= 0; --i)  
 
 // Публичные однобуквенные макросы
-#define IArray_foreach(arr, elem)   _Array_foreach_gen((arr).iv, (arr).len, elem)
-#define LArray_foreach(arr, elem)   _Array_foreach_gen((arr).lv, (arr).len, elem)
-#define DArray_foreach(arr, elem)   _Array_foreach_gen((arr).dv, (arr).len, elem)
-#define PArray_foreach(arr, elem)   _Array_foreach_gen((arr).pv, (arr).len, elem)
-#define V64Array_foreach(arr, elem) _Array_foreach_gen((arr).v64, (arr).len, elem)
+#define IArray_foreach(parr, elem)   _Array_foreach_gen((parr)->iv, (parr)->len, elem)
+#define LArray_foreach(parr, elem)   _Array_foreach_gen((parr)->lv, (parr)->len, elem)
+#define DArray_foreach(parr, elem)   _Array_foreach_gen((parr)->dv, (parr)->len, elem)
+#define PArray_foreach(parr, elem)   _Array_foreach_gen((parr)->pv, (parr)->len, elem)
+#define V64Array_foreach(parr, elem) _Array_foreach_gen((parr)->v64, (parr)->len, elem)
 
 // ----------------- PRINTERS/SERIALYZATION ----------------------
 
