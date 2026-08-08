@@ -89,13 +89,13 @@ static const ArrayTypeInfo          ARRAY_TYPE_TABLE[] = {
 };
 
 static const ArrayFillTypeInfo      ARRAY_FILLTYPE_TABLE[] = {
-    { ARRAY_FILLTYPE_NONE,           "NONE" },
-    { ARRAY_FILLTYPE_DESC,           "DESC" },
-    { ARRAY_FILLTYPE_ASC,            "ASC" },
-    { ARRAY_FILLTYPE_RND,            "RND" },
-    { ARRAY_FILLTYPE_ZERO,           "ZERO" },
-    { ARRAY_FILLTYPE_ASC_SERIES,     "ASC_SERIES" },
-    { ARRAY_FILLTYPE_DESC_SERIES,    "DESC_SERIES" }
+    { ARRAY_FILLTYPE_NONE,           "FILLTYPE_NONE" },
+    { ARRAY_FILLTYPE_DESC,           "FILLTYPE_DESC" },
+    { ARRAY_FILLTYPE_ASC,            "FILLTYPE_ASC" },
+    { ARRAY_FILLTYPE_RND,            "FILLTYPE_RND" },
+    { ARRAY_FILLTYPE_ZERO,           "FILLTYPE_ZERO" },
+    { ARRAY_FILLTYPE_ASC_SERIES,     "FILLTYPE_ASC_SERIES" },
+    { ARRAY_FILLTYPE_DESC_SERIES,    "FILLTYPE_DESC_SERIES" }
 };
 
 extern int              g_array_rec_line;
@@ -179,6 +179,16 @@ static inline const ArrayTypeInfo   *ArrayTypeGetInfo(ArrayType t) {
  */
 static inline const char            *ArrayTypeGetName(ArrayType t) {
     return ArrayTypeGetInfo(t)->name;
+}
+
+/**
+ * @brief Gets the real name of the array's type.
+ * 
+ * @param a The array instance.
+ * @return const char* The pretty name (e.g., "INT").
+ */
+static inline const char            *ArrayTypeGetRealName(ArrayType t) {
+    return ArrayTypeGetInfo(t)->name_raw;
 }
 
 /**
@@ -368,6 +378,10 @@ static inline const char       *ArrayGetTypeName(const Array *parr) {
     return ArrayTypeGetName(ArrayGettype(parr));
 }
 
+static inline const char       *ArrayGetTypeRealName(const Array *parr) {
+    return ArrayTypeGetRealName(ArrayGettype(parr));
+}
+
 static inline const char       *ArrayGetV64typeName(const Array *parr) {
     if (ArrayIsV64(parr))
         return value64_typename(parr->v64type);    // query V64 API
@@ -376,9 +390,7 @@ static inline const char       *ArrayGetV64typeName(const Array *parr) {
 }
 
 static inline value64_type     ArrayGetV64mappedType(const Array *parr) {
-    if (ArrayIsV64(parr))
-        return ArrayGetTypeInfo(parr)->v64mapping;
-    return VALUE64_UNKNOWN;
+    return ArrayGetTypeInfo(parr)->v64mapping;
 }
 /// @brief check if array is INT
 /// @param a array

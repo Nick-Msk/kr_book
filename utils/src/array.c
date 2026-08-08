@@ -619,7 +619,7 @@ int                             Array_fill(Array *parr, ArrayFillType typ){
 /// @param to     end index 
 /// @return       count of filled elements
 static int                      ArrayFillRange_ASC(Array *parr, int from, int to){
-    switch (ArrayGetV64mappedType(parr) ) {
+    switch (ArrayGettype(parr) ) {
         case ARRAY_INT: {
             int val = 0;
             for (int i = from; i < to; i++, incintrnd(&val, 1) )
@@ -645,7 +645,7 @@ static int                      ArrayFillRange_ASC(Array *parr, int from, int to
             break;
         }
         // V64, which not mapped to ARRAY_TYPES
-        case ARRAY_UNKNOWN: {
+        case ARRAY_V64: {
             switch (parr->v64type) {
                 case VALUE64_FS: {
                     fs s = FS();
@@ -683,7 +683,7 @@ static int                      ArrayFillRange_ASC(Array *parr, int from, int to
 /// @param to     end index 
 /// @return       count of filled elements
 static int                      ArrayFillRange_DESC(Array *parr, int from, int to){
-    switch (ArrayGetV64mappedType(parr) ) {
+    switch (ArrayGettype(parr) ) {
         case ARRAY_INT: {
             int val = 10 * parr->len;   // hope it'll ne owerwelhm int;
             for (int i = from; i < to; i++, incintrnd(&val, -1) )
@@ -709,7 +709,7 @@ static int                      ArrayFillRange_DESC(Array *parr, int from, int t
             break;
         }
         // V64, which not mapped to ARRAY_TYPES
-        case ARRAY_UNKNOWN: {
+        case ARRAY_V64: {
             switch (parr->v64type) {
                 case VALUE64_FS: {
                     fs s = fscopyf("%*s", to - from + 1,  "A");    // buf
@@ -748,7 +748,7 @@ static int                      ArrayFillRange_DESC(Array *parr, int from, int t
 /// @param to     end index 
 /// @return       count of filled elements
 static int                      ArrayFillRange_ZERO(Array *parr, int from, int to){
-    switch (ArrayGetV64mappedType(parr) ) {
+    switch (ArrayGettype(parr) ) {
         case ARRAY_INT:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
                 ArraySetIntElem(parr, i, 0);
@@ -770,7 +770,7 @@ static int                      ArrayFillRange_ZERO(Array *parr, int from, int t
                 ArraySetCharElem(parr, i, '\0');
             break;
         // not real type => container v64
-        case ARRAY_UNKNOWN: {
+        case ARRAY_V64: {
             switch (parr->v64type) {
                 case VALUE64_FS: {
                     fs s = FSLITERAL("");
@@ -800,8 +800,8 @@ static int                      ArrayFillRange_ZERO(Array *parr, int from, int t
 /// @param to     end index 
 /// @return       count of filled elements
 static int                      ArrayFillRange_NONE(Array *parr, int from, int to) {
-    switch (ArrayGetV64mappedType(parr) ) {
-        case ARRAY_UNKNOWN: {   // V64
+    switch (ArrayGettype(parr) ) {
+        case ARRAY_V64: {   // V64
             switch (parr->v64type) {
                 case VALUE64_FS: {
                     fs s = FS();
@@ -832,7 +832,7 @@ static int                      ArrayFillRange_NONE(Array *parr, int from, int t
 /// @param to     end index 
 /// @return       count of filled elements
 static int                      ArrayFillRange_RND(Array *parr, int from, int to) {
-    switch (ArrayGetV64mappedType(parr) ) {
+    switch (ArrayGettype(parr) ) {
         case ARRAY_INT:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
                  ArraySetIntElem(parr, i, rndint(10 * (to - from + 1) ) );
@@ -849,7 +849,7 @@ static int                      ArrayFillRange_RND(Array *parr, int from, int to
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
                 ArraySetCharElem(parr, i, rndupperchar() );    // upper/lower must be in context.c
             break;
-        case ARRAY_UNKNOWN: {
+        case ARRAY_V64: {
             switch (parr->v64type) {
                 case VALUE64_FS: {
                     fs s = FS();
@@ -887,7 +887,7 @@ static int                      ArrayFillRange_RND(Array *parr, int from, int to
 /// @param to     end index 
 /// @return       count of filled elements
 static int                      ArrayFillRange_ASC_SERIES(Array *parr, int from, int to){
-    switch (ArrayGetV64mappedType(parr) ) {
+    switch (ArrayGettype(parr) ) {
         case ARRAY_INT: {
             int val = from;
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
@@ -925,7 +925,7 @@ static int                      ArrayFillRange_ASC_SERIES(Array *parr, int from,
 /// @param to     end index 
 /// @return       count of filled elements
 static int                      ArrayFillRange_DESC_SERIES(Array *parr, int from, int to){
-    switch (ArrayGetV64mappedType(parr) ) {
+    switch (ArrayGettype(parr) ) {
         case ARRAY_INT: {
             int val = to - 1;
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
@@ -964,7 +964,8 @@ static int                      ArrayFillRange_DESC_SERIES(Array *parr, int from
 /// @param to  to (will be normilized if out of range)
 /// @return Count of formatter data
 int                             ArrayFillRange(Array *parr, ArrayFillType typ, int from, int to) {
-    logenter("%d - %d, %s (v64: %s)", from, to, ArrayFillTypeName(typ), ArrayGetV64typeName(parr) );
+    logenter("%d - %d, %s (%s/v64: %s)", 
+            from, to, ArrayFillTypeName(typ), ArrayGetTypeName(parr), ArrayGetV64typeName(parr) );
     // Нормализация границ
     if (from < 0) {
         from = 0;
@@ -1426,12 +1427,12 @@ long                        ArraySaveFilevalues(const Array *restrict parr, cons
  */
 
 long                        ArraySaveFile(FILE *restrict out, const Array *restrict parr) {  
-    invraisecode(parr == NULL, ERR_NULLABLE_PTR, "Array is null");
+    invraisecode(parr != NULL, ERR_NULLABLE_PTR, "Array is null");
     if (!out)
         return logsimpleret(0L,  "Output is null"); 
 
     long        total_written = 0L;
-    const char  *typ = ArrayTypeGetName(ArrayGettype(parr) );
+    const char  *typ = ArrayGetTypeRealName(parr);
     const char  *v64_type  = ArrayIsV64(parr) ? ArrayGetV64typeName(parr) : "NONV64_TYPE";
 
     IOCHECKER(written, fprintf(out, "ARRAY: %s / %s : %d\n", typ, v64_type, parr->len), -1)
@@ -1457,13 +1458,13 @@ long                        ArraySaveFileName(const Array *parr, const char *fna
 
     FILE        *out = fopen(fname, "w");
     if (out == 0)
-        return userraise(ERR_UNABLE_OPEN_FILE_WRITE, -1, "Can't open '%s' for write", fname);
+        return userraise(-1, ERR_UNABLE_OPEN_FILE_WRITE, "Can't open '%s' for write", fname);
 
     long        res = ArraySaveFile(out, parr);
     fclose(out);
 
     if(res < 0)
-        return logerr(res, "Unable to save array");
+        return userraise(res, ERR_STREAM_ERROR, "Unable to save array");
     else
         return logret(res, "Done %ld", res);
 }
@@ -1787,10 +1788,20 @@ tf4(const char *name)
     test_sub("subtest %d: int save/load", ++subnum);
     {
         Array *arr = IArray_create(100, ARRAY_FILLTYPE_RND);
+
+        test_validate(
+            arr != NULL, 
+            "Array not created"
+        );
+
         const char *filename = "res/array/iarr.sv";
 
         long written = ArraySaveFileName(arr, filename);
-        test_validatefree(written > 0, Arrayfree(arr), "Int save failed");
+        test_validatefree(
+            written > 0, 
+            Arrayfree(arr), 
+            "Int save failed"
+        );
 
         Array *loaded = ArrayLoadFileName(filename);
         test_validatefree(
