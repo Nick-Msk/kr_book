@@ -1,6 +1,5 @@
 #include "common.h"
-#include "log.h"
-#include <sys/errno.h>
+
 
 /********************************************************************
                  COOMON MODULE IMPLEMENTATION
@@ -231,6 +230,44 @@ bool                            try_parse_char(const char *restrict str, char *r
     if (res)
         *res = str[0];
     return true;
+}
+/**
+ * @brief Tries to parse a boolean value from a string.
+ * Recognises "on", "true", "yes" (case‑insensitive) as true,
+ * and "off", "false", "no" as false.
+ * @param str input string
+ * @param res pointer to store the result (may be NULL)
+ * @return true if the string matched a known boolean, false otherwise
+ */
+bool try_parse_bool(const char *restrict str, bool *restrict res) {
+    if (!str || !*str)
+        return logsimpleerr(false, "Empty string for bool");
+
+    // максимальная длина слова – 5 символов ("false") + возможно один разделитель
+    char buf[7];  // 6 символов + \0
+    size_t i = 0;
+    while (str[i] && !isspace((unsigned char) str[i]) && i < sizeof(buf) - 1) {
+        buf[i] = (char) tolower((unsigned char) str[i]);
+        i++;
+    }
+    buf[i] = '\0';
+
+    // Вспомогательный макрос для сравнения
+    #define try_parse_bool_MATCH(word, result_value) \
+        (strncmp(buf, (word), sizeof(word)-1) == 0 && \
+         (buf[sizeof(word)-1] == '\0' || isspace((unsigned char)buf[sizeof(word)-1])))
+
+    if (try_parse_bool_MATCH("on", true) || try_parse_bool_MATCH("true", true) || try_parse_bool_MATCH("yes", true)) {
+        if (res) *res = true;
+        return true;
+    }
+    if (try_parse_bool_MATCH("off", false) || try_parse_bool_MATCH("false", false) || try_parse_bool_MATCH("no", false)) {
+        if (res) *res = false;
+        return true;
+    }
+
+    #undef try_parse_bool_MATCH
+    return logsimpleerr(false, "Unknown boolean string '%s'", str);
 }
 
 // -------------------------------Testing --------------------------
@@ -528,6 +565,48 @@ tf_try_parse(const char *name)
             try_parse_char("X", NULL),
             "try_parse_char('X', NULL) must return true"
         );
+    }
+
+    /* ---------- try_parse_bool ---------- */
+    test_sub("subtest %d: try_parse_bool true values", ++subnum);
+    {
+        const char *true_strs[] = {"on", "ON", "On", "true", "True", "TRUE", "yes", "YES", "Yes"};
+        for (size_t i = 0; i < COUNT(true_strs); i++) {
+            bool res = false;
+            test_validate(
+                try_parse_bool(true_strs[i], &res) && res == true,
+                "try_parse_bool('%s'): expected true, got %s", true_strs[i], res ? "true" : "false"
+            );
+        }
+    }
+
+    test_sub("subtest %d: try_parse_bool false values", ++subnum);
+    {
+        const char *false_strs[] = {"off", "OFF", "Off", "false", "False", "FALSE", "no", "NO", "No"};
+        for (size_t i = 0; i < COUNT(false_strs); i++) {
+            bool res = true;
+            test_validate(
+                try_parse_bool(false_strs[i], &res) && res == false,
+                "try_parse_bool('%s'): expected false, got %s", false_strs[i], res ? "true" : "false"
+            );
+        }
+    }
+
+    test_sub("subtest %d: try_parse_bool invalid strings", ++subnum);
+    {
+        const char *invalid[] = {"", "unknown", "onoff", "1", "0", "TRUE1", "falsewww", NULL};        for (size_t i = 0; i < COUNT(invalid); i++) {
+        bool dummy;
+            test_validate(
+                !try_parse_bool(invalid[i], &dummy),
+                "try_parse_bool('%s'): must fail", invalid[i] ? invalid[i] : "NULL"
+            );
+        }
+    }
+
+    test_sub("subtest %d: try_parse_bool with NULL output", ++subnum);
+    {
+        test_validate(try_parse_bool("on", NULL), "try_parse_bool('on', NULL) must succeed");
+        test_validate(!try_parse_bool("invalid", NULL), "try_parse_bool('invalid', NULL) must fail");
     }
 
     return logret(TEST_PASSED, "done");
