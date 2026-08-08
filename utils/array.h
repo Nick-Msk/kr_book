@@ -68,7 +68,6 @@ typedef enum ArrayType{
  */
 typedef struct {
     ArrayType       type;           /**< The base enum identifier */
-    value64_type    v64mapping;     /**< Mapping to the V64 subtype (if applicable) */
     const char     *name;           /**< Pretty name (e.g., "DOUBLE") */
     const char     *name_raw;       /**< Parsing name (e.g., "ARRAY_DOUBLE") */
     size_t          elem_size;       /**< Size of the element in bytes */
@@ -76,16 +75,15 @@ typedef struct {
 
 static const ArrayTypeInfo          ARRAY_TYPE_TABLE[] = {
     /* Базовый тип | Подтип (v64) | Имя (pretty) | Имя (raw) | Размер */
-    { ARRAY_INT,     VALUE64_INT,       "INT",        "ARRAY_INT",     sizeof(int) },
-    { ARRAY_LONG,    VALUE64_LNG,       "LONG",       "ARRAY_LONG",    sizeof(long) },
-    { ARRAY_DOUBLE,  VALUE64_DBL,       "DOUBLE",     "ARRAY_DOUBLE",  sizeof(double) },
-    { ARRAY_POINTER, VALUE64_PTR,       "POINTER",    "ARRAY_POINTER", sizeof(void*) },
-    { ARRAY_CHAR,    VALUE64_UNKNOWN /*VALUE64_CHAR*/ , 
-                                        "CHAR",       "ARRAY_CHAR",    sizeof(char) },
+    { ARRAY_INT,     "INT",        "ARRAY_INT",     sizeof(int) },
+    { ARRAY_LONG,    "LONG",       "ARRAY_LONG",    sizeof(long) },
+    { ARRAY_DOUBLE,  "DOUBLE",     "ARRAY_DOUBLE",  sizeof(double) },
+    { ARRAY_POINTER, "POINTER",    "ARRAY_POINTER", sizeof(void*) },
+    { ARRAY_CHAR,    "CHAR",       "ARRAY_CHAR",    sizeof(char) },
     //    V64 container
-    { ARRAY_V64,     VALUE64_UNKNOWN,   "V64",        "ARRAY_V64",     sizeof(value64) },
+    { ARRAY_V64,     "V64",        "ARRAY_V64",     sizeof(value64) },
     // 
-    { ARRAY_UNKNOWN, VALUE64_UNKNOWN,   "UNKNOWN",    "ARRAY_UNKNOWN", 0 }
+    { ARRAY_UNKNOWN, "UNKNOWN",    "ARRAY_UNKNOWN", 0 }
 };
 
 static const ArrayFillTypeInfo      ARRAY_FILLTYPE_TABLE[] = {
@@ -389,9 +387,6 @@ static inline const char       *ArrayGetV64typeName(const Array *parr) {
         return "Not V64 type";
 }
 
-static inline value64_type     ArrayGetV64mappedType(const Array *parr) {
-    return ArrayGetTypeInfo(parr)->v64mapping;
-}
 /// @brief check if array is INT
 /// @param a array
 /// @return true if INT
