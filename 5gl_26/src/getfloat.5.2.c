@@ -40,7 +40,7 @@ int                     main(int argc, const char *argv[]){
 
     logauto(cnt);
     // shrink array is required!
-    arr = Array_shrink(arr, cnt);
+    arr = ArrayShrink(arr, cnt);
 
     // tuning TODO: that should be refactored
     g_custom_print_line = "[%3d: %.8g]\t";
