@@ -185,7 +185,7 @@ static int                      increase(Array *arr, int newsz){
  * @param i   element index
  * @param val value to write
  */
-static inline void ArraySetIntElem(Array *parr, int i, int val) {
+static inline void                  ArraySetIntElem(Array *parr, int i, int val) {
     if (ArrayIsV64(parr))
         parr->v64[i] = value64_createint(val);
     else
@@ -196,7 +196,7 @@ static inline void ArraySetIntElem(Array *parr, int i, int val) {
  * @brief Writes a long integer into an array (plain or value64).
  * @see ArraySetIntElem
  */
-static inline void ArraySetLongElem(Array *parr, int i, long val) {
+static inline void                  ArraySetLongElem(Array *parr, int i, long val) {
     if (ArrayIsV64(parr))
         parr->v64[i] = value64_createlong(val);
     else
@@ -207,7 +207,7 @@ static inline void ArraySetLongElem(Array *parr, int i, long val) {
  * @brief Writes a double into an array (plain or value64).
  * @see ArraySetIntElem
  */
-static inline void ArraySetDblElem(Array *parr, int i, double val) {
+static inline void                  ArraySetDblElem(Array *parr, int i, double val) {
     if (ArrayIsV64(parr))
         parr->v64[i] = value64_createdbl(val);
     else
@@ -218,7 +218,7 @@ static inline void ArraySetDblElem(Array *parr, int i, double val) {
  * @brief Writes a pointer into an array (plain or value64).
  * @see ArraySetIntElem
  */
-static inline void ArraySetPtrElem(Array *parr, int i, void *val) {
+static inline void                  ArraySetPtrElem(Array *parr, int i, void *val) {
     if (ArrayIsV64(parr))
         parr->v64[i] = value64_createptr(val);
     else
@@ -228,9 +228,9 @@ static inline void ArraySetPtrElem(Array *parr, int i, void *val) {
  * @brief Writes a pointer into an array (plain or value64).
  * @see ArraySetIntElem
  */
-static inline void ArraySetCharElem(Array *parr, int i, char val) {
+static inline void                  ArraySetCharElem(Array *parr, int i, char val) {
     if (ArrayIsV64(parr))
-        //a.v64[i] = value64_createptr(val);
+        //a.v64[i] = value64_createptr(val); // TODO:
         userraiseint(ERR_UNSUPPORTED_TYPE, "V64 container don't support char type for now");
     else
         parr->cv[i] = val;
@@ -245,7 +245,7 @@ static inline void ArraySetCharElem(Array *parr, int i, char val) {
  * @param i   element index
  * @param val pointer to the fs object to copy
  */
-static inline void ArraySetV64fsElem(Array *restrict parr, int i, const fs *restrict val) {
+static inline void                  ArraySetV64fsElem(Array *restrict parr, int i, const fs *restrict val) {
     parr->v64[i] = value64_createfs(val);
 }
 
@@ -259,7 +259,7 @@ static inline void ArraySetV64fsElem(Array *restrict parr, int i, const fs *rest
  * @param i   element index
  * @param val C‑string to copy
  */
-static inline void ArraySetV64strElem(Array *restrict parr, int i, const char *restrict val) {
+static inline void                  ArraySetV64strElem(Array *restrict parr, int i, const char *restrict val) {
     parr->v64[i] = value64_createstr(val);
 }
 
@@ -273,7 +273,7 @@ static inline void ArraySetV64strElem(Array *restrict parr, int i, const char *r
  * @param arr pointer to the array to fill
  * @return positive value in suceess, -1 if failed 
  */
-static int                  ArrayFileLoadValues(FILE *restrict in, Array *restrict parr) {
+static int                          ArrayFileLoadValues(FILE *restrict in, Array *restrict parr) {
     ArrayType   typ = ArrayGettype(parr);
     fs          buf = FS();
     int         cnt = 0;
@@ -328,7 +328,7 @@ static int                  ArrayFileLoadValues(FILE *restrict in, Array *restri
  * @param arr constant pointer to the array
  * @return number of bytes written
  */
-static long                 ArraySaveValues(FILE *restrict out, const Array *restrict parr) {
+static long                         ArraySaveValues(FILE *restrict out, const Array *restrict parr) {
     long        total = 0L;
     ArrayType   typ = ArrayGettype(parr);
     Array_pforeach_idx(parr, i)
