@@ -218,6 +218,21 @@ bool                            try_parse_ulong(const char *restrict str, unsign
         *res = val;
     return true;
 }
+/**
+ * @brief Tries to parse a single character from a string.
+ * The string must contain exactly one character (plus null terminator).
+ * @param str input string
+ * @param res pointer to store the parsed char (may be NULL)
+ * @return true on success, false on error (empty string or more than one character)
+ */
+bool                            try_parse_char(const char *restrict str, char *restrict res) {
+    if (!str || !*str)
+        return logsimpleerr(false, "Empty string for char");
+    if (res)
+        *res = str[0];
+    return true;
+}
+
 // -------------------------------Testing --------------------------
 
 #ifdef COMMONTESTING
@@ -469,6 +484,52 @@ tf_try_parse(const char *name)
             "try_parse_ulong(NULL) must return false"
         );
     }
+
+    /* ========== try_parse_char ========== */
+    test_sub("subtest %d: try_parse_char valid single chars", ++subnum);
+    {
+        const char *inputs[]  = {"a", "Z", "0", "\n", " "};
+        char        expected[] = {'a', 'Z', '0', '\n', ' '};
+        for (size_t i = 0; i < COUNT(inputs); i++) {
+            char res = '\0';
+            test_validate(
+                try_parse_char(inputs[i], &res) && res == expected[i],
+                "try_parse_char('%s'): expected '%c', got '%c'",
+                inputs[i], expected[i], res
+            );
+        }
+    }
+
+    test_sub("subtest %d: try_parse_char empty string", ++subnum);
+    {
+        const char *empty[] = {"", NULL};
+        for (size_t i = 0; i < COUNT(empty); i++) {
+            char res = '\0';
+            test_validate(
+                !try_parse_char(empty[i], &res),
+                "try_parse_char('%s'): must fail, got '%c'",
+                empty[i] ? empty[i] : "NULL", res
+            );
+        }
+    }
+
+    test_sub("subtest %d: try_parse_char long string (first char only)", ++subnum);
+    {
+        char res = '\0';
+        test_validate(
+            try_parse_char("Hello", &res) && res == 'H',
+            "try_parse_char('Hello'): expected 'H', got '%c'", res
+        );
+    }
+
+    test_sub("subtest %d: try_parse_char with NULL output pointer", ++subnum);
+    {
+        test_validate(
+            try_parse_char("X", NULL),
+            "try_parse_char('X', NULL) must return true"
+        );
+    }
+
     return logret(TEST_PASSED, "done");
 }
 

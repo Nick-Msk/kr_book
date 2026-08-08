@@ -602,6 +602,7 @@ extern bool              try_parse_long(const char *restrict str, long *restrict
 extern bool              try_parse_double(const char *restrict str, double *restrict res);
 extern bool              try_parse_uint(const char *restrict str, unsigned *restrict res);
 extern bool              try_parse_ulong(const char *restrict str, unsigned long *restrict res);
+extern bool              try_parse_char(const char *restrict str, char *restrict res);
 
 // ----------------------------------- IO -------------------------------------
 #define IOCHECKER(w, cmd, ret) \
