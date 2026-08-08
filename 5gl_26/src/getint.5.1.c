@@ -39,7 +39,7 @@ int                     main(int argc, const char *argv[]){
 
     logauto(cnt);
     // shrink array is required!
-    arr = Array_shrink(arr, cnt);
+    arr = ArrayShrink(arr, cnt);
 
     Array_print(arr, 0);
 
