@@ -13,8 +13,9 @@ static const value64_typeinfo           value64_info[] = {
     [VALUE64_INT]        = {"INT",         sizeof(int),    true     , "VALUE64_INT"},
     [VALUE64_LNG]        = {"LNG",         sizeof(long),   true     , "VALUE64_LNG"},
     [VALUE64_DBL]        = {"DBL",         sizeof(double), true     , "VALUE64_DBL"},
-    [VALUE64_FS]         = {"FS",          sizeof(fs *),   true     , "VALUE64_FS"},
+    [VALUE64_CHR]        = {"CHR",         sizeof(char),   true     , "VALUE64_CHR"},
     [VALUE64_PTR]        = {"PTR",         sizeof(void *), true     , "VALUE64_PTR"},
+    [VALUE64_FS]         = {"FS",          sizeof(fs *),   true     , "VALUE64_FS"},
     [VALUE64_STR]        = {"STR",         sizeof(char *), true     , "VALUE64_STR"},
     [VALUE64_TYPE_COUNT] = {"",            0,              false    , ""}
 };
@@ -22,26 +23,51 @@ static const value64_typeinfo           value64_info[] = {
 _Static_assert(COUNT(value64_info) == VALUE64_TYPE_COUNT + 1,
                "Размер массива value65_info не совпадает с количеством типов!");
 
-const                   value64_typeinfo* value64_info_get(value64_type typ) {
-    // Проверка границ массива
+const value64_typeinfo              *value64_info_get(value64_type typ) {
     if (typ < 0 || typ >= COUNT(value64_info) || !value64_info[typ].is_valid)
         return NULL;
     return &value64_info[typ];
 }
 
-static inline bool      is_long_int_range(long v) {
+/**
+ * @brief Checks if a long integer fits within the standard int range.
+ */
+static inline bool                  is_long_int_range(long v) {
     return v >= INT_MIN && v <= INT_MAX;
 }
-static inline bool      is_dbl_long_range(double v) {
+
+/**
+ * @brief Checks if a double can be safely represented as a long.
+ * @note Precision issues may occur for values exceeding 2^53.
+ */
+static inline bool                  is_dbl_long_range(double v) {
     return v >= (double) LONG_MIN && v <= (double) LONG_MAX;
 }
-static inline bool      is_dbl_int_range(double v) {
+
+/**
+ * @brief Checks if a double can be safely represented as an int.
+ */
+static inline bool                  is_dbl_int_range(double v) {
     return v >= (double) INT_MIN && v <= (double) INT_MAX;
+}
+
+/**
+ * @brief Checks if an int fits within the unsigned char range.
+ */
+static inline bool                  is_int_char_range(int v) {
+    return v >= 0 && v <= (long) UCHAR_MAX;
+}
+
+/**
+ * @brief Checks if a long fits within the unsigned char range.
+ */
+static inline bool                  is_long_char_range(long v) {
+    return v >= 0 && v <= (long) UCHAR_MAX;
 }
 
 // the part of mass creation API, probably'll be changed
 // create value from pointer, value64 constructor ANY type, MOVE semantic
-value64                   value64_pcopy_move(void *p, value64_type typ, bool move){
+value64                             value64_pcopy_move(void *p, value64_type typ, bool move){
     invraisecode(p != NULL, ERR_NULLABLE_PTR, "Null pointer");
     value64     tmp = LITERAL64_ZERO;  // init
     switch (typ){
@@ -59,6 +85,8 @@ value64                   value64_pcopy_move(void *p, value64_type typ, bool mov
             if (move)
                 *(void **)p = NULL;
         break;
+        case VALUE64_CHR:
+            tmp.cval = *(const char *) p;
         case VALUE64_STR:
             if (move)
                 tmp.sval = (char *) p;  //MOVE POINTER
@@ -79,29 +107,35 @@ value64                   value64_pcopy_move(void *p, value64_type typ, bool mov
     return tmp;
 }
 
-value64_ConverterFunc conv_matrix[VALUE64_TYPE_COUNT][VALUE64_TYPE_COUNT] = {
+value64_ConverterFunc   conv_matrix[VALUE64_TYPE_COUNT][VALUE64_TYPE_COUNT] = {
     [VALUE64_INT] = {
         [VALUE64_LNG] = value64_convert_int_to_lng,
         [VALUE64_DBL] = value64_convert_int_to_dbl,
+        [VALUE64_CHR] = value64_convert_int_to_char,
         [VALUE64_FS]  = value64_convert_int_to_fs,
-        [VALUE64_STR] = value64_convert_int_to_str
+        [VALUE64_STR] = value64_convert_int_to_str,
+        [VALUE64_INT] = value64_convert_int_to_int
     },
     [VALUE64_LNG] = {
         [VALUE64_INT] = value64_convert_lng_to_int,
         [VALUE64_DBL] = value64_convert_lng_to_dbl,
+        [VALUE64_CHR] = value64_convert_lng_to_char,
         [VALUE64_FS]  = value64_convert_lng_to_fs,
-        [VALUE64_STR] = value64_convert_lng_to_str
+        [VALUE64_STR] = value64_convert_lng_to_str,
+        [VALUE64_LNG] = value64_convert_lng_to_lng
     },
-    [VALUE64_DBL] = {
+    [VALUE64_DBL] = {   // no conv to char
         [VALUE64_INT] = value64_convert_dbl_to_int,
         [VALUE64_LNG] = value64_convert_dbl_to_lng,
         [VALUE64_FS]  = value64_convert_dbl_to_fs,
-        [VALUE64_STR] = value64_convert_dbl_to_str
+        [VALUE64_STR] = value64_convert_dbl_to_str,
+        [VALUE64_DBL] = value64_convert_dbl_to_dbl
     },
     [VALUE64_FS] = {
         [VALUE64_INT] = value64_convert_fs_to_int,
         [VALUE64_LNG] = value64_convert_fs_to_lng,
         [VALUE64_DBL] = value64_convert_fs_to_dbl,
+        [VALUE64_CHR] = value64_convert_fs_to_char,
         [VALUE64_STR] = value64_convert_fs_to_str,
         [VALUE64_FS]  = value64_convert_fs_to_fs
     },
@@ -109,11 +143,20 @@ value64_ConverterFunc conv_matrix[VALUE64_TYPE_COUNT][VALUE64_TYPE_COUNT] = {
         [VALUE64_INT] = value64_convert_str_to_int,
         [VALUE64_LNG] = value64_convert_str_to_lng,
         [VALUE64_DBL] = value64_convert_str_to_dbl,
+        [VALUE64_CHR] = value64_convert_str_to_char,
         [VALUE64_FS]  = value64_convert_str_to_fs,
         [VALUE64_STR] = value64_convert_str_to_str
+    },
+    [VALUE64_CHR] = {   // no convert to double
+        [VALUE64_INT] = value64_convert_char_to_int,
+        [VALUE64_LNG] = value64_convert_char_to_lng,
+        [VALUE64_CHR] = value64_convert_char_to_char,
+        [VALUE64_FS]  = value64_convert_char_to_fs,
+        [VALUE64_STR] = value64_convert_char_to_str
     }
 };
 
+// only for memory-alloc types
 value64_ConverterMoveFunc conv_move_matrix[VALUE64_TYPE_COUNT][VALUE64_TYPE_COUNT] = {
     [VALUE64_FS] = {
         [VALUE64_STR] = value64_convert_move_fs_to_str,
@@ -125,6 +168,19 @@ value64_ConverterMoveFunc conv_move_matrix[VALUE64_TYPE_COUNT][VALUE64_TYPE_COUN
     }
 };
 
+/**
+ * @brief Calculates a 64-bit hash value for a given value64 object.
+ * 
+ * This function computes a hash based on the internal representation of the 
+ * value64 object. For primitive types (int, long, double, pointer, char), 
+ * it uses a bitwise hash of the raw bits. For string-based types 
+ * (FS, STR), it uses the DJB2 algorithm on the underlying string content.
+ *
+ * @param value The value64 object to be hashed.
+ * @param typ   The type of the value64 object, which determines the hashing logic.
+ * 
+ * @return A 64-bit unsigned integer representing the hash value.
+ */
 unsigned long               value64_lhash(value64 value, value64_type typ){
     // probably it's better to calc hash by u64 attr (except fs for sure)
     value64      tmp = LITERAL64_ZERO;
@@ -141,6 +197,9 @@ unsigned long               value64_lhash(value64 value, value64_type typ){
         case VALUE64_PTR:
             tmp.u64 = (uint64_t) value64_ptr(value);    // or just do nothing as for HSET_DBL
         break;
+        case VALUE64_CHR:
+            tmp.u64 = (uint64_t) value64_char(value);
+        break;
         case VALUE64_FS:
             return  hash_djb2(fs_str(value64_fs(value) ) );
         break;
@@ -152,7 +211,17 @@ unsigned long               value64_lhash(value64 value, value64_type typ){
     }
     return hash_long(tmp.u64);
 }
-// search type id by type name
+
+/**
+ * @brief Maps a string representation of a type to its corresponding value64_type.
+ *
+ * This function iterates through the internal value64_info registry to find
+ * a matching type name. It performs a case-sensitive comparison.
+ *
+ * @param str A null-terminated string representing the type name.
+ * @return The matching value64_type if a match is found; otherwise VALUE64_UNKNOWN.
+ *         Returns VALUE64_UNKNOWN if the input string is NULL.
+ */
 value64_type            value64_gettype(const char *str){
     if (str){
         for (size_t i = 0; i < COUNT(value64_info); i++) {
@@ -163,10 +232,31 @@ value64_type            value64_gettype(const char *str){
     return VALUE64_UNKNOWN;
 }
 
-// move to EXISTING object, that is NOT a constructor
-// move switcher to EXISTING object
+/**
+ * @brief Transfers the payload from the source object to the target object (Move Semantics).
+ * 
+ * This function performs a move operation, transferring the internal data from 
+ * `source` to `target`. Unlike a copy, the `source` object is left in a 
+ * "zeroed" or invalid state after the transfer to prevent resource leaks 
+ * or double-frees.
+ * 
+ * @note This function does NOT change the logical type of the `target` object; 
+ *       it only overwrites its contents. The caller is responsible for ensuring 
+ *       that the `typ` provided matches the intended state of the `target`.
+ * 
+ * @param target Pointer to the existing object that will receive the data.
+ * @param source Pointer to the source object whose data will be moved.
+ * @param typ    The type of the data being moved, which determines the 
+ *               transfer logic (e.g., heap transfer for FS).
+ * 
+ * @return Pointer to the `target` object for method chaining.
+ * 
+ * @throws ERR_NULLABLE_PTR if either `target` or `source` is NULL.
+ * @throws ERR_UNABLE_ALLOCATE if the heap transfer for VALUE64_FS fails.
+ */
 value64                     *value64_moveto(value64 *restrict target, value64 *restrict source, value64_type typ){
-    invraisecode(target && source,  ERR_NULLABLE_PTR, "Null pointers %p %p", target, source);
+    invraisecode(target && source,  ERR_NULLABLE_PTR, 
+            "Null pointers %p %p", target, source);
 
     switch (typ){
         case VALUE64_FS:    // note: this's NOT the same as value64_movefs!
@@ -185,27 +275,64 @@ value64                     *value64_moveto(value64 *restrict target, value64 *r
     }
     return target;
 }
-//  exchanger, low-level, no check
+
+/**
+ * @brief Swaps the contents of two value64 variables.
+ * 
+ * @note This is a low-level function and does not perform any safety checks.
+ * @param v1 Pointer to the first value.
+ * @param v2 Pointer to the second value.
+ */
 void                        value64_exch(value64 *v1, value64 *v2){
     value64 tmp = *v1;
     *v1 = *v2;
     *v2 = tmp;
 }
+
+/**
+ * @brief Sorts an array of value64 elements in ascending order.
+ * 
+ * @param typ The type of the elements in the array.
+ * @param arr Pointer to the array to be sorted.
+ * @param sz The number of elements in the array.
+ * @throws ERR_UNSUPPORTED_TYPE if no comparator is available for the specified type.
+ */
 void                        value64_sort(value64_type typ, value64 *arr, int sz){
     value64_PComparator pcomp = value64_getPComparator(typ);
     if (!pcomp)
          userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s: %d", value64_typename(typ), typ);
     qsort(arr, sz, sizeof(value64), pcomp);
 }
+
+/**
+ * @brief Sorts an array of value64 elements in descending order.
+ * 
+ * @param typ The type of the elements in the array.
+ * @param arr Pointer to the array to be sorted.
+ * @param sz The number of elements in the array.
+ * @throws ERR_UNSUPPORTED_TYPE if no reverse comparator is available for the specified type.
+ */
 void                        value64_revsort(value64_type typ, value64 *arr, int sz){ 
     value64_PComparator revpcomp = value64_getPRevComparator(typ);
     if (!revpcomp)
          userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s: %d", value64_typename(typ), typ);
     qsort(arr, sz, sizeof(value64), revpcomp);
 }
-// finders
+
+/**
+ * @brief Performs a linear search for a value in an array.
+ * 
+ * @param val The value to search for.
+ * @param typ The type of elements in the array.
+ * @param arr Pointer to the array of values.
+ * @param sz The number of elements in the array.
+ * @return The index of the first match found, or -1 if not found.
+ * @throws ERR_NULLABLE_PTR if the array pointer is NULL while sz > 0.
+ * @throws ERR_UNSUPPORTED_TYPE if no comparator is available for the specified type.
+ */
 int                         value64_search(value64 val, value64_type typ, const value64 *arr, int sz){
-    invraisecode(arr || sz == 0, ERR_NULLABLE_PTR, "Null pointer while sz > 0 %p %d", arr, sz);
+    invraisecode(arr || sz == 0, ERR_NULLABLE_PTR, 
+        "Null pointer while sz > 0 %p %d", arr, sz);
 
     value64_Comparator comp = value64_getComparator(typ);
     if (!comp)
@@ -216,8 +343,21 @@ int                         value64_search(value64 val, value64_type typ, const 
             return logsimpleret(i, "Found %d", i);
     return logsimpleerr(-1, "Not found"); // just a stub
 }
+
+/**
+ * @brief Performs a linear search for a value in an array in reverse order.
+ * 
+ * @param val The value to search for.
+ * @param typ The type of elements in the array.
+ * @param arr Pointer to the array of values.
+ * @param sz The number of elements in the array.
+ * @return The index of the first match found (searching from the end), or -1 if not found.
+ * @throws ERR_NULLABLE_PTR if the array pointer is NULL while sz > 0.
+ * @throws ERR_UNSUPPORTED_TYPE if no comparator is available for the specified type.
+ */
 int                         value64_revsearch(value64 val, value64_type typ, const value64 *arr, int sz){
-    invraisecode(arr || sz == 0, ERR_NULLABLE_PTR, "Null pointer while sz > 0 %p %d", arr, sz);
+    invraisecode(arr || sz == 0, ERR_NULLABLE_PTR, 
+            "Null pointer while sz > 0 %p %d", arr, sz);
 
     value64_Comparator comp = value64_getComparator(typ);
     if (!comp)
@@ -228,10 +368,24 @@ int                         value64_revsearch(value64 val, value64_type typ, con
             return logsimpleret(i - 1, "Found reverse %d", i - 1); 
     return logsimpleerr(-1, "Not found"); // just a stub
 }
-// arr MUST be ordered acs
-int                         value64_binsearch(value64 val, value64_type typ, const value64 *arr, int sz){
+
+/**
+ * @brief Performs a binary search for a value in an ascending-ordered array.
+ * 
+ * This function uses the standard `bsearch` algorithm. The input array 
+ * must be sorted in ascending order according to the specified type's comparator.
+ *
+ * @param val The value to search for.
+ * @param typ The type of elements in the array.
+ * @param arr Pointer to the array of value64 elements.
+ * @param sz The number of elements in the array.
+ * @return The zero-based index of the found element, or -1 if not found or sz == 0.
+ * @throws ERR_NULLABLE_PTR if the array pointer is NULL while sz > 0.
+ * @throws ERR_UNSUPPORTED_TYPE if no comparator is available for the specified type.
+ */int                         value64_binsearch(value64 val, value64_type typ, const value64 *arr, int sz){
     //bsearch(const void *key, const void *base, size_t nel, size_t width, int (*compar) (const void *, const void *));
-    invraisecode(arr || sz == 0, ERR_NULLABLE_PTR, "Null pointer while sz > 0 %p %d", arr, sz);
+    invraisecode(arr || sz == 0, ERR_NULLABLE_PTR, 
+            "Null pointer while sz > 0 %p %d", arr, sz);
     if (sz == 0)
         return logsimpleerr(-1, "Noting to find, sz == 0");
 
@@ -244,10 +398,25 @@ int                         value64_binsearch(value64 val, value64_type typ, con
     else
         return logsimpleret(find - arr, "Found %lu", find - arr);
 }
-// arr MUST be ordered desc
-int                         value64_rev_binsearch(value64 val, value64_type typ, const value64 *arr, int sz){
+
+/**
+ * @brief Performs a binary search for a value in a descending-ordered array.
+ * 
+ * This function uses the standard `bsearch` algorithm with a reverse comparator.
+ * The input array MUST be sorted in descending order.
+ *
+ * @param val The value to search for.
+ * @param typ The type of elements in the array.
+ * @param arr Pointer to the array of value64 elements.
+ * @param sz The number of elements in the array.
+ * @return The zero-based index of the found element, or -1 if not found or sz == 0.
+ * @throws ERR_NULLABLE_PTR if the array pointer is NULL while sz > 0.
+ * @throws ERR_UNSUPPORTED_TYPE if no reverse comparator is available for the specified type.
+ */int                         value64_rev_binsearch(value64 val, value64_type typ, const value64 *arr, int sz){
     //bsearch(const void *key, const void *base, size_t nel, size_t width, int (*compar) (const void *, const void *));
-    invraisecode(arr || sz == 0, ERR_NULLABLE_PTR, "Null pointer while sz > 0 %p %d", arr, sz);
+    invraisecode(arr || sz == 0, ERR_NULLABLE_PTR, 
+            "Null pointer while sz > 0 %p %d", arr, sz);
+
     if (sz == 0)
         return logsimpleerr(-1, "Noting to find, sz == 0");
 
@@ -260,56 +429,96 @@ int                         value64_rev_binsearch(value64 val, value64_type typ,
     else
         return logsimpleret(find - arr, "Found %lu", find - arr);
 }
-// value comparators, low-level, no checking
+/**
+ * @name Low-level Comparators
+ * @brief Internal comparison functions for value64 types.
+ * @note These functions perform no safety checks (no NULL or type validation) 
+ *       and are intended for high-performance use in sorting and searching.
+ * @return An integer less than, equal to, or greater than zero.
+ * @{
+ */
+
+/** @brief Compares two integer values. */
 int                         value64_int_comp(value64 v1, value64 v2) {
     return compare_int(v1.ival, v2.ival);
 }
-
 int                         value64_long_comp(value64 v1, value64 v2) {
     return compare_long(v1.lval, v2.lval);
 }
-
 int                         value64_dbl_comp(value64 v1, value64 v2) {
     return compare_dbl(v1.dval, v2.dval);
 }
-
+int                         value64_char_comp(value64 v1, value64 v2) {
+    return compare_char(v1.cval, v2.cval);
+}
 int                         value64_fs_comp(value64 v1, value64 v2) {
     return fs_cmp(v1.fsval, v2.fsval);
 }
-
 int                         value64_str_comp(value64 v1, value64 v2) {
     return strcmp(v1.sval, v2.sval);
 }
-
 int                         value64_ptr_comp(value64 v1, value64 v2) {
     return compare_ptr(v1.pval, v2.pval);
 }
-// value, reverse, low-level, no checking
+/** @} */
+
+/**
+ * @name Reverse Comparators
+ * @brief Functions for descending order comparison.
+ * @note These are implemented by negating the result of the standard comparators.
+ * @{
+ */
+
+/** @brief Reverse comparison for integers. */
 int                         value64_int_rev_comp(value64 v1, value64 v2) {
     return -compare_int(v1.ival, v2.ival);
 }
-
 int                         value64_long_rev_comp(value64 v1, value64 v2) {
     return -compare_long(v1.lval, v2.lval);
 }
-
 int                         value64_dbl_rev_comp(value64 v1, value64 v2) {
     return -compare_dbl(v1.dval, v2.dval);
 }
-
+int                         value64_char_rev_comp(value64 v1, value64 v2) {
+    return -compare_char(v1.cval, v2.cval);
+}
 int                         value64_fs_rev_comp(value64 v1, value64 v2) {
     return -fs_cmp(v1.fsval, v2.fsval);
 }
-
 int                         value64_str_rev_comp(value64 v1, value64 v2) {
     return -strcmp(v1.sval, v2.sval);
 }
-
 int                         value64_ptr_rev_comp(value64 v1, value64 v2) {
     return -compare_ptr(v1.pval, v2.pval);
 }
+/** @} */
 
 // common value comparator (slow, for single-use), NULL checking
+// TODO: probably ref is requiored 
+/**
+ * @brief Performs a high-level comparison of two value64 objects.
+ * 
+ * This function compares two values based on the provided type. Unlike 
+ * low-level comparators, this function includes runtime validation for 
+ * pointer-based types (FS and STR) to ensure memory safety.
+ * 
+ * @warning This is a high-level function that may raise exceptions 
+ *          (ERR_NULLABLE_PTR, ERR_UNSUPPORTED_TYPE) if the inputs or 
+ *          the underlying data are invalid. It is intended for general-purpose 
+ *          use where type-safety and runtime validation are required.
+ *
+ * @param v1   The first value64 object (passed by value).
+ * @param v2   The second value64 object (passed by value).
+ * @param typ  The type to use for the comparison.
+ * 
+ * @return An integer:
+ *         < 0 if v1 < v2,
+ *         0 if v1 == v2,
+ *         > 0 if v1 > v2.
+ * 
+ * @throws ERR_NULLABLE_PTR if the underlying pointers for FS or STR types are NULL.
+ * @throws ERR_UNSUPPORTED_TYPE if the provided type is not recognized.
+ */
 int                     value64_compare(value64 v1, value64 v2, value64_type typ){
     int     res = 0;
     switch (typ){
@@ -325,8 +534,11 @@ int                     value64_compare(value64 v1, value64 v2, value64_type typ
         case VALUE64_PTR: 
             res = compare_ptr(v1.pval, v2.pval);
         break;
+        case VALUE64_CHR: 
+            res = compare_char(v1.cval, v2.cval);
+        break;
         case VALUE64_FS:
-            if (!v1.fsval || !v2.fsval)
+            if (!v1.fsval || !v2.fsval) // FIXME: fsisnull must be here
                 userraiseint(ERR_NULLABLE_PTR, "Null pointers %p %p", v1.fsval, v2.fsval);
             res = fs_cmp(v1.fsval, v2.fsval);
         break;
@@ -340,10 +552,39 @@ int                     value64_compare(value64 v1, value64 v2, value64_type typ
     }
     return res;
 }
+
 // pointer comparator, switch fow now, but probably table-function is required
 // slow, for single-use, with NUL-check
+// TODO: probably ref is required
+/**
+ * @brief Generic pointer-based comparison dispatcher.
+ * 
+ * This function provides a generic way to compare two value64 objects 
+ * via pointers without copying their contents. It uses the provided `typ` 
+ * to dispatch the comparison to the appropriate low-level pointer 
+ * comparator.
+ * 
+ * @note This is a high-level dispatcher intended for generic interfaces 
+ *       (e.g., automated sorting of opaque pointers or generic engine loops).
+ *       Because it involves a switch-case and multiple runtime checks, 
+ *       it is significantly slower than the direct primitive comparators.
+ *
+ * @param v1   Pointer to the first value64 object.
+ * @param v2   Pointer to the second value64 object.
+ * @param typ  The type of the objects, used to select the correct comparison logic.
+ * 
+ * @return An integer indicating the relationship between the objects:
+ *         < 0 if v1 < v2,
+ *         0 if v1 == v2,
+ *         > 0 if v1 > v2.
+ * 
+ * @throws ERR_NULLABLE_PTR if either v1 or v2 is NULL, or if internal 
+ *         data pointers (for FS/STR types) are NULL.
+ * @throws ERR_UNSUPPORTED_TYPE_CONV if the provided `typ` has no defined comparator.
+ */
 int                         value64_pt_compare(const value64* restrict v1, const value64 *restrict v2, value64_type typ){
-    invraisecode(v1 != NULL && v2 != NULL, ERR_NULLABLE_PTR, "Null pointers %p %p", v1, v2);
+    invraisecode(v1 != NULL && v2 != NULL, ERR_NULLABLE_PTR, 
+        "Null pointers %p %p", v1, v2);
     switch (typ){
         case VALUE64_INT:
             return value64_pint_comp(v1, v2); //compare_pint(&val1->ival, &val2->ival);
@@ -351,6 +592,8 @@ int                         value64_pt_compare(const value64* restrict v1, const
             return value64_plong_comp(v1, v2);  //compare_plong(&val1->lval, &val2->lval);
         case VALUE64_DBL:
             return value64_pdbl_comp(v1, v2);   //compare_pdbl(&val1->dval, &val2->dval);
+        case VALUE64_CHR:
+            return value64_pchar_comp(v1, v2);   //compare_pchar(&val1->dval, &val2->dval)
         case VALUE64_FS:
             invraisecode(v1->fsval != NULL && v2->fsval != NULL, ERR_NULLABLE_PTR, "Null pointers %p %p", v1->fsval, v2->fsval);
             return value64_pfs_comp(v1, v2);     //compare_fs(val1->fsval, val2->fsval);
@@ -368,6 +611,20 @@ int                         value64_pt_compare(const value64* restrict v1, const
 // pointer comparators, for qsort, bsearch etc...  LOW LEVEL, no checking for NULL
 // just a wrapper over imline pointer comparators with (const void *,...
 // They must use comparators from common.h and fs.h (for FS)
+/**
+ * @name Low-Level Pointer Comparators
+ * @brief Wrappers for primitive comparators used in generic algorithms (qsort, bsearch).
+ * 
+ * @warning These functions are optimized for performance and DO NOT perform 
+ *          NULL pointer checks or type validation. They assume that the 
+ *          provided pointers are non-NULL and point to valid `value64` 
+ *          structures of the expected type.
+ * 
+ * @return An integer: < 0 if v1 < v2, 0 if v1 == v2, > 0 if v1 > v2.
+ * @{
+ */
+
+/** @brief Compares two integer-typed value64 objects. */
 int                         value64_pint_comp(const void *restrict v1, const void *restrict v2){
     const value64 *val1 = (const value64 *) v1;
     const value64 *val2 = (const value64 *) v2;
@@ -382,6 +639,11 @@ int                         value64_pdbl_comp(const void *restrict v1, const voi
     const value64 *val1 = (const value64 *) v1;
     const value64 *val2 = (const value64 *) v2;
     return compare_dbl(val1->dval, val2->dval);
+}
+int                         value64_pchar_comp(const void *restrict v1, const void *restrict v2){
+    const value64 *val1 = (const value64 *) v1;
+    const value64 *val2 = (const value64 *) v2;
+    return compare_char(val1->cval, val2->cval);
 }
 int                         value64_pptr_comp(const void *restrict v1, const void *restrict v2){
     const value64 *val1 = (const value64 *) v1;
@@ -398,7 +660,20 @@ int                         value64_pfs_comp(const void *restrict v1, const void
     const value64 *val2 = (const value64 *) v2;
     return fs_cmp(val1->fsval, val2->fsval);
 }
-// reverse pointer comparators
+/** @} */
+
+/**
+ * @name Reverse Pointer Comparators
+ * @brief Reverses the comparison result for descending order sorting.
+ * 
+ * These functions are identical to their standard counterparts but return 
+ * the negated result to facilitate descending order.
+ * 
+ * @warning No NULL checks or type validation are performed.
+ * @{
+*/
+
+/** @brief Reverse comparison for integer-typed objects. */
 int                         value64_pint_rev_comp(const void *restrict v1, const void *restrict v2){
     const value64 *val1 = (const value64 *) v1;
     const value64 *val2 = (const value64 *) v2;
@@ -413,6 +688,11 @@ int                         value64_pdbl_rev_comp(const void *restrict v1, const
     const value64 *val1 = (const value64 *) v1;
     const value64 *val2 = (const value64 *) v2;
     return -compare_dbl(val1->dval, val2->dval);
+}
+int                         value64_pchar_rev_comp(const void *restrict v1, const void *restrict v2){
+    const value64 *val1 = (const value64 *) v1;
+    const value64 *val2 = (const value64 *) v2;
+    return -compare_char(val1->cval, val2->cval);
 }
 int                         value64_pptr_rev_comp(const void *restrict v1, const void *restrict v2){
     const value64 *val1 = (const value64 *) v1;
@@ -429,11 +709,27 @@ int                         value64_pfs_rev_comp(const void *restrict v1, const 
     const value64 *val2 = (const value64 *) v2;
     return -fs_cmp(val1->fsval, val2->fsval);
 }
-
+/** @} */
 
 // ----------------------------- CONVERTERS ----------------------------------------
 
-// TODO: hardcoding, refactoring is required!!!
+// TODO: hardcoding, probably refactoring is required!!!
+/**
+ * @brief Checks if a value can be safely converted from one type to another without loss of data.
+ * 
+ * This function validates whether the conversion is "lossless" (e.g., checking if 
+ * a floating-point number fits within the integer range).
+ * 
+ * @note This function uses hardcoded rules for specific type transitions. 
+ *       It does not guarantee that a converter exists in the dispatch table; 
+ *       it only checks if the conversion is mathematically/semantically safe.
+ *
+ * @param v    The value to test.
+ * @param from The source type.
+ * @param to   The target type.
+ * 
+ * @return true if the conversion is safe (lossless), false otherwise.
+ */
 bool                        value64_is_convertable(value64 v, value64_type from, value64_type to) {
     if (from == VALUE64_LNG && to == VALUE64_INT)
         return is_long_int_range(value64_long(v));
@@ -443,101 +739,201 @@ bool                        value64_is_convertable(value64 v, value64_type from,
 
     if (from == VALUE64_DBL && to == VALUE64_LNG)
         return is_dbl_long_range(value64_dbl(v));
+
+    if (from == VALUE64_INT && to == VALUE64_CHR)
+        return is_int_char_range(value64_int(v));
+    
+    if (from == VALUE64_LNG && to == VALUE64_CHR)
+        return is_long_char_range(value64_long(v));
+    
     return true;
 }
-// converted, COPY semantic
+
+/**
+ * @brief Performs a type conversion using the registered conversion matrix.
+ * 
+ * This function looks up the appropriate converter for the given (from, to) 
+ * type pair. If a converter exists, it is executed and its result is returned.
+ *
+ * @warning This function follows a "fail-fast" policy. If no converter is 
+ *          registered for the requested transition, an error is raised 
+ *          immediately to prevent type-mismatch propagation.
+ *
+ * @param v    The source value to convert.
+ * @param from The source type.
+ * @param to   The target type.
+ * 
+ * @return The converted value.
+ * 
+ * @throws ERR_UNSUPPORTED_TYPE_CONV if no converter is found in the dispatch 
+ *         table for the specified type transition.
+ */
 value64                     value64_convert(value64 v, value64_type from, value64_type to) {
 
     value64_ConverterFunc func = conv_matrix[from][to];
-    if (func != NULL) {
-        return logsimpleret(func(v), "Converted from %s to %s", value64_typename(from), value64_typename(to) );
-    } else
-        return logsimpleret(v, "No conv is required for %s -> %s", value64_typename(from), value64_typename(to) );
+    if (func == NULL)
+        userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "%s => %s", value64_typename(from), value64_typename(to));
+
+    return logsimpleret(func(v), "Converted from %s to %s", value64_typename(from), value64_typename(to) );
 }
+
+/**
+ * @name Value64 Conversion Matrix
+ * @brief A collection of conversion functions for transforming one value64 type to another.
+ * 
+ * These functions are organized by their source type. They range from simple
+ * bitwise/value copies to complex string parsing and heap allocations.
+ * @{
+ */
+
 // --- Группа INT ---
+/** @name Integer to [Type] Conversions */
+/** @{ */
+/** @brief Converts int to long. */
 value64                     value64_convert_int_to_lng(value64 v) {
     return  value64_createlong((long) value64_int(v) );
 }
+/** @brief Converts int to double. */
+
 value64                     value64_convert_int_to_dbl(value64 v) {
     return  value64_createdbl((double) value64_int(v) );
 }
+/** @brief Converts int to fs  (heap allocation). */
 value64                     value64_convert_int_to_fs(value64 v) {
     value64     result = LITERAL64_ZERO;
     fs          tmp = fscopyf("%d", value64_int(v));
     result.fsval = fs_moveto_heap(&tmp);
     return result;
 }
+/** @brief Converts int to string (buffer-based). */
 value64                     value64_convert_int_to_str(value64 v) {
     char        buf[100];       // CAn't use fs in STR
     snprintf(buf, sizeof(buf) - 1, "%d", value64_int(v));
     return value64_createstr(buf);
 }
+/** @brief Converts int to char (checks range). */
+value64                     value64_convert_int_to_char(value64 v) {
+    if (!is_int_char_range(value64_int(v)) )
+        userraiseint(ERR_OUT_OF_RANGE, "int->char overflow");
+    return  value64_createchar(value64_int(v) );
+}
+/** @brief Identity conversion (int to int). */
+value64                     value64_convert_int_to_int(value64 v) {
+    return value64_createint(value64_int(v));
+}
+/** @} */
+
 // --- Группа LNG ---
+/** @name Long to [Type] Conversions */
+/** @{ */
+/** @brief Converts long to int (checks range). */
 value64                     value64_convert_lng_to_int(value64 v) {
     if (!is_long_int_range(value64_long(v)) )
         userraiseint(ERR_OUT_OF_RANGE, "Long->int overflow");
     return value64_createint( (int) value64_long(v) );
 }
+/** @brief Converts long to double. */
 value64                     value64_convert_lng_to_dbl(value64 v) {
     return value64_createdbl((double) value64_long(v) );
 }
+/** @brief Converts long to fs  (heap allocation). */
 value64                     value64_convert_lng_to_fs(value64 v) {
     value64     result = LITERAL64_ZERO;
     fs          tmp = fscopyf("%ld", value64_long(v) );
     result.fsval = fs_moveto_heap(&tmp);
     return result;
 }
+/** @brief Converts long to string. */
 value64                     value64_convert_lng_to_str(value64 v) {
     char        buf[100];
     snprintf(buf, sizeof(buf) - 1, "%ld", value64_long(v) );
     return value64_createstr(buf);
 }
+/** @brief Converts long to char (checks range). */
+value64                     value64_convert_lng_to_char(value64 v) {
+    if (!is_long_char_range(value64_int(v)) )
+        userraiseint(ERR_OUT_OF_RANGE, "long->char overflow");
+    return  value64_createchar(value64_int(v) );
+}
+/** @brief Identity conversion (long to long). */
+value64                     value64_convert_lng_to_lng(value64 v) {
+    return value64_createlong(value64_long(v));
+}
+/** @} */
 
 // --- Группа DBL ---
+/** @name Double to [Type] Conversions */
+/** @{ */
+/** @brief Converts double to int (checks range). */
 value64                     value64_convert_dbl_to_int(value64 v) {
     if (!is_dbl_int_range(value64_dbl(v)))
         userraiseint(ERR_OUT_OF_RANGE, "Dbl->int overflow");
     return value64_createint((int) value64_dbl(v) );
 }
+/** @brief Converts double to long (checks range). */
 value64                     value64_convert_dbl_to_lng(value64 v) {
     if (!is_dbl_long_range(value64_dbl(v)))
         userraiseint(ERR_OUT_OF_RANGE, "Dbl->long overflow");
     return value64_createlong((long) value64_dbl(v) );
 }
+/** @brief Converts double to fs */
 value64                     value64_convert_dbl_to_fs(value64 v) {
     value64     result = LITERAL64_ZERO;
     fs tmp = fscopyf("%g", value64_dbl(v) );       // context must be used! TODO:
     result.fsval = fs_moveto_heap(&tmp);
     return result;
 }
+/** @brief Converts double to string. */
 value64                     value64_convert_dbl_to_str(value64 v) {
     char        buf[100];
     snprintf(buf, sizeof(buf), "%lf", value64_dbl(v));    // // context must be used! TODO:
     return value64_createstr(buf);
 }
+/** @brief Identity conversion (double to double). */
+value64                     value64_convert_dbl_to_dbl(value64 v) {
+    return value64_createdbl(value64_dbl(v));
+}
+/** @} */
 
 // --- Группа FS ---
+/** @name fs to [Type] Conversions */
+/** @{ */
+/** @brief Converts FS object to int. */
 value64                     value64_convert_fs_to_int(value64 v) {
     fs          *fsval = value64_fs(v);
     return value64_createint(fs_getint(fsval) );
 }
+/** @brief Converts FS object to long. */
 value64                     value64_convert_fs_to_lng(value64 v) {
     fs          *fsval = value64_fs(v);
     return value64_createlong(fs_getlong(fsval) );
 }
+/** @brief Converts FS object to double. */
 value64                     value64_convert_fs_to_dbl(value64 v) {
     fs          *fsval = value64_fs(v);
     return value64_createdbl(fs_getdouble(fsval) );
 }
+/** @brief Converts FS object to string (copy semantic). */
 value64                     value64_convert_fs_to_str(value64 v) {
     fs          *fsval = value64_fs(v);
     return value64_createstr(fsval->v);
 }
+/** @brief Converts FS object to FS (copy semantic). */
 value64                     value64_convert_fs_to_fs(value64 v){
     fs          *fsval = value64_fs(v);
     return value64_createfs(fsval);
 }
+/** @brief Converts FS object to char. */
+value64                     value64_convert_fs_to_char(value64 v){
+    fs          *fsval = value64_fs(v);
+    return value64_createchar(fs_getchar(fsval));       // probably with checking
+}
+/** @} */
+
 // --- Группа STR ---
+/** @name String to [Type] Conversions */
+/** @{ */
+/** @brief Parses string to int (may raise ERR_INVALID_CONVERSION). */
 value64                     value64_convert_str_to_int(value64 v) {
     char        *sval = value64_str(v);
     value64     result = LITERAL64_ZERO;
@@ -545,6 +941,7 @@ value64                     value64_convert_str_to_int(value64 v) {
         userraiseint(ERR_INVALID_CONVERSION, "str->int fail");
     return result;
 }
+/** @brief Parses string to long (may raise ERR_INVALID_CONVERSION). */
 value64                     value64_convert_str_to_lng(value64 v) {
     char        *sval = value64_str(v);
     value64     result = LITERAL64_ZERO;
@@ -552,6 +949,7 @@ value64                     value64_convert_str_to_lng(value64 v) {
         userraiseint(ERR_INVALID_CONVERSION, "str->long fail");
     return result;
 }
+/** @brief Parses string to double (may raise ERR_INVALID_CONVERSION). */
 value64                     value64_convert_str_to_dbl(value64 v) {
     char        *sval = value64_str(v);
     value64     result = LITERAL64_ZERO;
@@ -559,20 +957,84 @@ value64                     value64_convert_str_to_dbl(value64 v) {
         userraiseint(ERR_INVALID_CONVERSION, "str->double fail");
     return result;
 }
+/** @brief Converts string to FS object (heap allocation). */
 value64                     value64_convert_str_to_fs(value64 v) {
     char        *sval = value64_str(v);
     value64     result = LITERAL64_ZERO;
     result.fsval = fs_heapcopy(sval);
     return result;
 }
+/** @brief Converts string to string (deep copy). */
 value64                     value64_convert_str_to_str(value64 v) {
     char        *sval = value64_str(v);
     value64     result = LITERAL64_ZERO;
     result = value64_createstr(sval);
     return result;
 }
+/** @brief Converts first character of string to char. Even if '\0' */
+value64                     value64_convert_str_to_char(value64 v) {
+    char        *sval = value64_str(v);
+    return value64_createchar(*sval);  // not sure, no null checking
+}
+/** @} */
 
-// converter, MOVE semantic
+// --- Группа CHAR ---
+/** @name Character to [Type] Conversions */
+/** @{ */
+/** @brief Converts char to int. */
+value64                     value64_convert_char_to_int(value64 v) {
+    return value64_createint((int)value64_char(v));
+}
+/** @brief Converts char to long. */
+value64                     value64_convert_char_to_lng(value64 v) {
+    return value64_createlong((long)value64_char(v));
+}
+/** @brief Converts char to FS object. */
+value64                     value64_convert_char_to_fs(value64 v) {
+    fs      tmp = fscopyf("%c", value64_char(v));
+    return value64_createfs(&tmp);
+}
+/** @brief Converts char to string. */
+value64                     value64_convert_char_to_str(value64 v) {
+    char    buf[] = { value64_char(v), '\0' };
+    return value64_createstr(buf);
+}
+/** @brief Identity conversion (char to char). */
+value64                     value64_convert_char_to_char(value64 v) {
+    return value64_createchar(value64_char(v));
+}
+/** @} */
+
+/** @} */
+
+// converters, MOVE semantic
+/**
+ * @name Move Semantics Conversion
+ * @brief Functions for high-performance, destructive type conversion.
+ * 
+ * These functions implement "move" logic: instead of copying data, they 
+ * transfer ownership of resources (like heap memory for strings or FS) 
+ * from the source object to the result.
+ * 
+ * @warning These functions are DESTRUCTIVE. The source object (passed by pointer) 
+ *          will be modified and its internal resource pointers will be cleared 
+ *          to prevent double-freeing.
+ * @{
+ */
+
+/**
+ * @brief Generic dispatcher for move-based conversions.
+ * 
+ * Uses the `conv_move_matrix` to find and execute the appropriate 
+ * move-conversion function.
+ *
+ * @param v    Pointer to the source object to be modified.
+ * @param from The type of the source object.
+ * @param to   The target type.
+ * 
+ * @return A new value64 object containing the moved data.
+ * @throws ERR_UNSUPPORTED_TYPE_CONV if no move-conversion is defined for the given types.
+ */
 value64                     value64_convert_move(value64 *v, value64_type from, value64_type to) {
     value64_ConverterMoveFunc func = conv_move_matrix[from][to];
     if (func != NULL) {
@@ -582,34 +1044,65 @@ value64                     value64_convert_move(value64 *v, value64_type from, 
                  from, value64_typename(from), to, value64_typename(to));
     return LITERAL64_ZERO;
 }
-// FS
+/** @name Specialized Move Implementations */
+/** @{ */
+
+/** @brief Moves resource from FS to a String object. */
 value64                     value64_convert_move_fs_to_str(value64 *v){
     value64     result = LITERAL64_ZERO;
     result.sval = fs_movefrom_heapstr(&v->fsval);
     return result;
 }
+/** @brief Moves resource from FS to another FS object (identity move). */
 value64                     value64_convert_move_fs_to_fs(value64 *v){
     value64     result = LITERAL64_ZERO;
     result.fsval = v->fsval;
     v->fsval = 0;  // NO FREE HERE
     return result;
 }
-// STR
+/** @brief Moves resource from String to an FS object. */
 value64                     value64_convert_move_str_to_fs(value64 *v){
     value64     result = LITERAL64_ZERO;
     result.fsval = fs_moveto_heapstr(&v->sval);
     v->sval = NULL;
     return result;
 }
+/** @brief Moves resource from String to another String object (identity move). */
 value64                     value64_convert_move_str_to_str(value64 *v){
     value64     result = LITERAL64_ZERO;
     result.sval = v->sval;
     v->sval = NULL;
     return result;
 }
+/** @} */
+
+/** @} */
+
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
-// TODO: all of that must be in str_value64_adapter.c!!! refactor
+/**
+ * @name String Escaping Utilities
+ * @brief Functions for serializing strings with escaped special characters.
+ * 
+ * These functions handle the escaping of special characters:
+ * `"` $\to$ `\"`, `\` $\to$ `\\`, `\n` $\to$ `\n`, `\r` $\to$ `\r`, and `\t` $\to$ `\t`.
+ * @{
+ */
+
+/**
+ * @brief Writes an escaped string to a standard file stream.
+ * 
+ * This is a high-level, convenience function. It uses `fprintf` for each 
+ * character, making it easy to implement but relatively slow due to 
+ * the overhead of format string parsing.
+ * 
+ * @note Not recommended for performance-critical loops or large data volumes.
+ *
+ * @param out Pointer to the target `FILE` stream.
+ * @param s   The null-terminated string to be escaped and written.
+ * 
+ * @return The number of characters written, or a negative value on error.
+ */
 static int                  fprint_str_escaped(FILE *restrict out, const char *restrict s) {
     int     cnt = 0;
     if (out && s) {
@@ -628,7 +1121,21 @@ static int                  fprint_str_escaped(FILE *restrict out, const char *r
     }
     return cnt;
 }
-// string serialization
+/**
+ * @brief High-performance escaped serialization to an `fs` buffer.
+ * 
+ * This is a low-level, performance-optimized function that directly 
+ * manipulates the `fs` buffer. It is designed for high-throughput 
+ * serialization scenarios.
+ * 
+ * @warning This function is highly efficient but relies on the internal 
+ *          state of the `fs` object and its `elemnext` iteration mechanism.
+ *
+ * @param out Pointer to the `fs` buffer where the escaped string will be appended.
+ * @param s   The null-terminated string to be escaped.
+ * 
+ * @return The number of bytes appended to the `fs` buffer.
+ */
 static int                  sprint_str_escaped(fs *restrict out, const char *restrict s) {
     invraisecode(out != NULL && s != NULL, ERR_NULLABLE_PTR, 
             "Null pointers %p %p", out, s);
@@ -651,58 +1158,109 @@ static int                  sprint_str_escaped(fs *restrict out, const char *res
     elemend(iter);
     return fs_len(out) - len;
 }
+/** @} */
+
 // print adapters, actually format must be configurable in context.c
+/**
+ * @name Formatted Output Functions
+ * @brief Specialized functions for printing value64 objects in quoted format.
+ * 
+ * These functions are responsible for converting the internal representation
+ * of a value64 into a human-readable, quoted string in a file stream.
+ * @{
+ */
+
+/** @brief Prints an integer value wrapped in quotes. */
 int                         value64_fprint_int(FILE *restrict out, value64 val) {
     return fprintf(out, "\"%d\"", value64_int(val) );
 }
+/** @brief Prints a long integer value wrapped in quotes. */
 int                         value64_fprint_long(FILE *restrict out, value64 val) {
     return fprintf(out, "\"%ld\"", value64_long(val) );
 }
+/** @brief Prints a double value wrapped in quotes using precision settings. */
 int                         value64_fprint_dbl(FILE *restrict out, value64 val) {
     return fprintf(out, "\"%.*g\"", DBL_DECIMAL_DIG, value64_dbl(val) );
 }
+/** @brief Prints a pointer address wrapped in quotes. */
 int                         value64_fprint_ptr(FILE *restrict out, value64 val) {
     return fprintf(out, "\"%p\"", value64_ptr(val) );
 }
+/** @brief Prints a single character wrapped in quotes. */
+int                         value64_fprint_char(FILE *restrict out, value64 val) {
+    return fprintf(out, "\"%c\"", value64_char(val) );
+}
+/** @brief Prints an escaped string. */
 int                         value64_fprint_str(FILE *restrict out, value64 val) {
     return fprint_str_escaped(out, value64_str(val) );
 }
+/** @brief Prints a fs  wrapped in quotes. */
 int                         value64_fprint_fs(FILE *restrict out, value64 val) {
     return fprint_str_escaped(out, fs_str(value64_fs(val) ) ); // till fs_fprint isn'y support escaping
-    //fs_fprint(out, value64_fs(val), 0);
 }
-// genaric fprint
+/** @} */
+
+/**
+ * @name Generic Formatter
+ * @brief High-level formatting function with message support and error handling.
+ * 
+ * This function acts as a dispatcher. It can print an optional message 
+ * followed by the correctly formatted value64 object based on the provided type.
+ *
+ * @param out   The output file stream.
+ * @param msg   An optional prefix message to print before the value.
+ * @param val   The value64 object to be formatted.
+ * @param typ   The type of the value (determines the formatting logic).
+ * 
+ * @return The total number of characters printed.
+ * 
+ * @throws ERR_UNSUPPORTED_TYPE if the provided type is not recognized by the formatter.
+ * @note This function uses IOCHECKER to monitor and handle write errors.
+ */
 int                         value64_fprint_msg(FILE *restrict out, const char *restrict msg, value64 val, value64_type typ){
     int     cnt = 0;
     if (out){
-        if (msg)    // TODO: remove that as not very usefull
-            cnt += fprintf(out, "%s ", msg);
+        if (msg) {   // TODO: remove that as not very usefull
+            IOCHECKER(w, fprintf(out, "%s ", msg), -1)
+                cnt += w;
+        }
         switch (typ){
             case VALUE64_INT:
-                cnt += value64_fprint_int(out, val);
+                IOCHECKER(w, value64_fprint_int(out, val), -1)
+                    cnt += w;
                 break;
             case VALUE64_LNG:
-                cnt += value64_fprint_long(out, val);
+                IOCHECKER(w, value64_fprint_long(out, val), -1)
+                    cnt += w;
                 break;
             case VALUE64_DBL:
-                cnt += value64_fprint_dbl(out, val);
+                IOCHECKER(w, value64_fprint_dbl(out, val), -1)
+                    cnt += w;
                 break;
             case VALUE64_PTR:
-                cnt += value64_fprint_ptr(out, val);
+                IOCHECKER(w, value64_fprint_ptr(out, val), -1)
+                    cnt += w;
+                break;
+            case VALUE64_CHR:
+                IOCHECKER(w, value64_fprint_char(out, val), -1)
+                    cnt += w;
                 break;
             case VALUE64_STR:
-                cnt += value64_fprint_str(out, val);
+                IOCHECKER(w, value64_fprint_str(out, val), -1)
+                    cnt += w;
                 break;
             case VALUE64_FS:
-                cnt += value64_fprint_fs(out, val);
+                IOCHECKER(w, value64_fprint_fs(out, val), -1)
+                    cnt += w;
                 break;
             default:
                 fprintf(out, "Unsupported %d!\n", typ);
-                return logsimpleerr(-1, "Unsupported %d!\n", typ);
+                return userraise(-1, ERR_UNSUPPORTED_TYPE, "Unsupported %d!\n", typ);
         }
     }
     return cnt;
 }
+
 /**
  * @brief technical printer
  *
@@ -713,52 +1271,112 @@ int                         value64_fprint_msg(FILE *restrict out, const char *r
 int                        value64_techfprint(FILE *restrict out, value64 val, value64_type typ, const char *restrict name) {
     int     cnt = 0;
     if (out){
-        cnt += fprintf(out, "VALUE64:%s [", name);  // name cab be NULL
+        IOCHECKER(w, fprintf(out, "VALUE64:%s [", name), -1)  // name cab be NULL
+            cnt += w;
         switch (typ){
             case VALUE64_INT:
-                cnt += value64_fprint_int(out, val) + cnt;
+                IOCHECKER(w, value64_fprint_int(out, val), -1)
+                    cnt += w;
             break;
             case VALUE64_LNG:
-                cnt += value64_fprint_long(out, val) + cnt;
+                IOCHECKER(w, value64_fprint_long(out, val), -1)
+                    cnt += w;
             break;
             case VALUE64_DBL:
-                cnt += value64_fprint_dbl(out, val) + cnt;
+                IOCHECKER(w, value64_fprint_dbl(out, val), -1)
+                    cnt += w;
             break;
             case VALUE64_PTR:
-                cnt += value64_fprint_ptr(out, val) + cnt;
+                IOCHECKER(w, value64_fprint_ptr(out, val), -1)
+                    cnt += w;
+            break;
+            case VALUE64_CHR:
+                IOCHECKER(w, value64_fprint_char(out, val), -1)
+                    cnt += w;
             break;
             case VALUE64_STR:
-                cnt += value64_fprint_str(out, val) + cnt;
+                IOCHECKER(w, value64_fprint_str(out, val), -1)
             break;
             case VALUE64_FS:
-                cnt += value64_fprint_fs(out, val) + cnt;
+                IOCHECKER(w, value64_fprint_fs(out, val), -1)
+                    cnt += w;
             break;
             default:
-                cnt += fprintf(out, "Unsupported %d!\n", typ);
+                IOCHECKER(w, fprintf(out, "Unsupported %d!\n", typ), -1)
+                    cnt += w;
                 logsimple("Unsupported %d!\n", typ);
         }
-        cnt += fprintf(out, ", %s]\n", value64_typename(typ) );
+        IOCHECKER(w, fprintf(out, ", %s]\n", value64_typename(typ) ), -1)
+            cnt += w;
     }
     return cnt;
 }
 
 // --------------------------------- SERIALIZATION -----------------------------------------
 
+// TODO: need to be refactored to universal Ds
+/**
+ * @brief Serializes a value64 object into a human-readable text format in a file.
+ * 
+ * This function writes the value to the provided file stream. It can optionally
+ * include type metadata (e.g., `VALUE64(INT):123`) to make the output 
+ * self-describing, which is useful for debugging and logging.
+ * 
+ * @note This is a textual serialization. For high-performance data storage 
+ *       and transfer, use the Data Serialization (DS) implementation.
+ *
+ * @param out           Pointer to the destination file stream.
+ * @param val           The value64 object to be serialized.
+ * @param typ           The type of the object (used to determine formatting).
+ * @param savetypeinfo  If true, the output will include the type name as a prefix.
+ * 
+ * @return The total number of characters written to the file.
+ * 
+ * @throws ERR_NULLABLE_PTR if the output file stream `out` is NULL.
+ */
 int                             value64_tofile(FILE *out, value64 val, value64_type typ, bool savetypeinfo) {
     invraisecode(out != NULL, ERR_NULLABLE_PTR,
         "Null pointer");
     int cnt = 0;
-    if (savetypeinfo)
-        cnt += fprintf(out, "VALUE64(%s):", value64_typename(typ) );
-    else
-        cnt += fprintf(out, "VALUE64:");
-
-    cnt += value64_fprint(out, val, typ);
-    cnt += fprintf(out, "\n");
+    if (savetypeinfo) {
+        IOCHECKER(w, fprintf(out, "VALUE64(%s):", value64_typename(typ) ), -1)
+            cnt += w;
+    } else {
+        IOCHECKER(w, fprintf(out, "VALUE64:"), -1)
+            cnt += w;
+    }
+    IOCHECKER(w, value64_fprint(out, val, typ), -1)
+        cnt += w;
+    IOCHECKER(w, fprintf(out, "\n"), -1)
+        cnt += w;
     return cnt; //logsimpleret(cnt, "Saved 1 value");
 }
 // string readers
 // fs must be initialized, val can be NULL, it means just check
+
+/**
+ * @name String-based Parsers and Readers
+ * @brief Functions for parsing and reading value64 objects from an `fs` buffer.
+ * 
+ * These functions attempt to interpret the contents of a buffer (`fs`) as 
+ * a specific type. They support a "dry-run" mode where no data is stored 
+ * if the `pval` pointer is NULL.
+ * 
+ * @warning These functions are destructive in terms of error logging (via `logsimpleerr`) 
+ *          and may raise exceptions if `buf` is NULL.
+ * @{
+ */
+
+/**
+ * @brief Reads a string from the buffer.
+ * 
+ * If `pval` is not NULL, the result is stored in `*pval`. 
+ * If `pval` is NULL, the function only validates that the buffer is not NULL.
+ * 
+ * @param pval Pointer to store the resulting value64 object.
+ * @param buf  The source buffer.
+ * @return true if successful, false otherwise.
+ */
 bool                            value64_sreadval_str(value64 *restrict pval, fs *restrict buf) {
     invraisecode(buf != NULL, ERR_NULLABLE_PTR,
         "Null pointers %p", buf);
@@ -768,6 +1386,15 @@ bool                            value64_sreadval_str(value64 *restrict pval, fs 
         *pval = v;
     return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );
 }
+/**
+ * @brief Parses an integer from the buffer.
+ * 
+ * If parsing succeeds and `pval` is not NULL, the result is stored in `*pval`.
+ * 
+ * @param pval Pointer to store the parsed integer value.
+ * @param buf  The source buffer.
+ * @return true if parsing was successful, false if the string is not a valid integer.
+ */
 bool                            value64_sreadval_int(value64 *restrict pval, fs *restrict buf){
     invraisecode(buf != NULL, ERR_NULLABLE_PTR,
         "Null pointers %p", buf);
@@ -780,6 +1407,15 @@ bool                            value64_sreadval_int(value64 *restrict pval, fs 
         *pval = v;
     return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );
 }
+/**
+ * @brief Parses a long integer from the buffer.
+ * 
+ * If parsing succeeds and `pval` is not NULL, the result is stored in `*pval`.
+ * 
+ * @param pval Pointer to store the parsed long value.
+ * @param buf  The source buffer.
+ * @return true if parsing was successful, false if the string is not a valid long.
+ */
 bool                            value64_sreadval_lng( value64 *restrict pval, fs *restrict buf){
     invraisecode(buf != NULL, ERR_NULLABLE_PTR,
         "Null pointers %p", buf);
@@ -792,9 +1428,19 @@ bool                            value64_sreadval_lng( value64 *restrict pval, fs
         *pval = v;
     return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );
 }
+/**
+ * @brief Parses a double from the buffer.
+ * 
+ * If parsing succeeds and `pval` is not NULL, the result is stored in `*pval`.
+ * 
+ * @param pval Pointer to store the parsed double value.
+ * @param buf  The source buffer.
+ * @return true if parsing was successful, false if the string is not a valid double.
+ */
 bool                            value64_sreadval_dbl(value64 *restrict pval, fs *restrict buf){
     invraisecode(buf != NULL, ERR_NULLABLE_PTR,
         "Null pointers %p", buf);
+
     double  dval;
     if (!try_parse_double(fs_str(buf), &dval))
         return logsimpleerr(false, "Invalid double string: '%.50s'", fs_str(buf) );
@@ -803,18 +1449,51 @@ bool                            value64_sreadval_dbl(value64 *restrict pval, fs 
         *pval = v;
     return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );
 }
-// extern bool                         value64_readval_ptr(FILE *restrict f, value64 *restrict val, fs *restrict buf);
+/**
+ * @brief Validates/Extracts an FS resource from the buffer.
+ * 
+ * This function treats the buffer itself as the resource.
+ * 
+ * @param pval Pointer to store the resulting FS value64 object.
+ * @param buf  The source buffer.
+ * @return true always (if buf is not NULL).
+ */
 bool                            value64_sreadval_fs(value64 *restrict pval, fs *restrict buf){
     invraisecode(buf != NULL, ERR_NULLABLE_PTR,
         "Null pointers %p", buf);
+
     value64  v = value64_createfs(buf);
     if (pval)
          *pval = v;
     return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );
 }
+/**
+ * @brief Parses a single character from the buffer.
+ * 
+ * If parsing succeeds and `pval` is not NULL, the result is stored in `*pval`.
+ * 
+ * @param pval Pointer to store the parsed character.
+ * @param buf  The source buffer.
+ * @return true if parsing was successful, false otherwise.
+ */
+bool                         value64_sreadval_char(value64 *restrict pval, fs *restrict buf) {
+    invraisecode(buf != NULL, ERR_NULLABLE_PTR,
+        "Null pointers %p", buf);
+
+    char    cval;
+    if (!try_parse_char(fs_str(buf), &cval))
+        return logsimpleerr(false, "Invalid char string: '%.50s'", fs_str(buf) );
+
+    value64 v = value64_createchar(cval);
+    if (pval)
+        *pval = v;
+     return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );       
+}
+/** @} */
 
 //  switcher, cab be implement via distatcher table
 // val can be NULL (dummy read)
+// TODO: only getconvstring_ds read a Ds!!!  Refactoring is required
 bool                            value64_dsreadval(Ds *restrict ds, value64_type typ, value64 *restrict val, fs *restrict buf) {
     invraisecode(ds != NULL && buf != NULL, ERR_NULLABLE_PTR,
         "Null pointers %p %p", ds, buf);
@@ -829,6 +1508,8 @@ bool                            value64_dsreadval(Ds *restrict ds, value64_type 
             return value64_sreadval_lng(val, buf);
         case VALUE64_DBL:
             return value64_sreadval_dbl(val, buf);
+        case VALUE64_CHR:
+            return value64_sreadval_char(val, buf);
         case VALUE64_PTR:
             return userraise(false, ERR_UNSUPPORTED_TYPE, "Reading of %s isn't supported", value64_typename(typ) );
         case VALUE64_STR:
@@ -839,7 +1520,29 @@ bool                            value64_dsreadval(Ds *restrict ds, value64_type 
             return userraise(false, ERR_UNSUPPORTED_TYPE, "Type %d isn't supported", typ);
      }
 }
+/**
+ * @name Data Deserialization Engine
+ * @brief Functions for parsing serialized value64 objects from files or memory.
+ * @{
+ */
 
+/**
+ * @brief Parses the metadata header of a serialized value.
+ * 
+ * This function extracts the type information from the input stream.
+ * Supported formats:
+ * - Explicit: `VALUE64(TYPE) :` (e.g., `VALUE64(INT) :`)
+ * - Implicit: `VALUE64 :`
+ * 
+ * @param pds           Pointer to the Data Stream structure.
+ * @param loadtypeinfo  If true, the function parses the type from the header.
+ *                      If false, it uses the provided `typ` directly.
+ * @param typ           The assumed type of the data (used if loadtypeinfo is false).
+ * 
+ * @return The parsed `value64_type`.
+ * @throws ERR_WRONG_INPUT_FORMAT if the header format is incorrect.
+ * @throws ERR_UNKNOWN_TYPE if the parsed type string is not recognized.
+ */
 static value64_type             value64_parse_header(Ds *pds, bool loadtypeinfo, value64_type typ) {
     #define VALUE64_FLOAD_FORMAT_LEN        32
     #define VALUE64_FLOAD_FORMAT_MUNUS1     31
@@ -876,7 +1579,30 @@ static value64_type             value64_parse_header(Ds *pds, bool loadtypeinfo,
     #undef VALUE64_FLOAD_FORMAT_MUNUS1
     return loadedtyp;
 }
-
+/**
+ * @brief Loads a single value64 object from a Data Stream.
+ * 
+ * This function handles the full lifecycle of reading a value:
+ * 1. Parsing the header (metadata).
+ * 2. Managing temporary buffers if no user buffer is provided.
+ * 3. Triggering the specific value reader.
+ * 4. Calculating the offset for the next read.
+ * 
+ * @param pds           Pointer to the Data Stream.
+ * @param val           Pointer to the destination `value64` object.
+ * @param typ           The type of the data to be loaded.
+ * @param buf           An optional pre-allocated `fs` buffer. If NULL, 
+ *                      a temporary buffer is allocated and freed locally.
+ * 
+ * @return The number of bytes consumed from the stream (offset).
+ * 
+ * @throws ERR_NULLABLE_PTR if `pds` is NULL.
+ * @throws ERR_WRONG_INPUT_FORMAT if the stream header is corrupted.
+ * @throws ERR_UNKNOWN_TYPE if the parsed header contains an invalid type.
+ * 
+ * @note If `buf` is NULL, the function performs a local allocation for the 
+ *       intermediate buffer to ensure memory safety.
+ */
 // Ds loader, both for FILE * and const char *
 int                         value64_loadds(Ds *restrict pds, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf) {
     invraisecode(pds != NULL, ERR_NULLABLE_PTR,
@@ -906,56 +1632,153 @@ int                         value64_loadds(Ds *restrict pds, value64 *restrict v
     currpos = dsIsstr(pds) ? pds->pos - currpos : 1;
     return currpos;
 }
+/** @} */
 
 // to string adapters, actually format must be configurable in context.c
+/**
+ * @name String Serialization Adapters
+ * @brief Functions to convert value64 types into their string representations within an `fs` buffer.
+ * 
+ * These functions are responsible for formatting the data of a value64 object 
+ * into a quoted or escaped string format. They are designed to be used for 
+ * text-based serialization (e.g., writing to log files or CSV/JSON-like formats).
+ * @{
+ */
+
+/**
+ * @brief Converts an integer to a quoted string.
+ * @param target The target `fs` buffer to which the result is appended.
+ * @param val    The source value64 containing an integer.
+ * @return The number of bytes written to the buffer.
+ */
 int                         value64_tostr_int(fs *target, value64 val) {
     return fs_sprintf_concat(target, "\"%d\"", value64_int(val) );
 }
+/**
+ * @brief Converts a long integer to a quoted string.
+ * @param target The target `fs` buffer.
+ * @param val    The source value64 containing a long.
+ * @return The number of bytes written.
+ */
 int                         value64_tostr_long(fs *target, value64 val) {
     return fs_sprintf_concat(target, "\"%ld\"", value64_long(val) );
 }
+/**
+ * @brief Converts a double to a quoted string with precision handling.
+ * @param target The target `fs` buffer.
+ * @param val    The source value64 containing a double.
+ * @return The number of bytes written.
+ */
 int                         value64_tostr_dbl(fs *target, value64 val) {
     return fs_sprintf_concat(target, "\"%.*g\"", DBL_DECIMAL_DIG, value64_dbl(val) );
 }
+/**
+ * @brief Converts a pointer address to a quoted string representation.
+ * @param target The target `fs` buffer.
+ * @param val    The source value64 containing a pointer.
+ * @return The number of bytes written.
+ */
 int                         value64_tostr_ptr(fs *target, value64 val) {
     return fs_sprintf_concat(target, "\"%p\"", value64_ptr(val) );
 }
+/**
+ * @brief Escapes and converts a string into the target buffer.
+ * @details Uses `sprint_str_escaped` to ensure special characters 
+ *          (like \n, \t, \) are properly escaped.
+ * @param target The target `fs` buffer.
+ * @param val    The source value64 containing a string.
+ * @return The number of bytes written.
+ */
 int                         value64_tostr_str(fs *target, value64 val) {
     return sprint_str_escaped(target, value64_str(val) );
 }
+/**
+ * @brief Converts a filesystem path into an escaped string in the target buffer.
+ * @param target The target `fs` buffer.
+ * @param val    The source value64 containing an `fs` resource.
+ * @return The number of bytes written.
+ */
 int                         value64_tostr_fs(fs *target, value64 val) {
     return sprint_str_escaped(target, fs_str(value64_fs(val) ) ); // till fs_fprint isn'y support escaping
-    //fs_fprint(out, value64_fs(val), 0);
 }
+/**
+ * @brief Converts a character to a quoted string.
+ * @param target The target `fs` buffer.
+ * @param val    The source value64 containing a character.
+ * @return The number of bytes written.
+ */
+int                         value64_tostr_char(fs *target, value64 val) {
+    return fs_sprintf_concat(target, "\"%c\"", value64_char(val) );
+}
+/** @} */
+
 // to string : fs MUST be initialized
+/**
+ * @brief High-level serialization of a value64 object into a formatted string.
+ * 
+ * This function is the primary entry point for converting a value64 object 
+ * into a human-readable string stored in an `fs` buffer. It supports an 
+ * optional "self-describing" mode where the type metadata is included 
+ * in the output.
+ * 
+ * @details The output format follows these rules:
+ * - With type info: `VALUE64(TYPE_NAME):<escaped_value>` (e.g., `VALUE64(INT):123`)
+ * - Without type info: `VALUE64:<escaped_value>` (e.g., `VALUE64:123`)
+ * 
+ * The function handles all necessary escaping (for strings and file paths) 
+ * and error checking during the process.
+ *
+ * @param target         Pointer to the target `fs` buffer. Must be a heap-allocated 
+ *                       buffer to ensure memory safety during writes.
+ * @param val            The `value64` object to be serialized.
+ * @param typ            The type of the object (used for header and dispatching).
+ * @param savetypeinfo   If true, the output includes the type name in the header.
+ * 
+ * @return The total number of characters successfully written to the buffer.
+ * 
+ * @throws ERR_NULLABLE_PTR if the `target` buffer is NULL.
+ * @throws ERR_UNSUPPORTED_TYPE if the provided `typ` is not recognized.
+ * @throws ERR_WRONG_INPUT_FORMAT if writing to the buffer fails.
+ */
 int                          value64_tostr(fs *target, value64 val, value64_type typ, bool savetypeinfo){
     invraisecode(fs_isheapalloc(target), ERR_NULLABLE_PTR,
         "Not heap allocated or null %p %d", target, target ? target->flags : -1);
     
     int     cnt = 0;
     if (savetypeinfo)
-        cnt += fs_sprintf_concat(target, "VALUE64(%s):", value64_typename(typ) );
+        IOCHECKER(w, fs_sprintf_concat(target, "VALUE64(%s):", value64_typename(typ)), -1)
+            cnt += w;
     else 
-        cnt += fs_sprintf_concat(target, "VALUE64:");
-
+        IOCHECKER(w, fs_sprintf_concat(target, "VALUE64:"), -1)
+            cnt += w;
     switch (typ) {
         case VALUE64_INT:
-            cnt += value64_tostr_int(target, val);
+            IOCHECKER(w, value64_tostr_int(target, val), -1)
+                cnt += w;
             break;
         case VALUE64_LNG:
-            cnt += value64_tostr_long(target, val);
+            IOCHECKER(w, value64_tostr_long(target, val), -1)
+                cnt += w;
             break;
         case VALUE64_DBL:
-            cnt += value64_tostr_dbl(target, val);
+            IOCHECKER(w, value64_tostr_dbl(target, val), -1)
+                cnt += w;
             break;
         case VALUE64_PTR:
-            cnt += value64_tostr_ptr(target, val);
+            IOCHECKER(w, value64_tostr_ptr(target, val), -1)
+                cnt += w;
+            break;
+        case VALUE64_CHR:
+            IOCHECKER(w, value64_tostr_char(target, val), -1)
+                cnt += w;
             break;
         case VALUE64_STR:
-            cnt += value64_tostr_str(target, val);
+            IOCHECKER(w, value64_tostr_str(target, val), -1)
+                cnt += w;
             break;
         case VALUE64_FS:
-            cnt += value64_tostr_fs(target, val);
+            IOCHECKER(w, value64_tostr_fs(target, val), -1)
+                cnt += w;
             break;
         default:
             return userraise(-1, ERR_UNSUPPORTED_TYPE, "Type %d isn't supported", typ); 
