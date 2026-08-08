@@ -690,26 +690,30 @@ static inline int            fs_getint(const fs *ps){
 }
 
 // try to parse value
-static inline long           fs_getlongpos(const fs *ps, int pos){
+static inline long           fs_getlongpos(const fs *ps, int pos) {
     long     res;
     if (!try_parse_long(ps->v + pos, &res) )
         userraiseint(ERR_INVALID_CONVERSION, "Unablew to convert to long %.50s", ps->v + pos);            // this must be configurable! 
     return res;
 }
 //
-static inline long            fs_getlong(const fs *ps){
+static inline long            fs_getlong(const fs *ps) {
     return fs_getlongpos(ps, 0);
 }
 // try to parse value
-static inline double          fs_getdoublepos(const fs *ps, int pos){
+static inline double          fs_getdoublepos(const fs *ps, int pos) {
     double     res;
     if (!try_parse_double(ps->v + pos, &res) )
         userraiseint(ERR_INVALID_CONVERSION, "Unablew to convert to double %.50s", ps->v + pos);            // this must be configurable!
     return res;
 }
 //
-static inline double          fs_getdouble(const fs *ps){
+static inline double          fs_getdouble(const fs *ps) {
     return fs_getdoublepos(ps, 0);
+}
+// probably null checking will be here
+static inline char             fs_getchar(const fs *ps) {
+    return *ps->v;
 }
 
 #define                      get(s, pos) *fs_get(&(s), (pos) )
