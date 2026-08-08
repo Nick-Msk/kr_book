@@ -65,7 +65,7 @@ tnode                  *tree_add(tnode *restrict root, fs *restrict str, int lin
     else if ( (cond = fs_cmp(str, &root->groupword) ) == 0) {
             if (linenum > root->lineslist.iv[2 * root->cnt] ){  // if next pagenum
                 if (2 * root->cnt >= Arraylen(root->lineslist) )
-                        root->lineslist = Array_increase(root->lineslist, 2 * root->cnt);   // exception can be here
+                        root->lineslist = ArrayIncrease(root->lineslist, 2 * root->cnt);   // exception can be here
                 logsimple("%s: root->cnt = %d, pagenum = %d", fsstr(root->groupword), root->cnt, linenum);
                 root->lineslist.iv[2 * ++root->cnt] = linenum;   // setup next pagenum and shift cnt
             }
