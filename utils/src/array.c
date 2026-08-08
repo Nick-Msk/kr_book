@@ -138,21 +138,9 @@ static void                     freeV64elems(Array *arr, int from, int to) {
 static int                      getelemsize(const Array *parr) {
     invraisecode(ERR_NULLABLE_PTR, parr != NULL, "Null pointer");
 
-    return ArrayGetTypeInfo(ArrayGettype(parr) )->elem_size;
-    /* int         elem_size = 0;
-    ArrayType   typ = ArrayGettype(arr);
-    switch (typ) {
-        case ARRAY_INT:     elem_size = sizeof(int);        break;
-        case ARRAY_LONG:    elem_size = sizeof(long);       break;
-        case ARRAY_DOUBLE:  elem_size = sizeof(double);     break;
-        case ARRAY_POINTER: elem_size = sizeof(void*);      break;
-        case ARRAY_CHAR:    elem_size = sizeof(char);       break;
-        case ARRAY_V64:     elem_size = sizeof(value64);    break;
-        default:
-            return logsimpleret(-1, "Unknown type %d", typ);
-    }
-    return elem_size; */
+    return ArrayGetTypeInfo(parr)->elem_size;
 }
+
 /// @brief increase or descrease size of array
 /// @param arr pointer to array
 /// @param newsz new size
@@ -294,7 +282,7 @@ static int                  ArrayFileLoadValues(FILE *restrict in, Array *restri
         int         ind;
         if (fscanf(in, "%6d\t", &ind) != 1)
             return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Can't parse index");        
-        if (ind < 0 || ind >= arr->len)
+        if (ind < 0 || ind >= parr->len)
             return userraise(-1, ERR_OUT_OF_RANGE, "%d must be between 0 and %d", ind, parr->len);
 
         switch (typ) {
@@ -529,9 +517,9 @@ static Array                  *ArrayParseHeaderFile(FILE *in) {
         case ARRAY_CHAR:
             parr = CArray_create(cnt, ARRAY_FILLTYPE_NONE);
             break;
-        /*default:
-            ArraySeterror(&arr);
-            break;*/
+        default:
+            parr = NULL;
+            break;
     }
     if (!parr)
         return userraise(parr, ERR_UNSUPPORTED_TYPE, "Unsupported type '%s'", typ);
@@ -583,7 +571,6 @@ static bool                     ArrayParseFooterStr(const char **base) {
     return true;
 }
 
-
 // -------------------------- (Utility) printers -------------------
 
 // --------------------------- API ---------------------------------
@@ -592,13 +579,13 @@ static bool                     ArrayParseFooterStr(const char **base) {
 // CREATE  and fill with method
 Array                          *Array_create(int cnt, ArrayFillType filltyp, ArrayType typ, value64_type vt){
     logenter("cnt %d, filltyp %s typ %s", cnt, ArrayFillTypeName(filltyp), ArrayTypeGetName(typ) );
-    // TODO: refactor via Array_increase
+    // TODO: refactor via ArrayIncrease
     Array   *res = arraycreate(typ, vt);      
     if (cnt <= 0)
         return userraise(res, ERR_WRONG_INPUT_PARAMETERS, "sz = %d must be > 0", res->sz);
 
-    if (increase(&res, cnt) < 0)
-        ArraySeterror(&res);
+    if (increase(res, cnt) < 0)
+        return userraise(NULL, ERR_UNABLE_ALLOCATE, "Unable to allocate %d elems", cnt);
     else {
         res->len = cnt;
         Array_fill(res, filltyp);
@@ -680,14 +667,12 @@ static int                      ArrayFillRange_ASC(Array *parr, int from, int to
                     break;
                 }
                 default:
-                    userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ASC fill %s", ArrayGetV64typeName(parr) );
-                    break;
+                    return userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ASC fill %s", ArrayGetV64typeName(parr) );
             }
             break;
         }
         default:
-            userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayTypeGetName(parr) );
-            break;
+            return userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayGetTypeName(parr) );
     }
     return to - from;
 }
@@ -730,7 +715,7 @@ static int                      ArrayFillRange_DESC(Array *parr, int from, int t
                     // fs desc length
                     for (int i = from; i < to; i++) {
                         decfs(&s);   // длина i+1
-                        ArraySetV64fsElem(a, i, &s);  
+                        ArraySetV64fsElem(parr, i, &s);  
                     }
                     fsfree(s);
                     break;
@@ -746,14 +731,12 @@ static int                      ArrayFillRange_DESC(Array *parr, int from, int t
                     break;
                 }
                 default:
-                    userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for DESC fill %s", ArrayGetV64typeName(parr) );
-                    break;
+                    return userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for DESC fill %s", ArrayGetV64typeName(parr) );
             }
             break;
         }
         default:
-            userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for DESC fill %s", ArrayTypeGetName(parr) );
-            break;
+            return userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for DESC fill %s", ArrayGetTypeName(parr) );
     }
     return to - from;
 }
@@ -787,7 +770,7 @@ static int                      ArrayFillRange_ZERO(Array *parr, int from, int t
             break;
         // not real type => container v64
         case ARRAY_UNKNOWN: {
-            switch (a.v64type) {
+            switch (parr->v64type) {
                 case VALUE64_FS: {
                     fs s = FSLITERAL("");
                     for (int i = from; i < to; i++)
@@ -800,14 +783,12 @@ static int                      ArrayFillRange_ZERO(Array *parr, int from, int t
                     break;
                 }
                 default:
-                    userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ZERO v64 type %s", ArrayGetV64typeName(parr) );
-                    break;
+                    return userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ZERO v64 type %s", ArrayGetV64typeName(parr) );
             }
             break;
         }
         default:
-            userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ZERO fill %s", ArrayTypeGetName(parr) );
-            break;
+            return userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ZERO fill %s", ArrayGetTypeName(parr) );
     }
     return to - from;
 }
@@ -833,8 +814,8 @@ static int                      ArrayFillRange_NONE(Array *parr, int from, int t
                     break;
                 }
                 default:
-                    userraiseint(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ZERO v64 type %s", ArrayGetV64typeName(parr) );
-                    break;
+                    return userraise(-1, ERR_ACTION_NOT_APPLICABLE, 
+                        "Unsupported v64 type for ZERO v64 type %s", ArrayGetV64typeName(parr) );
             }
             break;
         }
@@ -850,25 +831,25 @@ static int                      ArrayFillRange_NONE(Array *parr, int from, int t
 /// @param to     end index 
 /// @return       count of filled elements
 static int                      ArrayFillRange_RND(Array *parr, int from, int to) {
-    switch (ArrayGetV64mappedType(a) ) {
+    switch (ArrayGetV64mappedType(parr) ) {
         case ARRAY_INT:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                 ArraySetIntElem(a, i, rndint(10 * (to - from + 1) ) );
+                 ArraySetIntElem(parr, i, rndint(10 * (to - from + 1) ) );
             break;
         case ARRAY_LONG:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                 ArraySetLongElem(a, i, rndlong(10 * (to - from + 1) ) );
+                 ArraySetLongElem(parr, i, rndlong(10 * (to - from + 1) ) );
             break;
         case ARRAY_DOUBLE:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                ArraySetDblElem(a, i, rnddbl(10 * (to - from + 1) ) );
+                ArraySetDblElem(parr, i, rnddbl(10 * (to - from + 1) ) );
             break;
         case ARRAY_CHAR:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                ArraySetCharElem(a, i, rndupperchar() );    // upper/lower must be in context.c
+                ArraySetCharElem(parr, i, rndupperchar() );    // upper/lower must be in context.c
             break;
         case ARRAY_UNKNOWN: {
-            switch (a.v64type) {
+            switch (parr->v64type) {
                 case VALUE64_FS: {
                     fs s = FS();
                     for (int i = from; i < to; i++) {
@@ -894,8 +875,7 @@ static int                      ArrayFillRange_RND(Array *parr, int from, int to
             break;
         }
         default:
-            userraiseint(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ZERO fill %s", ArrayTypeGetName(parr) );
-            break;
+            return userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ZERO fill %s", ArrayGetTypeName(parr) );
     }
     return to - from;
 }
@@ -932,7 +912,7 @@ static int                      ArrayFillRange_ASC_SERIES(Array *parr, int from,
             break;
         }
         default:
-            userraiseint(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayTypeGetName(parr) );
+            return userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayGetTypeName(parr) );
             break;
     }
     return to - from;
@@ -970,7 +950,7 @@ static int                      ArrayFillRange_DESC_SERIES(Array *parr, int from
             break;
         }
         default:
-            userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayTypeGetName(parr) );
+            return userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayGetTypeName(parr) );
             break;
     }
     return to - from;
@@ -1019,7 +999,7 @@ int                             ArrayFillRange(Array *parr, ArrayFillType typ, i
             ArrayFillRange_DESC_SERIES(parr, from, to);
             break;
         default:
-            userraiseint(ERR_ACTION_NOT_APPLICABLE, "Not supported filltype %s", ArrayFillTypeName(typ));
+            return userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Not supported filltype %s", ArrayFillTypeName(typ));
     }
 
     return logret(to - from, "Filled %d", to - from);
@@ -1027,7 +1007,7 @@ int                             ArrayFillRange(Array *parr, ArrayFillType typ, i
 
 // -------------- ACCESS AND MODIFICATION --------------
 
-Array                           Array_increase(Array *parr, int newcnt){
+Array                          *ArrayIncrease(Array *parr, int newcnt){
     if (newcnt > Arraysz(parr) )
         increase(parr, newcnt);
     ArrayFillRange(parr, ARRAY_FILLTYPE_ZERO, parr->len, newcnt);
@@ -1035,7 +1015,7 @@ Array                           Array_increase(Array *parr, int newcnt){
     return parr;
 }
 
-Array                          *Array_shrink(Array *parr, int newsz){
+Array                          *ArrayShrink(Array *parr, int newsz){
     logenter("newsz %d", newsz);
     if (newsz < 0)
         newsz = 0;
@@ -1049,10 +1029,11 @@ Array                          *Array_shrink(Array *parr, int newsz){
  * @brief Shuffle array elements using the Fisher–Yates algorithm.
  * @param arr array (by value)
  */
-void                        Array_shuffle(Array *parr) {
+void                        ArrayShuffle(Array *parr) {
     int elem_size = getelemsize(parr);
     if (elem_size <= 0)
-        userraiseint(ERR_UNSUPPORTED_TYPE, "unsupported type for shuffle %s", ArrayTypeGetName(parr));
+        userraiseint(ERR_UNSUPPORTED_TYPE, 
+                        "unsupported type for shuffle %s", ArrayGetTypeName(parr));
     // in case if arr.len < 2 that'll do nothing
     char    *data = parr->v;  // raw byte pointer
     for (int i = parr->len - 1; i > 0; i--) {
@@ -1117,7 +1098,7 @@ bool                            ArrayNoteq(const Array *restrict parr1, const Ar
             break;
         default:
             userraiseint(ERR_UNSUPPORTED_TYPE, "Unsupported type for comparison: %s",
-                         ArrayTypeGetName(parr1));
+                         ArrayGetTypeName(parr1));
             return true;
     }
     return false;   // all elements equal
@@ -1137,9 +1118,9 @@ bool                            ArrayNoteq(const Array *restrict parr1, const Ar
  */
 void                                Array_qsort(Array *parr, ArrayFillType ord) {
     int                 sz = getelemsize(parr);
-    if (sz <= 0)
-        userraiseint(ERR_UNSUPPORTED_TYPE, "Unable to get type size %d/%s", ArrayGettype(parr), ArrayTypeGetName(parr));
-
+    if (sz <= 0) {
+        userraiseint(ERR_UNSUPPORTED_TYPE, "Unable to get type size %d/%s", ArrayGettype(parr), ArrayGetTypeName(parr));
+    }
     pointer_comparator  cmp = NULL;
    
     ArrayType typ = ArrayGettype(parr);
@@ -1164,7 +1145,7 @@ void                                Array_qsort(Array *parr, ArrayFillType ord) 
                     : value64_getPRevComparator(parr->v64type);
         break;
         default:
-            userraiseint(ERR_UNSUPPORTED_TYPE, "Unsupported type %s", ArrayTypeGetName(parr));
+            userraiseint(ERR_UNSUPPORTED_TYPE, "Unsupported type %s", ArrayGetTypeName(parr));
     }
     
     if (cmp)
@@ -1181,7 +1162,7 @@ void                                Array_qsort(Array *parr, ArrayFillType ord) 
  * @return index of the found element (>=0), or -1 if not found
  */
 int                         ArrayBsearchIntCommon(const Array *parr, int val, bool acs) {
-    if (!Array_isint(parr))
+    if (!ArrayIsint(parr))
         userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchInt requires ARRAY_INT");
     if (parr->len == 0)
         return -1;
@@ -1200,7 +1181,7 @@ int                         ArrayBsearchIntCommon(const Array *parr, int val, bo
  * @return index of the found element (>=0), or -1 if not found
  */
 int                         ArrayBsearchLongCommon(const Array *parr, long val, bool acs) {
-    if (!Array_islong(parr))
+    if (!ArrayIslong(parr))
         userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchLong requires ARRAY_LONG");
     if (parr->len == 0)
         return -1;
@@ -1219,13 +1200,13 @@ int                         ArrayBsearchLongCommon(const Array *parr, long val, 
  * @return index of the found element (>=0), or -1 if not found
  */
 int                         ArrayBsearchDblCommon(const Array *parr, double val, bool acs) {
-    if (!Array_isdouble(parr))
+    if (!ArrayIsdouble(parr))
         userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchDbl requires ARRAY_DOUBLE");
     if (parr->len == 0)
         return -1;
     pointer_comparator cmp = acs ? pdbl_cmp : pdbl_revcmp;    
     const double *found = (const double*)bsearch(&val, parr->dv, parr->len, sizeof(double), cmp);
-    return found ? (int)(found - parr.dv) : -1;
+    return found ? (int)(found - parr->dv) : -1;
 }
 /**
  * @brief Binary search for a double in a sorted DOUBLE array.
@@ -1242,8 +1223,8 @@ int                         ArrayBsearchCharCommon(const Array *parr, char val, 
     if (parr->len == 0)
         return -1;
     pointer_comparator  cmp = acs ? pchar_cmp : pchar_revcmp;    
-    const               char *found = (const char *) bsearch(&val, parr->cv, arr.len, sizeof(char), cmp);
-    return found ? (int)(found - arr.cv) : -1;
+    const               char *found = (const char *) bsearch(&val, parr->cv, parr->len, sizeof(char), cmp);
+    return found ? (int)(found - parr->cv) : -1;
 }
 
 /**
@@ -1338,11 +1319,11 @@ long                         Arrayfprint(FILE *restrict out, const Array *restri
                 break;
             case ARRAY_V64:
                 // custom format not supported for value64; always use dedicated printer
-                IOCHECKER(written, value64_techfprint(out, val->v64[i], val->v64type, "") -1L)
+                IOCHECKER(written, value64_techfprint(out, val->v64[i], val->v64type, ""), -1L)
                     cnt += written;
                 break;
             default:
-                IOCHECKER(written, fprintf(out, "[%d - ?]\t", i), -1L )
+                IOCHECKER(written, fprintf(out, "[%ld - ?]\t", i), -1L )
                     cnt += written;
                 break;
         }
@@ -1352,7 +1333,7 @@ long                         Arrayfprint(FILE *restrict out, const Array *restri
     }
 
     if (i < val->len)
-        cnt += fprintf(out, "and more (%d) ...\n", val->len - i);
+        cnt += fprintf(out, "and more (%ld) ...\n", val->len - i);
     else
         cnt += fprintf(out, "\n");
 
@@ -1410,7 +1391,7 @@ long                        ArraySaveFilevalues(const Array *restrict parr, cons
                 break;
             default:
                 fclose(f);
-                return userraise(-1L, ERR_UNSUPPORTED_TYPE, "Unsupported type %s\n", ArrayTypeGetName(parr));
+                return userraise(-1L, ERR_UNSUPPORTED_TYPE, "Unsupported type %s\n", ArrayGetTypeName(parr));
         }
         if (written < 0) {
             status = -1;
@@ -1443,7 +1424,7 @@ long                        ArraySaveFilevalues(const Array *restrict parr, cons
  * @return number of bytes written
  */
 
-long                        ArraySavefile(FILE *restrict out, const Array *restrict parr) {  
+long                        ArraySaveFile(FILE *restrict out, const Array *restrict parr) {  
     invraisecode(parr == NULL, ERR_NULLABLE_PTR, "Array is null");
     if (!out)
         return logsimpleret(0L,  "Output is null"); 
@@ -1464,20 +1445,20 @@ long                        ArraySavefile(FILE *restrict out, const Array *restr
 /**
  * @brief Saves an array to a file.
  *
- * Opens the file for writing, calls ArraySavefile(), and closes the file.
+ * Opens the file for writing, calls ArraySaveFile(), and closes the file.
  *
  * @param arr   array (by value)
  * @param fname file path
  * @return number of bytes written, or a negative value on error
  */
-long                        ArraySaveFile(Array arr, const char *fname) {
+long                        ArraySaveFileName(const Array *parr, const char *fname) {
     logenter("%s", fname);
 
     FILE        *out = fopen(fname, "w");
     if (out == 0)
         return userraise(ERR_UNABLE_OPEN_FILE_WRITE, -1, "Can't open '%s' for write", fname);
 
-    long        res = ArraySavefile(out, arr);
+    long        res = ArraySaveFile(out, parr);
     fclose(out);
 
     if(res < 0)
@@ -1495,7 +1476,7 @@ long                        ArraySaveFile(Array arr, const char *fname) {
  * @param in input stream, already opened for reading
  * @return loaded array, or NULL
  */
-Array                           *ArrayLoadfile(FILE *in) {
+Array                           *ArrayLoadFile(FILE *in) {
     invraisecode(ERR_NULLABLE_PTR, in != NULL, "Nullable input");
 
     Array *parr = ArrayParseHeaderFile(in); 
@@ -1518,12 +1499,12 @@ Array                           *ArrayLoadfile(FILE *in) {
 /**
  * @brief Loads an array from a file.
  *
- * Opens the file for reading, calls ArrayLoadfile(), and closes the file.
+ * Opens the file for reading, calls ArrayLoadFile(), and closes the file.
  *
  * @param fname file path
  * @return loaded array, or an array with the error flag set
  */
-Array                       Array_load(const char *fname) {
+Array                       *ArrayLoadFileName(const char *fname) {
     invraisecode(ERR_NULLABLE_PTR, fname != NULL, "Nullable fname");
 
     logenter("%s", fname);
@@ -1532,10 +1513,10 @@ Array                       Array_load(const char *fname) {
     if (in == 0)
         userraiseint(ERR_UNABLE_OPEN_FILE_READ, "Can't open for read '%s'", fname);
     
-    Array arr = ArrayLoadfile(in);
+    Array   *arr = ArrayLoadFile(in);
     
     fclose(in);
-    return logret(arr, "Done %d", arr.len);
+    return logret(arr, "Done %d", arr->len);
 }
 
 // -------------------------- (API) serialization -----------------------
@@ -1607,7 +1588,7 @@ tf1(const char *name)
         for (int i = 0; i < darr.len; i++)
             if (darr.dv[i] != 0.0)
                 return logret(TEST_FAILED, "%d: Element must be 0.0. but not %lf", i, darr.dv[i]);
-        if (!Array_isvalid(darr))
+        if (!ArrayIsvalid(darr))
             return logret(TEST_FAILED, "Validation is failed");
         Arrayfree(darr);
         if (darr.dv != 0)
@@ -1619,7 +1600,7 @@ tf1(const char *name)
         for (int i = 0; i < iarr.len; i++)
             if (iarr.iv[i] != 0)
                 return logret(TEST_FAILED, "%d: Element must be 0 but not %d", i, iarr.iv[i]);
-        if (!Array_isvalid(iarr))
+        if (!ArrayIsvalid(iarr))
             return logret(TEST_FAILED, "Validation is failed");
         Arrayfree(iarr);
         if (iarr.dv != 0)
@@ -1631,7 +1612,7 @@ tf1(const char *name)
         for (int i = 0; i < larr.len; i++)
             if (larr.lv[i] != 0)
                 return logret(TEST_FAILED, "%d: Element must be 0L but not %ld", i, larr.lv[i]);
-        if (!Array_isvalid(larr))
+        if (!ArrayIsvalid(larr))
             return logret(TEST_FAILED, "Validation is failed");
         Arrayfree(larr);
         if (larr.dv != 0)
@@ -1705,8 +1686,8 @@ tf3(const char *name){
 
         Arrayfprint(logfile, darr, 0);
 
-        darr = Array_shrink(darr, 10);
-        if (!Array_isvalid(darr))
+        darr = ArrayShrink(darr, 10);
+        if (!ArrayIsvalid(darr))
             return logactret(Arrayfree(darr), TEST_FAILED, "Validation is failed");
 
         if (! inv(darr.len == 10 && darr.sz == 10 && darr.iv != 0, "Broken array!") )
@@ -1719,8 +1700,8 @@ tf3(const char *name){
 
         Arrayfprint(logfile, iarr, 0);
 
-        iarr = Array_shrink(iarr, 10);
-        if (!Array_isvalid(iarr))
+        iarr = ArrayShrink(iarr, 10);
+        if (!ArrayIsvalid(iarr))
             return logactret(Arrayfree(iarr), TEST_FAILED, "Validation is failed");
 
         if (! inv(iarr.len == 10 && iarr.sz == 10 && iarr.iv != 0, "Broken array!") )
@@ -1733,8 +1714,8 @@ tf3(const char *name){
 
         Arrayfprint(logfile, larr, 0);
 
-        larr = Array_shrink(larr, 10);
-        if (!Array_isvalid(larr))
+        larr = ArrayShrink(larr, 10);
+        if (!ArrayIsvalid(larr))
             return logactret(Arrayfree(larr), TEST_FAILED, "Validation is failed");
 
         if (! inv(larr.len == 10 && larr.sz == 10 && larr.iv != 0, "Broken array!") )
@@ -1756,11 +1737,11 @@ tf4(const char *name){
         Array iarr = IArray_create(100, ARRAY_FILLTYPE_RND);
         const char *filename =  "res/array/iarr.sv";
 
-        ArraySaveFile(iarr, filename);
+        ArraySaveFileName(iarr, filename);
 
         Array iarr2 = Array_load(filename);
 
-        if (!Array_isvalid(iarr2))
+        if (!ArrayIsvalid(iarr2))
             return logactret(Arrayfree(iarr), TEST_FAILED, "Validation is failed");
 
         test_sub("subtest %d: check", ++subnum);
@@ -1782,11 +1763,11 @@ tf4(const char *name){
         Array larr = LArray_create(100, ARRAY_FILLTYPE_RND);
         const char *filename =  "res/array/larr.sv";
 
-        ArraySaveFile(larr, filename);
+        ArraySaveFileName(larr, filename);
 
         Array larr2 = Array_load(filename);
 
-        if (!Array_isvalid(larr2))
+        if (!ArrayIsvalid(larr2))
             return logactret(Arrayfree(larr), TEST_FAILED, "Validation is failed");
 
         test_sub("subtest %d: check", ++subnum);
@@ -1819,11 +1800,11 @@ tf5(const char *name){
         const char *filename =  "res/array/darr.sv";
 
         Array_print(darr, 0);
-        ArraySaveFile(darr, filename);
+        ArraySaveFileName(darr, filename);
 
         Array darr2 = Array_load(filename);
 
-        if (!Array_isvalid(darr2))
+        if (!ArrayIsvalid(darr2))
             return logactret(Arrayfree(darr), TEST_FAILED, "Validation is failed");
 
         test_sub("subtest %d", ++subnum);
@@ -1854,7 +1835,7 @@ tf6(const char *name){
     {
         Array darr = DArray_create(50, ARRAY_FILLTYPE_ASC);
 
-        Array_shuffle(darr);
+        ArrayShuffle(darr);
         g_custom_print_line = 0;
         Array_print(darr, 0);
         Arrayfree(darr);
@@ -1862,14 +1843,14 @@ tf6(const char *name){
     test_sub("subtest %d: int", ++subnum);
     {
         Array iarr = IArray_create(50, ARRAY_FILLTYPE_ASC);
-        Array_shuffle(iarr);
+        ArrayShuffle(iarr);
         Array_print(iarr, 0);
         Arrayfree(iarr);
     }
     test_sub("subtest %d: long", ++subnum);
     {
         Array larr = LArray_create(50, ARRAY_FILLTYPE_ASC);
-        Array_shuffle(larr);
+        ArrayShuffle(larr);
         Array_print(larr, 0);
         Arrayfree(larr);
     }
@@ -1956,7 +1937,7 @@ tf8(const char *name){
         int initsz = 25;
         Array arr = IArray_create(initsz, ARRAY_FILLTYPE_RND);
 
-        arr = Array_increase(arr, initsz * 3);
+        arr = ArrayIncrease(arr, initsz * 3);
 
         test_validatefree(
             Arraylen(arr) == initsz * 3, 
@@ -1980,7 +1961,7 @@ tf8(const char *name){
         int initsz = 25;
         Array arr = DArray_create(initsz, ARRAY_FILLTYPE_RND);
 
-        arr = Array_increase(arr, initsz * 3);
+        arr = ArrayIncrease(arr, initsz * 3);
 
         test_validatefree(Arraylen(arr) == initsz * 3, Arrayfree(arr), "Array length %d must be %d", Arraylen(arr), initsz * 3);
         for (int i = initsz; i < Arraylen(arr); i++){
@@ -1995,7 +1976,7 @@ tf8(const char *name){
         int initsz = 25;
         Array arr = LArray_create(initsz, ARRAY_FILLTYPE_RND);
 
-        arr = Array_increase(arr, initsz * 5);
+        arr = ArrayIncrease(arr, initsz * 5);
 
         test_validatefree(Arraylen(arr) == initsz * 5, Arrayfree(arr), "Array length %d must be %d", Arraylen(arr), initsz * 5);
         for (int i = initsz; i < Arraylen(arr); i++){
@@ -2022,7 +2003,7 @@ tf9(const char *name){
         for (int i = 0; i < parr.len; i++)
             test_validatefree(parr.pv[i] == 0x0, Arrayfree(parr),
                 "Element %d must be 0x0 but not %p", i, parr.pv[i]);
-        test_validatefree(Array_isvalid(parr), Arrayfree(parr),
+        test_validatefree(ArrayIsvalid(parr), Arrayfree(parr),
                 "Validation is failed");
 
         Arrayfree(parr);
@@ -2033,8 +2014,8 @@ tf9(const char *name){
         Array   parr = PArray_create(100, ARRAY_FILLTYPE_ZERO);
 
         int     cnt = 10;
-        parr = Array_shrink(parr, cnt);
-        test_validatefree(Array_isvalid(parr), Arrayfree(parr), "Validation is failed");
+        parr = ArrayShrink(parr, cnt);
+        test_validatefree(ArrayIsvalid(parr), Arrayfree(parr), "Validation is failed");
 
         test_validatefree(parr.len == cnt && parr.sz == cnt && parr.iv != 0, Arrayfree(parr),
                  "Validatation is failed, len %d - sz %d - v %p", parr.len, parr.sz, parr.pv);
@@ -2045,11 +2026,11 @@ tf9(const char *name){
         const char *filename = "res/array/parr.sv";
         Array parr = PArray_create(100, ARRAY_FILLTYPE_ZERO);
 
-        ArraySaveFile(parr, filename);
+        ArraySaveFileName(parr, filename);
 
         Array parr2 = Array_load(filename);
 
-        test_validatefree(Array_isvalid(parr2), (Arrayfree(parr), Arrayfree(parr2) ), "Validation is failed");
+        test_validatefree(ArrayIsvalid(parr2), (Arrayfree(parr), Arrayfree(parr2) ), "Validation is failed");
 
         test_validatefree(parr.len == parr2.len && parr.flags == parr2.flags,  (Arrayfree(parr), Arrayfree(parr2) ),
                 "Not equal len %d - %d, flags %d - %d", parr.len, parr2.len, parr.flags, parr2.flags);
@@ -2088,7 +2069,7 @@ tf9(const char *name){
         int initsz = 25;
         Array arr = PArray_create(initsz, ARRAY_FILLTYPE_ZERO);
 
-        arr = Array_increase(arr, initsz * 3);
+        arr = ArrayIncrease(arr, initsz * 3);
 
         test_validatefree(Arraylen(arr) == initsz * 3, Arrayfree(arr), "Array length %d must be %d", Arraylen(arr), initsz * 3);
 
@@ -2903,7 +2884,7 @@ tf_v64array_shrink_increase(const char *name)
         arr.v64[2] = value64_createstr("third");
 
         // увеличиваем до 6
-        arr = Array_increase(arr, 6);
+        arr = ArrayIncrease(arr, 6);
         test_validatefree(
             arr.len == 6 && arr.sz >= 6,
             Arrayfree(arr),
@@ -2919,7 +2900,7 @@ tf_v64array_shrink_increase(const char *name)
         }
 
         // уменьшаем обратно до 3
-        arr = Array_shrink(arr, 3);
+        arr = ArrayShrink(arr, 3);
         test_validatefree(
             arr.len == 3 && arr.sz >= 3,
             Arrayfree(arr),
@@ -2948,7 +2929,7 @@ tf_v64array_shrink_increase(const char *name)
         arr.v64[1] = value64_createfs_asstr("/second");
 
         // увеличиваем до 4
-        arr = Array_increase(arr, 4);
+        arr = ArrayIncrease(arr, 4);
         test_validatefree(
             arr.len == 4 && arr.sz >= 4,
             Arrayfree(arr),
@@ -2965,7 +2946,7 @@ tf_v64array_shrink_increase(const char *name)
         }
 
         // уменьшаем до 1
-        arr = Array_shrink(arr, 1);
+        arr = ArrayShrink(arr, 1);
         test_validatefree(
             arr.len == 1 && arr.sz >= 1,
             Arrayfree(arr),
@@ -2990,7 +2971,7 @@ tf_v64array_shrink_increase(const char *name)
         arr.v64[1] = value64_createstr("b");
         arr.v64[2] = value64_createstr("c");
 
-        arr = Array_shrink(arr, 0);
+        arr = ArrayShrink(arr, 0);
         test_validatefree(
             arr.len == 0 && arr.sz == 0,
             Arrayfree(arr),
@@ -3262,7 +3243,7 @@ tf_v64ArraySaveFile_load(const char *name)
         orig.v64[2] = value64_createstr("three");
 
         // сохраняем
-        long written = ArraySaveFile(orig, fname);
+        long written = ArraySaveFileName(orig, fname);
         test_validatefree(
             written > 0,
             Arrayfree(orig),
@@ -3304,7 +3285,7 @@ tf_v64ArraySaveFile_load(const char *name)
         orig.v64[2] = value64_createfs_asstr("/gamma");
 
         // сохраняем
-        long written = ArraySaveFile(orig, fname);
+        long written = ArraySaveFileName(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "FS save failed");
 
         // загружаем
@@ -3340,7 +3321,7 @@ tf_v64ArraySaveFile_load(const char *name)
         const char *fname = "res/array/v64str_empty.sv";
 
         Array orig = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_STR);
-        long written = ArraySaveFile(orig, fname);
+        long written = ArraySaveFileName(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "STR empty save failed");
 
         Array loaded = Array_load(fname);
@@ -3361,7 +3342,7 @@ tf_v64ArraySaveFile_load(const char *name)
 
         Array orig = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_STR);
         orig.v64[0] = value64_createstr("single");
-        long written = ArraySaveFile(orig, fname);
+        long written = ArraySaveFileName(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "STR single save failed");
 
         Array loaded = Array_load(fname);
@@ -3389,7 +3370,7 @@ tf_v64ArraySaveFile_load(const char *name)
         const char *fname = "res/array/v64fs_empty.sv";
 
         Array orig = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_FS);
-        long written = ArraySaveFile(orig, fname);
+        long written = ArraySaveFileName(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "FS empty save failed");
 
         Array loaded = Array_load(fname);
@@ -3410,7 +3391,7 @@ tf_v64ArraySaveFile_load(const char *name)
 
         Array orig = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_FS);
         orig.v64[0] = value64_createfs_asstr("/only");
-        long written = ArraySaveFile(orig, fname);
+        long written = ArraySaveFileName(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "FS single save failed");
 
         Array loaded = Array_load(fname);
@@ -3880,7 +3861,7 @@ tf_ArraySaveFile_load_char(const char *name)
         orig.cv[3] = 'l'; orig.cv[4] = 'o';
 
         // сохраняем
-        long written = ArraySaveFile(orig, fname);
+        long written = ArraySaveFileName(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "CHAR save failed");
 
         // загружаем
@@ -3911,7 +3892,7 @@ tf_ArraySaveFile_load_char(const char *name)
         const char *fname = "res/array/carr_empty.sv";
 
         Array orig = CArray_create(0, ARRAY_FILLTYPE_NONE);
-        long written = ArraySaveFile(orig, fname);
+        long written = ArraySaveFileName(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "CHAR empty save failed");
 
         Array loaded = Array_load(fname);
@@ -3932,10 +3913,10 @@ tf_ArraySaveFile_load_char(const char *name)
 
         Array orig = CArray_create(1, ARRAY_FILLTYPE_NONE);
         orig.cv[0] = 'Z';
-        long written = ArraySaveFile(orig, fname);
+        long written = ArraySaveFileName(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "CHAR single save failed");
 
-        Array loaded = Array_load(fname);
+        Array loaded = ArrayLoadFileName(fname);
         test_validatefree(
             loaded.len == 1 && loaded.cv[0] == 'Z',
             (Arrayfree(orig), Arrayfree(loaded)),
@@ -4136,7 +4117,7 @@ main( /*int argc, char *argv[] */ )
         TESTADD(tf5,                            "Save/load dbl test"),
         TESTADD(tf6,                            "Shuffle array(dbl/int) simple test"),
         TESTADD(tf7,                            "Sort array(dbl/int) simple test"),
-        TESTADD(tf8,                            "Array_increase simple test"),
+        TESTADD(tf8,                            "ArrayIncrease simple test"),
         TESTADD(tf9,                            "PArray simple test"),
         TESTADD(tf10,                           "Creation with ARRAY_(DE)ASC_SERIES simple test"),
         TESTADD(tf11,                           "ArrayFillRange simple test"),

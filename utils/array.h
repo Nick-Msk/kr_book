@@ -162,7 +162,7 @@ typedef struct ArraySlice {
  * @return const ArrayTypeInfo* Pointer to the metadata structure. 
  *         Returns a pointer to the ARRAY_UNKNOWN entry if no match is found.
  */
-static inline ArrayTypeInfo       *ArrayTypeGetInfo(ArrayType t) {
+static inline const ArrayTypeInfo   *ArrayTypeGetInfo(ArrayType t) {
     size_t i;
     for (i = 0; i < COUNT(ARRAY_TYPE_TABLE); i++) {
         if (ARRAY_TYPE_TABLE[i].type == t)
@@ -177,8 +177,8 @@ static inline ArrayTypeInfo       *ArrayTypeGetInfo(ArrayType t) {
  * @param a The array instance.
  * @return const char* The pretty name (e.g., "INT").
  */
-static inline const char           *ArrayTypeGetName(ArrayType t) {
-    return ArrayTypeGetInfo(Array_gettype(t))->name;
+static inline const char            *ArrayTypeGetName(ArrayType t) {
+    return ArrayTypeGetInfo(t)->name;
 }
 
 /**
@@ -191,7 +191,7 @@ static inline const char           *ArrayTypeGetName(ArrayType t) {
  * @return size_t The size of the element in bytes. Returns 0 if type is unknown.
  */
 static inline size_t                ArrayTypeGetElemSize(ArrayType t) {
-    return ArrayTypeGetInfo(Array_gettype(t))->elem_size;
+    return ArrayTypeGetInfo(t)->elem_size;
 }
 
 /**
@@ -281,7 +281,7 @@ static inline Array            *ArrayOnlyCreate(int cnt, ArrayType typ, value64_
  * 
  * @param arr Pointer to the Array to be destroyed.
  */
-extern void                    *Array_free(Array *val);
+extern void                    Array_free(Array *val);
 
 /* =========================================================
  * CONVENIENCE FACTORY FUNCTIONS (Typed Helpers)
@@ -353,65 +353,68 @@ static inline Array            *V64Array_create(int cnt, ArrayFillType typ, valu
 static inline bool                ArrayIsV64(const Array *a);
 static inline bool                ArrayIschar(const Array *a);
 
-static inline ArrayTypeInfo       *ArrayGetTypeInfo(const Array *parr) {
+static inline const ArrayTypeInfo *ArrayGetTypeInfo(const Array *parr) {
     invraisecode(parr != NULL, ERR_NULLABLE_PTR, "NUll input");
     return ArrayTypeGetInfo(parr->flags);
 }
 
-static inline ArrayType           ArrayGettype(const Array *a) {
-    invraisecode(a != NULL, ERR_NULLABLE_PTR, "Null input");
+static inline ArrayType           ArrayGettype(const Array *parr) {
+    invraisecode(parr != NULL, ERR_NULLABLE_PTR, "Null input");
 
-    return a->flags & 0xFF;
+    return parr->flags & 0xFF;
 }
 
-static inline const char       *ArrayGetV64typeName(const Array *a) {
-    if (ArrayIsV64(a))
-        return value64_typename(a->v64type);    // query V64 API
+static inline const char       *ArrayGetTypeName(const Array *parr) {
+    return ArrayTypeGetName(ArrayGettype(parr));
+}
+
+static inline const char       *ArrayGetV64typeName(const Array *parr) {
+    if (ArrayIsV64(parr))
+        return value64_typename(parr->v64type);    // query V64 API
     else
         return "Not V64 type";
 }
 
-static inline ArrayType         ArrayGetV64mappedType(const Array *a) {
-    ArrayType res = ArrayGettype(a);
-    if (ArrayIsV64(a))
-        return ArrayGetTypeInfo(a)->v64mapping;
-    return res;
+static inline value64_type     ArrayGetV64mappedType(const Array *parr) {
+    if (ArrayIsV64(parr))
+        return ArrayGetTypeInfo(parr)->v64mapping;
+    return VALUE64_UNKNOWN;
 }
 /// @brief check if array is INT
 /// @param a array
 /// @return true if INT
-static inline bool              Array_isint(const Array *a){
-    return ArrayGettype(a) == ARRAY_INT;
+static inline bool              ArrayIsint(const Array *parr){
+    return ArrayGettype(parr) == ARRAY_INT;
 }
 /// @brief check if array is LONG
 /// @param a array
 /// @return true if LONG
-static inline bool              Array_islong(const Array *a){
-    return ArrayGettype(a) == ARRAY_LONG;
+static inline bool              ArrayIslong(const Array *parr){
+    return ArrayGettype(parr) == ARRAY_LONG;
 } 
 /// @brief check if array is DBL
 /// @param a array
 /// @return true if DBL
-static inline bool              Array_isdouble(const Array *a){
-    return ArrayGettype(a) == ARRAY_DOUBLE;
+static inline bool              ArrayIsdouble(const Array *parr){
+    return ArrayGettype(parr) == ARRAY_DOUBLE;
 }
 /// @brief check if array is PTR
 /// @param a array
 /// @return true if PTR
-static inline bool              Array_ispointer(const Array *a){
-    return ArrayGettype(a) == ARRAY_POINTER;
+static inline bool              ArrayIspointer(const Array *parr){
+    return ArrayGettype(parr) == ARRAY_POINTER;
 }
 /// @brief check if array is CHAR
 /// @param a array
 /// @return true if CHAR
-static inline bool              ArrayIschar(const Array *a){
-    return ArrayGettype(a) == ARRAY_CHAR;
+static inline bool              ArrayIschar(const Array *parr){
+    return ArrayGettype(parr) == ARRAY_CHAR;
 }
 /// @brief check if array is VALUE64
 /// @param a array
 /// @return true if VALUE64
-static inline bool              ArrayIsV64(const Array *a){
-    return ArrayGettype(a) == ARRAY_V64;
+static inline bool              ArrayIsV64(const Array *parr){
+    return ArrayGettype(parr) == ARRAY_V64;
 }
 /// @brief check if array is in error state /* NOT USED */
 /// @param a array
@@ -436,7 +439,7 @@ static inline bool              ArrayIsV64(const Array *a){
 /// @brief check if array is valuuable
 /// @param a array
 /// @return true if ok 
-static inline bool              Array_isvalid(const Array *parr){
+static inline bool              ArrayIsvalid(const Array *parr){
     return ( parr != NULL && ( /*!(a.flags & ARRAY_ERROR) && */
              parr->flags &
             (ARRAY_INT | ARRAY_LONG | ARRAY_DOUBLE | ARRAY_POINTER | ARRAY_CHAR | ARRAY_V64
@@ -456,13 +459,13 @@ static inline int               Arraylen(const Array *parr){
 static inline int               Arraysz(const Array *parr){
     invraisecode(parr != NULL, ERR_NULLABLE_PTR, "Null input");
 
-    return a->sz;
+    return parr->sz;
 }
 /// @brief get count of non-null pointers
 /// @param a array
 /// @return count of non-null pointers
 static inline int               ArrayGetcnt(const Array *parr){
-    invraise(parr != NULL && Array_ispointer(parr), 
+    invraise(parr != NULL && ArrayIspointer(parr), 
         "Applicable only for pointers ARRAY_POINTER %d", ARRAY_POINTER);
     int cnt = 0;
     for (int i = 0; i < parr->len; i++)
@@ -496,7 +499,7 @@ static inline bool              ArrayComparable(const Array *restrict arr1, cons
 static inline void              ArrayCheckComparable(const Array *restrict arr1, const Array *restrict arr2) {
     if (!ArrayComparable(arr1, arr2) )
         userraiseint(ERR_TYPES_MISMATCH, "Type of arr1 %s and arr2 %s are not compatiple (equal for now)", 
-            ArrayTypeGetName(arr1), ArrayTypeGetName(arr2) );   // different types -> not equal
+            ArrayGetTypeName(arr1), ArrayGetTypeName(arr2) );   // different types -> not equal
 }
 
 /**
@@ -564,7 +567,7 @@ extern int                      ArrayFillRange(Array *parr, ArrayFillType typ, i
  * @param newsz new size (must be non‑negative and ≤ current length)
  * @return      the shrunk array
  */
-extern Array                    Array_shrink(Array *parr, int newsz);
+extern Array                    *ArrayShrink(Array *parr, int newsz);
 
 /**
  * @brief Increases the capacity of an array to accommodate at least `newcnt` elements.
@@ -576,7 +579,7 @@ extern Array                    Array_shrink(Array *parr, int newsz);
  * @param newcnt new minimum capacity
  * @return       the array with increased capacity
  */
-extern Array                    Array_increase(Array *parr, int newcnt);
+extern Array                   *ArrayIncrease(Array *parr, int newcnt);
 
 /**
  * @brief Randomly shuffles the elements of an array using the Fisher‑Yates algorithm.
@@ -585,7 +588,7 @@ extern Array                    Array_increase(Array *parr, int newcnt);
  *
  * @param arr array (by value)
  */
-extern void                     Array_shuffle(Array *parr);
+extern void                     ArrayShuffle(Array *parr);
 /**
  * @brief Sorts the array in ascending or descending order.
  *
@@ -607,7 +610,7 @@ static inline int               ArrayBsearchIntrev(const Array *parr, int val) {
 }
 // long
 extern int                      ArrayBsearchLongCommon(const Array *parr, long val, bool acs);
-static inline int               ArrayBsearchLong(const Array *pchar_revcmp, long val) {
+static inline int               ArrayBsearchLong(const Array *parr, long val) {
     return ArrayBsearchLongCommon(parr, val, true);
 }
 static inline int               ArrayBsearchLongRev(const Array *parr, long val) {
@@ -672,16 +675,16 @@ extern int                      Array_foreach_rev_proc(Array *restrict parr, Arr
 
 // ----------------- PRINTERS/SERIALYZATION ----------------------
 
-extern int                      Arrayfprint(FILE *restrict out, const Array *restrict parr, int limit);
+extern long                     Arrayfprint(FILE *restrict out, const Array *restrict parr, int limit);
 
-static inline int               Array_print(const Array *parr, int limit){
+static inline long              Array_print(const Array *parr, int limit){
     return Arrayfprint(stdout, parr, limit);
 }
 
-extern long                     ArraySaveFile(const Array *restrict parr, const char *restrict fname);
-extern long                     ArraySavefile(FILE *restrict out, const Array *restrict parr);
-extern Array                    Array_load(const char *fname);
-extern Array                    ArrayLoadfile(FILE *in);
+extern long                     ArraySaveFileName(const Array *restrict parr, const char *restrict fname);
+extern long                     ArraySaveFile(FILE *restrict out, const Array *restrict parr);
+extern Array                   *ArrayLoadFileName(const char *fname);
+extern Array                   *ArrayLoadFile(FILE *in);
 
 /** 
  * @brief   Value-only Saver by delim for file
