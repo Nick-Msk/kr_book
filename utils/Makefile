@@ -1,5 +1,5 @@
 CC=gcc #clang
-CFLAGS= -I./ -Wall -Wextra -g -O0 -Wno-initializer-overrides -Wno-gnu-folding-constant -std=c23 -fsanitize=address
+CFLAGS= -I./ -Wall -Wextra -g -O0 -Wno-initializer-overrides -Wno-gnu-folding-constant -std=c23 -fsanitize=address  -MD -MP
 #CFLAGS += -fanalyzer
 
 # -Wno-initializer-overrides -Wno-unused-function -Wno-format-zero-length
@@ -237,3 +237,4 @@ no_targets__:
 list:
 	sh -c "$(MAKE) -p no_targets__ | awk -F':' '/^[a-zA-Z0-9][^\$$#\/\\t=]*:([^=]|$$)/ {split(\$$1,A,/ /);for(i in A)print A[i]}' | grep -v '__\$$' | sort"
 
+-include $(wildcard lib/*.d)
