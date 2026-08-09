@@ -1200,7 +1200,8 @@ int                         value64_fprint_ptr(FILE *restrict out, value64 val) 
 }
 /** @brief Prints a single character wrapped in quotes. */
 int                         value64_fprint_char(FILE *restrict out, value64 val) {
-    return fprintf(out, "\"%c\"", value64_char(val) );
+    char    buf[] = { value64_char(val), '\0' };
+    return fprint_str_escaped(out, buf);
 }
 /** @brief Prints an escaped string. */
 int                         value64_fprint_str(FILE *restrict out, value64 val) {
@@ -1493,9 +1494,17 @@ bool                         value64_sreadval_char(value64 *restrict pval, fs *r
     invraisecode(buf != NULL, ERR_NULLABLE_PTR,
         "Null pointers %p", buf);
 
-    char    cval;
-    if (!try_parse_char(fs_str(buf), &cval))
-        return logsimpleerr(false, "Invalid char string: '%.50s'", fs_str(buf) );
+    const char *str = fs_str(buf);
+
+    // ANALYZE: this is not pretty clear behaviour, probably better return false in that case
+    if (str == NULL || str[0] == '\0') {
+        if (pval) 
+            *pval = value64_createchar('\0');
+        return logsimpleret(true, "read null char from \"\"");
+    }
+    char cval;
+    if (!try_parse_char(str, &cval))
+        return logsimpleerr(false, "Invalid char string: '%s'", str);
 
     value64 v = value64_createchar(cval);
     if (pval)
@@ -5348,6 +5357,110 @@ tf_sort(const char *name)
         );
     }
 
+    /* ========== CHAR ascending ========== */
+    test_sub("subtest %d: CHAR sort asc basic", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('z'), value64_createchar('a'), value64_createchar('m') };
+        value64_sort(VALUE64_CHR, arr, 3);
+        test_validate(arr[0].cval == 'a' && arr[1].cval == 'm' && arr[2].cval == 'z',
+                      "CHAR asc: expected a,m,z got %c,%c,%c",
+                      arr[0].cval, arr[1].cval, arr[2].cval);
+    }
+
+    test_sub("subtest %d: CHAR sort asc with duplicates", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('b'), value64_createchar('a'), value64_createchar('b'),
+                          value64_createchar('c'), value64_createchar('a') };
+        value64_sort(VALUE64_CHR, arr, 5);
+        // после сортировки: a,a,b,b,c
+        test_validate(arr[0].cval == 'a' && arr[1].cval == 'a' &&
+                      arr[2].cval == 'b' && arr[3].cval == 'b' &&
+                      arr[4].cval == 'c',
+                      "CHAR asc duplicates: expected a,a,b,b,c");
+    }
+
+    test_sub("subtest %d: CHAR sort asc single element", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('X') };
+        value64_sort(VALUE64_CHR, arr, 1);
+        test_validate(arr[0].cval == 'X', "CHAR asc single: must stay 'X', got '%c'", arr[0].cval);
+    }
+
+    test_sub("subtest %d: CHAR sort asc empty array", ++subnum);
+    {
+        // сортировка пустого массива не должна падать
+        value64_sort(VALUE64_CHR, NULL, 0);
+        test_validate(true, "CHAR asc empty: must not crash");
+    }
+
+    test_sub("subtest %d: CHAR sort asc already sorted", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('A'), value64_createchar('B'), value64_createchar('C') };
+        value64_sort(VALUE64_CHR, arr, 3);
+        test_validate(arr[0].cval == 'A' && arr[1].cval == 'B' && arr[2].cval == 'C',
+                      "CHAR asc already sorted: must stay A,B,C");
+    }
+
+    test_sub("subtest %d: CHAR sort asc reversed initial", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('d'), value64_createchar('c'), value64_createchar('b'),
+                          value64_createchar('a') };
+        value64_sort(VALUE64_CHR, arr, 4);
+        test_validate(arr[0].cval == 'a' && arr[1].cval == 'b' &&
+                      arr[2].cval == 'c' && arr[3].cval == 'd',
+                      "CHAR asc reversed: expected a,b,c,d");
+    }
+
+    /* ========== descending ========== */
+    test_sub("subtest %d: CHAR sort desc basic", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('a'), value64_createchar('z'), value64_createchar('m') };
+        value64_revsort(VALUE64_CHR, arr, 3);
+        test_validate(arr[0].cval == 'z' && arr[1].cval == 'm' && arr[2].cval == 'a',
+                      "CHAR desc: expected z,m,a got %c,%c,%c",
+                      arr[0].cval, arr[1].cval, arr[2].cval);
+    }
+
+    test_sub("subtest %d: CHAR sort desc with duplicates", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('c'), value64_createchar('a'), value64_createchar('c'),
+                          value64_createchar('b') };
+        value64_revsort(VALUE64_CHR, arr, 4);
+        // после сортировки: c,c,b,a
+        test_validate(arr[0].cval == 'c' && arr[1].cval == 'c' &&
+                      arr[2].cval == 'b' && arr[3].cval == 'a',
+                      "CHAR desc duplicates: expected c,c,b,a");
+    }
+
+    test_sub("subtest %d: CHAR sort desc single element", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('Y') };
+        value64_revsort(VALUE64_CHR, arr, 1);
+        test_validate(arr[0].cval == 'Y', "CHAR desc single: must stay 'Y', got '%c'", arr[0].cval);
+    }
+
+    test_sub("subtest %d: CHAR sort desc empty array", ++subnum);
+    {
+        value64_revsort(VALUE64_CHR, NULL, 0);
+        test_validate(true, "CHAR desc empty: must not crash");
+    }
+
+    test_sub("subtest %d: CHAR sort desc already sorted", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('C'), value64_createchar('B'), value64_createchar('A') };
+        value64_revsort(VALUE64_CHR, arr, 3);
+        test_validate(arr[0].cval == 'C' && arr[1].cval == 'B' && arr[2].cval == 'A',
+                      "CHAR desc already sorted: must stay C,B,A");
+    }
+
+    test_sub("subtest %d: CHAR sort desc reversed initial", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('a'), value64_createchar('b'), value64_createchar('c') };
+        value64_revsort(VALUE64_CHR, arr, 3);
+        test_validate(arr[0].cval == 'c' && arr[1].cval == 'b' && arr[2].cval == 'a',
+                      "CHAR desc reversed: expected c,b,a");
+    }
+
     /* ---------- 3. STR ascending ---------- */
     test_sub("subtest %d: sort STR asc", ++subnum);
     {
@@ -5662,6 +5775,100 @@ tf_fsave_fload(const char *name)
         );
     }
 
+    /* 1. save/load simple char */
+    test_sub("subtest %d: CHAR save/load 'A'", ++subnum);
+    {
+        value64 orig = value64_createchar('A');
+        const char *fname = "res/values64/char_A.dat";
+        FILE *fp = fopen(fname, "w");
+        test_validate(fp != NULL, "Cannot open file for writing");
+        int written = value64_tofile(fp, orig, VALUE64_CHR, true);
+        fclose(fp);
+        test_validate(written > 0, "CHAR save failed");
+
+        fp = fopen(fname, "r");
+        test_validate(fp != NULL, "Cannot open file for reading");
+        value64 loaded;
+        test_validatefree(
+            value64_loadfile(fp, &loaded, VALUE64_CHR, true, NULL) > 0 &&
+            value64_char(loaded) == 'A',
+            fclose(fp),
+            "CHAR load: expected 'A', got '%c'", value64_char(loaded)
+        );
+        fclose(fp);
+    }
+
+    /* 2. save/load special chars */
+    test_sub("subtest %d: CHAR save/load special chars", ++subnum);
+    {
+        const char chars[] = {' ', '\n', '\t', '\\', '\'', '\"'};
+        for (size_t i = 0; i < COUNT(chars); i++) {
+            char buf[64];
+            snprintf(buf, sizeof(buf), "res/values64/char_%02X.dat", (unsigned char)chars[i]);
+            value64 orig = value64_createchar(chars[i]);
+            FILE *fp = fopen(buf, "w");
+            test_validate(fp != NULL, "Cannot open file for writing");
+            value64_tofile(fp, orig, VALUE64_CHR, true);
+            fclose(fp);
+
+            fp = fopen(buf, "r");
+            test_validate(fp != NULL, "Cannot open file for reading");
+            value64 loaded;
+            test_validatefree(
+                value64_loadfile(fp, &loaded, VALUE64_CHR, true, NULL) > 0 &&
+                value64_char(loaded) == chars[i],
+                fclose(fp),
+                "CHAR load special: expected '%c' (0x%02X), got '%c'",
+                chars[i], (unsigned char)chars[i], value64_char(loaded)
+            );
+            fclose(fp);
+        }
+    }
+
+    /* 3. save/load with type info false (plain value) */
+    test_sub("subtest %d: CHAR save/load without typeinfo", ++subnum);
+    {
+        value64 orig = value64_createchar('Z');
+        const char *fname = "res/values64/char_Z_notype.dat";
+        FILE *fp = fopen(fname, "w");
+        test_validate(fp != NULL, "Cannot open file for writing");
+        value64_tofile(fp, orig, VALUE64_CHR, false);
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        test_validate(fp != NULL, "Cannot open file for reading");
+        value64 loaded;
+        test_validatefree(
+            value64_loadfile(fp, &loaded, VALUE64_CHR, false, NULL) > 0 &&
+            value64_char(loaded) == 'Z',
+            fclose(fp),
+            "CHAR load notype: expected 'Z', got '%c'", value64_char(loaded)
+        );
+        fclose(fp);
+    }
+
+    /* 4. NULL char (should work) */
+    test_sub("subtest %d: CHAR save/load null char", ++subnum);
+    {
+        value64 orig = value64_createchar('\0');
+        const char *fname = "res/values64/char_null.dat";
+        FILE *fp = fopen(fname, "w");
+        test_validate(fp != NULL, "Cannot open file for writing");
+        value64_tofile(fp, orig, VALUE64_CHR, true);
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        test_validate(fp != NULL, "Cannot open file for reading");
+        value64 loaded;
+        test_validatefree(
+            value64_loadfile(fp, &loaded, VALUE64_CHR, true, NULL) > 0 &&
+            value64_char(loaded) == '\0',
+            fclose(fp),
+            "CHAR load null: expected '\\0', got '%c'", value64_char(loaded)
+        );
+        fclose(fp);
+    }
+
     /* 3. DBL */
     test_sub("subtest %d: DBL save/load", ++subnum);
     {
@@ -5853,6 +6060,22 @@ tf_tostr(const char *name)
             strcmp(fs_str(&buf), "VALUE64(LNG):\"123456789\"") == 0,
             fsfree(buf),
             "LONG: expected 'VALUE64(LNG):\"123456789\"', got '%s' (written=%d)",
+            fs_str(&buf), written
+        );
+        fsfree(buf);
+    }
+
+    /* ========== CHAR ========== */
+    test_sub("subtest %d: CHAR to string", ++subnum);
+    {
+        value64 v = LITERAL64_CHR('a');
+        fs buf = FS();
+        int written = value64_tostr(&buf, v, VALUE64_CHR, true);
+        test_validatefree(
+            written == 16 &&
+            strcmp(fsstr(buf), "VALUE64(CHR):\"a\"") == 0,
+            fsfree(buf),
+            "INT: expected 'VALUE64(CHR):\"a\"', got '%s' (written=%d)",
             fs_str(&buf), written
         );
         fsfree(buf);
