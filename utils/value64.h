@@ -459,7 +459,7 @@ static inline value64_PComparator  value64_getPRevComparator(value64_type typ){
         case VALUE64_PTR:
             return value64_pptr_rev_comp;
         case VALUE64_CHR:
-            return value64_pchar_comp;
+            return value64_pchar_rev_comp;
         // memory alloc types
         case VALUE64_FS:
             return value64_pfs_rev_comp;

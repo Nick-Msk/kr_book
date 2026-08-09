@@ -4787,6 +4787,32 @@ tf_getPComparator(const char *name)
         test_validate(rcmp(&a, &b) > 0, "rev: 100 < 200 must give >0");
     }
 
+    /* ----------  P_CHARcomparator ---------- */
+    test_sub("subtest %d: getPComparator CHAR", ++subnum);
+    {
+        value64_PComparator cmp = value64_getPComparator(VALUE64_CHR);
+        test_validate(cmp != NULL, "CHAR P-comparator must not be NULL");
+
+        value64 a = value64_createint('a');
+        value64 b = value64_createint('z');
+        test_validate(cmp(&a, &b) < 0, "'a' < 'z' must be negative");
+        test_validate(cmp(&b, &a) > 0, "'z' > 'a' must be positive");
+        test_validate(cmp(&a, &a) == 0, "'a' == 'a' must be zero");
+    }
+
+    /*  P_CHAR rev comparator */
+    test_sub("subtest %d: getPRevComparator CHAR", ++subnum);
+    {
+        value64_PComparator rcmp = value64_getPRevComparator(VALUE64_CHR);
+        test_validate(rcmp != NULL, "CHAR P-rev-comparator must not be NULL");
+
+        value64 a = value64_createint('a');
+        value64 b = value64_createint('z');
+        test_validate(rcmp(&a, &b) > 0, "rev: 'a' < 'z' must give >0");
+        test_validate(rcmp(&b, &a) < 0, "rev: 'z' > 'a' must give <0");
+        test_validate(rcmp(&a, &a) == 0, "rev: 'a' == 'a' must be 0");
+    }
+
     /* ---------- 5. P_DBL comparator ---------- */
     test_sub("subtest %d: getPComparator DBL", ++subnum);
     {
@@ -5027,6 +5053,122 @@ tf_binsearch(const char *name)
             value64_rev_binsearch(key, VALUE64_INT, arr, COUNT(arr)) == -1,
             "35 must not be found in descending array"
         );
+    }
+
+    /* ========== CHAR ascending ========== */
+    test_sub("subtest %d: CHAR asc binsearch found", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('a'), value64_createchar('b'), value64_createchar('c'),
+                          value64_createchar('d'), value64_createchar('e') };
+        int idx = value64_binsearch(value64_createchar('c'), VALUE64_CHR, arr, 5);
+        test_validate(idx == 2, "CHAR asc search 'c': expected idx=2, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHAR asc binsearch not found", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('a'), value64_createchar('b'), value64_createchar('c') };
+        int idx = value64_binsearch(value64_createchar('x'), VALUE64_CHR, arr, 3);
+        test_validate(idx == -1, "CHAR asc missing 'x': expected -1, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHAR asc binsearch first element", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('A'), value64_createchar('B'), value64_createchar('C') };
+        int idx = value64_binsearch(value64_createchar('A'), VALUE64_CHR, arr, 3);
+        test_validate(idx == 0, "CHAR asc first: expected idx=0, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHAR asc binsearch last element", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('A'), value64_createchar('B'), value64_createchar('C') };
+        int idx = value64_binsearch(value64_createchar('C'), VALUE64_CHR, arr, 3);
+        test_validate(idx == 2, "CHAR asc last: expected idx=2, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHAR asc binsearch with duplicates (any match)", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('a'), value64_createchar('b'), value64_createchar('b'),
+                          value64_createchar('c') };
+        int idx = value64_binsearch(value64_createchar('b'), VALUE64_CHR, arr, 4);
+        test_validate(idx >= 1 && idx <= 2, "CHAR asc duplicate: idx must be 1 or 2, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHAR asc binsearch single element found", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('M') };
+        int idx = value64_binsearch(value64_createchar('M'), VALUE64_CHR, arr, 1);
+        test_validate(idx == 0, "CHAR asc single found: expected idx=0, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHAR asc binsearch single element not found", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('M') };
+        int idx = value64_binsearch(value64_createchar('N'), VALUE64_CHR, arr, 1);
+        test_validate(idx == -1, "CHAR asc single missing: expected -1, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHAR asc binsearch empty array", ++subnum);
+    {
+        int idx = value64_binsearch(value64_createchar('A'), VALUE64_CHR, NULL, 0);
+        test_validate(idx == -1, "CHAR asc empty: expected -1, got %d", idx);
+    }
+
+    /* ========== descending ========== */
+    test_sub("subtest %d: CHAR desc binsearch found", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('e'), value64_createchar('d'), value64_createchar('c'),
+                          value64_createchar('b'), value64_createchar('a') };
+        int idx = value64_rev_binsearch(value64_createchar('c'), VALUE64_CHR, arr, 5);
+        test_validate(idx == 2, "CHAR desc search 'c': expected idx=2, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHAR desc binsearch not found", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('z'), value64_createchar('y'), value64_createchar('x') };
+        int idx = value64_rev_binsearch(value64_createchar('m'), VALUE64_CHR, arr, 3);
+        test_validate(idx == -1, "CHAR desc missing 'm': expected -1, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHAR desc binsearch first element", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('C'), value64_createchar('B'), value64_createchar('A') };
+        int idx = value64_rev_binsearch(value64_createchar('C'), VALUE64_CHR, arr, 3);
+        test_validate(idx == 0, "CHAR desc first: expected idx=0, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHAR desc binsearch last element", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('C'), value64_createchar('B'), value64_createchar('A') };
+        int idx = value64_rev_binsearch(value64_createchar('A'), VALUE64_CHR, arr, 3);
+        test_validate(idx == 2, "CHAR desc last: expected idx=2, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHAR desc binsearch with duplicates (any match)", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('d'), value64_createchar('c'), value64_createchar('c'),
+                          value64_createchar('a') };
+        int idx = value64_rev_binsearch(value64_createchar('c'), VALUE64_CHR, arr, 4);
+        test_validate(idx >= 1 && idx <= 2, "CHAR desc duplicate: idx must be 1 or 2, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHAR desc binsearch single element found", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('Z') };
+        int idx = value64_rev_binsearch(value64_createchar('Z'), VALUE64_CHR, arr, 1);
+        test_validate(idx == 0, "CHAR desc single found: expected idx=0, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHAR desc binsearch single element not found", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('Z') };
+        int idx = value64_rev_binsearch(value64_createchar('A'), VALUE64_CHR, arr, 1);
+        test_validate(idx == -1, "CHAR desc single missing: expected -1, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHAR desc binsearch empty array", ++subnum);
+    {
+        int idx = value64_rev_binsearch(value64_createchar('A'), VALUE64_CHR, NULL, 0);
+        test_validate(idx == -1, "CHAR desc empty: expected -1, got %d", idx);
     }
 
     /* ---------- STR ascending ---------- */
