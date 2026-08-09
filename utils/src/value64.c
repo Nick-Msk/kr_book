@@ -72,37 +72,45 @@ value64                             value64_pcopy_move(void *p, value64_type typ
     value64     tmp = LITERAL64_ZERO;  // init
     switch (typ){
         case VALUE64_INT:
-            tmp.ival = *(const int *) p;
-        break;
+            tmp.ival = *(const int *)p;
+            if (move)
+                *(int *)p = 0;
+            break;
         case VALUE64_LNG:
-            tmp.lval = *(const long *) p;
-        break;
+            tmp.lval = *(const long *)p;
+            if (move)
+                *(long *)p = 0L;
+            break;
         case VALUE64_DBL:
-            tmp.dval = *(const double *) p;
-        break;
+            tmp.dval = *(const double *)p;
+            if (move)
+                *(double *)p = 0.0;
+            break;
+        case VALUE64_CHR:
+            tmp.cval = *(const char *)p;
+            if (move)
+                *(char *)p = '\0';
+            break;
         case VALUE64_PTR:
             tmp.pval = *(void * const *) p;
             if (move)
-                *(void **)p = NULL;
-        break;
-        case VALUE64_CHR:
-            tmp.cval = *(const char *) p;
+                *(void **) p = NULL;
+            break;
         case VALUE64_STR:
             if (move)
                 tmp.sval = (char *) p;  //MOVE POINTER
             else
                 tmp = value64_createstr(p);
-        break;
+            break;
         // create fs body in head with FS_FLAG_BODYALLOC
         case VALUE64_FS:
             if (move)
                 tmp = value64_movefs(p);
             else
                 tmp = value64_createfs(p);
-        break;
+            break;
         default:
             userraiseint(ERR_UNSUPPORTED_TYPE, "type %d %s isn't suppoted", typ, value64_typename(typ) );
-        break;
     }
     return tmp;
 }
@@ -731,6 +739,10 @@ int                         value64_pfs_rev_comp(const void *restrict v1, const 
  * @return true if the conversion is safe (lossless), false otherwise.
  */
 bool                        value64_is_convertable(value64 v, value64_type from, value64_type to) {
+    if (conv_matrix[from][to] == NULL) {
+        return false;
+    }
+
     if (from == VALUE64_LNG && to == VALUE64_INT)
         return is_long_int_range(value64_long(v));
 
@@ -992,7 +1004,7 @@ value64                     value64_convert_char_to_lng(value64 v) {
 /** @brief Converts char to FS object. */
 value64                     value64_convert_char_to_fs(value64 v) {
     fs      tmp = fscopyf("%c", value64_char(v));
-    return value64_createfs(&tmp);
+    return value64_movefs(&tmp); // to avoid double alloc
 }
 /** @brief Converts char to string. */
 value64                     value64_convert_char_to_str(value64 v) {
@@ -2153,6 +2165,14 @@ tf_point_init(const char *name)
                       "Copy double: got %f, expected 2.7182818", v.dval);
     }
 
+    /* 4. copy char */
+    test_sub("subtest %d: pinit char", ++subnum);
+    {
+        char cval = 'X';
+        value64 v = value64_pinit(&cval, VALUE64_CHR);
+        test_validate(v.cval == 'X', "Copy char: got '%c', expected 'X'", v.cval);
+    }
+
     /* 4. copy pointer */
     test_sub("subtest %d: pinit pointer", ++subnum);
     {
@@ -2206,40 +2226,41 @@ tf_point_init(const char *name)
 
     /* ---------- value64_pmove (move) ---------- */
 
-    /* 7. move int (семантика копирования, т.к. скаляр) */
-    test_sub("subtest %d: pmove int", ++subnum);
+    /* ---------- INT ---------- */
+    test_sub("subtest %d: move INT", ++subnum);
     {
-        int ival = -5;
+        int ival = 42;
         value64 v = value64_pmove(&ival, VALUE64_INT);
-        test_validate(v.ival == -5, "Move int: got %d, expected -5", v.ival);
+        test_validate(v.ival == 42 && ival == 0,
+                      "Move INT: v=%d, ival=%d (expected 42, 0)", v.ival, ival);
     }
 
-    /* 8. move long */
-    test_sub("subtest %d: pmove long", ++subnum);
+    /* ---------- LNG ---------- */
+    test_sub("subtest %d: move LONG", ++subnum);
     {
-        long lval = -999999999L;
+        long lval = 999888777L;
         value64 v = value64_pmove(&lval, VALUE64_LNG);
-        test_validate(v.lval == -999999999L, "Move long: got %ld, expected -999999999", v.lval);
+        test_validate(v.lval == 999888777L && lval == 0L,
+                      "Move LONG: v=%ld, lval=%ld (expected 999888777, 0)", v.lval, lval);
     }
 
-    /* 9. move double */
-    test_sub("subtest %d: pmove double", ++subnum);
+    /* ---------- DBL ---------- */
+    test_sub("subtest %d: move DOUBLE", ++subnum);
     {
-        double dval = -1.4142135;
+        double dval = 3.14159;
         value64 v = value64_pmove(&dval, VALUE64_DBL);
-        test_validate(fabs(v.dval - (-1.4142135)) < 0.0000001,
-                      "Move double: got %f, expected -1.4142135", v.dval);
+        test_validate(v.dval == 3.14159 && dval == 0.0,
+                      "Move DOUBLE: v=%f, dval=%f (expected 3.14159, 0.0)", v.dval, dval);
     }
 
-    /* 10. move pointer  DISABLED
-    test_sub("subtest %d: pmove pointer", ++subnum);
+    /* ---------- CHR ---------- */
+    test_sub("subtest %d: move CHAR", ++subnum);
     {
-        int x = 99;
-        void *ptr = &x;
-        value64 v = value64_pmove(&ptr, VALUE64_PTR);
-        test_validate(v.pval == &x,
-                      "Move pointer: got %p, expected %p", v.pval, (void*)&x);
-    } */
+        char cval = 'A';
+        value64 v = value64_pmove(&cval, VALUE64_CHR);
+        test_validate(v.cval == 'A' && cval == '\0',
+                      "Move CHAR: v='%c', cval='%c' (expected 'A', '\\0')", v.cval, cval);
+    }
 
     /* 11. move C-string (забирает владение) */
     test_sub("subtest %d: pmove str", ++subnum);
@@ -2395,6 +2416,14 @@ tf_clone(const char *name)
         test_validate(fabs(copy.dval - 1.6180339) < 0.0000001,
                       "Clone double: got %f, expected 1.6180339", copy.dval);
     }
+    /* clone char */
+    test_sub("subtest %d: clone char", ++subnum);
+    {
+        value64 orig = value64_createchar('Z');
+        value64 copy = value64_clone(orig, VALUE64_CHR);
+        test_validate(copy.cval == 'Z',
+                    "Clone char: got '%c', expected 'Z'", copy.cval);
+    }
 
     /* 10. clone pointer */
     test_sub("subtest %d: clone pointer", ++subnum);
@@ -2501,6 +2530,18 @@ tf_move(const char *name)
 
         test_validate(fabs(value64_dbl(dst) - 3.1415) < 0.0001, "dst mismatch, got %f", value64_dbl(dst));
         test_validate(fabs(value64_dbl(src) - 0.0) < 1e-12, "src must be 0.0 after move, got %f", value64_dbl(src));
+    }
+
+    /* move char (value64_moveto_chr) */
+    test_sub("subtest %d: move char", ++subnum);
+    {
+        value64 src = value64_createchar('A');
+        value64 dst = LITERAL64_ZERO;
+        value64 *ret = value64_moveto_chr(&dst, &src);
+
+        test_validate(ret == &dst, "move_char must return &dst");
+        test_validate(value64_char(dst) == 'A', "dst must be 'A', got '%c'", value64_char(dst));
+        test_validate(value64_char(src) == '\0', "src must be '\\0' after move, got '%c'", value64_char(src));
     }
 
     /* 4. move pointer */
@@ -2639,6 +2680,21 @@ tf_lhash(const char *name)
         test_validate(h1 != h3, "Different longs should differ");
     }
 
+    /* char */
+    test_sub("subtest %d: hash char", ++subnum);
+    {
+        value64 v1 = value64_createchar('A');
+        value64 v2 = value64_createchar('A');
+        value64 v3 = value64_createchar('Z');
+
+        unsigned long h1 = value64_lhash(v1, VALUE64_CHR);
+        unsigned long h2 = value64_lhash(v2, VALUE64_CHR);
+        unsigned long h3 = value64_lhash(v3, VALUE64_CHR);
+
+        test_validate(h1 == h2, "Same chars must have same hash: %lu vs %lu", h1, h2);
+        test_validate(h1 != h3, "Different chars should differ: %lu vs %lu", h1, h3);
+    }
+
     /* 3. double */
     test_sub("subtest %d: hash double", ++subnum);
     {
@@ -2761,6 +2817,17 @@ tf_compare(const char *name)
         test_validate(value64_compare(v1, v3, VALUE64_LNG) != 0, "Different longs must not return 0");
     }
 
+    /* compare char */
+    test_sub("subtest %d: compare char", ++subnum);
+    {
+        value64 v1 = value64_createchar('A');
+        value64 v2 = value64_createchar('A');
+        value64 v3 = value64_createchar('C');
+
+        test_validate(value64_compare(v1, v2, VALUE64_CHR) == 0, "Equal chars must return 0");
+        test_validate(value64_compare(v1, v3, VALUE64_CHR) != 0, "Different chars must not return 0");
+    }
+
     /* 3. compare double */
     test_sub("subtest %d: compare double", ++subnum);
     {
@@ -2866,6 +2933,28 @@ tf_convert(const char *name)
             "INT->DBL: expected 42.0, got %f", value64_dbl(dst));
     }
 
+    /* int -> char (valid) */
+    test_sub("subtest %d: int -> char", ++subnum);
+    {
+        value64 src = value64_createint(42);
+        value64 dst = value64_convert_int_to_char(src);
+        test_validate(value64_char(dst) == 42,
+                      "int->char: expected 42, got %d", value64_char(dst));
+    }
+
+    /* int -> char (overflow) – must raise error */
+    test_sub("subtest %d: int -> char overflow", ++subnum);
+    {
+        value64 src = value64_createint(9999);
+        if (!try()) {
+            value64 dst = value64_convert_int_to_char(src);
+            test_validate(false, "Should have raised SIGINT for overflow");
+            (void)dst;
+        } else {
+            logsimple("Exception correctly raised on int->char overflow");
+        }
+    }
+
     /* ========== 3. INT → FS ========== */
     test_sub("subtest %d: INT -> FS", ++subnum);
     {
@@ -2924,6 +3013,28 @@ tf_convert(const char *name)
             "LONG->DBL: expected 999999999.0, got %f", value64_dbl(dst));
     }
 
+    /* long -> char (valid) */
+    test_sub("subtest %d: long -> char", ++subnum);
+    {
+        value64 src = value64_createlong(100L);
+        value64 dst = value64_convert_lng_to_char(src);
+        test_validate(value64_char(dst) == 100,
+                      "long->char: expected 100, got %d", value64_char(dst));
+    }
+
+    /* long -> char (overflow) */
+    test_sub("subtest %d: long -> char overflow", ++subnum);
+    {
+        value64 src = value64_createlong(9999L);
+        if (!try()) {
+            value64 dst = value64_convert_lng_to_char(src);
+            test_validate(false, "Should have raised SIGINT");
+            (void)dst;
+        } else {
+            logsimple("Exception correctly raised on long->char overflow");
+        }
+    }
+
     /* ========== 8. LONG → FS ========== */
     test_sub("subtest %d: LONG -> FS", ++subnum);
     {
@@ -2950,6 +3061,73 @@ tf_convert(const char *name)
             "LONG->STR: expected '0', got '%s'", value64_str(dst)
         );
         value64free(dst, VALUE64_STR);
+    }
+
+    /* ========================================================================
+     * CHAR → other types
+     * ======================================================================== */
+
+    /* char -> int */
+    test_sub("subtest %d: char -> int", ++subnum);
+    {
+        value64 src = value64_createchar('A');
+        value64 dst = value64_convert_char_to_int(src);
+        test_validate(value64_int(dst) == 'A',
+                      "char->int: expected %d, got %d", 'A', value64_int(dst));
+    }
+
+    /* char -> long */
+    test_sub("subtest %d: char -> long", ++subnum);
+    {
+        value64 src = value64_createchar('Z');
+        value64 dst = value64_convert_char_to_lng(src);
+        test_validate(value64_long(dst) == 'Z',
+                      "char->long: expected %ld, got %ld", (long)'Z', value64_long(dst));
+    }
+
+    test_sub("subtest %d: char -> dbl not convertible", ++subnum);
+    {
+        value64 src = value64_createchar('A');
+        test_validate(!value64_is_convertable(src, VALUE64_CHR, VALUE64_DBL),
+                      "char->dbl must not be convertible");
+    }
+
+    /* char -> fs */
+    test_sub("subtest %d: char -> fs", ++subnum);
+    {
+        value64 src = value64_createchar('X');
+        value64 dst = value64_convert_char_to_fs(src);
+        test_validatefree(
+            value64_fs(dst) != NULL && strcmp(fs_str(value64_fs(dst)), "X") == 0,
+            value64_freefs(&dst),
+            "char->fs: expected 'X', got '%s'",
+            value64_fs(dst) ? fs_str(value64_fs(dst)) : "NULL"
+        );
+        value64_freefs(&dst);
+    }
+    fs_alloc_check(true);
+
+    /* char -> str */
+    test_sub("subtest %d: char -> str", ++subnum);
+    {
+        value64 src = value64_createchar('Y');
+        value64 dst = value64_convert_char_to_str(src);
+        test_validatefree(
+            value64_str(dst) != NULL && strcmp(value64_str(dst), "Y") == 0,
+            value64_freestr(&dst),
+            "char->str: expected 'Y', got '%s'",
+            value64_str(dst) ? value64_str(dst) : "NULL"
+        );
+        value64_freestr(&dst);
+    }
+
+    /* char -> char (identity) */
+    test_sub("subtest %d: char -> char (identity)", ++subnum);
+    {
+        value64 src = value64_createchar('M');
+        value64 dst = value64_convert_char_to_char(src);
+        test_validate(value64_char(dst) == 'M',
+                      "char->char: expected 'M', got '%c'", value64_char(dst));
     }
 
     /* ========== 10. DBL → INT (в пределах) ========== */
@@ -2992,6 +3170,16 @@ tf_convert(const char *name)
         } else {
             test_validate(true, "DBL->LONG overflow correctly raised error");
         }
+    }
+
+    /* ========================================================================
+     * Double ↔ char must NOT be convertible
+     * ======================================================================== */
+    test_sub("subtest %d: dbl -> char not convertible", ++subnum);
+    {
+        value64 src = value64_createdbl(3.14);
+        test_validate(!value64_is_convertable(src, VALUE64_DBL, VALUE64_CHR),
+                      "dbl->char must not be convertible");
     }
 
     /* ========== 14. DBL → FS ========== */
@@ -3088,6 +3276,34 @@ tf_convert(const char *name)
         fs_alloc_check(true);
     }
 
+    /* fs -> char (single char string) */
+    test_sub("subtest %d: fs -> char", ++subnum);
+    {
+        value64 src = value64_createfs_asstr("K");
+        value64 dst = value64_convert_fs_to_char(src);
+        test_validatefree(
+            value64_char(dst) == 'K',
+            value64_freefs(&src),
+            "fs->char: expected 'K', got '%c'", value64_char(dst)
+        );
+        value64_freefs(&src);
+    }
+    fs_alloc_check(true);
+
+    /* fs -> char (empty string) – error */
+    test_sub("subtest %d: fs -> char empty", ++subnum);
+    {
+        value64 src = value64_createfs_asstr("");
+        value64 dst = value64_convert_fs_to_char(src);
+        test_validatefree(
+            value64_char(dst) == '\0',
+            value64_freefs(&src),
+            "fs->char: expected 'null-term', got '%c'", value64_char(dst)
+        );
+        value64_freefs(&src);
+    }
+    fs_alloc_check(true);
+
     /* ========== 20. FS → FS (копирование) ========== */
     test_sub("subtest %d: FS -> FS (copy)", ++subnum);
     {
@@ -3162,6 +3378,32 @@ tf_convert(const char *name)
             "STR->LONG: expected -123456789, got %ld", value64_long(dst)
         );
         value64free(src, VALUE64_STR);
+    }
+
+    /* str -> char (single char string) */
+    test_sub("subtest %d: str -> char", ++subnum);
+    {
+        value64 src = value64_createstr("P");
+        value64 dst = value64_convert_str_to_char(src);
+        test_validatefree(
+            value64_char(dst) == 'P',
+            value64_freestr(&src),
+            "str->char: expected 'P', got '%c'", value64_char(dst)
+        );
+        value64_freestr(&src);
+    }
+
+    /* str -> char (empty) – error */
+    test_sub("subtest %d: str -> char empty", ++subnum);
+    {
+        value64 src = value64_createstr("");
+        value64 dst = value64_convert_str_to_char(src);
+        test_validatefree(
+            value64_char(dst) == '\0',
+            value64_freestr(&src),
+            "str->char: expected 'P', got '%c'", value64_char(dst)
+        );
+        value64_freestr(&src);
     }
 
     /* ========== 25. STR → DBL (корректная) ========== */
