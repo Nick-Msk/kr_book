@@ -1,3 +1,8 @@
+/**
+ * @file value64.h
+ * @brief Core data types and utility functions for a 64-bit discriminated union system.
+ */
+
 #ifndef _VALUE64_H
 #define _VALUE64_H
 
@@ -28,21 +33,34 @@
 
 // ---------------------------------- TYPES -----------------------------------------
 
-// ANY type must be inside uint64_t
+/**
+ * @brief A 64-bit discriminated union representing various data types.
+ * 
+ * This union is designed to be used in conjunction with {@ref value64_type}.
+ * Note that this union does not store the type tag itself; the type must 
+ * be managed externally. ANY type must be inside uint64_t
+ */
 typedef union value64 {
-        int                 ival;
-        long                lval;
-        double              dval;
-        char               *sval;
+        int                 ival;       /**< int */
+        long                lval;       /**< long */
+        double              dval;       /**< double */
+        char               *sval;       /**< c-string */
         char                cval;       /**< single char! For Array compatibility */ 
-        fs                 *fsval;
-        void               *pval;
-        uint64_t            u64;    // for hash
+        bool                bval;       /**< single char! For conf file */
+        fs                 *fsval;      /**< fs string */
+        void               *pval;       /**< Generic pointer representation */
+        uint64_t            u64;        /**< Raw 64-bit representation (used for hashing) */
 } value64;
 
+/**
+ * @brief Compile-time check to ensure the union is exactly 64 bits.
+ */
 _Static_assert(sizeof(value64) == sizeof(uint64_t),
                "value64 must be exactly as uint64_t");
 
+ /**
+ * @brief Enumeration of supported types for value64.
+ */
 typedef enum value64_type {
     VALUE64_UNKNOWN = 0,
     VALUE64_INT = 1,
@@ -50,6 +68,7 @@ typedef enum value64_type {
     VALUE64_DBL,
     VALUE64_PTR,
     VALUE64_CHR,
+    VALUE64_BOOL,
     VALUE64_FS = 0x10,  // for memory-alloc types
     VALUE64_STR,
     VALUE64_TYPE_COUNT
@@ -61,6 +80,9 @@ typedef enum value64_type {
     VALUE64_2JSON       // not implemented
 } value64_serialize_type; not used for now */
 
+/**
+ * @brief Metadata container for a value64_type.
+ */
 typedef struct {
     const char  *name;
     size_t       size;
@@ -68,12 +90,28 @@ typedef struct {
     const char  *type_desc;
 } value64_typeinfo;
 
+/**
+ * @brief Retrieves the metadata associated with a specific value64_type.
+ * @param typ The type to query.
+ * @return Pointer to the corresponding value64_typeinfo structure.
+ */
 extern const                        value64_typeinfo* value64_info_get(value64_type typ);
 
+/**
+ * @brief Checks if a given type is registered and valid.
+ * @param typ The type to check.
+ * @return true if the type is valid, false otherwise.
+ */
 static inline bool                  value64_checktype(value64_type typ) {
     return value64_info_get(typ) != NULL;
 }
 
+/**
+ * @brief Returns the string name of a given value64_type.
+ * @param t The type to query.
+ * @return The string name of the type.
+ * @throws ERR_UNSUPPORTED_TYPE if the type is unknown.
+ */
 static inline const char            *value64_typename(value64_type t) {
     const value64_typeinfo* info = value64_info_get(t);
     if (!info)
@@ -81,6 +119,12 @@ static inline const char            *value64_typename(value64_type t) {
     return info->name;
 }
 
+/**
+ * @brief Returns the detailed description of a value64_type.
+ * @param t The type to query.
+ * @return A human-readable description.
+ * @throws ERR_UNSUPPORTED_TYPE if the type is unknown.
+ */
 static inline const char            *value64_typedesc(value64_type t) {
     const value64_typeinfo* info = value64_info_get(t);
     if (!info)
@@ -88,36 +132,118 @@ static inline const char            *value64_typedesc(value64_type t) {
     return info->type_desc;
 }
 
+/**
+ * @brief Converts a string to a value64_type.
+ * @param str The input string to parse.
+ * @return The parsed value64_type.
+ */
 extern  value64_type                 value64_gettype(const char *str);
 // only zero for now
 
-// getter for converters
+/* --- Function Pointer Typedefs for Dispatch Tables --- */
+
+/**
+ * @brief Function pointer for value conversion (Copy Semantics).
+ * @param v The source value.
+ * @return The converted value.
+ */
 typedef value64                     (*value64_ConverterFunc)(value64 v);
+
+/**
+ * @brief Function pointer for value movement (Move Semantics).
+ * @param v Pointer to the source value (will be modified/cleared).
+ * @return The moved value.
+ */
 typedef value64                     (*value64_ConverterMoveFunc)(value64 *v);
-// getter for comparators
+
+/**
+ * @brief Function pointer for comparing two value64 objects.
+ * @param v1 First value.
+ * @param v2 Second value.
+ * @return Comparison result (standard comparator logic).
+ */
 typedef int                         (*value64_Comparator)(value64, value64);
-// as void *, TODO: think if possible to be value *
+
+/**
+ * @brief Function pointer for pointer-based comparison (for qsort/bsearch).
+ * @param v1 Pointer to the first value.
+ * @param v2 Pointer to the second value.
+ * @return Comparison result.
+ */
 typedef int                         (*value64_PComparator)(const void *restrict, const void *restrict);
 
 extern value64                      value64_convert_str_to_fs(value64 v);
 
-// Init
-#define                             LITERAL64_ZERO      (value64) {.u64 = 0L }
-#define                             LITERAL64_INT(val)  (value64) {.u64 = 0L, .ival = val }
-#define                             LITERAL64_LONG(val)  (value64) {.u64 = 0L, .lval = val }
-#define                             LITERAL64_DBL(val)  (value64) {.u64 = 0L, .dval = val }
-#define                             LITERAL64_PTR(val)  (value64) {.u64 = 0L, .pval = val }
-#define                             LITERAL64_CHR(val)  (value64) {.u64 = 0L, .cval = val }
-// pointer copy!!!
-#define                             LITERAL64_STR(val)  (value64) {.u64 = 0L, .sval = (char *) (val) }
-// local version, just a copy!
-#define                             LITERAL64_FS(val)   (value64) {.u64 = 0L, .fsval = &(val) }
-// pointer version
-#define                             LITERAL64_PFS(val)   (value64) {.u64 = 0L, .fsval = (val) }
+/**
+ * @name Initialization Macros
+ * @brief Rapidly create value64 objects using compound literals.
+ * 
+ * These macros allow for fast initialization of value64 objects. 
+ * Note that they perform no safety checks and assume the developer 
+ * provides correct values.
+ * @{
+ */
 
+/** 
+ * @brief Returns a zero-initialized value64 object. 
+ */
+#define                             LITERAL64_ZERO      (value64) {.u64 = 0L }
+/** @brief Creates a value64 object representing an integer. */
+#define                             LITERAL64_INT(val)  (value64) {.u64 = 0L, .ival = val }
+/** @brief Creates a value64 object representing a long. */
+#define                             LITERAL64_LONG(val)  (value64) {.u64 = 0L, .lval = val }
+/** 
+ * @brief Creates a value64 object representing a character. 
+ */
+#define                             LITERAL64_CHR(val)  (value64) {.u64 = 0L, .cval = val }
+/** 
+ * @brief Creates a value64 object representing a bool. 
+ */
+#define                             LITERAL64_BOOL(val)  (value64) {.u64 = 0L, .bval = val }
+/** @brief Creates a value64 object representing a double. */
+#define                             LITERAL64_DBL(val)  (value64) {.u64 = 0L, .dval = val }
+/** 
+ * @brief Creates a value64 object representing a pointer. 
+ * @param val A pointer to be stored in the object.
+ */
+#define                             LITERAL64_PTR(val)  (value64) {.u64 = 0L, .pval = val }
+/** 
+ * @brief Creates a value64 object from a C-string pointer.
+ * @warning This macro performs a pointer copy. It does NOT duplicate the string.
+ * @param val A pointer to a null-terminated string.
+ */
+#define                             LITERAL64_STR(val)  (value64) {.u64 = 0L, .sval = (char *) (val) }
+/** 
+ * @warning This macro takes the address of the 
+ *          passed argument, which is often a local stack variable. 
+ *          Using the resulting value64 outside the scope of the argument 
+ *          will lead to undefined behavior (dangling pointer).
+ * @param val The address of a filesystem object.
+ */
+#define                             LITERAL64_FS(val)   (value64) {.u64 = 0L, .fsval = &(val) }
+/** 
+ * @brief Creates a value64 object containing a pointer to a filesystem object.
+ * @param val A pointer to the filesystem object.
+ */
+#define                             LITERAL64_PFS(val)   (value64) {.u64 = 0L, .fsval = (val) }
+/** 
+ * @brief Creates a value64 object from a string literal by wrapping it in an `fs` object.
+ * @param str The string to be wrapped.
+ */
 #define                             LITERAL64_FS_STR(str) (value64) {.u64 = 0L, .fsval = &FSLITERAL(str) }
 
-// no checking here!!!
+/** @} */
+
+/**
+ * @brief Resets a value64 object to a zero state.
+ * 
+ * @note This is a low-level, high-speed reset. It does not perform type validation 
+ *       and assumes the provided type is correct for the underlying bits.
+ * 
+ * @param pv Pointer to the value64 object to reset.
+ * @param typ The type of the object, used to handle special cases like double.
+ * @return The reset value64 object.
+ */
 static inline value64               value64_setzero(value64 *pv, value64_type typ){
     switch (typ){
         case VALUE64_DBL:
@@ -129,45 +255,99 @@ static inline value64               value64_setzero(value64 *pv, value64_type ty
 
 // ------------------------- CONSTRUCTOTS/DESTRUCTORS -------------------------------
 
-// the part of mass creation API
-// create value from pointer, value64 constructor ANY type, MOVE semantic
+/**
+ * @name Constructors and Memory Management
+ * @brief Functions for creating, cloning, and destroying value64 objects.
+ * @{
+ */
+
+/**
+ * @name Mass Creation API (Pointer-based)
+ * @brief High-level constructors for creating objects from existing memory.
+ * @{
+ */
+
+/**
+ * @brief Creates a value64 object from a pointer, with optional move semantics. 
+ *          The part of mass creation API
+ * 
+ * @param p    Pointer to the source data.
+ * @param typ  The type of the source data.
+ * @param move If true, transfers ownership (move semantics). If false, performs a copy.
+ * @return A new value64 object.
+ */
 extern value64                      value64_pcopy_move(void *p, value64_type typ, bool move);
-// copy, for array operations
+
+/**
+ * @brief Performs a copy-initialization from a pointer.
+ * @param p Pointer to the source data.
+ * @param typ The type of the source data.
+ * @return A new value64 object (copy).
+ */
 static inline value64               value64_pinit(const void *p, value64_type typ){
     return value64_pcopy_move( (void *) p, typ, false);
 }
-// TODO: rework, ugly now
-// create value from pointer, value64 constructor ANY type, MOVE semantic
+/**
+ * @brief Performs a move-initialization from a pointer.
+ * @param p Pointer to the source data.
+ * @param typ The type of the source data.
+ * @return A new value64 object (ownership transferred).
+ */
 static inline value64               value64_pmove(void *p, value64_type typ){
     return value64_pcopy_move(p, typ, true);
 }
-// copy logic
+/** @} */
+
+/**
+ * @name Primitive Value Constructors
+ * @brief Rapidly creates value64 objects from immediate values.
+ * @{
+ */
+
+/** @brief Creates an integer-typed value. */
 static inline value64               value64_createint(int val){
     value64 tmp = LITERAL64_ZERO;
     tmp.ival = val;
     return tmp;
 }
+/** @brief Creates a long-typed value. */
 static inline value64               value64_createlong(long lval){
     value64 tmp = LITERAL64_ZERO;
     tmp.lval = lval;
     return tmp;
 }
-static inline value64               value64_createdbl(double dval){
-    value64 tmp = LITERAL64_ZERO;
-    tmp.dval = dval;
-    return tmp;
-}
-static inline value64               value64_createptr(void *pval){
-    value64 tmp = LITERAL64_ZERO;
-    tmp.pval = pval;
-    return tmp;
-}
+/** @brief Creates a character-typed value. */
 static inline value64               value64_createchar(char cval){
     value64 tmp = LITERAL64_ZERO;
     tmp.cval = cval;
     return tmp;
 }
+/** @brief Creates a bool-typed value. */
+static inline value64               value64_createbool(bool bval){
+    value64 tmp = LITERAL64_ZERO;
+    tmp.bval = bval;
+    return tmp;
+}
+/** @brief Creates a double-typed value. */
+static inline value64               value64_createdbl(double dval){
+    value64 tmp = LITERAL64_ZERO;
+    tmp.dval = dval;
+    return tmp;
+}
+/** @brief Creates a pointer-typed value. */
+static inline value64               value64_createptr(void *pval){
+    value64 tmp = LITERAL64_ZERO;
+    tmp.pval = pval;
+    return tmp;
+}
+
 // TODO: movestr?
+/**
+ * @brief Creates a string-typed value via deep copy (strdup).
+ * @warning This function allocates memory on the heap.
+ * @param sval The source C-string.
+ * @return A new value64 object containing a copy of the string.
+ */
 static inline value64               value64_createstr(const char *sval){
     if (!sval)
         userraiseint(ERR_NULLABLE_PTR, "Null pointer");
@@ -176,6 +356,11 @@ static inline value64               value64_createstr(const char *sval){
         userraiseint(ERR_UNABLE_ALLOCATE, "Unable to dup c-string (%.20s)", sval);
     return tmp;
 }
+/**
+ * @brief Creates an fs value from a filesystem resource.
+ * @param fsval Pointer to the source filesystem resource.
+ * @return A new value64 object owning a copy of the FS resource.
+ */
 static inline value64               value64_createfs(const fs *fsval){
     if (!fsval)
         userraiseint(ERR_NULLABLE_PTR, "Null pointer fs %p or fs->v %p", fsval, fsval ? fsval->v: NULL);
@@ -187,12 +372,30 @@ static inline value64               value64_createfs(const fs *fsval){
     }
     return tmp;
 }
-// create fs from c-str
+/**
+ * @brief Convenience constructor: creates an FS object from a C-string.
+ * @param str The source string.
+ * @return A value64 object holding an FS resource containing the string.
+ */
 static inline value64               value64_createfs_asstr(const char *str) {
     value64 v = value64_createstr(str);
     return value64_convert_str_to_fs(v);
 }
-// just switch over the types!
+
+/** @} */
+
+/**
+ * @name Cloning and Destructors
+ * @brief Functions for duplicating and deallocating value64 objects.
+ * @{
+ */
+
+/**
+ * @brief Performs a deep copy (clone) of a value64 object.
+ * @param source The source value64 object.
+ * @param typ    The type of the object to clone.
+ * @return A new value64 object with the same data.
+ */
 static inline value64               value64_clone(value64 source, value64_type typ){
     switch (typ){
         case VALUE64_INT:
@@ -205,6 +408,8 @@ static inline value64               value64_clone(value64 source, value64_type t
             return value64_createptr(source.pval);
         case VALUE64_CHR:
             return value64_createchar(source.cval);
+        case VALUE64_BOOL:
+            return value64_createbool(source.bval);
         case VALUE64_FS:
             return value64_createfs(source.fsval);
         case VALUE64_STR:
@@ -213,23 +418,49 @@ static inline value64               value64_clone(value64 source, value64_type t
             return LITERAL64_ZERO;
     }
 }
-// move constructor
+
+/**
+ * @brief Move constructor for filesystem resources.
+ * 
+ * This function transfers ownership of an existing `fs` resource into a 
+ * new `value64` object by moving the resource to the heap. 
+ * 
+ * @note This is a destructive operation for the input `fsval`. Once moved, 
+ *       the resource is managed by the returned `value64` object.
+ * 
+ * @param fsval Pointer to the `fs` resource to be moved.
+ * @return A `value64` object containing the moved filesystem resource.
+ * @throws ERR_UNABLE_ALLOCATE if the heap allocation fails.
+ */
 static inline value64               value64_movefs(fs *fsval){
     value64 tmp = LITERAL64_ZERO;
     if ( (tmp.fsval = fs_moveto_heap( (fs *) fsval) ) == NULL)
         userraiseint(ERR_UNABLE_ALLOCATE, "Unable to dup fs");
     return tmp;
 }
-// destructor
+/**
+ * @brief Destructor for filesystem resources.
+ * @param v Pointer to the value64 object containing an FS resource.
+ */
 static inline void                  value64_freefs(value64 *v){
     fs_free(v->fsval);
     v->fsval = 0;
 }
+/**
+ * @brief Destructor for string resources.
+ * @param v Pointer to the value64 object containing a string.
+ */
 static inline void                  value64_freestr(value64 *v){
     free(v->sval);
     v->sval = NULL;
 }
-// generic
+/**
+ * @brief Generic destructor for value64 objects.
+ * @details This function only performs deallocation if the type is 
+ *          a resource type (STR or FS). Primitives are ignored.
+ * @param v Pointer to the value64 object to destroy.
+ * @param typ The type of the object.
+ */
 static inline void                  value64_free(value64 *v, value64_type typ){
     switch (typ){
         case VALUE64_STR:
@@ -243,30 +474,79 @@ static inline void                  value64_free(value64 *v, value64_type typ){
     }
 }
 
+/** @} */
+
 #define value64freefs(v)        value64_freefs(&(v))
 #define value64freestr(v)       value64_freestr(&(v))
 #define value64free(v, typ)     value64_free(&(v), typ)
 
 // -------------------- ACCESS AND MODIFICATORS -------------------------------------
-// just get
+/**
+ * @name Accessors (Getters)
+ * @brief High-speed accessors to extract values from a value64 object.
+ * 
+ * These functions provide direct access to the underlying members of the 
+ * value64 union. They are extremely fast (static inline) but assume that 
+ * the caller knows the correct type of the object.
+ * 
+ * @warning Accessing a member that does not match the actual type of the 
+ *          value64 object will result in logically incorrect data.
+ * @{
+ */
+
+/**
+ * @brief Returns the integer value.
+ * @return The integer representation.
+ */
 static inline int                   value64_int(value64 v){
     return v.ival;
 }
+/**
+ * @brief Returns the long integer value.
+ * @return The long representation.
+ */
 static inline long                  value64_long(value64 v){
     return v.lval;
 }
-static inline double                value64_dbl(value64 v){
-    return v.dval;
-}
-static inline void                 *value64_ptr(value64 v){
-    return v.pval;
-}
+/**
+ * @brief Returns the character value.
+ * @return The character value.
+ */
 static inline char                  value64_char(value64 v){
     return v.cval;
 }
+/**
+ * @brief Returns the bool value.
+ * @return The character value.
+ */
+static inline bool                  value64_bool(value64 v){
+    return v.bval;
+}
+/**
+ * @brief Returns the double precision value.
+ * @return The double representation.
+ */
+static inline double                value64_dbl(value64 v){
+    return v.dval;
+}
+/**
+ * @brief Returns the generic pointer value.
+ * @return The pointer representation.
+ */
+static inline void                 *value64_ptr(value64 v){
+    return v.pval;
+}
+/**
+ * @brief Returns the pointer to the C-string.
+ * @return Pointer to the string buffer.
+ */
 static inline char                 *value64_str(value64 v){
     return v.sval;
 }
+/**
+ * @brief Returns the pointer to the fs.
+ * @return Pointer to the filesystem object.
+ */
 static inline fs                   *value64_fs(value64 v){
     return v.fsval;
 }
@@ -310,6 +590,9 @@ static inline value64              *value64_moveto_dbl(value64 *restrict target,
 static inline value64              *value64_moveto_chr(value64 *restrict target, value64 *restrict source){
     return value64_moveto(target, source, VALUE64_CHR);
 }
+static inline value64              *value64_moveto_bool(value64 *restrict target, value64 *restrict source){
+    return value64_moveto(target, source, VALUE64_BOOL);
+}
 static inline value64              *value64_moveto_ptr(value64 *restrict target, value64 *restrict source){
     return value64_moveto(target, source, VALUE64_PTR);
 }
@@ -335,14 +618,17 @@ static inline void                  value64_sort_int(value64 *arr, int sz) {
 static inline void                  value64_sort_long(value64 *arr, int sz) {
     value64_sort(VALUE64_LNG, arr, sz);
 }
+static inline void                  value64_sort_char(value64 *arr, int sz) {
+    value64_sort(VALUE64_CHR, arr, sz);
+}
+static inline void                  value64_sort_bool(value64 *arr, int sz) {
+    value64_sort(VALUE64_BOOL, arr, sz);
+}
 static inline void                  value64_sort_dbl(value64 *arr, int sz) {
     value64_sort(VALUE64_DBL, arr, sz);
 }
 static inline void                  value64_sort_ptr(value64 *arr, int sz) {
     value64_sort(VALUE64_PTR, arr, sz);
-}
-static inline void                  value64_sort_char(value64 *arr, int sz) {
-    value64_sort(VALUE64_CHR, arr, sz);
 }
 static inline void                  value64_sort_str(value64 *arr, int sz) {
     value64_sort(VALUE64_STR, arr, sz);
@@ -358,14 +644,17 @@ static inline void                  value64_revsort_int(value64 *arr, int sz) {
 static inline void                  value64_revsort_long(value64 *arr, int sz) {
     value64_revsort(VALUE64_LNG, arr, sz);
 }
+static inline void                  value64_revsort_char(value64 *arr, int sz) {
+    value64_revsort(VALUE64_CHR, arr, sz);
+}
+static inline void                  value64_revsort_bool(value64 *arr, int sz) {
+    value64_revsort(VALUE64_BOOL, arr, sz);
+}
 static inline void                  value64_revsort_dbl(value64 *arr, int sz) {
     value64_revsort(VALUE64_DBL, arr, sz);
 }
 static inline void                  value64_revsort_ptr(value64 *arr, int sz) {
     value64_revsort(VALUE64_PTR, arr, sz);
-}
-static inline void                  value64_revsort_char(value64 *arr, int sz) {
-    value64_revsort(VALUE64_CHR, arr, sz);
 }
 static inline void                  value64_revsort_str(value64 *arr, int sz) {
     value64_revsort(VALUE64_STR, arr, sz);
@@ -387,64 +676,125 @@ static inline bool                  value64_notin(value64 val, value64_type typ,
 static inline bool                  value64_in(value64 val, value64_type typ, const value64 *arr, int sz){
     return value64_search(val, typ, arr, sz) >= 0;
 }
-// value comparator
+
+/**
+ * @name Value Comparison API
+ * @brief High-level and low-level comparison functions for value64 objects.
+ * @{
+ */
+
+/**
+ * @brief Generic comparison of two value64 objects.
+ * @param v1 First value.
+ * @param v2 Second value.
+ * @param typ The type to use for comparison.
+ * @return An integer ( <0 if v1 < v2, 0 if v1 == v2, >0 if v1 > v2 ).
+ * @throws ERR_UNSUPPORTED_TYPE if the type is not recognized.
+ */
 extern int                          value64_compare(value64 v1, value64 v2, value64_type typ);
+/**
+ * @brief Checks if two value64 objects are equal.
+ * @param v1 First value.
+ * @param v2 Second value.
+ * @param typ The type to compare.
+ * @return true if v1 == v2, false otherwise.
+ */
 static inline bool                  value64_equal(value64 v1, value64 v2, value64_type typ) {
     return value64_compare(v1, v2, typ) == 0;
 }
 
-// value
+/** @name Specialized Value Comparators (Direct)
+ *  These functions perform direct comparison of the union members.
+ *  @{ */
 extern int                          value64_int_comp(value64 v1, value64 v2);
 extern int                          value64_long_comp(value64 v1, value64 v2);
+extern int                          value64_char_comp(value64 v1, value64 v2);
+extern int                          value64_bool_comp(value64 v1, value64 v2);
 extern int                          value64_dbl_comp(value64 v1, value64 v2);
 extern int                          value64_ptr_comp(value64 v1, value64 v2);
-extern int                          value64_char_comp(value64 v1, value64 v2);
 // memory alloc types
 extern int                          value64_fs_comp(value64 v1, value64 v2);
 extern int                          value64_str_comp(value64 v1, value64 v2);
-// ---------------- reverse --------------------
+/** @} */
+
+/**
+ * @name Reverse Comparison API
+ * @brief Functions for descending order comparison.
+ * @{
+ */
+
+/** @name Reverse Value Comparators (Direct) */
+/** @{ */
 extern int                          value64_int_rev_comp(value64 v1, value64 v2);
 extern int                          value64_long_rev_comp(value64 v1, value64 v2);
+extern int                          value64_char_rev_comp(value64 v1, value64 v2);
+extern int                          value64_bool_rev_comp(value64 v1, value64 v2);
 extern int                          value64_dbl_rev_comp(value64 v1, value64 v2);
 extern int                          value64_ptr_rev_comp(value64 v1, value64 v2);
-extern int                          value64_char_rev_comp(value64 v1, value64 v2);
 // memory alloc types
 extern int                          value64_fs_rev_comp(value64 v1, value64 v2);
 extern int                          value64_str_rev_comp(value64 v1, value64 v2);
 // pointer comparator
 extern int                          value64_pt_compare(const value64 *restrict v1, const value64 *restrict v2, value64_type typ);
-// pointer comparators, for qsort, bsearch etc...
+
+/** @} */
+
+/** @name Pointer-based Comparators (Standard Library Compatible)
+ *  Designed for use with `qsort`, `bsearch`, etc.
+ *  @{ */
 extern int                          value64_pint_comp (const void *restrict v1, const void *restrict v2);
 extern int                          value64_plong_comp(const void *restrict v1, const void *restrict v2);
+extern int                          value64_pchar_comp (const void *restrict v1, const void *restrict v2);
+extern int                          value64_pbool_comp (const void *restrict v1, const void *restrict v2);
 extern int                          value64_pdbl_comp (const void *restrict v1, const void *restrict v2);
 extern int                          value64_pptr_comp (const void *restrict v1, const void *restrict v2);
-extern int                          value64_pchar_comp (const void *restrict v1, const void *restrict v2);
 //
 extern int                          value64_pstr_comp (const void *restrict v1, const void *restrict v2);
 extern int                          value64_pfs_comp  (const void *restrict v1, const void *restrict v2);
-// reverse comparators
+/** @} */
+
+/** @name Reverse Pointer Comparators (Standard Library Compatible) */
+/** @{ */
 extern int                          value64_pint_rev_comp (const void *restrict v1, const void *restrict v2);
 extern int                          value64_plong_rev_comp(const void *restrict v1, const void *restrict v2);
+extern int                          value64_pchar_rev_comp (const void *restrict v1, const void *restrict v2);
+extern int                          value64_pbool_rev_comp (const void *restrict v1, const void *restrict v2);
 extern int                          value64_pdbl_rev_comp (const void *restrict v1, const void *restrict v2);
 extern int                          value64_pptr_rev_comp (const void *restrict v1, const void *restrict v2);
-extern int                          value64_pchar_rev_comp (const void *restrict v1, const void *restrict v2);
 //
 extern int                          value64_pstr_rev_comp (const void *restrict v1, const void *restrict v2);
 extern int                          value64_pfs_rev_comp  (const void *restrict v1, const void *restrict v2);
+/** @} */
 
-// pointer version, now using switch, w/o table
+/** @} */
+
+
+/**
+ * @name Comparator Dispatchers
+ * @brief Returns function pointers to the appropriate comparator for a given type.
+ * @{
+ */
+
+/**
+ * @brief Returns a pointer-based comparator for use in generic algorithms.
+ * @param typ The type of the data.
+ * @return Pointer to a `value64_PComparator`.
+ * @throws ERR_UNSUPPORTED_TYPE if the type is not recognized.
+ */
 static inline value64_PComparator   value64_getPComparator(value64_type typ){
     switch (typ){
         case VALUE64_INT:
             return value64_pint_comp;
         case VALUE64_LNG:
             return value64_plong_comp;
+        case VALUE64_CHR:
+            return value64_pchar_comp;
+        case VALUE64_BOOL:
+            return value64_pchar_comp;
         case VALUE64_DBL:
             return value64_pdbl_comp;
         case VALUE64_PTR:
             return value64_pptr_comp;
-        case VALUE64_CHR:
-            return value64_pchar_comp;
         // memory alloc types
         case VALUE64_FS:
             return value64_pfs_comp;
@@ -455,19 +805,27 @@ static inline value64_PComparator   value64_getPComparator(value64_type typ){
             return NULL;
     }
 }
-// reverse, pointer, now using switch, w/o table
+
+/**
+ * @brief Returns a reverse pointer-based comparator.
+ * @param typ The type of the data.
+ * @return Pointer to a `value64_PComparator` (reversed).
+ * @throws ERR_UNSUPPORTed_TYPE if the type is not recognized.
+ */
 static inline value64_PComparator  value64_getPRevComparator(value64_type typ){
     switch (typ){
         case VALUE64_INT:
             return value64_pint_rev_comp;
         case VALUE64_LNG:
             return value64_plong_rev_comp;
+        case VALUE64_CHR:
+            return value64_pchar_rev_comp;
+        case VALUE64_BOOL:
+            return value64_pbool_rev_comp;
         case VALUE64_DBL:
             return value64_pdbl_rev_comp;
         case VALUE64_PTR:
             return value64_pptr_rev_comp;
-        case VALUE64_CHR:
-            return value64_pchar_rev_comp;
         // memory alloc types
         case VALUE64_FS:
             return value64_pfs_rev_comp;
@@ -478,19 +836,26 @@ static inline value64_PComparator  value64_getPRevComparator(value64_type typ){
             return NULL;
     }
 }
-// value, now using switch, w/o table
+/**
+ * @brief Returns a value-based comparator.
+ * @param typ The type of the data.
+ * @return Pointer to a `value64_Comparator`.
+ * @throws ERR_UNSUPPORTED_TYPE if the type is not recognized.
+ */
 static inline value64_Comparator    value64_getComparator(value64_type typ){
     switch (typ){
         case VALUE64_INT:
             return value64_int_comp;
         case VALUE64_LNG:
             return value64_long_comp;
+        case VALUE64_CHR:
+            return value64_char_comp;
+        case VALUE64_BOOL:
+            return value64_bool_comp;
         case VALUE64_DBL:
             return value64_dbl_comp;
         case VALUE64_PTR:
             return value64_ptr_comp;
-        case VALUE64_CHR:
-            return value64_char_comp;
         case VALUE64_FS:
             return value64_fs_comp;
         case VALUE64_STR:
@@ -499,19 +864,24 @@ static inline value64_Comparator    value64_getComparator(value64_type typ){
             return userraise(NULL, ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
     }
 }
-// value, now using switch, w/o table
+/**
+ * @brief Returns a reverse value-based comparator.
+ * @param typ The type of the data.
+ * @return Pointer to a `value64_Comparator` (reversed).
+ * @throws ERR_UNSUPPORTED_TYPE if the type is not recognized.
+ */
 static inline value64_Comparator  value64_getRevComparator(value64_type typ){
     switch (typ){
         case VALUE64_INT:
             return value64_int_rev_comp;
         case VALUE64_LNG:
             return value64_long_rev_comp;
+        case VALUE64_BOOL:
+            return value64_bool_rev_comp;
         case VALUE64_DBL:
             return value64_dbl_rev_comp;
         case VALUE64_PTR:
             return value64_ptr_rev_comp;
-        case VALUE64_CHR:
-            return value64_char_rev_comp;
         case VALUE64_FS:
             return value64_fs_rev_comp;
         case VALUE64_STR:
@@ -520,6 +890,8 @@ static inline value64_Comparator  value64_getRevComparator(value64_type typ){
             return userraise(NULL, ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
     }
 }
+/** @} */
+
 // ----------------------------- CONVERTERS ----------------------------------------
 
 extern value64                     value64_convert(value64 v, value64_type from, value64_type to);
@@ -528,16 +900,18 @@ extern bool                        value64_is_convertable(value64 v, value64_typ
 // --- Группа INT ---
 extern value64                     value64_convert_int_to_lng(value64 v);
 extern value64                     value64_convert_int_to_dbl(value64 v);
+extern value64                     value64_convert_int_to_char(value64 v);
+extern value64                     value64_convert_int_to_bool(value64 v);
 extern value64                     value64_convert_int_to_fs(value64 v);
 extern value64                     value64_convert_int_to_str(value64 v);
-extern value64                     value64_convert_int_to_char(value64 v);
 extern value64                     value64_convert_int_to_int(value64 v);
 // --- Группа LNG ---
 extern value64                     value64_convert_lng_to_int(value64 v);
 extern value64                     value64_convert_lng_to_dbl(value64 v);
+extern value64                     value64_convert_lng_to_char(value64 v);
+extern value64                     value64_convert_lng_to_bool(value64 v);
 extern value64                     value64_convert_lng_to_fs(value64 v);
 extern value64                     value64_convert_lng_to_str(value64 v);
-extern value64                     value64_convert_lng_to_char(value64 v);
 extern value64                     value64_convert_lng_to_lng(value64 v);
 // --- Группа DBL ---
 extern value64                     value64_convert_dbl_to_int(value64 v);
@@ -545,27 +919,38 @@ extern value64                     value64_convert_dbl_to_lng(value64 v);
 extern value64                     value64_convert_dbl_to_fs(value64 v);
 extern value64                     value64_convert_dbl_to_str(value64 v);
 extern value64                     value64_convert_dbl_to_dbl(value64 v);
-//dbl => char NO convert
+//dbl => char NO convert 
+//dbl => bool NO convert 
 // --- Группа CHR ---
 extern value64                     value64_convert_char_to_int(value64 v);
 extern value64                     value64_convert_char_to_lng(value64 v);
+extern value64                     value64_convert_char_to_bool(value64 v);
 extern value64                     value64_convert_char_to_fs(value64 v);
 extern value64                     value64_convert_char_to_str(value64 v);
 extern value64                     value64_convert_char_to_char(value64 v);
 // no convert char to dbl
+// --- Группа BOOL ---
+extern value64                     value64_convert_bool_to_int(value64 v);
+extern value64                     value64_convert_bool_to_lng(value64 v);
+extern value64                     value64_convert_char_to_char(value64 v);
+extern value64                     value64_convert_char_to_fs(value64 v);
+extern value64                     value64_convert_char_to_str(value64 v);
+extern value64                     value64_convert_bool_to_bool(value64 v);
 // --- Группа FS ---
 extern value64                     value64_convert_fs_to_int(value64 v);
 extern value64                     value64_convert_fs_to_lng(value64 v);
+extern value64                     value64_convert_fs_to_char(value64 v);
+extern value64                     value64_convert_fs_to_bool(value64 v);
 extern value64                     value64_convert_fs_to_dbl(value64 v);
 extern value64                     value64_convert_fs_to_str(value64 v);
-extern value64                     value64_convert_fs_to_char(value64 v);
 extern value64                     value64_convert_fs_to_fs(value64 v);
 // --- Группа STR ---
 extern value64                     value64_convert_str_to_int(value64 v);
 extern value64                     value64_convert_str_to_lng(value64 v);
+extern value64                     value64_convert_str_to_char(value64 v);
+extern value64                     value64_convert_str_to_bool(value64 v);
 extern value64                     value64_convert_str_to_dbl(value64 v);
 extern value64                     value64_convert_str_to_fs(value64 v);
-extern value64                     value64_convert_str_to_char(value64 v);
 extern value64                     value64_convert_str_to_str(value64 v);
 
 // MOVE semantic
@@ -599,15 +984,16 @@ extern int                          value64_techfprint(FILE *restrict out, value
 static inline int                   value64_techprint(value64 val, value64_type typ, const char *restrict name) {
     return value64_techfprint(stdout, val, typ, name);
 }
-#define VALUE64_TECHFPRINT(out, val, typ) value64_techfprint( (out), (val), (typ), #val)
-#define VALUE64_TECHPRINT(val, typ) value64_techprint((val), (typ), #val)
+#define VALUE64_TECHFPRINT(out, val, typ)   value64_techfprint( (out), (val), (typ), #val)
+#define VALUE64_TECHPRINT(val, typ)         value64_techprint((val), (typ), #val)
 
 // typed
 extern int                          value64_fprint_int(FILE *restrict out, value64 val);
 extern int                          value64_fprint_lng(FILE *restrict out, value64 val);
+extern int                          value64_fprint_char(FILE *restrict out, value64 val);
+extern int                          value64_fprint_bool(FILE *restrict out, value64 val);
 extern int                          value64_fprint_dbl(FILE *restrict out, value64 val);
 extern int                          value64_fprint_ptr(FILE *restrict out, value64 val);
-extern int                          value64_fprint_char(FILE *restrict out, value64 val);
 //
 extern int                          value64_fprint_fs(FILE *restrict out, value64 val);
 extern int                          value64_fprint_str(FILE *restrict out, value64 val);
@@ -618,22 +1004,25 @@ extern int                          value64_fprint_str(FILE *restrict out, value
 // file readers
 // f must be open for read, fs must be initialized, val can be NULL, it means just check
 // value64_freadval call value64_sreadval_<type>
-extern bool                         value64_readval_str(FILE *restrict f, value64 *restrict val, fs *restrict buf);
-extern bool                         value64_readval_int(FILE *restrict f, value64 *restrict val, fs *restrict buf);
+/* extern bool                         value64_readval_int(FILE *restrict f, value64 *restrict val, fs *restrict buf);
 extern bool                         value64_readval_lng(FILE *restrict f, value64 *restrict val, fs *restrict buf);
+extern bool                         value64_readval_char(FILE *restrict f, value64 *restrict val, fs *restrict buf);
+extern bool                         value64_readval_bool(FILE *restrict f, value64 *restrict val, fs *restrict buf);
 extern bool                         value64_readval_dbl(FILE *restrict f, value64 *restrict val, fs *restrict buf);
-// extern bool                         value64_readval_ptr(FILE *restrict f, value64 *restrict val, fs *restrict buf); // not supported!
-extern bool                         value64_sreadval_fs(value64 *restrict val, fs *restrict buf);
-extern bool                         value64_sreadval_char(value64 *restrict val, fs *restrict buf);
-
+extern bool                         value64_readval_fs(FILE *restrict f, value64 *restrict val, fs *restrict buf);
+extern bool                         value64_readval_str(FILE *restrict f, value64 *restrict val, fs *restrict buf);
+*/
 
 // string readers!
 // fs must be initialized, val can be NULL, it means just check
-extern bool                         value64_sreadval_str(value64 *restrict val, fs *restrict buf);
 extern bool                         value64_sreadval_int(value64 *restrict val, fs *restrict buf);
+extern bool                         value64_sreadval_char(value64 *restrict val, fs *restrict buf);
+extern bool                         value64_sreadval_bool(value64 *restrict val, fs *restrict buf);
 extern bool                         value64_sreadval_lng(value64 *restrict val, fs *restrict buf);
 extern bool                         value64_sreadval_dbl(value64 *restrict val, fs *restrict buf);
-extern bool                         value64_sreadval_char(value64 *restrict val, fs *restrict buf);
+extern bool                         value64_sreadval_fs(value64 *restrict val, fs *restrict buf);
+extern bool                         value64_sreadval_str(value64 *restrict val, fs *restrict buf);
+
 
 // generic Ds reader, NOTE: it calls value64_sreadval_<type>
 extern bool                         value64_dsreadval(Ds *restrict ds, value64_type typ, value64 *restrict val, fs *restrict buf);
@@ -732,7 +1121,8 @@ extern int                          value64_tostr_int(fs *target, value64 val);
 extern int                          value64_tostr_lng(fs *target, value64 val);
 extern int                          value64_tostr_dbl(fs *target, value64 val);
 extern int                          value64_tostr_char(fs *target, value64 val);
-// 
+extern int                          value64_tostr_bool(fs *target, value64 val);
+//  memory-alloc types
 extern int                          value64_tostr_fs(fs *target, value64 val);
 extern int                          value64_tostr_str(fs *target, value64 val);
 
