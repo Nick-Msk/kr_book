@@ -1296,6 +1296,7 @@ int                        value64_techfprint(FILE *restrict out, value64 val, v
             break;
             case VALUE64_STR:
                 IOCHECKER(w, value64_fprint_str(out, val), -1)
+                    cnt += w;
             break;
             case VALUE64_FS:
                 IOCHECKER(w, value64_fprint_fs(out, val), -1)
@@ -2085,6 +2086,34 @@ tf_init_free(const char *name)
         );
 
         free(v.sval);
+    }
+    // VALUE64_CHR simple init/validate -------------------------
+
+    /* 1. Создание символа и проверка значения */
+    test_sub("subtest %d: create and read char", ++subnum);
+    {
+        value64 v = value64_createchar('A');
+        test_validate(value64_char(v) == 'A',
+                      "Created char must be 'A', got '%c'", value64_char(v));
+        // для char нет владеющих ресурсов, освобождать нечего
+    }
+
+    /* 2. Создание нулевого символа */
+    test_sub("subtest %d: create zero char", ++subnum);
+    {
+        value64 v = value64_createchar('\0');
+        test_validate(value64_char(v) == '\0',
+                      "Zero char must be '\\0', got '%c'", value64_char(v));
+    }
+
+    /* 3. Проверка типа */
+    test_sub("subtest %d: type identification", ++subnum);
+    {
+        value64 v = value64_createchar('Z');
+        (void) v;
+        test_validate(value64_gettype(value64_typename(VALUE64_CHR)) == VALUE64_CHR,
+                      "Type must be VALUE64_CHR");
+        // также можно проверить через value64_typename
     }
 
     return logret(TEST_PASSED, "done");

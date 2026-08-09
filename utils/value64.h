@@ -777,5 +777,7 @@ extern bool                         value64_filter2_intbetween_int_int(value64 v
 
 // ------------------------------------ ETC. ----------------------------------------
 
+extern bool                         value64_validate(value64 v, value64_type typ);  // TODO:
+
 #endif /* !_VALUE64_H */
 
