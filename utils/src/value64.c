@@ -14,6 +14,7 @@ static const value64_typeinfo           value64_info[] = {
     [VALUE64_LNG]        = {"LNG",         sizeof(long),   true     , "VALUE64_LNG"},
     [VALUE64_DBL]        = {"DBL",         sizeof(double), true     , "VALUE64_DBL"},
     [VALUE64_CHR]        = {"CHR",         sizeof(char),   true     , "VALUE64_CHR"},
+    [VALUE64_BOOL]       = {"BOOL",        sizeof(bool),   true     , "VALUE64_BOOL"},
     [VALUE64_PTR]        = {"PTR",         sizeof(void *), true     , "VALUE64_PTR"},
     [VALUE64_FS]         = {"FS",          sizeof(fs *),   true     , "VALUE64_FS"},
     [VALUE64_STR]        = {"STR",         sizeof(char *), true     , "VALUE64_STR"},
@@ -91,6 +92,11 @@ value64                             value64_pcopy_move(void *p, value64_type typ
             if (move)
                 *(char *)p = '\0';
             break;
+        case VALUE64_BOOL:
+            tmp.bval = *(const bool *)p;
+            if (move)
+                *(bool *)p = false;
+            break;
         case VALUE64_PTR:
             tmp.pval = *(void * const *) p;
             if (move)
@@ -117,50 +123,63 @@ value64                             value64_pcopy_move(void *p, value64_type typ
 
 value64_ConverterFunc   conv_matrix[VALUE64_TYPE_COUNT][VALUE64_TYPE_COUNT] = {
     [VALUE64_INT] = {
-        [VALUE64_LNG] = value64_convert_int_to_lng,
-        [VALUE64_DBL] = value64_convert_int_to_dbl,
-        [VALUE64_CHR] = value64_convert_int_to_char,
-        [VALUE64_FS]  = value64_convert_int_to_fs,
-        [VALUE64_STR] = value64_convert_int_to_str,
-        [VALUE64_INT] = value64_convert_int_to_int
+        [VALUE64_LNG]   = value64_convert_int_to_lng,
+        [VALUE64_DBL]   = value64_convert_int_to_dbl,
+        [VALUE64_CHR]   = value64_convert_int_to_char,
+        [VALUE64_BOOL]  = value64_convert_int_to_bool,
+        [VALUE64_FS]    = value64_convert_int_to_fs,
+        [VALUE64_STR]   = value64_convert_int_to_str,
+        [VALUE64_INT]   = value64_convert_int_to_int
     },
     [VALUE64_LNG] = {
-        [VALUE64_INT] = value64_convert_lng_to_int,
-        [VALUE64_DBL] = value64_convert_lng_to_dbl,
-        [VALUE64_CHR] = value64_convert_lng_to_char,
-        [VALUE64_FS]  = value64_convert_lng_to_fs,
-        [VALUE64_STR] = value64_convert_lng_to_str,
-        [VALUE64_LNG] = value64_convert_lng_to_lng
+        [VALUE64_INT]   = value64_convert_lng_to_int,
+        [VALUE64_DBL]   = value64_convert_lng_to_dbl,
+        [VALUE64_CHR]   = value64_convert_lng_to_char,
+        [VALUE64_BOOL]  = value64_convert_lng_to_bool,
+        [VALUE64_FS]    = value64_convert_lng_to_fs,
+        [VALUE64_STR]   = value64_convert_lng_to_str,
+        [VALUE64_LNG]   = value64_convert_lng_to_lng
     },
-    [VALUE64_DBL] = {   // no conv to char
-        [VALUE64_INT] = value64_convert_dbl_to_int,
-        [VALUE64_LNG] = value64_convert_dbl_to_lng,
-        [VALUE64_FS]  = value64_convert_dbl_to_fs,
-        [VALUE64_STR] = value64_convert_dbl_to_str,
-        [VALUE64_DBL] = value64_convert_dbl_to_dbl
+    [VALUE64_DBL] = {   // no conv to char, bool
+        [VALUE64_INT]   = value64_convert_dbl_to_int,
+        [VALUE64_LNG]   = value64_convert_dbl_to_lng,
+        [VALUE64_FS]    = value64_convert_dbl_to_fs,
+        [VALUE64_STR]   = value64_convert_dbl_to_str,
+        [VALUE64_DBL]   = value64_convert_dbl_to_dbl
     },
     [VALUE64_FS] = {
-        [VALUE64_INT] = value64_convert_fs_to_int,
-        [VALUE64_LNG] = value64_convert_fs_to_lng,
-        [VALUE64_DBL] = value64_convert_fs_to_dbl,
-        [VALUE64_CHR] = value64_convert_fs_to_char,
-        [VALUE64_STR] = value64_convert_fs_to_str,
-        [VALUE64_FS]  = value64_convert_fs_to_fs
+        [VALUE64_INT]   = value64_convert_fs_to_int,
+        [VALUE64_LNG]   = value64_convert_fs_to_lng,
+        [VALUE64_DBL]   = value64_convert_fs_to_dbl,
+        [VALUE64_CHR]   = value64_convert_fs_to_char,
+        [VALUE64_BOOL]  = value64_convert_fs_to_bool,
+        [VALUE64_STR]   = value64_convert_fs_to_str,
+        [VALUE64_FS]    = value64_convert_fs_to_fs
     },
     [VALUE64_STR] = {
-        [VALUE64_INT] = value64_convert_str_to_int,
-        [VALUE64_LNG] = value64_convert_str_to_lng,
-        [VALUE64_DBL] = value64_convert_str_to_dbl,
-        [VALUE64_CHR] = value64_convert_str_to_char,
-        [VALUE64_FS]  = value64_convert_str_to_fs,
-        [VALUE64_STR] = value64_convert_str_to_str
+        [VALUE64_INT]   = value64_convert_str_to_int,
+        [VALUE64_LNG]   = value64_convert_str_to_lng,
+        [VALUE64_DBL]   = value64_convert_str_to_dbl,
+        [VALUE64_CHR]   = value64_convert_str_to_char,
+        [VALUE64_BOOL]  = value64_convert_str_to_bool,
+        [VALUE64_FS]    = value64_convert_str_to_fs,
+        [VALUE64_STR]   = value64_convert_str_to_str
     },
     [VALUE64_CHR] = {   // no convert to double
-        [VALUE64_INT] = value64_convert_char_to_int,
-        [VALUE64_LNG] = value64_convert_char_to_lng,
-        [VALUE64_CHR] = value64_convert_char_to_char,
-        [VALUE64_FS]  = value64_convert_char_to_fs,
-        [VALUE64_STR] = value64_convert_char_to_str
+        [VALUE64_INT]   = value64_convert_char_to_int,
+        [VALUE64_LNG]   = value64_convert_char_to_lng,
+        [VALUE64_BOOL]  = value64_convert_char_to_bool,
+        [VALUE64_FS]    = value64_convert_char_to_fs,
+        [VALUE64_STR]   = value64_convert_char_to_str,
+        [VALUE64_CHR]   = value64_convert_char_to_char
+    },
+    [VALUE64_BOOL] = {   // no convert to double
+        [VALUE64_INT]   = value64_convert_bool_to_int,
+        [VALUE64_LNG]   = value64_convert_bool_to_lng,
+        [VALUE64_CHR]   = value64_convert_bool_to_char,
+        [VALUE64_FS]    = value64_convert_bool_to_fs,
+        [VALUE64_STR]   = value64_convert_bool_to_str,
+        [VALUE64_BOOL]  = value64_convert_bool_to_bool
     }
 };
 
@@ -207,6 +226,9 @@ unsigned long               value64_lhash(value64 value, value64_type typ){
         break;
         case VALUE64_CHR:
             tmp.u64 = (uint64_t) value64_char(value);
+        break;
+        case VALUE64_BOOL:
+            tmp.u64 = (uint64_t) value64_bool(value);
         break;
         case VALUE64_FS:
             return  hash_djb2(fs_str(value64_fs(value) ) );
@@ -274,7 +296,7 @@ value64                     *value64_moveto(value64 *restrict target, value64 *r
         break;
         case VALUE64_DBL:
             target->dval = source->dval;
-            source->dval = 0.0;
+            source->dval = 0.0;     // double zero
         break;
         default:    // ALL others type even VALUE64_STR follows the same logic!
             target->u64 = source->u64;
@@ -459,6 +481,9 @@ int                         value64_dbl_comp(value64 v1, value64 v2) {
 int                         value64_char_comp(value64 v1, value64 v2) {
     return compare_char(v1.cval, v2.cval);
 }
+int                         value64_bool_comp(value64 v1, value64 v2) {
+    return compare_bool(v1.bval, v2.bval);
+}
 int                         value64_fs_comp(value64 v1, value64 v2) {
     return fs_cmp(v1.fsval, v2.fsval);
 }
@@ -489,6 +514,9 @@ int                         value64_dbl_rev_comp(value64 v1, value64 v2) {
 }
 int                         value64_char_rev_comp(value64 v1, value64 v2) {
     return -compare_char(v1.cval, v2.cval);
+}
+int                         value64_bool_rev_comp(value64 v1, value64 v2) {
+    return -compare_bool(v1.bval, v2.bval);
 }
 int                         value64_fs_rev_comp(value64 v1, value64 v2) {
     return -fs_cmp(v1.fsval, v2.fsval);
@@ -544,6 +572,9 @@ int                     value64_compare(value64 v1, value64 v2, value64_type typ
         break;
         case VALUE64_CHR: 
             res = compare_char(v1.cval, v2.cval);
+        break;
+        case VALUE64_BOOL: 
+            res = compare_bool(v1.bval, v2.bval);
         break;
         case VALUE64_FS:
             if (!v1.fsval || !v2.fsval) // FIXME: fsisnull must be here
@@ -602,6 +633,8 @@ int                         value64_pt_compare(const value64* restrict v1, const
             return value64_pdbl_comp(v1, v2);   //compare_pdbl(&val1->dval, &val2->dval);
         case VALUE64_CHR:
             return value64_pchar_comp(v1, v2);   //compare_pchar(&val1->dval, &val2->dval)
+        case VALUE64_BOOL:
+            return value64_pbool_comp(v1, v2);
         case VALUE64_FS:
             invraisecode(v1->fsval != NULL && v2->fsval != NULL, ERR_NULLABLE_PTR, "Null pointers %p %p", v1->fsval, v2->fsval);
             return value64_pfs_comp(v1, v2);     //compare_fs(val1->fsval, val2->fsval);
@@ -653,6 +686,11 @@ int                         value64_pchar_comp(const void *restrict v1, const vo
     const value64 *val2 = (const value64 *) v2;
     return compare_char(val1->cval, val2->cval);
 }
+int                         value64_pbool_comp(const void *restrict v1, const void *restrict v2){
+    const value64 *val1 = (const value64 *) v1;
+    const value64 *val2 = (const value64 *) v2;
+    return compare_bool(val1->bval, val2->bval);
+}
 int                         value64_pptr_comp(const void *restrict v1, const void *restrict v2){
     const value64 *val1 = (const value64 *) v1;
     const value64 *val2 = (const value64 *) v2;
@@ -701,6 +739,11 @@ int                         value64_pchar_rev_comp(const void *restrict v1, cons
     const value64 *val1 = (const value64 *) v1;
     const value64 *val2 = (const value64 *) v2;
     return -compare_char(val1->cval, val2->cval);
+}
+int                         value64_pbool_rev_comp(const void *restrict v1, const void *restrict v2){
+    const value64 *val1 = (const value64 *) v1;
+    const value64 *val2 = (const value64 *) v2;
+    return -compare_bool(val1->bval, val2->bval);
 }
 int                         value64_pptr_rev_comp(const void *restrict v1, const void *restrict v2){
     const value64 *val1 = (const value64 *) v1;
@@ -829,6 +872,10 @@ value64                     value64_convert_int_to_char(value64 v) {
         userraiseint(ERR_OUT_OF_RANGE, "int->char overflow");
     return  value64_createchar(value64_int(v) );
 }
+/** @brief Converts int to bool */
+value64                     value64_convert_int_to_bool(value64 v) {
+    return  value64_createbool(value64_bool(v) );
+}
 /** @brief Identity conversion (int to int). */
 value64                     value64_convert_int_to_int(value64 v) {
     return value64_createint(value64_int(v));
@@ -866,6 +913,10 @@ value64                     value64_convert_lng_to_char(value64 v) {
     if (!is_long_char_range(value64_int(v)) )
         userraiseint(ERR_OUT_OF_RANGE, "long->char overflow");
     return  value64_createchar(value64_int(v) );
+}
+/** @brief Converts int to bool */
+value64                     value64_convert_lng_to_bool(value64 v) {
+    return  value64_createbool(value64_bool(v) );
 }
 /** @brief Identity conversion (long to long). */
 value64                     value64_convert_lng_to_lng(value64 v) {
@@ -940,6 +991,11 @@ value64                     value64_convert_fs_to_char(value64 v){
     fs          *fsval = value64_fs(v);
     return value64_createchar(fs_getchar(fsval));       // probably with checking
 }
+/** @brief Converts FS object to bool. */
+value64                     value64_convert_fs_to_bool(value64 v){
+    fs          *fsval = value64_fs(v);
+    return value64_createchar(fs_str(fsval) ? true: false);     // TODO: context is required here
+}
 /** @} */
 
 // --- Группа STR ---
@@ -988,6 +1044,11 @@ value64                     value64_convert_str_to_char(value64 v) {
     char        *sval = value64_str(v);
     return value64_createchar(*sval);  // not sure, no null checking
 }
+/** @brief Converts first character of string to bool. */
+value64                     value64_convert_str_to_bool(value64 v) {
+    char        *sval = value64_str(v);
+    return value64_createchar(*sval ? true: false);
+}
 /** @} */
 
 // --- Группа CHAR ---
@@ -1015,7 +1076,43 @@ value64                     value64_convert_char_to_str(value64 v) {
 value64                     value64_convert_char_to_char(value64 v) {
     return value64_createchar(value64_char(v));
 }
+/** @brief Converts character to bool */
+value64                     value64_convert_char_to_bool(value64 v) {
+    char        cval = value64_char(v);
+    return value64_createchar(cval ? true: false);  // not sure, no null checking
+}
 /** @} */
+
+// --- Группа BOOL ---
+/** @name Character to [Type] Conversions */
+/** @{ */
+/** @brief Converts char to int. */
+value64                     value64_convert_bool_to_int(value64 v) {
+    return value64_createint( (int)value64_bool(v));
+}
+/** @brief Converts char to long. */
+value64                     value64_convert_bool_to_lng(value64 v) {
+    return value64_createlong((long)value64_bool(v));
+}
+/** @brief Converts char to FS object. */
+value64                     value64_convert_bool_to_fs(value64 v) {
+    fs      tmp = fscopyf("%s", bool_str(value64_bool(v)) );    // TODO: context?
+    return value64_movefs(&tmp); // to avoid double alloc
+}
+/** @brief Converts char to string. */
+value64                     value64_convert_bool_to_str(value64 v) {
+    return value64_createstr(bool_str(value64_bool(v)) );       // TODO: context?
+}
+/** @brief Identity conversion (char to char). */
+value64                     value64_convert_bool_to_char(value64 v) {
+    return value64_createchar(value64_bool(v) ? 't': 'f');  
+}
+/** @brief Converts character to bool */
+value64                     value64_convert_bool_to_bool(value64 v) {
+    return value64_createbool(value64_bool(v) );  // not sure, no null checking
+}
+/** @} */
+
 
 /** @} */
 
@@ -1203,6 +1300,10 @@ int                         value64_fprint_char(FILE *restrict out, value64 val)
     char    buf[] = { value64_char(val), '\0' };
     return fprint_str_escaped(out, buf);
 }
+/** @brief Prints a bool wrapped in quotes. */
+int                         value64_fprint_bool(FILE *restrict out, value64 val) {
+    return fprint_str_escaped(out, bool_str(value64_bool(val)) );
+}
 /** @brief Prints an escaped string. */
 int                         value64_fprint_str(FILE *restrict out, value64 val) {
     return fprint_str_escaped(out, value64_str(val) );
@@ -1258,6 +1359,10 @@ int                         value64_fprint_msg(FILE *restrict out, const char *r
                 IOCHECKER(w, value64_fprint_char(out, val), -1)
                     cnt += w;
                 break;
+            case VALUE64_BOOL:
+                IOCHECKER(w, value64_fprint_bool(out, val), -1)
+                    cnt += w;
+                break;
             case VALUE64_STR:
                 IOCHECKER(w, value64_fprint_str(out, val), -1)
                     cnt += w;
@@ -1305,6 +1410,10 @@ int                        value64_techfprint(FILE *restrict out, value64 val, v
             break;
             case VALUE64_CHR:
                 IOCHECKER(w, value64_fprint_char(out, val), -1)
+                    cnt += w;
+            break;
+            case VALUE64_BOOL:
+                IOCHECKER(w, value64_fprint_bool(out, val), -1)
                     cnt += w;
             break;
             case VALUE64_STR:
@@ -1492,7 +1601,7 @@ bool                            value64_sreadval_fs(value64 *restrict pval, fs *
  */
 bool                         value64_sreadval_char(value64 *restrict pval, fs *restrict buf) {
     invraisecode(buf != NULL, ERR_NULLABLE_PTR,
-        "Null pointers %p", buf);
+            "Null pointers %p", buf);
 
     const char *str = fs_str(buf);
 
@@ -1511,6 +1620,30 @@ bool                         value64_sreadval_char(value64 *restrict pval, fs *r
         *pval = v;
      return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );       
 }
+/**
+ * @brief Reads a boolean value from a string buffer.
+ *
+ * Calls the existing try_parse_bool() function.  An empty string is treated
+ * as false (as if "false" were written).
+ *
+ * @param pval  pointer to the value64 to fill (may be NULL)
+ * @param buf   fast‑string containing the textual representation
+ * @return      true on success, false on parse error
+ */
+bool                            value64_sreadval_bool(value64 *restrict pval, fs *restrict buf) {
+    invraisecode(fs_isnull(buf), ERR_NULLABLE_PTR, 
+            "Null pointer %p", buf);
+    const char *str = fs_str(buf);
+
+    bool        b;
+    if (!try_parse_bool(str, &b))
+        return logsimpleerr(false, "Invalid bool string: '%s'", str);
+
+    if (pval)
+        *pval = value64_createbool(b);
+    return logsimpleret(true, "read bool = %s", b ? "true" : "false");
+}
+
 /** @} */
 
 //  switcher, cab be implement via distatcher table
@@ -1532,6 +1665,8 @@ bool                            value64_dsreadval(Ds *restrict ds, value64_type 
             return value64_sreadval_dbl(val, buf);
         case VALUE64_CHR:
             return value64_sreadval_char(val, buf);
+        case VALUE64_BOOL:
+            return value64_sreadval_bool(val, buf);
         case VALUE64_PTR:
             return userraise(false, ERR_UNSUPPORTED_TYPE, "Reading of %s isn't supported", value64_typename(typ) );
         case VALUE64_STR:
@@ -1732,6 +1867,15 @@ int                         value64_tostr_fs(fs *target, value64 val) {
 int                         value64_tostr_char(fs *target, value64 val) {
     return fs_sprintf_concat(target, "\"%c\"", value64_char(val) );
 }
+/**
+ * @brief Converts a bool to a quoted string.
+ * @param target The target `fs` buffer.
+ * @param val    The source value64 containing a bool.
+ * @return The number of bytes written.
+ */
+int                         value64_tostr_bool(fs *target, value64 val) {
+    return fs_sprintf_concat(target, "\"%s\"", bool_str(value64_bool(val)) );
+}
 /** @} */
 
 // to string : fs MUST be initialized
@@ -1792,6 +1936,10 @@ int                          value64_tostr(fs *target, value64 val, value64_type
             break;
         case VALUE64_CHR:
             IOCHECKER(w, value64_tostr_char(target, val), -1)
+                cnt += w;
+            break;
+        case VALUE64_BOOL:
+            IOCHECKER(w, value64_tostr_bool(target, val), -1)
                 cnt += w;
             break;
         case VALUE64_STR:

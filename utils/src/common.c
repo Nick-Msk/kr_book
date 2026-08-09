@@ -239,7 +239,7 @@ bool                            try_parse_char(const char *restrict str, char *r
  * @param res pointer to store the result (may be NULL)
  * @return true if the string matched a known boolean, false otherwise
  */
-bool try_parse_bool(const char *restrict str, bool *restrict res) {
+bool                            try_parse_bool(const char *restrict str, bool *restrict res) {
     if (!str || !*str)
         return logsimpleerr(false, "Empty string for bool");
 

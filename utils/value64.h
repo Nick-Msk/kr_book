@@ -932,9 +932,9 @@ extern value64                     value64_convert_char_to_char(value64 v);
 // --- Группа BOOL ---
 extern value64                     value64_convert_bool_to_int(value64 v);
 extern value64                     value64_convert_bool_to_lng(value64 v);
-extern value64                     value64_convert_char_to_char(value64 v);
-extern value64                     value64_convert_char_to_fs(value64 v);
-extern value64                     value64_convert_char_to_str(value64 v);
+extern value64                     value64_convert_bool_to_char(value64 v);
+extern value64                     value64_convert_bool_to_fs(value64 v);
+extern value64                     value64_convert_bool_to_str(value64 v);
 extern value64                     value64_convert_bool_to_bool(value64 v);
 // --- Группа FS ---
 extern value64                     value64_convert_fs_to_int(value64 v);
