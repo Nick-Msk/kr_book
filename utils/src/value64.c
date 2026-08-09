@@ -4252,6 +4252,103 @@ tf_search(const char *name)
         );
     }
 
+    /* ========== CHR ========== */
+    test_sub("subtest %d: CHR search found", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('A'), value64_createchar('B'), value64_createchar('C') };
+        int idx = value64_search(value64_createchar('B'), VALUE64_CHR, arr, 3);
+        test_validate(idx == 1, "CHR search: expected idx=1, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHR rev search found (last)", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('x'), value64_createchar('y'), value64_createchar('y'), value64_createchar('z') };
+        int idx = value64_revsearch(value64_createchar('y'), VALUE64_CHR, arr, 4);
+        test_validate(idx == 2, "CHR revsearch: expected idx=2, got %d", idx);
+    }
+    
+    test_sub("subtest %d: CHR search found at first position", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('A'), value64_createchar('B'), value64_createchar('C') };
+        int idx = value64_search(value64_createchar('A'), VALUE64_CHR, arr, 3);
+        test_validate(idx == 0, "CHR search first: expected idx=0, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHR search found at last position", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('X'), value64_createchar('Y'), value64_createchar('Z') };
+        int idx = value64_search(value64_createchar('Z'), VALUE64_CHR, arr, 3);
+        test_validate(idx == 2, "CHR search last: expected idx=2, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHR search not found", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('a'), value64_createchar('b'), value64_createchar('c') };
+        int idx = value64_search(value64_createchar('x'), VALUE64_CHR, arr, 3);
+        test_validate(idx == -1, "CHR search missing: expected -1, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHR search in single element array (found)", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('M') };
+        int idx = value64_search(value64_createchar('M'), VALUE64_CHR, arr, 1);
+        test_validate(idx == 0, "CHR search single found: expected idx=0, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHR search in single element array (not found)", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('M') };
+        int idx = value64_search(value64_createchar('N'), VALUE64_CHR, arr, 1);
+        test_validate(idx == -1, "CHR search single missing: expected -1, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHR rev search found at first position (from end)", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('A'), value64_createchar('B'), value64_createchar('A') };
+        int idx = value64_revsearch(value64_createchar('A'), VALUE64_CHR, arr, 3);
+        test_validate(idx == 2, "CHR revsearch: expected last idx=2, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHR rev search found at last position (from end)", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('X'), value64_createchar('Y'), value64_createchar('Z') };
+        int idx = value64_revsearch(value64_createchar('X'), VALUE64_CHR, arr, 3);
+        test_validate(idx == 0, "CHR revsearch first from end: expected idx=0, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHR rev search not found", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('p'), value64_createchar('q'), value64_createchar('r') };
+        int idx = value64_revsearch(value64_createchar('s'), VALUE64_CHR, arr, 3);
+        test_validate(idx == -1, "CHR revsearch missing: expected -1, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHR rev search in single element array (found)", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('K') };
+        int idx = value64_revsearch(value64_createchar('K'), VALUE64_CHR, arr, 1);
+        test_validate(idx == 0, "CHR revsearch single found: expected idx=0, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHR rev search in single element array (not found)", ++subnum);
+    {
+        value64 arr[] = { value64_createchar('K') };
+        int idx = value64_revsearch(value64_createchar('L'), VALUE64_CHR, arr, 1);
+        test_validate(idx == -1, "CHR revsearch single missing: expected -1, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHR search empty array", ++subnum);
+    {
+        int idx = value64_search(value64_createchar('A'), VALUE64_CHR, NULL, 0);
+        test_validate(idx == -1, "CHR search empty: expected -1, got %d", idx);
+    }
+
+    test_sub("subtest %d: CHR rev search empty array", ++subnum);
+    {
+        int idx = value64_revsearch(value64_createchar('A'), VALUE64_CHR, NULL, 0);
+        test_validate(idx == -1, "CHR revsearch empty: expected -1, got %d", idx);
+    }
+
     /* ---------- DBL ---------- */
     test_sub("subtest %d: search DBL – equal", ++subnum);
     {
@@ -4463,6 +4560,32 @@ tf_getComparator(const char *name)
         value64 a = value64_createlong(100L);
         value64 b = value64_createlong(200L);
         test_validate(rcmp(a, b) > 0, "rev: 100 < 200 must give >0");
+    }
+
+    /* CHAR comparator */
+    test_sub("subtest %d: getComparator CHAR", ++subnum);
+    {
+        value64_Comparator cmp = value64_getComparator(VALUE64_CHR);
+        test_validate(cmp != NULL, "CHAR comparator must not be NULL");
+
+        value64 a = value64_createchar('t');
+        value64 b = value64_createchar('z');
+        test_validate(cmp(a, b) < 0, "'t' < 'z' must be negative");
+        test_validate(cmp(b, a) > 0, "'z' > 't' must be positive");
+        test_validate(cmp(a, a) == 0, "'t' == 't' must be zero");
+    }
+
+    /* CHAR rev comparator */
+    test_sub("subtest %d: getRevComparator CHAR", ++subnum);
+    {
+        value64_Comparator rcmp = value64_getRevComparator(VALUE64_CHR);
+        test_validate(rcmp != NULL, "CHAR rev comparator must not be NULL");
+
+        value64 a = value64_createchar('t');
+        value64 b = value64_createchar('z');
+        test_validate(rcmp(a, b) > 0, "rev: 't' < 'z' must give >0");
+        test_validate(rcmp(b, a) < 0, "rev: 't' > 'z' must give <0");
+        test_validate(rcmp(a, a) == 0, "rev: 't' == 't' must be 0");
     }
 
     /* 5. DBL comparator */

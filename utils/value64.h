@@ -483,14 +483,12 @@ static inline value64_Comparator    value64_getComparator(value64_type typ){
             return value64_ptr_comp;
         case VALUE64_CHR:
             return value64_char_comp;
-        // 
         case VALUE64_FS:
             return value64_fs_comp;
         case VALUE64_STR:
             return value64_str_comp;
         default:
-            userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
-            return NULL;
+            return userraise(NULL, ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
     }
 }
 // value, now using switch, w/o table
@@ -505,15 +503,13 @@ static inline value64_Comparator  value64_getRevComparator(value64_type typ){
         case VALUE64_PTR:
             return value64_ptr_rev_comp;
         case VALUE64_CHR:
-            return value64_char_comp;
-        // 
+            return value64_char_rev_comp;
         case VALUE64_FS:
             return value64_fs_rev_comp;
         case VALUE64_STR:
             return value64_str_rev_comp;
         default:
-            userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
-            return NULL;
+            return userraise(NULL, ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
     }
 }
 // ----------------------------- CONVERTERS ----------------------------------------
