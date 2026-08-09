@@ -3648,6 +3648,46 @@ tf_is_convertable(const char *name)
         );
     }
 
+    /* 5. INT -> CHR (в диапазоне) */
+    test_sub("subtest %d: INT->CHR (in range)", ++subnum);
+    {
+        value64 v = value64_createint(65);   // 'A'
+        test_validate(
+            value64_is_convertable(v, VALUE64_INT, VALUE64_CHR),
+            "INT->CHR (65) must be convertable"
+        );
+    }
+
+    /* 6. INT -> CHR (вне диапазона) */
+    test_sub("subtest %d: INT->CHR (out of range)", ++subnum);
+    {
+        value64 v = value64_createint(9999);
+        test_validate(
+            !value64_is_convertable(v, VALUE64_INT, VALUE64_CHR),
+            "INT->CHR (9999) must NOT be convertable"
+        );
+    }
+
+    /* 3. INT -> FS */
+    test_sub("subtest %d: INT->FS (allowed)", ++subnum);
+    {
+        value64 v = value64_createint(-5);
+        test_validate(
+            value64_is_convertable(v, VALUE64_INT, VALUE64_FS),
+            "INT->FS must be convertable"
+        );
+    }
+
+    /* 4. INT -> STR */
+    test_sub("subtest %d: INT->STR (allowed)", ++subnum);
+    {
+        value64 v = value64_createint(0);
+        test_validate(
+            value64_is_convertable(v, VALUE64_INT, VALUE64_STR),
+            "INT->STR must be convertable"
+        );
+    }
+
     /* 4. LONG -> INT (в пределах) – допустимо */
     test_sub("subtest %d: LNG->INT (in range)", ++subnum);
     {
@@ -3665,6 +3705,102 @@ tf_is_convertable(const char *name)
         test_validate(
             !value64_is_convertable(v, VALUE64_LNG, VALUE64_INT),
             "LNG->INT overflow must NOT be convertable"
+        );
+    }
+
+    /* 9. LNG -> DBL */
+    test_sub("subtest %d: LNG->DBL (allowed)", ++subnum);
+    {
+        value64 v = value64_createlong(1L << 60);
+        test_validate(
+            value64_is_convertable(v, VALUE64_LNG, VALUE64_DBL),
+            "LNG->DBL must be convertable"
+        );
+    }
+
+    /* 10. LNG -> FS */
+    test_sub("subtest %d: LNG->FS (allowed)", ++subnum);
+    {
+        value64 v = value64_createlong(0L);
+        test_validate(
+            value64_is_convertable(v, VALUE64_LNG, VALUE64_FS),
+            "LNG->FS must be convertable"
+        );
+    }
+
+    /* 11. LNG -> STR */
+    test_sub("subtest %d: LNG->STR (allowed)", ++subnum);
+    {
+        value64 v = value64_createlong(-999L);
+        test_validate(
+            value64_is_convertable(v, VALUE64_LNG, VALUE64_STR),
+            "LNG->STR must be convertable"
+        );
+    }
+
+    /* 12. LNG -> CHR (в диапазоне) */
+    test_sub("subtest %d: LNG->CHR (in range)", ++subnum);
+    {
+        value64 v = value64_createlong(97L);   // 'a'
+        test_validate(
+            value64_is_convertable(v, VALUE64_LNG, VALUE64_CHR),
+            "LNG->CHR (97) must be convertable"
+        );
+    }
+
+    /* 13. LNG -> CHR (вне диапазона) */
+    test_sub("subtest %d: LNG->CHR (out of range)", ++subnum);
+    {
+        value64 v = value64_createlong(100000L);
+        test_validate(
+            !value64_is_convertable(v, VALUE64_LNG, VALUE64_CHR),
+            "LNG->CHR (100000) must NOT be convertable"
+        );
+    }
+
+    test_sub("subtest %d: CHR->INT", ++subnum);
+    {
+        value64 v = value64_createchar('X');
+        test_validate(
+            value64_is_convertable(v, VALUE64_CHR, VALUE64_INT),
+            "CHR->PTR must  be convertable"
+        );
+    }
+
+    test_sub("subtest %d: CHR->LNG", ++subnum);
+    {
+        value64 v = value64_createchar('X');
+        test_validate(
+            value64_is_convertable(v, VALUE64_CHR, VALUE64_LNG),
+            "CHR->PTR must be convertable"
+        );
+    }
+
+    test_sub("subtest %d: CHR->FS", ++subnum);
+    {
+        value64 v = value64_createchar('X');
+        test_validate(
+            value64_is_convertable(v, VALUE64_CHR, VALUE64_FS),
+            "CHR->FS must  be convertable"
+        );
+    }
+
+    test_sub("subtest %d: CHR->STR", ++subnum);
+    {
+        value64 v = value64_createchar('X');
+        test_validate(
+            value64_is_convertable(v, VALUE64_CHR, VALUE64_STR),
+            "CHR->STR must  be convertable"
+        );
+    }
+
+    /* 22. CHR -> PTR (forbidden) */
+    test_sub("subtest %d: CHR->PTR (forbidden)", ++subnum);
+    {
+        value64 v = value64_createchar('X');
+        test_validate(
+            !value64_is_convertable(v, VALUE64_CHR, VALUE64_PTR),
+            "CHR->PTR must NOT be convertable"
         );
     }
 
@@ -3698,6 +3834,16 @@ tf_is_convertable(const char *name)
         );
     }
 
+    /* 16. DBL -> LNG (в диапазоне) */
+    test_sub("subtest %d: DBL->LNG (in range)", ++subnum);
+    {
+        value64 v = value64_createdbl(5.0e9);
+        test_validate(
+            value64_is_convertable(v, VALUE64_DBL, VALUE64_LNG),
+            "DBL->LNG (5e9) must be convertable"
+        );
+    }
+
     /* 9. DBL -> LONG (переполнение) – НЕ допустимо */
     test_sub("subtest %d: DBL->LNG (overflow)", ++subnum);
     {
@@ -3708,7 +3854,38 @@ tf_is_convertable(const char *name)
         );
     }
 
-    /* 10. FS -> INT: неизвестно, но не должно падать */
+    /* 21. DBL -> CHR */
+    test_sub("subtest %d: DBL->CHR (forbidden)", ++subnum);
+    {
+        value64 v = value64_createdbl(65.0);
+        test_validate(
+            !value64_is_convertable(v, VALUE64_DBL, VALUE64_CHR),
+            "DBL->CHR must NOT be convertable"
+        );
+    }
+
+    /* 18. DBL -> FS */
+    test_sub("subtest %d: DBL->FS (allowed)", ++subnum);
+    {
+        value64 v = value64_createdbl(3.14);
+        test_validate(
+            value64_is_convertable(v, VALUE64_DBL, VALUE64_FS),
+            "DBL->FS must be convertable"
+        );
+    }
+
+    /* 19. DBL -> STR */
+    test_sub("subtest %d: DBL->STR (allowed)", ++subnum);
+    {
+        value64 v = value64_createdbl(0.0);
+        test_validate(
+            value64_is_convertable(v, VALUE64_DBL, VALUE64_STR),
+            "DBL->STR must be convertable"
+        );
+    }
+
+
+    /* 10. FS -> INT: не должно падать */
     test_sub("subtest %d: FS->INT (must not crash)", ++subnum);
     {
         fs tmp = fscopy("123");
@@ -3725,6 +3902,19 @@ tf_is_convertable(const char *name)
         fs_alloc_check(true);
     }
 
+    /* 23. FS -> PTR (forbidden) */
+    test_sub("subtest %d: FS->PTR (forbidden)", ++subnum);
+    {
+        value64 v = value64_createfs_asstr("/tmp");
+        test_validatefree(
+            !value64_is_convertable(v, VALUE64_FS, VALUE64_PTR),
+            value64_freefs(&v),
+            "FS->PTR must NOT be convertable"
+        );
+        value64_freefs(&v);
+    }
+    fs_alloc_check(true);
+
     /* 11. STR -> DBL: не должно падать */
     test_sub("subtest %d: STR->DBL (must not crash)", ++subnum);
     {
@@ -3736,6 +3926,18 @@ tf_is_convertable(const char *name)
             bool_str(value64_is_convertable(v, VALUE64_STR, VALUE64_DBL))
         );
         value64free(v, VALUE64_STR);
+    }
+
+    /* 24. STR -> PTR (forbidden) */
+    test_sub("subtest %d: STR->PTR (forbidden)", ++subnum);
+    {
+        value64 v = value64_createstr("hello");
+        test_validatefree(
+            !value64_is_convertable(v, VALUE64_STR, VALUE64_PTR),
+            value64_freestr(&v),
+            "STR->PTR must NOT be convertable"
+        );
+        value64_freestr(&v);
     }
 
     return logret(TEST_PASSED, "done");
@@ -3843,6 +4045,31 @@ tf_pt_compare(const char *name)
         test_validate(
             value64_pt_compare(&inf1, &ninf, VALUE64_DBL) > 0,
             "+inf must be greater than -inf"
+        );
+    }
+
+    /* ---------- INT ---------- */
+    test_sub("subtest %d: cmp CHAR equal", ++subnum);
+    {
+        value64 a = value64_createchar('a');
+        value64 b = value64_createchar('a');
+        test_validate(
+            value64_pt_compare(&a, &b, VALUE64_CHR) == 0, 
+            "'a' must equal 'a''"
+        );
+    }
+
+    test_sub("subtest %d: cmp INT less / greater", ++subnum);
+    {
+        value64 a = value64_createint('a');
+        value64 b = value64_createint('b');
+        test_validate(
+            value64_pt_compare(&a, &b, VALUE64_CHR) < 0,
+            "'a' must be less than 'b'"
+        );
+        test_validate(
+            value64_pt_compare(&b, &a, VALUE64_CHR) > 0,
+            "'b' must be greater than 'a"
         );
     }
 
@@ -5922,9 +6149,9 @@ main(/* int argc, const char *argv[] */)
         TESTADD(tf_move,                "Simple value64_moveto() test"),
         TESTADD(tf_lhash,               "Simple value64_lhash() test"),
         TESTADD(tf_compare,             "Simple value64_compare() test"),
+        TESTADD(tf_is_convertable,      "Simple value64_is_convertable() test"),
         TESTADD(tf_convert,             "Simple value64_convert() test"),
         TESTADD(tf_convert_move,        "Simple value64_convert_move() test"),
-        TESTADD(tf_is_convertable,      "Simple value64_is_convertable() test"),
         TESTADD(tf_pt_compare,          "Simple value64_pt_compare() test"),
         TESTADD(tf_search,              "Simple value64_(rev)search test"),
         TESTADD(tf_getComparator,       "Simple value64_get(Rev)Comparator test"),
