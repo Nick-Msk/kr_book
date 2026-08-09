@@ -208,6 +208,14 @@ static inline int               compare_char(unsigned char v1, unsigned char v2)
     else
         return 0;
 }
+static inline int               compare_bool(bool v1, bool v2){
+    if (v1 > v2)
+        return 1;
+    else if (v1 < v2)
+        return -1;
+    else
+        return 0;
+}
 static inline int               compare_int(int v1, int v2){
     if (v1 > v2)
         return 1;
