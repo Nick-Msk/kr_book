@@ -993,8 +993,11 @@ value64                     value64_convert_fs_to_char(value64 v){
 }
 /** @brief Converts FS object to bool. */
 value64                     value64_convert_fs_to_bool(value64 v){
-    fs          *fsval = value64_fs(v);
-    return value64_createchar(fs_str(fsval) ? true: false);     // TODO: context is required here
+    fs      *fsval = value64_fs(v);
+    bool    b;
+    if (!try_parse_bool(fs_str(fsval), &b))
+        userraiseint(ERR_INVALID_CONVERSION, "fs->bool fail");
+    return value64_createbool(b);     // TODO: context is required here
 }
 /** @} */
 
@@ -1046,8 +1049,11 @@ value64                     value64_convert_str_to_char(value64 v) {
 }
 /** @brief Converts first character of string to bool. */
 value64                     value64_convert_str_to_bool(value64 v) {
-    char        *sval = value64_str(v);
-    return value64_createchar(*sval ? true: false);
+    char *sval = value64_str(v);
+    bool b;
+    if (!try_parse_bool(sval, &b))
+        userraiseint(ERR_INVALID_CONVERSION, "str->bool fail");
+    return value64_createbool(b);
 }
 /** @} */
 
@@ -2622,6 +2628,22 @@ tf_clone(const char *name)
                     "Clone char: got '%c', expected 'Z'", copy.cval);
     }
 
+    /* clone bool */
+    test_sub("subtest %d: clone bool", ++subnum);
+    {
+        value64 orig = value64_createbool(true);
+        value64 copy = value64_clone(orig, VALUE64_BOOL);
+        test_validate(copy.bval == true,
+                    "Clone bool: got '%s', expected 'true'", bool_str(copy.bval) );
+    }
+    test_sub("subtest %d: clone bool false", ++subnum);
+    {
+        value64 orig = value64_createbool(false);
+        value64 copy = value64_clone(orig, VALUE64_BOOL);
+        test_validate(copy.bval == false,
+                    "Clone bool: got '%s', expected 'false'", bool_str(copy.bval) );
+    }
+
     /* 10. clone pointer */
     test_sub("subtest %d: clone pointer", ++subnum);
     {
@@ -2739,6 +2761,18 @@ tf_move(const char *name)
         test_validate(ret == &dst, "move_char must return &dst");
         test_validate(value64_char(dst) == 'A', "dst must be 'A', got '%c'", value64_char(dst));
         test_validate(value64_char(src) == '\0', "src must be '\\0' after move, got '%c'", value64_char(src));
+    }
+
+    /* move bool */
+    test_sub("subtest %d: move char", ++subnum);
+    {
+        value64 src = value64_createbool(true);
+        value64 dst = LITERAL64_ZERO;
+        value64 *ret = value64_moveto_bool(&dst, &src);
+
+        test_validate(ret == &dst, "move_char must return &dst");
+        test_validate(value64_bool(dst) == true, "dst must be 'true', got '%s'", bool_str(value64_bool(dst)) );
+        test_validate(value64_bool(src) == false, "src must be 'false' after move, got '%s'", bool_str(value64_bool(src)) );
     }
 
     /* 4. move pointer */
@@ -2892,6 +2926,21 @@ tf_lhash(const char *name)
         test_validate(h1 != h3, "Different chars should differ: %lu vs %lu", h1, h3);
     }
 
+    /* bool */
+    test_sub("subtest %d: hash bool", ++subnum);
+    {
+        value64 v1 = value64_createbool(true);
+        value64 v2 = value64_createbool(true);
+        value64 v3 = value64_createbool(false);
+
+        unsigned long h1 = value64_lhash(v1, VALUE64_BOOL);
+        unsigned long h2 = value64_lhash(v2, VALUE64_BOOL);
+        unsigned long h3 = value64_lhash(v3, VALUE64_BOOL);
+
+        test_validate(h1 == h2, "Same chars must have same hash: %lu vs %lu", h1, h2);
+        test_validate(h1 != h3, "Different chars should differ: %lu vs %lu", h1, h3);
+    }
+
     /* 3. double */
     test_sub("subtest %d: hash double", ++subnum);
     {
@@ -3023,6 +3072,26 @@ tf_compare(const char *name)
 
         test_validate(value64_compare(v1, v2, VALUE64_CHR) == 0, "Equal chars must return 0");
         test_validate(value64_compare(v1, v3, VALUE64_CHR) != 0, "Different chars must not return 0");
+    }
+
+    /* 1. Равные значения */
+    test_sub("subtest %d: compare equal BOOL", ++subnum);
+    {
+        value64 a = value64_createbool(true);
+        value64 b = value64_createbool(true);
+        test_validate(value64_compare(a, b, VALUE64_BOOL) == 0,
+                      "true == true must return 0");
+    }
+
+    /* 2. Разные значения (true vs false) */
+    test_sub("subtest %d: compare true vs false", ++subnum);
+    {
+        value64 a = value64_createbool(true);
+        value64 b = value64_createbool(false);
+        test_validate(value64_compare(a, b, VALUE64_BOOL) > 0,
+                      "true > false must return >0");
+        test_validate(value64_compare(b, a, VALUE64_BOOL) < 0,
+                      "false < true must return <0");
     }
 
     /* 3. compare double */
@@ -3865,6 +3934,34 @@ tf_is_convertable(const char *name)
         );
     }
 
+    /* 7. INT → BOOL (разрешено всегда) */
+    test_sub("subtest %d: INT(0) -> BOOL (allowed)", ++subnum);
+    {
+        value64 v = value64_createint(0);
+        test_validate(
+            value64_is_convertable(v, VALUE64_INT, VALUE64_BOOL),
+            "INT(0)->BOOL must be convertable"
+        );
+    }
+
+    test_sub("subtest %d: INT(1) -> BOOL (allowed)", ++subnum);
+    {
+        value64 v = value64_createint(1);
+        test_validate(
+            value64_is_convertable(v, VALUE64_INT, VALUE64_BOOL),
+            "INT(1)->BOOL must be convertable"
+        );
+    }
+
+    test_sub("subtest %d: INT(999) -> BOOL (allowed)", ++subnum);
+    {
+        value64 v = value64_createint(999);
+        test_validate(
+            value64_is_convertable(v, VALUE64_INT, VALUE64_BOOL),
+            "INT(999)->BOOL must be convertable (any non‑zero -> true)"
+        );
+    }
+
     /* 3. INT -> FS */
     test_sub("subtest %d: INT->FS (allowed)", ++subnum);
     {
@@ -3955,6 +4052,34 @@ tf_is_convertable(const char *name)
         );
     }
 
+    /* 8. LNG → BOOL (разрешено всегда) */
+    test_sub("subtest %d: LNG(0L) -> BOOL (allowed)", ++subnum);
+    {
+        value64 v = value64_createlong(0L);
+        test_validate(
+            value64_is_convertable(v, VALUE64_LNG, VALUE64_BOOL),
+            "LNG(0)->BOOL must be convertable"
+        );
+    }
+
+    test_sub("subtest %d: LNG(1L) -> BOOL (allowed)", ++subnum);
+    {
+        value64 v = value64_createlong(1L);
+        test_validate(
+            value64_is_convertable(v, VALUE64_LNG, VALUE64_BOOL),
+            "LNG(1)->BOOL must be convertable"
+        );
+    }
+
+    test_sub("subtest %d: LNG(1000L) -> BOOL (allowed)", ++subnum);
+    {
+        value64 v = value64_createlong(1000L);
+        test_validate(
+            value64_is_convertable(v, VALUE64_LNG, VALUE64_BOOL),
+            "LNG(1000)->BOOL must be convertable (any non‑zero -> true)"
+        );
+    }
+
     test_sub("subtest %d: CHR->INT", ++subnum);
     {
         value64 v = value64_createchar('X');
@@ -3998,6 +4123,80 @@ tf_is_convertable(const char *name)
         test_validate(
             !value64_is_convertable(v, VALUE64_CHR, VALUE64_PTR),
             "CHR->PTR must NOT be convertable"
+        );
+    }
+
+    /* ========================================================================
+     * BOOL → другие типы
+     * ======================================================================== */
+
+    /* 1. BOOL -> INT (разрешено всегда) */
+    test_sub("subtest %d: BOOL -> INT (always allowed)", ++subnum);
+    {
+        value64 v = value64_createbool(true);
+        test_validate(
+            value64_is_convertable(v, VALUE64_BOOL, VALUE64_INT),
+            "BOOL->INT must be convertable"
+        );
+    }
+
+    /* 2. BOOL -> LNG (разрешено всегда) */
+    test_sub("subtest %d: BOOL -> LNG (always allowed)", ++subnum);
+    {
+        value64 v = value64_createbool(false);
+        test_validate(
+            value64_is_convertable(v, VALUE64_BOOL, VALUE64_LNG),
+            "BOOL->LNG must be convertable"
+        );
+    }
+
+    /* 3. BOOL -> DBL (ЗАПРЕЩЕНО) */
+    test_sub("subtest %d: BOOL -> DBL (forbidden)", ++subnum);
+    {
+        value64 v = value64_createbool(true);
+        test_validate(
+            !value64_is_convertable(v, VALUE64_BOOL, VALUE64_DBL),
+            "BOOL->DBL must NOT be convertable"
+        );
+    }
+
+    /* 3. BOOL -> PTR (ЗАПРЕЩЕНО) */
+    test_sub("subtest %d: BOOL -> PTR (forbidden)", ++subnum);
+    {
+        value64 v = value64_createbool(true);
+        test_validate(
+            !value64_is_convertable(v, VALUE64_BOOL, VALUE64_PTR),
+            "BOOL->PTR must NOT be convertable"
+        );
+    }
+
+    /* 4. BOOL -> FS (разрешено) */
+    test_sub("subtest %d: BOOL -> FS (allowed)", ++subnum);
+    {
+        value64 v = value64_createbool(false);
+        test_validate(
+            value64_is_convertable(v, VALUE64_BOOL, VALUE64_FS),
+            "BOOL->FS must be convertable"
+        );
+    }
+
+    /* 5. BOOL -> STR (разрешено) */
+    test_sub("subtest %d: BOOL -> STR (allowed)", ++subnum);
+    {
+        value64 v = value64_createbool(true);
+        test_validate(
+            value64_is_convertable(v, VALUE64_BOOL, VALUE64_STR),
+            "BOOL->STR must be convertable"
+        );
+    }
+
+    /* 6. BOOL -> CHR (запрещено) */
+    test_sub("subtest %d: BOOL -> CHR (allowed)", ++subnum);
+    {
+        value64 v = value64_createbool(true);
+        test_validate(
+            value64_is_convertable(v, VALUE64_BOOL, VALUE64_CHR),
+            "BOOL->CHR must  be convertable"
         );
     }
 
@@ -4061,6 +4260,25 @@ tf_is_convertable(const char *name)
         );
     }
 
+    /* 9. DBL → BOOL (ЗАПРЕЩЕНО) */
+    test_sub("subtest %d: DBL(0.0) -> BOOL (forbidden)", ++subnum);
+    {
+        value64 v = value64_createdbl(0.0);
+        test_validate(
+            !value64_is_convertable(v, VALUE64_DBL, VALUE64_BOOL),
+            "DBL->BOOL must NOT be convertable"
+        );
+    }
+
+    test_sub("subtest %d: DBL(3.14) -> BOOL (forbidden)", ++subnum);
+    {
+        value64 v = value64_createdbl(3.14);
+        test_validate(
+            !value64_is_convertable(v, VALUE64_DBL, VALUE64_BOOL),
+            "DBL(3.14)->BOOL must NOT be convertable"
+        );
+    }
+
     /* 18. DBL -> FS */
     test_sub("subtest %d: DBL->FS (allowed)", ++subnum);
     {
@@ -4112,6 +4330,43 @@ tf_is_convertable(const char *name)
     }
     fs_alloc_check(true);
 
+    /* 11. FS → BOOL (аналогично строкам) */
+    test_sub("subtest %d: FS 'on' -> BOOL (allowed)", ++subnum);
+    {
+        value64 v = value64_createfs_asstr("on");
+        test_validatefree(
+            value64_is_convertable(v, VALUE64_FS, VALUE64_BOOL),
+            value64_freefs(&v),
+            "FS 'on' -> BOOL must be convertable"
+        );
+        value64_freefs(&v);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: FS 'OFF' -> BOOL (case insensitive, allowed)", ++subnum);
+    {
+        value64 v = value64_createfs_asstr("OFF");
+        test_validatefree(
+            value64_is_convertable(v, VALUE64_FS, VALUE64_BOOL),
+            value64_freefs(&v),
+            "FS 'OFF' -> BOOL must be convertable"
+        );
+        value64_freefs(&v);
+        fs_alloc_check(true);
+    }
+
+    /*test_sub("subtest %d: FS 'unknown' -> BOOL (forbidden)", ++subnum);
+    {
+        value64 v = value64_createfs_asstr("unknown");
+        test_validatefree(
+            !value64_is_convertable(v, VALUE64_FS, VALUE64_BOOL),
+            value64_freefs(&v),
+            "FS 'unknown' -> BOOL must NOT be convertable"
+        );
+        value64_freefs(&v);
+        fs_alloc_check(true);
+    }*/
+
     /* 11. STR -> DBL: не должно падать */
     test_sub("subtest %d: STR->DBL (must not crash)", ++subnum);
     {
@@ -4136,6 +4391,62 @@ tf_is_convertable(const char *name)
         );
         value64_freestr(&v);
     }
+
+    /* 10. STR → BOOL (разрешено для валидных строк) */
+    test_sub("subtest %d: STR 'true' -> BOOL (allowed)", ++subnum);
+    {
+        value64 v = value64_createstr("true");
+        test_validatefree(
+            value64_is_convertable(v, VALUE64_STR, VALUE64_BOOL),
+            value64_freestr(&v),
+            "STR 'true' -> BOOL must be convertable"
+        );
+        value64_freestr(&v);
+    }
+
+    test_sub("subtest %d: STR 'false' -> BOOL (allowed)", ++subnum);
+    {
+        value64 v = value64_createstr("false");
+        test_validatefree(
+            value64_is_convertable(v, VALUE64_STR, VALUE64_BOOL),
+            value64_freestr(&v),
+            "STR 'false' -> BOOL must be convertable"
+        );
+        value64_freestr(&v);
+    }
+
+    test_sub("subtest %d: STR 'yes' -> BOOL (allowed)", ++subnum);
+    {
+        value64 v = value64_createstr("yes");
+        test_validatefree(
+            value64_is_convertable(v, VALUE64_STR, VALUE64_BOOL),
+            value64_freestr(&v),
+            "STR 'yes' -> BOOL must be convertable"
+        );
+        value64_freestr(&v);
+    }
+
+    test_sub("subtest %d: STR 'no' -> BOOL (allowed)", ++subnum);
+    {
+        value64 v = value64_createstr("no");
+        test_validatefree(
+            value64_is_convertable(v, VALUE64_STR, VALUE64_BOOL),
+            value64_freestr(&v),
+            "STR 'no' -> BOOL must be convertable"
+        );
+        value64_freestr(&v);
+    }
+
+    /*test_sub("subtest %d: STR 'invalid' -> BOOL (forbidden)", ++subnum);
+    {
+        value64 v = value64_createstr("invalid");
+        test_validatefree(
+            !value64_is_convertable(v, VALUE64_STR, VALUE64_BOOL),
+            value64_freestr(&v),
+            "STR 'invalid' -> BOOL must NOT be convertable"
+        );
+        value64_freestr(&v);
+    } */
 
     return logret(TEST_PASSED, "done");
 }
