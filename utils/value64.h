@@ -876,6 +876,8 @@ static inline value64_Comparator  value64_getRevComparator(value64_type typ){
             return value64_int_rev_comp;
         case VALUE64_LNG:
             return value64_long_rev_comp;
+        case VALUE64_CHR:
+            return value64_char_rev_comp;
         case VALUE64_BOOL:
             return value64_bool_rev_comp;
         case VALUE64_DBL:

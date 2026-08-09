@@ -2285,6 +2285,31 @@ tf_init_free(const char *name)
         // также можно проверить через value64_typename
     }
 
+    /* 1. Создание true и проверка */
+    test_sub("subtest %d: create and read true", ++subnum);
+    {
+        value64 v = value64_createbool(true);
+        test_validate(value64_bool(v) == true,
+                      "Created bool must be true, got %s", value64_bool(v) ? "true" : "false");
+    }
+
+    /* 2. Создание false и проверка */
+    test_sub("subtest %d: create and read false", ++subnum);
+    {
+        value64 v = value64_createbool(false);
+        test_validate(value64_bool(v) == false,
+                      "Created bool must be false, got %s", value64_bool(v) ? "true" : "false");
+    }
+
+    /* 3. Проверка типа */
+    test_sub("subtest %d: type identification", ++subnum);
+    {
+        value64 v = value64_createbool(true);
+        (void) v;
+        test_validate(value64_gettype(value64_typename(VALUE64_BOOL)) == VALUE64_BOOL,
+                      "Type must be VALUE64_BOOL");
+    }
+
     return logret(TEST_PASSED, "done");
 }
 
@@ -2328,6 +2353,13 @@ tf_point_init(const char *name)
         char cval = 'X';
         value64 v = value64_pinit(&cval, VALUE64_CHR);
         test_validate(v.cval == 'X', "Copy char: got '%c', expected 'X'", v.cval);
+    }
+    /* 4. copy bool */
+    test_sub("subtest %d: pinit bool", ++subnum);
+    {
+        char    bval = true;
+        value64 v = value64_pinit(&bval, VALUE64_BOOL);
+        test_validate(v.bval == true, "Copy bool: got '%s', expected 'true'", bool_str(v.bval) );
     }
 
     /* 4. copy pointer */
@@ -2417,6 +2449,14 @@ tf_point_init(const char *name)
         value64 v = value64_pmove(&cval, VALUE64_CHR);
         test_validate(v.cval == 'A' && cval == '\0',
                       "Move CHAR: v='%c', cval='%c' (expected 'A', '\\0')", v.cval, cval);
+    }
+    /* ---------- BOOL ---------- */
+    test_sub("subtest %d: move BOOL", ++subnum);
+    {
+        bool    bval = true;
+        value64 v = value64_pmove(&bval, VALUE64_BOOL);
+        test_validate(v.bval == true && bval == false,
+                      "Move BOOL: v='%s', bval='%s' (expected 'true', 'false')", bool_str(v.bval), bool_str(bval) );
     }
 
     /* 11. move C-string (забирает владение) */
