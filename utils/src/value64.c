@@ -6268,6 +6268,16 @@ tf_setzero(const char *name)
         );
     }
 
+    test_sub("subtest %d: setzero CHAR", ++subnum);
+    {
+        value64 v = LITERAL64_CHR('a');
+        value64_setzero(&v, VALUE64_CHR);
+        test_validate(
+            v.cval == '\0',
+            "CHAR should be 0 after setzero"
+        );
+    }
+
     test_sub("subtest %d: setzero DBL", ++subnum);
     {
         value64 v = LITERAL64_DBL(3.14159);
@@ -6346,6 +6356,17 @@ tf_value64_move(const char *name)
         test_validate(
             dst.lval == 999888777L && src.lval == 0L,
             "Move LNG: dst=%ld, src=%ld (expected 999888777, 0)", dst.lval, src.lval
+        );
+    }
+
+    /* ---------- CHAR ---------- */
+    test_sub("subtest %d: move CHAR", ++subnum);
+    {
+        value64 src = LITERAL64_CHR('r');
+        value64 dst = value64_move(&src, VALUE64_CHR);
+        test_validate(
+            dst.cval == 'r' && src.cval == 0,
+            "Move CHAR: dst=%d, src=%d (expected 'r', 0)", dst.ival, src.ival
         );
     }
 
@@ -6436,29 +6457,34 @@ tf_techfprint(const char *name)
 
     test_sub("subtest %d:  INT", ++subnum);
     {
-        value64 v = LITERAL64_INT(5);
-        VALUE64_TECHFPRINT(stdout, v, VALUE64_INT);
+        value64 vint = LITERAL64_INT(5);
+        VALUE64_TECHFPRINT(logfile, vint, VALUE64_INT);
     }
     test_sub("subtest %d:  LONG", ++subnum);
     {
-        value64 v = LITERAL64_INT(5);
-        VALUE64_TECHFPRINT(stdout, v, VALUE64_LNG);
+        value64 vlong = LITERAL64_INT(5000L);
+        VALUE64_TECHFPRINT(logfile, vlong, VALUE64_LNG);
+    }
+    test_sub("subtest %d:  CHAR", ++subnum);
+    {
+        value64 vchar = LITERAL64_CHR('q');
+        VALUE64_TECHFPRINT(logfile, vchar, VALUE64_CHR);
     }
     test_sub("subtest %d:  DOUBLE", ++subnum);
     {
-        value64 v = LITERAL64_DBL(8.9);
-        VALUE64_TECHFPRINT(stdout, v, VALUE64_DBL);
+        value64 vdouble = LITERAL64_DBL(8.9);
+        VALUE64_TECHFPRINT(logfile, vdouble, VALUE64_DBL);
     }
     test_sub("subtest %d:  STR", ++subnum);
     {
-        value64 v = LITERAL64_STR("bla bla");
-        VALUE64_TECHFPRINT(stdout, v, VALUE64_STR);
+        value64 vstr = LITERAL64_STR("bla bla");
+        VALUE64_TECHFPRINT(logfile, vstr, VALUE64_STR);
     }
     test_sub("subtest %d:  FS", ++subnum);
     {
-        value64 v = value64_createfs_asstr("qwertyui1");
-        VALUE64_TECHFPRINT(stdout, v, VALUE64_FS);
-        value64_free(&v, VALUE64_FS);
+        value64 vfs = value64_createfs_asstr("qwertyui1");
+        VALUE64_TECHFPRINT(logfile, vfs, VALUE64_FS);
+        value64_free(&vfs, VALUE64_FS);
     }
     fs_alloc_check(true);
     return logret(TEST_MANUAL, "done");
@@ -6477,10 +6503,7 @@ tf_str_serialization(const char *name)
         value64 orig = LITERAL64_INT(42);
         fs buf = FS();
         value64_tostr(&buf, orig, VALUE64_INT, true);
-        fstechprint(buf);
-
-        VALUE64_TECHPRINT(orig, VALUE64_INT);
-
+        //VALUE64_TECHPRINT(orig, VALUE64_INT);
         value64 loaded;
         test_validatefree(
             value64_loadstr(fs_str(&buf), &loaded, VALUE64_UNKNOWN, true, NULL) &&
@@ -6504,6 +6527,23 @@ tf_str_serialization(const char *name)
             value64_equal(orig, loaded, VALUE64_LNG),
             fsfree(buf),
             "LONG str round-trip failed"
+        );
+        fsfree(buf);
+    }
+
+    /* ========== CHAR ========== */
+    test_sub("subtest %d: CHAR save/load to string", ++subnum);
+    {
+        value64 orig = LITERAL64_CHR('a');
+        fs buf = FS();
+        value64_tostr(&buf, orig, VALUE64_CHR, true);
+        //VALUE64_TECHPRINT(orig, VALUE64_INT);
+        value64 loaded;
+        test_validatefree(
+            value64_loadstr(fs_str(&buf), &loaded, VALUE64_UNKNOWN, true, NULL) &&
+            value64_equal(orig, loaded, VALUE64_CHR),
+            fsfree(buf),
+            "CHAR str round-trip failed (string='%s')", fs_str(&buf)
         );
         fsfree(buf);
     }

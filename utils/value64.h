@@ -80,6 +80,14 @@ static inline const char            *value64_typename(value64_type t) {
         return userraise(NULL, ERR_UNSUPPORTED_TYPE, "Type %d not supported", t);
     return info->name;
 }
+
+static inline const char            *value64_typedesc(value64_type t) {
+    const value64_typeinfo* info = value64_info_get(t);
+    if (!info)
+        return userraise(NULL, ERR_UNSUPPORTED_TYPE, "Type %d not supported", t);
+    return info->type_desc;
+}
+
 extern  value64_type                 value64_gettype(const char *str);
 // only zero for now
 
