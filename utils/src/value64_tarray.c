@@ -577,8 +577,8 @@ tf_tstatic_array(const char *name)
         value64_static_tarray st = V64TYP_LONGLIST(100L, 200L);
         test_validate(
             st.base.cnt == 2 && st.base.sz == -1 &&
-            st.base.v[0].val.lval == 100L && st.base.v[0].typ == VALUE64_LNG &&
-            st.base.v[1].val.lval == 200L && st.base.v[1].typ == VALUE64_LNG,
+            st.base.v[0].val.lval == 100L && st.base.v[0].typ == VALUE64_LONG &&
+            st.base.v[1].val.lval == 200L && st.base.v[1].typ == VALUE64_LONG,
             "LONG2: cnt=%d, vals=%ld,%ld", st.base.cnt,
             st.base.v[0].val.lval, st.base.v[1].val.lval
         );

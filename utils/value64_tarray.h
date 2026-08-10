@@ -138,7 +138,7 @@ int                                    value64_typed_techfprint(FILE *out, value
                            }
 
 #define V64TYP_INT(val)    (value64_typed){ .val = LITERAL64_INT(val), .typ = VALUE64_INT }
-#define V64TYP_LONG(val)   (value64_typed){ .val = LITERAL64_LONG(val), .typ = VALUE64_LNG }
+#define V64TYP_LONG(val)   (value64_typed){ .val = LITERAL64_LONG(val), .typ = VALUE64_LONG }
 #define V64TYP_DBL(val)    (value64_typed){ .val = LITERAL64_DBL(val), .typ = VALUE64_DBL }
 #define V64TYP_PTR(val)    (value64_typed){ .val = LITERAL64_PTR(val), .typ = VALUE64_PTR }
 #define V64TYP_STR(val)    (value64_typed){ .val = LITERAL64_STR(val), .typ = VALUE64_STR }  // для литералов
@@ -182,25 +182,25 @@ int                                    value64_typed_techfprint(FILE *out, value
 
 #define _V64TYP_LONGLIST1(v1) \
     (value64_static_tarray){ .base = { \
-        .v = (value64_typed[]){ (value64_typed){ .val = LITERAL64_LONG(v1), .typ = VALUE64_LNG } }, \
+        .v = (value64_typed[]){ (value64_typed){ .val = LITERAL64_LONG(v1), .typ = VALUE64_LONG } }, \
         .cnt = 1, .sz = -1 } }
 #define _V64TYP_LONGLIST2(v1, v2) \
     (value64_static_tarray){ .base = { \
-        .v = (value64_typed[]){ (value64_typed){ .val = LITERAL64_LONG(v1), .typ = VALUE64_LNG }, \
-                                (value64_typed){ .val = LITERAL64_LONG(v2), .typ = VALUE64_LNG } }, \
+        .v = (value64_typed[]){ (value64_typed){ .val = LITERAL64_LONG(v1), .typ = VALUE64_LONG }, \
+                                (value64_typed){ .val = LITERAL64_LONG(v2), .typ = VALUE64_LONG } }, \
         .cnt = 2, .sz = -1 } }
 #define _V64TYP_LONGLIST3(v1, v2, v3) \
     (value64_static_tarray){ .base = { \
-        .v = (value64_typed[]){ (value64_typed){ .val = LITERAL64_LONG(v1), .typ = VALUE64_LNG }, \
-                                (value64_typed){ .val = LITERAL64_LONG(v2), .typ = VALUE64_LNG }, \
-                                (value64_typed){ .val = LITERAL64_LONG(v3), .typ = VALUE64_LNG } }, \
+        .v = (value64_typed[]){ (value64_typed){ .val = LITERAL64_LONG(v1), .typ = VALUE64_LONG }, \
+                                (value64_typed){ .val = LITERAL64_LONG(v2), .typ = VALUE64_LONG }, \
+                                (value64_typed){ .val = LITERAL64_LONG(v3), .typ = VALUE64_LONG } }, \
         .cnt = 3, .sz = -1 } }
 #define _V64TYP_LONGLIST4(v1, v2, v3, v4) \
     (value64_static_tarray){ .base = { \
-        .v = (value64_typed[]){ (value64_typed){ .val = LITERAL64_LONG(v1), .typ = VALUE64_LNG }, \
-                                (value64_typed){ .val = LITERAL64_LONG(v2), .typ = VALUE64_LNG }, \
-                                (value64_typed){ .val = LITERAL64_LONG(v3), .typ = VALUE64_LNG }, \
-                                (value64_typed){ .val = LITERAL64_LONG(v4), .typ = VALUE64_LNG } }, \
+        .v = (value64_typed[]){ (value64_typed){ .val = LITERAL64_LONG(v1), .typ = VALUE64_LONG }, \
+                                (value64_typed){ .val = LITERAL64_LONG(v2), .typ = VALUE64_LONG }, \
+                                (value64_typed){ .val = LITERAL64_LONG(v3), .typ = VALUE64_LONG }, \
+                                (value64_typed){ .val = LITERAL64_LONG(v4), .typ = VALUE64_LONG } }, \
         .cnt = 4, .sz = -1 } }
 
 // ==================== DBL ====================
@@ -349,7 +349,7 @@ static inline value64_typed     value64_typedint(int x) {
     return (value64_typed){ .val = LITERAL64_INT(x), .typ = VALUE64_INT };
 }
 static inline value64_typed     value64_typedlong(long x) {
-    return (value64_typed){ .val = LITERAL64_LONG(x), .typ = VALUE64_LNG };
+    return (value64_typed){ .val = LITERAL64_LONG(x), .typ = VALUE64_LONG };
 }
 static inline value64_typed     value64_typeddbl(double x) {
     return (value64_typed){ .val = LITERAL64_DBL(x), .typ = VALUE64_DBL };
