@@ -47,13 +47,25 @@ static inline bool                  is_long_int_range(long v) {
  * @brief Checks if a long fits within the unsigned char range.
  */
 static inline bool                  is_long_char_range(long v) {
-    return v >= 0 && v <= (long) UCHAR_MAX;
+    return v >= 0L && v <= (long) UCHAR_MAX;
+}
+/**
+ * @brief Checks if a long integer fits within the standard unsigned long range.
+ */
+static inline bool                  is_long_ulong_range(long v) {
+    return v >= 0L;
 }
 /**
  * @brief Checks if a unsigned long integer fits within the standard int range.
  */
 static inline bool                  is_ulong_int_range(unsigned long v) {
     return v >= 0L && v <= INT_MAX;
+}
+/**
+ * @brief Checks if a unsigned long integer fits within the standard  long range.
+ */
+static inline bool                  is_ulong_long_range(unsigned long v) {
+    return v <= LONG_MAX;
 }
 /**
  * @brief Checks if a unsigned long fits within the unsigned char range.
@@ -516,6 +528,9 @@ int                         value64_int_comp(value64 v1, value64 v2) {
 int                         value64_long_comp(value64 v1, value64 v2) {
     return compare_long(v1.lval, v2.lval);
 }
+int                         value64_ulong_comp(value64 v1, value64 v2) {
+    return compare_ulong(v1.lval, v2.lval);
+}
 int                         value64_dbl_comp(value64 v1, value64 v2) {
     return compare_dbl(v1.dval, v2.dval);
 }
@@ -549,6 +564,9 @@ int                         value64_int_rev_comp(value64 v1, value64 v2) {
 }
 int                         value64_long_rev_comp(value64 v1, value64 v2) {
     return -compare_long(v1.lval, v2.lval);
+}
+int                         value64_ulong_rev_comp(value64 v1, value64 v2) {
+    return -compare_ulong(v1.lval, v2.lval);
 }
 int                         value64_dbl_rev_comp(value64 v1, value64 v2) {
     return -compare_dbl(v1.dval, v2.dval);
@@ -717,6 +735,11 @@ int                         value64_plong_comp(const void *restrict v1, const vo
     const value64 *val2 = (const value64 *) v2;
     return compare_long(val1->lval, val2->lval);
 }
+int                         value64_pulong_comp(const void *restrict v1, const void *restrict v2){
+    const value64 *val1 = (const value64 *) v1;
+    const value64 *val2 = (const value64 *) v2;
+    return compare_ulong(val1->lval, val2->lval);
+}
 int                         value64_pdbl_comp(const void *restrict v1, const void *restrict v2){
     const value64 *val1 = (const value64 *) v1;
     const value64 *val2 = (const value64 *) v2;
@@ -770,6 +793,11 @@ int                         value64_plong_rev_comp(const void *restrict v1, cons
     const value64 *val1 = (const value64 *) v1;
     const value64 *val2 = (const value64 *) v2;
     return -compare_long(val1->lval, val2->lval);
+}
+int                         value64_pulong_rev_comp(const void *restrict v1, const void *restrict v2){
+    const value64 *val1 = (const value64 *) v1;
+    const value64 *val2 = (const value64 *) v2;
+    return -compare_ulong(val1->lval, val2->lval);
 }
 int                         value64_pdbl_rev_comp(const void *restrict v1, const void *restrict v2){
     const value64 *val1 = (const value64 *) v1;
@@ -885,12 +913,19 @@ value64                     value64_convert(value64 v, value64_type from, value6
 // --- Группа INT ---
 /** @name Integer to [Type] Conversions */
 /** @{ */
+/** @brief Identity conversion (int to int). */
+value64                     value64_convert_int_to_int(value64 v) {
+    return value64_createint(value64_int(v));
+}
 /** @brief Converts int to long. */
 value64                     value64_convert_int_to_lng(value64 v) {
     return  value64_createlong((long) value64_int(v) );
 }
+/** @brief Converts int to unsigned long. */
+value64                     value64_convert_int_to_ulong(value64 v) {
+    return  value64_createulong((long) value64_int(v) );
+}
 /** @brief Converts int to double. */
-
 value64                     value64_convert_int_to_dbl(value64 v) {
     return  value64_createdbl((double) value64_int(v) );
 }
@@ -917,20 +952,36 @@ value64                     value64_convert_int_to_char(value64 v) {
 value64                     value64_convert_int_to_bool(value64 v) {
     return  value64_createbool(value64_bool(v) );
 }
-/** @brief Identity conversion (int to int). */
-value64                     value64_convert_int_to_int(value64 v) {
-    return value64_createint(value64_int(v));
-}
 /** @} */
 
-// --- Группа LNG ---
+// --- Группа LONG ---
 /** @name Long to [Type] Conversions */
 /** @{ */
 /** @brief Converts long to int (checks range). */
 value64                     value64_convert_lng_to_int(value64 v) {
     if (!is_long_int_range(value64_long(v)) )
         userraiseint(ERR_OUT_OF_RANGE, "Long->int overflow");
-    return value64_createint( (int) value64_long(v) );
+    return value64_createint( value64_long(v) );
+}
+/** @brief Identity conversion (long to long). */
+value64                     value64_convert_lng_to_lng(value64 v) {
+    return value64_createlong(value64_long(v));
+}
+/** @brief Identity conversion (long to unsigned long). */
+value64                     value64_convert_lng_to_ulong(value64 v) {
+    if (!is_long_ulong_range(value64_long(v)) )
+        userraiseint(ERR_OUT_OF_RANGE, "Long->Ulong overflow");
+    return value64_createulong(value64_long(v));
+}
+/** @brief Converts long to char (checks range). */
+value64                     value64_convert_lng_to_char(value64 v) {
+    if (!is_long_char_range(value64_int(v)) )
+        userraiseint(ERR_OUT_OF_RANGE, "long->char overflow");
+    return  value64_createchar(value64_int(v) );
+}
+/** @brief Converts int to bool */
+value64                     value64_convert_lng_to_bool(value64 v) {
+    return  value64_createbool(value64_long(v) );
 }
 /** @brief Converts long to double. */
 value64                     value64_convert_lng_to_dbl(value64 v) {
@@ -949,20 +1000,49 @@ value64                     value64_convert_lng_to_str(value64 v) {
     snprintf(buf, sizeof(buf) - 1, "%ld", value64_long(v) );
     return value64_createstr(buf);
 }
-/** @brief Converts long to char (checks range). */
-value64                     value64_convert_lng_to_char(value64 v) {
-    if (!is_long_char_range(value64_int(v)) )
-        userraiseint(ERR_OUT_OF_RANGE, "long->char overflow");
-    return  value64_createchar(value64_int(v) );
+/** @} */
+
+// --- Группа ULONG ---
+/** @name Long to [Type] Conversions */
+/** @{ */
+/** @brief Converts long to int (checks range). */
+
+value64                     value64_convert_ulong_to_int(value64 v) {
+    if (!is_ulong_int_range(value64_long(v)) )
+        userraiseint(ERR_OUT_OF_RANGE, "ULong->int overflow");
+    return value64_createint( value64_ulong(v) );
 }
-/** @brief Converts int to bool */
-value64                     value64_convert_lng_to_bool(value64 v) {
-    return  value64_createbool(value64_long(v) );
+value64                     value64_convert_ulong_to_lng(value64 v) {
+    if (!is_ulong_long_range(value64_long(v)) )
+        userraiseint(ERR_OUT_OF_RANGE, "ULong->long overflow");
+    return value64_createlong( value64_ulong(v) );
 }
-/** @brief Identity conversion (long to long). */
-value64                     value64_convert_lng_to_lng(value64 v) {
-    return value64_createlong(value64_long(v));
+value64                     value64_convert_ulong_to_ulong(value64 v) {
+    return value64_createulong( value64_ulong(v) );
 }
+value64                     value64_convert_ulong_to_dbl(value64 v) {
+    return value64_createdbl( value64_ulong(v) );
+}
+value64                     value64_convert_ulong_to_char(value64 v) {
+    if (!is_ulong_char_range(value64_long(v)) )
+        userraiseint(ERR_OUT_OF_RANGE, "ULong->char overflow");
+    return value64_createchar( value64_ulong(v) );
+}
+value64                     value64_convert_ulong_to_bool(value64 v) {
+    return value64_createbool(value64_ulong(v) );
+}
+value64                     value64_convert_ulong_to_fs(value64 v) {
+    value64     result = LITERAL64_ZERO;
+    fs          tmp = fscopyf("%lu", value64_ulong(v) );
+    result.fsval = fs_moveto_heap(&tmp);
+    return result;
+}
+value64                     value64_convert_ulong_to_str(value64 v) {
+    char        buf[100];
+    snprintf(buf, sizeof(buf) - 1, "%ld", value64_long(v) );
+    return value64_createstr(buf);
+}
+
 /** @} */
 
 // --- Группа DBL ---
@@ -979,6 +1059,12 @@ value64                     value64_convert_dbl_to_lng(value64 v) {
     if (!is_dbl_long_range(value64_dbl(v)))
         userraiseint(ERR_OUT_OF_RANGE, "Dbl->long overflow");
     return value64_createlong((long) value64_dbl(v) );
+}
+/** @brief Converts double to long (checks range). */
+value64                     value64_convert_dbl_to_ulong(value64 v) {
+    if (!is_dbl_ulong_range(value64_dbl(v)))
+        userraiseint(ERR_OUT_OF_RANGE, "Dbl->ulong overflow");
+    return value64_createulong((long) value64_dbl(v) );
 }
 /** @brief Converts double to fs */
 value64                     value64_convert_dbl_to_fs(value64 v) {
@@ -1011,6 +1097,11 @@ value64                     value64_convert_fs_to_int(value64 v) {
 value64                     value64_convert_fs_to_lng(value64 v) {
     fs          *fsval = value64_fs(v);
     return value64_createlong(fs_getlong(fsval) );
+}
+/** @brief Converts FS object to unsigned long. */
+value64                     value64_convert_fs_to_ulong(value64 v) {
+    fs          *fsval = value64_fs(v);
+    return value64_createulong(fs_getulong(fsval) );
 }
 /** @brief Converts FS object to double. */
 value64                     value64_convert_fs_to_dbl(value64 v) {
@@ -1061,6 +1152,13 @@ value64                     value64_convert_str_to_lng(value64 v) {
         userraiseint(ERR_INVALID_CONVERSION, "str->long fail");
     return result;
 }
+value64                     value64_convert_str_to_ulong(value64 v) {
+    char        *sval = value64_str(v);
+    value64     result = LITERAL64_ZERO;
+    if (!try_parse_ulong(sval, &result.ulval))
+        userraiseint(ERR_INVALID_CONVERSION, "str->ulong fail");
+    return result;
+}
 /** @brief Parses string to double (may raise ERR_INVALID_CONVERSION). */
 value64                     value64_convert_str_to_dbl(value64 v) {
     char        *sval = value64_str(v);
@@ -1109,6 +1207,10 @@ value64                     value64_convert_char_to_int(value64 v) {
 value64                     value64_convert_char_to_lng(value64 v) {
     return value64_createlong((long)value64_char(v));
 }
+/** @brief Converts char to unsigned long. */
+value64                     value64_convert_char_to_ulong(value64 v) {
+    return value64_createulong( (unsigned long) value64_char(v));
+}
 /** @brief Converts char to FS object. */
 value64                     value64_convert_char_to_fs(value64 v) {
     fs      tmp = fscopyf("%c", value64_char(v));
@@ -1135,11 +1237,15 @@ value64                     value64_convert_char_to_bool(value64 v) {
 /** @{ */
 /** @brief Converts char to int. */
 value64                     value64_convert_bool_to_int(value64 v) {
-    return value64_createint( (int)value64_bool(v));
+    return value64_createint( (int) value64_bool(v));
 }
 /** @brief Converts char to long. */
 value64                     value64_convert_bool_to_lng(value64 v) {
-    return value64_createlong((long)value64_bool(v));
+    return value64_createlong((long) value64_bool(v));
+}
+/** @brief Converts char to unsigned long. */
+value64                     value64_convert_bool_to_ulong(value64 v) {
+    return value64_createulong((unsigned long) value64_bool(v));
 }
 /** @brief Converts char to FS object. */
 value64                     value64_convert_bool_to_fs(value64 v) {
@@ -1334,6 +1440,10 @@ int                         value64_fprint_int(FILE *restrict out, value64 val) 
 int                         value64_fprint_long(FILE *restrict out, value64 val) {
     return fprintf(out, "\"%ld\"", value64_long(val) );
 }
+/** @brief Prints a unsigned long integer value wrapped in quotes. */
+int                         value64_fprint_ulong(FILE *restrict out, value64 val) {
+    return fprintf(out, "\"%lu\"", value64_ulong(val) );
+}
 /** @brief Prints a double value wrapped in quotes using precision settings. */
 int                         value64_fprint_dbl(FILE *restrict out, value64 val) {
     return fprintf(out, "\"%.*g\"", DBL_DECIMAL_DIG, value64_dbl(val) );
@@ -1394,6 +1504,10 @@ int                         value64_fprint_msg(FILE *restrict out, const char *r
                 IOCHECKER(w, value64_fprint_long(out, val), -1)
                     cnt += w;
                 break;
+            case VALUE64_ULONG:
+                IOCHECKER(w, value64_fprint_ulong(out, val), -1)
+                    cnt += w;
+                break;
             case VALUE64_DBL:
                 IOCHECKER(w, value64_fprint_dbl(out, val), -1)
                     cnt += w;
@@ -1432,6 +1546,7 @@ int                         value64_fprint_msg(FILE *restrict out, const char *r
  * @param out stream, opened for write
  * @param val the value64
  * @param typ type of value64
+ * @note TO BE FERACTORED TO USE STANDARD SERIALIZATION
  */
 int                        value64_techfprint(FILE *restrict out, value64 val, value64_type typ, const char *restrict name) {
     int     cnt = 0;
@@ -1445,6 +1560,9 @@ int                        value64_techfprint(FILE *restrict out, value64 val, v
             break;
             case VALUE64_LONG:
                 IOCHECKER(w, value64_fprint_long(out, val), -1)
+                    cnt += w;
+            case VALUE64_ULONG:
+                IOCHECKER(w, value64_fprint_ulong(out, val), -1)
                     cnt += w;
             break;
             case VALUE64_DBL:
@@ -1599,6 +1717,27 @@ bool                            value64_sreadval_lng( value64 *restrict pval, fs
     return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );
 }
 /**
+ * @brief Parses a unsigned long integer from the buffer.
+ * 
+ * If parsing succeeds and `pval` is not NULL, the result is stored in `*pval`.
+ * 
+ * @param pval Pointer to store the parsed long value.
+ * @param buf  The source buffer.
+ * @return true if parsing was successful, false if the string is not a valid unsigned long.
+ */
+bool                            value64_sreadval_ulong( value64 *restrict pval, fs *restrict buf){
+    invraisecode(buf != NULL, ERR_NULLABLE_PTR,
+        "Null pointers %p", buf);
+
+    unsigned long    lval;
+    if (!try_parse_ulong(fs_str(buf), &lval))
+        return logsimpleerr(false, "Invalid long string: '%.30s'", fs_str(buf) );
+    value64 v = value64_createulong(lval);
+    if (pval)
+        *pval = v;
+    return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );
+}
+/**
  * @brief Parses a double from the buffer.
  * 
  * If parsing succeeds and `pval` is not NULL, the result is stored in `*pval`.
@@ -1715,6 +1854,8 @@ bool                            value64_dsreadval(Ds *restrict ds, value64_type 
             return value64_sreadval_int(val, buf);
         case VALUE64_LONG:
             return value64_sreadval_lng(val, buf);
+        case VALUE64_ULONG:
+            return value64_sreadval_ulong(val, buf);
         case VALUE64_DBL:
             return value64_sreadval_dbl(val, buf);
         case VALUE64_CHR:
@@ -1879,6 +2020,15 @@ int                         value64_tostr_long(fs *target, value64 val) {
     return fs_sprintf_concat(target, "\"%ld\"", value64_long(val) );
 }
 /**
+ * @brief Converts a unsgined long integer to a quoted string.
+ * @param target The target `fs` buffer.
+ * @param val    The source value64 containing a unsigned long.
+ * @return The number of bytes written.
+ */
+int                         value64_tostr_ulong(fs *target, value64 val) {
+    return fs_sprintf_concat(target, "\"%lu\"", value64_long(val) );
+}
+/**
  * @brief Converts a double to a quoted string with precision handling.
  * @param target The target `fs` buffer.
  * @param val    The source value64 containing a double.
@@ -1982,6 +2132,10 @@ int                          value64_tostr(fs *target, value64 val, value64_type
             break;
         case VALUE64_LONG:
             IOCHECKER(w, value64_tostr_long(target, val), -1)
+                cnt += w;
+            break;
+        case VALUE64_ULONG:
+            IOCHECKER(w, value64_tostr_ulong(target, val), -1)
                 cnt += w;
             break;
         case VALUE64_DBL:

@@ -969,6 +969,7 @@ extern bool                        value64_is_convertable(value64 v, value64_typ
 
 /** @name Integer Conversions */
 /** @{ */
+extern value64                     value64_convert_int_to_int(value64 v);
 extern value64                     value64_convert_int_to_lng(value64 v);
 extern value64                     value64_convert_int_to_ulong(value64 v);
 extern value64                     value64_convert_int_to_dbl(value64 v);
@@ -976,20 +977,19 @@ extern value64                     value64_convert_int_to_char(value64 v);
 extern value64                     value64_convert_int_to_bool(value64 v);
 extern value64                     value64_convert_int_to_fs(value64 v);
 extern value64                     value64_convert_int_to_str(value64 v);
-extern value64                     value64_convert_int_to_int(value64 v);
 /** @} */
 
 // --- Group LNG ---
 /** @name Long Conversions */
 /** @{ */
 extern value64                     value64_convert_lng_to_int(value64 v);
+extern value64                     value64_convert_lng_to_lng(value64 v);
 extern value64                     value64_convert_lng_to_ulong(value64 v);
 extern value64                     value64_convert_lng_to_dbl(value64 v);
 extern value64                     value64_convert_lng_to_char(value64 v);
 extern value64                     value64_convert_lng_to_bool(value64 v);
 extern value64                     value64_convert_lng_to_fs(value64 v);
 extern value64                     value64_convert_lng_to_str(value64 v);
-extern value64                     value64_convert_lng_to_lng(value64 v);
 /** @} */
 
 // --- Group ULONG ---
@@ -997,12 +997,12 @@ extern value64                     value64_convert_lng_to_lng(value64 v);
 /** @{ */
 extern value64                     value64_convert_ulong_to_int(value64 v);
 extern value64                     value64_convert_ulong_to_lng(value64 v);
+extern value64                     value64_convert_ulong_to_ulong(value64 v);
 extern value64                     value64_convert_ulong_to_dbl(value64 v);
 extern value64                     value64_convert_ulong_to_char(value64 v);
 extern value64                     value64_convert_ulong_to_bool(value64 v);
 extern value64                     value64_convert_ulong_to_fs(value64 v);
 extern value64                     value64_convert_ulong_to_str(value64 v);
-extern value64                     value64_convert_ulong_to_ulong(value64 v);
 /** @} */
 
 // --- Group DBL ---
@@ -1011,9 +1011,9 @@ extern value64                     value64_convert_ulong_to_ulong(value64 v);
 extern value64                     value64_convert_dbl_to_int(value64 v);
 extern value64                     value64_convert_dbl_to_lng(value64 v);
 extern value64                     value64_convert_dbl_to_ulong(value64 v);
+extern value64                     value64_convert_dbl_to_dbl(value64 v);
 extern value64                     value64_convert_dbl_to_fs(value64 v);
 extern value64                     value64_convert_dbl_to_str(value64 v);
-extern value64                     value64_convert_dbl_to_dbl(value64 v);
 //dbl => char NO convert 
 //dbl => bool NO convert 
 
@@ -1025,10 +1025,10 @@ extern value64                     value64_convert_dbl_to_dbl(value64 v);
 extern value64                     value64_convert_char_to_int(value64 v);
 extern value64                     value64_convert_char_to_lng(value64 v);
 extern value64                     value64_convert_char_to_ulong(value64 v);
+extern value64                     value64_convert_char_to_char(value64 v);
 extern value64                     value64_convert_char_to_bool(value64 v);
 extern value64                     value64_convert_char_to_fs(value64 v);
 extern value64                     value64_convert_char_to_str(value64 v);
-extern value64                     value64_convert_char_to_char(value64 v);
 // no convert char to dbl
 /** @} */
 
@@ -1039,9 +1039,9 @@ extern value64                     value64_convert_bool_to_int(value64 v);
 extern value64                     value64_convert_bool_to_lng(value64 v);
 extern value64                     value64_convert_bool_to_ulong(value64 v);
 extern value64                     value64_convert_bool_to_char(value64 v);
+extern value64                     value64_convert_bool_to_bool(value64 v);
 extern value64                     value64_convert_bool_to_fs(value64 v);
 extern value64                     value64_convert_bool_to_str(value64 v);
-extern value64                     value64_convert_bool_to_bool(value64 v);
 /** @} */
 
 /** @name fs Conversions */
@@ -1066,8 +1066,8 @@ extern value64                     value64_convert_str_to_ulong(value64 v);
 extern value64                     value64_convert_str_to_char(value64 v);
 extern value64                     value64_convert_str_to_bool(value64 v);
 extern value64                     value64_convert_str_to_dbl(value64 v);
-extern value64                     value64_convert_str_to_fs(value64 v);
 extern value64                     value64_convert_str_to_str(value64 v);
+extern value64                     value64_convert_str_to_fs(value64 v);
 /** @} */
 /** @} */
 
