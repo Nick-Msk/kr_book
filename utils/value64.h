@@ -937,7 +937,7 @@ static inline value64_Comparator  value64_getRevComparator(value64_type typ){
  */
 
 // check if we've copy transision method
-extern value64_ConverterFunc       value64_is_canconverted(value64_type from, value64_type to);
+extern value64_ConverterFunc       value64_is_copyconverted(value64_type from, value64_type to);
 // check if we've transision MOVE method
 extern value64_ConverterMoveFunc   value64_is_moveconverted(value64_type from, value64_type to); 
 

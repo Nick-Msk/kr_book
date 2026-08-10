@@ -837,7 +837,7 @@ int                         value64_pfs_rev_comp(const void *restrict v1, const 
 // ----------------------------- CONVERTERS ----------------------------------------
 
 // check if we've transision method
-value64_ConverterFunc       value64_is_canconverted(value64_type from, value64_type to) {
+value64_ConverterFunc       value64_is_copyconverted(value64_type from, value64_type to) {
     return conv_matrix[from][to];
 }
 // check if we've transision MOVE method
@@ -863,7 +863,7 @@ value64_ConverterMoveFunc   value64_is_moveconverted(value64_type from, value64_
  * @return true if the conversion is safe (lossless), false otherwise.
  */
 bool                        value64_is_convertable(value64 v, value64_type from, value64_type to) {
-    if (!value64_is_canconverted(from, to))
+    if (!value64_is_copyconverted(from, to))
         return false;
 
     if (from == VALUE64_LONG && to == VALUE64_INT)
@@ -904,8 +904,7 @@ bool                        value64_is_convertable(value64 v, value64_type from,
  *         table for the specified type transition.
  */
 value64                     value64_convert(value64 v, value64_type from, value64_type to) {
-
-    value64_ConverterFunc func = value64_is_canconverted(from, to);
+    value64_ConverterFunc func = value64_is_copyconverted(from, to);
     if (func == NULL)
         userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "%s => %s", value64_typename(from), value64_typename(to));
 
