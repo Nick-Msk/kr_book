@@ -31,69 +31,6 @@ const value64_typeinfo              *value64_info_get(value64_type typ) {
     return &value64_info[typ];
 }
 
-/**
- * @brief Checks if an int fits within the unsigned char range.
- */
-static inline bool                  is_int_char_range(int v) {
-    return v >= 0 && v <= (long) UCHAR_MAX;
-}
-/**
- * @brief Checks if a long integer fits within the standard int range.
- */
-static inline bool                  is_long_int_range(long v) {
-    return v >= INT_MIN && v <= INT_MAX;
-}
-/**
- * @brief Checks if a long fits within the unsigned char range.
- */
-static inline bool                  is_long_char_range(long v) {
-    return v >= 0L && v <= (long) UCHAR_MAX;
-}
-/**
- * @brief Checks if a long integer fits within the standard unsigned long range.
- */
-static inline bool                  is_long_ulong_range(long v) {
-    return v >= 0L;
-}
-/**
- * @brief Checks if a unsigned long integer fits within the standard int range.
- */
-static inline bool                  is_ulong_int_range(unsigned long v) {
-    return v >= 0L && v <= INT_MAX;
-}
-/**
- * @brief Checks if a unsigned long integer fits within the standard  long range.
- */
-static inline bool                  is_ulong_long_range(unsigned long v) {
-    return v <= LONG_MAX;
-}
-/**
- * @brief Checks if a unsigned long fits within the unsigned char range.
- */
-static inline bool                  is_ulong_char_range(unsigned long v) {
-    return v <= (long) UCHAR_MAX;
-}
-/**
- * @brief Checks if a double can be safely represented as an int.
- */
-static inline bool                  is_dbl_int_range(double v) {
-    return v >= (double) INT_MIN && v <= (double) INT_MAX;
-}
-/**
- * @brief Checks if a double can be safely represented as a long.
- * @note Precision issues may occur for values exceeding 2^53.
- */
-static inline bool                  is_dbl_long_range(double v) {
-    return v >= (double) LONG_MIN && v <= (double) LONG_MAX;
-}
-/**
- * @brief Checks if a double can be safely represented as a unsigned long.
- * @note Precision issues may occur for values exceeding 2^53.
- */
-static inline bool                  is_dbl_ulong_range(double v) {
-    return v >= (double) 0L && v <= (double) ULONG_MAX;
-}
-
 // the part of mass creation API, probably'll be changed
 // create value from pointer, value64 constructor ANY type, MOVE semantic
 value64                             value64_pcopy_move(void *p, value64_type typ, bool move){
@@ -153,97 +90,6 @@ value64                             value64_pcopy_move(void *p, value64_type typ
     }
     return tmp;
 }
-
-value64_ConverterFunc   conv_matrix[VALUE64_TYPE_COUNT][VALUE64_TYPE_COUNT] = {
-    [VALUE64_INT] = {
-        [VALUE64_INT]   = value64_convert_int_to_int,
-        [VALUE64_LONG]  = value64_convert_int_to_lng,
-        [VALUE64_ULONG] = value64_convert_int_to_ulong,
-        [VALUE64_DBL]   = value64_convert_int_to_dbl,
-        [VALUE64_CHR]   = value64_convert_int_to_char,
-        [VALUE64_BOOL]  = value64_convert_int_to_bool,
-        [VALUE64_FS]    = value64_convert_int_to_fs,
-        [VALUE64_STR]   = value64_convert_int_to_str
-    },
-    [VALUE64_LONG] = {
-        [VALUE64_INT]   = value64_convert_lng_to_int,
-        [VALUE64_LONG]  = value64_convert_lng_to_lng,
-        [VALUE64_ULONG] = value64_convert_lng_to_ulong,
-        [VALUE64_DBL]   = value64_convert_lng_to_dbl,
-        [VALUE64_CHR]   = value64_convert_lng_to_char,
-        [VALUE64_BOOL]  = value64_convert_lng_to_bool,
-        [VALUE64_FS]    = value64_convert_lng_to_fs,
-        [VALUE64_STR]   = value64_convert_lng_to_str
-    },
-    [VALUE64_ULONG] = {
-        [VALUE64_INT]   = value64_convert_ulong_to_int,
-        [VALUE64_LONG]  = value64_convert_ulong_to_lng,
-        [VALUE64_ULONG] = value64_convert_ulong_to_ulong,
-        [VALUE64_DBL]   = value64_convert_ulong_to_dbl,
-        [VALUE64_CHR]   = value64_convert_ulong_to_char,
-        [VALUE64_BOOL]  = value64_convert_ulong_to_bool,
-        [VALUE64_FS]    = value64_convert_ulong_to_fs,
-        [VALUE64_STR]   = value64_convert_ulong_to_str
-    },
-    [VALUE64_DBL] = {   // no conv to char, bool
-        [VALUE64_INT]   = value64_convert_dbl_to_int,
-        [VALUE64_LONG]  = value64_convert_dbl_to_lng,
-        [VALUE64_ULONG] = value64_convert_dbl_to_ulong,
-        [VALUE64_DBL]   = value64_convert_dbl_to_dbl,
-        [VALUE64_FS]    = value64_convert_dbl_to_fs,
-        [VALUE64_STR]   = value64_convert_dbl_to_str
-    },
-    [VALUE64_FS] = {
-        [VALUE64_INT]   = value64_convert_fs_to_int,
-        [VALUE64_LONG]  = value64_convert_fs_to_lng,
-        [VALUE64_ULONG]   = value64_convert_fs_to_ulong,
-        [VALUE64_DBL]   = value64_convert_fs_to_dbl,
-        [VALUE64_CHR]   = value64_convert_fs_to_char,
-        [VALUE64_BOOL]  = value64_convert_fs_to_bool,
-        [VALUE64_STR]   = value64_convert_fs_to_str,
-        [VALUE64_FS]    = value64_convert_fs_to_fs
-    },
-    [VALUE64_STR] = {
-        [VALUE64_INT]   = value64_convert_str_to_int,
-        [VALUE64_LONG]  = value64_convert_str_to_lng,
-        [VALUE64_ULONG] = value64_convert_str_to_ulong,
-        [VALUE64_DBL]   = value64_convert_str_to_dbl,
-        [VALUE64_CHR]   = value64_convert_str_to_char,
-        [VALUE64_BOOL]  = value64_convert_str_to_bool,
-        [VALUE64_FS]    = value64_convert_str_to_fs,
-        [VALUE64_STR]   = value64_convert_str_to_str
-    },
-    [VALUE64_CHR] = {   // no convert to double
-        [VALUE64_INT]   = value64_convert_char_to_int,
-        [VALUE64_LONG]  = value64_convert_char_to_lng,
-        [VALUE64_ULONG] = value64_convert_char_to_ulong,
-        [VALUE64_BOOL]  = value64_convert_char_to_bool,
-        [VALUE64_FS]    = value64_convert_char_to_fs,
-        [VALUE64_STR]   = value64_convert_char_to_str,
-        [VALUE64_CHR]   = value64_convert_char_to_char
-    },
-    [VALUE64_BOOL] = {   // no convert to double
-        [VALUE64_INT]   = value64_convert_bool_to_int,
-        [VALUE64_LONG]  = value64_convert_bool_to_lng,
-        [VALUE64_ULONG] = value64_convert_bool_to_ulong,
-        [VALUE64_CHR]   = value64_convert_bool_to_char,
-        [VALUE64_FS]    = value64_convert_bool_to_fs,
-        [VALUE64_STR]   = value64_convert_bool_to_str,
-        [VALUE64_BOOL]  = value64_convert_bool_to_bool
-    }
-};
-
-// only for memory-alloc types
-value64_ConverterMoveFunc conv_move_matrix[VALUE64_TYPE_COUNT][VALUE64_TYPE_COUNT] = {
-    [VALUE64_FS] = {
-        [VALUE64_STR] = value64_convert_move_fs_to_str,
-        [VALUE64_FS]  = value64_convert_move_fs_to_fs
-    },
-    [VALUE64_STR] = {
-        [VALUE64_FS]  = value64_convert_move_str_to_fs,
-        [VALUE64_STR] = value64_convert_move_str_to_str
-    }
-};
 
 /**
  * @brief Calculates a 64-bit hash value for a given value64 object.
@@ -836,52 +682,209 @@ int                         value64_pfs_rev_comp(const void *restrict v1, const 
 
 // ----------------------------- CONVERTERS ----------------------------------------
 
-// check if we've transision method
-value64_ConverterFunc       value64_is_copyconverted(value64_type from, value64_type to) {
-    return conv_matrix[from][to];
+// --------------------------------- Converter support ------------------------------
+
+typedef struct {
+    value64_ConverterFunc       converter;   // Функция преобразования (NULL, если не нужно)
+    value64_ConverterMoveFunc   move_converter;  // move
+    value64_ValidatorFunc       validator;    // Функция проверки на безопасность (NULL, если всегда безопасно)
+} value64_dispatch_t;
+
+#define VALUE64_DISPATCH_ALL(c, m, v)   { .converter = c, .move_converter = m, .validator = v }
+#define VALUE64_DISPATCH_CONV(c)         { .converter = c, .move_converter = NULL, .validator = NULL }
+#define VALUE64_DISPATCH_MOVE(m)         { .converter = NULL, .move_converter = m, .validator = NULL }
+#define VALUE64_DISPATCH_SAFE(c, v)      { .converter = c, .move_converter = NULL, .validator = v }
+#define VALUE64_DISPATCH_MOVE_SAFE(m, v) { .converter = NULL, .move_converter = m, .validator = v }
+
+
+
+/**
+ * @brief Checks if an int fits within the unsigned char range.
+ */
+static inline bool                  is_int_char_range(value64 v) {
+    int val = value64_int(v);
+    return val >= 0 && val <= (int)UCHAR_MAX;
 }
-// check if we've transision MOVE method
-value64_ConverterMoveFunc   value64_is_moveconverted(value64_type from, value64_type to) {
-    return conv_move_matrix[from][to];
+static inline bool is_int_ulong_range(value64 v) {
+    int val = value64_int(v);
+    return val >= 0;
+}
+/**
+ * @brief Checks if a long integer fits within the standard int range.
+ */
+static inline bool                  is_long_int_range(value64 v) {
+    long val = value64_long(v);
+    return val >= INT_MIN && val <= INT_MAX;
+}
+/**
+ * @brief Checks if a long fits within the unsigned char range.
+ */
+static inline bool                  is_long_char_range(value64 v) {
+    long val = value64_long(v);
+    return val >= 0L && val <= (long)UCHAR_MAX;
+}
+/**
+ * @brief Checks if a long integer fits within the standard unsigned long range.
+ */
+static inline bool                  is_long_ulong_range(value64 v) {
+    long val = value64_long(v);
+    return val >= 0L;
+}
+/**
+ * @brief Checks if a unsigned long integer fits within the standard int range.
+ */
+static inline bool                  is_ulong_int_range(value64 v) {
+    unsigned long val = value64_ulong(v);
+    return val <= (unsigned long)INT_MAX; // unsigned всегда >= 0
+}
+/**
+ * @brief Checks if a unsigned long integer fits within the standard  long range.
+ */
+static inline bool                  is_ulong_long_range(value64 v) {
+    unsigned long val = value64_ulong(v);
+    return val <= (unsigned long)LONG_MAX;
+}
+/**
+ * @brief Checks if a unsigned long fits within the unsigned char range.
+ */
+static inline bool                  is_ulong_char_range(value64 v) {
+    unsigned long val = value64_ulong(v);
+    return val <= (unsigned long)UCHAR_MAX;
+}
+/**
+ * @brief Checks if a double can be safely represented as an int.
+ */
+static inline bool                  is_dbl_int_range(value64 v) {
+    double val = value64_dbl(v);
+    return val >= (double)INT_MIN && val <= (double)INT_MAX;
+}
+/**
+ * @brief Checks if a double can be safely represented as a long.
+ * @note Precision issues may occur for values exceeding 2^53.
+ */
+static inline bool                  is_dbl_long_range(value64 v) {
+    double val = value64_dbl(v);
+    return val >= (double)LONG_MIN && val <= (double)LONG_MAX;
+}
+/**
+ * @brief Checks if a double can be safely represented as a unsigned long.
+ * @note Precision issues may occur for values exceeding 2^53.
+ */
+static inline bool                  is_dbl_ulong_range(value64 v) {
+    double val = value64_dbl(v);
+    return val >= 0.0 && val <= (double)ULONG_MAX;
 }
 
-// TODO: hardcoding, probably refactoring is required!!!
+static const value64_dispatch_t dispatch_conv_matrix[VALUE64_TYPE_COUNT][VALUE64_TYPE_COUNT] = {
+    [VALUE64_INT] = {
+        [VALUE64_INT]   = VALUE64_DISPATCH_CONV(value64_convert_int_to_int),
+        [VALUE64_LONG]  = VALUE64_DISPATCH_CONV(value64_convert_int_to_lng),
+        [VALUE64_ULONG] = VALUE64_DISPATCH_SAFE(value64_convert_int_to_ulong, is_int_ulong_range),
+        [VALUE64_DBL]   = VALUE64_DISPATCH_CONV(value64_convert_int_to_dbl),
+        [VALUE64_CHR]   = VALUE64_DISPATCH_SAFE(value64_convert_int_to_char, is_int_char_range),
+        [VALUE64_BOOL]  = VALUE64_DISPATCH_CONV(value64_convert_int_to_bool),
+        [VALUE64_FS]    = VALUE64_DISPATCH_CONV(value64_convert_int_to_fs),
+        [VALUE64_STR]   = VALUE64_DISPATCH_CONV(value64_convert_int_to_str)
+    },
+    [VALUE64_LONG] = {
+        [VALUE64_INT]    = VALUE64_DISPATCH_SAFE(value64_convert_lng_to_int, is_long_int_range),
+        [VALUE64_LONG]   = VALUE64_DISPATCH_CONV(value64_convert_lng_to_lng),
+        [VALUE64_ULONG]  = VALUE64_DISPATCH_SAFE(value64_convert_lng_to_ulong, is_long_ulong_range),
+        [VALUE64_DBL]    = VALUE64_DISPATCH_CONV(value64_convert_lng_to_dbl),
+        [VALUE64_CHR]    = VALUE64_DISPATCH_SAFE(value64_convert_lng_to_char, is_long_char_range),
+        [VALUE64_BOOL]   = VALUE64_DISPATCH_CONV(value64_convert_lng_to_bool),
+        [VALUE64_FS]     = VALUE64_DISPATCH_CONV(value64_convert_lng_to_fs),
+        [VALUE64_STR]    = VALUE64_DISPATCH_CONV(value64_convert_lng_to_str)
+    },
+    [VALUE64_ULONG] = {
+        [VALUE64_INT]   = VALUE64_DISPATCH_SAFE(value64_convert_ulong_to_int, is_ulong_int_range),
+        [VALUE64_LONG]  = VALUE64_DISPATCH_SAFE(value64_convert_ulong_to_lng, is_ulong_long_range),
+        [VALUE64_ULONG] = VALUE64_DISPATCH_CONV(value64_convert_ulong_to_ulong),
+        [VALUE64_DBL]   = VALUE64_DISPATCH_CONV(value64_convert_ulong_to_dbl),
+        [VALUE64_CHR]   = VALUE64_DISPATCH_SAFE(value64_convert_ulong_to_char, is_ulong_char_range),
+        [VALUE64_BOOL]  = VALUE64_DISPATCH_CONV(value64_convert_ulong_to_bool),
+        [VALUE64_FS]    = VALUE64_DISPATCH_CONV(value64_convert_ulong_to_fs),
+        [VALUE64_STR]   = VALUE64_DISPATCH_CONV(value64_convert_ulong_to_str)
+    },
+    [VALUE64_CHR] = {
+        [VALUE64_INT]   = VALUE64_DISPATCH_CONV(value64_convert_char_to_int),
+        [VALUE64_LONG]  = VALUE64_DISPATCH_CONV(value64_convert_char_to_lng),
+        [VALUE64_ULONG] = VALUE64_DISPATCH_CONV(value64_convert_char_to_ulong),
+        [VALUE64_BOOL]  = VALUE64_DISPATCH_CONV(value64_convert_char_to_bool),
+        [VALUE64_FS]    = VALUE64_DISPATCH_CONV(value64_convert_char_to_fs),
+        [VALUE64_STR]   = VALUE64_DISPATCH_CONV(value64_convert_char_to_str),
+        [VALUE64_CHR]   = VALUE64_DISPATCH_CONV(value64_convert_char_to_char)
+    },
+    [VALUE64_BOOL] = {
+        [VALUE64_INT]   = VALUE64_DISPATCH_CONV(value64_convert_bool_to_int),
+        [VALUE64_LONG]  = VALUE64_DISPATCH_CONV(value64_convert_bool_to_lng),
+        [VALUE64_ULONG] = VALUE64_DISPATCH_CONV(value64_convert_bool_to_ulong),
+        [VALUE64_CHR]   = VALUE64_DISPATCH_CONV(value64_convert_bool_to_char),
+        [VALUE64_FS]    = VALUE64_DISPATCH_CONV(value64_convert_bool_to_fs),
+        [VALUE64_STR]   = VALUE64_DISPATCH_CONV(value64_convert_bool_to_str),
+        [VALUE64_BOOL]  = VALUE64_DISPATCH_CONV(value64_convert_bool_to_bool)
+    },
+    [VALUE64_DBL] = {
+        [VALUE64_INT]   = VALUE64_DISPATCH_SAFE(value64_convert_dbl_to_int, is_dbl_int_range),
+        [VALUE64_LONG]  = VALUE64_DISPATCH_SAFE(value64_convert_dbl_to_lng, is_dbl_long_range),
+        [VALUE64_ULONG] = VALUE64_DISPATCH_SAFE(value64_convert_dbl_to_ulong, is_dbl_ulong_range),
+        [VALUE64_DBL]   = VALUE64_DISPATCH_CONV(value64_convert_dbl_to_dbl),
+        [VALUE64_FS]    = VALUE64_DISPATCH_CONV(value64_convert_dbl_to_fs),
+        [VALUE64_STR]   = VALUE64_DISPATCH_CONV(value64_convert_dbl_to_str)
+    },
+    [VALUE64_FS] = {
+        [VALUE64_INT]   = VALUE64_DISPATCH_CONV(value64_convert_fs_to_int),
+        [VALUE64_LONG]  = VALUE64_DISPATCH_CONV(value64_convert_fs_to_lng),
+        [VALUE64_ULONG] = VALUE64_DISPATCH_CONV(value64_convert_fs_to_ulong),
+        [VALUE64_DBL]   = VALUE64_DISPATCH_CONV(value64_convert_fs_to_dbl),
+        [VALUE64_CHR]   = VALUE64_DISPATCH_CONV(value64_convert_fs_to_char),
+        [VALUE64_BOOL]  = VALUE64_DISPATCH_CONV(value64_convert_fs_to_bool),
+        [VALUE64_STR]   = VALUE64_DISPATCH_ALL(value64_convert_fs_to_str, value64_convert_move_fs_to_str, NULL),
+        [VALUE64_FS]    = VALUE64_DISPATCH_ALL(value64_convert_fs_to_fs, value64_convert_move_fs_to_fs, NULL)
+    },
+    [VALUE64_STR] = {
+        [VALUE64_INT]   = VALUE64_DISPATCH_CONV(value64_convert_str_to_int),
+        [VALUE64_LONG]  = VALUE64_DISPATCH_CONV(value64_convert_str_to_lng),
+        [VALUE64_ULONG] = VALUE64_DISPATCH_CONV(value64_convert_str_to_ulong),
+        [VALUE64_DBL]   = VALUE64_DISPATCH_CONV(value64_convert_str_to_dbl),
+        [VALUE64_CHR]   = VALUE64_DISPATCH_CONV(value64_convert_str_to_char),
+        [VALUE64_BOOL]  = VALUE64_DISPATCH_CONV(value64_convert_str_to_bool),
+        [VALUE64_FS]    = VALUE64_DISPATCH_ALL(value64_convert_str_to_fs, value64_convert_move_str_to_fs, NULL),
+        [VALUE64_STR]   = VALUE64_DISPATCH_ALL(value64_convert_str_to_str, value64_convert_move_str_to_str, NULL)
+    }
+};
+
+// get validator
+value64_ValidatorFunc           value64_is_validator(value64_type from, value64_type to) {
+    return dispatch_conv_matrix[from][to].validator;
+}
+// get transision method (copy)
+value64_ConverterFunc           value64_is_copyconverted(value64_type from, value64_type to) {
+    return dispatch_conv_matrix[from][to].converter;
+}
+// get transision MOVE method
+value64_ConverterMoveFunc       value64_is_moveconverted(value64_type from, value64_type to) {
+    return dispatch_conv_matrix[from][to].move_converter;
+}
+
 /**
  * @brief Checks if a value can be safely converted from one type to another without loss of data.
  * 
- * This function validates whether the conversion is "lossless" (e.g., checking if 
- * a floating-point number fits within the integer range).
- * 
- * @note This function uses hardcoded rules for specific type transitions. 
- *       It does not guarantee that a converter exists in the dispatch table; 
- *       it only checks if the conversion is mathematically/semantically safe.
- *
  * @param v    The value to test.
  * @param from The source type.
  * @param to   The target type.
  * 
  * @return true if the conversion is safe (lossless), false otherwise.
  */
-bool                        value64_is_convertable(value64 v, value64_type from, value64_type to) {
-    if (!value64_is_copyconverted(from, to))
+bool                            value64_is_convertable(value64 v, value64_type from, value64_type to) {
+    if ( (from < 1 || from >= VALUE64_TYPE_COUNT) || (to < 1 || to >= VALUE64_TYPE_COUNT) )
         return false;
 
-    if (from == VALUE64_LONG && to == VALUE64_INT)
-        return is_long_int_range(value64_long(v));
-
-    if (from == VALUE64_DBL && to == VALUE64_INT)
-        return is_dbl_int_range(value64_dbl(v));
-
-    if (from == VALUE64_DBL && to == VALUE64_LONG)
-        return is_dbl_long_range(value64_dbl(v));
-
-    if (from == VALUE64_INT && to == VALUE64_CHR)
-        return is_int_char_range(value64_int(v));
-    
-    if (from == VALUE64_LONG && to == VALUE64_CHR)
-        return is_long_char_range(value64_long(v));
-    
-    return true;
+    value64_dispatch_t dispatch = dispatch_conv_matrix[from][to];
+    if (dispatch.converter)
+        return false;
+    // no validator => ok, no checking
+    return (dispatch.validator == NULL) ? true : dispatch.validator(v);
 }
 
 /**
@@ -897,18 +900,26 @@ bool                        value64_is_convertable(value64 v, value64_type from,
  * @param v    The source value to convert.
  * @param from The source type.
  * @param to   The target type.
+ * @param check If validation is required
  * 
  * @return The converted value.
  * 
  * @throws ERR_UNSUPPORTED_TYPE_CONV if no converter is found in the dispatch 
  *         table for the specified type transition.
  */
-value64                     value64_convert(value64 v, value64_type from, value64_type to) {
-    value64_ConverterFunc func = value64_is_copyconverted(from, to);
-    if (func == NULL)
-        userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "%s => %s", value64_typename(from), value64_typename(to));
 
-    return func(v); // logsimpleret(func(v), "Converted from %s to %s", value64_typename(from), value64_typename(to) );
+value64                         value64_convert_common(value64 v, value64_type from, value64_type to, bool check) {
+    if ( (from < 1 || from >= VALUE64_TYPE_COUNT) || (to < 1 || to >= VALUE64_TYPE_COUNT) )
+        userraiseint(ERR_OUT_OF_RANGE, 
+            "from = %d, to = %d is out of 1 ..%d", from, to, VALUE64_TYPE_COUNT);
+
+    value64_dispatch_t dispatch = dispatch_conv_matrix[from][to];
+    if (check && dispatch.validator)
+        if (!dispatch.validator(v) )
+            userraiseint(ERR_VALIDATION_FAILED,  "%s => %s", value64_typename(from), value64_typename(to));
+    if (dispatch.converter == NULL)
+        userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "%s => %s", value64_typename(from), value64_typename(to));
+    return  dispatch.converter(v);
 }
 
 /**
@@ -920,7 +931,7 @@ value64                     value64_convert(value64 v, value64_type from, value6
  * @{
  */
 
-// --- Группа INT ---
+// --- Group INT ---
 /** @name Integer to [Type] Conversions */
 /** @{ */
 /** @brief Identity conversion (int to int). */
@@ -954,8 +965,6 @@ value64                     value64_convert_int_to_str(value64 v) {
 }
 /** @brief Converts int to char (checks range). */
 value64                     value64_convert_int_to_char(value64 v) {
-    if (!is_int_char_range(value64_int(v)) )
-        userraiseint(ERR_OUT_OF_RANGE, "int->char overflow");
     return  value64_createchar(value64_int(v) );
 }
 /** @brief Converts int to bool */
@@ -967,10 +976,8 @@ value64                     value64_convert_int_to_bool(value64 v) {
 // --- Группа LONG ---
 /** @name Long to [Type] Conversions */
 /** @{ */
-/** @brief Converts long to int (checks range). */
+/** @brief Converts long to int */
 value64                     value64_convert_lng_to_int(value64 v) {
-    if (!is_long_int_range(value64_long(v)) )
-        userraiseint(ERR_OUT_OF_RANGE, "Long->int overflow");
     return value64_createint( value64_long(v) );
 }
 /** @brief Identity conversion (long to long). */
@@ -979,14 +986,10 @@ value64                     value64_convert_lng_to_lng(value64 v) {
 }
 /** @brief Identity conversion (long to unsigned long). */
 value64                     value64_convert_lng_to_ulong(value64 v) {
-    if (!is_long_ulong_range(value64_long(v)) )
-        userraiseint(ERR_OUT_OF_RANGE, "Long->Ulong overflow");
     return value64_createulong(value64_long(v));
 }
 /** @brief Converts long to char (checks range). */
 value64                     value64_convert_lng_to_char(value64 v) {
-    if (!is_long_char_range(value64_int(v)) )
-        userraiseint(ERR_OUT_OF_RANGE, "long->char overflow");
     return  value64_createchar(value64_int(v) );
 }
 /** @brief Converts int to bool */
@@ -1018,13 +1021,9 @@ value64                     value64_convert_lng_to_str(value64 v) {
 /** @brief Converts long to int (checks range). */
 
 value64                     value64_convert_ulong_to_int(value64 v) {
-    if (!is_ulong_int_range(value64_long(v)) )
-        userraiseint(ERR_OUT_OF_RANGE, "ULong->int overflow");
     return value64_createint( value64_ulong(v) );
 }
 value64                     value64_convert_ulong_to_lng(value64 v) {
-    if (!is_ulong_long_range(value64_long(v)) )
-        userraiseint(ERR_OUT_OF_RANGE, "ULong->long overflow");
     return value64_createlong( value64_ulong(v) );
 }
 value64                     value64_convert_ulong_to_ulong(value64 v) {
@@ -1034,8 +1033,6 @@ value64                     value64_convert_ulong_to_dbl(value64 v) {
     return value64_createdbl( value64_ulong(v) );
 }
 value64                     value64_convert_ulong_to_char(value64 v) {
-    if (!is_ulong_char_range(value64_long(v)) )
-        userraiseint(ERR_OUT_OF_RANGE, "ULong->char overflow");
     return value64_createchar( value64_ulong(v) );
 }
 value64                     value64_convert_ulong_to_bool(value64 v) {
@@ -1060,20 +1057,14 @@ value64                     value64_convert_ulong_to_str(value64 v) {
 /** @{ */
 /** @brief Converts double to int (checks range). */
 value64                     value64_convert_dbl_to_int(value64 v) {
-    if (!is_dbl_int_range(value64_dbl(v)))
-        userraiseint(ERR_OUT_OF_RANGE, "Dbl->int overflow");
     return value64_createint((int) value64_dbl(v) );
 }
 /** @brief Converts double to long (checks range). */
 value64                     value64_convert_dbl_to_lng(value64 v) {
-    if (!is_dbl_long_range(value64_dbl(v)))
-        userraiseint(ERR_OUT_OF_RANGE, "Dbl->long overflow");
     return value64_createlong((long) value64_dbl(v) );
 }
 /** @brief Converts double to long (checks range). */
 value64                     value64_convert_dbl_to_ulong(value64 v) {
-    if (!is_dbl_ulong_range(value64_dbl(v)))
-        userraiseint(ERR_OUT_OF_RANGE, "Dbl->ulong overflow");
     return value64_createulong((long) value64_dbl(v) );
 }
 /** @brief Converts double to fs */
@@ -1211,11 +1202,11 @@ value64                     value64_convert_str_to_bool(value64 v) {
 /** @{ */
 /** @brief Converts char to int. */
 value64                     value64_convert_char_to_int(value64 v) {
-    return value64_createint((int)value64_char(v));
+    return value64_createint((int) value64_char(v));
 }
 /** @brief Converts char to long. */
 value64                     value64_convert_char_to_lng(value64 v) {
-    return value64_createlong((long)value64_char(v));
+    return value64_createlong((long) value64_char(v));
 }
 /** @brief Converts char to unsigned long. */
 value64                     value64_convert_char_to_ulong(value64 v) {
@@ -1307,15 +1298,19 @@ value64                     value64_convert_bool_to_bool(value64 v) {
  * @return A new value64 object containing the moved data.
  * @throws ERR_UNSUPPORTED_TYPE_CONV if no move-conversion is defined for the given types.
  */
-value64                     value64_convert_move(value64 *v, value64_type from, value64_type to) {
-    value64_ConverterMoveFunc func = value64_is_moveconverted(from, to);
-    if (func != NULL) {
-        return func(v); // logsimpleret(func(v), "Move converted from %s to %s", value64_typename(from), value64_typename(to) );
-    } else
-        userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s",
-                 from, value64_typename(from), to, value64_typename(to));
-    return LITERAL64_ZERO;
+value64                     value64_convert_move(value64 *pv, value64_type from, value64_type to) {
+    if (from >= VALUE64_TYPE_COUNT || to >= VALUE64_TYPE_COUNT)
+        return *pv;
+       
+    value64_dispatch_t dispatch = dispatch_conv_matrix[from][to];
+    if (dispatch.validator)
+        if (!dispatch.validator(*pv) )
+            userraiseint(ERR_VALIDATION_FAILED,  "%s => %s", value64_typename(from), value64_typename(to));
+    if (dispatch.move_converter == NULL)
+        userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "%s => %s", value64_typename(from), value64_typename(to));
+    return  dispatch.move_converter(pv);
 }
+
 /** @name Specialized Move Implementations */
 /** @{ */
 
@@ -4517,6 +4512,24 @@ tf_is_convertable(const char *name)
         );
     }
 
+    test_sub("subtest %d: INT to ULONG (positive)", ++subnum);
+    {
+        value64 v = LITERAL64_INT(42);
+        test_validate(
+            value64_is_convertable(v, VALUE64_INT, VALUE64_ULONG),
+            "INT(42) -> ULONG must be convertable"
+        );
+    }
+
+    test_sub("subtest %d: INT to ULONG (negative)", ++subnum);
+    {
+        value64 v = LITERAL64_INT(-1);
+        test_validate(
+            !value64_is_convertable(v, VALUE64_INT, VALUE64_ULONG),
+            "INT(-1) -> ULONG must NOT be convertable"
+        );
+    }
+
     /* 2. INT -> DBL: допустимо */
     test_sub("subtest %d: INT->DBL (allowed)", ++subnum);
     {
@@ -4625,6 +4638,24 @@ tf_is_convertable(const char *name)
         );
     }
 
+    test_sub("subtest %d: LONG to ULONG (positive fits)", ++subnum);
+    {
+        value64 v = LITERAL64_LONG(123L);
+        test_validate(
+            value64_is_convertable(v, VALUE64_LONG, VALUE64_ULONG),
+            "LONG(123) -> ULONG must be convertable"
+        );
+    }
+
+    test_sub("subtest %d: LONG to ULONG (negative)", ++subnum);
+    {
+        value64 v = LITERAL64_LONG(-5L);
+        test_validate(
+            !value64_is_convertable(v, VALUE64_LONG, VALUE64_ULONG),
+            "LONG(-5) -> ULONG must NOT be convertable"
+        );
+    }
+
     /* 9. LNG -> DBL */
     test_sub("subtest %d: LNG->DBL (allowed)", ++subnum);
     {
@@ -4703,6 +4734,123 @@ tf_is_convertable(const char *name)
         );
     }
 
+    /* ========== VALUE64_ULONG convertability ========== */
+
+    test_sub("subtest %d: ULONG to ULONG is convertable", ++subnum);
+    {
+        value64 v = value64_createulong(12345UL);
+        test_validate(
+            value64_is_convertable(v, VALUE64_ULONG, VALUE64_ULONG),
+            "ULONG -> ULONG must be convertable"
+        );
+    }
+
+    test_sub("subtest %d: ULONG to INT (fits)", ++subnum);
+    {
+        value64 v = value64_createulong(42UL);
+        test_validate(
+            value64_is_convertable(v, VALUE64_ULONG, VALUE64_INT),
+            "ULONG(42) -> INT must be convertable"
+        );
+    }
+
+    test_sub("subtest %d: ULONG to INT (overflow)", ++subnum);
+    {
+        value64 v = value64_createulong(ULONG_MAX);
+        test_validate(
+            !value64_is_convertable(v, VALUE64_ULONG, VALUE64_INT),
+            "ULONG(ULONG_MAX) -> INT must NOT be convertable"
+        );
+    }
+
+    test_sub("subtest %d: ULONG to LONG (fits)", ++subnum);
+    {
+        value64 v = value64_createulong(LONG_MAX);
+        test_validate(
+            value64_is_convertable(v, VALUE64_ULONG, VALUE64_LONG),
+            "ULONG(LONG_MAX) -> LONG must be convertable"
+        );
+    }
+
+    test_sub("subtest %d: ULONG to LONG (overflow)", ++subnum);
+    {
+        value64 v = value64_createulong((unsigned long)LONG_MAX + 1UL);
+        test_validate(
+            !value64_is_convertable(v, VALUE64_ULONG, VALUE64_LONG),
+            "ULONG(LONG_MAX+1) -> LONG must NOT be convertable"
+        );
+    }
+
+    test_sub("subtest %d: ULONG to DBL (always)", ++subnum);
+    {
+        value64 v = value64_createulong(ULONG_MAX);
+        test_validate(
+            value64_is_convertable(v, VALUE64_ULONG, VALUE64_DBL),
+            "ULONG -> DBL must be convertable (even with precision loss)"
+        );
+    }
+
+    test_sub("subtest %d: ULONG to non‑numeric types", ++subnum);
+    {
+        value64 v = value64_createulong(0);
+        test_validate(
+            value64_is_convertable(v, VALUE64_ULONG, VALUE64_BOOL) &&
+            value64_is_convertable(v, VALUE64_ULONG, VALUE64_CHR)  &&
+            value64_is_convertable(v, VALUE64_ULONG, VALUE64_STR)  &&
+            value64_is_convertable(v, VALUE64_ULONG, VALUE64_FS)   &&
+            !value64_is_convertable(v, VALUE64_ULONG, VALUE64_PTR),
+            "ULONG -> BOOL/CHR/STR/FS must be convertable, PTR must NOT"
+        );
+    }
+
+    /* ========== ULONG convertability to non‑numeric ========== */
+
+    test_sub("subtest %d: ULONG to BOOL is convertable", ++subnum);
+    {
+        value64 v = value64_createulong(0);
+        test_validate(
+            value64_is_convertable(v, VALUE64_ULONG, VALUE64_BOOL),
+            "ULONG -> BOOL must be convertable"
+        );
+    }
+
+    test_sub("subtest %d: ULONG to CHR is convertable", ++subnum);
+    {
+        value64 v = value64_createulong(65);
+        test_validate(
+            value64_is_convertable(v, VALUE64_ULONG, VALUE64_CHR),
+            "ULONG -> CHR must be convertable"
+        );
+    }
+
+    test_sub("subtest %d: ULONG to STR is convertable", ++subnum);
+    {
+        value64 v = value64_createulong(12345);
+        test_validate(
+            value64_is_convertable(v, VALUE64_ULONG, VALUE64_STR),
+            "ULONG -> STR must be convertable"
+        );
+    }
+
+    test_sub("subtest %d: ULONG to FS is convertable", ++subnum);
+    {
+        value64 v = value64_createulong(99999);
+        test_validate(
+            value64_is_convertable(v, VALUE64_ULONG, VALUE64_FS),
+            "ULONG -> FS must be convertable"
+        );
+    }
+
+    test_sub("subtest %d: ULONG to PTR is NOT convertable", ++subnum);
+    {
+        value64 v = value64_createulong(0);
+        test_validate(
+            !value64_is_convertable(v, VALUE64_ULONG, VALUE64_PTR),
+            "ULONG -> PTR must NOT be convertable"
+        );
+    }
+
+    /* CHAR */
     test_sub("subtest %d: CHR->INT", ++subnum);
     {
         value64 v = value64_createchar('X');
@@ -4870,6 +5018,33 @@ tf_is_convertable(const char *name)
         test_validate(
             !value64_is_convertable(v, VALUE64_DBL, VALUE64_LONG),
             "DBL->LNG overflow must NOT be convertable"
+        );
+    }
+
+    test_sub("subtest %d: DBL to ULONG (positive integer)", ++subnum);
+    {
+        value64 v = LITERAL64_DBL(100.0);
+        test_validate(
+            value64_is_convertable(v, VALUE64_DBL, VALUE64_ULONG),
+            "DBL(100.0) -> ULONG must be convertable"
+        );
+    }
+
+    test_sub("subtest %d: DBL to ULONG (fractional)", ++subnum);
+    {
+        value64 v = LITERAL64_DBL(3.14);
+        test_validate(
+            !value64_is_convertable(v, VALUE64_DBL, VALUE64_ULONG),
+            "DBL(3.14) -> ULONG must NOT be convertable"
+        );
+    }
+
+    test_sub("subtest %d: DBL to ULONG (negative)", ++subnum);
+    {
+        value64 v = LITERAL64_DBL(-1.0);
+        test_validate(
+            !value64_is_convertable(v, VALUE64_DBL, VALUE64_ULONG),
+            "DBL(-1.0) -> ULONG must NOT be convertable"
         );
     }
 

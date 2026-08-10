@@ -152,6 +152,13 @@ extern  value64_type                 value64_gettype(const char *str);
 typedef value64                     (*value64_ConverterFunc)(value64 v);
 
 /**
+ * @brief Function pointer for conversion checker.
+ * @param v The source value.
+ * @return The true if conversion if possible
+ */
+typedef bool                        (*value64_ValidatorFunc)(value64);
+
+/**
  * @brief Function pointer for value movement (Move Semantics).
  * @param v Pointer to the source value (will be modified/cleared).
  * @return The moved value.
@@ -952,7 +959,15 @@ extern value64_ConverterMoveFunc   value64_is_moveconverted(value64_type from, v
  * @param to   The target type.
  * @return The converted value64 object.
  */
-extern value64                     value64_convert(value64 v, value64_type from, value64_type to);
+extern value64                  value64_convert_common(value64 v, value64_type from, value64_type to, bool check);
+
+static inline value64           value64_convert(value64 v, value64_type from, value64_type to) {
+    return value64_convert_common(v, from, to, false);
+}
+static inline value64           value64_convert_validate(value64 v, value64_type from, value64_type to) {
+    return value64_convert_common(v, from, to, true);
+}
+
 /**
  * @brief Checks if a conversion between two types is valid.
  * @param v    The source value64 object.
@@ -960,7 +975,7 @@ extern value64                     value64_convert(value64 v, value64_type from,
  * @param to   The target type.
  * @return true if conversion is supported, false otherwise.
  */
-extern bool                        value64_is_convertable(value64 v, value64_type from, value64_type to);
+extern bool                      value64_is_convertable(value64 v, value64_type from, value64_type to);
 /** @} */
 
 
