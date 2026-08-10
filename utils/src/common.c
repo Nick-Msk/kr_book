@@ -244,8 +244,8 @@ bool                            try_parse_bool(const char *restrict str, bool *r
         return logsimpleerr(false, "Empty string for bool");
 
     // максимальная длина слова – 5 символов ("false") + возможно один разделитель
-    char buf[7];  // 6 символов + \0
-    size_t i = 0;
+    char        buf[7];  // 6 символов + \0
+    size_t      i = 0;
     while (str[i] && !isspace((unsigned char) str[i]) && i < sizeof(buf) - 1) {
         buf[i] = (char) tolower((unsigned char) str[i]);
         i++;
@@ -258,11 +258,13 @@ bool                            try_parse_bool(const char *restrict str, bool *r
          (buf[sizeof(word)-1] == '\0' || isspace((unsigned char)buf[sizeof(word)-1])))
 
     if (try_parse_bool_MATCH("on", true) || try_parse_bool_MATCH("true", true) || try_parse_bool_MATCH("yes", true)) {
-        if (res) *res = true;
+        if (res)
+            *res = true;
         return true;
     }
     if (try_parse_bool_MATCH("off", false) || try_parse_bool_MATCH("false", false) || try_parse_bool_MATCH("no", false)) {
-        if (res) *res = false;
+        if (res)
+            *res = false;
         return true;
     }
 
