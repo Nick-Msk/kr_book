@@ -43,6 +43,7 @@
 typedef union value64 {
         int                 ival;       /**< int */
         long                lval;       /**< long */
+        unsigned long      ulval;       /**< unsigned long */
         double              dval;       /**< double */
         char               *sval;       /**< c-string */
         char                cval;       /**< single char! For Array compatibility */ 
@@ -65,6 +66,7 @@ typedef enum value64_type {
     VALUE64_UNKNOWN = 0,
     VALUE64_INT = 1,
     VALUE64_LNG,
+    VALUE64_ULONG,
     VALUE64_DBL,
     VALUE64_PTR,
     VALUE64_CHR,
@@ -192,6 +194,8 @@ extern value64                      value64_convert_str_to_fs(value64 v);
 #define                             LITERAL64_INT(val)  (value64) {.u64 = 0L, .ival = val }
 /** @brief Creates a value64 object representing a long. */
 #define                             LITERAL64_LONG(val)  (value64) {.u64 = 0L, .lval = val }
+/** @brief Creates a value64 object representing a unsigned long. */
+#define                             LITERAL64_ULONG(val)  (value64) {.u64 = 0L, .ulval = val }
 /** 
  * @brief Creates a value64 object representing a character. 
  */
@@ -316,6 +320,12 @@ static inline value64               value64_createlong(long lval){
     tmp.lval = lval;
     return tmp;
 }
+/** @brief Creates a unsigned long-typed value. */
+static inline value64               value64_createulong(unsigned long ulval){
+    value64 tmp = LITERAL64_ZERO;
+    tmp.lval = ulval;
+    return tmp;
+}
 /** @brief Creates a character-typed value. */
 static inline value64               value64_createchar(char cval){
     value64 tmp = LITERAL64_ZERO;
@@ -402,6 +412,8 @@ static inline value64               value64_clone(value64 source, value64_type t
             return value64_createint(source.ival);
         case VALUE64_LNG:
             return value64_createlong(source.lval);
+        case VALUE64_ULONG:
+            return value64_createulong(source.ulval);
         case VALUE64_DBL:
             return value64_createdbl(source.dval);
         case VALUE64_PTR:
@@ -509,6 +521,13 @@ static inline long                  value64_long(value64 v){
     return v.lval;
 }
 /**
+ * @brief Returns the long integer value.
+ * @return The long representation.
+ */
+static inline unsigned long         value64_ulong(value64 v){
+    return v.ulval;
+}
+/**
  * @brief Returns the character value.
  * @return The character value.
  */
@@ -563,6 +582,7 @@ static inline void                 v64_exch(value64 *restrict v1, value64 *restr
 // move constructor!
 static inline  value64              value64_move(value64 *restrict source, value64_type typ) {
     invraisecode(source,  ERR_NULLABLE_PTR, "Null pointer");
+
     value64 res = *source;      // just a move!!! For all types
     switch (typ) {
         case VALUE64_DBL:
@@ -583,6 +603,9 @@ static inline value64              *value64_moveto_int(value64 *restrict target,
 }
 static inline value64              *value64_moveto_long(value64 *restrict target, value64 *restrict source){
     return value64_moveto(target, source, VALUE64_LNG);
+}
+static inline value64              *value64_moveto_ulong(value64 *restrict target, value64 *restrict source){
+    return value64_moveto(target, source, VALUE64_ULONG);
 }
 static inline value64              *value64_moveto_dbl(value64 *restrict target, value64 *restrict source){
     return value64_moveto(target, source, VALUE64_DBL);
@@ -708,6 +731,7 @@ static inline bool                  value64_equal(value64 v1, value64 v2, value6
  *  @{ */
 extern int                          value64_int_comp(value64 v1, value64 v2);
 extern int                          value64_long_comp(value64 v1, value64 v2);
+extern int                          value64_ulong_comp(value64 v1, value64 v2);
 extern int                          value64_char_comp(value64 v1, value64 v2);
 extern int                          value64_bool_comp(value64 v1, value64 v2);
 extern int                          value64_dbl_comp(value64 v1, value64 v2);
@@ -727,6 +751,7 @@ extern int                          value64_str_comp(value64 v1, value64 v2);
 /** @{ */
 extern int                          value64_int_rev_comp(value64 v1, value64 v2);
 extern int                          value64_long_rev_comp(value64 v1, value64 v2);
+extern int                          value64_ulong_rev_comp(value64 v1, value64 v2);
 extern int                          value64_char_rev_comp(value64 v1, value64 v2);
 extern int                          value64_bool_rev_comp(value64 v1, value64 v2);
 extern int                          value64_dbl_rev_comp(value64 v1, value64 v2);
@@ -744,6 +769,7 @@ extern int                          value64_pt_compare(const value64 *restrict v
  *  @{ */
 extern int                          value64_pint_comp (const void *restrict v1, const void *restrict v2);
 extern int                          value64_plong_comp(const void *restrict v1, const void *restrict v2);
+extern int                          value64_pulong_comp(const void *restrict v1, const void *restrict v2);
 extern int                          value64_pchar_comp (const void *restrict v1, const void *restrict v2);
 extern int                          value64_pbool_comp (const void *restrict v1, const void *restrict v2);
 extern int                          value64_pdbl_comp (const void *restrict v1, const void *restrict v2);
@@ -757,6 +783,7 @@ extern int                          value64_pfs_comp  (const void *restrict v1, 
 /** @{ */
 extern int                          value64_pint_rev_comp (const void *restrict v1, const void *restrict v2);
 extern int                          value64_plong_rev_comp(const void *restrict v1, const void *restrict v2);
+extern int                          value64_pulong_rev_comp(const void *restrict v1, const void *restrict v2);
 extern int                          value64_pchar_rev_comp (const void *restrict v1, const void *restrict v2);
 extern int                          value64_pbool_rev_comp (const void *restrict v1, const void *restrict v2);
 extern int                          value64_pdbl_rev_comp (const void *restrict v1, const void *restrict v2);
@@ -787,6 +814,8 @@ static inline value64_PComparator   value64_getPComparator(value64_type typ){
             return value64_pint_comp;
         case VALUE64_LNG:
             return value64_plong_comp;
+        case VALUE64_ULONG:
+            return value64_pulong_comp;
         case VALUE64_CHR:
             return value64_pchar_comp;
         case VALUE64_BOOL:
@@ -818,6 +847,8 @@ static inline value64_PComparator  value64_getPRevComparator(value64_type typ){
             return value64_pint_rev_comp;
         case VALUE64_LNG:
             return value64_plong_rev_comp;
+        case VALUE64_ULONG:
+            return value64_pulong_rev_comp;
         case VALUE64_CHR:
             return value64_pchar_rev_comp;
         case VALUE64_BOOL:
@@ -848,6 +879,8 @@ static inline value64_Comparator    value64_getComparator(value64_type typ){
             return value64_int_comp;
         case VALUE64_LNG:
             return value64_long_comp;
+        case VALUE64_ULONG:
+            return value64_ulong_comp;
         case VALUE64_CHR:
             return value64_char_comp;
         case VALUE64_BOOL:
@@ -876,6 +909,8 @@ static inline value64_Comparator  value64_getRevComparator(value64_type typ){
             return value64_int_rev_comp;
         case VALUE64_LNG:
             return value64_long_rev_comp;
+        case VALUE64_ULONG:
+            return value64_ulong_rev_comp;
         case VALUE64_CHR:
             return value64_char_rev_comp;
         case VALUE64_BOOL:
@@ -899,56 +934,72 @@ static inline value64_Comparator  value64_getRevComparator(value64_type typ){
 extern value64                     value64_convert(value64 v, value64_type from, value64_type to);
 extern bool                        value64_is_convertable(value64 v, value64_type from, value64_type to);
 
-// --- Группа INT ---
+// --- Group INT ---
 extern value64                     value64_convert_int_to_lng(value64 v);
+extern value64                     value64_convert_int_to_ulong(value64 v);
 extern value64                     value64_convert_int_to_dbl(value64 v);
 extern value64                     value64_convert_int_to_char(value64 v);
 extern value64                     value64_convert_int_to_bool(value64 v);
 extern value64                     value64_convert_int_to_fs(value64 v);
 extern value64                     value64_convert_int_to_str(value64 v);
 extern value64                     value64_convert_int_to_int(value64 v);
-// --- Группа LNG ---
+// --- Group LNG ---
 extern value64                     value64_convert_lng_to_int(value64 v);
+extern value64                     value64_convert_lng_to_ulong(value64 v);
 extern value64                     value64_convert_lng_to_dbl(value64 v);
 extern value64                     value64_convert_lng_to_char(value64 v);
 extern value64                     value64_convert_lng_to_bool(value64 v);
 extern value64                     value64_convert_lng_to_fs(value64 v);
 extern value64                     value64_convert_lng_to_str(value64 v);
 extern value64                     value64_convert_lng_to_lng(value64 v);
-// --- Группа DBL ---
+// --- Group ULONG ---
+extern value64                     value64_convert_ulong_to_int(value64 v);
+extern value64                     value64_convert_ulong_to_lng(value64 v);
+extern value64                     value64_convert_ulong_to_dbl(value64 v);
+extern value64                     value64_convert_ulong_to_char(value64 v);
+extern value64                     value64_convert_ulong_to_bool(value64 v);
+extern value64                     value64_convert_ulong_to_fs(value64 v);
+extern value64                     value64_convert_ulong_to_str(value64 v);
+extern value64                     value64_convert_ulong_to_ulong(value64 v);
+// --- Group DBL ---
 extern value64                     value64_convert_dbl_to_int(value64 v);
 extern value64                     value64_convert_dbl_to_lng(value64 v);
+extern value64                     value64_convert_dbl_to_ulong(value64 v);
 extern value64                     value64_convert_dbl_to_fs(value64 v);
 extern value64                     value64_convert_dbl_to_str(value64 v);
 extern value64                     value64_convert_dbl_to_dbl(value64 v);
 //dbl => char NO convert 
 //dbl => bool NO convert 
-// --- Группа CHR ---
+// --- Group CHR ---
 extern value64                     value64_convert_char_to_int(value64 v);
 extern value64                     value64_convert_char_to_lng(value64 v);
+extern value64                     value64_convert_char_to_ulong(value64 v);
 extern value64                     value64_convert_char_to_bool(value64 v);
 extern value64                     value64_convert_char_to_fs(value64 v);
 extern value64                     value64_convert_char_to_str(value64 v);
 extern value64                     value64_convert_char_to_char(value64 v);
 // no convert char to dbl
-// --- Группа BOOL ---
+// --- Group BOOL ---
 extern value64                     value64_convert_bool_to_int(value64 v);
 extern value64                     value64_convert_bool_to_lng(value64 v);
+extern value64                     value64_convert_bool_to_ulong(value64 v);
 extern value64                     value64_convert_bool_to_char(value64 v);
 extern value64                     value64_convert_bool_to_fs(value64 v);
 extern value64                     value64_convert_bool_to_str(value64 v);
 extern value64                     value64_convert_bool_to_bool(value64 v);
-// --- Группа FS ---
+// --- Group FS ---
 extern value64                     value64_convert_fs_to_int(value64 v);
 extern value64                     value64_convert_fs_to_lng(value64 v);
+extern value64                     value64_convert_fs_to_ulong(value64 v);
 extern value64                     value64_convert_fs_to_char(value64 v);
 extern value64                     value64_convert_fs_to_bool(value64 v);
 extern value64                     value64_convert_fs_to_dbl(value64 v);
 extern value64                     value64_convert_fs_to_str(value64 v);
 extern value64                     value64_convert_fs_to_fs(value64 v);
-// --- Группа STR ---
+// --- Group STR ---
 extern value64                     value64_convert_str_to_int(value64 v);
 extern value64                     value64_convert_str_to_lng(value64 v);
+extern value64                     value64_convert_str_to_ulong(value64 v);
 extern value64                     value64_convert_str_to_char(value64 v);
 extern value64                     value64_convert_str_to_bool(value64 v);
 extern value64                     value64_convert_str_to_dbl(value64 v);
@@ -992,6 +1043,7 @@ static inline int                   value64_techprint(value64 val, value64_type 
 // typed
 extern int                          value64_fprint_int(FILE *restrict out, value64 val);
 extern int                          value64_fprint_lng(FILE *restrict out, value64 val);
+extern int                          value64_fprint_ulong(FILE *restrict out, value64 val);
 extern int                          value64_fprint_char(FILE *restrict out, value64 val);
 extern int                          value64_fprint_bool(FILE *restrict out, value64 val);
 extern int                          value64_fprint_dbl(FILE *restrict out, value64 val);
@@ -1018,9 +1070,10 @@ extern bool                         value64_readval_str(FILE *restrict f, value6
 // string readers!
 // fs must be initialized, val can be NULL, it means just check
 extern bool                         value64_sreadval_int(value64 *restrict val, fs *restrict buf);
+extern bool                         value64_sreadval_lng(value64 *restrict val, fs *restrict buf);
+extern bool                         value64_sreadval_ulong(value64 *restrict val, fs *restrict buf);
 extern bool                         value64_sreadval_char(value64 *restrict val, fs *restrict buf);
 extern bool                         value64_sreadval_bool(value64 *restrict val, fs *restrict buf);
-extern bool                         value64_sreadval_lng(value64 *restrict val, fs *restrict buf);
 extern bool                         value64_sreadval_dbl(value64 *restrict val, fs *restrict buf);
 extern bool                         value64_sreadval_fs(value64 *restrict val, fs *restrict buf);
 extern bool                         value64_sreadval_str(value64 *restrict val, fs *restrict buf);
@@ -1121,6 +1174,7 @@ extern int                          value64_tostr(fs *target, value64 val, value
 // type to string
 extern int                          value64_tostr_int(fs *target, value64 val);
 extern int                          value64_tostr_lng(fs *target, value64 val);
+extern int                          value64_tostr_ulong(fs *target, value64 val);
 extern int                          value64_tostr_dbl(fs *target, value64 val);
 extern int                          value64_tostr_char(fs *target, value64 val);
 extern int                          value64_tostr_bool(fs *target, value64 val);
