@@ -11,7 +11,7 @@
 static const value64_typeinfo           value64_info[] = {
     [VALUE64_UNKNOWN]    = {"INVALID",     0,              false    , "VALUE64_UNKNOWN"},
     [VALUE64_INT]        = {"INT",         sizeof(int),    true     , "VALUE64_INT"},
-    [VALUE64_LNG]        = {"LNG",         sizeof(long),   true     , "VALUE64_LNG"},
+    [VALUE64_LONG]        = {"LNG",         sizeof(long),   true     , "VALUE64_LONG"},
     [VALUE64_DBL]        = {"DBL",         sizeof(double), true     , "VALUE64_DBL"},
     [VALUE64_CHR]        = {"CHR",         sizeof(char),   true     , "VALUE64_CHR"},
     [VALUE64_BOOL]       = {"BOOL",        sizeof(bool),   true     , "VALUE64_BOOL"},
@@ -77,7 +77,7 @@ value64                             value64_pcopy_move(void *p, value64_type typ
             if (move)
                 *(int *)p = 0;
             break;
-        case VALUE64_LNG:
+        case VALUE64_LONG:
             tmp.lval = *(const long *)p;
             if (move)
                 *(long *)p = 0L;
@@ -123,7 +123,7 @@ value64                             value64_pcopy_move(void *p, value64_type typ
 
 value64_ConverterFunc   conv_matrix[VALUE64_TYPE_COUNT][VALUE64_TYPE_COUNT] = {
     [VALUE64_INT] = {
-        [VALUE64_LNG]   = value64_convert_int_to_lng,
+        [VALUE64_LONG]   = value64_convert_int_to_lng,
         [VALUE64_DBL]   = value64_convert_int_to_dbl,
         [VALUE64_CHR]   = value64_convert_int_to_char,
         [VALUE64_BOOL]  = value64_convert_int_to_bool,
@@ -131,25 +131,25 @@ value64_ConverterFunc   conv_matrix[VALUE64_TYPE_COUNT][VALUE64_TYPE_COUNT] = {
         [VALUE64_STR]   = value64_convert_int_to_str,
         [VALUE64_INT]   = value64_convert_int_to_int
     },
-    [VALUE64_LNG] = {
+    [VALUE64_LONG] = {
         [VALUE64_INT]   = value64_convert_lng_to_int,
         [VALUE64_DBL]   = value64_convert_lng_to_dbl,
         [VALUE64_CHR]   = value64_convert_lng_to_char,
         [VALUE64_BOOL]  = value64_convert_lng_to_bool,
         [VALUE64_FS]    = value64_convert_lng_to_fs,
         [VALUE64_STR]   = value64_convert_lng_to_str,
-        [VALUE64_LNG]   = value64_convert_lng_to_lng
+        [VALUE64_LONG]   = value64_convert_lng_to_lng
     },
     [VALUE64_DBL] = {   // no conv to char, bool
         [VALUE64_INT]   = value64_convert_dbl_to_int,
-        [VALUE64_LNG]   = value64_convert_dbl_to_lng,
+        [VALUE64_LONG]   = value64_convert_dbl_to_lng,
         [VALUE64_FS]    = value64_convert_dbl_to_fs,
         [VALUE64_STR]   = value64_convert_dbl_to_str,
         [VALUE64_DBL]   = value64_convert_dbl_to_dbl
     },
     [VALUE64_FS] = {
         [VALUE64_INT]   = value64_convert_fs_to_int,
-        [VALUE64_LNG]   = value64_convert_fs_to_lng,
+        [VALUE64_LONG]   = value64_convert_fs_to_lng,
         [VALUE64_DBL]   = value64_convert_fs_to_dbl,
         [VALUE64_CHR]   = value64_convert_fs_to_char,
         [VALUE64_BOOL]  = value64_convert_fs_to_bool,
@@ -158,7 +158,7 @@ value64_ConverterFunc   conv_matrix[VALUE64_TYPE_COUNT][VALUE64_TYPE_COUNT] = {
     },
     [VALUE64_STR] = {
         [VALUE64_INT]   = value64_convert_str_to_int,
-        [VALUE64_LNG]   = value64_convert_str_to_lng,
+        [VALUE64_LONG]   = value64_convert_str_to_lng,
         [VALUE64_DBL]   = value64_convert_str_to_dbl,
         [VALUE64_CHR]   = value64_convert_str_to_char,
         [VALUE64_BOOL]  = value64_convert_str_to_bool,
@@ -167,7 +167,7 @@ value64_ConverterFunc   conv_matrix[VALUE64_TYPE_COUNT][VALUE64_TYPE_COUNT] = {
     },
     [VALUE64_CHR] = {   // no convert to double
         [VALUE64_INT]   = value64_convert_char_to_int,
-        [VALUE64_LNG]   = value64_convert_char_to_lng,
+        [VALUE64_LONG]   = value64_convert_char_to_lng,
         [VALUE64_BOOL]  = value64_convert_char_to_bool,
         [VALUE64_FS]    = value64_convert_char_to_fs,
         [VALUE64_STR]   = value64_convert_char_to_str,
@@ -175,7 +175,7 @@ value64_ConverterFunc   conv_matrix[VALUE64_TYPE_COUNT][VALUE64_TYPE_COUNT] = {
     },
     [VALUE64_BOOL] = {   // no convert to double
         [VALUE64_INT]   = value64_convert_bool_to_int,
-        [VALUE64_LNG]   = value64_convert_bool_to_lng,
+        [VALUE64_LONG]   = value64_convert_bool_to_lng,
         [VALUE64_CHR]   = value64_convert_bool_to_char,
         [VALUE64_FS]    = value64_convert_bool_to_fs,
         [VALUE64_STR]   = value64_convert_bool_to_str,
@@ -215,7 +215,7 @@ unsigned long               value64_lhash(value64 value, value64_type typ){
         case VALUE64_INT:
             tmp.u64 = (uint64_t) value64_int(value);
         break;
-        case VALUE64_LNG:
+        case VALUE64_LONG:
             tmp.u64 = (uint64_t) value64_long(value);
         break;
         case VALUE64_DBL:
@@ -561,7 +561,7 @@ int                     value64_compare(value64 v1, value64 v2, value64_type typ
         case VALUE64_INT:
             res = compare_int(v1.ival, v2.ival);
         break;
-        case VALUE64_LNG:
+        case VALUE64_LONG:
             res = compare_long(v1.lval, v2.lval);
         break;
         case VALUE64_DBL:
@@ -627,7 +627,7 @@ int                         value64_pt_compare(const value64* restrict v1, const
     switch (typ){
         case VALUE64_INT:
             return value64_pint_comp(v1, v2); //compare_pint(&val1->ival, &val2->ival);
-        case VALUE64_LNG:
+        case VALUE64_LONG:
             return value64_plong_comp(v1, v2);  //compare_plong(&val1->lval, &val2->lval);
         case VALUE64_DBL:
             return value64_pdbl_comp(v1, v2);   //compare_pdbl(&val1->dval, &val2->dval);
@@ -786,19 +786,19 @@ bool                        value64_is_convertable(value64 v, value64_type from,
         return false;
     }
 
-    if (from == VALUE64_LNG && to == VALUE64_INT)
+    if (from == VALUE64_LONG && to == VALUE64_INT)
         return is_long_int_range(value64_long(v));
 
     if (from == VALUE64_DBL && to == VALUE64_INT)
         return is_dbl_int_range(value64_dbl(v));
 
-    if (from == VALUE64_DBL && to == VALUE64_LNG)
+    if (from == VALUE64_DBL && to == VALUE64_LONG)
         return is_dbl_long_range(value64_dbl(v));
 
     if (from == VALUE64_INT && to == VALUE64_CHR)
         return is_int_char_range(value64_int(v));
     
-    if (from == VALUE64_LNG && to == VALUE64_CHR)
+    if (from == VALUE64_LONG && to == VALUE64_CHR)
         return is_long_char_range(value64_long(v));
     
     return true;
@@ -1349,7 +1349,7 @@ int                         value64_fprint_msg(FILE *restrict out, const char *r
                 IOCHECKER(w, value64_fprint_int(out, val), -1)
                     cnt += w;
                 break;
-            case VALUE64_LNG:
+            case VALUE64_LONG:
                 IOCHECKER(w, value64_fprint_long(out, val), -1)
                     cnt += w;
                 break;
@@ -1402,7 +1402,7 @@ int                        value64_techfprint(FILE *restrict out, value64 val, v
                 IOCHECKER(w, value64_fprint_int(out, val), -1)
                     cnt += w;
             break;
-            case VALUE64_LNG:
+            case VALUE64_LONG:
                 IOCHECKER(w, value64_fprint_long(out, val), -1)
                     cnt += w;
             break;
@@ -1672,7 +1672,7 @@ bool                            value64_dsreadval(Ds *restrict ds, value64_type 
     switch (typ) {
         case VALUE64_INT:
             return value64_sreadval_int(val, buf);
-        case VALUE64_LNG:
+        case VALUE64_LONG:
             return value64_sreadval_lng(val, buf);
         case VALUE64_DBL:
             return value64_sreadval_dbl(val, buf);
@@ -1939,7 +1939,7 @@ int                          value64_tostr(fs *target, value64 val, value64_type
             IOCHECKER(w, value64_tostr_int(target, val), -1)
                 cnt += w;
             break;
-        case VALUE64_LNG:
+        case VALUE64_LONG:
             IOCHECKER(w, value64_tostr_long(target, val), -1)
                 cnt += w;
             break;
@@ -2449,7 +2449,7 @@ tf_point_init(const char *name)
     test_sub("subtest %d: pinit long", ++subnum);
     {
         long lval = 999999999L;
-        value64 v = value64_pinit(&lval, VALUE64_LNG);
+        value64 v = value64_pinit(&lval, VALUE64_LONG);
         test_validate(v.lval == 999999999L, "Copy long: got %ld, expected 999999999", v.lval);
     }
 
@@ -2543,7 +2543,7 @@ tf_point_init(const char *name)
     test_sub("subtest %d: move LONG", ++subnum);
     {
         long lval = 999888777L;
-        value64 v = value64_pmove(&lval, VALUE64_LNG);
+        value64 v = value64_pmove(&lval, VALUE64_LONG);
         test_validate(v.lval == 999888777L && lval == 0L,
                       "Move LONG: v=%ld, lval=%ld (expected 999888777, 0)", v.lval, lval);
     }
@@ -2716,7 +2716,7 @@ tf_clone(const char *name)
     test_sub("subtest %d: clone long", ++subnum);
     {
         value64 orig = value64_createlong(999999999L);
-        value64 copy = value64_clone(orig, VALUE64_LNG);
+        value64 copy = value64_clone(orig, VALUE64_LONG);
         test_validate(copy.lval == 999999999L, "Clone long: got %ld, expected 999999999", copy.lval);
     }
 
@@ -3012,9 +3012,9 @@ tf_lhash(const char *name)
         value64 v2 = value64_createlong(999999999L);
         value64 v3 = value64_createlong(0L);
 
-        unsigned long h1 = value64_lhash(v1, VALUE64_LNG);
-        unsigned long h2 = value64_lhash(v2, VALUE64_LNG);
-        unsigned long h3 = value64_lhash(v3, VALUE64_LNG);
+        unsigned long h1 = value64_lhash(v1, VALUE64_LONG);
+        unsigned long h2 = value64_lhash(v2, VALUE64_LONG);
+        unsigned long h3 = value64_lhash(v3, VALUE64_LONG);
 
         test_validate(h1 == h2, "Same longs must have same hash");
         test_validate(h1 != h3, "Different longs should differ");
@@ -3168,8 +3168,8 @@ tf_compare(const char *name)
         value64 v2 = value64_createlong(999999999L);
         value64 v3 = value64_createlong(0L);
 
-        test_validate(value64_compare(v1, v2, VALUE64_LNG) == 0, "Equal longs must return 0");
-        test_validate(value64_compare(v1, v3, VALUE64_LNG) != 0, "Different longs must not return 0");
+        test_validate(value64_compare(v1, v2, VALUE64_LONG) == 0, "Equal longs must return 0");
+        test_validate(value64_compare(v1, v3, VALUE64_LONG) != 0, "Different longs must not return 0");
     }
 
     /* compare char */
@@ -3294,7 +3294,7 @@ tf_convert(const char *name)
     test_sub("subtest %d: INT -> LONG", ++subnum);
     {
         value64 src = value64_createint(42);
-        value64 dst = value64_convert(src, VALUE64_INT, VALUE64_LNG);
+        value64 dst = value64_convert(src, VALUE64_INT, VALUE64_LONG);
         test_validate(value64_long(dst) == 42L,
             "INT->LONG: expected 42, got %ld", value64_long(dst));
     }
@@ -3386,7 +3386,7 @@ tf_convert(const char *name)
     test_sub("subtest %d: LONG -> INT (in range)", ++subnum);
     {
         value64 src = value64_createlong(123456L);
-        value64 dst = value64_convert(src, VALUE64_LNG, VALUE64_INT);
+        value64 dst = value64_convert(src, VALUE64_LONG, VALUE64_INT);
         test_validate(value64_int(dst) == 123456,
             "LONG->INT: expected 123456, got %d", value64_int(dst));
     }
@@ -3396,7 +3396,7 @@ tf_convert(const char *name)
     {
         value64 src = value64_createlong(2147483648L);  // > INT_MAX
         if (!try()) {
-            value64 dst = value64_convert(src, VALUE64_LNG, VALUE64_INT);
+            value64 dst = value64_convert(src, VALUE64_LONG, VALUE64_INT);
             test_validate(false, "LONG->INT overflow must raise error, but returned %d", value64_int(dst));
         } else {
             test_validate(true, "LONG->INT overflow correctly raised error");
@@ -3407,7 +3407,7 @@ tf_convert(const char *name)
     test_sub("subtest %d: LONG -> DBL", ++subnum);
     {
         value64 src = value64_createlong(999999999L);
-        value64 dst = value64_convert(src, VALUE64_LNG, VALUE64_DBL);
+        value64 dst = value64_convert(src, VALUE64_LONG, VALUE64_DBL);
         test_validate(fabs(value64_dbl(dst) - 999999999.0) < 0.0001,
             "LONG->DBL: expected 999999999.0, got %f", value64_dbl(dst));
     }
@@ -3454,7 +3454,7 @@ tf_convert(const char *name)
     test_sub("subtest %d: LONG -> FS", ++subnum);
     {
         value64 src = value64_createlong(-123456789L);
-        value64 dst = value64_convert(src, VALUE64_LNG, VALUE64_FS);
+        value64 dst = value64_convert(src, VALUE64_LONG, VALUE64_FS);
         fs *dst_fs = value64_fs(dst);
         test_validatefree(
             strcmp(fs_str(dst_fs), "-123456789") == 0,
@@ -3469,7 +3469,7 @@ tf_convert(const char *name)
     test_sub("subtest %d: LONG -> STR", ++subnum);
     {
         value64 src = value64_createlong(0L);
-        value64 dst = value64_convert(src, VALUE64_LNG, VALUE64_STR);
+        value64 dst = value64_convert(src, VALUE64_LONG, VALUE64_STR);
         test_validatefree(
             strcmp(value64_str(dst), "0") == 0,
             value64free(dst, VALUE64_STR),
@@ -3650,7 +3650,7 @@ tf_convert(const char *name)
     test_sub("subtest %d: DBL -> LONG (in range)", ++subnum);
     {
         value64 src = value64_createdbl(2.71828);
-        value64 dst = value64_convert(src, VALUE64_DBL, VALUE64_LNG);
+        value64 dst = value64_convert(src, VALUE64_DBL, VALUE64_LONG);
         test_validate(value64_long(dst) == 2L,
             "DBL->LONG: expected 2, got %ld", value64_long(dst));
     }
@@ -3660,7 +3660,7 @@ tf_convert(const char *name)
     {
         value64 src = value64_createdbl(1.0e30);
         if (!try()) {
-            value64 dst = value64_convert(src, VALUE64_DBL, VALUE64_LNG);
+            value64 dst = value64_convert(src, VALUE64_DBL, VALUE64_LONG);
             test_validate(false, "DBL->LONG overflow must raise error, but returned %ld", value64_long(dst));
         } else {
             test_validate(true, "DBL->LONG overflow correctly raised error");
@@ -3746,7 +3746,7 @@ tf_convert(const char *name)
         fs tmp = fscopy("-999999999");
         value64 src = value64_createfs(&tmp);
         fsfree(tmp);
-        value64 dst = value64_convert(src, VALUE64_FS, VALUE64_LNG);
+        value64 dst = value64_convert(src, VALUE64_FS, VALUE64_LONG);
         test_validatefree(
             value64_long(dst) == -999999999L,
             value64free(src, VALUE64_FS),
@@ -3905,7 +3905,7 @@ tf_convert(const char *name)
     test_sub("subtest %d: STR -> LONG (valid)", ++subnum);
     {
         value64 src = value64_createstr("-123456789");
-        value64 dst = value64_convert(src, VALUE64_STR, VALUE64_LNG);
+        value64 dst = value64_convert(src, VALUE64_STR, VALUE64_LONG);
         test_validatefree(
             value64_long(dst) == -123456789L,
             value64free(src, VALUE64_STR),
@@ -4053,9 +4053,9 @@ tf_convert(const char *name)
     test_sub("subtest %d: round-trip INT_MAX", ++subnum);
     {
         value64 src = value64_createint(INT_MAX);
-        value64 tmp = value64_convert(src, VALUE64_INT, VALUE64_LNG);
+        value64 tmp = value64_convert(src, VALUE64_INT, VALUE64_LONG);
         test_validate(value64_long(tmp) == (long)INT_MAX, "INT_MAX -> LONG mismatch");
-        tmp = value64_convert(tmp, VALUE64_LNG, VALUE64_DBL);
+        tmp = value64_convert(tmp, VALUE64_LONG, VALUE64_DBL);
         test_validate(fabs(value64_dbl(tmp) - (double)INT_MAX) < 10.0, "INT_MAX -> DBL mismatch");
         // дальше можно в STR и обратно, но не будем усложнять
     }
@@ -4224,7 +4224,7 @@ tf_is_convertable(const char *name)
     {
         value64 v = value64_createint(42);
         test_validate(
-            value64_is_convertable(v, VALUE64_INT, VALUE64_LNG),
+            value64_is_convertable(v, VALUE64_INT, VALUE64_LONG),
             "INT->LNG must be convertable"
         );
     }
@@ -4322,7 +4322,7 @@ tf_is_convertable(const char *name)
     {
         value64 v = value64_createlong(123456L);
         test_validate(
-            value64_is_convertable(v, VALUE64_LNG, VALUE64_INT),
+            value64_is_convertable(v, VALUE64_LONG, VALUE64_INT),
             "LNG->INT (in range) must be convertable"
         );
     }
@@ -4332,7 +4332,7 @@ tf_is_convertable(const char *name)
     {
         value64 v = value64_createlong(2147483648L);
         test_validate(
-            !value64_is_convertable(v, VALUE64_LNG, VALUE64_INT),
+            !value64_is_convertable(v, VALUE64_LONG, VALUE64_INT),
             "LNG->INT overflow must NOT be convertable"
         );
     }
@@ -4342,7 +4342,7 @@ tf_is_convertable(const char *name)
     {
         value64 v = value64_createlong(1L << 60);
         test_validate(
-            value64_is_convertable(v, VALUE64_LNG, VALUE64_DBL),
+            value64_is_convertable(v, VALUE64_LONG, VALUE64_DBL),
             "LNG->DBL must be convertable"
         );
     }
@@ -4352,7 +4352,7 @@ tf_is_convertable(const char *name)
     {
         value64 v = value64_createlong(0L);
         test_validate(
-            value64_is_convertable(v, VALUE64_LNG, VALUE64_FS),
+            value64_is_convertable(v, VALUE64_LONG, VALUE64_FS),
             "LNG->FS must be convertable"
         );
     }
@@ -4362,7 +4362,7 @@ tf_is_convertable(const char *name)
     {
         value64 v = value64_createlong(-999L);
         test_validate(
-            value64_is_convertable(v, VALUE64_LNG, VALUE64_STR),
+            value64_is_convertable(v, VALUE64_LONG, VALUE64_STR),
             "LNG->STR must be convertable"
         );
     }
@@ -4372,7 +4372,7 @@ tf_is_convertable(const char *name)
     {
         value64 v = value64_createlong(97L);   // 'a'
         test_validate(
-            value64_is_convertable(v, VALUE64_LNG, VALUE64_CHR),
+            value64_is_convertable(v, VALUE64_LONG, VALUE64_CHR),
             "LNG->CHR (97) must be convertable"
         );
     }
@@ -4382,7 +4382,7 @@ tf_is_convertable(const char *name)
     {
         value64 v = value64_createlong(100000L);
         test_validate(
-            !value64_is_convertable(v, VALUE64_LNG, VALUE64_CHR),
+            !value64_is_convertable(v, VALUE64_LONG, VALUE64_CHR),
             "LNG->CHR (100000) must NOT be convertable"
         );
     }
@@ -4392,7 +4392,7 @@ tf_is_convertable(const char *name)
     {
         value64 v = value64_createlong(0L);
         test_validate(
-            value64_is_convertable(v, VALUE64_LNG, VALUE64_BOOL),
+            value64_is_convertable(v, VALUE64_LONG, VALUE64_BOOL),
             "LNG(0)->BOOL must be convertable"
         );
     }
@@ -4401,7 +4401,7 @@ tf_is_convertable(const char *name)
     {
         value64 v = value64_createlong(1L);
         test_validate(
-            value64_is_convertable(v, VALUE64_LNG, VALUE64_BOOL),
+            value64_is_convertable(v, VALUE64_LONG, VALUE64_BOOL),
             "LNG(1)->BOOL must be convertable"
         );
     }
@@ -4410,7 +4410,7 @@ tf_is_convertable(const char *name)
     {
         value64 v = value64_createlong(1000L);
         test_validate(
-            value64_is_convertable(v, VALUE64_LNG, VALUE64_BOOL),
+            value64_is_convertable(v, VALUE64_LONG, VALUE64_BOOL),
             "LNG(1000)->BOOL must be convertable (any non‑zero -> true)"
         );
     }
@@ -4428,7 +4428,7 @@ tf_is_convertable(const char *name)
     {
         value64 v = value64_createchar('X');
         test_validate(
-            value64_is_convertable(v, VALUE64_CHR, VALUE64_LNG),
+            value64_is_convertable(v, VALUE64_CHR, VALUE64_LONG),
             "CHR->PTR must be convertable"
         );
     }
@@ -4480,7 +4480,7 @@ tf_is_convertable(const char *name)
     {
         value64 v = value64_createbool(false);
         test_validate(
-            value64_is_convertable(v, VALUE64_BOOL, VALUE64_LNG),
+            value64_is_convertable(v, VALUE64_BOOL, VALUE64_LONG),
             "BOOL->LNG must be convertable"
         );
     }
@@ -4570,7 +4570,7 @@ tf_is_convertable(const char *name)
     {
         value64 v = value64_createdbl(5.0e9);
         test_validate(
-            value64_is_convertable(v, VALUE64_DBL, VALUE64_LNG),
+            value64_is_convertable(v, VALUE64_DBL, VALUE64_LONG),
             "DBL->LNG (5e9) must be convertable"
         );
     }
@@ -4580,7 +4580,7 @@ tf_is_convertable(const char *name)
     {
         value64 v = value64_createdbl(1.0e30);
         test_validate(
-            !value64_is_convertable(v, VALUE64_DBL, VALUE64_LNG),
+            !value64_is_convertable(v, VALUE64_DBL, VALUE64_LONG),
             "DBL->LNG overflow must NOT be convertable"
         );
     }
@@ -4824,7 +4824,7 @@ tf_pt_compare(const char *name)
         value64 a = value64_createlong(-999999L);
         value64 b = value64_createlong(-999999L);
         test_validate(
-            value64_pt_compare(&a, &b, VALUE64_LNG) == 0,
+            value64_pt_compare(&a, &b, VALUE64_LONG) == 0,
             "-999999L must equal -999999L"
         );
     }
@@ -4834,11 +4834,11 @@ tf_pt_compare(const char *name)
         value64 a = value64_createlong(100L);
         value64 b = value64_createlong(200L);
         test_validate(
-            value64_pt_compare(&a, &b, VALUE64_LNG) < 0,
+            value64_pt_compare(&a, &b, VALUE64_LONG) < 0,
             "100L must be less than 200L"
         );
         test_validate(
-            value64_pt_compare(&b, &a, VALUE64_LNG) > 0,
+            value64_pt_compare(&b, &a, VALUE64_LONG) > 0,
             "200L must be greater than 100L"
         );
     }
@@ -5144,7 +5144,7 @@ tf_search(const char *name)
     {
         value64 arr[] = { value64_createlong(100L), value64_createlong(200L), value64_createlong(300L) };
         test_validate(
-            value64_search(value64_createlong(200L), VALUE64_LNG, arr, COUNT(arr)) == 1,
+            value64_search(value64_createlong(200L), VALUE64_LONG, arr, COUNT(arr)) == 1,
             "200L must be at index 1"
         );
     }
@@ -5580,7 +5580,7 @@ tf_getComparator(const char *name)
     /* 3. LONG comparator */
     test_sub("subtest %d: getComparator LONG", ++subnum);
     {
-        value64_Comparator cmp = value64_getComparator(VALUE64_LNG);
+        value64_Comparator cmp = value64_getComparator(VALUE64_LONG);
         test_validate(cmp != NULL, "LONG comparator must not be NULL");
 
         value64 a = value64_createlong(100L);
@@ -5592,7 +5592,7 @@ tf_getComparator(const char *name)
     /* 4. LONG rev comparator */
     test_sub("subtest %d: getRevComparator LONG", ++subnum);
     {
-        value64_Comparator rcmp = value64_getRevComparator(VALUE64_LNG);
+        value64_Comparator rcmp = value64_getRevComparator(VALUE64_LONG);
         test_validate(rcmp != NULL, "LONG rev comparator must not be NULL");
 
         value64 a = value64_createlong(100L);
@@ -5833,7 +5833,7 @@ tf_getPComparator(const char *name)
     /* ---------- 3. P_LONG comparator ---------- */
     test_sub("subtest %d: getPComparator LONG", ++subnum);
     {
-        value64_PComparator cmp = value64_getPComparator(VALUE64_LNG);
+        value64_PComparator cmp = value64_getPComparator(VALUE64_LONG);
         test_validate(cmp != NULL, "LONG P-comparator must not be NULL");
 
         value64 a = value64_createlong(100L);
@@ -5845,7 +5845,7 @@ tf_getPComparator(const char *name)
     /* 4. P_LONG rev comparator */
     test_sub("subtest %d: getPRevComparator LONG", ++subnum);
     {
-        value64_PComparator rcmp = value64_getPRevComparator(VALUE64_LNG);
+        value64_PComparator rcmp = value64_getPRevComparator(VALUE64_LONG);
         test_validate(rcmp != NULL, "LONG P-rev-comparator must not be NULL");
 
         value64 a = value64_createlong(100L);
@@ -6955,7 +6955,7 @@ tf_fsave(const char *name)
         FILE       *f = fopen(fname, "w");
         if (!f)
             return logerr(TEST_FAILED, "Cannot open file for 'w' %s", fname);
-        int         written = value64_tofile(f, v, VALUE64_LNG, true);
+        int         written = value64_tofile(f, v, VALUE64_LONG, true);
         fclose(f);
         logmsg("Saved LONG to '%s', written=%d", fname, written);
     }
@@ -7088,7 +7088,7 @@ tf_fsave_fload(const char *name)
         FILE *f = fopen(fname, "w");
         if (!f)
             return logerr(TEST_FAILED, "Cannot open %s for writing", fname);
-        value64_tofile(f, orig, VALUE64_LNG, true);
+        value64_tofile(f, orig, VALUE64_LONG, true);
         fclose(f);
 
         f = fopen(fname, "r");
@@ -7102,7 +7102,7 @@ tf_fsave_fload(const char *name)
         fclose(f);
 
         test_validate(
-            value64_compare(orig, loaded, VALUE64_LNG) == 0,
+            value64_compare(orig, loaded, VALUE64_LONG) == 0,
             "LONG save/load mismatch: original %ld, loaded %ld", orig.lval, loaded.lval
         );
         fs_alloc_check(true);
@@ -7554,7 +7554,7 @@ tf_tostr(const char *name)
     {
         value64 v = LITERAL64_LONG(123456789L);
         fs buf = FS();
-        int written = value64_tostr(&buf, v, VALUE64_LNG, true);
+        int written = value64_tostr(&buf, v, VALUE64_LONG, true);
         test_validatefree(
             written == 24 &&
             strcmp(fs_str(&buf), "VALUE64(LNG):\"123456789\"") == 0,
@@ -7823,7 +7823,7 @@ tf_setzero(const char *name)
     test_sub("subtest %d: setzero LNG", ++subnum);
     {
         value64 v = LITERAL64_LONG(123456789L);
-        value64_setzero(&v, VALUE64_LNG);
+        value64_setzero(&v, VALUE64_LONG);
         test_validate(
             v.lval == 0L,
             "LONG should be 0 after setzero"
@@ -7924,7 +7924,7 @@ tf_value64_move(const char *name)
     test_sub("subtest %d: move LNG", ++subnum);
     {
         value64 src = { .lval = 999888777L };
-        value64 dst = value64_move(&src, VALUE64_LNG);
+        value64 dst = value64_move(&src, VALUE64_LONG);
         test_validate(
             dst.lval == 999888777L && src.lval == 0L,
             "Move LNG: dst=%ld, src=%ld (expected 999888777, 0)", dst.lval, src.lval
@@ -8046,7 +8046,7 @@ tf_techfprint(const char *name)
     test_sub("subtest %d:  LONG", ++subnum);
     {
         value64 vlong = LITERAL64_INT(5000L);
-        VALUE64_TECHFPRINT(logfile, vlong, VALUE64_LNG);
+        VALUE64_TECHFPRINT(logfile, vlong, VALUE64_LONG);
     }
     test_sub("subtest %d:  CHAR", ++subnum);
     {
@@ -8108,12 +8108,12 @@ tf_str_serialization(const char *name)
     {
         value64 orig = LITERAL64_LONG(123456789L);
         fs buf = FS();
-        value64_tostr(&buf, orig, VALUE64_LNG, true);
+        value64_tostr(&buf, orig, VALUE64_LONG, true);
 
         value64 loaded;
         test_validatefree(
             value64_loadstr(fs_str(&buf), &loaded, VALUE64_UNKNOWN, true, NULL) &&
-            value64_equal(orig, loaded, VALUE64_LNG),
+            value64_equal(orig, loaded, VALUE64_LONG),
             fsfree(buf),
             "LONG str round-trip failed"
         );

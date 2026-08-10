@@ -65,7 +65,7 @@ _Static_assert(sizeof(value64) == sizeof(uint64_t),
 typedef enum value64_type {
     VALUE64_UNKNOWN = 0,
     VALUE64_INT = 1,
-    VALUE64_LNG,
+    VALUE64_LONG,
     VALUE64_ULONG,
     VALUE64_DBL,
     VALUE64_PTR,
@@ -410,7 +410,7 @@ static inline value64               value64_clone(value64 source, value64_type t
     switch (typ){
         case VALUE64_INT:
             return value64_createint(source.ival);
-        case VALUE64_LNG:
+        case VALUE64_LONG:
             return value64_createlong(source.lval);
         case VALUE64_ULONG:
             return value64_createulong(source.ulval);
@@ -602,7 +602,7 @@ static inline value64              *value64_moveto_int(value64 *restrict target,
     return value64_moveto(target, source, VALUE64_INT);
 }
 static inline value64              *value64_moveto_long(value64 *restrict target, value64 *restrict source){
-    return value64_moveto(target, source, VALUE64_LNG);
+    return value64_moveto(target, source, VALUE64_LONG);
 }
 static inline value64              *value64_moveto_ulong(value64 *restrict target, value64 *restrict source){
     return value64_moveto(target, source, VALUE64_ULONG);
@@ -639,7 +639,7 @@ static inline void                  value64_sort_int(value64 *arr, int sz) {
     value64_sort(VALUE64_INT, arr, sz);
 }
 static inline void                  value64_sort_long(value64 *arr, int sz) {
-    value64_sort(VALUE64_LNG, arr, sz);
+    value64_sort(VALUE64_LONG, arr, sz);
 }
 static inline void                  value64_sort_char(value64 *arr, int sz) {
     value64_sort(VALUE64_CHR, arr, sz);
@@ -665,7 +665,7 @@ static inline void                  value64_revsort_int(value64 *arr, int sz) {
     value64_revsort(VALUE64_INT, arr, sz);
 }
 static inline void                  value64_revsort_long(value64 *arr, int sz) {
-    value64_revsort(VALUE64_LNG, arr, sz);
+    value64_revsort(VALUE64_LONG, arr, sz);
 }
 static inline void                  value64_revsort_char(value64 *arr, int sz) {
     value64_revsort(VALUE64_CHR, arr, sz);
@@ -812,7 +812,7 @@ static inline value64_PComparator   value64_getPComparator(value64_type typ){
     switch (typ){
         case VALUE64_INT:
             return value64_pint_comp;
-        case VALUE64_LNG:
+        case VALUE64_LONG:
             return value64_plong_comp;
         case VALUE64_ULONG:
             return value64_pulong_comp;
@@ -845,7 +845,7 @@ static inline value64_PComparator  value64_getPRevComparator(value64_type typ){
     switch (typ){
         case VALUE64_INT:
             return value64_pint_rev_comp;
-        case VALUE64_LNG:
+        case VALUE64_LONG:
             return value64_plong_rev_comp;
         case VALUE64_ULONG:
             return value64_pulong_rev_comp;
@@ -877,7 +877,7 @@ static inline value64_Comparator    value64_getComparator(value64_type typ){
     switch (typ){
         case VALUE64_INT:
             return value64_int_comp;
-        case VALUE64_LNG:
+        case VALUE64_LONG:
             return value64_long_comp;
         case VALUE64_ULONG:
             return value64_ulong_comp;
@@ -907,7 +907,7 @@ static inline value64_Comparator  value64_getRevComparator(value64_type typ){
     switch (typ){
         case VALUE64_INT:
             return value64_int_rev_comp;
-        case VALUE64_LNG:
+        case VALUE64_LONG:
             return value64_long_rev_comp;
         case VALUE64_ULONG:
             return value64_ulong_rev_comp;
