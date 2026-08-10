@@ -232,7 +232,7 @@ static bool                 find_elems(const hset_elem *restrict el, const hset 
 hset                        hset_init(int sz, value64_type typ){
     logenter("init sz %d - %s", sz, value64_typename(typ) );
 
-    if (int_notin(typ, VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_FS, VALUE64_PTR) )
+    if (int_notin(typ, VALUE64_INT, VALUE64_LONG, VALUE64_DBL, VALUE64_FS, VALUE64_PTR) )
         userraiseint(ERR_UNSUPPORTED_TYPE, "%d", typ);
 
     if (sz <= 0)
@@ -302,8 +302,8 @@ hset                        hset_clone(const hset *se){
 hset                        hset_cloneas(const hset *se, value64_type typ){
     invraise(se != 0, "Null pointer");
 
-    if (int_notin(typ, VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_FS) 
-            && int_notin(hset_getype(se), VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_FS))
+    if (int_notin(typ, VALUE64_INT, VALUE64_LONG, VALUE64_DBL, VALUE64_FS) 
+            && int_notin(hset_getype(se), VALUE64_INT, VALUE64_LONG, VALUE64_DBL, VALUE64_FS))
         userraiseint(ERR_UNSUPPORTED_TYPE, "From %d:%s - to %d:%s",
             hset_getype(se), value64_typename(hset_getype(se) ), typ, value64_typename(typ) );
 
@@ -326,7 +326,7 @@ hset                        hset_cloneas(const hset *se, value64_type typ){
 hset                        hset_from_anyarr(const void *arr, int sz, value64_type typ){
     invraisecode(ERR_NULLABLE_PTR, arr != 0 && sz > 0 && sz < INT_MAX / 4, 
             "Incorrent input %p - %d", arr, sz);
-    if (int_notin(typ, VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_PTR, VALUE64_FS) )
+    if (int_notin(typ, VALUE64_INT, VALUE64_LONG, VALUE64_DBL, VALUE64_PTR, VALUE64_FS) )
         userraiseint(ERR_UNSUPPORTED_TYPE, "%d", typ);
 
     if (sz <= 0)
@@ -369,7 +369,7 @@ bool                        hset_validate(FILE *out, const hset *restrict se){
             fprintf(out, "Cnt %d not matched to calculated cnt %d", se->count, cnt);
         return logerr(false, "Cnt %d not matched to calculated cnt %d", se->count, cnt);
     }
-    if (int_notin(hset_getype(se), VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_FS, VALUE64_PTR) ){
+    if (int_notin(hset_getype(se), VALUE64_INT, VALUE64_LONG, VALUE64_DBL, VALUE64_FS, VALUE64_PTR) ){
         if (out)
             fprintf(out, "Incorrect type %d", hset_getype(se) );
         return logerr(false, "Incorrect type %d", hset_getype(se) );
@@ -490,7 +490,7 @@ void                        hset_clean(hset *se){
 // for array mass loading
 int                         hset_loadanyarr(hset *restrict se, void *arr, int sz, value64_type typ){ 
     invraisecode(ERR_NULLABLE_PTR, arr != 0 && sz > 0 && sz < INT_MAX / 4, "Incorrent input %p - %d", arr, sz);
-    if (int_notin(typ, VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_PTR, VALUE64_FS) )
+    if (int_notin(typ, VALUE64_INT, VALUE64_LONG, VALUE64_DBL, VALUE64_PTR, VALUE64_FS) )
         userraiseint(ERR_UNSUPPORTED_TYPE, "%d - %s", typ, value64_typename(typ) );
 
     int         cnt = 0;
@@ -559,7 +559,7 @@ int                         hset_fsave(FILE  *restrict out, const hset *se) {
 
     value64_type   typ = hset_getype(se);
 
-    invraisecode ( int_in(typ, VALUE64_INT, VALUE64_LNG, VALUE64_DBL, VALUE64_PTR, VALUE64_FS),
+    invraisecode ( int_in(typ, VALUE64_INT, VALUE64_LONG, VALUE64_DBL, VALUE64_PTR, VALUE64_FS),
                 ERR_UNSUPPORTED_TYPE,
                 "%d - %s", typ, value64_typename(typ) );
     int         cnt = 0;
@@ -956,7 +956,7 @@ tf3(const char *name)
 
     test_sub("subtest %d: clone...", ++subnum);
     {
-        hset    se1 = hset_init(10, VALUE64_LNG);
+        hset    se1 = hset_init(10, VALUE64_LONG);
         int     cnt = 50;
 
         for (int i = 0; i < cnt; i++)
@@ -1297,7 +1297,7 @@ tf4(const char *name)
 
     test_sub("subtest %d: empty count", ++subnum);
     {
-        hset    se1 = hset_init(100, VALUE64_LNG);
+        hset    se1 = hset_init(100, VALUE64_LONG);
         int     res;
         test_validatefree(
             (res = hset_cnt(&se1) ) == 0, hset_free(&se1), "Must be zero, but not %d", res
@@ -1842,7 +1842,7 @@ tf7(const char *name)
         hset    se1 = hset_from_intarr(arr.iv, arr.len);
         Arrayfree(arr);
 
-        hset    se2 = hset_cloneas(&se1, VALUE64_LNG);
+        hset    se2 = hset_cloneas(&se1, VALUE64_LONG);
 
         test_validatefree(
             hset_validate(stdout, &se1) && hset_validate(stdout, &se2),

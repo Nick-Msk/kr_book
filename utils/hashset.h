@@ -74,7 +74,7 @@ static inline hset          hset_init_int(int sz){
     return hset_init(sz, VALUE64_INT);
 }
 static inline hset          hset_init_long(int sz){
-    return hset_init(sz, VALUE64_LNG);
+    return hset_init(sz, VALUE64_LONG);
 }
 static inline hset          hset_init_dbl(int sz){
     return hset_init(sz, VALUE64_DBL);
@@ -105,7 +105,7 @@ static inline hset          hset_from_fssarr(const fs *fsarr, int sz){
     return hset_from_anyarr(fsarr, sz, VALUE64_FS);
 }
 static inline hset          hset_from_longarr(const long *larr, int sz){
-    return hset_from_anyarr(larr, sz, VALUE64_LNG);
+    return hset_from_anyarr(larr, sz, VALUE64_LONG);
 }
 static inline hset          hset_from_dblarr(const double *darr, int sz){
     return hset_from_anyarr(darr, sz, VALUE64_DBL);
@@ -201,7 +201,7 @@ static inline int           hset_loadiarr(hset *restrict se, const int *iarr, in
     return hset_loadanyarr(se, (void *) iarr, sz, VALUE64_INT);
 }
 static inline int           hset_loadlarr(hset *restrict se, const long *larr, int sz){
-    return hset_loadanyarr(se, (void *) larr, sz, VALUE64_LNG);
+    return hset_loadanyarr(se, (void *) larr, sz, VALUE64_LONG);
 }
 static inline int           hset_loaddarr(hset *restrict se, const double *darr, int sz){
     return hset_loadanyarr(se, (void *) darr, sz, VALUE64_DBL);
