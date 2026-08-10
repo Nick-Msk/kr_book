@@ -8138,6 +8138,42 @@ tf_str_serialization(const char *name)
         fsfree(buf);
         fs_alloc_check(true);
     }
+    /* ========== BOOL ========== */
+    test_sub("subtest %d: BOOL save/load to string true", ++subnum);
+    {
+        value64 orig = value64_createbool(true);
+        fs buf = FS();
+        value64_tostr(&buf, orig, VALUE64_BOOL, true);
+        value64 loaded;
+        test_validatefree(
+            value64_loadstr(fs_str(&buf), &loaded, VALUE64_UNKNOWN, true, NULL) &&
+            value64_equal(orig, loaded, VALUE64_BOOL),
+            fsfree(buf),
+            "BOOL true str round-trip failed (string='%s')", fs_str(&buf)
+        );
+        fsfree(buf);
+        value64free(orig, VALUE64_BOOL);
+        value64free(loaded, VALUE64_BOOL);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: BOOL save/load to string false", ++subnum);
+    {
+        value64 orig = value64_createbool(false);
+        fs buf = FS();
+        value64_tostr(&buf, orig, VALUE64_BOOL, true);
+        value64 loaded;
+        test_validatefree(
+            value64_loadstr(fs_str(&buf), &loaded, VALUE64_UNKNOWN, true, NULL) &&
+            value64_equal(orig, loaded, VALUE64_BOOL),
+            fsfree(buf),
+            "BOOL false str round-trip failed (string='%s')", fs_str(&buf)
+        );
+        fsfree(buf);
+        value64free(orig, VALUE64_BOOL);
+        value64free(loaded, VALUE64_BOOL);
+        fs_alloc_check(true);
+    }
 
     /* ========== DBL ========== */
     test_sub("subtest %d: DBL save/load to string", ++subnum);
