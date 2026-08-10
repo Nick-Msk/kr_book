@@ -623,6 +623,9 @@ int                     value64_compare(value64 v1, value64 v2, value64_type typ
         case VALUE64_LONG:
             res = compare_long(v1.lval, v2.lval);
         break;
+        case VALUE64_ULONG:
+            res = compare_ulong(v1.lval, v2.lval);
+        break;
         case VALUE64_DBL:
             res = compare_dbl(v1.dval, v2.dval);
         break;
@@ -3438,6 +3441,16 @@ tf_compare(const char *name)
 
         test_validate(value64_compare(v1, v2, VALUE64_LONG) == 0, "Equal longs must return 0");
         test_validate(value64_compare(v1, v3, VALUE64_LONG) != 0, "Different longs must not return 0");
+    }
+    /* 2. compare ulong */
+    test_sub("subtest %d: compare ulong", ++subnum);
+    {
+        value64 v1 = value64_createulong(999999999UL);
+        value64 v2 = value64_createulong(999999999UL);
+        value64 v3 = value64_createulong(70L);
+
+        test_validate(value64_compare(v1, v2, VALUE64_ULONG) == 0, "Equal longs must return 0");
+        test_validate(value64_compare(v1, v3, VALUE64_ULONG) != 0, "Different longs must not return 0");
     }
 
     /* compare char */
