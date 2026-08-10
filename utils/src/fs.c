@@ -2390,6 +2390,71 @@ tf22(const char *name)
         fsfree(s);
     }
 
+    /* ========== fs_getulong ========== */
+
+    /* 10. Обычное значение */
+    test_sub("subtest %d: fs_getulong normal", ++subnum);
+    {
+        fs s = fscopy("9999999999");
+        test_validatefree(
+            fs_getulong(&s) == 9999999999UL,
+            fsfree(s),
+            "fs_getulong('9999999999') must return 9999999999"
+        );
+        fsfree(s);
+    }
+
+    /* 11. Максимальное 64‑битное значение */
+    test_sub("subtest %d: fs_getulong max", ++subnum);
+    {
+        fs s = fscopy("18446744073709551615");
+        test_validatefree(
+            fs_getulong(&s) == 18446744073709551615UL,
+            fsfree(s),
+            "fs_getulong('18446744073709551615') must return ULONG_MAX"
+        );
+        fsfree(s);
+    }
+
+    /* 12. Нечисловая строка */
+    test_sub("subtest %d: fs_getulong non‑numeric", ++subnum);
+    {
+        fs s = fscopy("xyz");
+        if (!try()) {
+            fs_getulong(&s);
+            test_validatefree(false, fsfree(s), "fs_getulong('xyz') must raise error");
+        } else {
+            test_validatefree(true, fsfree(s), "fs_getulong('xyz') correctly raised error");
+        }
+        fsfree(s);
+    }
+
+    /* 13. Пустая строка */
+    test_sub("subtest %d: fs_getulong empty", ++subnum);
+    {
+        fs s = FS();
+        if (!try()) {
+            fs_getulong(&s);
+            test_validatefree(false, fsfree(s), "fs_getulong(empty) must raise error");
+        } else {
+            test_validatefree(true, fsfree(s), "fs_getulong(empty) correctly raised error");
+        }
+        fsfree(s);
+    }
+
+    /* 14. Позиционное чтение */
+    test_sub("subtest %d: fs_getulongpos", ++subnum);
+    {
+        fs s = fscopy("--- 777");
+        test_validatefree(
+            fs_getulongpos(&s, 4) == 777UL,
+            fsfree(s),
+            "fs_getulongpos('--- 777', 4) must return 777"
+        );
+        fsfree(s);
+    }
+    fs_alloc_check(true);
+
     /* ========== fs_getdouble ========== */
 
     /* 10. Обычное число */

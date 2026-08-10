@@ -689,18 +689,29 @@ static inline int            fs_getint(const fs *ps){
     return fs_getintpos(ps, 0);
 }
 
-// try to parse value
+// try to parse long value
 static inline long           fs_getlongpos(const fs *ps, int pos) {
     long     res;
     if (!try_parse_long(ps->v + pos, &res) )
-        userraiseint(ERR_INVALID_CONVERSION, "Unablew to convert to long %.50s", ps->v + pos);            // this must be configurable! 
+        userraiseint(ERR_INVALID_CONVERSION, "Unable to convert to long %.50s", ps->v + pos);            // this must be configurable! 
     return res;
 }
 //
 static inline long            fs_getlong(const fs *ps) {
     return fs_getlongpos(ps, 0);
 }
-// try to parse value
+// try to parse long value
+static inline unsigned long  fs_getulongpos(const fs *ps, int pos) {
+    unsigned long     res;
+    if (!try_parse_ulong(ps->v + pos, &res) )
+        userraiseint(ERR_INVALID_CONVERSION, "Unable to convert to unsigned long %.50s", ps->v + pos);            // this must be configurable! 
+    return res;
+}
+//
+static inline unsigned long   fs_getulong(const fs *ps) {
+    return fs_getulongpos(ps, 0);
+}
+// try to parse double value
 static inline double          fs_getdoublepos(const fs *ps, int pos) {
     double     res;
     if (!try_parse_double(ps->v + pos, &res) )
