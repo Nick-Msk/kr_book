@@ -1974,32 +1974,79 @@ int                          value64_tostr(fs *target, value64 val, value64_type
 }
 
 // ---------------------------------------- Filters ------------------------------------------------
-// trivial, common
+/**
+ * @name Value64 Filtering Module
+ * @brief High-performance predicates for filtering value64 objects.
+ * 
+ * This module provides a wide range of filters for various data types,
+ * including trivial filters, filesystem-based filters, and numerical 
+ * relational operators.
+ * @{
+ */
+
+/**
+ * @name Trivial Filters
+ * @brief Filters that always return a constant value.
+ * @{
+ */
+/** @brief Always returns true. Used as a neutral element in filter chains. */
 bool                        value64_filter_true(value64 v, value64 data) {
     (void)v; (void)data;
     return true;
 }
+/** @brief Always returns false. Used to exclude all elements. */
 bool                        value64_filter_false(value64 v, value64 data) {
     (void)v; (void)data;
     return false;
 }
+/** @} */
 // ---------------- fs filters -----------------
-// fs filters (assuming v as fs*), data as int, check len >= data
+
+/**
+ * @name faststring (fs) Filters
+ * @brief Filters that perform operations on filesystem/resource types.
+ * @{
+ */
+
+/** 
+ * @brief Checks if the fs length is at least the specified integer value.
+ *      fs filters (assuming v as fs*), data as int, check len >= data
+ * 
+ * @param v The value64 object containing the FS resource.
+ * @param data The target minimum length.
+ * @return true if fs_len(v) >= data.
+ */
 bool                        value64_filter_fsminlen_int(value64 v, value64 data) {
     const fs *f = value64_fs(v);
     return !fs_isnull(f) && fs_len(f) >= value64_int(data);
 }
-// fs filters (assuming v as fs*), data as int, check len <= data
+/** 
+ * @brief Checks if the fs length is at most the specified integer value.
+ * @param v The value64 object containing the FS resource.
+ * @param data The target maximum length.
+ * @return true if fs_len(v) <= data.
+ */
 bool                        value64_filter_fsmaxlen_int(value64 v, value64 data) {
     const fs *f = value64_fs(v);
     return !fs_isnull(f) && fs_len(f) <= value64_int(data);
 }
-// fs filters (assuming v as fs*), data as int, check len == data
+/** 
+ * @brief Checks if the fs  length matches the specified integer value exactly.
+ * @param v The value64 object containing the FS resource.
+ * @param data The target length.
+ * @return true if fs_len(v) == data.
+ */
 bool                        value64_filter_fslen_int(value64 v, value64 data) {
     const fs *f = value64_fs(v);
     return !fs_isnull(f) && fs_len(f) == value64_int(data);
 }
-// Проверка префикса (data.sval – строка-префикс)
+
+/** 
+ * @brief Checks if the fs  starts with the specified string prefix.
+ * @param v The value64 object containing the FS resource.
+ * @param data The value64 object containing the prefix string.
+ * @return true if the fs starts with the string.
+ */
 bool                        value64_filter_fsprefix_str(value64 v, value64 data) {
     const fs    *f = value64_fs(v);
     if (fs_isnull(f) || !value64_str(data) )
@@ -2007,13 +2054,23 @@ bool                        value64_filter_fsprefix_str(value64 v, value64 data)
     fs l = FSLITERAL(value64_str(data) );
     return fs_ncmp(f, &l, fslen(l) ) == 0;
 }
-// Проверка точного равенства строки (data.sval – искомая строка)
+/** 
+ * @brief Checks if the fs  is exactly equal to the specified string.
+ * @param v The value64 object containing the FS resource.
+ * @param data The value64 object containing the target string.
+ * @return true if the fs  matches the string exactly.
+ */
 bool                        value64_filter_fsequals_str(value64 v, value64 data) {
     const fs *f = value64_fs(v);
     return !fs_isnull(f) && value64_str(data)
             && strcmp(f->v, value64_str(data) ) == 0;    // dangerous one
 }
-// sql-like
+/** 
+ * @brief Performs a "LIKE" operation (substring search) for fs.
+ * @param v The value64 object containing the FS resource.
+ * @param data The value64 object containing the search pattern.
+ * @return true if the pattern exists anywhere within the fs.
+ */
 bool                        value64_filter_fslike_str(value64 v, value64 data) {
     const fs *f = value64_fs(v);
     if (fs_isnull(f) || !value64_str(data))
@@ -2021,8 +2078,12 @@ bool                        value64_filter_fslike_str(value64 v, value64 data) {
     fs needle = FSLITERAL(value64_str(data));
     return fs_instr(f, &needle) >= 0;   // -1 if not found
 }
-
-// sql-ulike: регистронезависимый поиск подстроки
+/** 
+ * @brief Performs a case-insensitive "LIKE" operation for fs.
+ * @param v The value64 object containing the FS resource.
+ * @param data The value64 object containing the search pattern.
+ * @return true if the pattern exists (case-insensitive) within the fs.
+ */
 bool                        value64_filter_fsulike_str(value64 v, value64 data) {
     const fs *f = value64_fs(v);
     if (fs_isnull(f) || !value64_str(data))
@@ -2030,26 +2091,46 @@ bool                        value64_filter_fsulike_str(value64 v, value64 data) 
     fs needle = FSLITERAL(value64_str(data));
     return fs_iinstr(f, &needle) >= 0;  // -1 if not found
 }
-// int to int less
+/** @} */
+
+/**
+ * @name Numerical Comparators
+ * @brief Relational operators for different numeric types.
+ * @{
+ */
+
+/** @name Integer Comparators (Int) */
+/** @{ */
+/** @brief Check if v < data. */
 bool                        value64_filter_intlt_int(value64 v, value64 data) {
     return value64_int(v) < value64_int(data);
 }
+/** @brief Check if v <= data. */
 bool                        value64_filter_intle_int(value64 v, value64 data) {
     return value64_int(v) <= value64_int(data);
 }
+/** @brief Check if v > data. . */
 bool                        value64_filter_intgt_int(value64 v, value64 data) {
     return value64_int(v) >  value64_int(data);
 }
+/** @brief Check if v >= data. */
 bool                        value64_filter_intge_int(value64 v, value64 data) {
     return value64_int(v) >= value64_int(data);
 }
+/** @brief Check if v == data. */
 bool                        value64_filter_inteq_int(value64 v, value64 data) {
     return value64_int(v) == value64_int(data);
 }
+/** @brief Check if v != data. */
 bool                        value64_filter_intne_int(value64 v, value64 data) {
     return value64_int(v) != value64_int(data);
 }
+/** @} */
+
 // ======================== LONG vs LONG ============================
+
+/** @name Long Comparators (Lng) */
+/** @{ */
 bool value64_filter_lnglt_lng(value64 v, value64 data) {
     return v.lval < data.lval;
 }
@@ -2068,8 +2149,12 @@ bool value64_filter_lngeq_lng(value64 v, value64 data) {
 bool value64_filter_lngne_lng(value64 v, value64 data) {
     return v.lval != data.lval;
 }
+/** @} */
 
 // ======================== DOUBLE vs DOUBLE ========================
+
+/** @name Double Comparators (Dbl) */
+/** @{ */
 bool value64_filter_dbllt_dbl(value64 v, value64 data) {
     return v.dval < data.dval;
 }
@@ -2088,10 +2173,23 @@ bool value64_filter_dbleq_dbl(value64 v, value64 data) {
 bool value64_filter_dblne_dbl(value64 v, value64 data) {
     return v.dval != data.dval;
 }
-// 2 value filters
+/** @} */
+
+/** @name Range Comparators */
+/** @{ */
+/** 
+ * @brief Checks if the integer value falls within the range [data1, data2].
+ * @param v The value to check.
+ * @param data1 The minimum bound.
+ * @param data2 The maximum bound.
+ * @return true if data1 <= v <= data2.
+ */
 bool                        value64_filter2_intbetween_int_int(value64 v, value64 data1, value64 data2){
     return value64_int(v) >= value64_int(data1) && value64_int(v) <= value64_int(data2);
 }
+/** @} */
+
+/** @} */
 
 // ---------------------------------------- Testing ------------------------------------------
 #ifdef VALUE64TESTING
@@ -7483,6 +7581,67 @@ tf_tostr(const char *name)
         fsfree(buf);
     }
 
+    /* ========== BOOL ========== */
+    test_sub("subtest %d: BOOL to string true with typeinfo", ++subnum);
+    {
+        value64 v = value64_createbool(true);
+        fs buf = FS();
+        int written = value64_tostr(&buf, v, VALUE64_BOOL, true);
+        test_validatefree(
+            written == 20 &&
+            strcmp(fs_str(&buf), "VALUE64(BOOL):\"true\"") == 0,
+            fsfree(buf),
+            "BOOL true: expected 'VALUE64(BOOL):\"true\"', got '%s' (written=%d)",
+            fs_str(&buf), written
+        );
+        fsfree(buf);
+    }
+
+    test_sub("subtest %d: BOOL to string false with typeinfo", ++subnum);
+    {
+        value64 v = value64_createbool(false);
+        fs buf = FS();
+        int written = value64_tostr(&buf, v, VALUE64_BOOL, true);
+        test_validatefree(
+            written == 21 &&
+            strcmp(fs_str(&buf), "VALUE64(BOOL):\"false\"") == 0,
+            fsfree(buf),
+            "BOOL false: expected 'VALUE64(BOOL):\"false\"', got '%s' (written=%d)",
+            fs_str(&buf), written
+        );
+        fsfree(buf);
+    }
+
+    test_sub("subtest %d: BOOL to string true without typeinfo", ++subnum);
+    {
+        value64 v = value64_createbool(true);
+        fs buf = FS();
+        int written = value64_tostr(&buf, v, VALUE64_BOOL, false);
+        test_validatefree(
+            written == 14 &&   // длина "VALUE64:\"true\""
+            strcmp(fs_str(&buf), "VALUE64:\"true\"") == 0,
+            fsfree(buf),
+            "BOOL true (no type): expected 'VALUE64:\"true\"', got '%s' (written=%d)",
+            fs_str(&buf), written
+        );
+        fsfree(buf);
+    }
+
+    test_sub("subtest %d: BOOL to string false without typeinfo", ++subnum);
+    {
+        value64 v = value64_createbool(false);
+        fs buf = FS();
+        int written = value64_tostr(&buf, v, VALUE64_BOOL, false);
+        test_validatefree(
+            written == 15 &&   // длина "VALUE64:\"false\""
+            strcmp(fs_str(&buf), "VALUE64:\"false\"") == 0,
+            fsfree(buf),
+            "BOOL false (no type): expected 'VALUE64:\"false\"', got '%s' (written=%d)",
+            fs_str(&buf), written
+        );
+        fsfree(buf);
+}
+
     /* ========== DBL ========== */
     test_sub("subtest %d: DBL to string", ++subnum);
     {
@@ -7546,7 +7705,7 @@ tf_tostr(const char *name)
             "FS: expected 'VALUE64(FS):\"/tmp/file\"', got '%s' (written=%d)",
             fs_str(&buf), written
         );
-        value64_freefs(&v);
+        value64_free(&v, VALUE64_FS);
         fsfree(buf);
     }
 
@@ -7563,9 +7722,10 @@ tf_tostr(const char *name)
             "Empty STR: expected 'VALUE64(STR):\"\"', got '%s' (written=%d)",
             fs_str(&buf), written
         );
-        value64_freestr(&v);
+        value64_free(&v, VALUE64_STR);
         fsfree(buf);
     }
+    fs_alloc_check(true);
 
     return logret(TEST_PASSED, "done");
 }
@@ -7680,6 +7840,16 @@ tf_setzero(const char *name)
         );
     }
 
+    test_sub("subtest %d: setzero BOOL", ++subnum);
+    {
+        value64 v = LITERAL64_BOOL(true);
+        value64_setzero(&v, VALUE64_BOOL);
+        test_validate(
+            v.cval == false,
+            "CHAR should be false after setzero"
+        );
+    }
+
     test_sub("subtest %d: setzero DBL", ++subnum);
     {
         value64 v = LITERAL64_DBL(3.14159);
@@ -7768,7 +7938,18 @@ tf_value64_move(const char *name)
         value64 dst = value64_move(&src, VALUE64_CHR);
         test_validate(
             dst.cval == 'r' && src.cval == 0,
-            "Move CHAR: dst=%d, src=%d (expected 'r', 0)", dst.ival, src.ival
+            "Move CHAR: dst=%d, src=%d (expected 'r', 0)", dst.cval, src.cval
+        );
+    }
+
+    /* ---------- BOOL ---------- */
+    test_sub("subtest %d: move BOOL", ++subnum);
+    {
+        value64 src = LITERAL64_BOOL(true);
+        value64 dst = value64_move(&src, VALUE64_BOOL);
+        test_validate(
+            dst.bval == true && src.bval == false,
+            "Move CHAR: dst=%s, src=%s (expected true, false)", bool_str(dst.bval), bool_str(src.bval)
         );
     }
 
@@ -7872,6 +8053,11 @@ tf_techfprint(const char *name)
         value64 vchar = LITERAL64_CHR('q');
         VALUE64_TECHFPRINT(logfile, vchar, VALUE64_CHR);
     }
+    test_sub("subtest %d:  BOOL", ++subnum);
+    {
+        value64 bchar = LITERAL64_BOOL(false);
+        VALUE64_TECHFPRINT(logfile, bchar, VALUE64_BOOL);
+    }
     test_sub("subtest %d:  DOUBLE", ++subnum);
     {
         value64 vdouble = LITERAL64_DBL(8.9);
@@ -7914,6 +8100,7 @@ tf_str_serialization(const char *name)
             "INT str round-trip failed (string='%s')", fs_str(&buf)
         );
         fsfree(buf);
+        fs_alloc_check(true);
     }
 
     /* ========== LONG ========== */
@@ -7931,6 +8118,7 @@ tf_str_serialization(const char *name)
             "LONG str round-trip failed"
         );
         fsfree(buf);
+        fs_alloc_check(true);
     }
 
     /* ========== CHAR ========== */
@@ -7948,6 +8136,7 @@ tf_str_serialization(const char *name)
             "CHAR str round-trip failed (string='%s')", fs_str(&buf)
         );
         fsfree(buf);
+        fs_alloc_check(true);
     }
 
     /* ========== DBL ========== */
@@ -7965,6 +8154,7 @@ tf_str_serialization(const char *name)
             "DBL str round-trip failed"
         );
         fsfree(buf);
+        fs_alloc_check(true);
     }
 
     /* ========== STR (обычная) ========== */
@@ -7983,6 +8173,7 @@ tf_str_serialization(const char *name)
         );
         value64_freestr(&orig);
         fsfree(buf);
+        fs_alloc_check(true);
     }
 
     /* ========== STR (спецсимволы) ========== */
@@ -7999,8 +8190,9 @@ tf_str_serialization(const char *name)
             (value64_freestr(&orig), fsfree(buf)),
             "STR escapes round-trip failed"
         );
-        value64_freestr(&orig);
+        value64_free(&orig, VALUE64_STR);
         fsfree(buf);
+        fs_alloc_check(true);
     }
 
     /* ========== FS ========== */
@@ -8017,8 +8209,10 @@ tf_str_serialization(const char *name)
             (value64_freefs(&orig), fsfree(buf)),
             "FS round-trip failed (string='%s')", fs_str(&buf)
         );
-        value64_freefs(&orig);
+        value64_free(&orig, VALUE64_FS);
+        value64_free(&loaded, VALUE64_FS);
         fsfree(buf);
+        fs_alloc_check(true);
     }
 
     /* ========== PTR (только проверка заголовка) ========== */
@@ -8034,6 +8228,7 @@ tf_str_serialization(const char *name)
             "PTR serialization must contain VALUE64(PTR) header"
         );
         fsfree(buf);
+        fs_alloc_check(true);
     }
 
     /* ========== Edge cases ========== */
@@ -8052,6 +8247,7 @@ tf_str_serialization(const char *name)
         );
         value64_freestr(&orig);
         fsfree(buf);
+        fs_alloc_check(true);
     }
 
     test_sub("subtest %d: load from malformed string fails", ++subnum);
@@ -8061,6 +8257,7 @@ tf_str_serialization(const char *name)
             value64_loadstr("not a valid header", &loaded, VALUE64_UNKNOWN, true, NULL) < 0,
             "Malformed string must return < 0>"
         );
+        fs_alloc_check(true);
     }
 
     return logret(TEST_PASSED, "done");
