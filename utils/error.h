@@ -59,6 +59,7 @@ typedef enum {
     ERR_INVALID_CONVERSION      = 10232,
     ERR_UNKNOWN_TYPE            = 10233,
     ERR_UNABLE_PARSE_DATA       = 10234,
+    ERR_VALIDATION_FAILED       = 10235,
     ERR_UNABLE_TO_EXEC_FILE     = 10300,
     ERR_UNABLE_TO_RUN_MAKE      = 10301
 } ErrorCode;
