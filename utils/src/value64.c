@@ -2432,6 +2432,19 @@ tf_init_free(const char *name)
             "Long value mismatch: got %ld, expected 1234567890", v.lval
         );
     }
+    /* unsigned long */
+    test_sub("subtest %d: value64 ulong", ++subnum);
+    {
+        value64 v = value64_createulong(1234567890L);
+        test_validate(
+            v.lval == 1234567890UL,
+            "Long value mismatch: got %ld, expected 1234567890UL", v.ulval
+        );
+        test_validate(
+            value64_ulong(v) == 1234567890UL,
+            "Long value mismatch: got %ld, expected 1234567890U:", v.ulval
+        );
+    }
 
     /* 3. double */
     test_sub("subtest %d: value64 double", ++subnum);
@@ -2595,7 +2608,7 @@ tf_init_free(const char *name)
         // также можно проверить через value64_typename
     }
 
-    /* 1. Создание true и проверка */
+    /* BOOL */
     test_sub("subtest %d: create and read true", ++subnum);
     {
         value64 v = value64_createbool(true);
@@ -2603,7 +2616,7 @@ tf_init_free(const char *name)
                       "Created bool must be true, got %s", value64_bool(v) ? "true" : "false");
     }
 
-    /* 2. Создание false и проверка */
+    /* BOOL false */
     test_sub("subtest %d: create and read false", ++subnum);
     {
         value64 v = value64_createbool(false);
@@ -2635,7 +2648,7 @@ tf_point_init(const char *name)
     /* 1. copy int */
     test_sub("subtest %d: pinit int", ++subnum);
     {
-        int ival = 123;
+        int     ival = 123;
         value64 v = value64_pinit(&ival, VALUE64_INT);
         test_validate(v.ival == 123, "Copy int: got %d, expected 123", v.ival);
     }
@@ -2643,15 +2656,22 @@ tf_point_init(const char *name)
     /* 2. copy long */
     test_sub("subtest %d: pinit long", ++subnum);
     {
-        long lval = 999999999L;
+        long    lval = 999999999L;
         value64 v = value64_pinit(&lval, VALUE64_LONG);
         test_validate(v.lval == 999999999L, "Copy long: got %ld, expected 999999999", v.lval);
+    }
+    /* copy unsigned long */
+    test_sub("subtest %d: pinit ulong", ++subnum);
+    {
+        long    lval = 999999999UL;
+        value64 v = value64_pinit(&lval, VALUE64_ULONG);
+        test_validate(v.ulval == 999999999UL, "Copy ulong: got %lu, expected 999999999", v.ulval);
     }
 
     /* 3. copy double */
     test_sub("subtest %d: pinit double", ++subnum);
     {
-        double dval = 2.7182818;
+        double  dval = 2.7182818;
         value64 v = value64_pinit(&dval, VALUE64_DBL);
         test_validate(fabs(v.dval - 2.7182818) < 0.0000001,
                       "Copy double: got %f, expected 2.7182818", v.dval);
@@ -2660,7 +2680,7 @@ tf_point_init(const char *name)
     /* 4. copy char */
     test_sub("subtest %d: pinit char", ++subnum);
     {
-        char cval = 'X';
+        char    cval = 'X';
         value64 v = value64_pinit(&cval, VALUE64_CHR);
         test_validate(v.cval == 'X', "Copy char: got '%c', expected 'X'", v.cval);
     }
@@ -2675,8 +2695,8 @@ tf_point_init(const char *name)
     /* 4. copy pointer */
     test_sub("subtest %d: pinit pointer", ++subnum);
     {
-        int x = 5;
-        void *ptr = &x;
+        int     x = 5;
+        void   *ptr = &x;
         value64 v = value64_pinit(&ptr, VALUE64_PTR);
         test_validate(v.pval == ptr,
                       "Copy pointer: got %p, expected %p", v.pval, ptr);
@@ -2685,8 +2705,8 @@ tf_point_init(const char *name)
     /* 5. copy C-string */
     test_sub("subtest %d: pinit str", ++subnum);
     {
-        const char *text = "copy-me";
-        value64 v = value64_pinit(text, VALUE64_STR);
+        const char  *text = "copy-me";
+        value64      v = value64_pinit(text, VALUE64_STR);
         test_validatefree(
             strcmp(v.sval, text) == 0,
             value64freestr(v),
@@ -2704,8 +2724,8 @@ tf_point_init(const char *name)
     test_sub("subtest %d: pinit fs", ++subnum);
     {
         const char *text = "fs-copy";
-        fs orig = fscopy(text);
-        value64 v = value64_pinit(&orig, VALUE64_FS);
+        fs          orig = fscopy(text);
+        value64     v = value64_pinit(&orig, VALUE64_FS);
 
         test_validatefree(
             strcmp(fs_str(v.fsval), text) == 0,
@@ -2734,13 +2754,29 @@ tf_point_init(const char *name)
                       "Move INT: v=%d, ival=%d (expected 42, 0)", v.ival, ival);
     }
 
-    /* ---------- LNG ---------- */
+    /* ---------- LONG ---------- */
     test_sub("subtest %d: move LONG", ++subnum);
     {
         long lval = 999888777L;
         value64 v = value64_pmove(&lval, VALUE64_LONG);
         test_validate(v.lval == 999888777L && lval == 0L,
                       "Move LONG: v=%ld, lval=%ld (expected 999888777, 0)", v.lval, lval);
+    }
+    /* ---------- ULONG ---------- */
+    test_sub("subtest %d: move ULONG", ++subnum);
+    {
+        unsigned long   ulval = ULONG_MAX;
+        value64         v = value64_pmove(&ulval, VALUE64_ULONG);
+        test_validate(v.ulval == ULONG_MAX && ulval == 0L,
+                      "Move LONG: v=%ld, lval=%ld (expected ULONG_MAX, 0)", v.ulval, ulval);
+    }
+    /* ---------- ULONG ---------- */
+    test_sub("subtest %d: move ULONG", ++subnum);
+    {
+        unsigned long   ulval = 999888777UL;
+        value64         v = value64_pmove(&ulval, VALUE64_ULONG);
+        test_validate(v.ulval == 999888777UL && ulval == 0L,
+                      "Move LONG: v=%ld, lval=%ld (expected 999888777UL, 0)", v.ulval, v.ulval);
     }
 
     /* ---------- DBL ---------- */
@@ -2837,6 +2873,12 @@ tf_clone(const char *name)
         value64 v = value64_createlong(1234567890L);
         test_validate(v.lval == 1234567890L, "Create long: got %ld, expected 1234567890", v.lval);
     }
+    /*  ulong */
+    test_sub("subtest %d: create ulong", ++subnum);
+    {
+        value64 v = value64_createulong(1234567890UL);
+        test_validate(v.ulval == 1234567890UL, "Create ulong: got %lu, expected 1234567890", v.ulval);
+    }
 
     /* 3. double */
     test_sub("subtest %d: create double", ++subnum);
@@ -2913,6 +2955,13 @@ tf_clone(const char *name)
         value64 orig = value64_createlong(999999999L);
         value64 copy = value64_clone(orig, VALUE64_LONG);
         test_validate(copy.lval == 999999999L, "Clone long: got %ld, expected 999999999", copy.lval);
+    }
+    /* clone ulong */
+    test_sub("subtest %d: clone ulong", ++subnum);
+    {
+        value64 orig = value64_createulong(999999999UL);
+        value64 copy = value64_clone(orig, VALUE64_ULONG);
+        test_validate(copy.lval == 999999999UL, "Clone long: got %lu, expected 999999999", copy.ulval);
     }
 
     /* 9. clone double */
@@ -3042,6 +3091,16 @@ tf_move(const char *name)
 
         test_validate(value64_long(dst) == 123456789L, "dst mismatch, got %ld", value64_long(dst));
         test_validate(value64_long(src) == 0L, "src must be 0 after move, got %ld", value64_long(src));
+    }
+    /* 2. move ulong */
+    test_sub("subtest %d: move ulong", ++subnum);
+    {
+        value64 src = value64_createulong(123456789UL);
+        value64 dst = LITERAL64_ZERO;
+        value64_moveto_long(&dst, &src);
+
+        test_validate(value64_long(dst) == 123456789UL, "dst mismatch, got %lu", value64_long(dst));
+        test_validate(value64_long(src) == 0UL, "src must be 0 after move, got %ld", value64_long(src));
     }
 
     /* 3. move double */
@@ -3210,6 +3269,20 @@ tf_lhash(const char *name)
         unsigned long h1 = value64_lhash(v1, VALUE64_LONG);
         unsigned long h2 = value64_lhash(v2, VALUE64_LONG);
         unsigned long h3 = value64_lhash(v3, VALUE64_LONG);
+
+        test_validate(h1 == h2, "Same longs must have same hash");
+        test_validate(h1 != h3, "Different longs should differ");
+    }
+    /* ulong */
+    test_sub("subtest %d: hash ulong", ++subnum);
+    {
+        value64 v1 = value64_createulong(999999999UL);
+        value64 v2 = value64_createlong(999999999UL);
+        value64 v3 = value64_createulong(10UL);
+
+        unsigned long h1 = value64_lhash(v1, VALUE64_ULONG);
+        unsigned long h2 = value64_lhash(v2, VALUE64_ULONG);
+        unsigned long h3 = value64_lhash(v3, VALUE64_ULONG);
 
         test_validate(h1 == h2, "Same longs must have same hash");
         test_validate(h1 != h3, "Different longs should differ");
