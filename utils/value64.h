@@ -930,11 +930,45 @@ static inline value64_Comparator  value64_getRevComparator(value64_type typ){
 /** @} */
 
 // ----------------------------- CONVERTERS ----------------------------------------
+/**
+ * @name General Interface
+ * @brief High-level functions for checking and performing conversions.
+ * @{
+ */
 
+/**
+ * @brief Generic conversion function (Copy Semantics).
+ * 
+ * Converts a value from the specified 'from' type to the 'to' type.
+ * This function performs a copy, leaving the source value intact.
+ * 
+ * @param v    The source value64 object.
+ * @param from The source type.
+ * @param to   The target type.
+ * @return The converted value64 object.
+ */
 extern value64                     value64_convert(value64 v, value64_type from, value64_type to);
+/**
+ * @brief Checks if a conversion between two types is valid.
+ * @param v    The source value64 object.
+ * @param from The source type.
+ * @param to   The target type.
+ * @return true if conversion is supported, false otherwise.
+ */
 extern bool                        value64_is_convertable(value64 v, value64_type from, value64_type to);
+/** @} */
+
 
 // --- Group INT ---
+/**
+ * @name Conversion Matrix (Copy Semantics)
+ * @brief Specialized functions for converting from a specific source type.
+ * @details These functions are non-destructive.
+ * @{
+ */
+
+/** @name Integer Conversions */
+/** @{ */
 extern value64                     value64_convert_int_to_lng(value64 v);
 extern value64                     value64_convert_int_to_ulong(value64 v);
 extern value64                     value64_convert_int_to_dbl(value64 v);
@@ -943,7 +977,11 @@ extern value64                     value64_convert_int_to_bool(value64 v);
 extern value64                     value64_convert_int_to_fs(value64 v);
 extern value64                     value64_convert_int_to_str(value64 v);
 extern value64                     value64_convert_int_to_int(value64 v);
+/** @} */
+
 // --- Group LNG ---
+/** @name Long Conversions */
+/** @{ */
 extern value64                     value64_convert_lng_to_int(value64 v);
 extern value64                     value64_convert_lng_to_ulong(value64 v);
 extern value64                     value64_convert_lng_to_dbl(value64 v);
@@ -952,7 +990,11 @@ extern value64                     value64_convert_lng_to_bool(value64 v);
 extern value64                     value64_convert_lng_to_fs(value64 v);
 extern value64                     value64_convert_lng_to_str(value64 v);
 extern value64                     value64_convert_lng_to_lng(value64 v);
+/** @} */
+
 // --- Group ULONG ---
+/** @name Unsigned Long Conversions */
+/** @{ */
 extern value64                     value64_convert_ulong_to_int(value64 v);
 extern value64                     value64_convert_ulong_to_lng(value64 v);
 extern value64                     value64_convert_ulong_to_dbl(value64 v);
@@ -961,7 +1003,11 @@ extern value64                     value64_convert_ulong_to_bool(value64 v);
 extern value64                     value64_convert_ulong_to_fs(value64 v);
 extern value64                     value64_convert_ulong_to_str(value64 v);
 extern value64                     value64_convert_ulong_to_ulong(value64 v);
+/** @} */
+
 // --- Group DBL ---
+/** @name Double Conversions */
+/** @{ */
 extern value64                     value64_convert_dbl_to_int(value64 v);
 extern value64                     value64_convert_dbl_to_lng(value64 v);
 extern value64                     value64_convert_dbl_to_ulong(value64 v);
@@ -970,7 +1016,12 @@ extern value64                     value64_convert_dbl_to_str(value64 v);
 extern value64                     value64_convert_dbl_to_dbl(value64 v);
 //dbl => char NO convert 
 //dbl => bool NO convert 
+
+/** @} */
+
 // --- Group CHR ---
+/** @name Character Conversions */
+/** @{ */
 extern value64                     value64_convert_char_to_int(value64 v);
 extern value64                     value64_convert_char_to_lng(value64 v);
 extern value64                     value64_convert_char_to_ulong(value64 v);
@@ -979,7 +1030,11 @@ extern value64                     value64_convert_char_to_fs(value64 v);
 extern value64                     value64_convert_char_to_str(value64 v);
 extern value64                     value64_convert_char_to_char(value64 v);
 // no convert char to dbl
+/** @} */
+
 // --- Group BOOL ---
+/** @name Boolean Conversions */
+/** @{ */
 extern value64                     value64_convert_bool_to_int(value64 v);
 extern value64                     value64_convert_bool_to_lng(value64 v);
 extern value64                     value64_convert_bool_to_ulong(value64 v);
@@ -987,6 +1042,10 @@ extern value64                     value64_convert_bool_to_char(value64 v);
 extern value64                     value64_convert_bool_to_fs(value64 v);
 extern value64                     value64_convert_bool_to_str(value64 v);
 extern value64                     value64_convert_bool_to_bool(value64 v);
+/** @} */
+
+/** @name fs Conversions */
+/** @{ */
 // --- Group FS ---
 extern value64                     value64_convert_fs_to_int(value64 v);
 extern value64                     value64_convert_fs_to_lng(value64 v);
@@ -996,6 +1055,10 @@ extern value64                     value64_convert_fs_to_bool(value64 v);
 extern value64                     value64_convert_fs_to_dbl(value64 v);
 extern value64                     value64_convert_fs_to_str(value64 v);
 extern value64                     value64_convert_fs_to_fs(value64 v);
+/** @} */
+
+/** @name c-String Conversions */
+/** @{ */
 // --- Group STR ---
 extern value64                     value64_convert_str_to_int(value64 v);
 extern value64                     value64_convert_str_to_lng(value64 v);
@@ -1005,14 +1068,39 @@ extern value64                     value64_convert_str_to_bool(value64 v);
 extern value64                     value64_convert_str_to_dbl(value64 v);
 extern value64                     value64_convert_str_to_fs(value64 v);
 extern value64                     value64_convert_str_to_str(value64 v);
+/** @} */
+/** @} */
 
-// MOVE semantic
-extern value64                     value64_convert_move(value64 *source, value64_type from, value64_type to);
+/**
+ * @name Move Semantics (Destructive)
+ * @brief High-performance conversions that transfer ownership.
+ * 
+ * @warning These functions are DESTRUCTIVE. The source object (passed by pointer) 
+ *          will be modified or cleared to prevent double-frees and ensure 
+ *          efficient resource transfer.
+ * @{
+ */
+
+/**
+ * @brief Generic move-conversion.
+ * @param source Pointer to the source object (will be modified).
+ * @param from   Source type.
+ * @param to     Target type.
+ * @return The moved value64 object.
+ */
+extern value64                      value64_convert_move(value64 *source, value64_type from, value64_type to);
+
+/** @name Specialized Move Conversions */
+/** @{ */
 
 extern value64                     value64_convert_move_fs_to_str(value64 *v);
 extern value64                     value64_convert_move_fs_to_fs(value64 *v);
 extern value64                     value64_convert_move_str_to_fs(value64 *v);
 extern value64                     value64_convert_move_str_to_str(value64 *v);
+/** @} */
+
+/** @} */
+
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
 extern int                          value64_fprint_msg(FILE *restrict out, const char *restrict msg, value64 val, value64_type typ);
