@@ -1637,7 +1637,7 @@ bool                         value64_sreadval_char(value64 *restrict pval, fs *r
  * @return      true on success, false on parse error
  */
 bool                            value64_sreadval_bool(value64 *restrict pval, fs *restrict buf) {
-    invraisecode(fs_isnull(buf), ERR_NULLABLE_PTR, 
+    invraisecode(buf != NULL, ERR_NULLABLE_PTR, 
             "Null pointer %p", buf);
     const char *str = fs_str(buf);
 
@@ -1650,18 +1650,25 @@ bool                            value64_sreadval_bool(value64 *restrict pval, fs
     return logsimpleret(true, "read bool = %s", b ? "true" : "false");
 }
 
-/** @} */
+/**
+ * @brief Reads a boolean value from a string buffer.
+ *
+ * Calls the existing try_parse_bool() function.  An empty string is treated
+ * as false (as if "false" were written).
+ * TODO: only getconvstring_ds read a Ds!!!  Refactoring is required
+ *
+ * @param pval  pointer to the value64 to fill (may be NULL)
+ * @param buf   fast‑string containing the textual representation
+ * @return      true on success, false on parse error
+ */
 
-//  switcher, cab be implement via distatcher table
-// val can be NULL (dummy read)
-// TODO: only getconvstring_ds read a Ds!!!  Refactoring is required
 bool                            value64_dsreadval(Ds *restrict ds, value64_type typ, value64 *restrict val, fs *restrict buf) {
     invraisecode(ds != NULL && buf != NULL, ERR_NULLABLE_PTR,
         "Null pointers %p %p", ds, buf);
 
     if (!getconvstring_ds(ds, buf, true) )
-        return logsimpleerr(false, "EOF or wrong format");
-    //fs_resize(buf, 100);    // 100 is magic number to make buf capcatle to accept double and others simple types
+        return userraise(false, ERR_WRONG_INPUT_FORMAT, "EOF or wrong format");
+    
     switch (typ) {
         case VALUE64_INT:
             return value64_sreadval_int(val, buf);
@@ -1683,6 +1690,8 @@ bool                            value64_dsreadval(Ds *restrict ds, value64_type 
             return userraise(false, ERR_UNSUPPORTED_TYPE, "Type %d isn't supported", typ);
      }
 }
+/** @} */
+
 /**
  * @name Data Deserialization Engine
  * @brief Functions for parsing serialized value64 objects from files or memory.
@@ -1766,7 +1775,6 @@ static value64_type             value64_parse_header(Ds *pds, bool loadtypeinfo,
  * @note If `buf` is NULL, the function performs a local allocation for the 
  *       intermediate buffer to ensure memory safety.
  */
-// Ds loader, both for FILE * and const char *
 int                         value64_loadds(Ds *restrict pds, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf) {
     invraisecode(pds != NULL, ERR_NULLABLE_PTR,
         "Null pointers %p", pds);
@@ -1786,8 +1794,11 @@ int                         value64_loadds(Ds *restrict pds, value64 *restrict v
     }
 
     // Generic reader
-    if (!value64_dsreadval(pds, newtyp, val, buf))
+    if (!value64_dsreadval(pds, newtyp, val, buf)) {
+        if (localalloc)
+            fsfree(tmp);
         return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Failed to read value");
+    }
 
     if (localalloc)
         fsfree(tmp);
@@ -4782,7 +4793,7 @@ tf_pt_compare(const char *name)
         );
     }
 
-    /* ---------- INT ---------- */
+    /* ---------- CHAR ---------- */
     test_sub("subtest %d: cmp CHAR equal", ++subnum);
     {
         value64 a = value64_createchar('a');
@@ -4805,6 +4816,60 @@ tf_pt_compare(const char *name)
             value64_pt_compare(&b, &a, VALUE64_CHR) > 0,
             "'b' must be greater than 'a"
         );
+    }
+
+    /* ---------- BOOL ---------- */
+
+    /* 1. Равные значения */
+    test_sub("subtest %d: equal BOOL values", ++subnum);
+    {
+        value64 a = value64_createbool(true);
+        value64 b = value64_createbool(true);
+        test_validate(value64_pt_compare(&a, &b, VALUE64_BOOL) == 0,
+                      "true == true must return 0");
+    }
+
+    /* 2. Разные значения (true vs false) */
+    test_sub("subtest %d: true > false", ++subnum);
+    {
+        value64 a = value64_createbool(true);
+        value64 b = value64_createbool(false);
+        test_validate(value64_pt_compare(&a, &b, VALUE64_BOOL) > 0,
+                      "true > false must be positive");
+        test_validate(value64_pt_compare(&b, &a, VALUE64_BOOL) < 0,
+                      "false < true must be negative");
+    }
+
+    /* 3. Сравнение с самим собой */
+    test_sub("subtest %d: compare with itself", ++subnum);
+    {
+        value64 a = value64_createbool(true);
+        test_validate(value64_pt_compare(&a, &a, VALUE64_BOOL) == 0,
+                      "same instance must be equal");
+    }
+
+    /* 4. NULL-указатели (должны вызывать ошибку) */
+    test_sub("subtest %d: NULL pointers raise SIGINT", ++subnum);
+    {
+        value64 a = value64_createbool(false);
+        if (!try()) {
+            value64_pt_compare(NULL, &a, VALUE64_BOOL);
+            test_validate(false, "Should have raised SIGINT for NULL first arg");
+        } else {
+            logsimple("Exception correctly raised on NULL first arg");
+        }
+        if (!try()) {
+            value64_pt_compare(&a, NULL, VALUE64_BOOL);
+            test_validate(false, "Should have raised SIGINT for NULL second arg");
+        } else {
+            logsimple("Exception correctly raised on NULL second arg");
+        }
+        if (!try()) {
+            value64_pt_compare(NULL, NULL, VALUE64_BOOL);
+            test_validate(false, "Should have raised SIGINT for both NULL");
+        } else {
+            logsimple("Exception correctly raised on both NULL");
+        }
     }
 
     /* ---------- PTR ---------- */
@@ -5083,6 +5148,147 @@ tf_search(const char *name)
         test_validate(idx == -1, "CHR revsearch empty: expected -1, got %d", idx);
     }
 
+    /* ========== BOOL ========== */
+
+    /* ========== Linear acs(first) ========== */
+    test_sub("subtest %d: BOOL search found (first)", ++subnum);
+    {
+        value64 arr[] = {
+            value64_createbool(false),
+            value64_createbool(true),
+            value64_createbool(false)
+        };
+        int idx = value64_search(value64_createbool(true), VALUE64_BOOL, arr, 3);
+        test_validate(idx == 1,
+                      "BOOL search true: expected idx=1, got %d", idx);
+    }
+
+    test_sub("subtest %d: BOOL search found (first of duplicates)", ++subnum);
+    {
+        value64 arr[] = {
+            value64_createbool(true),
+            value64_createbool(false),
+            value64_createbool(true)
+        };
+        int idx = value64_search(value64_createbool(true), VALUE64_BOOL, arr, 3);
+        test_validate(idx == 0,
+                      "BOOL search first true: expected idx=0, got %d", idx);
+    }
+
+    test_sub("subtest %d: BOOL search not found", ++subnum);
+    {
+        value64 arr[] = {
+            value64_createbool(false),
+            value64_createbool(false)
+        };
+        int idx = value64_search(value64_createbool(true), VALUE64_BOOL, arr, 2);
+        test_validate(idx == -1,
+                      "BOOL search true missing: expected -1, got %d", idx);
+    }
+
+    test_sub("subtest %d: BOOL search single element found", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(true) };
+        int idx = value64_search(value64_createbool(true), VALUE64_BOOL, arr, 1);
+        test_validate(idx == 0,
+                      "BOOL search single found: expected idx=0, got %d", idx);
+    }
+
+    test_sub("subtest %d: BOOL search single element not found", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(false) };
+        int idx = value64_search(value64_createbool(true), VALUE64_BOOL, arr, 1);
+        test_validate(idx == -1,
+                      "BOOL search single missing: expected -1, got %d", idx);
+    }
+
+    test_sub("subtest %d: BOOL search empty array", ++subnum);
+    {
+        int idx = value64_search(value64_createbool(true), VALUE64_BOOL, NULL, 0);
+        test_validate(idx == -1,
+                      "BOOL search empty: expected -1, got %d", idx);
+    }
+
+    /* ========== Linear desc (last) ========== */
+    test_sub("subtest %d: BOOL revsearch found (last)", ++subnum);
+    {
+        value64 arr[] = {
+            value64_createbool(true),
+            value64_createbool(false),
+            value64_createbool(true)
+        };
+        int idx = value64_revsearch(value64_createbool(true), VALUE64_BOOL, arr, 3);
+        test_validate(idx == 2,
+                      "BOOL revsearch true: expected idx=2, got %d", idx);
+    }
+
+    test_sub("subtest %d: BOOL revsearch found (last of all false)", ++subnum);
+    {
+        value64 arr[] = {
+            value64_createbool(false),
+            value64_createbool(false),
+            value64_createbool(false)
+        };
+        int idx = value64_revsearch(value64_createbool(false), VALUE64_BOOL, arr, 3);
+        test_validate(idx == 2,
+                      "BOOL revsearch false: expected idx=2, got %d", idx);
+    }
+
+    test_sub("subtest %d: BOOL revsearch not found", ++subnum);
+    {
+        value64 arr[] = {
+            value64_createbool(false),
+            value64_createbool(false)
+        };
+        int idx = value64_revsearch(value64_createbool(true), VALUE64_BOOL, arr, 2);
+        test_validate(idx == -1,
+                      "BOOL revsearch true missing: expected -1, got %d", idx);
+    }
+
+    test_sub("subtest %d: BOOL revsearch single element found", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(true) };
+        int idx = value64_revsearch(value64_createbool(true), VALUE64_BOOL, arr, 1);
+        test_validate(idx == 0,
+                      "BOOL revsearch single found: expected idx=0, got %d", idx);
+    }
+
+    test_sub("subtest %d: BOOL revsearch single element not found", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(false) };
+        int idx = value64_revsearch(value64_createbool(true), VALUE64_BOOL, arr, 1);
+        test_validate(idx == -1,
+                      "BOOL revsearch single missing: expected -1, got %d", idx);
+    }
+
+    test_sub("subtest %d: BOOL revsearch empty array", ++subnum);
+    {
+        int idx = value64_revsearch(value64_createbool(true), VALUE64_BOOL, NULL, 0);
+        test_validate(idx == -1,
+                      "BOOL revsearch empty: expected -1, got %d", idx);
+    }
+
+    /* ========== Проверка NULL-указателя (должно вызывать ошибку) ========== */
+    test_sub("subtest %d: BOOL search NULL array with sz>0 raises", ++subnum);
+    {
+        if (!try()) {
+            value64_search(value64_createbool(true), VALUE64_BOOL, NULL, 5);
+            test_validate(false, "Should have raised SIGINT for NULL arr with sz>0");
+        } else {
+            logsimple("Exception correctly raised on NULL arr with sz>0");
+        }
+    }
+
+    test_sub("subtest %d: BOOL revsearch NULL array with sz>0 raises", ++subnum);
+    {
+        if (!try()) {
+            value64_revsearch(value64_createbool(true), VALUE64_BOOL, NULL, 5);
+            test_validate(false, "Should have raised SIGINT for NULL arr with sz>0");
+        } else {
+            logsimple("Exception correctly raised on NULL arr with sz>0");
+        }
+    }
+
     /* ---------- DBL ---------- */
     test_sub("subtest %d: search DBL – equal", ++subnum);
     {
@@ -5322,6 +5528,34 @@ tf_getComparator(const char *name)
         test_validate(rcmp(a, a) == 0, "rev: 't' == 't' must be 0");
     }
 
+    /* 1. getComparator BOOL */
+    test_sub("subtest %d: getComparator BOOL", ++subnum);
+    {
+        value64_Comparator cmp = value64_getComparator(VALUE64_BOOL);
+        test_validate(cmp != NULL, "BOOL comparator must not be NULL");
+
+        value64 a = value64_createbool(false);
+        value64 b = value64_createbool(true);
+        test_validate(cmp(a, b) < 0, "false < true must be negative");
+        test_validate(cmp(b, a) > 0, "true > false must be positive");
+        test_validate(cmp(a, a) == 0, "false == false must be zero");
+        test_validate(cmp(b, b) == 0, "true == true must be zero");
+    }
+
+    /* 2. getRevComparator BOOL */
+    test_sub("subtest %d: getRevComparator BOOL", ++subnum);
+    {
+        value64_Comparator rcmp = value64_getRevComparator(VALUE64_BOOL);
+        test_validate(rcmp != NULL, "BOOL rev comparator must not be NULL");
+
+        value64 a = value64_createbool(false);
+        value64 b = value64_createbool(true);
+        test_validate(rcmp(a, b) > 0, "rev: false < true must give >0");
+        test_validate(rcmp(b, a) < 0, "rev: true > false must give <0");
+        test_validate(rcmp(a, a) == 0, "rev: false == false must be 0");
+        test_validate(rcmp(b, b) == 0, "rev: true == true must be 0");
+    }
+
     /* 5. DBL comparator */
     test_sub("subtest %d: getComparator DBL", ++subnum);
     {
@@ -5546,6 +5780,33 @@ tf_getPComparator(const char *name)
         test_validate(rcmp(&b, &a) < 0, "rev: 'z' > 'a' must give <0");
         test_validate(rcmp(&a, &a) == 0, "rev: 'a' == 'a' must be 0");
     }
+
+    /* 3. getPComparator BOOL (pointer version) */
+    test_sub("subtest %d: getPComparator BOOL", ++subnum);
+    {
+        value64_PComparator pcmp = value64_getPComparator(VALUE64_BOOL);
+        test_validate(pcmp != NULL, "BOOL P-comparator must not be NULL");
+
+        value64 a = value64_createbool(false);
+        value64 b = value64_createbool(true);
+        test_validate(pcmp(&a, &b) < 0, "P-cmp: false < true must be negative");
+        test_validate(pcmp(&b, &a) > 0, "P-cmp: true > false must be positive");
+        test_validate(pcmp(&a, &a) == 0, "P-cmp: false == false must be zero");
+    }
+
+    /* 4. getPRevComparator BOOL (pointer version, reverse) */
+    test_sub("subtest %d: getPRevComparator BOOL", ++subnum);
+    {
+        value64_PComparator prev = value64_getPRevComparator(VALUE64_BOOL);
+        test_validate(prev != NULL, "BOOL P-rev-comparator must not be NULL");
+
+        value64 a = value64_createbool(false);
+        value64 b = value64_createbool(true);
+        test_validate(prev(&a, &b) > 0, "P-rev: false < true must give >0");
+        test_validate(prev(&b, &a) < 0, "P-rev: true > false must give <0");
+        test_validate(prev(&a, &a) == 0, "P-rev: false == false must be 0");
+    }
+
 
     /* ---------- 5. P_DBL comparator ---------- */
     test_sub("subtest %d: getPComparator DBL", ++subnum);
@@ -5905,6 +6166,128 @@ tf_binsearch(const char *name)
         test_validate(idx == -1, "CHAR desc empty: expected -1, got %d", idx);
     }
 
+    /* ========== BOOL ascending ========== */
+    test_sub("subtest %d: BOOL asc binsearch found first element", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(false), value64_createbool(true) };
+        int idx = value64_binsearch(value64_createbool(false), VALUE64_BOOL, arr, 2);
+        test_validate(idx == 0, "BOOL asc search false: expected idx=0, got %d", idx);
+    }
+
+    test_sub("subtest %d: BOOL asc binsearch found last element", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(false), value64_createbool(true) };
+        int idx = value64_binsearch(value64_createbool(true), VALUE64_BOOL, arr, 2);
+        test_validate(idx == 1, "BOOL asc search true: expected idx=1, got %d", idx);
+    }
+
+    test_sub("subtest %d: BOOL asc binsearch not found (missing value)", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(false) };
+        int idx = value64_binsearch(value64_createbool(true), VALUE64_BOOL, arr, 1);
+        test_validate(idx == -1, "BOOL asc search true missing: expected -1, got %d", idx);
+    }
+
+    test_sub("subtest %d: BOOL asc binsearch with duplicates", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(false), value64_createbool(false),
+                          value64_createbool(true), value64_createbool(true) };
+        int idx = value64_binsearch(value64_createbool(false), VALUE64_BOOL, arr, 4);
+        // bsearch может вернуть любой из дубликатов, но он должен быть в диапазоне
+        test_validate(idx >= 0 && idx <= 1, "BOOL asc duplicate: idx must be 0 or 1, got %d", idx);
+    }
+
+    test_sub("subtest %d: BOOL asc binsearch single element found", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(true) };
+        int idx = value64_binsearch(value64_createbool(true), VALUE64_BOOL, arr, 1);
+        test_validate(idx == 0, "BOOL asc single found: expected idx=0, got %d", idx);
+    }
+
+    test_sub("subtest %d: BOOL asc binsearch single element not found", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(true) };
+        int idx = value64_binsearch(value64_createbool(false), VALUE64_BOOL, arr, 1);
+        test_validate(idx == -1, "BOOL asc single missing: expected -1, got %d", idx);
+    }
+
+    test_sub("subtest %d: BOOL asc binsearch empty array", ++subnum);
+    {
+        int idx = value64_binsearch(value64_createbool(true), VALUE64_BOOL, NULL, 0);
+        test_validate(idx == -1, "BOOL asc empty: expected -1, got %d", idx);
+    }
+
+    /* ========== BOOL descending (true > false) ========== */
+    test_sub("subtest %d: BOOL desc binsearch found first element", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(true), value64_createbool(false) };
+        int idx = value64_rev_binsearch(value64_createbool(true), VALUE64_BOOL, arr, 2);
+        test_validate(idx == 0, "BOOL desc search true: expected idx=0, got %d", idx);
+    }
+
+    test_sub("subtest %d: BOOL desc binsearch found last element", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(true), value64_createbool(false) };
+        int idx = value64_rev_binsearch(value64_createbool(false), VALUE64_BOOL, arr, 2);
+        test_validate(idx == 1, "BOOL desc search false: expected idx=1, got %d", idx);
+    }
+
+    test_sub("subtest %d: BOOL desc binsearch not found (missing value)", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(true) };
+        int idx = value64_rev_binsearch(value64_createbool(false), VALUE64_BOOL, arr, 1);
+        test_validate(idx == -1, "BOOL desc search false missing: expected -1, got %d", idx);
+    }
+
+    test_sub("subtest %d: BOOL desc binsearch with duplicates", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(true), value64_createbool(true),
+                          value64_createbool(false), value64_createbool(false) };
+        int idx = value64_rev_binsearch(value64_createbool(true), VALUE64_BOOL, arr, 4);
+        test_validate(idx >= 0 && idx <= 1, "BOOL desc duplicate: idx must be 0 or 1, got %d", idx);
+    }
+
+    test_sub("subtest %d: BOOL desc binsearch single element found", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(false) };
+        int idx = value64_rev_binsearch(value64_createbool(false), VALUE64_BOOL, arr, 1);
+        test_validate(idx == 0, "BOOL desc single found: expected idx=0, got %d", idx);
+    }
+
+    test_sub("subtest %d: BOOL desc binsearch single element not found", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(false) };
+        int idx = value64_rev_binsearch(value64_createbool(true), VALUE64_BOOL, arr, 1);
+        test_validate(idx == -1, "BOOL desc single missing: expected -1, got %d", idx);
+    }
+
+    test_sub("subtest %d: BOOL desc binsearch empty array", ++subnum);
+    {
+        int idx = value64_rev_binsearch(value64_createbool(true), VALUE64_BOOL, NULL, 0);
+        test_validate(idx == -1, "BOOL desc empty: expected -1, got %d", idx);
+    }
+
+    /* ========== NULL array with sz>0 must raise ========== */
+    test_sub("subtest %d: BOOL binsearch NULL array with sz>0 raises", ++subnum);
+    {
+        if (!try()) {
+            value64_binsearch(value64_createbool(true), VALUE64_BOOL, NULL, 5);
+            test_validate(false, "Should have raised SIGINT for NULL arr with sz>0");
+        } else {
+            logsimple("Exception correctly raised on NULL arr with sz>0");
+        }
+    }
+
+    test_sub("subtest %d: BOOL rev_binsearch NULL array with sz>0 raises", ++subnum);
+    {
+        if (!try()) {
+            value64_rev_binsearch(value64_createbool(true), VALUE64_BOOL, NULL, 5);
+            test_validate(false, "Should have raised SIGINT for NULL arr with sz>0");
+        } else {
+            logsimple("Exception correctly raised on NULL arr with sz>0");
+        }
+    }
+
     /* ---------- STR ascending ---------- */
     test_sub("subtest %d: binsearch STR – found", ++subnum);
     {
@@ -6136,7 +6519,7 @@ tf_sort(const char *name)
                       "CHAR asc reversed: expected a,b,c,d");
     }
 
-    /* ========== descending ========== */
+    /* ========== CHAR descending ========== */
     test_sub("subtest %d: CHAR sort desc basic", ++subnum);
     {
         value64 arr[] = { value64_createchar('a'), value64_createchar('z'), value64_createchar('m') };
@@ -6184,6 +6567,130 @@ tf_sort(const char *name)
         value64_revsort(VALUE64_CHR, arr, 3);
         test_validate(arr[0].cval == 'c' && arr[1].cval == 'b' && arr[2].cval == 'a',
                       "CHAR desc reversed: expected c,b,a");
+    }
+
+    /* ========== BOOL ascending ========== */
+    test_sub("subtest %d: BOOL sort asc basic", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(true), value64_createbool(false), value64_createbool(true) };
+        value64_sort(VALUE64_BOOL, arr, 3);
+        // после сортировки: false, true, true
+        test_validate(arr[0].bval == false && arr[1].bval == true && arr[2].bval == true,
+                      "BOOL asc: expected false,true,true got %s,%s,%s",
+                      arr[0].bval ? "true" : "false",
+                      arr[1].bval ? "true" : "false",
+                      arr[2].bval ? "true" : "false");
+    }
+
+    test_sub("subtest %d: BOOL sort asc all false", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(false), value64_createbool(false), value64_createbool(false) };
+        value64_sort(VALUE64_BOOL, arr, 3);
+        test_validate(arr[0].bval == false && arr[1].bval == false && arr[2].bval == false,
+                      "BOOL asc all false: must stay false,false,false");
+    }
+
+    test_sub("subtest %d: BOOL sort asc all true", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(true), value64_createbool(true), value64_createbool(true) };
+        value64_sort(VALUE64_BOOL, arr, 3);
+        test_validate(arr[0].bval == true && arr[1].bval == true && arr[2].bval == true,
+                      "BOOL asc all true: must stay true,true,true");
+    }
+
+    test_sub("subtest %d: BOOL sort asc single element", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(false) };
+        value64_sort(VALUE64_BOOL, arr, 1);
+        test_validate(arr[0].bval == false, "BOOL asc single: must stay false");
+    }
+
+    test_sub("subtest %d: BOOL sort asc empty array", ++subnum);
+    {
+        value64_sort(VALUE64_BOOL, NULL, 0); // не должно упасть
+        test_validate(true, "BOOL asc empty: must not crash");
+    }
+
+    test_sub("subtest %d: BOOL sort asc already sorted", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(false), value64_createbool(false),
+                          value64_createbool(true), value64_createbool(true) };
+        value64_sort(VALUE64_BOOL, arr, 4);
+        test_validate(arr[0].bval == false && arr[1].bval == false &&
+                      arr[2].bval == true && arr[3].bval == true,
+                      "BOOL asc already sorted: must stay false,false,true,true");
+    }
+
+    test_sub("subtest %d: BOOL sort asc reversed initial", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(true), value64_createbool(true),
+                          value64_createbool(false), value64_createbool(false) };
+        value64_sort(VALUE64_BOOL, arr, 4);
+        test_validate(arr[0].bval == false && arr[1].bval == false &&
+                      arr[2].bval == true && arr[3].bval == true,
+                      "BOOL asc reversed: expected false,false,true,true");
+    }
+
+    /* ========== BOOL descending ========== */
+    test_sub("subtest %d: BOOL sort desc basic", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(false), value64_createbool(true), value64_createbool(false) };
+        value64_revsort(VALUE64_BOOL, arr, 3);
+        // после сортировки: true, false, false
+        test_validate(arr[0].bval == true && arr[1].bval == false && arr[2].bval == false,
+                      "BOOL desc: expected true,false,false got %s,%s,%s",
+                      arr[0].bval ? "true" : "false",
+                      arr[1].bval ? "true" : "false",
+                      arr[2].bval ? "true" : "false");
+    }
+
+    test_sub("subtest %d: BOOL sort desc all false", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(false), value64_createbool(false), value64_createbool(false) };
+        value64_revsort(VALUE64_BOOL, arr, 3);
+        test_validate(arr[0].bval == false && arr[1].bval == false && arr[2].bval == false,
+                      "BOOL desc all false: must stay false,false,false");
+    }
+
+    test_sub("subtest %d: BOOL sort desc all true", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(true), value64_createbool(true), value64_createbool(true) };
+        value64_revsort(VALUE64_BOOL, arr, 3);
+        test_validate(arr[0].bval == true && arr[1].bval == true && arr[2].bval == true,
+                      "BOOL desc all true: must stay true,true,true");
+    }
+
+    test_sub("subtest %d: BOOL sort desc single element", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(true) };
+        value64_revsort(VALUE64_BOOL, arr, 1);
+        test_validate(arr[0].bval == true, "BOOL desc single: must stay true");
+    }
+
+    test_sub("subtest %d: BOOL sort desc empty array", ++subnum);
+    {
+        value64_revsort(VALUE64_BOOL, NULL, 0);
+        test_validate(true, "BOOL desc empty: must not crash");
+    }
+
+    test_sub("subtest %d: BOOL sort desc already sorted", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(true), value64_createbool(true),
+                          value64_createbool(false), value64_createbool(false) };
+        value64_revsort(VALUE64_BOOL, arr, 4);
+        test_validate(arr[0].bval == true && arr[1].bval == true &&
+                      arr[2].bval == false && arr[3].bval == false,
+                      "BOOL desc already sorted: must stay true,true,false,false");
+    }
+
+    test_sub("subtest %d: BOOL sort desc reversed initial", ++subnum);
+    {
+        value64 arr[] = { value64_createbool(false), value64_createbool(false),
+                          value64_createbool(true), value64_createbool(true) };
+        value64_revsort(VALUE64_BOOL, arr, 4);
+        test_validate(arr[0].bval == true && arr[1].bval == true &&
+                      arr[2].bval == false && arr[3].bval == false,
+                      "BOOL desc reversed: expected true,true,false,false");
     }
 
     /* ---------- 3. STR ascending ---------- */
@@ -6444,6 +6951,7 @@ tf_fsave_fload(const char *name)
     logenter("%s", name);
     int subnum = 0;
 
+    fs_alloc_check(true);
     /* 1. INT */
     test_sub("subtest %d: INT save/load", ++subnum);
     {
@@ -6470,6 +6978,7 @@ tf_fsave_fload(const char *name)
             value64_compare(orig, loaded, VALUE64_INT) == 0,
             "INT save/load mismatch: original %d, loaded %d", orig.ival, loaded.ival
         );
+        fs_alloc_check(true);
     }
 
     /* 2. LONG */
@@ -6498,6 +7007,7 @@ tf_fsave_fload(const char *name)
             value64_compare(orig, loaded, VALUE64_LNG) == 0,
             "LONG save/load mismatch: original %ld, loaded %ld", orig.lval, loaded.lval
         );
+        fs_alloc_check(true);
     }
 
     /* 1. save/load simple char */
@@ -6521,6 +7031,7 @@ tf_fsave_fload(const char *name)
             "CHAR load: expected 'A', got '%c'", value64_char(loaded)
         );
         fclose(fp);
+        fs_alloc_check(true);
     }
 
     /* 2. save/load special chars */
@@ -6547,6 +7058,7 @@ tf_fsave_fload(const char *name)
                 chars[i], (unsigned char)chars[i], value64_char(loaded)
             );
             fclose(fp);
+            fs_alloc_check(true);
         }
     }
 
@@ -6570,6 +7082,7 @@ tf_fsave_fload(const char *name)
             "CHAR load notype: expected 'Z', got '%c'", value64_char(loaded)
         );
         fclose(fp);
+        fs_alloc_check(true);
     }
 
     /* 4. NULL char (should work) */
@@ -6592,6 +7105,166 @@ tf_fsave_fload(const char *name)
             "CHAR load null: expected '\\0', got '%c'", value64_char(loaded)
         );
         fclose(fp);
+        fs_alloc_check(true);
+    }
+
+    /* ====================== BOOL ===================== */
+    /* 1. save/load true with type info */
+    test_sub("subtest %d: BOOL save/load true", ++subnum);
+    {
+        value64 orig = value64_createbool(true);
+        const char *fname = "res/values64/bool_true.dat";
+        FILE *fp = fopen(fname, "w");
+        test_validate(fp != NULL, "Cannot open file for writing");
+        value64_tofile(fp, orig, VALUE64_BOOL, true);
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        test_validate(fp != NULL, "Cannot open file for reading");
+        value64 loaded;
+        test_validatefree(
+            value64_loadfile(fp, &loaded, VALUE64_BOOL, true, NULL) > 0 &&
+            value64_bool(loaded) == true,
+            fclose(fp),
+            "BOOL load true: expected true, got %s",
+            value64_bool(loaded) ? "true" : "false"
+        );
+        fclose(fp);
+        fs_alloc_check(true);
+    }
+
+    /* 2. save/load false with type info */
+    test_sub("subtest %d: BOOL save/load false", ++subnum);
+    {
+        value64 orig = value64_createbool(false);
+        const char *fname = "res/values64/bool_false.dat";
+        FILE *fp = fopen(fname, "w");
+        test_validate(fp != NULL, "Cannot open file for writing");
+        value64_tofile(fp, orig, VALUE64_BOOL, true);
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        test_validate(fp != NULL, "Cannot open file for reading");
+        value64 loaded;
+        test_validatefree(
+            value64_loadfile(fp, &loaded, VALUE64_BOOL, true, NULL) > 0 &&
+            value64_bool(loaded) == false,
+            fclose(fp),
+            "BOOL load false: expected false, got %s",
+            value64_bool(loaded) ? "true" : "false"
+        );
+        fclose(fp);
+        fs_alloc_check(true);
+    }
+
+    /* 3. save/load without type info (savetypeinfo = false) */
+    test_sub("subtest %d: BOOL save/load without typeinfo", ++subnum);
+    {
+        value64 orig = value64_createbool(true);
+        const char *fname = "res/values64/bool_true_notype.dat";
+        FILE *fp = fopen(fname, "w");
+        test_validate(fp != NULL, "Cannot open file for writing");
+        value64_tofile(fp, orig, VALUE64_BOOL, false);
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        test_validate(fp != NULL, "Cannot open file for reading");
+        value64 loaded;
+        test_validatefree(
+            value64_loadfile(fp, &loaded, VALUE64_BOOL, false, NULL) > 0 &&
+            value64_bool(loaded) == true,
+            fclose(fp),
+            "BOOL load notype: expected true, got %s",
+            value64_bool(loaded) ? "true" : "false"
+        );
+        fclose(fp);
+        fs_alloc_check(true);
+    }
+
+    /* 4. load from manually written file with "true" */
+    test_sub("subtest %d: BOOL load from manual 'true' file", ++subnum);
+    {
+        const char *fname = "res/values64/bool_manual_true.dat";
+        FILE *fp = fopen(fname, "w");
+        test_validate(fp != NULL, "Cannot open file for writing");
+        fprintf(fp, "VALUE64(BOOL):\"true\"");
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        test_validate(fp != NULL, "Cannot open file for reading");
+        value64 loaded;
+        test_validatefree(
+            value64_loadfile(fp, &loaded, VALUE64_BOOL, true, NULL) > 0 &&
+            value64_bool(loaded) == true,
+            fclose(fp),
+            "BOOL load manual 'true': expected true"
+        );
+        fclose(fp);
+        fs_alloc_check(true);
+    }
+
+    /* 5. load from manually written file with "FALSE" (case insensitive) */
+    test_sub("subtest %d: BOOL load from manual 'FALSE' file", ++subnum);
+    {
+        const char *fname = "res/values64/bool_manual_false.dat";
+        FILE *fp = fopen(fname, "w");
+        test_validate(fp != NULL, "Cannot open file for writing");
+        fprintf(fp, "VALUE64(BOOL):\"FALSE\"");
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        test_validate(fp != NULL, "Cannot open file for reading");
+        value64 loaded;
+        test_validatefree(
+            value64_loadfile(fp, &loaded, VALUE64_BOOL, true, NULL) > 0 &&
+            value64_bool(loaded) == false,
+            fclose(fp),
+            "BOOL load manual 'FALSE': expected false"
+        );
+        fclose(fp);
+        fs_alloc_check(true);
+    }
+
+    /* 6. load from manually written file with invalid string */
+    test_sub("subtest %d: BOOL load invalid string fails", ++subnum);
+    {
+        const char *fname = "res/values64/bool_invalid.dat";
+        FILE *fp = fopen(fname, "w");
+        test_validate(fp != NULL, "Cannot open file for writing");
+        fprintf(fp, "VALUE64(BOOL):\"invalid\"");
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        test_validate(fp != NULL, "Cannot open file for reading");
+        value64 loaded;
+        test_validatefree(
+            value64_loadfile(fp, &loaded, VALUE64_BOOL, true, NULL) <= 0,
+            fclose(fp),
+            "BOOL load invalid string must fail"
+        );
+        fclose(fp);
+        fs_alloc_check(true);
+    }
+
+    /* 7. load from empty quoted string (should fail) */
+    test_sub("subtest %d: BOOL load empty string fails", ++subnum);
+    {
+        const char *fname = "res/values64/bool_empty.dat";
+        FILE *fp = fopen(fname, "w");
+        test_validate(fp != NULL, "Cannot open file for writing");
+        fprintf(fp, "VALUE64(BOOL):\"\"");
+        fclose(fp);
+
+        fp = fopen(fname, "r");
+        test_validate(fp != NULL, "Cannot open file for reading");
+        value64 loaded;
+        test_validatefree(
+            value64_loadfile(fp, &loaded, VALUE64_BOOL, true, NULL) <= 0,
+            fclose(fp),
+            "BOOL load empty string must fail"
+        );
+        fclose(fp);
+        fs_alloc_check(true);
     }
 
     /* 3. DBL */
@@ -6620,7 +7293,9 @@ tf_fsave_fload(const char *name)
             value64_compare(orig, loaded, VALUE64_DBL) == 0,
             "DBL save/load mismatch: original %g, loaded %g", orig.dval, loaded.dval
         );
+        fs_alloc_check(true);
     }
+
 
     /* 4. STR (обычная) */
     test_sub("subtest %d: STR save/load normal", ++subnum);
@@ -6652,6 +7327,7 @@ tf_fsave_fload(const char *name)
 
         value64free(orig, VALUE64_STR);
         value64free(loaded, VALUE64_STR);
+        fs_alloc_check(true);
     }
 
     /* 5. STR (пустая) */
@@ -6684,6 +7360,7 @@ tf_fsave_fload(const char *name)
 
         value64free(orig, VALUE64_STR);
         value64free(loaded, VALUE64_STR);
+        fs_alloc_check(true);
     }
 
     /* 6. FS */
