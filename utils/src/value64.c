@@ -916,7 +916,7 @@ value64                     value64_convert_lng_to_char(value64 v) {
 }
 /** @brief Converts int to bool */
 value64                     value64_convert_lng_to_bool(value64 v) {
-    return  value64_createbool(value64_bool(v) );
+    return  value64_createbool(value64_long(v) );
 }
 /** @brief Identity conversion (long to long). */
 value64                     value64_convert_lng_to_lng(value64 v) {
@@ -1049,8 +1049,8 @@ value64                     value64_convert_str_to_char(value64 v) {
 }
 /** @brief Converts first character of string to bool. */
 value64                     value64_convert_str_to_bool(value64 v) {
-    char *sval = value64_str(v);
-    bool b;
+    char        *sval = value64_str(v);
+    bool         b;
     if (!try_parse_bool(sval, &b))
         userraiseint(ERR_INVALID_CONVERSION, "str->bool fail");
     return value64_createbool(b);
@@ -3221,6 +3221,30 @@ tf_convert(const char *name)
         }
     }
 
+    test_sub("subtest %d: INT(0) -> BOOL", ++subnum);
+    {
+        value64 src = value64_createint(0);
+        value64 dst = value64_convert_int_to_bool(src);
+        test_validate(value64_bool(dst) == false,
+                      "int 0 -> bool: expected false");
+    }
+
+    test_sub("subtest %d: INT(1) -> BOOL", ++subnum);
+    {
+        value64 src = value64_createint(1);
+        value64 dst = value64_convert_int_to_bool(src);
+        test_validate(value64_bool(dst) == true,
+                      "int 1 -> bool: expected true");
+    }
+
+    test_sub("subtest %d: INT(999) -> BOOL", ++subnum);
+    {
+        value64 src = value64_createint(999);
+        value64 dst = value64_convert_int_to_bool(src);
+        test_validate(value64_bool(dst) == true,
+                      "int 999 -> bool: expected true (non‑zero)");
+    }
+
     /* ========== 3. INT → FS ========== */
     test_sub("subtest %d: INT -> FS", ++subnum);
     {
@@ -3277,6 +3301,22 @@ tf_convert(const char *name)
         value64 dst = value64_convert(src, VALUE64_LNG, VALUE64_DBL);
         test_validate(fabs(value64_dbl(dst) - 999999999.0) < 0.0001,
             "LONG->DBL: expected 999999999.0, got %f", value64_dbl(dst));
+    }
+
+    test_sub("subtest %d: LNG(0L) -> BOOL", ++subnum);
+    {
+        value64 src = value64_createlong(0L);
+        value64 dst = value64_convert_lng_to_bool(src);
+        test_validate(value64_bool(dst) == false,
+                      "long 0 -> bool: expected false");
+    }
+
+    test_sub("subtest %d: LNG(1000L) -> BOOL", ++subnum);
+    {
+        value64 src = value64_createlong(1000L);
+        value64 dst = value64_convert_lng_to_bool(src);
+        test_validate(value64_bool(dst) == true,
+                      "long 1000 -> bool: expected true (non‑zero)");
     }
 
     /* long -> char (valid) */
@@ -3394,6 +3434,86 @@ tf_convert(const char *name)
         value64 dst = value64_convert_char_to_char(src);
         test_validate(value64_char(dst) == 'M',
                       "char->char: expected 'M', got '%c'", value64_char(dst));
+    }
+
+    /* ========================================================================
+     * BOOL → другие типы (прямые вызовы)
+     * ======================================================================== */
+
+    test_sub("subtest %d: BOOL -> INT (true)", ++subnum);
+    {
+        value64 src = value64_createbool(true);
+        value64 dst = value64_convert_bool_to_int(src);
+        test_validate(value64_int(dst) == 1,
+                      "true -> int: expected 1, got %d", value64_int(dst));
+    }
+
+    test_sub("subtest %d: BOOL -> INT (false)", ++subnum);
+    {
+        value64 src = value64_createbool(false);
+        value64 dst = value64_convert_bool_to_int(src);
+        test_validate(value64_int(dst) == 0,
+                      "false -> int: expected 0, got %d", value64_int(dst));
+    }
+
+    test_sub("subtest %d: BOOL -> LNG (true)", ++subnum);
+    {
+        value64 src = value64_createbool(true);
+        value64 dst = value64_convert_bool_to_lng(src);
+        test_validate(value64_long(dst) == 1L,
+                      "true -> long: expected 1L, got %ld", value64_long(dst));
+    }
+
+    test_sub("subtest %d: BOOL -> FS (true)", ++subnum);
+    {
+        value64 src = value64_createbool(true);
+        value64 dst = value64_convert_bool_to_fs(src);
+        test_validatefree(
+            value64_fs(dst) != NULL && strcmp(fs_str(value64_fs(dst)), "true") == 0,
+            value64_freefs(&dst),
+            "true -> fs: expected 'true', got '%s'",
+            value64_fs(dst) ? fs_str(value64_fs(dst)) : "NULL"
+        );
+        value64_freefs(&dst);
+    }
+
+    test_sub("subtest %d: BOOL -> FS (false)", ++subnum);
+    {
+        value64 src = value64_createbool(false);
+        value64 dst = value64_convert_bool_to_fs(src);
+        test_validatefree(
+            value64_fs(dst) != NULL && strcmp(fs_str(value64_fs(dst)), "false") == 0,
+            value64_freefs(&dst),
+            "false -> fs: expected 'false', got '%s'",
+            value64_fs(dst) ? fs_str(value64_fs(dst)) : "NULL"
+        );
+        value64_freefs(&dst);
+    }
+
+    test_sub("subtest %d: BOOL -> STR (true)", ++subnum);
+    {
+        value64 src = value64_createbool(true);
+        value64 dst = value64_convert_bool_to_str(src);
+        test_validatefree(
+            value64_str(dst) != NULL && strcmp(value64_str(dst), "true") == 0,
+            value64_freestr(&dst),
+            "true -> str: expected 'true', got '%s'",
+            value64_str(dst) ? value64_str(dst) : "NULL"
+        );
+        value64_freestr(&dst);
+    }
+
+    test_sub("subtest %d: BOOL -> STR (false)", ++subnum);
+    {
+        value64 src = value64_createbool(false);
+        value64 dst = value64_convert_bool_to_str(src);
+        test_validatefree(
+            value64_str(dst) != NULL && strcmp(value64_str(dst), "false") == 0,
+            value64_freestr(&dst),
+            "false -> str: expected 'false', got '%s'",
+            value64_str(dst) ? value64_str(dst) : "NULL"
+        );
+        value64_freestr(&dst);
     }
 
     /* ========== 10. DBL → INT (в пределах) ========== */
@@ -3552,7 +3672,7 @@ tf_convert(const char *name)
             value64_freefs(&src),
             "fs->char: expected 'K', got '%c'", value64_char(dst)
         );
-        value64_freefs(&src);
+        value64free(src, VALUE64_FS);
     }
     fs_alloc_check(true);
 
@@ -3566,9 +3686,48 @@ tf_convert(const char *name)
             value64_freefs(&src),
             "fs->char: expected 'null-term', got '%c'", value64_char(dst)
         );
-        value64_freefs(&src);
+        value64free(src, VALUE64_FS);
     }
     fs_alloc_check(true);
+
+    test_sub("subtest %d: FS 'on' -> BOOL", ++subnum);
+    {
+        value64 src = value64_createfs_asstr("on");
+        value64 dst = value64_convert_fs_to_bool(src);
+        test_validatefree(
+            value64_bool(dst) == true,
+            (value64_freefs(&src), value64_freefs(&dst)),
+            "fs 'on' -> bool: expected true"
+        );
+        value64free(src, VALUE64_FS);
+        value64free(src, VALUE64_BOOL);
+    }
+
+    test_sub("subtest %d: FS 'OFF' -> BOOL (case insensitive)", ++subnum);
+    {
+        value64 src = value64_createfs_asstr("OFF");
+        value64 dst = value64_convert_fs_to_bool(src);
+        test_validatefree(
+            value64_bool(dst) == false,
+            (value64_freefs(&src), value64_freefs(&dst)),
+            "fs 'OFF' -> bool: expected false"
+        );
+        value64free(src, VALUE64_FS);
+        value64free(src, VALUE64_BOOL);
+    }
+
+    test_sub("subtest %d: FS 'unknown' -> BOOL raises", ++subnum);
+    {
+        value64 src = value64_createfs_asstr("unknown");
+        if (!try()) {
+            value64 dst = value64_convert_fs_to_bool(src);
+            test_validatefree(false, value64_freefs(&src), "Should have raised SIGINT");
+            (void)dst;
+        } else {
+            logsimple("Exception correctly raised on fs->bool invalid");
+            value64free(src, VALUE64_FS);
+        }
+    }
 
     /* ========== 20. FS → FS (копирование) ========== */
     test_sub("subtest %d: FS -> FS (copy)", ++subnum);
@@ -3656,7 +3815,7 @@ tf_convert(const char *name)
             value64_freestr(&src),
             "str->char: expected 'P', got '%c'", value64_char(dst)
         );
-        value64_freestr(&src);
+        value64free(src, VALUE64_STR);
     }
 
     /* str -> char (empty) – error */
@@ -3669,7 +3828,73 @@ tf_convert(const char *name)
             value64_freestr(&src),
             "str->char: expected 'P', got '%c'", value64_char(dst)
         );
-        value64_freestr(&src);
+        value64free(src, VALUE64_STR);
+        value64free(dst, VALUE64_CHR);
+    }
+
+    test_sub("subtest %d: STR 'true' -> BOOL", ++subnum);
+    {
+        value64 src = value64_createstr("true");
+        value64 dst = value64_convert_str_to_bool(src);
+        test_validatefree(
+            value64_bool(dst) == true,
+            (value64_freestr(&src), value64_freestr(&dst)),
+            "str 'true' -> bool: expected true"
+        );
+        value64free(src, VALUE64_STR);
+        value64free(dst, VALUE64_BOOL);
+    }
+
+    test_sub("subtest %d: STR 'false' -> BOOL", ++subnum);
+    {
+        value64 src = value64_createstr("false");
+        value64 dst = value64_convert_str_to_bool(src);
+        test_validatefree(
+            value64_bool(dst) == false,
+            (value64_freestr(&src), value64_freestr(&dst)),
+            "str 'false' -> bool: expected false"
+        );
+        value64free(src, VALUE64_STR);
+        value64free(dst, VALUE64_BOOL);
+    }
+
+    test_sub("subtest %d: STR 'yes' -> BOOL", ++subnum);
+    {
+        value64 src = value64_createstr("yes");
+        value64 dst = value64_convert_str_to_bool(src);
+        test_validatefree(
+            value64_bool(dst) == true,
+            (value64_freestr(&src), value64_freestr(&dst)),
+            "str 'yes' -> bool: expected true"
+        );
+        value64free(src, VALUE64_STR);
+        value64free(dst, VALUE64_BOOL);
+    }
+
+    test_sub("subtest %d: STR 'no' -> BOOL", ++subnum);
+    {
+        value64 src = value64_createstr("no");
+        value64 dst = value64_convert_str_to_bool(src);
+        test_validatefree(
+            value64_bool(dst) == false,
+            (value64_freestr(&src), value64_freestr(&dst)),
+            "str 'no' -> bool: expected false"
+        );
+        value64free(src, VALUE64_STR);
+        value64free(dst, VALUE64_BOOL);
+    }
+
+    test_sub("subtest %d: STR 'invalid' -> BOOL raises", ++subnum);
+    {
+        value64 src = value64_createstr("invalid");
+        if (!try()) {
+            value64 dst = value64_convert_str_to_bool(src);
+            test_validatefree(false, value64_freestr(&src), "Should have raised SIGINT");
+            (void) dst;
+        } else {
+            logsimple("Exception correctly raised on str->bool invalid");
+            value64_freestr(&src);
+        }
     }
 
     /* ========== 25. STR → DBL (корректная) ========== */
@@ -3725,6 +3950,7 @@ tf_convert(const char *name)
         test_validate(fabs(value64_dbl(tmp) - (double)INT_MAX) < 10.0, "INT_MAX -> DBL mismatch");
         // дальше можно в STR и обратно, но не будем усложнять
     }
+    fs_alloc_check(true);
 
     return logret(TEST_PASSED, "done");
 }
