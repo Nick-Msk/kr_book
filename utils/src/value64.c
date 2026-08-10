@@ -836,6 +836,15 @@ int                         value64_pfs_rev_comp(const void *restrict v1, const 
 
 // ----------------------------- CONVERTERS ----------------------------------------
 
+// check if we've transision method
+value64_ConverterFunc       value64_is_canconverted(value64_type from, value64_type to) {
+    return conv_matrix[from][to];
+}
+// check if we've transision MOVE method
+value64_ConverterMoveFunc   value64_is_moveconverted(value64_type from, value64_type to) {
+    return conv_move_matrix[from][to];
+}
+
 // TODO: hardcoding, probably refactoring is required!!!
 /**
  * @brief Checks if a value can be safely converted from one type to another without loss of data.
@@ -854,9 +863,8 @@ int                         value64_pfs_rev_comp(const void *restrict v1, const 
  * @return true if the conversion is safe (lossless), false otherwise.
  */
 bool                        value64_is_convertable(value64 v, value64_type from, value64_type to) {
-    if (conv_matrix[from][to] == NULL) {
+    if (!value64_is_canconverted(from, to))
         return false;
-    }
 
     if (from == VALUE64_LONG && to == VALUE64_INT)
         return is_long_int_range(value64_long(v));
@@ -897,11 +905,11 @@ bool                        value64_is_convertable(value64 v, value64_type from,
  */
 value64                     value64_convert(value64 v, value64_type from, value64_type to) {
 
-    value64_ConverterFunc func = conv_matrix[from][to];
+    value64_ConverterFunc func = value64_is_canconverted(from, to);
     if (func == NULL)
         userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "%s => %s", value64_typename(from), value64_typename(to));
 
-    return logsimpleret(func(v), "Converted from %s to %s", value64_typename(from), value64_typename(to) );
+    return func(v); // logsimpleret(func(v), "Converted from %s to %s", value64_typename(from), value64_typename(to) );
 }
 
 /**
@@ -1301,9 +1309,9 @@ value64                     value64_convert_bool_to_bool(value64 v) {
  * @throws ERR_UNSUPPORTED_TYPE_CONV if no move-conversion is defined for the given types.
  */
 value64                     value64_convert_move(value64 *v, value64_type from, value64_type to) {
-    value64_ConverterMoveFunc func = conv_move_matrix[from][to];
+    value64_ConverterMoveFunc func = value64_is_moveconverted(from, to);
     if (func != NULL) {
-        return logsimpleret(func(v), "Move converted from %s to %s", value64_typename(from), value64_typename(to) );
+        return func(v); // logsimpleret(func(v), "Move converted from %s to %s", value64_typename(from), value64_typename(to) );
     } else
         userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "from %d:%s to %d:%s",
                  from, value64_typename(from), to, value64_typename(to));
