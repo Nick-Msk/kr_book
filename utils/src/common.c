@@ -211,7 +211,7 @@ bool                            try_parse_ulong(const char *restrict str, unsign
     unsigned long    val = strtoul(str, &endptr, 10);
 
     if (str == endptr || *endptr != '\0' || *str == '-' || is_ulong_overflow(val))
-        return logsimpleerr(false, "Unable to parse ulong %lu, errno %d", val, errno);
+        return logsimpleerr(false, "Unable to parse ulong %lu, errno %d(%s)", val, errno, strerror(errno) );
 
     if (res)
         *res = val;
