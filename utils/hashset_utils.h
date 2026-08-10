@@ -179,10 +179,10 @@ static inline hset_accum hset_reduce_int(const hset *se, hset_reduce_func func) 
 }
 
 /**
- * @brief Свёртка для VALUE64_LNG (без фильтрации).
+ * @brief Свёртка для VALUE64_LONG (без фильтрации).
  * @param se   исходное множество
  * @param func функция-редьюсер
- * @return заполненный аккумулятор с типом VALUE64_LNG
+ * @return заполненный аккумулятор с типом VALUE64_LONG
  */
 static inline hset_accum hset_reduce_lng(const hset *se, hset_reduce_func func) {
     return hset_reduce(se, HSET_ACCUM_LNG_ZERO, func);
@@ -241,12 +241,12 @@ static inline hset_accum hset_filtereduce_int(const hset *restrict se,
 }
 
 /**
- * @brief Свёртка с фильтрацией для VALUE64_LNG.
+ * @brief Свёртка с фильтрацией для VALUE64_LONG.
  * @param se   исходное множество
  * @param func функция-редьюсер
  * @param pred предикат-фильтр
  * @param data данные для предиката
- * @return заполненный аккумулятор с типом VALUE64_LNG
+ * @return заполненный аккумулятор с типом VALUE64_LONG
  */
 static inline hset_accum hset_filtereduce_lng(const hset *restrict se,
                                               hset_reduce_func func,

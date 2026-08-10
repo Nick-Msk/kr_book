@@ -521,7 +521,7 @@ hset                       *hset_apply_fs_str_filter(hset *restrict se, valur64_
 hset                        hset_create_int_int_filter(const hset *restrict se, valur64_predicate_t filter, int value) {
     invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
     invraisecode(ERR_UNSUPPORTED_TYPE,
-        hset_getype(se) == VALUE64_INT /* || hset_getype(se) == VALUE64_LNG */, // long is diabled for now
+        hset_getype(se) == VALUE64_INT /* || hset_getype(se) == VALUE64_LONG */, // long is diabled for now
         "Only VALUE64_INT supported");
     hset tmp = hset_init_filter(se, filter, V64TYP_INTLIST(value) );
     return logsimpleret(tmp, "Created %d elems", hset_cnt(&tmp) );
@@ -531,7 +531,7 @@ hset                        hset_create_int_int_filter(const hset *restrict se, 
 hset                       *hset_apply_int_int_filter(hset *restrict se,  valur64_predicate_t filter, int value) {
     invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
     invraisecode(ERR_UNSUPPORTED_TYPE,
-        hset_getype(se) == VALUE64_INT /* || hset_getype(se) == VALUE64_LNG*/, // long is diabled for now
+        hset_getype(se) == VALUE64_INT /* || hset_getype(se) == VALUE64_LONG*/, // long is diabled for now
         "Only VALUE64_INT supported");
     hset_filter(se, filter, V64TYP_INTLIST(value) );
     return logsimpleret(se, "Remained %d elems", hset_cnt(se) );
@@ -542,7 +542,7 @@ hset                       *hset_apply_int_int_filter(hset *restrict se,  valur6
 hset                        hset_create_int_int_filter2(const hset *restrict se, value64_predicate_t filter2, int value1, int value2) {
     invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
     invraisecode(ERR_UNSUPPORTED_TYPE,
-        hset_getype(se) == VALUE64_INT /* || hset_getype(se) == VALUE64_LNG */, // long is diabled for now
+        hset_getype(se) == VALUE64_INT /* || hset_getype(se) == VALUE64_LONG */, // long is diabled for now
         "Only VALUE64_INT supported");
     hset tmp = hset_init_filter2(se, filter2, V64TYP_INTLIST(value1, value2) );
     return logsimpleret(tmp, "Created %d elems", hset_cnt(&tmp) );
@@ -551,7 +551,7 @@ hset                        hset_create_int_int_filter2(const hset *restrict se,
 hset                       *hset_apply_int_int_filter2(hset *restrict se, value64_predicate_t filter2, int value1, int value2) {
     invraisecode(ERR_NULLABLE_PTR, se != NULL, "Null pointer");
     invraisecode(ERR_UNSUPPORTED_TYPE,
-        hset_getype(se) == VALUE64_INT /* || hset_getype(se) == VALUE64_LNG*/, // long is diabled for now
+        hset_getype(se) == VALUE64_INT /* || hset_getype(se) == VALUE64_LONG*/, // long is diabled for now
         "Only VALUE64_INT supported");
     hset_filter2(se, filter2, V64TYP_INTLIST(value1, value2) );
     return logsimpleret(se, "Remained %d elems", hset_cnt(se) );
