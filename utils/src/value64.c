@@ -218,146 +218,131 @@ void                        value64_exch(value64 *v1, value64 *v2){
     *v2 = tmp;
 }
 
+// ------------------------------- Comparators support ---------------------------------
+
 /**
- * @brief Sorts an array of value64 elements in ascending order.
- * 
- * @param typ The type of the elements in the array.
- * @param arr Pointer to the array to be sorted.
- * @param sz The number of elements in the array.
- * @throws ERR_UNSUPPORTED_TYPE if no comparator is available for the specified type.
+ * @brief Structure that groups all comparator types into a single entry.
  */
-void                        value64_sort(value64_type typ, value64 *arr, int sz){
-    value64_PComparator pcomp = value64_getPComparator(typ);
-    if (!pcomp)
-         userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s: %d", value64_typename(typ), typ);
-    qsort(arr, sz, sizeof(value64), pcomp);
-}
+typedef struct {
+    value64_Comparator      val_comp;      // For getComparator
+    value64_Comparator      rev_val_comp; // For getRevComparator
+    value64_PComparator     p_comp;       // For getPComparator
+    value64_PComparator     p_rev_comp;   // For getPRevComparator
+} value64_comparator_dispatch_t;
 
 /**
- * @brief Sorts an array of value64 elements in descending order.
- * 
- * @param typ The type of the elements in the array.
- * @param arr Pointer to the array to be sorted.
- * @param sz The number of elements in the array.
- * @throws ERR_UNSUPPORTED_TYPE if no reverse comparator is available for the specified type.
+ * @brief Unified master matrix for comparator mappings.
+ * This eliminates redundant switch-case blocks and centralizes type definitions.
  */
-void                        value64_revsort(value64_type typ, value64 *arr, int sz){ 
-    value64_PComparator revpcomp = value64_getPRevComparator(typ);
-    if (!revpcomp)
-         userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s: %d", value64_typename(typ), typ);
-    qsort(arr, sz, sizeof(value64), revpcomp);
-}
+static const value64_comparator_dispatch_t comparator_matrix[VALUE64_TYPE_COUNT] = {
+    [VALUE64_INT] = {
+        value64_int_comp,   value64_int_rev_comp, 
+        value64_pint_comp,   value64_pint_rev_comp
+    },
+    [VALUE64_LONG] = {
+        value64_long_comp,  value64_long_rev_comp, 
+        value64_plong_comp,  value64_plong_rev_comp
+    },
+    [VALUE64_ULONG] = {
+        value64_ulong_comp, value64_ulong_rev_comp, 
+        value64_pulong_comp, value64_pulong_rev_comp
+    },
+    [VALUE64_CHR] = {
+        value64_char_comp,  value64_char_rev_comp, 
+        value64_pchar_comp,  value64_pchar_rev_comp
+    },
+    [VALUE64_BOOL] = {
+        value64_bool_comp,  value64_bool_rev_comp, 
+        value64_pbool_comp,  value64_pbool_rev_comp
+    },
+    [VALUE64_DBL] = {
+        value64_dbl_comp,   value64_dbl_rev_comp, 
+        value64_pdbl_comp,   value64_pdbl_rev_comp
+    },
+    [VALUE64_PTR] = {
+        value64_ptr_comp,   value64_ptr_rev_comp, 
+        value64_pptr_comp,   value64_pptr_rev_comp
+    },
+    [VALUE64_FS] = {
+        value64_fs_comp,    value64_fs_rev_comp, 
+        value64_pfs_comp,    value64_pfs_rev_comp
+    },
+    [VALUE64_STR] = {
+        value64_str_comp,   value64_str_rev_comp, 
+        value64_pstr_comp,   value64_pstr_rev_comp
+    }
+};
 
 /**
- * @brief Performs a linear search for a value in an array.
- * 
- * @param val The value to search for.
- * @param typ The type of elements in the array.
- * @param arr Pointer to the array of values.
- * @param sz The number of elements in the array.
- * @return The index of the first match found, or -1 if not found.
- * @throws ERR_NULLABLE_PTR if the array pointer is NULL while sz > 0.
- * @throws ERR_UNSUPPORTED_TYPE if no comparator is available for the specified type.
+ * @brief Returns a pointer-based comparator for use in generic algorithms.
+ * @param typ The type of the data.
+ * @return Pointer to a value64_PComparator.
+ * @throws ERR_UNSUPPORTED_TYPE if the type is not recognized or invalid.
  */
-int                         value64_search(value64 val, value64_type typ, const value64 *arr, int sz){
-    invraisecode(arr || sz == 0, ERR_NULLABLE_PTR, 
-        "Null pointer while sz > 0 %p %d", arr, sz);
-
-    value64_Comparator comp = value64_getComparator(typ);
-    if (!comp)
-         userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s: %d", value64_typename(typ), typ);
-
-    for (int i = 0; i < sz; i++)
-        if (comp(val, arr[i]) == 0)
-            return logsimpleret(i, "Found %d", i);
-    return logsimpleerr(-1, "Not found"); // just a stub
+static inline value64_PComparator       value64_getPComparator(value64_type typ) {
+    if (typ < 1 || typ >= VALUE64_TYPE_COUNT) {
+        userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
+        return NULL;
+    }
+    value64_PComparator comp = comparator_matrix[typ].p_comp;
+    if (!comp) {
+        userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
+    }
+    return comp;
 }
 
 /**
- * @brief Performs a linear search for a value in an array in reverse order.
- * 
- * @param val The value to search for.
- * @param typ The type of elements in the array.
- * @param arr Pointer to the array of values.
- * @param sz The number of elements in the array.
- * @return The index of the first match found (searching from the end), or -1 if not found.
- * @throws ERR_NULLABLE_PTR if the array pointer is NULL while sz > 0.
- * @throws ERR_UNSUPPORTED_TYPE if no comparator is available for the specified type.
+ * @brief Returns a reverse pointer-based comparator.
+ * @param typ The type of the data.
+ * @return Pointer to a reversed value64_PComparator.
+ * @throws ERR_UNSUPPORTED_TYPE if the type is not recognized or invalid.
  */
-int                         value64_revsearch(value64 val, value64_type typ, const value64 *arr, int sz){
-    invraisecode(arr || sz == 0, ERR_NULLABLE_PTR, 
-            "Null pointer while sz > 0 %p %d", arr, sz);
-
-    value64_Comparator comp = value64_getComparator(typ);
-    if (!comp)
-        userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s: %d", value64_typename(typ), typ);
-
-    for (int i = sz; i > 0; i--)
-        if (comp(val, arr[i - 1]) == 0)
-            return logsimpleret(i - 1, "Found reverse %d", i - 1); 
-    return logsimpleerr(-1, "Not found"); // just a stub
+static inline value64_PComparator       value64_getPRevComparator(value64_type typ) {
+    if (typ < 1 || typ >= VALUE64_TYPE_COUNT) {
+        userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
+        return NULL;
+    }
+    value64_PComparator comp = comparator_matrix[typ].p_rev_comp;
+    if (!comp) {
+        userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
+    }
+    return comp;
 }
 
 /**
- * @brief Performs a binary search for a value in an ascending-ordered array.
- * 
- * This function uses the standard `bsearch` algorithm. The input array 
- * must be sorted in ascending order according to the specified type's comparator.
- *
- * @param val The value to search for.
- * @param typ The type of elements in the array.
- * @param arr Pointer to the array of value64 elements.
- * @param sz The number of elements in the array.
- * @return The zero-based index of the found element, or -1 if not found or sz == 0.
- * @throws ERR_NULLABLE_PTR if the array pointer is NULL while sz > 0.
- * @throws ERR_UNSUPPORTED_TYPE if no comparator is available for the specified type.
- */int                         value64_binsearch(value64 val, value64_type typ, const value64 *arr, int sz){
-    //bsearch(const void *key, const void *base, size_t nel, size_t width, int (*compar) (const void *, const void *));
-    invraisecode(arr || sz == 0, ERR_NULLABLE_PTR, 
-            "Null pointer while sz > 0 %p %d", arr, sz);
-    if (sz == 0)
-        return logsimpleerr(-1, "Noting to find, sz == 0");
-
-    value64_PComparator pcomp = value64_getPComparator(typ);
-    if (!pcomp)
-        userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s: %d", value64_typename(typ), typ);
-    const value64 *find = bsearch(&val, arr, sz, sizeof(value64), pcomp);
-    if (!find)
-        return logsimpleerr(-1, "Not found");
-    else
-        return logsimpleret(find - arr, "Found %lu", find - arr);
+ * @brief Returns a value-based comparator.
+ * @param typ The type of the data.
+ * @return Pointer to a value64_Comparator.
+ * @throws ERR_UNSUPPORTED_TYPE if the type is not recognized or invalid.
+ */
+static inline value64_Comparator        value64_getComparator(value64_type typ) {
+    if (typ < 1 || typ >= VALUE64_TYPE_COUNT) {
+        return userraise(NULL, ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
+    }
+    value64_Comparator comp = comparator_matrix[typ].val_comp;
+    if (!comp) {
+        return userraise(NULL, ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
+    }
+    return comp;
 }
 
 /**
- * @brief Performs a binary search for a value in a descending-ordered array.
- * 
- * This function uses the standard `bsearch` algorithm with a reverse comparator.
- * The input array MUST be sorted in descending order.
- *
- * @param val The value to search for.
- * @param typ The type of elements in the array.
- * @param arr Pointer to the array of value64 elements.
- * @param sz The number of elements in the array.
- * @return The zero-based index of the found element, or -1 if not found or sz == 0.
- * @throws ERR_NULLABLE_PTR if the array pointer is NULL while sz > 0.
- * @throws ERR_UNSUPPORTED_TYPE if no reverse comparator is available for the specified type.
- */int                         value64_rev_binsearch(value64 val, value64_type typ, const value64 *arr, int sz){
-    //bsearch(const void *key, const void *base, size_t nel, size_t width, int (*compar) (const void *, const void *));
-    invraisecode(arr || sz == 0, ERR_NULLABLE_PTR, 
-            "Null pointer while sz > 0 %p %d", arr, sz);
-
-    if (sz == 0)
-        return logsimpleerr(-1, "Noting to find, sz == 0");
-
-    value64_PComparator revpcomp = value64_getPRevComparator(typ);
-    if (!revpcomp)
-        userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s: %d", value64_typename(typ), typ);
-    const value64 *find = bsearch(&val, arr, sz, sizeof(value64), revpcomp);
-    if (!find)
-        return logsimpleerr(-1, "Not found");
-    else
-        return logsimpleret(find - arr, "Found %lu", find - arr);
+ * @brief Returns a reverse value-based comparator.
+ * @param typ The type of the data.
+ * @return Pointer to a reversed value64_Comparator.
+ * @throws ERR_UNSUPPORTED_TYPE if the type is not recognized or invalid.
+ */
+static inline value64_Comparator        value64_getRevComparator(value64_type typ) {
+    if (typ < 1 || typ >= VALUE64_TYPE_COUNT) {
+        return userraise(NULL, ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
+    }
+    value64_Comparator comp = comparator_matrix[typ].rev_val_comp;
+    if (!comp) {
+        return userraise(NULL, ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
+    }
+    return comp;
 }
+
 /**
  * @name Low-level Comparators
  * @brief Internal comparison functions for value64 types.
@@ -368,31 +353,35 @@ int                         value64_revsearch(value64 val, value64_type typ, con
  */
 
 /** @brief Compares two integer values. */
-int                         value64_int_comp(value64 v1, value64 v2) {
+int                             value64_int_comp(value64 v1, value64 v2) {
     return compare_int(v1.ival, v2.ival);
 }
-int                         value64_long_comp(value64 v1, value64 v2) {
+int                             value64_long_comp(value64 v1, value64 v2) {
     return compare_long(v1.lval, v2.lval);
 }
-int                         value64_ulong_comp(value64 v1, value64 v2) {
+int                             value64_ulong_comp(value64 v1, value64 v2) {
     return compare_ulong(v1.lval, v2.lval);
 }
-int                         value64_dbl_comp(value64 v1, value64 v2) {
+int                             value64_dbl_comp(value64 v1, value64 v2) {
     return compare_dbl(v1.dval, v2.dval);
 }
-int                         value64_char_comp(value64 v1, value64 v2) {
+int                             value64_char_comp(value64 v1, value64 v2) {
     return compare_char(v1.cval, v2.cval);
 }
-int                         value64_bool_comp(value64 v1, value64 v2) {
+int                             value64_bool_comp(value64 v1, value64 v2) {
     return compare_bool(v1.bval, v2.bval);
 }
-int                         value64_fs_comp(value64 v1, value64 v2) {
+int                             value64_fs_comp(value64 v1, value64 v2) {
+    if (fs_isnull(v1.fsval) || fs_isnull(v2.fsval) )
+        userraiseint(ERR_NULLABLE_PTR, "Null pointers (or .v) %p %p", v1.fsval, v2.fsval);
     return fs_cmp(v1.fsval, v2.fsval);
 }
-int                         value64_str_comp(value64 v1, value64 v2) {
+int                             value64_str_comp(value64 v1, value64 v2) {
+    if (!v1.sval || !v2.sval)
+        userraiseint(ERR_NULLABLE_PTR, "Null pointers %p %p", v1.sval, v2.sval);
     return strcmp(v1.sval, v2.sval);
 }
-int                         value64_ptr_comp(value64 v1, value64 v2) {
+int                             value64_ptr_comp(value64 v1, value64 v2) {
     return compare_ptr(v1.pval, v2.pval);
 }
 /** @} */
@@ -405,37 +394,40 @@ int                         value64_ptr_comp(value64 v1, value64 v2) {
  */
 
 /** @brief Reverse comparison for integers. */
-int                         value64_int_rev_comp(value64 v1, value64 v2) {
+int                             value64_int_rev_comp(value64 v1, value64 v2) {
     return -compare_int(v1.ival, v2.ival);
 }
-int                         value64_long_rev_comp(value64 v1, value64 v2) {
+int                             value64_long_rev_comp(value64 v1, value64 v2) {
     return -compare_long(v1.lval, v2.lval);
 }
-int                         value64_ulong_rev_comp(value64 v1, value64 v2) {
+int                             value64_ulong_rev_comp(value64 v1, value64 v2) {
     return -compare_ulong(v1.lval, v2.lval);
 }
-int                         value64_dbl_rev_comp(value64 v1, value64 v2) {
+int                             value64_dbl_rev_comp(value64 v1, value64 v2) {
     return -compare_dbl(v1.dval, v2.dval);
 }
-int                         value64_char_rev_comp(value64 v1, value64 v2) {
+int                             value64_char_rev_comp(value64 v1, value64 v2) {
     return -compare_char(v1.cval, v2.cval);
 }
-int                         value64_bool_rev_comp(value64 v1, value64 v2) {
+int                             value64_bool_rev_comp(value64 v1, value64 v2) {
     return -compare_bool(v1.bval, v2.bval);
 }
-int                         value64_fs_rev_comp(value64 v1, value64 v2) {
+int                             value64_fs_rev_comp(value64 v1, value64 v2) {
+    //if (!v1.fsval || !v2.fsval) // FIXME: fsisnull must be here
+    if (fs_isnull(v1.fsval) || fs_isnull(v2.fsval) )
+        userraiseint(ERR_NULLABLE_PTR, "Null pointers (or .v) %p %p", v1.fsval, v2.fsval);
     return -fs_cmp(v1.fsval, v2.fsval);
 }
-int                         value64_str_rev_comp(value64 v1, value64 v2) {
+int                             value64_str_rev_comp(value64 v1, value64 v2) {
+    if (!v1.sval || !v2.sval)
+        userraiseint(ERR_NULLABLE_PTR, "Null pointers %p %p", v1.sval, v2.sval);
     return -strcmp(v1.sval, v2.sval);
 }
-int                         value64_ptr_rev_comp(value64 v1, value64 v2) {
+int                             value64_ptr_rev_comp(value64 v1, value64 v2) {
     return -compare_ptr(v1.pval, v2.pval);
 }
 /** @} */
 
-// common value comparator (slow, for single-use), NULL checking
-// TODO: probably ref is requiored 
 /**
  * @brief Performs a high-level comparison of two value64 objects.
  * 
@@ -460,49 +452,17 @@ int                         value64_ptr_rev_comp(value64 v1, value64 v2) {
  * @throws ERR_NULLABLE_PTR if the underlying pointers for FS or STR types are NULL.
  * @throws ERR_UNSUPPORTED_TYPE if the provided type is not recognized.
  */
-int                     value64_compare(value64 v1, value64 v2, value64_type typ){
-    int     res = 0;
-    switch (typ){
-        case VALUE64_INT:
-            res = compare_int(v1.ival, v2.ival);
-        break;
-        case VALUE64_LONG:
-            res = compare_long(v1.lval, v2.lval);
-        break;
-        case VALUE64_ULONG:
-            res = compare_ulong(v1.lval, v2.lval);
-        break;
-        case VALUE64_DBL:
-            res = compare_dbl(v1.dval, v2.dval);
-        break;
-        case VALUE64_PTR: 
-            res = compare_ptr(v1.pval, v2.pval);
-        break;
-        case VALUE64_CHR: 
-            res = compare_char(v1.cval, v2.cval);
-        break;
-        case VALUE64_BOOL: 
-            res = compare_bool(v1.bval, v2.bval);
-        break;
-        case VALUE64_FS:
-            if (!v1.fsval || !v2.fsval) // FIXME: fsisnull must be here
-                userraiseint(ERR_NULLABLE_PTR, "Null pointers %p %p", v1.fsval, v2.fsval);
-            res = fs_cmp(v1.fsval, v2.fsval);
-        break;
-        case VALUE64_STR:
-            if (!v1.sval || !v2.sval)
-                userraiseint(ERR_NULLABLE_PTR, "Null pointers %p %p", v1.sval, v2.sval);
-            res = strcmp(v1.sval, v2.sval);
-        break;
-        default:
-            userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
-    }
-    return res;
+int                                     value64_compare(value64 v1, value64 v2, value64_type typ) {
+    if (typ < 1 || typ >= VALUE64_TYPE_COUNT)
+        userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
+
+    value64_Comparator comp = comparator_matrix[typ].val_comp;
+    if (!comp)
+        userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s", value64_typename(typ));
+
+    return comp(v1, v2);
 }
 
-// pointer comparator, switch fow now, but probably table-function is required
-// slow, for single-use, with NUL-check
-// TODO: probably ref is required
 /**
  * @brief Generic pointer-based comparison dispatcher.
  * 
@@ -529,39 +489,20 @@ int                     value64_compare(value64 v1, value64 v2, value64_type typ
  *         data pointers (for FS/STR types) are NULL.
  * @throws ERR_UNSUPPORTED_TYPE_CONV if the provided `typ` has no defined comparator.
  */
-int                         value64_pt_compare(const value64* restrict v1, const value64 *restrict v2, value64_type typ){
-    invraisecode(v1 != NULL && v2 != NULL, ERR_NULLABLE_PTR, 
-        "Null pointers %p %p", v1, v2);
-    switch (typ){
-        case VALUE64_INT:
-            return value64_pint_comp(v1, v2); //compare_pint(&val1->ival, &val2->ival);
-        case VALUE64_LONG:
-            return value64_plong_comp(v1, v2);  //compare_plong(&val1->lval, &val2->lval);
-        case VALUE64_ULONG:
-            return value64_pulong_comp(v1, v2);
-        case VALUE64_DBL:
-            return value64_pdbl_comp(v1, v2);   //compare_pdbl(&val1->dval, &val2->dval);
-        case VALUE64_CHR:
-            return value64_pchar_comp(v1, v2);   //compare_pchar(&val1->dval, &val2->dval)
-        case VALUE64_BOOL:
-            return value64_pbool_comp(v1, v2);
-        case VALUE64_FS:
-            invraisecode(v1->fsval != NULL && v2->fsval != NULL, ERR_NULLABLE_PTR, "Null pointers %p %p", v1->fsval, v2->fsval);
-            return value64_pfs_comp(v1, v2);     //compare_fs(val1->fsval, val2->fsval);
-        case VALUE64_STR:
-            invraisecode(v1->sval != NULL && v2->sval != NULL, ERR_NULLABLE_PTR, "Null pointers %p %p", v1->sval, v2->sval);
-            return value64_pstr_comp(v1, v2);   // compare_str(val1->strval, val2->strval);
-        case VALUE64_PTR:
-            return value64_pptr_comp(v1, v2); //compare_pptr(&val1->pval, &val2->pval);
-        default:
-            userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "No comparator for %d:%s",
-                 typ, value64_typename(typ) );
-    }
-    return 0;
+int                                 value64_pt_compare(const value64* restrict v1, const value64 *restrict v2, value64_type typ) {
+    if (v1 == NULL || v2 == NULL)
+        userraiseint(ERR_NULLABLE_PTR, "Null pointers %p %p", v1, v2);
+    
+    if (typ < 1 || typ >= VALUE64_TYPE_COUNT)
+        userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
+
+    value64_PComparator comp = comparator_matrix[typ].p_comp;
+    if (!comp)
+        userraiseint(ERR_UNSUPPORTED_TYPE, "No pointer comparator for %s", value64_typename(typ));
+
+    return comp(v1, v2);
 }
-// pointer comparators, for qsort, bsearch etc...  LOW LEVEL, no checking for NULL
-// just a wrapper over imline pointer comparators with (const void *,...
-// They must use comparators from common.h and fs.h (for FS)
+
 /**
  * @name Low-Level Pointer Comparators
  * @brief Wrappers for primitive comparators used in generic algorithms (qsort, bsearch).
@@ -675,12 +616,156 @@ int                         value64_pstr_rev_comp(const void *restrict v1, const
     const value64 *val2 = (const value64 *) v2;
     return -strcmp(val1->sval, val2->sval);
 }
+// no fs checking!!!
 int                         value64_pfs_rev_comp(const void *restrict v1, const void *restrict v2){
     const value64 *val1 = (const value64 *) v1;
     const value64 *val2 = (const value64 *) v2;
     return -fs_cmp(val1->fsval, val2->fsval);
 }
 /** @} */
+
+// ---------------------------- Sorting and searching -----------------------------------
+
+/**
+ * @brief Sorts an array of value64 elements in ascending order.
+ * 
+ * @param typ The type of the elements in the array.
+ * @param arr Pointer to the array to be sorted.
+ * @param sz The number of elements in the array.
+ * @throws ERR_UNSUPPORTED_TYPE if no comparator is available for the specified type.
+ */
+void                        value64_sort(value64_type typ, value64 *arr, int sz){
+    value64_PComparator pcomp = value64_getPComparator(typ);
+    if (!pcomp)
+         userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s: %d", value64_typename(typ), typ);
+    qsort(arr, sz, sizeof(value64), pcomp);
+}
+
+/**
+ * @brief Sorts an array of value64 elements in descending order.
+ * 
+ * @param typ The type of the elements in the array.
+ * @param arr Pointer to the array to be sorted.
+ * @param sz The number of elements in the array.
+ * @throws ERR_UNSUPPORTED_TYPE if no reverse comparator is available for the specified type.
+ */
+void                        value64_revsort(value64_type typ, value64 *arr, int sz){ 
+    value64_PComparator revpcomp = value64_getPRevComparator(typ);
+    if (!revpcomp)
+         userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s: %d", value64_typename(typ), typ);
+    qsort(arr, sz, sizeof(value64), revpcomp);
+}
+
+/**
+ * @brief Performs a linear search for a value in an array.
+ * 
+ * @param val The value to search for.
+ * @param typ The type of elements in the array.
+ * @param arr Pointer to the array of values.
+ * @param sz The number of elements in the array.
+ * @return The index of the first match found, or -1 if not found.
+ * @throws ERR_NULLABLE_PTR if the array pointer is NULL while sz > 0.
+ * @throws ERR_UNSUPPORTED_TYPE if no comparator is available for the specified type.
+ */
+int                         value64_search(value64 val, value64_type typ, const value64 *arr, int sz){
+    invraisecode(arr || sz == 0, ERR_NULLABLE_PTR, 
+        "Null pointer while sz > 0 %p %d", arr, sz);
+
+    value64_Comparator comp = value64_getComparator(typ);
+    if (!comp)
+         userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s: %d", value64_typename(typ), typ);
+
+    for (int i = 0; i < sz; i++)
+        if (comp(val, arr[i]) == 0)
+            return logsimpleret(i, "Found %d", i);
+    return logsimpleerr(-1, "Not found"); // just a stub
+}
+
+/**
+ * @brief Performs a linear search for a value in an array in reverse order.
+ * 
+ * @param val The value to search for.
+ * @param typ The type of elements in the array.
+ * @param arr Pointer to the array of values.
+ * @param sz The number of elements in the array.
+ * @return The index of the first match found (searching from the end), or -1 if not found.
+ * @throws ERR_NULLABLE_PTR if the array pointer is NULL while sz > 0.
+ * @throws ERR_UNSUPPORTED_TYPE if no comparator is available for the specified type.
+ */
+int                         value64_revsearch(value64 val, value64_type typ, const value64 *arr, int sz){
+    invraisecode(arr || sz == 0, ERR_NULLABLE_PTR, 
+            "Null pointer while sz > 0 %p %d", arr, sz);
+
+    value64_Comparator comp = value64_getRevComparator(typ);
+    if (!comp)
+        userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s: %d", value64_typename(typ), typ);
+
+    for (int i = sz; i > 0; i--)
+        if (comp(val, arr[i - 1]) == 0)
+            return logsimpleret(i - 1, "Found reverse %d", i - 1); 
+    return logsimpleerr(-1, "Not found"); // just a stub
+}
+
+/**
+ * @brief Performs a binary search for a value in an ascending-ordered array.
+ * 
+ * This function uses the standard `bsearch` algorithm. The input array 
+ * must be sorted in ascending order according to the specified type's comparator.
+ *
+ * @param val The value to search for.
+ * @param typ The type of elements in the array.
+ * @param arr Pointer to the array of value64 elements.
+ * @param sz The number of elements in the array.
+ * @return The zero-based index of the found element, or -1 if not found or sz == 0.
+ * @throws ERR_NULLABLE_PTR if the array pointer is NULL while sz > 0.
+ * @throws ERR_UNSUPPORTED_TYPE if no comparator is available for the specified type.
+ */int                         value64_binsearch(value64 val, value64_type typ, const value64 *arr, int sz){
+    //bsearch(const void *key, const void *base, size_t nel, size_t width, int (*compar) (const void *, const void *));
+    invraisecode(arr || sz == 0, ERR_NULLABLE_PTR, 
+            "Null pointer while sz > 0 %p %d", arr, sz);
+    if (sz == 0)
+        return logsimpleerr(-1, "Noting to find, sz == 0");
+
+    value64_PComparator pcomp = value64_getPComparator(typ);
+    if (!pcomp)
+        userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s: %d", value64_typename(typ), typ);
+    const value64 *find = bsearch(&val, arr, sz, sizeof(value64), pcomp);
+    if (!find)
+        return logsimpleerr(-1, "Not found");
+    else
+        return logsimpleret(find - arr, "Found %lu", find - arr);
+}
+
+/**
+ * @brief Performs a binary search for a value in a descending-ordered array.
+ * 
+ * This function uses the standard `bsearch` algorithm with a reverse comparator.
+ * The input array MUST be sorted in descending order.
+ *
+ * @param val The value to search for.
+ * @param typ The type of elements in the array.
+ * @param arr Pointer to the array of value64 elements.
+ * @param sz The number of elements in the array.
+ * @return The zero-based index of the found element, or -1 if not found or sz == 0.
+ * @throws ERR_NULLABLE_PTR if the array pointer is NULL while sz > 0.
+ * @throws ERR_UNSUPPORTED_TYPE if no reverse comparator is available for the specified type.
+ */int                         value64_rev_binsearch(value64 val, value64_type typ, const value64 *arr, int sz){
+    //bsearch(const void *key, const void *base, size_t nel, size_t width, int (*compar) (const void *, const void *));
+    invraisecode(arr || sz == 0, ERR_NULLABLE_PTR, 
+            "Null pointer while sz > 0 %p %d", arr, sz);
+
+    if (sz == 0)
+        return logsimpleerr(-1, "Noting to find, sz == 0");
+
+    value64_PComparator revpcomp = value64_getPRevComparator(typ);
+    if (!revpcomp)
+        userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s: %d", value64_typename(typ), typ);
+    const value64 *find = bsearch(&val, arr, sz, sizeof(value64), revpcomp);
+    if (!find)
+        return logsimpleerr(-1, "Not found");
+    else
+        return logsimpleret(find - arr, "Found %lu", find - arr);
+}
 
 // ----------------------------- CONVERTERS ----------------------------------------
 
