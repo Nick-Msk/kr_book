@@ -697,7 +697,7 @@ typedef struct {
 #define VALUE64_DISPATCH_MOVE_SAFE(m, v) { .converter = NULL, .move_converter = m, .validator = v }
 
 
-
+// ---------------------------- Range chechers for converters --------------------------------
 /**
  * @brief Checks if an int fits within the unsigned char range.
  */
@@ -881,7 +881,8 @@ bool                            value64_is_convertable(value64 v, value64_type f
         return false;
 
     value64_dispatch_t dispatch = dispatch_conv_matrix[from][to];
-    if (dispatch.converter)
+
+    if (!dispatch.converter)
         return false;
     // no validator => ok, no checking
     return (dispatch.validator == NULL) ? true : dispatch.validator(v);
@@ -915,7 +916,7 @@ value64                         value64_convert_common(value64 v, value64_type f
 
     value64_dispatch_t dispatch = dispatch_conv_matrix[from][to];
     if (check && dispatch.validator)
-        if (!dispatch.validator(v) )
+        if (!dispatch.validator(v))
             userraiseint(ERR_VALIDATION_FAILED,  "%s => %s", value64_typename(from), value64_typename(to));
     if (dispatch.converter == NULL)
         userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "%s => %s", value64_typename(from), value64_typename(to));
@@ -4502,13 +4503,23 @@ tf_is_convertable(const char *name)
     logenter("%s", name);
     int subnum = 0;
 
+    /* 1. INT -> INT: допустимо */
+    test_sub("subtest %d: INT->INT (allowed)", ++subnum);
+    {
+        value64 v = value64_createint(42);
+        test_validate(
+            value64_is_convertable(v, VALUE64_INT, VALUE64_INT),
+            "INT->INT must be convertable"
+        );
+    }
+
     /* 1. INT -> LONG: допустимо */
-    test_sub("subtest %d: INT->LNG (allowed)", ++subnum);
+    test_sub("subtest %d: INT->LONG (allowed)", ++subnum);
     {
         value64 v = value64_createint(42);
         test_validate(
             value64_is_convertable(v, VALUE64_INT, VALUE64_LONG),
-            "INT->LNG must be convertable"
+            "INT->LONG must be convertable"
         );
     }
 
@@ -5034,8 +5045,8 @@ tf_is_convertable(const char *name)
     {
         value64 v = LITERAL64_DBL(3.14);
         test_validate(
-            !value64_is_convertable(v, VALUE64_DBL, VALUE64_ULONG),
-            "DBL(3.14) -> ULONG must NOT be convertable"
+            value64_is_convertable(v, VALUE64_DBL, VALUE64_ULONG),
+            "DBL(3.14) -> ULONG must be convertable"
         );
     }
 
