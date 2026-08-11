@@ -423,26 +423,7 @@ static inline bool              ArrayIschar(const Array *parr){
 static inline bool              ArrayIsV64(const Array *parr){
     return ArrayGettype(parr) == ARRAY_V64;
 }
-/// @brief check if array is in error state /* NOT USED */
-/// @param a array
-/// @return true if error state 
-/*static inline bool              ArrayIserror(Array a){
-    return a.flags & ARRAY_ERROR;
-}*/
-/// @brief set error state to array /* NOT USED */
-/// @param a array
-/// @return array
-/*static inline Array            *ArraySeterror(Array *a){
-    a->flags |= ARRAY_ERROR;
-    return a;
-}*/
-/// @brief clear error state to array /* NOT USED */
-/// @param a array
-/// @return array
-/*static inline Array            *ArrayClearerror(Array *a){
-    a->flags &= ~ARRAY_ERROR;
-    return a;
-}*/
+
 /// @brief check if array is valuuable
 /// @param a array
 /// @return true if ok 
@@ -598,6 +579,8 @@ extern Array                   *ArrayIncrease(Array *parr, int newcnt);
 extern Array                   *ArrayShuffle(Array *parr);
 
 extern Array                   *ArrayDel(Array *parr, int from, int cnt);
+
+extern Array                   *ArrayAdd(Array *parr, int from, int cnt, ArrayFillType ftyp);
 /**
  * @brief Sorts the array in ascending or descending order.
  *

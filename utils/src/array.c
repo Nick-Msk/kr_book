@@ -164,7 +164,7 @@ static int                      increase(Array *arr, int newsz){
     void *p = NULL;  
     if (bytes > 0) {
         if ( (p = realloc(arr->v, bytes) ) == NULL)
-            userraiseint(ERR_UNABLE_ALLOCATE, "Unable to allocate %d", bytes);
+            userraise(-1, ERR_UNABLE_ALLOCATE, "Unable to allocate %d", bytes);
     } else
         free(arr->v);
     arr->v = p; // iv/dv/pv... is the same
@@ -1114,6 +1114,27 @@ Array                        *ArrayDel(Array *parr, int from, int cnt) {
     // 4. Update length
     parr->len -= cnt;
 
+    return parr;
+}
+
+Array                   *ArrayAdd(Array *parr, int from, int cnt, ArrayFillType ftyp) {
+    // TODO:
+    invraisecode(parr != NULL, ERR_NULLABLE_PTR, 
+        "Null array pointer %p", parr);
+
+    if (cnt <= 0 || from < 0 || from > parr->len)
+        return logsimpleret(parr, "Nothing to add: from %d, cnt %d, len %d", from, cnt, parr->len);
+
+    if (increase(parr, parr->len + cnt) < 0)
+        return userraise(NULL, ERR_UNABLE_ALLOCATE, "Unable to fill range, from %d, cnt %d, len %d", from, cnt, parr->len);
+    
+    int     elements_to_move = parr->len - from;
+
+    moveelem(parr, from + cnt, from, elements_to_move);
+    parr->len += cnt;   // cnt > 0!!!
+
+    ArrayFillRange(parr, ftyp, from, from + cnt);
+        
     return parr;
 }
 
@@ -4459,6 +4480,406 @@ tf_ArrayDel(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST ArrayAdd simple test -------------------------
+static TestStatus
+tf_ArrayAdd(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== ArrayAdd ========== */
+    test_sub("subtest %d: ArrayAdd one element in middle", ++subnum);
+    {
+        Array *arr = IArray_create(3, ARRAY_FILLTYPE_ASC_SERIES); // [0,1,2]
+        arr->iv[0] = 10; arr->iv[1] = 20; arr->iv[2] = 30;
+
+        arr = ArrayAdd(arr, 1, 1, ARRAY_FILLTYPE_ZERO);
+        arr->iv[1] = 99;
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 4 &&
+            arr->iv[0] == 10 && arr->iv[1] == 99 && arr->iv[2] == 20 && arr->iv[3] == 30,
+            Arrayfree(arr),
+            "Add middle 1: expected [10,99,20,30] len=4, got len=%d", Arraylen(arr)
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: ArrayAdd multiple in middle", ++subnum);
+    {
+        Array *arr = IArray_create(2, ARRAY_FILLTYPE_ASC_SERIES); // [0,1]
+        arr->iv[0] = 5; arr->iv[1] = 15;
+
+        arr = ArrayAdd(arr, 1, 2, ARRAY_FILLTYPE_ZERO);
+        arr->iv[1] = 7;
+        arr->iv[2] = 10;
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 4 &&
+            arr->iv[0] == 5 && arr->iv[1] == 7 && arr->iv[2] == 10 && arr->iv[3] == 15,
+            Arrayfree(arr),
+            "Add middle 2: expected [5,7,10,15] len=4, got len=%d", Arraylen(arr)
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: ArrayAdd at beginning", ++subnum);
+    {
+        Array *arr = IArray_create(2, ARRAY_FILLTYPE_ASC_SERIES); // [0,1]
+        arr->iv[0] = 20; arr->iv[1] = 30;
+
+        arr = ArrayAdd(arr, 0, 1, ARRAY_FILLTYPE_ZERO);
+        arr->iv[0] = 10;
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 3 &&
+            arr->iv[0] == 10 && arr->iv[1] == 20 && arr->iv[2] == 30,
+            Arrayfree(arr),
+            "Add start: expected [10,20,30] len=3, got len=%d", Arraylen(arr)
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: ArrayAdd at end", ++subnum);
+    {
+        Array *arr = IArray_create(2, ARRAY_FILLTYPE_ASC_SERIES); // [0,1]
+        arr->iv[0] = 1; arr->iv[1] = 2;
+
+        arr = ArrayAdd(arr, 2, 1, ARRAY_FILLTYPE_ZERO);  // from == len
+        arr->iv[2] = 3;
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 3 &&
+            arr->iv[0] == 1 && arr->iv[1] == 2 && arr->iv[2] == 3,
+            Arrayfree(arr),
+            "Add end: expected [1,2,3] len=3, got len=%d", Arraylen(arr)
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: ArrayAdd zero cnt (no-op)", ++subnum);
+    {
+        Array *arr = IArray_create(3, ARRAY_FILLTYPE_ASC_SERIES); // [0,1,2]
+        arr->iv[0] = 1; arr->iv[1] = 2; arr->iv[2] = 3;
+
+        arr = ArrayAdd(arr, 1, 0, ARRAY_FILLTYPE_ZERO);
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 3 &&
+            arr->iv[0] == 1 && arr->iv[1] == 2 && arr->iv[2] == 3,
+            Arrayfree(arr),
+            "Add zero: array unchanged, len=%d", Arraylen(arr)
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: ArrayAdd from out of bounds (no-op)", ++subnum);
+    {
+        Array *arr = IArray_create(3, ARRAY_FILLTYPE_ASC_SERIES); // [0,1,2]
+        arr->iv[0] = 1; arr->iv[1] = 2; arr->iv[2] = 3;
+
+        arr = ArrayAdd(arr, 5, 1, ARRAY_FILLTYPE_ZERO);
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 3 &&
+            arr->iv[0] == 1 && arr->iv[1] == 2 && arr->iv[2] == 3,
+            Arrayfree(arr),
+            "Add out of bounds: array unchanged, len=%d", Arraylen(arr)
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: ArrayAdd to empty array", ++subnum);
+    {
+        // Создаем массив с нулевой длиной
+        Array *arr = IArray_create(0, ARRAY_FILLTYPE_ASC_SERIES); 
+
+        arr = ArrayAdd(arr, 0, 3, ARRAY_FILLTYPE_ZERO);
+        arr->iv[0] = 10; arr->iv[1] = 20; arr->iv[2] = 30;
+
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 3 &&
+            arr->iv[0] == 10 && arr->iv[1] == 20 && arr->iv[2] == 30,
+            Arrayfree(arr),
+            "Add to empty: expected [10,20,30] len=3, got len=%d", Arraylen(arr)
+        );
+        Arrayfree(arr);
+    }
+
+    /* ========== V64 ArrayAdd (STR type) ========== */
+    test_sub("subtest %d: V64(STR) ArrayAdd one element middle", ++subnum);
+    {
+        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        arr->v64[0] = value64_createstr("a");
+        arr->v64[1] = value64_createstr("b");
+        arr->v64[2] = value64_createstr("c");
+        arr->len = 3;
+
+        arr = ArrayAdd(arr, 1, 1, ARRAY_FILLTYPE_ZERO);
+        // ZERO для STR заполнит пустой строкой ""
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 4 &&
+            strcmp(value64_str(arr->v64[0]), "a") == 0 &&
+            strcmp(value64_str(arr->v64[1]), "") == 0 &&   // заполнено ZERO
+            strcmp(value64_str(arr->v64[2]), "b") == 0 &&
+            strcmp(value64_str(arr->v64[3]), "c") == 0,
+            Arrayfree(arr),
+            "V64(STR) Add middle 1: expected [\"a\",\"\",\"b\",\"c\"]"
+        );
+        // перезапишем
+        value64free(arr->v64[1], VALUE64_STR);
+        arr->v64[1] = value64_createstr("X");
+        test_validatefree(
+            strcmp(value64_str(arr->v64[1]), "X") == 0,
+            Arrayfree(arr),
+            "V64(STR) Add middle 1: after set idx 1 = X"
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: V64(STR) ArrayAdd multiple middle", ++subnum);
+    {
+        Array *arr = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        arr->v64[0] = value64_createstr("first");
+        arr->v64[1] = value64_createstr("last");
+        arr->len = 2;
+
+        arr = ArrayAdd(arr, 1, 2, ARRAY_FILLTYPE_ZERO);
+        // после сдвига: [0]="first", [1]="", [2]="", [3]="last"
+        value64free(arr->v64[1], VALUE64_STR);
+        value64free(arr->v64[2], VALUE64_STR);
+        arr->v64[1] = value64_createstr("middle1");
+        arr->v64[2] = value64_createstr("middle2");
+
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 4 &&
+            strcmp(value64_str(arr->v64[0]), "first") == 0 &&
+            strcmp(value64_str(arr->v64[1]), "middle1") == 0 &&
+            strcmp(value64_str(arr->v64[2]), "middle2") == 0 &&
+            strcmp(value64_str(arr->v64[3]), "last") == 0,
+            Arrayfree(arr),
+            "V64(STR) Add middle 2: expected [first,middle1,middle2,last]"
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: V64(STR) ArrayAdd at beginning", ++subnum);
+    {
+        Array *arr = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        arr->v64[0] = value64_createstr("world");
+        arr->v64[1] = value64_createstr("!");
+        arr->len = 2;
+
+        arr = ArrayAdd(arr, 0, 1, ARRAY_FILLTYPE_ZERO);
+        value64free(arr->v64[0], VALUE64_STR);
+        arr->v64[0] = value64_createstr("Hello");
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 3 &&
+            strcmp(value64_str(arr->v64[0]), "Hello") == 0 &&
+            strcmp(value64_str(arr->v64[1]), "world") == 0 &&
+            strcmp(value64_str(arr->v64[2]), "!") == 0,
+            Arrayfree(arr),
+            "V64(STR) Add start: expected [Hello,world,!]"
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: V64(STR) ArrayAdd at end", ++subnum);
+    {
+        Array *arr = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        arr->v64[0] = value64_createstr("x");
+        arr->v64[1] = value64_createstr("y");
+        arr->len = 2;
+
+        arr = ArrayAdd(arr, 2, 1, ARRAY_FILLTYPE_ZERO);
+        value64free(arr->v64[2], VALUE64_STR);
+        arr->v64[2] = value64_createstr("z");
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 3 &&
+            strcmp(value64_str(arr->v64[0]), "x") == 0 &&
+            strcmp(value64_str(arr->v64[1]), "y") == 0 &&
+            strcmp(value64_str(arr->v64[2]), "z") == 0,
+            Arrayfree(arr),
+            "V64(STR) Add end: expected [x,y,z]"
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: V64(STR) ArrayAdd zero cnt (no-op)", ++subnum);
+    {
+        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        arr->v64[0] = value64_createstr("1");
+        arr->v64[1] = value64_createstr("2");
+        arr->v64[2] = value64_createstr("3");
+        arr->len = 3;
+
+        arr = ArrayAdd(arr, 1, 0, ARRAY_FILLTYPE_ZERO);
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 3 &&
+            strcmp(value64_str(arr->v64[0]), "1") == 0 &&
+            strcmp(value64_str(arr->v64[1]), "2") == 0 &&
+            strcmp(value64_str(arr->v64[2]), "3") == 0,
+            Arrayfree(arr),
+            "V64(STR) Add zero: array unchanged"
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: V64(STR) ArrayAdd out of bounds (no-op)", ++subnum);
+    {
+        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        arr->v64[0] = value64_createstr("a");
+        arr->v64[1] = value64_createstr("b");
+        arr->v64[2] = value64_createstr("c");
+        arr->len = 3;
+
+        arr = ArrayAdd(arr, 5, 1, ARRAY_FILLTYPE_ZERO);
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 3 &&
+            strcmp(value64_str(arr->v64[0]), "a") == 0 &&
+            strcmp(value64_str(arr->v64[1]), "b") == 0 &&
+            strcmp(value64_str(arr->v64[2]), "c") == 0,
+            Arrayfree(arr),
+            "V64(STR) Add out of bounds: array unchanged"
+        );
+        Arrayfree(arr);
+    }
+
+    /* ========== V64(FS) ArrayAdd ========== */
+    test_sub("subtest %d: V64(FS) ArrayAdd one element middle", ++subnum);
+    {
+        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        arr->v64[0] = value64_createfs_asstr("a");
+        arr->v64[1] = value64_createfs_asstr("b");
+        arr->v64[2] = value64_createfs_asstr("c");
+        arr->len = 3;
+
+        arr = ArrayAdd(arr, 1, 1, ARRAY_FILLTYPE_ZERO);
+        // ZERO для FS создаёт пустую строку ""
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 4 &&
+            strcmp(fs_str(value64_fs(arr->v64[0])), "a") == 0 &&
+            strcmp(fs_str(value64_fs(arr->v64[1])), "") == 0 &&  // ZERO
+            strcmp(fs_str(value64_fs(arr->v64[2])), "b") == 0 &&
+            strcmp(fs_str(value64_fs(arr->v64[3])), "c") == 0,
+            Arrayfree(arr),
+            "V64(FS) Add middle 1: expected [\"a\",\"\",\"b\",\"c\"]"
+        );
+        // заменяем пустую строку на "X"
+        value64free(arr->v64[1], VALUE64_FS);
+        arr->v64[1] = value64_createfs_asstr("X");
+        test_validatefree(
+            strcmp(fs_str(value64_fs(arr->v64[1])), "X") == 0,
+            Arrayfree(arr),
+            "V64(FS) Add middle 1: after set idx 1 = X"
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: V64(FS) ArrayAdd multiple middle", ++subnum);
+    {
+        Array *arr = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        arr->v64[0] = value64_createfs_asstr("first");
+        arr->v64[1] = value64_createfs_asstr("last");
+        arr->len = 2;
+
+        arr = ArrayAdd(arr, 1, 2, ARRAY_FILLTYPE_ZERO);
+        // после сдвига: [0]="first", [1]="", [2]="", [3]="last"
+        value64free(arr->v64[1], VALUE64_FS);
+        value64free(arr->v64[2], VALUE64_FS);
+        arr->v64[1] = value64_createfs_asstr("middle1");
+        arr->v64[2] = value64_createfs_asstr("middle2");
+
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 4 &&
+            strcmp(fs_str(value64_fs(arr->v64[0])), "first") == 0 &&
+            strcmp(fs_str(value64_fs(arr->v64[1])), "middle1") == 0 &&
+            strcmp(fs_str(value64_fs(arr->v64[2])), "middle2") == 0 &&
+            strcmp(fs_str(value64_fs(arr->v64[3])), "last") == 0,
+            Arrayfree(arr),
+            "V64(FS) Add middle 2: expected [first,middle1,middle2,last]"
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: V64(FS) ArrayAdd at beginning", ++subnum);
+    {
+        Array *arr = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        arr->v64[0] = value64_createfs_asstr("world");
+        arr->v64[1] = value64_createfs_asstr("!");
+        arr->len = 2;
+
+        arr = ArrayAdd(arr, 0, 1, ARRAY_FILLTYPE_ZERO);
+        value64free(arr->v64[0], VALUE64_FS);
+        arr->v64[0] = value64_createfs_asstr("Hello");
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 3 &&
+            strcmp(fs_str(value64_fs(arr->v64[0])), "Hello") == 0 &&
+            strcmp(fs_str(value64_fs(arr->v64[1])), "world") == 0 &&
+            strcmp(fs_str(value64_fs(arr->v64[2])), "!") == 0,
+            Arrayfree(arr),
+            "V64(FS) Add start: expected [Hello,world,!]"
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: V64(FS) ArrayAdd at end", ++subnum);
+    {
+        Array *arr = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        arr->v64[0] = value64_createfs_asstr("x");
+        arr->v64[1] = value64_createfs_asstr("y");
+        arr->len = 2;
+
+        arr = ArrayAdd(arr, 2, 1, ARRAY_FILLTYPE_ZERO);
+        value64free(arr->v64[2], VALUE64_FS);
+        arr->v64[2] = value64_createfs_asstr("z");
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 3 &&
+            strcmp(fs_str(value64_fs(arr->v64[0])), "x") == 0 &&
+            strcmp(fs_str(value64_fs(arr->v64[1])), "y") == 0 &&
+            strcmp(fs_str(value64_fs(arr->v64[2])), "z") == 0,
+            Arrayfree(arr),
+            "V64(FS) Add end: expected [x,y,z]"
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: V64(FS) ArrayAdd zero cnt (no-op)", ++subnum);
+    {
+        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        arr->v64[0] = value64_createfs_asstr("1");
+        arr->v64[1] = value64_createfs_asstr("2");
+        arr->v64[2] = value64_createfs_asstr("3");
+        arr->len = 3;
+
+        arr = ArrayAdd(arr, 1, 0, ARRAY_FILLTYPE_ZERO);
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 3 &&
+            strcmp(fs_str(value64_fs(arr->v64[0])), "1") == 0 &&
+            strcmp(fs_str(value64_fs(arr->v64[1])), "2") == 0 &&
+            strcmp(fs_str(value64_fs(arr->v64[2])), "3") == 0,
+            Arrayfree(arr),
+            "V64(FS) Add zero: array unchanged"
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: V64(FS) ArrayAdd out of bounds (no-op)", ++subnum);
+    {
+        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        arr->v64[0] = value64_createfs_asstr("a");
+        arr->v64[1] = value64_createfs_asstr("b");
+        arr->v64[2] = value64_createfs_asstr("c");
+        arr->len = 3;
+
+        arr = ArrayAdd(arr, 5, 1, ARRAY_FILLTYPE_ZERO);
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 3 &&
+            strcmp(fs_str(value64_fs(arr->v64[0])), "a") == 0 &&
+            strcmp(fs_str(value64_fs(arr->v64[1])), "b") == 0 &&
+            strcmp(fs_str(value64_fs(arr->v64[2])), "c") == 0,
+            Arrayfree(arr),
+            "V64(FS) Add out of bounds: array unchanged"
+        );
+        Arrayfree(arr);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
 
 // -------------------------------------------------------------------
 int
@@ -4483,14 +4904,15 @@ main( /*int argc, char *argv[] */ )
         TESTADD(tf_v64array_str_fs,             "V64Array (STR / FS) simple test"),
         TESTADD(tf_v64array_shrink_increase,    "V64Array (STR / FS) shrink / increase simple test"),
         TESTADD(tf_v64array_sort,               "V64Array (STR / FS) sorting simple test"),
-        TESTADD(tf_v64ArraySaveFile_load,          "V64Array STR/FS save/load simple test"),
+        TESTADD(tf_v64ArraySaveFile_load,       "V64Array STR/FS save/load simple test"),
         TESTADD(tf_array_bsearch,               "ArrayBsearch (INT / LONG / DBL / V64) simple test"),
         TESTADD(tf_carray_create_fill_free,     "CHAR create/fill/free simple test"),
         TESTADD(tf_carray_sort,                 "CHAR sorting simple test"),
         TESTADD(tf_array_bsearch_char,          "CHAR ArrayBsearch simple test"),
-        TESTADD(tf_ArraySaveFile_load_char,        "CHAR Array save/load simple test"),
+        TESTADD(tf_ArraySaveFile_load_char,     "CHAR Array save/load simple test"),
         TESTADD(tf_array_eq_noteq,              "ArrayEq / ArrayNoteq (all types, edge cases)"),
-        TESTADD(tf_ArrayDel,                    "ArrayDel simple test")
+        TESTADD(tf_ArrayDel,                    "ArrayDel simple test"),
+        TESTADD(tf_ArrayAdd,                    "ArrayAdd simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
