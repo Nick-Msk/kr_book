@@ -962,10 +962,10 @@ extern value64_ConverterMoveFunc   value64_is_moveconverted(value64_type from, v
 extern value64                  value64_convert_common(value64 v, value64_type from, value64_type to, bool check);
 
 static inline value64           value64_convert(value64 v, value64_type from, value64_type to) {
-    return value64_convert_common(v, from, to, false);
-}
-static inline value64           value64_convert_validate(value64 v, value64_type from, value64_type to) {
     return value64_convert_common(v, from, to, true);
+}
+static inline value64           value64_convert_nocheck(value64 v, value64_type from, value64_type to) {
+    return value64_convert_common(v, from, to, false);
 }
 
 /**
