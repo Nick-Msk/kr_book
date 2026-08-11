@@ -595,7 +595,9 @@ extern Array                   *ArrayIncrease(Array *parr, int newcnt);
  *
  * @param arr array (by value)
  */
-extern void                     ArrayShuffle(Array *parr);
+extern Array                   *ArrayShuffle(Array *parr);
+
+extern Array                   *ArrayDel(Array *parr, int from, int cnt);
 /**
  * @brief Sorts the array in ascending or descending order.
  *

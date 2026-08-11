@@ -1031,10 +1031,10 @@ Array                          *ArrayShrink(Array *parr, int newsz){
  * @brief Shuffle array elements using the Fisher–Yates algorithm.
  * @param arr array (by value)
  */
-void                        ArrayShuffle(Array *parr) {
+Array                       *ArrayShuffle(Array *parr) {
     int elem_size = getelemsize(parr);
     if (elem_size <= 0)
-        userraiseint(ERR_UNSUPPORTED_TYPE, 
+        userraise(NULL, ERR_UNSUPPORTED_TYPE, 
                         "unsupported type for shuffle %s", ArrayGetTypeName(parr));
     // in case if arr.len < 2 that'll do nothing
     char    *data = parr->v;  // raw byte pointer
@@ -1043,7 +1043,32 @@ void                        ArrayShuffle(Array *parr) {
         // swap elements at indices i and j
         item_exch(data + i * elem_size, data + j * elem_size, elem_size);   
     }
+    return parr;
 }
+
+Array                        *ArrayDel(Array *parr, int from, int cnt) {
+    invraisecode(parr != NULL, ERR_NULLABLE_PTR, "Null array pointer");
+
+    if (cnt <= 0 || from < 0 || from >= parr->len || (from + cnt) > parr->len)
+        return logsimpleret(parr, "Nothing to del from %d, cnt %d, len %d", from, cnt, Arraylen(parr) );
+
+    // no checking slices for now TODO:
+    // ArraySlice *psli;
+    // if ( (psli = ArrayCheckslicesInterval(parr, from, cnt) ) != NULL )
+    // return userraise(NULL, ERR_OUT_OF_RANGE, "Slice exists... %d - %d", psli->initpos, psli->len);
+
+    size_t es = getelemsize(parr);
+
+    freeV64elems(parr, from, from + cnt);
+
+    memmove((char *)parr->v + (from * es), 
+            (char *)parr->v + ((from + cnt) * es), 
+            (parr->len - (from + cnt)) * es);
+
+    parr->len -= cnt;
+    return parr;
+}
+
 
 /**
  * @brief Checks whether two arrays are *not* equal.
