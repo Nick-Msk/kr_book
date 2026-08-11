@@ -1072,34 +1072,43 @@ Array                       *ArrayShuffle(Array *parr) {
 }
 
 /**
- * @brief Removes a range of elements from the array.
- *
- * This function removes `cnt` elements starting from index `from`.
- * It performs the following steps:
- * 1. Validates the range.
- * 2. Cleans up elements in the removal range (e.g., freeing V64/pointers) to prevent leaks.
- * 3. Shifts the remaining suffix of the array to fill the gap.
- * 4. Updates the array length.
- *
- * @param parr  Pointer to the array.
- * @param from  The starting index of the elements to remove.
+ * @brief Removes elements from the array within the specified range.
+ * 
+ * @details This function removes @p cnt elements starting from index @p from.
+ * If the requested range `[from, from + cnt)` exceeds the current array length, 
+ * the function will automatically adjust @p cnt to remove only elements up to 
+ * the end of the array (clamping).
+ * 
+ * @note The function ensures no memory leaks by cleaning up the content of 
+ *       removed elements (e.g., for V64 or pointer types) before shifting.
+ * 
+ * @param arr   Pointer to the array.
+ * @param from  The starting index of the removal range.
  * @param cnt   The number of elements to remove.
- * @return      Pointer to the modified array. Returns the original array if 
- *              the range is invalid (no operation performed).
+ * 
+ * @return      Pointer to the modified array. Returns the original array 
+ *              unchanged if `cnt <= 0` or `from` is out of bounds.
+ * 
+ * @warning The function performs a linear time O(n) shift operation.
  */
 Array                        *ArrayDel(Array *parr, int from, int cnt) {
     invraisecode(parr != NULL, ERR_NULLABLE_PTR, 
         "Null array pointer %p", parr);
 
     // 1. Validation: Ensure the range is within [0, parr->len) and cnt > 0
-    if (cnt <= 0 || from < 0 || (from + cnt) > parr->len) {
+    if (cnt <= 0 || from < 0 || from >= parr->len) {
         return logsimpleret(parr, "Nothing to del from %d, cnt %d, len %d", from, cnt, parr->len);
     }
+    if ( (from + cnt) > parr->len) {
+        logsimple("since %d + %d > total len %d cnt reduced to %d", 
+                from, cnt, parr->len, parr->len - from);
+        cnt = parr->len - from;
+    }
+
     // no checking slices for now TODO:
     // ArraySlice *psli;
     // if ( (psli = ArrayCheckslicesInterval(parr, from, cnt) ) != NULL )
     // return userraise(NULL, ERR_OUT_OF_RANGE, "Slice exists... %d - %d", psli->initpos, psli->len);
-
 
     // 2. Cleanup: Free the content of the elements being removed to prevent leaks for V64.
     freeV64elems(parr, from, cnt);
@@ -1117,6 +1126,34 @@ Array                        *ArrayDel(Array *parr, int from, int cnt) {
     return parr;
 }
 
+/**
+ * @brief Inserts @p cnt new elements into the array at the specified position.
+ *
+ * @details This function expands the array to accommodate the new elements and 
+ * shifts existing elements to make room for them. The process follows these steps:
+ * <ol>
+ *   <li>Validates the insertion index and the count of elements to be added.</li>
+ *   <li>Increases the array capacity (sz) to ensure enough space for new elements.</li>
+ *   <li>Shifts the existing elements from the insertion point to the end of the 
+ *       array to the right, creating a "gap".</li>
+ *   <li>Fills the newly created gap with the specified @p ftyp pattern.</li>
+ *   <li>Updates the array's logical length (@p len).</li>
+ * </ol>
+ *
+ * @param parr  Pointer to the array where elements will be inserted.
+ * @param from  The starting index for the new elements.
+ * @param cnt   The number of new elements to be added.
+ * @param ftyp  The fill pattern to use for the newly inserted elements.
+ *
+ * @return      Pointer to the modified array on success.
+ * @return      Returns an error code/NULL if the operation fails (e.g., invalid 
+ *              parameters or memory allocation failure).
+ *
+ * @note This operation has a time complexity of O(n), where n is the number 
+ *       of elements shifted to the right.
+ * @warning If an error occurs during the capacity expansion (reallocation), 
+ *          the array remains unchanged and in its original valid state.
+ */
 Array                   *ArrayAdd(Array *parr, int from, int cnt, ArrayFillType ftyp) {
     // TODO:
     invraisecode(parr != NULL, ERR_NULLABLE_PTR, 
@@ -4461,13 +4498,29 @@ tf_ArrayDel(const char *name)
         Arrayfree(arr);
     }
 
-    test_sub("subtest %d: ArrayDel cnt exceeds length", ++subnum);
+    test_sub("subtest %d: ArrayDel cnt not exceeds length", ++subnum);
     {
         Array *arr = IArray_create(4, ARRAY_FILLTYPE_ASC_SERIES);
         arr->iv[0] = 10; arr->iv[1] = 20; arr->iv[2] = 30; arr->iv[3] = 40;
         //arr->len = 4;
 
         arr = ArrayDel(arr, 2, 2 /*10*/ );   // удалит 30,40
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 2 &&
+            arr->iv[0] == 10 && arr->iv[1] == 20,
+            Arrayfree(arr),
+            "Del over: expected [10,20] len=2, got len=%d", Arraylen(arr)
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: ArrayDel cnt exceeds length", ++subnum);
+    {
+        Array *arr = IArray_create(4, ARRAY_FILLTYPE_ASC_SERIES);
+        arr->iv[0] = 10; arr->iv[1] = 20; arr->iv[2] = 30; arr->iv[3] = 40;
+        //arr->len = 4;
+
+        arr = ArrayDel(arr, 2, 10);   // удалит 30,40
         test_validatefree(
             arr != NULL && Arraylen(arr) == 2 &&
             arr->iv[0] == 10 && arr->iv[1] == 20,
