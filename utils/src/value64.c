@@ -8980,12 +8980,22 @@ tf_setzero(const char *name)
         );
     }
 
-    test_sub("subtest %d: setzero LNG", ++subnum);
+    test_sub("subtest %d: setzero LONG", ++subnum);
     {
         value64 v = LITERAL64_LONG(123456789L);
         value64_setzero(&v, VALUE64_LONG);
         test_validate(
             v.lval == 0L,
+            "LONG should be 0 after setzero"
+        );
+    }
+
+    test_sub("subtest %d: setzero ULONG", ++subnum);
+    {
+        value64 v = LITERAL64_ULONG(123456789UL);
+        value64_setzero(&v, VALUE64_ULONG);
+        test_validate(
+            v.ulval == 0UL,
             "LONG should be 0 after setzero"
         );
     }
@@ -9080,14 +9090,25 @@ tf_value64_move(const char *name)
         );
     }
 
-    /* ---------- LNG ---------- */
-    test_sub("subtest %d: move LNG", ++subnum);
+    /* ---------- LONG ---------- */
+    test_sub("subtest %d: move LONG", ++subnum);
     {
         value64 src = { .lval = 999888777L };
         value64 dst = value64_move(&src, VALUE64_LONG);
         test_validate(
             dst.lval == 999888777L && src.lval == 0L,
             "Move LNG: dst=%ld, src=%ld (expected 999888777, 0)", dst.lval, src.lval
+        );
+    }
+
+    /* ---------- LONG ---------- */
+    test_sub("subtest %d: move LONG", ++subnum);
+    {
+        value64 src = { .lval = 999888777UL };
+        value64 dst = value64_move(&src, VALUE64_ULONG);
+        test_validate(
+            dst.ulval == 999888777UL && src.ulval == 0UL,
+            "Move LNG: dst=%lu, src=%lu (expected 999888777, 0)", dst.ulval, src.ulval
         );
     }
 
@@ -9205,8 +9226,13 @@ tf_techfprint(const char *name)
     }
     test_sub("subtest %d:  LONG", ++subnum);
     {
-        value64 vlong = LITERAL64_INT(5000L);
+        value64 vlong = LITERAL64_LONG(5000L);
         VALUE64_TECHFPRINT(logfile, vlong, VALUE64_LONG);
+    }
+    test_sub("subtest %d:  ULONG", ++subnum);
+    {
+        value64 vulong = LITERAL64_ULONG(58888888UL);
+        VALUE64_TECHFPRINT(logfile, vulong, VALUE64_ULONG);
     }
     test_sub("subtest %d:  CHAR", ++subnum);
     {
@@ -9276,6 +9302,23 @@ tf_str_serialization(const char *name)
             value64_equal(orig, loaded, VALUE64_LONG),
             fsfree(buf),
             "LONG str round-trip failed"
+        );
+        fsfree(buf);
+        fs_alloc_check(true);
+    }
+
+    /* ========== ULONG ========== */
+    test_sub("subtest %d: ULONG save/load to string", ++subnum);
+    {
+        value64 orig = value64_createulong(1234567890UL);
+        fs buf = FS();
+        value64_tostr(&buf, orig, VALUE64_ULONG, true);
+        value64 loaded;
+        test_validatefree(
+            value64_loadstr(fs_str(&buf), &loaded, VALUE64_UNKNOWN, true, NULL) &&
+            value64_equal(orig, loaded, VALUE64_ULONG),
+            fsfree(buf),
+            "ULONG str round-trip failed (string='%s')", fs_str(&buf)
         );
         fsfree(buf);
         fs_alloc_check(true);
