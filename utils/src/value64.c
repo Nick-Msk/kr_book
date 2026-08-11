@@ -3574,13 +3574,42 @@ tf_convert(const char *name)
     logenter("%s", name);
     int subnum = 0;
 
-    /* ========== 1. INT → LONG ========== */
+    /* ========== INT → INT ========== */
+    test_sub("subtest %d: INT -> INT", ++subnum);
+    {
+        value64 src = value64_createint(42);
+        value64 dst = value64_convert(src, VALUE64_INT, VALUE64_INT);
+        test_validate(value64_int(dst) == 42,
+            "INT->INT: expected 42, got %d", value64_int(dst));
+    }
+
+    /* ========== INT → LONG ========== */
     test_sub("subtest %d: INT -> LONG", ++subnum);
     {
         value64 src = value64_createint(42);
         value64 dst = value64_convert(src, VALUE64_INT, VALUE64_LONG);
         test_validate(value64_long(dst) == 42L,
             "INT->LONG: expected 42, got %ld", value64_long(dst));
+    }
+
+    /* ========== INT → ULONG ========== */
+    test_sub("subtest %d: INT -> ULONG (positive)", ++subnum);
+    {
+        value64 src = value64_createint(42);
+        value64 dst = value64_convert(src, VALUE64_INT, VALUE64_ULONG);
+        test_validate(value64_ulong(dst) == 42UL,
+            "INT->ULONG: expected 42, got %lu", value64_ulong(dst));
+    }
+
+    test_sub("subtest %d: INT -> ULONG (negative)", ++subnum);
+    {
+        value64 src = value64_createint(-5);
+        if (!try()) {
+            value64_convert(src, VALUE64_INT, VALUE64_ULONG);
+            test_validate(false, "INT->ULONG negative must raise error");
+        } else {
+            test_validate(true, "INT->ULONG negative correctly raised error");
+        }
     }
 
     /* ========== 2. INT → DBL ========== */
@@ -3687,6 +3716,35 @@ tf_convert(const char *name)
         }
     }
 
+    /* ========== LONG → LONG ========== */
+    test_sub("subtest %d: LONG -> LONG (positive)", ++subnum);
+    {
+        value64 src = value64_createlong(123L);
+        value64 dst = value64_convert(src, VALUE64_LONG, VALUE64_LONG);
+        test_validate(value64_long(dst) == 123L,
+            "LONG->LONG: expected 123, got %lu", value64_long(dst));
+    }
+
+    /* ========== LONG → ULONG ========== */
+    test_sub("subtest %d: LONG -> ULONG (positive)", ++subnum);
+    {
+        value64 src = value64_createlong(123L);
+        value64 dst = value64_convert(src, VALUE64_LONG, VALUE64_ULONG);
+        test_validate(value64_ulong(dst) == 123UL,
+            "LONG->ULONG: expected 123, got %lu", value64_ulong(dst));
+    }
+
+    test_sub("subtest %d: LONG -> ULONG (negative)", ++subnum);
+    {
+        value64 src = value64_createlong(-1L);
+        if (!try()) {
+            value64_convert(src, VALUE64_LONG, VALUE64_ULONG);
+            test_validate(false, "LONG->ULONG negative must raise error");
+        } else {
+            test_validate(true, "LONG->ULONG negative correctly raised error");
+        }
+    }
+
     /* ========== 7. LONG → DBL ========== */
     test_sub("subtest %d: LONG -> DBL", ++subnum);
     {
@@ -3762,6 +3820,148 @@ tf_convert(const char *name)
         value64free(dst, VALUE64_STR);
     }
 
+    /* ========== ULONG → ULONG ========== */
+    test_sub("subtest %d: ULONG -> ULONG", ++subnum);
+    {
+        value64 src = value64_createulong(100UL);
+        value64 dst = value64_convert(src, VALUE64_ULONG, VALUE64_ULONG);
+        test_validate(
+            value64_ulong(dst) == 100UL,
+            "ULONG->ULONG: expected 100UL, got %lu", value64_ulong(dst));
+    }
+
+    /* ========== ULONG → INT ========== */
+    test_sub("subtest %d: ULONG -> INT", ++subnum);
+    {
+        value64 src = value64_createulong(100);
+        value64 dst = value64_convert(src, VALUE64_ULONG, VALUE64_INT);
+        test_validate(value64_int(dst) == 100,
+            "ULONG->INT: expected 100, got %d", value64_int(dst));
+    }
+
+    test_sub("subtest %d: ULONG -> INT overflow", ++subnum);
+    {
+        value64 src = value64_createulong((unsigned long)INT_MAX + 1);
+        if (!try()) {
+            value64_convert(src, VALUE64_ULONG, VALUE64_INT);
+            test_validate(false, "ULONG->INT overflow must raise error");
+        } else {
+            test_validate(true, "ULONG->INT overflow correctly raised error");
+        }
+    }
+
+    /* ========== ULONG → LONG ========== */
+    test_sub("subtest %d: ULONG -> LONG", ++subnum);
+    {
+        value64 src = value64_createulong(LONG_MAX);
+        value64 dst = value64_convert(src, VALUE64_ULONG, VALUE64_LONG);
+        test_validate(value64_long(dst) == LONG_MAX,
+            "ULONG->LONG: expected %ld, got %ld", LONG_MAX, value64_long(dst));
+    }
+
+    test_sub("subtest %d: ULONG -> LONG overflow", ++subnum);
+    {
+        value64 src = value64_createulong((unsigned long) LONG_MAX + 1);
+        if (!try()) {
+            value64_convert(src, VALUE64_ULONG, VALUE64_LONG);
+            test_validate(false, "ULONG->LONG overflow must raise error");
+        } else {
+            test_validate(true, "ULONG->LONG overflow correctly raised error");
+        }
+    }
+
+    /* ========== ULONG → LONG ========== */
+    test_sub("subtest %d: ULONG -> LONG", ++subnum);
+    {
+        value64 src = value64_createulong(LONG_MAX);
+        value64 dst = value64_convert(src, VALUE64_ULONG, VALUE64_LONG);
+        test_validate(value64_long(dst) == LONG_MAX,
+            "ULONG->LONG: expected %ld, got %ld", LONG_MAX, value64_long(dst));
+    }
+
+    test_sub("subtest %d: ULONG -> LONG overflow", ++subnum);
+    {
+        value64 src = value64_createulong((unsigned long)LONG_MAX + 1);
+        if (!try()) {
+            value64_convert(src, VALUE64_ULONG, VALUE64_LONG);
+            test_validate(false, "ULONG->LONG overflow must raise error");
+        } else {
+            test_validate(true, "ULONG->LONG overflow correctly raised error");
+        }
+    }
+
+    /* ========== ULONG → DBL ========== */
+    test_sub("subtest %d: ULONG -> DBL", ++subnum);
+    {
+        value64 src = value64_createulong(12345);
+        value64 dst = value64_convert(src, VALUE64_ULONG, VALUE64_DBL);
+        test_validate(value64_dbl(dst) == 12345.0,
+            "ULONG->DBL: expected 12345.0, got %f", value64_dbl(dst));
+    }
+
+    /* ========== ULONG → CHR ========== */
+    test_sub("subtest %d: ULONG -> CHR (valid)", ++subnum);
+    {
+        value64 src = value64_createulong('A');
+        value64 dst = value64_convert(src, VALUE64_ULONG, VALUE64_CHR);
+        test_validate(value64_char(dst) == 'A',
+            "ULONG->CHR: expected 'A', got '%c'", value64_char(dst));
+    }
+
+    test_sub("subtest %d: ULONG -> CHR (overflow)", ++subnum);
+    {
+        value64 src = value64_createulong(256);
+        if (!try()) {
+            value64_convert(src, VALUE64_ULONG, VALUE64_CHR);
+            test_validate(false, "ULONG->CHR overflow must raise error");
+        } else {
+            test_validate(true, "ULONG->CHR overflow correctly raised error");
+        }
+    }
+
+    /* ========== ULONG → BOOL ========== */
+    test_sub("subtest %d: ULONG -> BOOL (zero)", ++subnum);
+    {
+        value64 src = value64_createulong(0);
+        value64 dst = value64_convert(src, VALUE64_ULONG, VALUE64_BOOL);
+        test_validate(value64_bool(dst) == false,
+            "ULONG(0)->BOOL: expected false, got %s", value64_bool(dst) ? "true" : "false");
+    }
+
+    test_sub("subtest %d: ULONG -> BOOL (nonzero)", ++subnum);
+    {
+        value64 src = value64_createulong(42);
+        value64 dst = value64_convert(src, VALUE64_ULONG, VALUE64_BOOL);
+        test_validate(value64_bool(dst) == true,
+            "ULONG(42)->BOOL: expected true, got %s", value64_bool(dst) ? "true" : "false");
+    }
+
+    /* ========== ULONG → STR ========== */
+    test_sub("subtest %d: ULONG -> STR", ++subnum);
+    {
+        value64 src = value64_createulong(9876543210UL);
+        value64 dst = value64_convert(src, VALUE64_ULONG, VALUE64_STR);
+        test_validatefree(
+            strcmp(value64_str(dst), "9876543210") == 0,
+            value64free(dst, VALUE64_STR),
+            "ULONG->STR: expected '9876543210', got '%s'", value64_str(dst)
+        );
+        value64free(dst, VALUE64_STR);
+    }
+
+    /* ========== ULONG → FS ========== */
+    test_sub("subtest %d: ULONG -> FS", ++subnum);
+    {
+        value64 src = value64_createulong(1234567890);
+        value64 dst = value64_convert(src, VALUE64_ULONG, VALUE64_FS);
+        test_validatefree(
+            strcmp(fs_str(value64_fs(dst)), "1234567890") == 0,
+            value64free(dst, VALUE64_FS),
+            "ULONG->FS: expected '1234567890', got '%s'", fs_str(value64_fs(dst))
+        );
+        value64free(dst, VALUE64_FS);
+    }
+
     /* ========================================================================
      * CHAR → other types
      * ======================================================================== */
@@ -3782,6 +3982,15 @@ tf_convert(const char *name)
         value64 dst = value64_convert_char_to_lng(src);
         test_validate(value64_long(dst) == 'Z',
                       "char->long: expected %ld, got %ld", (long)'Z', value64_long(dst));
+    }
+
+    /* ========== CHR → ULONG ========== */
+    test_sub("subtest %d: CHR -> ULONG", ++subnum);
+    {
+        value64 src = value64_createchar('Z');
+        value64 dst = value64_convert(src, VALUE64_CHR, VALUE64_ULONG);
+        test_validate(value64_ulong(dst) == (unsigned char)'Z',
+            "CHR->ULONG: expected %u, got %lu", (unsigned char)'Z', value64_ulong(dst));
     }
 
     test_sub("subtest %d: char -> dbl not convertible", ++subnum);
@@ -3855,6 +4064,23 @@ tf_convert(const char *name)
         value64 dst = value64_convert_bool_to_lng(src);
         test_validate(value64_long(dst) == 1L,
                       "true -> long: expected 1L, got %ld", value64_long(dst));
+    }
+
+    /* ========== BOOL → ULONG ========== */
+    test_sub("subtest %d: BOOL -> ULONG (true)", ++subnum);
+    {
+        value64 src = value64_createbool(true);
+        value64 dst = value64_convert(src, VALUE64_BOOL, VALUE64_ULONG);
+        test_validate(value64_ulong(dst) == 1UL,
+            "BOOL(true)->ULONG: expected 1, got %lu", value64_ulong(dst));
+    }
+
+    test_sub("subtest %d: BOOL -> ULONG (false)", ++subnum);
+    {
+        value64 src = value64_createbool(false);
+        value64 dst = value64_convert(src, VALUE64_BOOL, VALUE64_ULONG);
+        test_validate(value64_ulong(dst) == 0UL,
+            "BOOL(false)->ULONG: expected 0, got %lu", value64_ulong(dst));
     }
 
     test_sub("subtest %d: BOOL -> FS (true)", ++subnum);
@@ -3961,6 +4187,34 @@ tf_convert(const char *name)
                       "dbl->char must not be convertible");
     }
 
+    /* ========== DBL → ULONG ========== */
+    test_sub("subtest %d: DBL -> ULONG (exact integer)", ++subnum);
+    {
+        value64 src = value64_createdbl(100.0);
+        value64 dst = value64_convert(src, VALUE64_DBL, VALUE64_ULONG);
+        test_validate(value64_ulong(dst) == 100UL,
+            "DBL->ULONG: expected 100, got %lu", value64_ulong(dst));
+    }
+
+    test_sub("subtest %d: DBL -> ULONG (fractional)", ++subnum);
+    {
+        value64 src = value64_createdbl(3.14);
+        value64 dst = value64_convert(src, VALUE64_DBL, VALUE64_ULONG);
+        test_validate(value64_ulong(dst) == 3UL,
+            "DBL->ULONG: expected 3 trunk(3.14), got %lu", value64_ulong(dst));
+    }
+
+    test_sub("subtest %d: DBL -> ULONG (negative)", ++subnum);
+    {
+        value64 src = value64_createdbl(-10.0);
+        if (!try()) {
+            value64_convert(src, VALUE64_DBL, VALUE64_ULONG);
+            test_validate(false, "DBL->ULONG negative must raise error");
+        } else {
+            test_validate(true, "DBL->ULONG negative correctly raised error");
+        }
+    }
+
     /* ========== 14. DBL → FS ========== */
     test_sub("subtest %d: DBL -> FS", ++subnum);
     {
@@ -4038,6 +4292,67 @@ tf_convert(const char *name)
         );
         value64free(src, VALUE64_FS);
     }
+
+    /* ========== FS → ULONG ========== */
+    test_sub("subtest %d: FS -> ULONG (valid)", ++subnum);
+    {
+        fs f = fscopy("1024");
+        value64 src = value64_createfs(&f);  // предполагаем, что есть такой конструктор
+        value64 dst = value64_convert(src, VALUE64_FS, VALUE64_ULONG);
+        test_validate(value64_ulong(dst) == 1024UL,
+            "FS->ULONG: expected 1024, got %lu", value64_ulong(dst));
+        value64free(src, VALUE64_FS);
+        fsfree(f);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: FS -> ULONG (invalid)", ++subnum);
+    {
+        fs f = fscopy("not_a_number");
+        value64 src = value64_createfs(&f);
+        if (!try()) {
+            value64_convert(src, VALUE64_FS, VALUE64_ULONG);
+            test_validate(false, "FS->ULONG invalid must raise error");
+        } else {
+            test_validate(true, "FS->ULONG invalid correctly raised error");
+        }
+        value64free(src, VALUE64_FS);
+        fsfree(f);
+        fs_alloc_check(true);
+    }
+
+    /* ========== FS → ULONG via value64_createfs_asstr ========== */
+    test_sub("subtest %d: FS -> ULONG (valid)", ++subnum);
+    {
+        value64 src = value64_createfs_asstr("1024");
+        value64 dst = value64_convert(src, VALUE64_FS, VALUE64_ULONG);
+        test_validate(value64_ulong(dst) == 1024UL,
+            "FS->ULONG: expected 1024, got %lu", value64_ulong(dst));
+        value64free(src, VALUE64_FS);
+        fs_alloc_check(true);
+    }
+    /*test_sub("subtest %d: FS -> ULONG (valid 2)", ++subnum);
+    {
+        value64 src = value64_createfs_asstr("1024nnn");
+        value64 dst = value64_convert(src, VALUE64_FS, VALUE64_ULONG);
+        test_validate(value64_ulong(dst) == 1024UL,
+            "FS->ULONG: expected 1024, got %lu", value64_ulong(dst));
+        value64free(src, VALUE64_FS);
+        fs_alloc_check(true);
+    } */
+    test_sub("subtest %d: FS -> ULONG (invalid)", ++subnum);
+    {
+        value64 src = value64_createfs_asstr("not_a_number");
+        if (!try()) {
+            value64_convert(src, VALUE64_FS, VALUE64_ULONG);
+            test_validate(false, "FS->ULONG invalid must raise error");
+        } else {
+            test_validate(true, "FS->ULONG invalid correctly raised error");
+        }
+        value64free(src, VALUE64_FS);
+        fs_alloc_check(true);
+    }
+    
 
     /* ========== 19. FS → DBL ========== */
     test_sub("subtest %d: FS -> DBL", ++subnum);
@@ -4288,6 +4603,36 @@ tf_convert(const char *name)
             logsimple("Exception correctly raised on str->bool invalid");
             value64_freestr(&src);
         }
+    }
+
+    /* ========== STR → ULONG ========== */
+    test_sub("subtest %d: STR -> ULONG (valid)", ++subnum);
+    {
+        value64 src = value64_createstr("789");
+        value64 dst = value64_convert(src, VALUE64_STR, VALUE64_ULONG);
+        test_validate(value64_ulong(dst) == 789UL,
+            "STR->ULONG: expected 789, got %lu", value64_ulong(dst));
+        value64free(src, VALUE64_STR);
+    }
+    /*test_sub("subtest %d: STR -> ULONG (valid 2)", ++subnum);
+    {
+        value64 src = value64_createstr("789xxxxxxx");
+        value64 dst = value64_convert(src, VALUE64_STR, VALUE64_ULONG);
+        test_validate(value64_ulong(dst) == 789UL,
+            "STR->ULONG: expected 789, got %lu", value64_ulong(dst));
+        value64free(src, VALUE64_STR);
+    }*/
+
+    test_sub("subtest %d: STR -> ULONG (invalid)", ++subnum);
+    {
+        value64 src = value64_createstr("u12abc");
+        if (!try()) {
+            value64_convert(src, VALUE64_STR, VALUE64_ULONG);
+            test_validate(false, "STR->ULONG invalid must raise error");
+        } else {
+            test_validate(true, "STR->ULONG invalid correctly raised error");
+        }
+        value64free(src, VALUE64_STR);
     }
 
     /* ========== 25. STR → DBL (корректная) ========== */
