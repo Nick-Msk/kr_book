@@ -94,7 +94,7 @@ static inline fs               *decfs(fs *s) {
  * @return Array* A pointer to the newly allocated Array structure. 
  *         Returns NULL (via @ref userraise) if memory allocation fails.
  */
-static Array                   *arraycreate(ArrayType typ, value64_type vt) {
+static inline Array             *arraycreate(ArrayType typ, value64_type vt) {
     Array *arr = malloc(sizeof(Array));
     if (!arr)
         return userraise(NULL, ERR_UNABLE_ALLOCATE, "Unable create Array structure");
@@ -102,7 +102,7 @@ static Array                   *arraycreate(ArrayType typ, value64_type vt) {
     return arr;
 }
 
-static Array                   *arraycreateempty(void) {
+static inline Array             *arraycreateempty(void) {
     return arraycreate(ARRAY_UNKNOWN, VALUE64_UNKNOWN);
 }
 
@@ -172,6 +172,31 @@ static int                      increase(Array *arr, int newsz){
         arr->len = newsz;
     arr->sz = newsz;
     return logret(arr->sz, "New sz %d", arr->sz);
+}
+
+/**
+ * @brief Internal utility to shift a block of elements within the array buffer.
+ *
+ * This function uses memmove to safely handle overlapping memory regions.
+ * It is a low-level primitive used for both deletions and insertions.
+ *
+ * @param parr      Pointer to the array.
+ * @param dest_idx  The target starting index for the block.
+ * @param src_idx   The original starting index of the block.
+ * @param cnt       The number of elements to move.
+ * @return          The number of elements moved.
+ */
+static int                  moveelem(Array *parr, int dest_idx, int src_idx, int cnt) {
+    invraisecode(parr != NULL, ERR_NULLABLE_PTR, "Null array pointer");
+
+    size_t es = getelemsize(parr);
+
+    // memmove is used to safely handle overlapping memory regions
+    memmove((char *)parr->v + (dest_idx * es), 
+            (char *)parr->v + (src_idx * es), 
+            cnt * es);
+    
+    return cnt;
 }
 
 /**
@@ -1046,29 +1071,51 @@ Array                       *ArrayShuffle(Array *parr) {
     return parr;
 }
 
+/**
+ * @brief Removes a range of elements from the array.
+ *
+ * This function removes `cnt` elements starting from index `from`.
+ * It performs the following steps:
+ * 1. Validates the range.
+ * 2. Cleans up elements in the removal range (e.g., freeing V64/pointers) to prevent leaks.
+ * 3. Shifts the remaining suffix of the array to fill the gap.
+ * 4. Updates the array length.
+ *
+ * @param parr  Pointer to the array.
+ * @param from  The starting index of the elements to remove.
+ * @param cnt   The number of elements to remove.
+ * @return      Pointer to the modified array. Returns the original array if 
+ *              the range is invalid (no operation performed).
+ */
 Array                        *ArrayDel(Array *parr, int from, int cnt) {
-    invraisecode(parr != NULL, ERR_NULLABLE_PTR, "Null array pointer");
+    invraisecode(parr != NULL, ERR_NULLABLE_PTR, 
+        "Null array pointer %p", parr);
 
-    if (cnt <= 0 || from < 0 || from >= parr->len || (from + cnt) > parr->len)
-        return logsimpleret(parr, "Nothing to del from %d, cnt %d, len %d", from, cnt, Arraylen(parr) );
-
+    // 1. Validation: Ensure the range is within [0, parr->len) and cnt > 0
+    if (cnt <= 0 || from < 0 || (from + cnt) > parr->len) {
+        return logsimpleret(parr, "Nothing to del from %d, cnt %d, len %d", from, cnt, parr->len);
+    }
     // no checking slices for now TODO:
     // ArraySlice *psli;
     // if ( (psli = ArrayCheckslicesInterval(parr, from, cnt) ) != NULL )
     // return userraise(NULL, ERR_OUT_OF_RANGE, "Slice exists... %d - %d", psli->initpos, psli->len);
 
-    size_t es = getelemsize(parr);
 
-    freeV64elems(parr, from, from + cnt);
+    // 2. Cleanup: Free the content of the elements being removed to prevent leaks for V64.
+    freeV64elems(parr, from, cnt);
 
-    memmove((char *)parr->v + (from * es), 
-            (char *)parr->v + ((from + cnt) * es), 
-            (parr->len - (from + cnt)) * es);
+    // 3. Shift: Move the suffix (elements after the removed block) to the deletion point.
+    // Number of elements to move = Total length - end of deleted block
+    int elements_to_move = parr->len - (from + cnt);
+    if (elements_to_move > 0) {
+        moveelem(parr, from, from + cnt, elements_to_move);
+    }
 
+    // 4. Update length
     parr->len -= cnt;
+
     return parr;
 }
-
 
 /**
  * @brief Checks whether two arrays are *not* equal.
@@ -4274,6 +4321,145 @@ tf_array_eq_noteq(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST ArrayDel simple test -------------------------
+static TestStatus
+tf_ArrayDel(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ========== ArrayDel ========== */
+    test_sub("subtest %d: ArrayDel middle one element", ++subnum);
+    {
+        Array *arr = IArray_create(4, ARRAY_FILLTYPE_ASC_SERIES);
+        arr->iv[0] = 10; arr->iv[1] = 20; arr->iv[2] = 30; arr->iv[3] = 40;
+        arr->len = 4;
+
+        arr = ArrayDel(arr, 1, 1);
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 3 &&
+            arr->iv[0] == 10 && arr->iv[1] == 30 && arr->iv[2] == 40,
+            Arrayfree(arr),
+            "Del middle 1: expected [10,30,40] len=3, got len=%d", Arraylen(arr)
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: ArrayDel middle multiple elements", ++subnum);
+    {
+        Array *arr = IArray_create(4, ARRAY_FILLTYPE_ASC_SERIES);
+        arr->iv[0] = 10; arr->iv[1] = 20; arr->iv[2] = 30; arr->iv[3] = 40;
+        arr->len = 4;
+
+        arr = ArrayDel(arr, 1, 2);
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 2 &&
+            arr->iv[0] == 10 && arr->iv[1] == 40,
+            Arrayfree(arr),
+            "Del middle 2: expected [10,40] len=2, got len=%d", Arraylen(arr)
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: ArrayDel from start", ++subnum);
+    {
+        Array *arr = IArray_create(4, ARRAY_FILLTYPE_ASC_SERIES);
+        arr->iv[0] = 10; arr->iv[1] = 20; arr->iv[2] = 30; arr->iv[3] = 40;
+        arr->len = 4;
+
+        arr = ArrayDel(arr, 0, 1);
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 3 &&
+            arr->iv[0] == 20 && arr->iv[1] == 30 && arr->iv[2] == 40,
+            Arrayfree(arr),
+            "Del start: expected [20,30,40] len=3, got len=%d", Arraylen(arr)
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: ArrayDel from end", ++subnum);
+    {
+        Array *arr = IArray_create(4, ARRAY_FILLTYPE_ASC_SERIES);
+        arr->iv[0] = 10; arr->iv[1] = 20; arr->iv[2] = 30; arr->iv[3] = 40;
+        arr->len = 4;
+
+        arr = ArrayDel(arr, 3, 1);
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 3 &&
+            arr->iv[0] == 10 && arr->iv[1] == 20 && arr->iv[2] == 30,
+            Arrayfree(arr),
+            "Del end: expected [10,20,30] len=3, got len=%d", Arraylen(arr)
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: ArrayDel all elements", ++subnum);
+    {
+        Array *arr = IArray_create(4, ARRAY_FILLTYPE_ASC_SERIES);
+        arr->iv[0] = 10; arr->iv[1] = 20; arr->iv[2] = 30; arr->iv[3] = 40;
+        arr->len = 4;
+
+        arr = ArrayDel(arr, 0, 4);
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 0,
+            Arrayfree(arr),
+            "Del all: expected empty array, got len=%d", Arraylen(arr)
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: ArrayDel zero count", ++subnum);
+    {
+        Array *arr = IArray_create(3, ARRAY_FILLTYPE_ASC_SERIES);
+        arr->iv[0] = 1; arr->iv[1] = 2; arr->iv[2] = 3;
+        arr->len = 3;
+
+        arr = ArrayDel(arr, 1, 0);
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 3 &&
+            arr->iv[0] == 1 && arr->iv[1] == 2 && arr->iv[2] == 3,
+            Arrayfree(arr),
+            "Del zero: array must remain unchanged, len=%d", Arraylen(arr)
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: ArrayDel from beyond length", ++subnum);
+    {
+        Array *arr = IArray_create(3, ARRAY_FILLTYPE_ASC_SERIES);
+        arr->iv[0] = 1; arr->iv[1] = 2; arr->iv[2] = 3;
+        arr->len = 3;
+
+        arr = ArrayDel(arr, 5, 1);
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 3 &&
+            arr->iv[0] == 1 && arr->iv[1] == 2 && arr->iv[2] == 3,
+            Arrayfree(arr),
+            "Del beyond: array must remain unchanged, len=%d", Arraylen(arr)
+        );
+        Arrayfree(arr);
+    }
+
+    test_sub("subtest %d: ArrayDel cnt exceeds length", ++subnum);
+    {
+        Array *arr = IArray_create(4, ARRAY_FILLTYPE_ASC_SERIES);
+        arr->iv[0] = 10; arr->iv[1] = 20; arr->iv[2] = 30; arr->iv[3] = 40;
+        //arr->len = 4;
+
+        arr = ArrayDel(arr, 2, 2 /*10*/ );   // удалит 30,40
+        test_validatefree(
+            arr != NULL && Arraylen(arr) == 2 &&
+            arr->iv[0] == 10 && arr->iv[1] == 20,
+            Arrayfree(arr),
+            "Del over: expected [10,20] len=2, got len=%d", Arraylen(arr)
+        );
+        Arrayfree(arr);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -4303,7 +4489,8 @@ main( /*int argc, char *argv[] */ )
         TESTADD(tf_carray_sort,                 "CHAR sorting simple test"),
         TESTADD(tf_array_bsearch_char,          "CHAR ArrayBsearch simple test"),
         TESTADD(tf_ArraySaveFile_load_char,        "CHAR Array save/load simple test"),
-        TESTADD(tf_array_eq_noteq,              "ArrayEq / ArrayNoteq (all types, edge cases)")
+        TESTADD(tf_array_eq_noteq,              "ArrayEq / ArrayNoteq (all types, edge cases)"),
+        TESTADD(tf_ArrayDel,                    "ArrayDel simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
