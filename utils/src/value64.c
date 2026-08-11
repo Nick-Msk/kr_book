@@ -5995,6 +5995,78 @@ tf_search(const char *name)
         );
     }
 
+    /* ---------- ULONG search ---------- */
+    test_sub("subtest %d: search ULONG – middle", ++subnum);
+    {
+        value64 arr[] = { value64_createulong(100UL), value64_createulong(200UL), value64_createulong(300UL) };
+        test_validate(
+            value64_search(value64_createulong(200UL), VALUE64_ULONG, arr, COUNT(arr)) == 1,
+            "200UL must be at index 1"
+        );
+    }
+
+    test_sub("subtest %d: search ULONG – first", ++subnum);
+    {
+        value64 arr[] = { value64_createulong(10UL), value64_createulong(20UL), value64_createulong(30UL) };
+        test_validate(
+            value64_search(value64_createulong(10UL), VALUE64_ULONG, arr, COUNT(arr)) == 0,
+            "10UL must be at index 0"
+        );
+    }
+
+    test_sub("subtest %d: search ULONG – last", ++subnum);
+    {
+        value64 arr[] = { value64_createulong(1UL), value64_createulong(2UL), value64_createulong(3UL) };
+        test_validate(
+            value64_search(value64_createulong(3UL), VALUE64_ULONG, arr, COUNT(arr)) == 2,
+            "3UL must be at index 2"
+        );
+    }
+
+    test_sub("subtest %d: search ULONG – not found", ++subnum);
+    {
+        value64 arr[] = { value64_createulong(50UL), value64_createulong(60UL) };
+        test_validate(
+            value64_search(value64_createulong(999UL), VALUE64_ULONG, arr, COUNT(arr)) == -1,
+            "999UL must not be found, return -1"
+        );
+    }
+
+    test_sub("subtest %d: search ULONG – empty array", ++subnum);
+    {
+        test_validate(
+            value64_search(value64_createulong(0UL), VALUE64_ULONG, NULL, 0) == -1,
+            "empty array search must return -1"
+        );
+    }
+
+    /* ---------- ULONG reverse search ---------- */
+    test_sub("subtest %d: revsearch ULONG – last occurrence", ++subnum);
+    {
+        value64 arr[] = { value64_createulong(5UL), value64_createulong(10UL), value64_createulong(5UL) };
+        test_validate(
+            value64_revsearch(value64_createulong(5UL), VALUE64_ULONG, arr, COUNT(arr)) == 2,
+            "5UL must be found at last index 2 (reverse)"
+        );
+    }
+
+    test_sub("subtest %d: revsearch ULONG – not found", ++subnum);
+    {
+        value64 arr[] = { value64_createulong(7UL), value64_createulong(8UL) };
+        test_validate(
+            value64_revsearch(value64_createulong(0UL), VALUE64_ULONG, arr, COUNT(arr)) == -1,
+            "0UL must not be found (reverse), return -1"
+        );
+    }
+
+    test_sub("subtest %d: revsearch ULONG – empty array", ++subnum);
+    {
+        test_validate(
+            value64_revsearch(value64_createulong(123UL), VALUE64_ULONG, NULL, 0) == -1,
+            "empty array revsearch must return -1"
+        );
+    }
+
     /* ========== CHR ========== */
     test_sub("subtest %d: CHR search found", ++subnum);
     {
@@ -6444,6 +6516,32 @@ tf_getComparator(const char *name)
         value64 a = value64_createlong(100L);
         value64 b = value64_createlong(200L);
         test_validate(rcmp(a, b) > 0, "rev: 100 < 200 must give >0");
+    }
+
+    /* 1. ULONG comparator */
+    test_sub("subtest %d: getComparator ULONG", ++subnum);
+    {
+        value64_Comparator cmp = value64_getComparator(VALUE64_ULONG);
+        test_validate(cmp != NULL, "ULONG comparator must not be NULL");
+
+        value64 a = value64_createulong(10);
+        value64 b = value64_createulong(20);
+        test_validate(cmp(a, b) < 0, "10 < 20 must be negative");
+        test_validate(cmp(b, a) > 0, "20 > 10 must be positive");
+        test_validate(cmp(a, a) == 0, "10 == 10 must be zero");
+    }
+
+    /* 2. ULONG rev comparator */
+    test_sub("subtest %d: getRevComparator ULONG", ++subnum);
+    {
+        value64_Comparator rcmp = value64_getRevComparator(VALUE64_ULONG);
+        test_validate(rcmp != NULL, "ULONG rev comparator must not be NULL");
+
+        value64 a = value64_createulong(10);
+        value64 b = value64_createulong(20);
+        test_validate(rcmp(a, b) > 0, "rev: 10 < 20 must give >0");
+        test_validate(rcmp(b, a) < 0, "rev: 20 > 10 must give <0");
+        test_validate(rcmp(a, a) == 0, "rev: 10 == 10 must be 0");
     }
 
     /* CHAR comparator */
@@ -7407,6 +7505,42 @@ tf_sort(const char *name)
             arr[2].ival == 10,
             "arr[2] must be 10, got %d", arr[2].ival
         );
+    }
+
+    /* ---------- ULONG ascending ---------- */
+    test_sub("subtest %d: sort ULONG asc", ++subnum);
+    {
+        value64 arr[] = {
+            value64_createulong(30),
+            value64_createulong(10),
+            value64_createulong(20)
+        };
+        value64_sort(VALUE64_ULONG, arr, COUNT(arr));
+
+        test_validate(value64_ulong(arr[0]) == 10,
+            "arr[0] must be 10, got %lu", value64_ulong(arr[0]));
+        test_validate(value64_ulong(arr[1]) == 20,
+            "arr[1] must be 20, got %lu", value64_ulong(arr[1]));
+        test_validate(value64_ulong(arr[2]) == 30,
+            "arr[2] must be 30, got %lu", value64_ulong(arr[2]));
+    }
+
+    /* ---------- ULONG descending ---------- */
+    test_sub("subtest %d: sort ULONG desc", ++subnum);
+    {
+        value64 arr[] = {
+            value64_createulong(10),
+            value64_createulong(30),
+            value64_createulong(20)
+        };
+        value64_revsort(VALUE64_ULONG, arr, COUNT(arr));
+
+        test_validate(value64_ulong(arr[0]) == 30,
+            "arr[0] must be 30, got %lu", value64_ulong(arr[0]));
+        test_validate(value64_ulong(arr[1]) == 20,
+            "arr[1] must be 20, got %lu", value64_ulong(arr[1]));
+        test_validate(value64_ulong(arr[2]) == 10,
+            "arr[2] must be 10, got %lu", value64_ulong(arr[2]));
     }
 
     /* ========== CHAR ascending ========== */
