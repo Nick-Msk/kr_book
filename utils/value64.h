@@ -181,6 +181,35 @@ typedef int                         (*value64_Comparator)(value64, value64);
  */
 typedef int                         (*value64_PComparator)(const void *restrict, const void *restrict);
 
+/**
+ * @brief Returns a pointer-based comparator for use in generic algorithms.
+ * @param typ The type of the data.
+ * @return Pointer to a value64_PComparator.
+ * @throws ERR_UNSUPPORTED_TYPE if the type is not recognized or invalid.
+ */
+extern value64_PComparator                 value64_getPComparator(value64_type typ);
+/**
+ * @brief Returns a reverse pointer-based comparator.
+ * @param typ The type of the data.
+ * @return Pointer to a reversed value64_PComparator.
+ * @throws ERR_UNSUPPORTED_TYPE if the type is not recognized or invalid.
+ */
+extern value64_PComparator                 value64_getPRevComparator(value64_type typ);
+/**
+ * @brief Returns a value-based comparator.
+ * @param typ The type of the data.
+ * @return Pointer to a value64_Comparator.
+ * @throws ERR_UNSUPPORTED_TYPE if the type is not recognized or invalid.
+ */
+ extern value64_Comparator                 value64_getComparator(value64_type typ);
+ /**
+ * @brief Returns a reverse value-based comparator.
+ * @param typ The type of the data.
+ * @return Pointer to a reversed value64_Comparator.
+ * @throws ERR_UNSUPPORTED_TYPE if the type is not recognized or invalid.
+ */
+extern value64_Comparator                  value64_getRevComparator(value64_type typ);
+
 extern value64                      value64_convert_str_to_fs(value64 v);
 
 /**

@@ -279,7 +279,7 @@ static const value64_comparator_dispatch_t comparator_matrix[VALUE64_TYPE_COUNT]
  * @return Pointer to a value64_PComparator.
  * @throws ERR_UNSUPPORTED_TYPE if the type is not recognized or invalid.
  */
-static inline value64_PComparator       value64_getPComparator(value64_type typ) {
+value64_PComparator                 value64_getPComparator(value64_type typ) {
     if (typ < 1 || typ >= VALUE64_TYPE_COUNT) {
         userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
         return NULL;
@@ -297,7 +297,7 @@ static inline value64_PComparator       value64_getPComparator(value64_type typ)
  * @return Pointer to a reversed value64_PComparator.
  * @throws ERR_UNSUPPORTED_TYPE if the type is not recognized or invalid.
  */
-static inline value64_PComparator       value64_getPRevComparator(value64_type typ) {
+value64_PComparator                 value64_getPRevComparator(value64_type typ) {
     if (typ < 1 || typ >= VALUE64_TYPE_COUNT) {
         userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
         return NULL;
@@ -315,7 +315,7 @@ static inline value64_PComparator       value64_getPRevComparator(value64_type t
  * @return Pointer to a value64_Comparator.
  * @throws ERR_UNSUPPORTED_TYPE if the type is not recognized or invalid.
  */
-static inline value64_Comparator        value64_getComparator(value64_type typ) {
+ value64_Comparator                 value64_getComparator(value64_type typ) {
     if (typ < 1 || typ >= VALUE64_TYPE_COUNT) {
         return userraise(NULL, ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
     }
@@ -332,7 +332,7 @@ static inline value64_Comparator        value64_getComparator(value64_type typ) 
  * @return Pointer to a reversed value64_Comparator.
  * @throws ERR_UNSUPPORTED_TYPE if the type is not recognized or invalid.
  */
-static inline value64_Comparator        value64_getRevComparator(value64_type typ) {
+value64_Comparator                  value64_getRevComparator(value64_type typ) {
     if (typ < 1 || typ >= VALUE64_TYPE_COUNT) {
         return userraise(NULL, ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
     }
