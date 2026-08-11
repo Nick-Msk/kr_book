@@ -6797,6 +6797,32 @@ tf_getPComparator(const char *name)
         test_validate(rcmp(&a, &b) > 0, "rev: 100 < 200 must give >0");
     }
 
+    /* ---------- 1. P_ULONG comparator ---------- */
+    test_sub("subtest %d: getPComparator ULONG", ++subnum);
+    {
+        value64_PComparator cmp = value64_getPComparator(VALUE64_ULONG);
+        test_validate(cmp != NULL, "ULONG P-comparator must not be NULL");
+
+        value64 a = value64_createulong(10);
+        value64 b = value64_createulong(20);
+        test_validate(cmp(&a, &b) < 0, "10 < 20 must be negative");
+        test_validate(cmp(&b, &a) > 0, "20 > 10 must be positive");
+        test_validate(cmp(&a, &a) == 0, "10 == 10 must be zero");
+    }
+
+    /* 2. P_ULONG rev comparator */
+    test_sub("subtest %d: getPRevComparator ULONG", ++subnum);
+    {
+        value64_PComparator rcmp = value64_getPRevComparator(VALUE64_ULONG);
+        test_validate(rcmp != NULL, "ULONG P-rev-comparator must not be NULL");
+
+        value64 a = value64_createulong(10);
+        value64 b = value64_createulong(20);
+        test_validate(rcmp(&a, &b) > 0, "rev: 10 < 20 must give >0");
+        test_validate(rcmp(&b, &a) < 0, "rev: 20 > 10 must give <0");
+        test_validate(rcmp(&a, &a) == 0, "rev: 10 == 10 must be 0");
+    }
+
     /* ----------  P_CHARcomparator ---------- */
     test_sub("subtest %d: getPComparator CHAR", ++subnum);
     {
@@ -7089,6 +7115,100 @@ tf_binsearch(const char *name)
         test_validate(
             value64_rev_binsearch(key, VALUE64_INT, arr, COUNT(arr)) == -1,
             "35 must not be found in descending array"
+        );
+    }
+
+    /* ---------- ULONG binsearch ---------- */
+    test_sub("subtest %d: binsearch ULONG – middle", ++subnum);
+    {
+        value64 arr[] = {
+            value64_createulong(100UL),
+            value64_createulong(200UL),
+            value64_createulong(300UL)
+        };
+        test_validate(
+            value64_binsearch(value64_createulong(200UL), VALUE64_ULONG, arr, COUNT(arr)) == 1,
+            "200UL must be at index 1"
+        );
+    }
+
+    test_sub("subtest %d: binsearch ULONG – first", ++subnum);
+    {
+        value64 arr[] = {
+            value64_createulong(10UL),
+            value64_createulong(20UL),
+            value64_createulong(30UL)
+        };
+        test_validate(
+            value64_binsearch(value64_createulong(10UL), VALUE64_ULONG, arr, COUNT(arr)) == 0,
+            "10UL must be at index 0"
+        );
+    }
+
+    test_sub("subtest %d: binsearch ULONG – last", ++subnum);
+    {
+        value64 arr[] = {
+            value64_createulong(1UL),
+            value64_createulong(2UL),
+            value64_createulong(3UL)
+        };
+        test_validate(
+            value64_binsearch(value64_createulong(3UL), VALUE64_ULONG, arr, COUNT(arr)) == 2,
+            "3UL must be at index 2"
+        );
+    }
+
+    test_sub("subtest %d: binsearch ULONG – not found", ++subnum);
+    {
+        value64 arr[] = {
+            value64_createulong(50UL),
+            value64_createulong(60UL)
+        };
+        test_validate(
+            value64_binsearch(value64_createulong(55UL), VALUE64_ULONG, arr, COUNT(arr)) == -1,
+            "55UL must not be found, return -1"
+        );
+    }
+
+    test_sub("subtest %d: binsearch ULONG – empty array", ++subnum);
+    {
+        test_validate(
+            value64_binsearch(value64_createulong(0UL), VALUE64_ULONG, NULL, 0) == -1,
+            "empty array binsearch must return -1"
+        );
+    }
+
+    /* ---------- ULONG reverse binsearch ---------- */
+    test_sub("subtest %d: rev_binsearch ULONG – last occurrence", ++subnum);
+    {
+        value64 arr[] = {
+            value64_createulong(5UL),
+            value64_createulong(5UL),
+            value64_createulong(10UL)
+        };
+        test_validate(
+            value64_rev_binsearch(value64_createulong(5UL), VALUE64_ULONG, arr, COUNT(arr)) == 1,
+            "5UL last occurrence must be at index 1"
+        );
+    }
+
+    test_sub("subtest %d: rev_binsearch ULONG – not found", ++subnum);
+    {
+        value64 arr[] = {
+            value64_createulong(7UL),
+            value64_createulong(8UL)
+        };
+        test_validate(
+            value64_rev_binsearch(value64_createulong(0UL), VALUE64_ULONG, arr, COUNT(arr)) == -1,
+            "0UL must not be found (reverse), return -1"
+        );
+    }
+
+    test_sub("subtest %d: rev_binsearch ULONG – empty array", ++subnum);
+    {
+        test_validate(
+            value64_rev_binsearch(value64_createulong(123UL), VALUE64_ULONG, NULL, 0) == -1,
+            "empty array rev_binsearch must return -1"
         );
     }
 
@@ -8029,7 +8149,6 @@ tf_fsave_fload(const char *name)
     logenter("%s", name);
     int subnum = 0;
 
-    fs_alloc_check(true);
     /* 1. INT */
     test_sub("subtest %d: INT save/load", ++subnum);
     {
@@ -8038,13 +8157,13 @@ tf_fsave_fload(const char *name)
 
         FILE *f = fopen(fname, "w");
         if (!f)
-            return logerr(TEST_FAILED, "Cannot open %s for writing", fname);
+            return userraise(TEST_FAILED, ERR_UNABLE_OPEN_FILE_WRITE, "Cannot open %s for writing", fname);
         value64_tofile(f, orig, VALUE64_INT, true);
         fclose(f);
 
         f = fopen(fname, "r");
         if (!f)
-            return logerr(TEST_FAILED, "Cannot open %s for reading", fname);
+            return userraise(TEST_FAILED, ERR_UNABLE_OPEN_FILE_READ, "Cannot open %s for reading", fname);
         value64 loaded;
         test_validate(
             value64_loadfile(f, &loaded, VALUE64_UNKNOWN, true, NULL) == 1,
@@ -8055,6 +8174,36 @@ tf_fsave_fload(const char *name)
         test_validate(
             value64_compare(orig, loaded, VALUE64_INT) == 0,
             "INT save/load mismatch: original %d, loaded %d", orig.ival, loaded.ival
+        );
+        fs_alloc_check(true);
+    }
+
+    /* ---------- ULONG save/load ---------- */
+    test_sub("subtest %d: ULONG save/load", ++subnum);
+    {
+        const char fname[] = "res/values64/save_ulong.dat";
+        value64 orig = value64_createulong(1234567890UL);
+
+        FILE *f = fopen(fname, "w");
+        if (!f)
+            return userraise(TEST_FAILED, ERR_UNABLE_OPEN_FILE_WRITE, "Cannot open %s for writing", fname);
+        value64_tofile(f, orig, VALUE64_ULONG, true);
+        fclose(f);
+
+        f = fopen(fname, "r");
+        if (!f)
+            return userraise(TEST_FAILED, ERR_UNABLE_OPEN_FILE_READ, "Cannot open %s for reading", fname);
+        value64 loaded;
+        test_validate(
+            value64_loadfile(f, &loaded, VALUE64_UNKNOWN, true, NULL) == 1,
+            "ULONG load must return 1"
+        );
+        fclose(f);
+
+        test_validate(
+            value64_compare(orig, loaded, VALUE64_ULONG) == 0,
+            "ULONG save/load mismatch: original %lu, loaded %lu",
+            value64_ulong(orig), value64_ulong(loaded)
         );
         fs_alloc_check(true);
     }
@@ -8540,6 +8689,37 @@ tf_tostr(const char *name)
             strcmp(fs_str(&buf), "VALUE64(LNG):\"123456789\"") == 0,
             fsfree(buf),
             "LONG: expected 'VALUE64(LNG):\"123456789\"', got '%s' (written=%d)",
+            fs_str(&buf), written
+        );
+        fsfree(buf);
+    }
+
+    /* ========== ULONG ========== */
+    test_sub("subtest %d: ULONG to string with typeinfo", ++subnum);
+    {
+        value64 v = value64_createulong(1234567890UL);
+        fs buf = FS();
+        int written = value64_tostr(&buf, v, VALUE64_ULONG, true);
+        test_validatefree(
+            written == 27 &&
+            strcmp(fs_str(&buf), "VALUE64(ULONG):\"1234567890\"") == 0,
+            fsfree(buf),
+            "ULONG with typeinfo: expected 'VALUE64(ULONG):\"1234567890\"', got '%s' (written=%d)",
+            fs_str(&buf), written
+        );
+        fsfree(buf);
+    }
+
+    test_sub("subtest %d: ULONG to string without typeinfo", ++subnum);
+    {
+        value64 v = value64_createulong(1234567890UL);
+        fs buf = FS();
+        int written = value64_tostr(&buf, v, VALUE64_ULONG, false);
+        test_validatefree(
+            written == 20 &&
+            strcmp(fs_str(&buf), "VALUE64:\"1234567890\"") == 0,
+            fsfree(buf),
+            "ULONG without typeinfo: expected 'VALUE64:\"1234567890\"', got '%s' (written=%d)",
             fs_str(&buf), written
         );
         fsfree(buf);
