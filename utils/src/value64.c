@@ -537,6 +537,8 @@ int                         value64_pt_compare(const value64* restrict v1, const
             return value64_pint_comp(v1, v2); //compare_pint(&val1->ival, &val2->ival);
         case VALUE64_LONG:
             return value64_plong_comp(v1, v2);  //compare_plong(&val1->lval, &val2->lval);
+        case VALUE64_ULONG:
+            return value64_pulong_comp(v1, v2);
         case VALUE64_DBL:
             return value64_pdbl_comp(v1, v2);   //compare_pdbl(&val1->dval, &val2->dval);
         case VALUE64_CHR:
@@ -5659,6 +5661,31 @@ tf_pt_compare(const char *name)
         test_validate(
             value64_pt_compare(&b, &a, VALUE64_LONG) > 0,
             "200L must be greater than 100L"
+        );
+    }
+
+    /* ---------- ULONG ---------- */
+    test_sub("subtest %d: cmp ULONG equal", ++subnum);
+    {
+        value64 a = value64_createulong(999999UL);
+        value64 b = value64_createulong(999999UL);
+        test_validate(
+            value64_pt_compare(&a, &b, VALUE64_ULONG) == 0,
+            "999999UL must equal 999999UL"
+        );
+    }
+
+    test_sub("subtest %d: cmp ULONG less / greater", ++subnum);
+    {
+        value64 a = value64_createulong(100UL);
+        value64 b = value64_createulong(200UL);
+        test_validate(
+            value64_pt_compare(&a, &b, VALUE64_ULONG) < 0,
+            "100UL must be less than 200UL"
+        );
+        test_validate(
+            value64_pt_compare(&b, &a, VALUE64_ULONG) > 0,
+            "200UL must be greater than 100UL"
         );
     }
 
