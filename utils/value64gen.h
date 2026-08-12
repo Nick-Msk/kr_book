@@ -28,7 +28,7 @@ typedef struct value64Gen               value64Gen;
 typedef value64                         (*value64GenFunc)(value64Gen *gen);
 
 typedef struct value64Gen {
-    value64GenFunc  next;
+    value64GenFunc  fnext;
     value64_type    type;
     int             counter;
     value64         data[VALUE64GENCOUNT];
@@ -38,11 +38,9 @@ typedef struct value64Gen {
 
 extern value64Gen               value64GenInit(value64GenFunc func, value64_type type, 
                                             int initcnt, value64 initdata1, value64 initdata2);
-
 static inline value64Gen        value64GenInit0(value64GenFunc func, value64_type type, int initcnt) {
     return value64GenInit(func, type, initcnt, LITERAL64_ZERO, LITERAL64_ZERO);
-}
-                                        
+}                               
 static inline void              value64GenFree(value64Gen *gen) {
     if (gen) {
         for (int i = 0; i < VALUE64GENCOUNT; i++)
@@ -78,6 +76,6 @@ static inline int               value64Techprint(const value64Gen* gen) {
 
 // ------------------------------------ ETC. ----------------------------------------
 
-extern bool                      value64GenValidate(value64 v, value64_type typ);  // TODO:
+extern bool                      value64GenValidate(FILE *restrict out, const value64Gen *restrict gen);  // TODO:
 
 #endif /* !_VALUE64GEN_H */
