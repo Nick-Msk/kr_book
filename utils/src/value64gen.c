@@ -84,7 +84,7 @@ value64 value64GenUnlimZero(value64Gen *gen)
 }
 
 value64                         value64UncheckGenUnlimAsсSeries(value64Gen *gen) {
-       
+
 }
 
 extern value64                  value64GenUnlimAscRnd(value64Gen *gen);
@@ -290,6 +290,163 @@ tf2_gen_next_zero(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST value64Gen data register API -------------------------
+static TestStatus
+tf_gen_reg_api(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ---------- value64GenRegStr ---------- */
+    test_sub("subtest %d: RegStr non-STR type returns default", ++subnum);
+    {
+        value64Gen gen = value64GenInit0(value64GenUnlimZero, VALUE64_INT);
+        const char *res = value64GenRegStr(&gen, 0, "fallback");
+        test_validate(strcmp(res, "fallback") == 0,
+                      "non-STR must return default, got '%s'", res);
+        value64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: RegStr empty STR returns default", ++subnum);
+    {
+        value64Gen gen = value64GenInit(value64GenUnlimZero, VALUE64_STR,
+                                        value64_createstr(""), LITERAL64_ZERO);
+        const char *res = value64GenRegStr(&gen, 0, "default_empty");
+        test_validate(strcmp(res, "default_empty") == 0,
+                      "empty STR must return default, got '%s'", res);
+        value64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: RegStr non-empty STR returns stored string", ++subnum);
+    {
+        value64Gen gen = value64GenInit(value64GenUnlimZero, VALUE64_STR,
+                                        value64_createstr("hello"), LITERAL64_ZERO);
+        const char *res = value64GenRegStr(&gen, 0, "fallback");
+        test_validate(strcmp(res, "hello") == 0,
+                      "non-empty STR must return stored string, got '%s'", res);
+        value64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: RegStr NULL STR returns default", ++subnum);
+    {
+        value64Gen gen = value64GenInit0(value64GenUnlimZero, VALUE64_STR);
+        // data[0].sval is NULL by default (LITERAL64_ZERO)
+        const char *res = value64GenRegStr(&gen, 0, "fallback_null");
+        test_validate(strcmp(res, "fallback_null") == 0,
+                      "NULL STR must return default, got '%s'", res);
+        value64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* ---------- value64GenRegFs ---------- */
+    test_sub("subtest %d: RegFs non-FS type returns default", ++subnum);
+    {
+        value64Gen gen = value64GenInit0(value64GenUnlimZero, VALUE64_INT);
+        const char *res = value64GenRegFs(&gen, 0, "fs_fallback");
+        test_validate(strcmp(res, "fs_fallback") == 0,
+                      "non-FS must return default, got '%s'", res);
+        value64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: RegFs NULL fs returns default", ++subnum);
+    {
+        value64Gen gen = value64GenInit0(value64GenUnlimZero, VALUE64_FS);
+        // data[0].fsval is NULL by default
+        const char *res = value64GenRegFs(&gen, 0, "fs_default_null");
+        logauto(res);
+        test_validate(strcmp(res, "fs_default_null") == 0,
+                      "NULL fs must return default, got '%s'", res);
+        value64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: RegFs non-empty FS returns stored string", ++subnum);
+    {
+        value64Gen gen = value64GenInit(value64GenUnlimZero, VALUE64_FS,
+                                        value64_createfs_asstr("world"), LITERAL64_ZERO);
+        const char *res = value64GenRegFs(&gen, 0, "fs_fallback");
+        test_validate(strcmp(res, "world") == 0,
+                      "non-empty FS must return stored string, got '%s'", res);
+        value64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* ---------- value64GenRegAdd ---------- */
+    test_sub("subtest %d: RegAdd INT", ++subnum);
+    {
+        value64Gen gen = value64GenInit(value64GenUnlimZero, VALUE64_INT,
+                                        value64_createint(10), LITERAL64_ZERO);
+        value64 res = value64GenRegAdd(&gen, 0, 5);
+        test_validate(value64_int(res) == 15 && value64_int(gen.data[0]) == 15,
+                      "INT RegAdd failed: res=%d, reg=%d",
+                      value64_int(res), value64_int(gen.data[0]));
+        value64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: RegAdd LONG", ++subnum);
+    {
+        value64Gen gen = value64GenInit(value64GenUnlimZero, VALUE64_LONG,
+                                        value64_createlong(100L), LITERAL64_ZERO);
+        value64 res = value64GenRegAdd(&gen, 0, 20);
+        test_validate(value64_long(res) == 120L && value64_long(gen.data[0]) == 120L,
+                      "LONG RegAdd failed: res=%ld, reg=%ld",
+                      value64_long(res), value64_long(gen.data[0]));
+        value64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: RegAdd ULONG", ++subnum);
+    {
+        value64Gen gen = value64GenInit(value64GenUnlimZero, VALUE64_ULONG,
+                                        value64_createulong(200UL), LITERAL64_ZERO);
+        value64 res = value64GenRegAdd(&gen, 0, 30);
+        test_validate(value64_ulong(res) == 230UL &&
+                      value64_ulong(gen.data[0]) == 230UL,
+                      "ULONG RegAdd failed: res=%lu, reg=%lu",
+                      value64_ulong(res), value64_ulong(gen.data[0]));
+        value64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: RegAdd DBL", ++subnum);
+    {
+        value64Gen gen = value64GenInit(value64GenUnlimZero, VALUE64_DBL,
+                                        value64_createdbl(10.5), LITERAL64_ZERO);
+        value64 res = value64GenRegAdd(&gen, 0, 2);
+        test_validate(fabs(value64_dbl(res) - 12.5) < 1e-9 &&
+                      fabs(value64_dbl(gen.data[0]) - 12.5) < 1e-9,
+                      "DBL RegAdd failed: res=%f, reg=%f",
+                      value64_dbl(res), value64_dbl(gen.data[0]));
+        value64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: RegAdd unsupported type does not modify register", ++subnum);
+    {
+        // data[0] содержит непустую строку, чтобы value64_equal работала без NULL
+        value64Gen gen = value64GenInit1(value64GenUnlimZero, VALUE64_STR,
+                                        value64_createstr("hello"));
+        value64 original = gen.data[0];   // "hello"
+        value64 res = value64GenRegAdd(&gen, 0, 1);   // для STR не должно менять регистр
+
+        // Теперь обе строки не NULL, можно использовать value64_equal
+        test_validate(value64_equal(res, original, VALUE64_STR),
+                    "RegAdd on STR must return unchanged register value");
+        test_validate(value64_equal(gen.data[0], original, VALUE64_STR),
+                    "RegAdd on STR must leave register unchanged");
+
+        value64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(/* int argc, const char *argv[] */)
@@ -298,7 +455,8 @@ main(/* int argc, const char *argv[] */)
 
     testenginestd(
         TESTADD(tf1_gen_init_free,           "Simple init and validate test"),
-        TESTADD(tf2_gen_next_zero,           "value64GenNext (zero) sompletest")
+        TESTADD(tf2_gen_next_zero,           "value64GenNext (zero) simple test"),
+        TESTADD(tf_gen_reg_api,              "value64Gen data register API simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
