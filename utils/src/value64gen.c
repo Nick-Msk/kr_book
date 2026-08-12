@@ -84,8 +84,9 @@ value64 value64GenUnlimZero(value64Gen *gen)
 }
 
 value64                         value64UncheckGenUnlimAsсSeries(value64Gen *gen) {
-    
+       
 }
+
 extern value64                  value64GenUnlimAscRnd(value64Gen *gen);
 extern value64                  value64GenUnlimDescSeries(value64Gen *gen);
 extern value64                  value64GenUnlimDescRnd(value64Gen *gen);

@@ -34,6 +34,68 @@ typedef struct value64Gen {
     value64         data[VALUE64GENCOUNT];
 } value64Gen;
 
+// -------------------------- Registry Support API -----------------------------------
+/**
+ * @brief Returns the effective format string from data[regnum] or a default.
+ *
+ * If the generator's type is VALUE64_STR and data[regnum] contains
+ * a non‑empty string, that string is returned.  Otherwise @p default_fmt is
+ * returned.
+ *
+ * @param gen          pointer to the generator
+ * @param default_fmt  fallback format string
+ * @param regnum (0, 1)
+ * @return             the format string to use
+ */
+static inline const char*
+value64GenRegStr(const value64Gen *restrict gen, int regnum, const char *restrict default_fmt)
+{
+    invraisecode(regnum >= 0 && regnum < VALUE64GENCOUNT, ERR_OUT_OF_RANGE, "%d is Out of range", regnum);
+
+    if ( (gen->type == VALUE64_STR) && !strisempty(value64_str(gen->data[regnum] ) ) )
+            return value64_str(gen->data[regnum] );
+    else 
+        return default_fmt;
+}
+
+static inline const char*
+value64GenRegFs(const value64Gen *restrict gen, int regnum, const char *restrict default_fmt) {
+    invraisecode(regnum >= 0 && regnum < VALUE64GENCOUNT, ERR_OUT_OF_RANGE, "%d is Out of range", regnum);
+
+    if ( gen->type == VALUE64_FS
+        && !fs_isnull(value64_fs(gen->data[regnum] ) ) )
+            return fs_str(value64_fs(gen->data[regnum]) );
+    else
+        return default_fmt;
+}
+
+// note only int value to add, but generally it's ok
+// no OF-checking for now
+static inline value64
+value64GenRegAdd(value64Gen *restrict gen, int regnum, int value) {
+    invraisecode(regnum >= 0 && regnum < VALUE64GENCOUNT, ERR_OUT_OF_RANGE, "%d is Out of range", regnum);
+    
+    switch (gen->type) {
+        case VALUE64_INT:
+            gen->data[regnum].ival += value;
+            break;
+        case VALUE64_LONG:
+            gen->data[regnum].lval += (long) value;
+            break;
+        case VALUE64_ULONG:
+            gen->data[regnum].ulval += (unsigned long) value;
+            break;
+        case VALUE64_DBL:
+            gen->data[regnum].dval += (double) value;
+            break;
+        default:
+            return userraise(gen->data[regnum], ERR_UNSUPPORTED_TYPE, 
+                "Unsupported typ %d %s", gen->type, value64_typename(gen->type) );
+            break;
+    }
+    return gen->data[regnum];
+}
+
 // ------------------------- CONSTRUCTOTS/DESTRUCTORS -------------------------------
 
 extern value64Gen               value64GenInit(value64GenFunc func, value64_type type, 
