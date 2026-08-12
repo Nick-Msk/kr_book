@@ -1111,6 +1111,53 @@ tf_calcnewsize(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST strisempty simple -------------------------
+static TestStatus
+tf_strisempty(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: strisempty with empty string", ++subnum);
+    {
+        test_validate(strisempty("") == true,
+                      "empty string must return true");
+    }
+
+    test_sub("subtest %d: strisempty with NULL", ++subnum);
+    {
+        test_validate(strisempty(NULL) == true,
+                      "NULL must return true");
+    }
+
+    test_sub("subtest %d: strisempty with non-empty string", ++subnum);
+    {
+        test_validate(strisempty("hello") == false,
+                      "non-empty string must return false");
+    }
+
+    test_sub("subtest %d: strisempty with single character", ++subnum);
+    {
+        test_validate(strisempty("a") == false,
+                      "single character string must return false");
+    }
+
+    test_sub("subtest %d: strisempty with whitespace only", ++subnum);
+    {
+        test_validate(strisempty("   ") == false,
+                      "whitespace-only string is not empty");
+    }
+
+    test_sub("subtest %d: strisempty with leading null character", ++subnum);
+    {
+        const char *s = "\0abc";  // фактически строка состоит только из '\0'
+        test_validate(strisempty(s) == true,
+                      "string starting with '\\0' must be considered empty");
+    }
+
+    return TEST_PASSED;
+}
+
 // -------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */ )
@@ -1123,7 +1170,8 @@ main( /* int argc, const char *argv[] */ )
         TESTADD(tf_comparators,      "Simple compare_<type> test"),
         TESTADD(tf_comparators_ptr,  "Simple pointer compare_<type> test"),
         TESTADD(tf_round_up_2,       "round_up_2() simple test"),
-        TESTADD(tf_calcnewsize,      "calcnewsize() simple test")
+        TESTADD(tf_calcnewsize,      "calcnewsize() simple test"),
+        TESTADD(tf_strisempty,       "strisempty() simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()

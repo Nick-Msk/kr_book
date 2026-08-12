@@ -484,12 +484,17 @@ static inline unsigned long   round_up_2(unsigned long val){
 #endif 
 }
 
-// reverse string
+// ------------------------------ c-string func -----------------------------------------
+// reverse c-string with len
 extern char                     *reverse(char *s, int len);
-
+// reverse c-string 
 static inline char              *reversel(char *s){
     int     len = strlen(s);
     return reverse(s, len);
+}
+// 
+static inline bool               strisempty(const char *str) {
+    return str == NULL || *str == '\0';
 }
 
 // ----------------------------------- CHAR ----------------------------------------
