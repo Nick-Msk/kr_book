@@ -197,7 +197,7 @@ static fs                               increasesize(fs *s, int newsz, bool init
                 attach(s->pos, s->v);
                 #endif
                 if (!v)
-                    userraiseint(10, "Unable to allocate %d bytes", newsz);
+                    userraiseint(ERR_UNABLE_ALLOCATE, "Unable to allocate %d bytes", newsz);
                 // now it's ok
                 if (s->v == 0)      // only in case of REALLY new allocation
                     logauto(++g_alloc_cnt);
@@ -4089,6 +4089,61 @@ tf_initrnd(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST fs_isnull -------------------------
+static TestStatus
+tf34_fs_isnull(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. NULL pointer must be considered null */
+    test_sub("subtest %d: fs_isnull(NULL)", ++subnum);
+    {
+        test_validate(fs_isnull(NULL) == true,
+                      "NULL must be null");
+    }
+
+    /* 2. Empty stack fs (FS() with sz=0, v=0) must be null */
+    test_sub("subtest %d: fs_isnull(empty stack fs)", ++subnum);
+    {
+        fs s = FS();
+        test_validate(fs_isnull(&s) == true,
+                      "FS() must be null (sz=0, v=0)");
+        fsfree(s); // безопасно, даже если не было выделений
+    }
+
+    /* 3. fs with allocated empty string must not be null */
+    test_sub("subtest %d: fs_isnull(fscopy(\"\"))", ++subnum);
+    {
+        fs s = fscopy("");
+        test_validate(fs_isnull(&s) == false,
+                      "fscopy(\"\") must not be null (has allocated buffer)");
+        fsfree(s);
+    }
+
+    /* 4. fs with non-empty string must not be null */
+    test_sub("subtest %d: fs_isnull(non-empty fs)", ++subnum);
+    {
+        fs s = fscopy("hello");
+        test_validate(fs_isnull(&s) == false,
+                      "non-empty fs must not be null");
+        fsfree(s);
+    }
+
+    /* 5. fsinit result must not be null, but after fsfree it becomes null */
+    test_sub("subtest %d: fs_isnull(fsinit(16)) and after free", ++subnum);
+    {
+        fs s = fsinit(16);
+        test_validate(fs_isnull(&s) == false,
+                      "fsinit must not be null (has buffer)");
+        fsfree(s);
+        test_validate(fs_isnull(&s) == true,
+                      "after fsfree fs must be null again");
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -4130,7 +4185,8 @@ main( /* int argc, const char *argv[] */)
         TESTADD(tf_moveto_heapstr, "fs_moveto_heapstr() simple tests"),
         TESTADD(tf_movefrom_heapstr, "fs_movefrom_heapstr() simple tests"),
         TESTADD(tf_genrnd,         "fs_genrnd() simple tests"),
-        TESTADD(tf_initrnd,        "fs_initrnd() simple tests")
+        TESTADD(tf_initrnd,        "fs_initrnd() simple tests"),
+        TESTADD(tf34_fs_isnull,    "fs_isnull() simple tests")
     );
 
     return logret(0, "end...");  // as replace of logclose()
