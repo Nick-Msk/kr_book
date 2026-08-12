@@ -68,11 +68,11 @@ extern value64                  value64GenUnlimZero(value64Gen *gen);
 // unchecker group. 0 -> 1 -> 2 ... INT_MAX -> INT_MIN etc...
 // for bool false -> true -> false ...
 // EXCEPT double. That type w/o cycling.
-extern value64                  value64UnchecGenUnlimAsсSeries(value64Gen *gen);
-extern value64                  value64UnchecGenUnlimAscRnd(value64Gen *gen);
-extern value64                  value64UnchecGenUnlimDescSeries(value64Gen *gen);
-extern value64                  value64UnchecGenUnlimDescRnd(value64Gen *gen);
-extern value64                  value64UnchecGenUnlimRandom(value64Gen *gen);
+extern value64                  value64UncheckGenUnlimAsсSeries(value64Gen *gen);
+extern value64                  value64UncheckGenUnlimAscRnd(value64Gen *gen);
+extern value64                  value64UncheckGenUnlimDescSeries(value64Gen *gen);
+extern value64                  value64UncheckGenUnlimDescRnd(value64Gen *gen);
+extern value64                  value64UncheckGenUnlimRandom(value64Gen *gen);
 // check group: TODO:
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
