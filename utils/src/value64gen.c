@@ -33,6 +33,7 @@ value64Gen                      value64GenInit(value64GenFunc func, value64_type
 value64                         value64GenNext(value64Gen *gen)
 {
     /* The next-function is responsible for incrementing counter when required. */
+    gen->counter++;     // just for stats and LIMITS
     return gen->fnext(gen);
 }
 
@@ -57,7 +58,6 @@ value64                         value64GenNext(value64Gen *gen)
  */
 value64 value64GenUnlimZero(value64Gen *gen)
 {
-    gen->counter++;
     switch (gen->type) {
         case VALUE64_INT:
             return value64_createint(0);
@@ -83,7 +83,7 @@ value64 value64GenUnlimZero(value64Gen *gen)
     }
 }
 
-value64                         value64GenUnlimAsсSeries(value64Gen *gen) {
+value64                         value64UncheckGenUnlimAsсSeries(value64Gen *gen) {
     
 }
 extern value64                  value64GenUnlimAscRnd(value64Gen *gen);
@@ -132,7 +132,7 @@ bool                      value64GenValidate(FILE *restrict out, const value64Ge
 
 // ------------------------- TEST value64GenInit / value64GenFree -------------------------
 static TestStatus
-tf_gen_init_free(const char *name)
+tf1_gen_init_free(const char *name)
 {
     logenter("%s", name);
     int subnum = 0;
@@ -165,7 +165,7 @@ tf_gen_init_free(const char *name)
 
 // ------------------------- TEST value64GenNext (zero) -------------------------
 static TestStatus
-tf_gen_next_zero(const char *name)
+tf2_gen_next_zero(const char *name)
 {
     logenter("%s", name);
     int subnum = 0;
@@ -259,6 +259,32 @@ tf_gen_next_zero(const char *name)
         value64GenFree(&gen);
         fs_alloc_check(true);
     }
+    test_sub("subtest %d: wrapper for INT", ++subnum);
+    {
+        value64Gen gen = value64GenCreatorUnlimZero(VALUE64_INT);
+        for (int i = 0; i < 400; i++) {
+            int res;
+            test_validate(
+                (res = value64GenNext(&gen).ival) == 0,
+                "Iteration %d got %d", i, res
+            );
+        }
+        value64GenFree(&gen);
+    }
+    test_sub("subtest %d: wrapper for FS", ++subnum);
+    {
+        value64Gen gen = value64GenCreatorUnlimZero(VALUE64_FS);
+        for (int i = 0; i < 400; i++) {
+            fs *res = value64GenNext(&gen).fsval;
+            test_validatefree(
+                strcmp(fs_str(res), "") == 0,
+                (fs_free(res), value64GenFree(&gen) ),
+                "Iteration %d got %s instead of \"\"", i, fs_str(res)
+            );
+            fs_free(res);
+        }
+        value64GenFree(&gen);
+    }
 
     return TEST_PASSED;
 }
@@ -270,8 +296,8 @@ main(/* int argc, const char *argv[] */)
     logsimpleinit("Start");
 
     testenginestd(
-        TESTADD(tf_gen_init_free,           "Simple init and validate test"),
-        TESTADD(tf_gen_next_zero,           "value64GenNext (zero) sompletest")
+        TESTADD(tf1_gen_init_free,           "Simple init and validate test"),
+        TESTADD(tf2_gen_next_zero,           "value64GenNext (zero) sompletest")
     );
 
     return logret(0, "end...");  // as replace of logclose()

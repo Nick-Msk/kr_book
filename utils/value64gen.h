@@ -75,6 +75,36 @@ extern value64                  value64UncheckGenUnlimDescRnd(value64Gen *gen);
 extern value64                  value64UncheckGenUnlimRandom(value64Gen *gen);
 // check group: TODO:
 
+// ------------------------ Wrappers for pre-created generators ---------------------
+
+static inline value64Gen        value64GenCreatorUnlimZero(value64_type typ) {
+    // not sure what to do, now just raiseint
+    if (!value64_checktype(typ))
+        userraiseint(ERR_UNSUPPORTED_TYPE, "Type %d not supported", typ);
+
+    // REGITRSY ALLOCATION: NONE
+    return value64GenInit0(value64GenUnlimZero, typ);       // quite simple, LOL
+}
+
+static inline value64Gen        value64GenCreatorUnlimAsсSeries(value64_type typ, int startpos, const char *fmt) {
+    // not sure what to do, now just raiseint
+    if (!value64_checktype(typ))
+        userraiseint(ERR_UNSUPPORTED_TYPE, "Type %d not supported", typ);
+
+    // REGITRSY ALLOCATION:
+    // data[0] as startpos for numeric generator
+    // data[1] as pattern for FS/STR
+    value64Gen tmp;
+    if ( (typ == VALUE64_FS || typ == VALUE64_STR) && fmt != NULL)
+        tmp = value64GenInit(value64UncheckGenUnlimAsсSeries, 
+                        typ, value64_createint(startpos), value64_createfs_asstr(fmt) );
+    else
+        tmp = value64GenInit1(value64UncheckGenUnlimAsсSeries, 
+                        typ, value64_createint(startpos));
+    return tmp;
+}
+
+
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
 extern int                      value64Techfprint(FILE *restrict out, const value64Gen *restrict gen);
