@@ -2479,6 +2479,57 @@ bool                        value64_filter2_intbetween_int_int(value64 v, value6
 
 /** @} */
 
+// ------------------------------------ ETC. ----------------------------------------
+// 
+/**
+ * @brief Validates a value64 value of a given type.
+ *
+ * For double, checks that the value is not NaN or ±Inf.
+ * For fs, delegates to fs_validate().
+ * For str, checks that the pointer is not NULL.
+ * All other types are always valid.
+ *
+ * @param out Output stream for error messages (NULL defaults to stderr).
+ * @param v   Value to validate.
+ * @param typ Type of the value.
+ * @return true if valid, false otherwise (with error message printed to out).
+ * 
+ * @note validation always use DIRECT fprintf (no userraise) to be able to work
+ *       if you want to log using logging system, exec value64_validate(logfile, v, typ);
+ */
+bool                            value64_validate(FILE *out, value64 v, value64_type typ)
+{
+    switch (typ) {
+        case VALUE64_DBL:
+            if (isnan(v.dval) || isinf(v.dval)) {
+                if (out)
+                    fprintf(out, "Invalid double value: %f\n", v.dval);
+                return logsimpleerr(false, "Invalid double value: %f\n", v.dval);
+            }
+            return true;
+
+        case VALUE64_FS:
+            if (!v.fsval) {
+                if (out)
+                    fprintf(out, "FS value is NULL\n");
+                return logsimpleerr(false, "FS pointer is NULL");
+            }
+            return fs_validate(out, v.fsval);
+
+        case VALUE64_STR:
+            if (!v.sval) {
+                if (out)
+                    fprintf(out, "String value is NULL\n");
+                return logsimpleerr(false, "String value is NULL");
+            }
+            return true;
+
+        default:   /* INT, LNG, BOOL, CHR, PTR, ULONG – always valid */
+            return true;
+    }
+}
+
+
 // ---------------------------------------- Testing ------------------------------------------
 #ifdef VALUE64TESTING
 
