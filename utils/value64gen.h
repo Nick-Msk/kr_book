@@ -35,6 +35,19 @@ typedef struct value64Gen {
 } value64Gen;
 
 // -------------------------- Registry Support API -----------------------------------
+
+// now shortcut only for 2 registers
+static inline value64                *value64GenReg0(value64Gen *gen) {
+    return &gen->data[0];
+}
+#define V64GENREG0(gen) (gen->data[0])
+
+static inline value64                *value64GenReg1(value64Gen *gen) {
+    return &gen->data[1];
+}
+#define V64GENREG1(gen) (gen->data[1])
+
+
 /**
  * @brief Returns the effective format string from data[regnum] or a default.
  *
@@ -84,6 +97,9 @@ value64GenRegAdd(value64Gen *restrict gen, int regnum, int value) {
         case VALUE64_ULONG:
             gen->data[regnum].ulval += (unsigned long) value;
             break;
+        case VALUE64_CHR:
+            gen->data[regnum].cval += (unsigned char) value;
+            break;
         case VALUE64_DBL:
             gen->data[regnum].dval += (double) value;
             break;
@@ -93,6 +109,32 @@ value64GenRegAdd(value64Gen *restrict gen, int regnum, int value) {
             break;
     }
     return gen->data[regnum];
+}
+static inline int
+value64GenGetAsInt(const value64Gen *restrict gen, int regnum) {
+    invraisecode(regnum >= 0 && regnum < VALUE64GENCOUNT, ERR_OUT_OF_RANGE, "%d is Out of range", regnum);
+
+    // NOTE: no range checking for now TODO: use checkers from value64 converters
+    int     ival = 0;
+    switch (gen->type) {
+        case VALUE64_INT:
+            ival = gen->data[regnum].ival;
+            break;
+        case VALUE64_LONG:
+            ival = gen->data[regnum].lval;
+            break;
+        case VALUE64_ULONG:
+            ival = gen->data[regnum].ulval;
+            break;
+        case VALUE64_CHR:
+            ival = gen->data[regnum].cval;
+            break;
+        case VALUE64_DBL:
+            ival = gen->data[regnum].dval;
+            break;
+        default:
+    }
+    return ival;
 }
 
 // ------------------------- CONSTRUCTOTS/DESTRUCTORS -------------------------------

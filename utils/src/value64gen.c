@@ -83,8 +83,52 @@ value64 value64GenUnlimZero(value64Gen *gen)
     }
 }
 
-value64                         value64UncheckGenUnlimAsсSeries(value64Gen *gen) {
+/**
+ * @brief Unchecked unlimited ascending series generator.
+ *
+ * Numeric types: data[0] holds the current value and is incremented.
+ * Boolean:        data[0] toggles.
+ * String types:   data[0] holds the current integer, data[1] holds an
+ *                optional printf-template (STR or FS). If absent, "%d".
+ *
+ * @param gen  pointer to the generator
+ * @return     the next value64 of the generator's type (ownership passed to caller)
+ */
+value64
+value64UncheckGenUnlimAscSeries(value64Gen *gen)
+{
+    value64 result = V64GENREG0(gen);
+    switch (gen->type) {
+        case VALUE64_INT:
+        case VALUE64_LONG:
+        case VALUE64_DBL:
+        case VALUE64_ULONG:
+        case VALUE64_CHR:
+            break;
 
+        case VALUE64_BOOL:
+            V64GENREG0(gen).bval = !V64GENREG0(gen).bval; // No reg API?
+            return result;  // origin
+
+        case VALUE64_STR:
+        case VALUE64_FS: {
+            int val = value64GenGetAsInt(gen, 0);
+
+            const char *fmt = value64GenRegFs(gen, 1, "%d");
+            fs tmp = fscopyf(fmt, val);
+
+            if (gen->type == VALUE64_FS) 
+                result = value64_movefs(&tmp); // VALUE64_FS
+            else
+                result = LITERAL64_STR(tmp.v); // STR  no strdup() here!
+            break;
+        }
+
+        default:
+            return userraise(LITERAL64_ZERO, ERR_UNSUPPORTED_TYPE, "Unsupported type %d", gen->type);
+    }
+    value64GenRegAdd(gen, 0, 1);
+    return result;       
 }
 
 extern value64                  value64GenUnlimAscRnd(value64Gen *gen);
