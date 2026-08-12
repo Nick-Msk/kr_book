@@ -40,7 +40,10 @@ extern value64Gen               value64GenInit(value64GenFunc func, value64_type
                                                value64 initdata1, value64 initdata2);
 static inline value64Gen        value64GenInit0(value64GenFunc func, value64_type type) {
     return value64GenInit(func, type, LITERAL64_ZERO, LITERAL64_ZERO);
-}   
+}  
+static inline value64Gen        value64GenInit1(value64GenFunc func, value64_type type, value64 initdata1) {
+    return value64GenInit(func, type, initdata1, LITERAL64_ZERO);
+}    
                      
 static inline void              value64GenFree(value64Gen *gen) {
     if (gen) {
@@ -55,18 +58,22 @@ static inline void              value64GenFree(value64Gen *gen) {
 
 // -------------------- ACCESS AND MODIFICATORS -------------------------------------
 
-// GENERALLIZED ACCESS
+// ------------- GENERALLIZED ACCESS -----------------
 extern value64                  value64GenNext(value64Gen *gen);
 extern value64                  value64GenCurr(value64Gen *gen);
 
 // ------------------ pre-created func V64 typed -----------------------------
 
-extern value64                  value64GenZero(value64Gen *gen);
-extern value64                  value64GenAsсSeries(value64Gen *gen);
-extern value64                  value64GenAscRnd(value64Gen *gen);
-extern value64                  value64GenDescSeries(value64Gen *gen);
-extern value64                  value64GenDescRnd(value64Gen *gen);
-extern value64                  value64GenRandom(value64Gen *gen);
+extern value64                  value64GenUnlimZero(value64Gen *gen);
+// unchecker group. 0 -> 1 -> 2 ... INT_MAX -> INT_MIN etc...
+// for bool false -> true -> false ...
+// EXCEPT double. That type w/o cycling.
+extern value64                  value64UnckerGenUnlimAsсSeries(value64Gen *gen);
+extern value64                  value64UnckerGenUnlimAscRnd(value64Gen *gen);
+extern value64                  value64UnckerGenUnlimDescSeries(value64Gen *gen);
+extern value64                  value64UnckerGenUnlimDescRnd(value64Gen *gen);
+extern value64                  value64UnckerGenUnlimRandom(value64Gen *gen);
+// check group: TODO:
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 

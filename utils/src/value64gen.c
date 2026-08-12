@@ -55,7 +55,7 @@ value64                         value64GenNext(value64Gen *gen)
  * @param gen  pointer to the generator (type must be set)
  * @return     a zero value64 of the requested type (ownership passed to caller)
  */
-value64 value64GenZero(value64Gen *gen)
+value64 value64GenUnlimZero(value64Gen *gen)
 {
     gen->counter++;
     switch (gen->type) {
@@ -83,11 +83,13 @@ value64 value64GenZero(value64Gen *gen)
     }
 }
 
-extern value64                  value64GenAsсSeries(value64Gen *gen);
-extern value64                  value64GenAscRnd(value64Gen *gen);
-extern value64                  value64GenDescSeries(value64Gen *gen);
-extern value64                  value64GenDescRnd(value64Gen *gen);
-extern value64                  value64GenRandom(value64Gen *gen);
+value64                         value64GenUnlimAsсSeries(value64Gen *gen) {
+    
+}
+extern value64                  value64GenUnlimAscRnd(value64Gen *gen);
+extern value64                  value64GenUnlimDescSeries(value64Gen *gen);
+extern value64                  value64GenUnlimDescRnd(value64Gen *gen);
+extern value64                  value64GenUnlimRandom(value64Gen *gen);
 
 // ------------------------------------ ETC. ----------------------------------------
 
@@ -137,7 +139,7 @@ tf_gen_init_free(const char *name)
 
     test_sub("subtest %d: init and free with Zero generator", ++subnum);
     {
-        value64Gen gen = value64GenInit(value64GenZero, VALUE64_INT,
+        value64Gen gen = value64GenInit(value64GenUnlimZero, VALUE64_INT,
                                         LITERAL64_ZERO, LITERAL64_ZERO);
         test_validate(gen.fnext != NULL, "generator function must be set");
         test_validate(gen.type == VALUE64_INT, "type must be INT");
@@ -149,7 +151,7 @@ tf_gen_init_free(const char *name)
 
     test_sub("subtest %d: init and free with STR type", ++subnum);
     {
-        value64Gen gen = value64GenInit(value64GenZero, VALUE64_STR,
+        value64Gen gen = value64GenInit(value64GenUnlimZero, VALUE64_STR,
                                         LITERAL64_ZERO, LITERAL64_ZERO);
         test_validate(gen.type == VALUE64_STR, "type must be STR");
         test_validate(gen.counter == 0, "initial counter must be 0");
@@ -170,7 +172,7 @@ tf_gen_next_zero(const char *name)
 
     test_sub("subtest %d: Next with Zero generator (INT)", ++subnum);
     {
-        value64Gen gen = value64GenInit0(value64GenZero, VALUE64_INT);
+        value64Gen gen = value64GenInit0(value64GenUnlimZero, VALUE64_INT);
 
         // Zero generator ignores counter and always returns zero
         value64 v1 = value64GenNext(&gen);
@@ -190,7 +192,7 @@ tf_gen_next_zero(const char *name)
 
     test_sub("subtest %d: Next with Zero generator (STR)", ++subnum);
     {
-        value64Gen gen = value64GenInit0(value64GenZero, VALUE64_STR);
+        value64Gen gen = value64GenInit0(value64GenUnlimZero, VALUE64_STR);
 
         value64 v = value64GenNext(&gen);
         test_validatefree(
@@ -210,7 +212,7 @@ tf_gen_next_zero(const char *name)
     /* 3. Zero generator for FS – stress test (many allocations) */
     test_sub("subtest %d: Next with Zero generator (FS), 100 elements", ++subnum);
     {
-        value64Gen gen = value64GenInit0(value64GenZero, VALUE64_FS);
+        value64Gen gen = value64GenInit0(value64GenUnlimZero, VALUE64_FS);
 
         enum { N = 100 };
         value64 arr[N];
@@ -237,7 +239,7 @@ tf_gen_next_zero(const char *name)
     /* Zero generator for STR – 300 empty strings */
     test_sub("subtest %d: Next with Zero generator (STR), 300 elements", ++subnum);
     {
-        value64Gen gen = value64GenInit0(value64GenZero, VALUE64_STR);
+        value64Gen gen = value64GenInit0(value64GenUnlimZero, VALUE64_STR);
 
         enum { N = 300 };
         value64 arr[N];
