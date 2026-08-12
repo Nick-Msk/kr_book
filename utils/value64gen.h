@@ -70,11 +70,10 @@ value64GenRegFs(const value64Gen *restrict gen, int regnum, const char *restrict
 }
 
 // note only int value to add, but generally it's ok
-// no OF-checking for now
 static inline value64
 value64GenRegAdd(value64Gen *restrict gen, int regnum, int value) {
     invraisecode(regnum >= 0 && regnum < VALUE64GENCOUNT, ERR_OUT_OF_RANGE, "%d is Out of range", regnum);
-    
+
     switch (gen->type) {
         case VALUE64_INT:
             gen->data[regnum].ival += value;
