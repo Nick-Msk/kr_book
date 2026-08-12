@@ -127,17 +127,114 @@ bool                      value64GenValidate(FILE *restrict out, const value64Ge
 
 // ------------------------- TEST init_free ---------------------------------
 
+// ------------------------- TEST value64GenInit / value64GenFree -------------------------
 static TestStatus
-tf_init_free(const char *name)
+tf_gen_init_free(const char *name)
 {
     logenter("%s", name);
     int subnum = 0;
 
-    /* 1. int */
-    test_sub("subtest %d: value64 int", ++subnum);
+    test_sub("subtest %d: init and free with Zero generator", ++subnum);
     {
+        value64Gen gen = value64GenInit(value64GenZero, VALUE64_INT, 0,
+                                        LITERAL64_ZERO, LITERAL64_ZERO);
+        test_validate(gen.fnext != NULL, "generator function must be set");
+        test_validate(gen.type == VALUE64_INT, "type must be INT");
+        test_validate(gen.counter == 0, "initial counter must be 0");
+
+        value64GenFree(&gen);   // must not crash / leak
+        fs_alloc_check(true);
     }
-    return logret(TEST_PASSED, "done");
+
+    test_sub("subtest %d: init and free with STR type", ++subnum);
+    {
+        value64Gen gen = value64GenInit(value64GenZero, VALUE64_STR, 5,
+                                        LITERAL64_ZERO, LITERAL64_ZERO);
+        test_validate(gen.type == VALUE64_STR, "type must be STR");
+        test_validate(gen.counter == 5, "initial counter must be 5");
+
+        value64GenFree(&gen);   // data[] were zero, no dynamic memory to free
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
+// ------------------------- TEST value64GenNext (zero) -------------------------
+static TestStatus
+tf_gen_next_zero(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: Next with Zero generator (INT)", ++subnum);
+    {
+        value64Gen gen = value64GenInit0(value64GenZero, VALUE64_INT, 100);
+
+        // Zero generator ignores counter and always returns zero
+        value64 v1 = value64GenNext(&gen);
+        test_validate(value64_int(v1) == 0, "first call must return 0");
+        test_validate(gen.counter == 100, "Zero must not change counter");
+
+        value64 v2 = value64GenNext(&gen);
+        test_validate(value64_int(v2) == 0, "second call must return 0");
+        test_validate(gen.counter == 100, "counter still unchanged");
+
+        value64 v3 = value64GenNext(&gen);
+        test_validate(value64_int(v3) == 0, "third call must return 0");
+        test_validate(gen.counter == 100, "counter still unchanged");
+
+        value64GenFree(&gen);
+    }
+
+    test_sub("subtest %d: Next with Zero generator (STR)", ++subnum);
+    {
+        value64Gen gen = value64GenInit0(value64GenZero, VALUE64_STR, 7);
+
+        value64 v = value64GenNext(&gen);
+        test_validatefree(
+            value64_str(v) && strcmp(value64_str(v), "") == 0,
+            value64free(v, VALUE64_STR),
+            "Zero for STR must return empty string"
+        );
+        test_validate(gen.counter == 7, "counter must not change");
+        value64free(v, VALUE64_STR);
+
+        value64free(v, VALUE64_STR);
+        
+        value64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 3. Zero generator for FS – stress test (many allocations) */
+    test_sub("subtest %d: Next with Zero generator (FS), 100 elements", ++subnum);
+    {
+        value64Gen gen = value64GenInit00(value64GenZero, VALUE64_FS);
+
+        enum { N = 100 };
+        value64 arr[N];
+
+        for (int i = 0; i < N; i++) {
+            arr[i] = value64GenNext(&gen);
+        }
+
+        /* Verify all elements are empty strings and no corruption occurred */
+        for (int i = 0; i < N; i++) {
+            test_validate(arr[i].fsval != NULL && fs_len(arr[i].fsval) == 0,
+                        "FS[%d] must be empty", i);
+            test_validate(gen.counter == 0, "Zero generator must keep counter unchanged");
+        }
+
+        /* Free all generated FS values */
+        for (int i = 0; i < N; i++) {
+            value64free(arr[i], VALUE64_FS);
+        }
+
+        value64GenFree(&gen);
+        fs_alloc_check(true);   // must not detect any leak
+    }
+
+    return TEST_PASSED;
 }
 
 // ------------------------------------------------------------------------------------------------------------------------------
@@ -147,7 +244,8 @@ main(/* int argc, const char *argv[] */)
     logsimpleinit("Start");
 
     testenginestd(
-        TESTADD(tf_init_free,           "Simple init and validate test")
+        TESTADD(tf_gen_init_free,           "Simple init and validate test"),
+        TESTADD(tf_gen_next_zero,           "value64GenNext (zero) sompletest")
     );
 
     return logret(0, "end...");  // as replace of logclose()

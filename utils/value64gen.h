@@ -40,7 +40,10 @@ extern value64Gen               value64GenInit(value64GenFunc func, value64_type
                                             int initcnt, value64 initdata1, value64 initdata2);
 static inline value64Gen        value64GenInit0(value64GenFunc func, value64_type type, int initcnt) {
     return value64GenInit(func, type, initcnt, LITERAL64_ZERO, LITERAL64_ZERO);
-}                               
+}   
+static inline value64Gen        value64GenInit00(value64GenFunc func, value64_type type) {
+    return value64GenInit(func, type, 0, LITERAL64_ZERO, LITERAL64_ZERO);
+}                                
 static inline void              value64GenFree(value64Gen *gen) {
     if (gen) {
         for (int i = 0; i < VALUE64GENCOUNT; i++)
