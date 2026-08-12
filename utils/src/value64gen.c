@@ -491,6 +491,228 @@ tf_gen_reg_api(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST value64UncheckGenUnlimAscSeries -------------------------
+static TestStatus
+tf_gen_asc_series(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. INT ascending from 10 */
+    test_sub("subtest %d: AscSeries INT from 10", ++subnum);
+    {
+        value64Gen gen = value64GenInit(value64UncheckGenUnlimAscSeries, VALUE64_INT,
+                                        value64_createint(10), LITERAL64_ZERO);
+        value64 v1 = value64GenNext(&gen);
+        test_validate(value64_int(v1) == 10, "first must be 10");
+        test_validate(gen.counter == 1, "counter must be 1");
+
+        value64 v2 = value64GenNext(&gen);
+        test_validate(value64_int(v2) == 11, "second must be 11");
+        test_validate(gen.counter == 2, "counter must be 2");
+
+        value64 v3 = value64GenNext(&gen);
+        test_validate(value64_int(v3) == 12, "third must be 12");
+        test_validate(gen.counter == 3, "counter must be 3");
+
+        value64_free(&v1, VALUE64_INT);
+        value64_free(&v2, VALUE64_INT);
+        value64_free(&v3, VALUE64_INT);
+        value64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 2. LONG ascending from 100 */
+    test_sub("subtest %d: AscSeries LONG from 100", ++subnum);
+    {
+        value64Gen gen = value64GenInit(value64UncheckGenUnlimAscSeries, VALUE64_LONG,
+                                        value64_createlong(100L), LITERAL64_ZERO);
+        value64 v1 = value64GenNext(&gen);
+        test_validate(value64_long(v1) == 100L, "first must be 100");
+        value64 v2 = value64GenNext(&gen);
+        test_validate(value64_long(v2) == 101L, "second must be 101");
+        value64 v3 = value64GenNext(&gen);
+        test_validate(value64_long(v3) == 102L, "third must be 102");
+        test_validate(gen.counter == 3, "counter must be 3");
+
+        value64_free(&v1, VALUE64_LONG);
+        value64_free(&v2, VALUE64_LONG);
+        value64_free(&v3, VALUE64_LONG);
+        value64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 3. DBL ascending from 10.5 */
+    test_sub("subtest %d: AscSeries DBL from 10.5", ++subnum);
+    {
+        value64Gen gen = value64GenInit(value64UncheckGenUnlimAscSeries, VALUE64_DBL,
+                                        value64_createdbl(10.5), LITERAL64_ZERO);
+        value64 v1 = value64GenNext(&gen);
+        test_validate(fabs(value64_dbl(v1) - 10.5) < 1e-9, "first must be 10.5");
+        value64 v2 = value64GenNext(&gen);
+        test_validate(fabs(value64_dbl(v2) - 11.5) < 1e-9, "second must be 11.5");
+        value64 v3 = value64GenNext(&gen);
+        test_validate(fabs(value64_dbl(v3) - 12.5) < 1e-9, "third must be 12.5");
+        test_validate(gen.counter == 3, "counter must be 3");
+
+        value64_free(&v1, VALUE64_DBL);
+        value64_free(&v2, VALUE64_DBL);
+        value64_free(&v3, VALUE64_DBL);
+        value64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 4. ULONG ascending from 200 */
+    test_sub("subtest %d: AscSeries ULONG from 200", ++subnum);
+    {
+        value64Gen gen = value64GenInit(value64UncheckGenUnlimAscSeries, VALUE64_ULONG,
+                                        value64_createulong(200UL), LITERAL64_ZERO);
+        value64 v1 = value64GenNext(&gen);
+        test_validate(value64_ulong(v1) == 200UL, "first must be 200");
+        value64 v2 = value64GenNext(&gen);
+        test_validate(value64_ulong(v2) == 201UL, "second must be 201");
+        value64 v3 = value64GenNext(&gen);
+        test_validate(value64_ulong(v3) == 202UL, "third must be 202");
+        test_validate(gen.counter == 3, "counter must be 3");
+
+        value64_free(&v1, VALUE64_ULONG);
+        value64_free(&v2, VALUE64_ULONG);
+        value64_free(&v3, VALUE64_ULONG);
+        value64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 5. BOOL toggles */
+    test_sub("subtest %d: AscSeries BOOL toggles", ++subnum);
+    {
+        value64Gen gen = value64GenInit(value64UncheckGenUnlimAscSeries, VALUE64_BOOL,
+                                        value64_createbool(false), LITERAL64_ZERO);
+        value64 v1 = value64GenNext(&gen);
+        test_validate(value64_bool(v1) == false, "first must be false");
+        value64 v2 = value64GenNext(&gen);
+        test_validate(value64_bool(v2) == true, "second must be true");
+        value64 v3 = value64GenNext(&gen);
+        test_validate(value64_bool(v3) == false, "third must be false");
+        test_validate(gen.counter == 3, "counter must be 3");
+
+        value64_free(&v1, VALUE64_BOOL);
+        value64_free(&v2, VALUE64_BOOL);
+        value64_free(&v3, VALUE64_BOOL);
+        value64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 6. CHAR ascending from 'A' (now supported via RegAdd) */
+    test_sub("subtest %d: AscSeries CHAR from 'A'", ++subnum);
+    {
+        value64Gen gen = value64GenInit(value64UncheckGenUnlimAscSeries, VALUE64_CHR,
+                                        value64_createchar('A'), LITERAL64_ZERO);
+        value64 v1 = value64GenNext(&gen);
+        test_validate(value64_char(v1) == 'A', "first must be 'A'");
+        value64 v2 = value64GenNext(&gen);
+        test_validate(value64_char(v2) == 'B', "second must be 'B'");
+        value64 v3 = value64GenNext(&gen);
+        test_validate(value64_char(v3) == 'C', "third must be 'C'");
+        test_validate(gen.counter == 3, "counter must be 3");
+
+        value64_free(&v1, VALUE64_CHR);
+        value64_free(&v2, VALUE64_CHR);
+        value64_free(&v3, VALUE64_CHR);
+        value64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 7. STR without template (data[0]=int, data[1]=zero) */
+    test_sub("subtest %d: AscSeries STR default template", ++subnum);
+    {
+        value64Gen gen = value64GenInit(value64UncheckGenUnlimAscSeries, VALUE64_STR,
+                                        value64_createint(0), LITERAL64_ZERO);
+        value64 v1 = value64GenNext(&gen);
+        test_validate(strcmp(value64_str(v1), "0") == 0, "first must be '0'");
+        value64_free(&v1, VALUE64_STR);
+
+        value64 v2 = value64GenNext(&gen);
+        test_validate(strcmp(value64_str(v2), "1") == 0, "second must be '1'");
+        value64_free(&v2, VALUE64_STR);
+
+        value64 v3 = value64GenNext(&gen);
+        test_validate(strcmp(value64_str(v3), "2") == 0, "third must be '2'");
+        value64_free(&v3, VALUE64_STR);
+
+        test_validate(gen.counter == 3, "counter must be 3");
+        value64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 8. STR with template "item %d" starting at 3 (template is FS) */
+    test_sub("subtest %d: AscSeries STR with template", ++subnum);
+    {
+        value64Gen gen = value64GenInit(value64UncheckGenUnlimAscSeries, VALUE64_STR,
+                                        value64_createint(3), value64_createfs_asstr("item %d"));
+        value64 v1 = value64GenNext(&gen);
+        test_validate(strcmp(value64_str(v1), "item 3") == 0, "first must be 'item 3'");
+        value64_free(&v1, VALUE64_STR);
+
+        value64 v2 = value64GenNext(&gen);
+        test_validate(strcmp(value64_str(v2), "item 4") == 0, "second must be 'item 4'");
+        value64_free(&v2, VALUE64_STR);
+
+        value64 v3 = value64GenNext(&gen);
+        test_validate(strcmp(value64_str(v3), "item 5") == 0, "third must be 'item 5'");
+        value64_free(&v3, VALUE64_STR);
+
+        test_validate(gen.counter == 3, "counter must be 3");
+        value64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 9. FS without template (data[0]=int, data[1]=zero) */
+    test_sub("subtest %d: AscSeries FS default template", ++subnum);
+    {
+        value64Gen gen = value64GenInit(value64UncheckGenUnlimAscSeries, VALUE64_FS,
+                                        value64_createint(0), LITERAL64_ZERO);
+        value64 v1 = value64GenNext(&gen);
+        test_validate(strcmp(fs_str(value64_fs(v1)), "0") == 0, "first must be '0'");
+        value64_free(&v1, VALUE64_FS);
+
+        value64 v2 = value64GenNext(&gen);
+        test_validate(strcmp(fs_str(value64_fs(v2)), "1") == 0, "second must be '1'");
+        value64_free(&v2, VALUE64_FS);
+
+        value64 v3 = value64GenNext(&gen);
+        test_validate(strcmp(fs_str(value64_fs(v3)), "2") == 0, "third must be '2'");
+        value64_free(&v3, VALUE64_FS);
+
+        test_validate(gen.counter == 3, "counter must be 3");
+        value64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 10. FS with template "val_%d" starting at 7 */
+    test_sub("subtest %d: AscSeries FS with template", ++subnum);
+    {
+        value64Gen gen = value64GenInit(value64UncheckGenUnlimAscSeries, VALUE64_FS,
+                                        value64_createint(7), value64_createfs_asstr("val_%d"));
+        value64 v1 = value64GenNext(&gen);
+        test_validate(strcmp(fs_str(value64_fs(v1)), "val_7") == 0, "first must be 'val_7'");
+        value64_free(&v1, VALUE64_FS);
+
+        value64 v2 = value64GenNext(&gen);
+        test_validate(strcmp(fs_str(value64_fs(v2)), "val_8") == 0, "second must be 'val_8'");
+        value64_free(&v2, VALUE64_FS);
+
+        value64 v3 = value64GenNext(&gen);
+        test_validate(strcmp(fs_str(value64_fs(v3)), "val_9") == 0, "third must be 'val_9'");
+        value64_free(&v3, VALUE64_FS);
+
+        test_validate(gen.counter == 3, "counter must be 3");
+        value64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(/* int argc, const char *argv[] */)
@@ -498,9 +720,10 @@ main(/* int argc, const char *argv[] */)
     logsimpleinit("Start");
 
     testenginestd(
-        TESTADD(tf1_gen_init_free,           "Simple init and validate test"),
-        TESTADD(tf2_gen_next_zero,           "value64GenNext (zero) simple test"),
-        TESTADD(tf_gen_reg_api,              "value64Gen data register API simple test")
+        TESTADD(tf1_gen_init_free,           "Simple init and validate test")
+      , TESTADD(tf2_gen_next_zero,           "value64GenNext (zero) simple test")
+      , TESTADD(tf_gen_reg_api,              "value64Gen data register API simple test")
+      , TESTADD(tf_gen_asc_series,           "value64UncheckGenUnlimAscSeries() simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
