@@ -233,6 +233,29 @@ tf_gen_next_zero(const char *name)
         value64GenFree(&gen);
         fs_alloc_check(true);   // must not detect any leak
     }
+    /* Zero generator for STR – 300 empty strings */
+    test_sub("subtest %d: Next with Zero generator (STR), 300 elements", ++subnum);
+    {
+        value64Gen gen = value64GenInit00(value64GenZero, VALUE64_STR);
+
+        enum { N = 300 };
+        value64 arr[N];
+        for (int i = 0; i < N; i++) {
+            arr[i] = value64GenNext(&gen);
+        }
+
+        for (int i = 0; i < N; i++) {
+            test_validate(value64_str(arr[i]) != NULL && strlen(value64_str(arr[i])) == 0,
+                          "STR[%d] must be empty", i);
+        }
+        test_validate(gen.counter == 0, "Zero generator counter must stay 0");
+
+        for (int i = 0; i < N; i++) {
+            value64free(arr[i], VALUE64_STR);
+        }
+        value64GenFree(&gen);
+        fs_alloc_check(true);
+    }
 
     return TEST_PASSED;
 }
