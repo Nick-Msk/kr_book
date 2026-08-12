@@ -30,20 +30,18 @@ typedef value64                         (*value64GenFunc)(value64Gen *gen);
 typedef struct value64Gen {
     value64GenFunc  fnext;
     value64_type    type;
-    int             counter;
+    unsigned int    counter;
     value64         data[VALUE64GENCOUNT];
 } value64Gen;
 
 // ------------------------- CONSTRUCTOTS/DESTRUCTORS -------------------------------
 
 extern value64Gen               value64GenInit(value64GenFunc func, value64_type type, 
-                                            int initcnt, value64 initdata1, value64 initdata2);
-static inline value64Gen        value64GenInit0(value64GenFunc func, value64_type type, int initcnt) {
-    return value64GenInit(func, type, initcnt, LITERAL64_ZERO, LITERAL64_ZERO);
+                                               value64 initdata1, value64 initdata2);
+static inline value64Gen        value64GenInit0(value64GenFunc func, value64_type type) {
+    return value64GenInit(func, type, LITERAL64_ZERO, LITERAL64_ZERO);
 }   
-static inline value64Gen        value64GenInit00(value64GenFunc func, value64_type type) {
-    return value64GenInit(func, type, 0, LITERAL64_ZERO, LITERAL64_ZERO);
-}                                
+                     
 static inline void              value64GenFree(value64Gen *gen) {
     if (gen) {
         for (int i = 0; i < VALUE64GENCOUNT; i++)
