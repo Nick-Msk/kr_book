@@ -124,8 +124,8 @@ value64GenNvlInt(v64typed tv, int default_val) {
 
 // note only int value to add, but generally it's ok
 // no OF checking version
-static inline v64typed *
-v64typedAddNocheck(v64typed *tv, int value) {
+static inline bool
+v64typedAdd(v64typed *tv, int value) {
     switch (tv->typ) {
         case VALUE64_INT:
             tv->val.ival += value;
@@ -143,11 +143,23 @@ v64typedAddNocheck(v64typed *tv, int value) {
             tv->val.dval += (double) value;
             break;
         default:
-            return userraise(tv, ERR_UNSUPPORTED_TYPE, 
+            return userraise(false, ERR_UNSUPPORTED_TYPE, 
                 "Unsupported typ %d %s", tv->typ, value64_typename(tv->typ) );
-            break;
     }
-    return tv;
+    return true;
+}
+
+static inline bool
+v64typedBoolNegative(v64typed *tv) {
+    switch (tv->typ) {
+        case VALUE64_BOOL:
+            tv->val.bval = !tv->val.bval;
+            break;
+        default:
+            return userraise(false, ERR_UNSUPPORTED_TYPE, 
+                "Unsupported typ %d %s", tv->typ, value64_typename(tv->typ) );
+    }
+    return true;
 }
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------

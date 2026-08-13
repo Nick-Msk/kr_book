@@ -14,6 +14,7 @@ int                      v64typedTechfprint(FILE *out, v64typed tval) {
     int cnt = 0;
     if (out) {
         // TODO:
+        
     }
     return cnt;
 }
@@ -21,7 +22,17 @@ int                      v64typedTechfprint(FILE *out, v64typed tval) {
 // ------------------------------------ ETC. ----------------------------------------
 
 bool                     v64typedValidate(FILE *out, v64typed tval) {
-
+    if (!value64_checktype(tval.typ)) {
+        if (out)
+            fprintf(out, "Type validation valied %d %s", tval.typ, value64_typename(tval.typ) );
+        return logsimpleret(false, "Type validation valied %d %s", tval.typ, value64_typename(tval.typ) );
+    }
+    if (!value64_validate(out, tval.val, tval.typ) ) {
+        if (out)
+            fprintf(out, "V64 data is incorrect\n");
+        return logsimpleret(false, "V64 data is incorrect");
+    }
+    return true;
 }
 
 // ---------------------------------------- Testing ------------------------------------------
