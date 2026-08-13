@@ -164,10 +164,13 @@ v64typedBoolNegative(v64typed *tv) {
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
-extern int                      v64typedTechfprint(FILE *restrict out, v64typed tval);
-static inline int               v64typedTechprint(v64typed tval) {
-    return v64typedTechfprint(stdout, tval);
+extern int                      v64typedTechfprint(FILE *restrict out, v64typed tval, const char *restrict name);
+static inline int               v64typedTechprint(v64typed tval, const char * name) {
+    return v64typedTechfprint(stdout, tval, name);
 }
+
+#define V64TYPED_TECHFPRINT(out, val, typ)   v64typedTechfprint( (out), (val), #val)
+#define V64TYPED_TECHPRINT(val, typ)         v64typedTechprint((val), #val)
 
 // ------------------------------------ ETC. ----------------------------------------
 extern bool                     v64typedValidate(FILE *out, v64typed tval);

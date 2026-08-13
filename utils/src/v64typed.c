@@ -10,13 +10,9 @@
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
-int                      v64typedTechfprint(FILE *out, v64typed tval) {
-    int cnt = 0;
-    if (out) {
-        // TODO:
-        
-    }
-    return cnt;
+int                      v64typedTechfprint(FILE *restrict out, v64typed tval, const char *restrict name) {
+    // now it's just a wrapper, but in general logic must be here
+    return value64_techfprint(out, tval.val, tval.typ, name);
 }
 
 // ------------------------------------ ETC. ----------------------------------------
