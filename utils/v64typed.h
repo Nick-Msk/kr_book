@@ -31,6 +31,7 @@ typedef struct {
 // PER TYPE
 #define V64TYPEDINT(val)    (v64typed){ .val = LITERAL64_INT(val),  .typ = VALUE64_INT }
 #define V64TYPEDLONG(val)   (v64typed){ .val = LITERAL64_LONG(val), .typ = VALUE64_LONG }
+#define V64TYPEDГUONG(val)  (v64typed){ .val = LITERAL64_ULONG(val), .typ = VALUE64_ULONG }
 #define V64TYPEDCHAR(val)   (v64typed){ .val = LITERAL64_CHAR(val), .typ = VALUE64_CHR }
 #define V64TYPEDBOOL(val)   (v64typed){ .val = LITERAL64_BOOL(val), .typ = VALUE64_BOOL }
 #define V64TYPEDDBL(val)    (v64typed){ .val = LITERAL64_DBL(val),  .typ = VALUE64_DBL }
@@ -48,6 +49,9 @@ static inline v64typed              v64typedInt(int x) {
 }
 static inline v64typed              v64typedLong(long x) {
     return (v64typed){ .val = LITERAL64_LONG(x), .typ = VALUE64_LONG };
+}
+static inline v64typed              v64typedULong(unsigned long x) {
+    return (v64typed){ .val = LITERAL64_ULONG(x), .typ = VALUE64_ULONG };
 }
 static inline v64typed              v64typedDbl(double x) {
     return (v64typed){ .val = LITERAL64_DBL(x), .typ = VALUE64_DBL };
@@ -93,34 +97,6 @@ v64typedNvlFs(v64typed tv, const char *restrict default_fmt) {
     else
         return logsimpleerr(default_fmt, "Incorrent type %d %s, FS expected", tv.typ, value64_typename(tv.typ) );
 }
-/* // nvl for INT, works as type cast!
-static inline int
-v64typedNvlInt(v64typed tv, int default_val) {
-    int     res = 0;
-    switch (tv.typ) {
-        case VALUE64_INT:
-            res = value64_int(tv.val);
-            break;
-        case VALUE64_LONG:
-            res = value64_long(tv.val);
-            break;
-        case VALUE64_ULONG:
-            res = value64_ulong(tv.val);
-            break;
-        case VALUE64_CHR:
-            res = value64_char(tv.val);
-            break;
-        case VALUE64_BOOL:
-            res = value64_bool(tv.val);
-            break;
-        case VALUE64_DBL:
-            res = value64_dbl(tv.val);
-            break;
-        default:
-            return logsimpleerr(res, "Incorrent type %d %s, numeric or bool are expected", tv.typ, value64_typename(tv.typ) );       
-    }
-    return res ? res : default_val;
-} */
 
 // note only int value to add, but generally it's ok
 // no OF checking version
