@@ -306,9 +306,9 @@ static inline int           fslen(fs s){
     return s.len;
 }
 
-static inline bool          fsisempty(fs s){
+/*static inline bool          fsisempty(fs s){
     return fslen(s) == 0;
-}
+}*/
 
 // just and FS() or after freed
 static inline bool          fsisnull(fs s){
@@ -317,6 +317,15 @@ static inline bool          fsisnull(fs s){
 static inline bool          fs_isnull(const fs *s){
     return s == NULL || (s->sz == 0 && s->v == 0);
 }
+// check in fs is empty! stacked version
+static inline bool          fsisempty(fs s) {
+    return s.v == 0 || *s.v == '\0';
+}
+// check in fs is empty! pointer version
+static inline bool          fs_isempty(const fs *s){
+    return s == NULL || s->v == 0 || *s->v == '\0';
+}
+//
 static inline bool          fs_isheapalloc(const fs *s){
     return s != NULL && fs_alloc(s);
 }

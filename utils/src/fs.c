@@ -4144,6 +4144,78 @@ tf34_fs_isnull(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST fs_isempty / fsisempty -------------------------
+static TestStatus
+tf35_fs_isempty(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* fsisempty (stack version) */
+    test_sub("subtest %d: fsisempty(FS()) is true", ++subnum);
+    {
+        fs s = FS();
+        test_validate(fsisempty(s) == true, "FS() must be empty");
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: fsisempty(fscopy(\"\")) is true", ++subnum);
+    {
+        fs s = fscopy("");
+        test_validate(fsisempty(s) == true, "fscopy(\"\") must be empty");
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: fsisempty(non-empty fs) is false", ++subnum);
+    {
+        fs s = fscopy("hello");
+        test_validate(fsisempty(s) == false, "non-empty fs must not be empty");
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: fsisempty after fsfree is true", ++subnum);
+    {
+        fs s = fscopy("hello");
+        fsfree(s);
+        test_validate(fsisempty(s) == true, "after fsfree fs must be empty");
+    }
+
+    /* fs_isempty (pointer version) */
+    test_sub("subtest %d: fs_isempty(NULL) is true", ++subnum);
+    {
+        test_validate(fs_isempty(NULL) == true, "NULL must be empty");
+    }
+
+    test_sub("subtest %d: fs_isempty(empty stacked FS()) is true", ++subnum);
+    {
+        fs s = FS();
+        test_validate(fs_isempty(&s) == true, "FS() pointer must be empty");
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: fs_isempty(fscopy(\"\")) is true", ++subnum);
+    {
+        fs s = fscopy("");
+        test_validate(fs_isempty(&s) == true, "fscopy(\"\") pointer must be empty");
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: fs_isempty(non-empty fs pointer) is false", ++subnum);
+    {
+        fs s = fscopy("hello");
+        test_validate(fs_isempty(&s) == false, "non-empty fs pointer must not be empty");
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -4186,7 +4258,8 @@ main( /* int argc, const char *argv[] */)
         TESTADD(tf_movefrom_heapstr, "fs_movefrom_heapstr() simple tests"),
         TESTADD(tf_genrnd,         "fs_genrnd() simple tests"),
         TESTADD(tf_initrnd,        "fs_initrnd() simple tests"),
-        TESTADD(tf34_fs_isnull,    "fs_isnull() simple tests")
+        TESTADD(tf34_fs_isnull,    "fs_isnull() simple tests"),
+        TESTADD(tf35_fs_isempty,   "fs_isempty() simple tests")
     );
 
     return logret(0, "end...");  // as replace of logclose()
