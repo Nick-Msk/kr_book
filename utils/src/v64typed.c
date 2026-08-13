@@ -314,6 +314,144 @@ tf2_v64typed_nvl(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST v64typed: Add and BoolNegative -------------------------
+static TestStatus
+tf3_v64typed_add_bool(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ================= v64typedAdd ================= */
+    test_sub("subtest %d: v64typedAdd on INT", ++subnum);
+    {
+        v64typed tv = v64typedInt(100);
+        bool ok = v64typedAdd(&tv, 5);
+        test_validate(ok == true, "Add must return true");
+        test_validate(value64_int(tv.val) == 105, "INT add failed");
+        v64typedFree(&tv);
+    }
+
+    test_sub("subtest %d: v64typedAdd on LONG", ++subnum);
+    {
+        v64typed tv = v64typedLong(1000L);
+        bool ok = v64typedAdd(&tv, 25);
+        test_validate(ok == true, "Add must return true");
+        test_validate(value64_long(tv.val) == 1025L, "LONG add failed");
+        v64typedFree(&tv);
+    }
+
+    test_sub("subtest %d: v64typedAdd on ULONG", ++subnum);
+    {
+        v64typed tv = v64typedULong(2000UL);
+        bool ok = v64typedAdd(&tv, 100);
+        test_validate(ok == true, "Add must return true");
+        test_validate(value64_ulong(tv.val) == 2100UL, "ULONG add failed");
+        v64typedFree(&tv);
+    }
+
+    test_sub("subtest %d: v64typedAdd on DBL", ++subnum);
+    {
+        v64typed tv = v64typedDbl(2.5);
+        bool ok = v64typedAdd(&tv, 3);
+        test_validate(ok == true, "Add must return true");
+        test_validate(fabs(value64_dbl(tv.val) - 5.5) < 1e-9, "DBL add failed");
+        v64typedFree(&tv);
+    }
+
+    test_sub("subtest %d: v64typedAdd on CHR", ++subnum);
+    {
+        v64typed tv = v64typedChar('A');
+        bool ok = v64typedAdd(&tv, 1);
+        test_validate(ok == true, "Add must return true");
+        test_validate(value64_char(tv.val) == 'B', "CHAR add failed");
+        v64typedFree(&tv);
+    }
+
+    test_sub("subtest %d: v64typedAdd on BOOL fails", ++subnum);
+    {
+        v64typed tv = v64typedBool(true);
+        bool ok = v64typedAdd(&tv, 1);
+        test_validate(ok == false, "Add must fail for BOOL");
+        test_validate(value64_bool(tv.val) == true, "BOOL value must remain unchanged");
+        v64typedFree(&tv);
+    }
+
+    test_sub("subtest %d: v64typedAdd on STR fails", ++subnum);
+    {
+        v64typed tv = v64typedStr("abc");
+        bool ok = v64typedAdd(&tv, 1);
+        test_validate(ok == false, "Add must fail for STR");
+        test_validate(strcmp(value64_str(tv.val), "abc") == 0,
+                      "STR value must remain unchanged");
+        v64typedFree(&tv);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: v64typedAdd on FS fails", ++subnum);
+    {
+        fs f = fscopy("data");
+        v64typed tv = v64typedFs(&f);
+        fsfree(f);
+
+        bool ok = v64typedAdd(&tv, 1);
+        test_validate(ok == false, "Add must fail for FS");
+        test_validate(strcmp(fs_str(value64_fs(tv.val)), "data") == 0,
+                      "FS value must remain unchanged");
+        v64typedFree(&tv);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: v64typedAdd on UNKNOWN fails", ++subnum);
+    {
+        v64typed tv = v64typedUnk();
+        bool ok = v64typedAdd(&tv, 1);
+        test_validate(ok == false, "Add must fail for UNKNOWN");
+        test_validate(tv.val.u64 == 0, "UNKNOWN value must remain zero");
+        v64typedFree(&tv);
+    }
+
+    /* ================= v64typedBoolNegative ================= */
+    test_sub("subtest %d: v64typedBoolNegative toggles true->false", ++subnum);
+    {
+        v64typed tv = v64typedBool(true);
+        bool ok = v64typedBoolNegative(&tv);
+        test_validate(ok == true, "BoolNegative must return true");
+        test_validate(value64_bool(tv.val) == false, "Bool must be false after toggle");
+        v64typedFree(&tv);
+    }
+
+    test_sub("subtest %d: v64typedBoolNegative toggles false->true", ++subnum);
+    {
+        v64typed tv = v64typedBool(false);
+        bool ok = v64typedBoolNegative(&tv);
+        test_validate(ok == true, "BoolNegative must return true");
+        test_validate(value64_bool(tv.val) == true, "Bool must be true after toggle");
+        v64typedFree(&tv);
+    }
+
+    test_sub("subtest %d: v64typedBoolNegative on non-BOOL fails", ++subnum);
+    {
+        v64typed tv = v64typedInt(1);
+        bool ok = v64typedBoolNegative(&tv);
+        test_validate(ok == false, "BoolNegative must fail for non-BOOL");
+        test_validate(value64_int(tv.val) == 1, "INT value must remain unchanged");
+        v64typedFree(&tv);
+    }
+
+    test_sub("subtest %d: v64typedBoolNegative on STR fails", ++subnum);
+    {
+        v64typed tv = v64typedStr("hello");
+        bool ok = v64typedBoolNegative(&tv);
+        test_validate(ok == false, "BoolNegative must fail for STR");
+        test_validate(strcmp(value64_str(tv.val), "hello") == 0,
+                      "STR value must remain unchanged");
+        v64typedFree(&tv);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(/* int argc, const char *argv[] */)
@@ -322,7 +460,8 @@ main(/* int argc, const char *argv[] */)
 
     testenginestd(
         TESTADD(tf1_v64typed_init_free_getters,           "Simple init/free/getters")
-      , TESTADD(tf2_v64typed_nvl,                         "v64typed: nvl functions (Str/Fs)")
+      , TESTADD(tf2_v64typed_nvl,                         "Simple test nvl functions (Str/Fs)")
+      , TESTADD(tf3_v64typed_add_bool,                    "Simple test Add and BoolNegative")      
     );
 
     return logret(0, "end...");  // as replace of logclose()
