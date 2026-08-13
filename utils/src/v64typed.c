@@ -452,6 +452,107 @@ tf3_v64typed_add_bool(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST v64typed: CastToInt (example) -------------------------
+static TestStatus
+tf4_v64typed_cast_to_int(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* INT */
+    test_sub("subtest %d: v64typedCastToInt on INT", ++subnum);
+    {
+        v64typed tv = v64typedInt(42);
+        int res = v64typedCastToInt(tv);
+        test_validate(res == 42, "expected 42, got %d", res);
+        v64typedFree(&tv);
+    }
+
+    /* LONG */
+    test_sub("subtest %d: v64typedCastToInt on LONG", ++subnum);
+    {
+        v64typed tv = v64typedLong(123456789L);
+        int res = v64typedCastToInt(tv);
+        test_validate(res == 123456789, "expected 123456789, got %d", res);
+        v64typedFree(&tv);
+    }
+
+    /* ULONG (small) */
+    test_sub("subtest %d: v64typedCastToInt on ULONG (small)", ++subnum);
+    {
+        v64typed tv = v64typedULong(1000UL);
+        int res = v64typedCastToInt(tv);
+        test_validate(res == 1000, "expected 1000, got %d", res);
+        v64typedFree(&tv);
+    }
+
+    /* DBL (truncation) */
+    test_sub("subtest %d: v64typedCastToInt on DBL (truncation)", ++subnum);
+    {
+        v64typed tv = v64typedDbl(3.99);
+        int res = v64typedCastToInt(tv);
+        test_validate(res == 3, "expected 3 (truncated), got %d", res);
+        v64typedFree(&tv);
+    }
+
+    /* CHAR */
+    test_sub("subtest %d: v64typedCastToInt on CHAR", ++subnum);
+    {
+        v64typed tv = v64typedChar('A');
+        int res = v64typedCastToInt(tv);
+        test_validate(res == 65, "expected 65, got %d", res);
+        v64typedFree(&tv);
+    }
+
+    /* BOOL */
+    test_sub("subtest %d: v64typedCastToInt on BOOL", ++subnum);
+    {
+        v64typed tv = v64typedBool(true);
+        int res = v64typedCastToInt(tv);
+        test_validate(res == 1, "expected 1, got %d", res);
+        v64typedFree(&tv);
+
+        tv = v64typedBool(false);
+        res = v64typedCastToInt(tv);
+        test_validate(res == 0, "expected 0, got %d", res);
+        v64typedFree(&tv);
+    }
+
+    /* STR -> 0 (unsupported, current behavior) */
+    test_sub("subtest %d: v64typedCastToInt on STR returns 0", ++subnum);
+    {
+        v64typed tv = v64typedStr("hello");
+        int res = v64typedCastToInt(tv);
+        test_validate(res == 0, "expected 0, got %d", res);
+        v64typedFree(&tv);
+        fs_alloc_check(true);
+    }
+
+    /* FS -> 0 */
+    test_sub("subtest %d: v64typedCastToInt on FS returns 0", ++subnum);
+    {
+        fs f = fscopy("world");
+        v64typed tv = v64typedFs(&f);
+        fsfree(f);
+
+        int res = v64typedCastToInt(tv);
+        test_validate(res == 0, "expected 0, got %d", res);
+        v64typedFree(&tv);
+        fs_alloc_check(true);
+    }
+
+    /* UNKNOWN -> 0 */
+    test_sub("subtest %d: v64typedCastToInt on UNKNOWN returns 0", ++subnum);
+    {
+        v64typed tv = v64typedUnk();
+        int res = v64typedCastToInt(tv);
+        test_validate(res == 0, "expected 0, got %d", res);
+        v64typedFree(&tv);
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(/* int argc, const char *argv[] */)
@@ -462,6 +563,7 @@ main(/* int argc, const char *argv[] */)
         TESTADD(tf1_v64typed_init_free_getters,           "Simple init/free/getters")
       , TESTADD(tf2_v64typed_nvl,                         "Simple test nvl functions (Str/Fs)")
       , TESTADD(tf3_v64typed_add_bool,                    "Simple test Add and BoolNegative")      
+      , TESTADD(tf4_v64typed_cast_to_int,                 "Simple test CastToInt")          
     );
 
     return logret(0, "end...");  // as replace of logclose()
