@@ -31,15 +31,12 @@ typedef struct {
 // PER TYPE
 #define V64TYPEDINT(val)    (v64typed){ .val = LITERAL64_INT(val),  .typ = VALUE64_INT }
 #define V64TYPEDLONG(val)   (v64typed){ .val = LITERAL64_LONG(val), .typ = VALUE64_LONG }
-#define V64TYPEDГUONG(val)  (v64typed){ .val = LITERAL64_ULONG(val), .typ = VALUE64_ULONG }
-#define V64TYPEDCHAR(val)   (v64typed){ .val = LITERAL64_CHAR(val), .typ = VALUE64_CHR }
+#define V64TYPEDULONG(val)  (v64typed){ .val = LITERAL64_ULONG(val), .typ = VALUE64_ULONG }
+#define V64TYPEDCHAR(val)   (v64typed){ .val = LITERAL64_CHR(val), .typ = VALUE64_CHR }
 #define V64TYPEDBOOL(val)   (v64typed){ .val = LITERAL64_BOOL(val), .typ = VALUE64_BOOL }
 #define V64TYPEDDBL(val)    (v64typed){ .val = LITERAL64_DBL(val),  .typ = VALUE64_DBL }
 #define V64TYPEDPTR(val)    (v64typed){ .val = LITERAL64_PTR(val),  .typ = VALUE64_PTR }
 #define V64TYPEDSTR(val)    (v64typed){ .val = LITERAL64_STR(val),  .typ = VALUE64_STR }
-// dangerous one! Probably 'll be removed
-#define V64TYPEDFS(val)     (v64typed){ .val = LITERAL64_PFS(val),  .typ = VALUE64_FS }
-
 
 static inline v64typed              v64typedCommon(value64 val, value64_type typ) {
     return V64TYPEDZERO(.val = val, .typ = typ);
@@ -53,15 +50,23 @@ static inline v64typed              v64typedLong(long x) {
 static inline v64typed              v64typedULong(unsigned long x) {
     return (v64typed){ .val = LITERAL64_ULONG(x), .typ = VALUE64_ULONG };
 }
+static inline v64typed              v64typedChar(char x) {
+    return v64typedCommon(LITERAL64_CHR(x), VALUE64_CHR);
+}
+static inline v64typed              v64typedBool(bool x) {
+    return v64typedCommon(LITERAL64_BOOL(x), VALUE64_BOOL);
+}
 static inline v64typed              v64typedDbl(double x) {
     return (v64typed){ .val = LITERAL64_DBL(x), .typ = VALUE64_DBL };
 }
 static inline v64typed              v64typedStr(const char *s) {
-    // Внимание: строка не копируется, ожидается, что она существует всё время использования массива
-    return (v64typed){ .val = LITERAL64_STR(s), .typ = VALUE64_STR };
+    return (v64typed){ .val = value64_createstr(s), .typ = VALUE64_STR };
 }
 static inline v64typed              v64typedFs(fs *s) {
-    return (v64typed){ .val = LITERAL64_PFS(s), .typ = VALUE64_FS };
+    return (v64typed){ .val = value64_createfs(s), .typ = VALUE64_FS };
+}
+static inline v64typed              v64typedFsAsStr(const char *s) {
+    return (v64typed){ .val = value64_createfs_asstr(s), .typ = VALUE64_FS };
 }
 static inline v64typed              v64typedUnk(void) {
     return (v64typed){ .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN };
@@ -76,8 +81,64 @@ static inline v64typed              v64typedMove(v64typed *v) {
     return res;
 }
 
+static inline void                  v64typedFree(v64typed *vt) {
+    if (vt) {
+        value64_free(&vt->val, vt->typ);
+        *vt = V64TYPEDZERO();
+    }
+}
 
 // -------------------- ACCESS AND MODIFICATORS -------------------------------------
+
+// getters - for all types
+static inline int               v64typeGetInt(v64typed tv) {
+    if (tv.typ == VALUE64_INT)
+        return value64_int(tv.val);
+    else
+        return userraise(0, ERR_TYPES_MISMATCH, "Expected INT but not %d %s", tv.typ, value64_typename(tv.typ) );
+}
+static inline long              v64typeGetLong(v64typed tv) {
+    if (tv.typ == VALUE64_LONG)
+        return value64_long(tv.val);
+    else
+        return userraise(0L, ERR_TYPES_MISMATCH, "Expected LONG but not %d %s", tv.typ, value64_typename(tv.typ) );
+}
+static inline unsigned long     v64typeGetULong(v64typed tv) {
+    if (tv.typ == VALUE64_ULONG)
+        return value64_ulong(tv.val);
+    else
+        return userraise(0UL, ERR_TYPES_MISMATCH, "Expected ULONG but not %d %s", tv.typ, value64_typename(tv.typ) );
+}
+static inline bool              v64typeGetBool(v64typed tv) {
+    if (tv.typ == VALUE64_BOOL)
+        return value64_bool(tv.val);
+    else
+        return userraise(false, ERR_TYPES_MISMATCH, "Expected BOOL but not %d %s", tv.typ, value64_typename(tv.typ) );
+}
+static inline char              v64typeGetChar(v64typed tv) {
+    if (tv.typ == VALUE64_CHR)
+        return value64_char(tv.val);
+    else
+        return userraise(0, ERR_TYPES_MISMATCH, "Expected CHR but not %d %s", tv.typ, value64_typename(tv.typ) );
+}
+static inline double            v64typeGetDouble(v64typed tv) {
+    if (tv.typ == VALUE64_DBL)
+        return value64_dbl(tv.val);
+    else
+        return userraise(0.0, ERR_TYPES_MISMATCH, "Expected DBL but not %d %s", tv.typ, value64_typename(tv.typ) );
+}
+static inline char             *v64typeGetStr(v64typed tv) {
+    if (tv.typ == VALUE64_STR)
+        return value64_str(tv.val);
+    else
+        return userraise(NULL, ERR_TYPES_MISMATCH, "Expected STR but not %d %s", tv.typ, value64_typename(tv.typ) );
+}
+static inline fs               *v64typeGetFs(v64typed tv) {
+    if (tv.typ == VALUE64_FS)
+        return value64_fs(tv.val);
+    else
+        return userraise(NULL, ERR_TYPES_MISMATCH, "Expected FS but not %d %s", tv.typ, value64_typename(tv.typ) );
+}
 
 // nvl for STR
 static inline const char*
@@ -138,10 +199,47 @@ v64typedBoolNegative(v64typed *tv) {
     return true;
 }
 
-// type cast as int
-static inline int
-value64GenGetAsInt(v64typed tval) {
 
+
+/* type cast as int - EXAMPLE, must be generated via marco
+#define v64_cast(tval, type) _Generic((type)0, \
+    int: v64typedCastToInt(tval), \
+    long: v64typedCastToLong(tval), \
+    unsigned long: v64typedCastToULong(tval), \
+    double: v64typedCastToDouble(tval) \
+)
+
+// Использование:
+int i = v64_cast(my_v64, int); 
+// --------------------------------------------------------------
+// Макрос для генерации функций приведения типов
+#define V64_CAST_FUNC(return_type, func_name) \
+static inline return_type func_name(v64typed tval) { \
+    return_type res = 0; \
+    switch (tval.typ) { \
+        case VALUE64_INT:   res = value64_int(tval.val);   break; \
+        case VALUE64_LONG:  res = value64_long(tval.val);  break; \
+        case VALUE64_ULONG: res = value64_ulong(tval.val); break; \
+        case VALUE64_CHR:   res = value64_char(tval.val);   break; \
+        case VALUE64_BOOL:  res = value64_bool(tval.val);   break; \
+        case VALUE64_DBL:   res = value64_dbl(tval.val);    break; \
+        default: break; \
+    } \
+    return res; \
+}
+
+// Генерация функций
+V64_CAST_FUNC(int, v64typedCastToInt)
+V64_CAST_FUNC(long, v64typedCastToLong)
+V64_CAST_FUNC(unsigned long, v64typedCastToULong)
+V64_CAST_FUNC(double, v64typedCastToDouble)
+
+#undef V64_CAST_FUNC
+*/
+
+
+static inline int
+v64typedCastToInt(v64typed tval) {
     // NOTE: no range checking for now TODO: use checkers from value64 converters
     int     ival = 0;
     switch (tval.typ) {
@@ -167,6 +265,8 @@ value64GenGetAsInt(v64typed tval) {
     }
     return ival;
 }
+
+
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
