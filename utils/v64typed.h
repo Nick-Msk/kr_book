@@ -26,13 +26,13 @@ typedef struct {
 // ---------------------------- CONSTRUCTORS / DESTRUCTORS ---------------------------
 
 // COMMON ZERO INIT
-#define V64TYPEDZERO(...) (v64typed) { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN, __VA_ARGS__ };
+#define V64TYPEDZERO(...) (v64typed) { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN, __VA_ARGS__ }
 
 // PER TYPE
 #define V64TYPEDINT(val)    (v64typed){ .val = LITERAL64_INT(val),  .typ = VALUE64_INT }
 #define V64TYPEDLONG(val)   (v64typed){ .val = LITERAL64_LONG(val), .typ = VALUE64_LONG }
-#define V64TYPEDCHAR(val)   (v64typed){ .val = LITERAL64_LONG(val), .typ = VALUE64_CHR }
-#define V64TYPEDBOOL(val)   (v64typed){ .val = LITERAL64_LONG(val), .typ = VALUE64_BOOL }
+#define V64TYPEDCHAR(val)   (v64typed){ .val = LITERAL64_CHAR(val), .typ = VALUE64_CHR }
+#define V64TYPEDBOOL(val)   (v64typed){ .val = LITERAL64_BOOL(val), .typ = VALUE64_BOOL }
 #define V64TYPEDDBL(val)    (v64typed){ .val = LITERAL64_DBL(val),  .typ = VALUE64_DBL }
 #define V64TYPEDPTR(val)    (v64typed){ .val = LITERAL64_PTR(val),  .typ = VALUE64_PTR }
 #define V64TYPEDSTR(val)    (v64typed){ .val = LITERAL64_STR(val),  .typ = VALUE64_STR }
@@ -86,16 +86,16 @@ v64typedNvlStr(v64typed tv, const char *default_fmt)
 }
 // nvl for FS
 static inline const char*
-value64GenNvlFs(v64typed tv, const char *restrict default_fmt) {
+v64typedNvlFs(v64typed tv, const char *restrict default_fmt) {
 
     if ( tv.typ == VALUE64_FS && !fs_isnull(value64_fs(tv.val) ) )
             return fs_str(value64_fs(tv.val) );
     else
         return logsimpleerr(default_fmt, "Incorrent type %d %s, FS expected", tv.typ, value64_typename(tv.typ) );
 }
-// nvl for INT, works as type cast!
+/* // nvl for INT, works as type cast!
 static inline int
-value64GenNvlInt(v64typed tv, int default_val) {
+v64typedNvlInt(v64typed tv, int default_val) {
     int     res = 0;
     switch (tv.typ) {
         case VALUE64_INT:
@@ -120,7 +120,7 @@ value64GenNvlInt(v64typed tv, int default_val) {
             return logsimpleerr(res, "Incorrent type %d %s, numeric or bool are expected", tv.typ, value64_typename(tv.typ) );       
     }
     return res ? res : default_val;
-}
+} */
 
 // note only int value to add, but generally it's ok
 // no OF checking version
@@ -160,6 +160,36 @@ v64typedBoolNegative(v64typed *tv) {
                 "Unsupported typ %d %s", tv->typ, value64_typename(tv->typ) );
     }
     return true;
+}
+
+// type cast as int
+static inline int
+value64GenGetAsInt(v64typed tval) {
+
+    // NOTE: no range checking for now TODO: use checkers from value64 converters
+    int     ival = 0;
+    switch (tval.typ) {
+        case VALUE64_INT:
+            ival = value64_int(tval.val);
+            break;
+        case VALUE64_LONG:
+            ival = value64_long(tval.val);
+            break;
+        case VALUE64_ULONG:
+            ival = value64_ulong(tval.val);
+            break;
+        case VALUE64_CHR:
+            ival = value64_char(tval.val);
+            break;
+        case VALUE64_BOOL:
+            ival = value64_bool(tval.val);
+            break;
+        case VALUE64_DBL:
+            ival = value64_dbl(tval.val);
+            break;
+        default:
+    }
+    return ival;
 }
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
