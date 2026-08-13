@@ -29,15 +29,15 @@ typedef struct {
 #define V64TYPEDZERO(...) (v64typed) { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN, __VA_ARGS__ };
 
 // PER TYPE
-#define V64TYPEDINT(val)    (value64_typed){ .val = LITERAL64_INT(val),  .typ = VALUE64_INT }
-#define V64TYPEDLONG(val)   (value64_typed){ .val = LITERAL64_LONG(val), .typ = VALUE64_LONG }
-#define V64TYPEDCHAR(val)   (value64_typed){ .val = LITERAL64_LONG(val), .typ = VALUE64_CHR }
-#define V64TYPEDBOOL(val)   (value64_typed){ .val = LITERAL64_LONG(val), .typ = VALUE64_BOOL }
-#define V64TYPEDDBL(val)    (value64_typed){ .val = LITERAL64_DBL(val),  .typ = VALUE64_DBL }
-#define V64TYPEDPTR(val)    (value64_typed){ .val = LITERAL64_PTR(val),  .typ = VALUE64_PTR }
-#define V64TYPEDSTR(val)    (value64_typed){ .val = LITERAL64_STR(val),  .typ = VALUE64_STR }
+#define V64TYPEDINT(val)    (v64typed){ .val = LITERAL64_INT(val),  .typ = VALUE64_INT }
+#define V64TYPEDLONG(val)   (v64typed){ .val = LITERAL64_LONG(val), .typ = VALUE64_LONG }
+#define V64TYPEDCHAR(val)   (v64typed){ .val = LITERAL64_LONG(val), .typ = VALUE64_CHR }
+#define V64TYPEDBOOL(val)   (v64typed){ .val = LITERAL64_LONG(val), .typ = VALUE64_BOOL }
+#define V64TYPEDDBL(val)    (v64typed){ .val = LITERAL64_DBL(val),  .typ = VALUE64_DBL }
+#define V64TYPEDPTR(val)    (v64typed){ .val = LITERAL64_PTR(val),  .typ = VALUE64_PTR }
+#define V64TYPEDSTR(val)    (v64typed){ .val = LITERAL64_STR(val),  .typ = VALUE64_STR }
 // dangerous one! Probably 'll be removed
-#define V64TYPEDFS(val)     (value64_typed){ .val = LITERAL64_PFS(val),  .typ = VALUE64_FS }
+#define V64TYPEDFS(val)     (v64typed){ .val = LITERAL64_PFS(val),  .typ = VALUE64_FS }
 
 
 static inline v64typed              v64typedCommon(value64 val, value64_type typ) {
@@ -45,31 +45,30 @@ static inline v64typed              v64typedCommon(value64 val, value64_type typ
 }
 static inline v64typed              v64typedInt(int x) {
     return v64typedCommon(LITERAL64_INT(x), VALUE64_INT);
-    return (v64typed){ .val = LITERAL64_INT(x), .typ = VALUE64_INT };
 }
-static inline v64typed     value64_typedlong(long x) {
+static inline v64typed              v64typedLong(long x) {
     return (v64typed){ .val = LITERAL64_LONG(x), .typ = VALUE64_LONG };
 }
-static inline v64typed     value64_typeddbl(double x) {
+static inline v64typed              v64typedDbl(double x) {
     return (v64typed){ .val = LITERAL64_DBL(x), .typ = VALUE64_DBL };
 }
-static inline v64typed     value64_typedstr(const char *s) {
+static inline v64typed              v64typedStr(const char *s) {
     // Внимание: строка не копируется, ожидается, что она существует всё время использования массива
     return (v64typed){ .val = LITERAL64_STR(s), .typ = VALUE64_STR };
 }
-static inline v64typed     value64_typedfs(fs *s) {
+static inline v64typed              v64typedFs(fs *s) {
     return (v64typed){ .val = LITERAL64_PFS(s), .typ = VALUE64_FS };
 }
-static inline v64typed     value64_typedunk(void) {
+static inline v64typed              v64typedUnk(void) {
     return (v64typed){ .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN };
 }
-static inline v64typed     value64_typed_clone(v64typed v) {
+static inline v64typed              v64typedClone(v64typed v) {
     return (v64typed) { .val = value64_clone(v.val, v.typ), .typ = v.typ };
 }
 //  move constructor
-static inline v64typed     value64_typed_move(v64typed *v) {
+static inline v64typed              v64typedMove(v64typed *v) {
     v64typed   res = { .val = value64_move(&v->val, v->typ), .typ = v->typ};
-    v->typ = VALUE64_UNKNOWN;   /// ???? no need?
+    v->typ = VALUE64_UNKNOWN;
     return res;
 }
 
