@@ -20,8 +20,8 @@ int                      v64typedTechfprint(FILE *restrict out, v64typed tval, c
 bool                     v64typedValidate(FILE *out, v64typed tval) {
     if (!value64_checktype(tval.typ)) {
         if (out)
-            fprintf(out, "Type validation valied %d %s", tval.typ, value64_typename(tval.typ) );
-        return logsimpleret(false, "Type validation valied %d %s", tval.typ, value64_typename(tval.typ) );
+            fprintf(out, "Type validation  falied %d %s", tval.typ, value64_typename(tval.typ) );
+        return logsimpleret(false, "Type validation falied %d %s", tval.typ, value64_typename(tval.typ) );
     }
     if (!value64_validate(out, tval.val, tval.typ) ) {
         if (out)
