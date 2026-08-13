@@ -223,6 +223,97 @@ tf1_v64typed_init_free_getters(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST v64typed: nvl functions (Str/Fs) -------------------------
+static TestStatus
+tf2_v64typed_nvl(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ================= v64typedNvlStr ================= */
+    test_sub("subtest %d: v64typedNvlStr non-empty STR returns value", ++subnum);
+    {
+        v64typed tv = v64typedStr("hello");
+        const char *res = v64typedNvlStr(tv, "default");
+        test_validate(strcmp(res, "hello") == 0,
+                      "expected 'hello', got '%s'", res);
+        v64typedFree(&tv);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: v64typedNvlStr empty STR returns default", ++subnum);
+    {
+        v64typed tv = v64typedStr("");
+        const char *res = v64typedNvlStr(tv, "default");
+        test_validate(strcmp(res, "default") == 0,
+                      "expected default, got '%s'", res);
+        v64typedFree(&tv);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: v64typedNvlStr NULL STR returns default", ++subnum);
+    {
+        v64typed tv = v64typedCommon(LITERAL64_STR(NULL), VALUE64_STR);
+        const char *res = v64typedNvlStr(tv, "default");
+        test_validate(strcmp(res, "default") == 0,
+                      "expected default, got '%s'", res);
+        v64typedFree(&tv);
+    }
+
+    test_sub("subtest %d: v64typedNvlStr non-STR type returns default", ++subnum);
+    {
+        v64typed tv = v64typedInt(42);
+        const char *res = v64typedNvlStr(tv, "default");
+        test_validate(strcmp(res, "default") == 0,
+                      "expected default, got '%s'", res);
+        v64typedFree(&tv);
+    }
+
+    /* ================= v64typedNvlFs ================= */
+    test_sub("subtest %d: v64typedNvlFs non-empty FS returns value", ++subnum);
+    {
+        v64typed tv = v64typedFsAsStr("world");
+
+        const char *res = v64typedNvlFs(tv, "default");
+        test_validate(strcmp(res, "world") == 0,
+                      "expected 'world', got '%s'", res);
+        v64typedFree(&tv);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: v64typedNvlFs empty FS returns default", ++subnum);
+    {
+        v64typed tv = v64typedFsAsStr("");
+
+        const char *res = v64typedNvlFs(tv, "default");
+        // Теперь fs_isempty считает пустую строку пустой
+        test_validate(res != NULL && strcmp(res, "default") == 0,
+                      "expected default, got '%s'", res ? res : "NULL");
+        v64typedFree(&tv);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: v64typedNvlFs NULL FS returns default", ++subnum);
+    {
+        v64typed tv = v64typedCommon(LITERAL64_PFS(NULL), VALUE64_FS);
+        const char *res = v64typedNvlFs(tv, "default");
+        test_validate(strcmp(res, "default") == 0,
+                      "expected default, got '%s'", res);
+        v64typedFree(&tv);
+    }
+
+    test_sub("subtest %d: v64typedNvlFs non-FS type returns default", ++subnum);
+    {
+        v64typed tv = v64typedInt(42);
+        const char *res = v64typedNvlFs(tv, "default");
+        test_validate(strcmp(res, "default") == 0,
+                      "expected default, got '%s'", res);
+        v64typedFree(&tv);
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(/* int argc, const char *argv[] */)
@@ -231,6 +322,7 @@ main(/* int argc, const char *argv[] */)
 
     testenginestd(
         TESTADD(tf1_v64typed_init_free_getters,           "Simple init/free/getters")
+      , TESTADD(tf2_v64typed_nvl,                         "v64typed: nvl functions (Str/Fs)")
     );
 
     return logret(0, "end...");  // as replace of logclose()

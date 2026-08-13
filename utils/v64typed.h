@@ -153,7 +153,7 @@ v64typedNvlStr(v64typed tv, const char *default_fmt)
 static inline const char*
 v64typedNvlFs(v64typed tv, const char *restrict default_fmt) {
 
-    if ( tv.typ == VALUE64_FS && !fs_isnull(value64_fs(tv.val) ) )
+    if ( tv.typ == VALUE64_FS && !fs_isempty(value64_fs(tv.val) ) )
             return fs_str(value64_fs(tv.val) );
     else
         return logsimpleerr(default_fmt, "Incorrent type %d %s, FS expected", tv.typ, value64_typename(tv.typ) );
