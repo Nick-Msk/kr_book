@@ -1405,7 +1405,7 @@ value64                     value64_convert_move(value64 *pv, value64_type from,
 /** @brief Moves resource from FS to a String object. */
 value64                     value64_convert_move_fs_to_str(value64 *v){
     value64     result = LITERAL64_ZERO;
-    result.sval = fs_movefrom_heapstr(&v->fsval);
+    result.sval = fsmovetostr(v->fsval);    // because fs_movefrom_heapstr() is out of fs
     return result;
 }
 /** @brief Moves resource from FS to another FS object (identity move). */
