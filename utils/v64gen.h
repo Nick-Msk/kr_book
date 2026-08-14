@@ -169,18 +169,20 @@ static inline v64Gen        v64GenCreatorUnlimAscSeries(value64_type rettyp, lon
 // REGITRSY ALLOCATION:
 // data[0] LONG as startpos for numeric random generator
 // data[1] FS as pattern for printing FS/STR 
-static inline v64Gen        v64GenCreatorUnlimAscRnd(value64_type rettyp, long startpos, const char *fmt) {
+static inline v64Gen        v64GenCreatorUnlimAscRnd(value64_type rettyp, long startpos, const char *fmt, int rndinc) {
     // not sure what to do, now just raiseint
     if (!value64_checktype(rettyp))
         userraiseint(ERR_UNSUPPORTED_TYPE, "Type %d not supported", rettyp);
 
     v64Gen tmp;
+    if (rndinc < 1)
+        rndinc = 1;
     if ( (rettyp == VALUE64_FS || rettyp == VALUE64_STR) && fmt != NULL)
         tmp = v64GenInit3(v64UncheckGenUnlimAscRnd,
-                        rettyp, v64typedCreateLong(startpos), v64typedCreateStr(fmt), v64typedCreateLong(5));
+                        rettyp, v64typedCreateLong(startpos), v64typedCreateStr(fmt), v64typedCreateInt(rndinc));
     else
-        tmp = v64GenInit1(v64UncheckGenUnlimAscSeries, 
-                        rettyp, v64typedCreateLong(startpos));
+        tmp = v64GenInit3(v64UncheckGenUnlimAscSeries, 
+                        rettyp, v64typedCreateLong(startpos), V64TYPEDZERO(), v64typedCreateInt(rndinc));
     return tmp;
 }
 
