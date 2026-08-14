@@ -254,20 +254,20 @@ fs                                      *fs_moveto_heapstr(char **orig){
     *orig = NULL;  // clear orig
     return tmp;
 }
-// semi-free! move-destructor for normal fs (mostly stacked or in array)
+// semi-free! move-destructor for normal or FS_FLAG_BODYALLOC fs
 char                                   *fs_movetostr(fs *ps) {
     invraisecode(ps != NULL, ERR_NULLABLE_PTR, "Null pointer");
-
+   
     char *str = ps->v;  // save the pointer (CAN be NULL here)
     if (ps->v != NULL)
         ++g_free_cnt;   // inc counter only if move real data
     ps->v = NULL;   // trick with free!
-    fs_free(ps);    // do nothing
+    fs_free(ps);    // do nothing but free body
     
     return str;
 }
-// semi-free! move-destructor for BODY_ALLOC
-char                                   *fs_movefrom_heapstr(fs **pfs) {
+// semi-free! move-destructor for BODY_ALLOC TO BE REMOVED
+/*char                                   *fs_movefrom_heapstr(fs **pfs) {
     invraisecode(pfs != NULL && *pfs != NULL, ERR_NULLABLE_PTR, "Null pointer %p %p", pfs, pfs == NULL ? NULL: *pfs);
     if (!fs_bodyalloc(*pfs))
         userraiseint(ERR_FS_NOT_ALLOC_FLAG, "Only fs with body allocated in heap!");
@@ -275,7 +275,7 @@ char                                   *fs_movefrom_heapstr(fs **pfs) {
     char    *str = fs_movetostr(*pfs);
     *pfs = NULL;           // обнуляем указатель у вызывающей стороны
     return str;
-}
+} */
 //
 fs                                      *fs_shrink(fs *s){
     if (fs_alloc(s)){
@@ -3631,10 +3631,10 @@ tf_moveto_heapstr(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
-// ------------------------- TEST fs_movefrom_heapstr ---------------------------------
+// ------------------------- TEST fsmovetostr ---------------------------------
 
 static TestStatus
-tf_movefrom_heapstr(const char *name)
+tf31_fsmovetostr(const char *name)
 {
     logenter("%s", name);
     int subnum = 0;
@@ -3643,7 +3643,7 @@ tf_movefrom_heapstr(const char *name)
     test_sub("subtest %d: move normal string", ++subnum);
     {
         fs     *fs_ptr = fs_heapcopy("hello world");
-        char   *str = fs_movefrom_heapstr(&fs_ptr);
+        char   *str = fsmovetostr(fs_ptr);
 
         test_validatefree(
             str != NULL && strcmp(str, "hello world") == 0,
@@ -3662,7 +3662,7 @@ tf_movefrom_heapstr(const char *name)
     test_sub("subtest %d: move empty string", ++subnum);
     {
         fs     *fs_ptr = fs_heapcopy("");
-        char   *str = fs_movefrom_heapstr(&fs_ptr);
+        char   *str = fsmovetostr(fs_ptr);
 
         test_validatefree(
             str != NULL && str[0] == '\0',
@@ -3679,7 +3679,7 @@ tf_movefrom_heapstr(const char *name)
     {
         char    *str = NULL;
         if (!try()) {
-            str = fs_movefrom_heapstr(NULL);
+            str = fs_movetostr(NULL);
             test_validate(
                 false,
                 "NULL pfs must raise error, but returned %p",
@@ -3704,7 +3704,7 @@ tf_movefrom_heapstr(const char *name)
         char    *str = NULL;
         fs     *fs_ptr = NULL;
         if (!try()) {
-            str = fs_movefrom_heapstr(&fs_ptr);
+            str = fsmovetostr(fs_ptr);
             test_validate(
                 false,
                 "*pfs == NULL must raise error, but returned %p",
@@ -3728,7 +3728,7 @@ tf_movefrom_heapstr(const char *name)
         const char *words[] = {"one", "two", "three"};
         for (int i = 0; i < COUNT(words); i++) {
             fs     *fs_ptr = fs_heapcopy(words[i]);
-            char   *str = fs_movefrom_heapstr(&fs_ptr);
+            char   *str = fsmovetostr(fs_ptr);
             test_validatefree(
                 strcmp(str, words[i]) == 0,
                  free(str),
@@ -4224,7 +4224,7 @@ tf35_fs_isempty(const char *name)
     return TEST_PASSED;
 }
 
-// ------------------------- TEST fs_movetostr / fs_movefrom_heapstr -------------------------
+// ------------------------- TEST fs_movetostr / fsmovetostr -------------------------
 static TestStatus
 tf36_fs_movetostr(const char *name)
 {
@@ -4259,37 +4259,93 @@ tf36_fs_movetostr(const char *name)
         fs_alloc_check(true);
     }
 
-    /* 3. Перемещение из bodyalloc fs через fs_movefrom_heapstr */
-    test_sub("subtest %d: fs_movefrom_heapstr from bodyalloc fs", ++subnum);
+    /* 3. Перемещение из bodyalloc fs через fsmovetostr */
+    test_sub("subtest %d: fsmovetostr from bodyalloc fs", ++subnum);
     {
-        fs *p = fs_heapcopy("world");   // создаёт fs с FS_FLAG_BODYALLOC
+        fs *p = fs_heapcopy("world");
         test_validate(p != NULL && fs_bodyalloc(p), "fs must be bodyalloc");
 
-        char *str = fs_movefrom_heapstr(&p);
+        char *str = fsmovetostr(p);
         test_validate(str != NULL && strcmp(str, "world") == 0,
                       "moved string mismatch");
         test_validate(p == NULL, "pointer must be NULL after move");
+        fs_alloc_check(true);
         free(str);
         fs_alloc_check(true);
     }
 
-    /* 4. fs_movefrom_heapstr на стековом fs должен вызывать ошибку */
-    test_sub("subtest %d: fs_movefrom_heapstr on stacked fs raises error", ++subnum);
+    /* 4. Комбинация: стековый fs -> fs_heapcreate -> fsmovetostr */
+    test_sub("subtest %d: stack fs -> heapcreate -> movefrom_heapstr", ++subnum);
     {
-        fs s = fscopy("stacked");
-        fs *p = &s;
-        // Поскольку userraiseint прерывает выполнение (SIGINT), используем try()
+        const char *text = "combo1";
+        fs orig = fscopy(text);
+        fs *heap = fs_heapcreate(&orig);
+        fsfree(orig);   // стековый больше не нужен
+
+        test_validate(heap != NULL && fs_bodyalloc(heap), "heap must be bodyalloc");
+        test_validate(strcmp(fs_str(heap), text) == 0, "heap content mismatch");
+
+        char *str = fsmovetostr(heap);
+        fs_alloc_check(true);
+
+        test_validate(str != NULL && strcmp(str, text) == 0, "moved string mismatch");
+        test_validate(heap == NULL, "heap pointer must be NULL after move");
+        free(str);
+        fs_alloc_check(true);
+    }
+
+    /* 5. Комбинация: стековый fs -> fs_moveto_heap -> fsmovetostr */
+    test_sub("subtest %d: stack fs -> moveto_heap -> movefrom_heapstr", ++subnum);
+    {
+        const char *text = "combo2";
+        fs orig = fscopy(text);
+        fs *heap = fs_moveto_heap(&orig);   // перенос владения, orig опустошается
+        test_validate(orig.v == NULL && orig.sz == 0 && orig.len == 0,
+                      "original must be empty after moveto_heap");
+        test_validate(heap != NULL && fs_bodyalloc(heap), "heap must be bodyalloc");
+        test_validate(strcmp(fs_str(heap), text) == 0, "heap content mismatch");
+
+        char *str = fsmovetostr(heap);
+        fs_alloc_check(true);
+
+        test_validate(str != NULL && strcmp(str, text) == 0, "moved string mismatch");
+        test_validate(heap == NULL, "heap pointer must be NULL after move");
+        free(str);
+        fs_alloc_check(true);
+    }
+
+    /* 6. fs_movetostr на bodyalloc fs должен вызывать ошибку */
+    test_sub("subtest %d: fs_movetostr on bodyalloc fs raises error", ++subnum);
+    {
+        fs *p = fs_heapcopy("bodyalloc");
         if (!try()) {
-            char *str = fs_movefrom_heapstr(&p);
-            // Если ошибка не возникла, это сбой
-            test_validate(false, "must raise error for non-bodyalloc");
+            char *str = fs_movetostr(p);
+            test_validate(false, "must raise error for bodyalloc");
             free(str);
+            fs_free(p);
         } else {
             test_validate(true, "correctly raised error");
-            // После longjmp сюда не попадём, но если userraise вернёт управление,
-            // надо освободить ресурсы
-            fsfree(s);
+            // Если userraise вернул управление, освобождаем ресурсы
+            fs_free(p);
         }
+        fs_alloc_check(true);
+    }
+
+    /* 8. Проверка независимости после перемещения */
+    test_sub("subtest %d: independence after move", ++subnum);
+    {
+        fs orig = fscopy("original");
+        char *str = fs_movetostr(&orig);
+        test_validate(str != NULL && strcmp(str, "original") == 0,
+                      "move string mismatch");
+        test_validate(orig.v == NULL && orig.len == 0 && orig.sz == 0,
+                      "original must be empty after move");
+
+        str[0] = 'X';
+        test_validate(orig.v == NULL, "orig must remain NULL after string modification");
+
+        free(str);
+        fs_alloc_check(true);
     }
 
     return TEST_PASSED;
@@ -4334,12 +4390,12 @@ main( /* int argc, const char *argv[] */)
         TESTADD(tf28,                   "fs_heapcreate() simple tests"),
         TESTADD(tf_fs_heapcopy,         "fs_heapcopy() simple tests"),
         TESTADD(tf_moveto_heapstr,      "fs_moveto_heapstr() simple tests"),
-        TESTADD(tf_movefrom_heapstr,    "fs_movefrom_heapstr() simple tests"),
+        TESTADD(tf31_fsmovetostr,       "fsmovetostr macro simple tests"),
         TESTADD(tf_genrnd,              "fs_genrnd() simple tests"),
         TESTADD(tf_initrnd,             "fs_initrnd() simple tests"),
         TESTADD(tf34_fs_isnull,         "fs_isnull() simple tests"),
         TESTADD(tf35_fs_isempty,        "fs_isempty() simple tests"),
-        TESTADD(tf36_fs_movetostr,      "fs_movetostr()/fs_movefrom_heapstr() simple tests")
+        TESTADD(tf36_fs_movetostr,      "fs_movetostr()() simple tests")
     );
 
     return logret(0, "end...");  // as replace of logclose()
