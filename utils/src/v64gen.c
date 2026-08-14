@@ -88,7 +88,7 @@ value64 v64GenUnlimZero(v64Gen *gen)    // TODO: need to be refactored via Table
 }
 
 static value64
-v64UncheckGenUnlimAscValue(v64Gen *gen, int value) {
+v64UncheckGenUnlimAscValue(v64Gen *gen, int value) { // TODO: need to be refactored via Table!
     value64 result = V64GENREG0(gen).val;
     switch (gen->type) {        // type of output generation
         case VALUE64_INT:
@@ -160,10 +160,28 @@ v64UncheckGenUnlimAscRnd(v64Gen *gen)
     int r = V64GENREG2(gen).val.ival;
     return v64UncheckGenUnlimAscValue(gen, rndint(r) + 1);
 }
-
-extern value64                  v64UncheckGenUnlimDescSeries(v64Gen *gen);
+/**
+ * @brief Unchecked unlimited descending series generator.
+ *
+ * Numeric types: data[0] holds the current value and is incremented.
+ * Boolean:        data[0] toggles.
+ * String types:   data[0] holds the current integer, data[1] holds an
+ *                optional printf-template (STR or FS). If absent, "%d".
+ *
+ * @param gen  pointer to the generator
+ * @return     the next value64 of the generator's type (ownership passed to caller)
+ */
+value64                         
+v64UncheckGenUnlimDescSeries(v64Gen *gen) {
+    return v64UncheckGenUnlimAscValue(gen, -1);
+}
 extern value64                  v64UncheckGenUnlimDescRnd(v64Gen *gen);
 extern value64                  v64UncheckGenUnlimRandom(v64Gen *gen);
+
+// ------------------------ PRINTERS/CHECKERS ---------------------------------------
+
+extern int                      v64Techfprint(FILE *restrict out, const v64Gen *restrict gen);
+
 
 // ------------------------------------ ETC. ----------------------------------------
 
@@ -829,7 +847,7 @@ tf5_gen_asc_rnd(const char *name)
 
 // ------------------------- TEST: AscRnd with custom rndinc -------------------------
 static TestStatus
-tf5_gen_asc_rnd_custom(const char *name)
+tf6_gen_asc_rnd_custom(const char *name)
 {
     logenter("%s", name);
     int subnum = 0;
@@ -917,6 +935,236 @@ tf5_gen_asc_rnd_custom(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST 6: DescSeries -------------------------
+static TestStatus
+tf7_gen_desc_series(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. INT descending from 10 */
+    test_sub("subtest %d: DescSeries INT from 10", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimDescSeries(VALUE64_INT, 10, NULL);
+
+        value64 v1 = v64GenNext(&gen);
+        test_validate(value64_int(v1) == 10, "first must be 10");
+        value64_free(&v1, gen.type);
+
+        value64 v2 = v64GenNext(&gen);
+        test_validate(value64_int(v2) == 9, "second must be 9");
+        value64_free(&v2, gen.type);
+
+        value64 v3 = v64GenNext(&gen);
+        test_validate(value64_int(v3) == 8, "third must be 8");
+        value64_free(&v3, gen.type);
+
+        test_validate(gen.counter == 3, "counter must be 3");
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 2. LONG descending from 100 */
+    test_sub("subtest %d: DescSeries LONG from 100", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimDescSeries(VALUE64_LONG, 100L, NULL);
+
+        value64 v1 = v64GenNext(&gen);
+        test_validate(value64_long(v1) == 100L, "first must be 100");
+        value64_free(&v1, gen.type);
+
+        value64 v2 = v64GenNext(&gen);
+        test_validate(value64_long(v2) == 99L, "second must be 99");
+        value64_free(&v2, gen.type);
+
+        value64 v3 = v64GenNext(&gen);
+        test_validate(value64_long(v3) == 98L, "third must be 98");
+        value64_free(&v3, gen.type);
+
+        test_validate(gen.counter == 3, "counter must be 3");
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 3. DBL descending from 10.5 */
+    /*test_sub("subtest %d: DescSeries DBL from 10.5", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimDescSeries(VALUE64_DBL, (long)10.5, NULL);
+
+        value64 v1 = v64GenNext(&gen);
+        test_validate(fabs(value64_dbl(v1) - 10.5) < 1e-9, "first must be 10.5");
+        value64_free(&v1, gen.type);
+
+        value64 v2 = v64GenNext(&gen);
+        test_validate(fabs(value64_dbl(v2) - 9.5) < 1e-9, "second must be 9.5");
+        value64_free(&v2, gen.type);
+
+        value64 v3 = v64GenNext(&gen);
+        test_validate(fabs(value64_dbl(v3) - 8.5) < 1e-9, "third must be 8.5");
+        value64_free(&v3, gen.type);
+
+        test_validate(gen.counter == 3, "counter must be 3");
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }*/ 
+
+    /* 4. ULONG descending from 200 */
+    test_sub("subtest %d: DescSeries ULONG from 200", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimDescSeries(VALUE64_ULONG, 200L, NULL);
+
+        value64 v1 = v64GenNext(&gen);
+        test_validate(value64_ulong(v1) == 200UL, "first must be 200");
+        value64_free(&v1, gen.type);
+
+        value64 v2 = v64GenNext(&gen);
+        test_validate(value64_ulong(v2) == 199UL, "second must be 199");
+        value64_free(&v2, gen.type);
+
+        value64 v3 = v64GenNext(&gen);
+        test_validate(value64_ulong(v3) == 198UL, "third must be 198");
+        value64_free(&v3, gen.type);
+
+        test_validate(gen.counter == 3, "counter must be 3");
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 5. BOOL toggles */
+    /*test_sub("subtest %d: DescSeries BOOL toggles", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimDescSeries(VALUE64_BOOL, 0L, NULL);
+
+        value64 v1 = v64GenNext(&gen);
+        test_validate(value64_bool(v1) == false, "first must be false");
+        value64_free(&v1, gen.type);
+
+        value64 v2 = v64GenNext(&gen);
+        test_validate(value64_bool(v2) == true, "second must be true");
+        value64_free(&v2, gen.type);
+
+        value64 v3 = v64GenNext(&gen);
+        test_validate(value64_bool(v3) == false, "third must be false");
+        value64_free(&v3, gen.type);
+
+        test_validate(gen.counter == 3, "counter must be 3");
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }*/
+
+    /* 6. CHAR descending from 'C' */
+    test_sub("subtest %d: DescSeries CHAR from 'C'", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimDescSeries(VALUE64_CHR, 'C', NULL);
+
+        value64 v1 = v64GenNext(&gen);
+        test_validate(value64_char(v1) == 'C', "first must be 'C'");
+        value64_free(&v1, gen.type);
+
+        value64 v2 = v64GenNext(&gen);
+        test_validate(value64_char(v2) == 'B', "second must be 'B'");
+        value64_free(&v2, gen.type);
+
+        value64 v3 = v64GenNext(&gen);
+        test_validate(value64_char(v3) == 'A', "third must be 'A'");
+        value64_free(&v3, gen.type);
+
+        test_validate(gen.counter == 3, "counter must be 3");
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 7. STR default template starting at 3 */
+    test_sub("subtest %d: DescSeries STR default template", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimDescSeries(VALUE64_STR, 3L, NULL);
+
+        value64 v1 = v64GenNext(&gen);
+        test_validate(strcmp(value64_str(v1), "3") == 0, "first must be '3'");
+        value64_free(&v1, gen.type);
+
+        value64 v2 = v64GenNext(&gen);
+        test_validate(strcmp(value64_str(v2), "2") == 0, "second must be '2'");
+        value64_free(&v2, gen.type);
+
+        value64 v3 = v64GenNext(&gen);
+        test_validate(strcmp(value64_str(v3), "1") == 0, "third must be '1'");
+        value64_free(&v3, gen.type);
+
+        test_validate(gen.counter == 3, "counter must be 3");
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 8. STR with template "item %d" */
+    test_sub("subtest %d: DescSeries STR with template 'item %%d'", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimDescSeries(VALUE64_STR, 3L, "item %d");
+
+        value64 v1 = v64GenNext(&gen);
+        test_validate(strcmp(value64_str(v1), "item 3") == 0, "first must be 'item 3'");
+        value64_free(&v1, gen.type);
+
+        value64 v2 = v64GenNext(&gen);
+        test_validate(strcmp(value64_str(v2), "item 2") == 0, "second must be 'item 2'");
+        value64_free(&v2, gen.type);
+
+        value64 v3 = v64GenNext(&gen);
+        test_validate(strcmp(value64_str(v3), "item 1") == 0, "third must be 'item 1'");
+        value64_free(&v3, gen.type);
+
+        test_validate(gen.counter == 3, "counter must be 3");
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 9. FS default template starting at 2 */
+    test_sub("subtest %d: DescSeries FS default template", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimDescSeries(VALUE64_FS, 2L, NULL);
+
+        value64 v1 = v64GenNext(&gen);
+        test_validate(strcmp(fs_str(value64_fs(v1)), "2") == 0, "first must be '2'");
+        value64_free(&v1, gen.type);
+
+        value64 v2 = v64GenNext(&gen);
+        test_validate(strcmp(fs_str(value64_fs(v2)), "1") == 0, "second must be '1'");
+        value64_free(&v2, gen.type);
+
+        value64 v3 = v64GenNext(&gen);
+        test_validate(strcmp(fs_str(value64_fs(v3)), "0") == 0, "third must be '0'");
+        value64_free(&v3, gen.type);
+
+        test_validate(gen.counter == 3, "counter must be 3");
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 10. FS with template "val_%d" */
+    test_sub("subtest %d: DescSeries FS with template 'val_%%d'", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimDescSeries(VALUE64_FS, 7L, "val_%d");
+
+        value64 v1 = v64GenNext(&gen);
+        test_validate(strcmp(fs_str(value64_fs(v1)), "val_7") == 0, "first must be 'val_7'");
+        value64_free(&v1, gen.type);
+
+        value64 v2 = v64GenNext(&gen);
+        test_validate(strcmp(fs_str(value64_fs(v2)), "val_6") == 0, "second must be 'val_6'");
+        value64_free(&v2, gen.type);
+
+        value64 v3 = v64GenNext(&gen);
+        test_validate(strcmp(fs_str(value64_fs(v3)), "val_5") == 0, "third must be 'val_5'");
+        value64_free(&v3, gen.type);
+
+        test_validate(gen.counter == 3, "counter must be 3");
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(/* int argc, const char *argv[] */)
@@ -929,7 +1177,8 @@ main(/* int argc, const char *argv[] */)
       , TESTADD(tf3_gen_asc_series,          "value64UncheckGenUnlimAscSeries() simple test")
       , TESTADD(tf4_gen_creators,            "v64gen creators (simple wrappers) simple test")
       , TESTADD(tf5_gen_asc_rnd,             "v64UncheckGenUnlimAscRnd() simple test")
-      , TESTADD(tf5_gen_asc_rnd_custom,      "AscRnd with custom rndinc simple test")
+      , TESTADD(tf6_gen_asc_rnd_custom,      "AscRnd with custom rndinc simple test")
+      , TESTADD(tf7_gen_desc_series,         "v64UncheckGenUnlimDescSeries() simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
