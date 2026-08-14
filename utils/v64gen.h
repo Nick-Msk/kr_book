@@ -153,7 +153,7 @@ static inline v64Gen        v64GenCreatorUnlimDouble(double val) {
 // data[1] FS as pattern for printing FS/STR 
 static inline v64Gen        v64GenCreatorUnlimAscStrSeries(value64_type rettyp, long startpos, const char *fmt) {
     // not sure what to do, now just raiseint
-    if (rettyp == VALUE64_STR || rettyp == VALUE64_FS) //(!value64_checktype(rettyp))
+    if (rettyp != VALUE64_STR && rettyp != VALUE64_FS) //(!value64_checktype(rettyp))
         userraiseint(ERR_UNSUPPORTED_TYPE, "Type %d %s not supported by %s", 
                 rettyp, value64_typename(rettyp), __func__);
 
@@ -166,7 +166,8 @@ static inline v64Gen        v64GenCreatorUnlimAscStrSeries(value64_type rettyp, 
                         rettyp, v64typedCreateLong(startpos));
     return tmp;
 }
-
+// REGITRSY ALLOCATION:
+// data[0] <PARAM VT TYPE> as startpos for numeric asc generator
 // usage: v64GenCreatorUnlimAscStrSeries(v64typedInt(100));
 static inline v64Gen        v64GenCreatorUnlimAscSeries(v64typed vt) {
     value64_type rettyp = vt.typ;     // that is it!!!
