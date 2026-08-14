@@ -772,6 +772,7 @@ static int                      ArrayFillRange_DESC(Array *parr, int from, int t
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
+// TODO: refctor that to func table!
 static int                      ArrayFillRange_ZERO(Array *parr, int from, int to){
     switch (ArrayGettype(parr) ) {
         case ARRAY_INT:
