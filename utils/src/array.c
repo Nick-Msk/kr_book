@@ -798,12 +798,12 @@ static int                      ArrayFillRange_ZERO(Array *parr, int from, int t
         // not real type => container v64
         case ARRAY_V64: 
         /* typedef value64 (*value64_gen_func)(value64_gen *gen);
-         v64Gen gn = value64GenInit(value64_func_zero/rnd/acs/desc, parr->v64type);
+         v64Gen gn = v64GenInit(value64_func_zero/rnd/acs/desc, parr->v64type);
          for (int i = from; i < to; i++) {
                 value64 tmp = value64_gen_next(&gn);
                 parr->v64[i] = tmp;
             }
-            value64GenFree(&gn);
+            v64GenFree(&gn);
         */ 
         {
             switch (parr->v64type) {
