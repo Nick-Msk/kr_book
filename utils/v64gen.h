@@ -151,10 +151,11 @@ static inline v64Gen        v64GenCreatorUnlimDouble(double val) {
 // REGITRSY ALLOCATION:
 // data[0] LONG as startpos for numeric generator
 // data[1] FS as pattern for printing FS/STR 
-static inline v64Gen        v64GenCreatorUnlimAscSeries(value64_type rettyp, long startpos, const char *fmt) {
+static inline v64Gen        v64GenCreatorUnlimAscStrSeries(value64_type rettyp, long startpos, const char *fmt) {
     // not sure what to do, now just raiseint
-    if (!value64_checktype(rettyp))
-        userraiseint(ERR_UNSUPPORTED_TYPE, "Type %d not supported", rettyp);
+    if (rettyp == VALUE64_STR || rettyp == VALUE64_FS) //(!value64_checktype(rettyp))
+        userraiseint(ERR_UNSUPPORTED_TYPE, "Type %d %s not supported by %s", 
+                rettyp, value64_typename(rettyp), __func__);
 
     v64Gen tmp;
     if ( (rettyp == VALUE64_FS || rettyp == VALUE64_STR) && fmt != NULL)
@@ -165,6 +166,19 @@ static inline v64Gen        v64GenCreatorUnlimAscSeries(value64_type rettyp, lon
                         rettyp, v64typedCreateLong(startpos));
     return tmp;
 }
+
+// usage: v64GenCreatorUnlimAscStrSeries(v64typedInt(100));
+static inline v64Gen        v64GenCreatorUnlimAscSeries(v64typed vt) {
+    value64_type rettyp = vt.typ;     // that is it!!!
+
+    if (int_notin(rettyp, VALUE64_BOOL, VALUE64_CHR, VALUE64_INT, VALUE64_LONG, VALUE64_ULONG, VALUE64_DBL))
+        userraiseint(ERR_UNSUPPORTED_TYPE, "Type %d %s not supported by %s", 
+                rettyp, value64_typename(rettyp), __func__);
+
+    v64Gen res = v64GenInit1(v64UncheckGenUnlimAscSeries, rettyp, vt);
+    return res;
+}
+
 // REGITRSY ALLOCATION:
 // data[0] LONG as startpos for numeric desc generator
 // data[1] FS as pattern for printing FS/STR 
