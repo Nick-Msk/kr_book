@@ -121,8 +121,8 @@ static inline v64Gen        v64GenCreatorUnlimDouble(double val) {
 
 // REGITRSY ALLOCATION:
 // data[0] LONG as startpos for numeric generator
-// data[1] FS as pattern for printing FS/STR
-static inline v64Gen        v64GenCreatorUnlimAsсSeries(value64_type rettyp, long startpos, const char *fmt) {
+// data[1] FS as pattern for printing FS/STR 
+static inline v64Gen        v64GenCreatorUnlimAscSeries(value64_type rettyp, long startpos, const char *fmt) {
     // not sure what to do, now just raiseint
     if (!value64_checktype(rettyp))
         userraiseint(ERR_UNSUPPORTED_TYPE, "Type %d not supported", rettyp);
