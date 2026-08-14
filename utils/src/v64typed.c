@@ -48,7 +48,7 @@ tf1_v64typed_init_free_getters(const char *name)
     /* 1. INT */
     test_sub("subtest %d: v64typed INT constructor and getter", ++subnum);
     {
-        v64typed tv = v64typedInt(42);
+        v64typed tv = v64typedCreateInt(42);
         test_validate(tv.typ == VALUE64_INT, "type must be INT");
         test_validate(value64_int(tv.val) == 42, "value must be 42");
         test_validate(v64typeGetInt(tv) == 42, "getter returned wrong int");
@@ -63,7 +63,7 @@ tf1_v64typed_init_free_getters(const char *name)
     /* 2. LONG */
     test_sub("subtest %d: v64typed LONG constructor and getter", ++subnum);
     {
-        v64typed tv = v64typedLong(123456789L);
+        v64typed tv = v64typedCreateLong(123456789L);
         test_validate(tv.typ == VALUE64_LONG, "type must be LONG");
         test_validate(value64_long(tv.val) == 123456789L, "value must be 123456789");
         test_validate(v64typeGetLong(tv) == 123456789L, "getter returned wrong long");
@@ -78,7 +78,7 @@ tf1_v64typed_init_free_getters(const char *name)
     /* 3. ULONG */
     test_sub("subtest %d: v64typed ULONG constructor and getter", ++subnum);
     {
-        v64typed tv = v64typedULong(4000000000UL);
+        v64typed tv = v64typedCreateULong(4000000000UL);
         test_validate(tv.typ == VALUE64_ULONG, "type must be ULONG");
         test_validate(value64_ulong(tv.val) == 4000000000UL, "value must be 4000000000");
         test_validate(v64typeGetULong(tv) == 4000000000UL, "getter returned wrong ulong");
@@ -93,7 +93,7 @@ tf1_v64typed_init_free_getters(const char *name)
     /* 4. DBL */
     test_sub("subtest %d: v64typed DBL constructor and getter", ++subnum);
     {
-        v64typed tv = v64typedDbl(3.14159);
+        v64typed tv = v64typedCreateDbl(3.14159);
         test_validate(tv.typ == VALUE64_DBL, "type must be DBL");
         test_validate(fabs(value64_dbl(tv.val) - 3.14159) < 1e-9, "value mismatch");
         test_validate(fabs(v64typeGetDouble(tv) - 3.14159) < 1e-9, "getter mismatch");
@@ -105,10 +105,10 @@ tf1_v64typed_init_free_getters(const char *name)
         v64typedFree(&tv);
     }
 
-    /* 5. CHAR (теперь через v64typedChar) */
+    /* 5. CHAR (теперь через v64typedCreateChar) */
     test_sub("subtest %d: v64typed CHAR constructor and getter", ++subnum);
     {
-        v64typed tv = v64typedChar('Z');
+        v64typed tv = v64typedCreateChar('Z');
         test_validate(tv.typ == VALUE64_CHR, "type must be CHR");
         test_validate(value64_char(tv.val) == 'Z', "value must be 'Z'");
         test_validate(v64typeGetChar(tv) == 'Z', "getter returned wrong char");
@@ -120,10 +120,10 @@ tf1_v64typed_init_free_getters(const char *name)
         v64typedFree(&tv);
     }
 
-    /* 6. BOOL (теперь через v64typedBool) */
+    /* 6. BOOL (теперь через v64typedCreateBool) */
     test_sub("subtest %d: v64typed BOOL constructor and getter", ++subnum);
     {
-        v64typed tv = v64typedBool(true);
+        v64typed tv = v64typedCreateBool(true);
         test_validate(tv.typ == VALUE64_BOOL, "type must be BOOL");
         test_validate(value64_bool(tv.val) == true, "value must be true");
         test_validate(v64typeGetBool(tv) == true, "getter returned wrong bool");
@@ -138,7 +138,7 @@ tf1_v64typed_init_free_getters(const char *name)
     /* 7. STR (owning copy) */
     test_sub("subtest %d: v64typed STR constructor and getter", ++subnum);
     {
-        v64typed tv = v64typedStr("hello");
+        v64typed tv = v64typedCreateStr("hello");
         test_validatefree(
             tv.typ == VALUE64_STR, 
             v64typedFree(&tv),
@@ -168,7 +168,7 @@ tf1_v64typed_init_free_getters(const char *name)
     test_sub("subtest %d: v64typed FS constructor and getter", ++subnum);
     {
         fs f = fscopy("world");
-        v64typed tv = v64typedFs(&f);
+        v64typed tv = v64typedCreateFs(&f);
         fsfree(f);   // исходный fs больше не нужен, tv владеет копией
 
         test_validatefree(
@@ -188,10 +188,10 @@ tf1_v64typed_init_free_getters(const char *name)
         fs_alloc_check(true);
     }
 
-    /* 8. FS (v64typedFsAsStr) */
+    /* 8. FS (v64typedCreateFsAsStr) */
     test_sub("subtest %d: v64typed FS constructor and getter", ++subnum);
     {
-        v64typed tv = v64typedFsAsStr("world");
+        v64typed tv = v64typedCreateFsAsStr("world");
 
         test_validatefree(
             tv.typ == VALUE64_FS, 
@@ -213,7 +213,7 @@ tf1_v64typed_init_free_getters(const char *name)
     /* 9. UNKNOWN */
     test_sub("subtest %d: v64typed UNKNOWN constructor", ++subnum);
     {
-        v64typed tv = v64typedUnk();
+        v64typed tv = v64typedCreateUnk();
         // v64typedValidate NOT passed
         test_validate(tv.typ == VALUE64_UNKNOWN, "type must be UNKNOWN");
         test_validate(tv.val.u64 == 0, "raw value must be zero");
@@ -233,7 +233,7 @@ tf2_v64typed_nvl(const char *name)
     /* ================= v64typedNvlStr ================= */
     test_sub("subtest %d: v64typedNvlStr non-empty STR returns value", ++subnum);
     {
-        v64typed tv = v64typedStr("hello");
+        v64typed tv = v64typedCreateStr("hello");
         const char *res = v64typedNvlStr(tv, "default");
         test_validate(strcmp(res, "hello") == 0,
                       "expected 'hello', got '%s'", res);
@@ -243,7 +243,7 @@ tf2_v64typed_nvl(const char *name)
 
     test_sub("subtest %d: v64typedNvlStr empty STR returns default", ++subnum);
     {
-        v64typed tv = v64typedStr("");
+        v64typed tv = v64typedCreateStr("");
         const char *res = v64typedNvlStr(tv, "default");
         test_validate(strcmp(res, "default") == 0,
                       "expected default, got '%s'", res);
@@ -262,7 +262,7 @@ tf2_v64typed_nvl(const char *name)
 
     test_sub("subtest %d: v64typedNvlStr non-STR type returns default", ++subnum);
     {
-        v64typed tv = v64typedInt(42);
+        v64typed tv = v64typedCreateInt(42);
         const char *res = v64typedNvlStr(tv, "default");
         test_validate(strcmp(res, "default") == 0,
                       "expected default, got '%s'", res);
@@ -272,7 +272,7 @@ tf2_v64typed_nvl(const char *name)
     /* ================= v64typedNvlFs ================= */
     test_sub("subtest %d: v64typedNvlFs non-empty FS returns value", ++subnum);
     {
-        v64typed tv = v64typedFsAsStr("world");
+        v64typed tv = v64typedCreateFsAsStr("world");
 
         const char *res = v64typedNvlFs(tv, "default");
         test_validate(strcmp(res, "world") == 0,
@@ -283,7 +283,7 @@ tf2_v64typed_nvl(const char *name)
 
     test_sub("subtest %d: v64typedNvlFs empty FS returns default", ++subnum);
     {
-        v64typed tv = v64typedFsAsStr("");
+        v64typed tv = v64typedCreateFsAsStr("");
 
         const char *res = v64typedNvlFs(tv, "default");
         // Теперь fs_isempty считает пустую строку пустой
@@ -304,7 +304,7 @@ tf2_v64typed_nvl(const char *name)
 
     test_sub("subtest %d: v64typedNvlFs non-FS type returns default", ++subnum);
     {
-        v64typed tv = v64typedInt(42);
+        v64typed tv = v64typedCreateInt(42);
         const char *res = v64typedNvlFs(tv, "default");
         test_validate(strcmp(res, "default") == 0,
                       "expected default, got '%s'", res);
@@ -324,7 +324,7 @@ tf3_v64typed_add_bool(const char *name)
     /* ================= v64typedAdd ================= */
     test_sub("subtest %d: v64typedAdd on INT", ++subnum);
     {
-        v64typed tv = v64typedInt(100);
+        v64typed tv = v64typedCreateInt(100);
         bool ok = v64typedAdd(&tv, 5);
         test_validate(ok == true, "Add must return true");
         test_validate(value64_int(tv.val) == 105, "INT add failed");
@@ -333,7 +333,7 @@ tf3_v64typed_add_bool(const char *name)
 
     test_sub("subtest %d: v64typedAdd on LONG", ++subnum);
     {
-        v64typed tv = v64typedLong(1000L);
+        v64typed tv = v64typedCreateLong(1000L);
         bool ok = v64typedAdd(&tv, 25);
         test_validate(ok == true, "Add must return true");
         test_validate(value64_long(tv.val) == 1025L, "LONG add failed");
@@ -342,7 +342,7 @@ tf3_v64typed_add_bool(const char *name)
 
     test_sub("subtest %d: v64typedAdd on ULONG", ++subnum);
     {
-        v64typed tv = v64typedULong(2000UL);
+        v64typed tv = v64typedCreateULong(2000UL);
         bool ok = v64typedAdd(&tv, 100);
         test_validate(ok == true, "Add must return true");
         test_validate(value64_ulong(tv.val) == 2100UL, "ULONG add failed");
@@ -351,7 +351,7 @@ tf3_v64typed_add_bool(const char *name)
 
     test_sub("subtest %d: v64typedAdd on DBL", ++subnum);
     {
-        v64typed tv = v64typedDbl(2.5);
+        v64typed tv = v64typedCreateDbl(2.5);
         bool ok = v64typedAdd(&tv, 3);
         test_validate(ok == true, "Add must return true");
         test_validate(fabs(value64_dbl(tv.val) - 5.5) < 1e-9, "DBL add failed");
@@ -360,7 +360,7 @@ tf3_v64typed_add_bool(const char *name)
 
     test_sub("subtest %d: v64typedAdd on CHR", ++subnum);
     {
-        v64typed tv = v64typedChar('A');
+        v64typed tv = v64typedCreateChar('A');
         bool ok = v64typedAdd(&tv, 1);
         test_validate(ok == true, "Add must return true");
         test_validate(value64_char(tv.val) == 'B', "CHAR add failed");
@@ -369,7 +369,7 @@ tf3_v64typed_add_bool(const char *name)
 
     test_sub("subtest %d: v64typedAdd on BOOL fails", ++subnum);
     {
-        v64typed tv = v64typedBool(true);
+        v64typed tv = v64typedCreateBool(true);
         bool ok = v64typedAdd(&tv, 1);
         test_validate(ok == false, "Add must fail for BOOL");
         test_validate(value64_bool(tv.val) == true, "BOOL value must remain unchanged");
@@ -378,7 +378,7 @@ tf3_v64typed_add_bool(const char *name)
 
     test_sub("subtest %d: v64typedAdd on STR fails", ++subnum);
     {
-        v64typed tv = v64typedStr("abc");
+        v64typed tv = v64typedCreateStr("abc");
         bool ok = v64typedAdd(&tv, 1);
         test_validate(ok == false, "Add must fail for STR");
         test_validate(strcmp(value64_str(tv.val), "abc") == 0,
@@ -390,7 +390,7 @@ tf3_v64typed_add_bool(const char *name)
     test_sub("subtest %d: v64typedAdd on FS fails", ++subnum);
     {
         fs f = fscopy("data");
-        v64typed tv = v64typedFs(&f);
+        v64typed tv = v64typedCreateFs(&f);
         fsfree(f);
 
         bool ok = v64typedAdd(&tv, 1);
@@ -403,7 +403,7 @@ tf3_v64typed_add_bool(const char *name)
 
     test_sub("subtest %d: v64typedAdd on UNKNOWN fails", ++subnum);
     {
-        v64typed tv = v64typedUnk();
+        v64typed tv = v64typedCreateUnk();
         bool ok = v64typedAdd(&tv, 1);
         test_validate(ok == false, "Add must fail for UNKNOWN");
         test_validate(tv.val.u64 == 0, "UNKNOWN value must remain zero");
@@ -413,7 +413,7 @@ tf3_v64typed_add_bool(const char *name)
     /* ================= v64typedBoolNegative ================= */
     test_sub("subtest %d: v64typedBoolNegative toggles true->false", ++subnum);
     {
-        v64typed tv = v64typedBool(true);
+        v64typed tv = v64typedCreateBool(true);
         bool ok = v64typedBoolNegative(&tv);
         test_validate(ok == true, "BoolNegative must return true");
         test_validate(value64_bool(tv.val) == false, "Bool must be false after toggle");
@@ -422,7 +422,7 @@ tf3_v64typed_add_bool(const char *name)
 
     test_sub("subtest %d: v64typedBoolNegative toggles false->true", ++subnum);
     {
-        v64typed tv = v64typedBool(false);
+        v64typed tv = v64typedCreateBool(false);
         bool ok = v64typedBoolNegative(&tv);
         test_validate(ok == true, "BoolNegative must return true");
         test_validate(value64_bool(tv.val) == true, "Bool must be true after toggle");
@@ -431,7 +431,7 @@ tf3_v64typed_add_bool(const char *name)
 
     test_sub("subtest %d: v64typedBoolNegative on non-BOOL fails", ++subnum);
     {
-        v64typed tv = v64typedInt(1);
+        v64typed tv = v64typedCreateInt(1);
         bool ok = v64typedBoolNegative(&tv);
         test_validate(ok == false, "BoolNegative must fail for non-BOOL");
         test_validate(value64_int(tv.val) == 1, "INT value must remain unchanged");
@@ -440,7 +440,7 @@ tf3_v64typed_add_bool(const char *name)
 
     test_sub("subtest %d: v64typedBoolNegative on STR fails", ++subnum);
     {
-        v64typed tv = v64typedStr("hello");
+        v64typed tv = v64typedCreateStr("hello");
         bool ok = v64typedBoolNegative(&tv);
         test_validate(ok == false, "BoolNegative must fail for STR");
         test_validate(strcmp(value64_str(tv.val), "hello") == 0,
@@ -462,7 +462,7 @@ tf4_v64typed_cast_to_int(const char *name)
     /* INT */
     test_sub("subtest %d: v64typedCastToInt on INT", ++subnum);
     {
-        v64typed tv = v64typedInt(42);
+        v64typed tv = v64typedCreateInt(42);
         int res = v64typedCastToInt(tv);
         test_validate(res == 42, "expected 42, got %d", res);
         v64typedFree(&tv);
@@ -471,7 +471,7 @@ tf4_v64typed_cast_to_int(const char *name)
     /* LONG */
     test_sub("subtest %d: v64typedCastToInt on LONG", ++subnum);
     {
-        v64typed tv = v64typedLong(123456789L);
+        v64typed tv = v64typedCreateLong(123456789L);
         int res = v64typedCastToInt(tv);
         test_validate(res == 123456789, "expected 123456789, got %d", res);
         v64typedFree(&tv);
@@ -480,7 +480,7 @@ tf4_v64typed_cast_to_int(const char *name)
     /* ULONG (small) */
     test_sub("subtest %d: v64typedCastToInt on ULONG (small)", ++subnum);
     {
-        v64typed tv = v64typedULong(1000UL);
+        v64typed tv = v64typedCreateULong(1000UL);
         int res = v64typedCastToInt(tv);
         test_validate(res == 1000, "expected 1000, got %d", res);
         v64typedFree(&tv);
@@ -489,7 +489,7 @@ tf4_v64typed_cast_to_int(const char *name)
     /* DBL (truncation) */
     test_sub("subtest %d: v64typedCastToInt on DBL (truncation)", ++subnum);
     {
-        v64typed tv = v64typedDbl(3.99);
+        v64typed tv = v64typedCreateDbl(3.99);
         int res = v64typedCastToInt(tv);
         test_validate(res == 3, "expected 3 (truncated), got %d", res);
         v64typedFree(&tv);
@@ -498,7 +498,7 @@ tf4_v64typed_cast_to_int(const char *name)
     /* CHAR */
     test_sub("subtest %d: v64typedCastToInt on CHAR", ++subnum);
     {
-        v64typed tv = v64typedChar('A');
+        v64typed tv = v64typedCreateChar('A');
         int res = v64typedCastToInt(tv);
         test_validate(res == 65, "expected 65, got %d", res);
         v64typedFree(&tv);
@@ -507,12 +507,12 @@ tf4_v64typed_cast_to_int(const char *name)
     /* BOOL */
     test_sub("subtest %d: v64typedCastToInt on BOOL", ++subnum);
     {
-        v64typed tv = v64typedBool(true);
+        v64typed tv = v64typedCreateBool(true);
         int res = v64typedCastToInt(tv);
         test_validate(res == 1, "expected 1, got %d", res);
         v64typedFree(&tv);
 
-        tv = v64typedBool(false);
+        tv = v64typedCreateBool(false);
         res = v64typedCastToInt(tv);
         test_validate(res == 0, "expected 0, got %d", res);
         v64typedFree(&tv);
@@ -521,7 +521,7 @@ tf4_v64typed_cast_to_int(const char *name)
     /* STR -> 0 (unsupported, current behavior) */
     test_sub("subtest %d: v64typedCastToInt on STR returns 0", ++subnum);
     {
-        v64typed tv = v64typedStr("hello");
+        v64typed tv = v64typedCreateStr("hello");
         int res = v64typedCastToInt(tv);
         test_validate(res == 0, "expected 0, got %d", res);
         v64typedFree(&tv);
@@ -532,7 +532,7 @@ tf4_v64typed_cast_to_int(const char *name)
     test_sub("subtest %d: v64typedCastToInt on FS returns 0", ++subnum);
     {
         fs f = fscopy("world");
-        v64typed tv = v64typedFs(&f);
+        v64typed tv = v64typedCreateFs(&f);
         fsfree(f);
 
         int res = v64typedCastToInt(tv);
@@ -544,7 +544,7 @@ tf4_v64typed_cast_to_int(const char *name)
     /* UNKNOWN -> 0 */
     test_sub("subtest %d: v64typedCastToInt on UNKNOWN returns 0", ++subnum);
     {
-        v64typed tv = v64typedUnk();
+        v64typed tv = v64typedCreateUnk();
         int res = v64typedCastToInt(tv);
         test_validate(res == 0, "expected 0, got %d", res);
         v64typedFree(&tv);
@@ -560,7 +560,7 @@ main(/* int argc, const char *argv[] */)
     logsimpleinit("Start");
 
     testenginestd(
-        TESTADD(tf1_v64typed_init_free_getters,           "Simple init/free/getters")
+        TESTADD(tf1_v64typed_init_free_getters,           "Simple create/free/getters")
       , TESTADD(tf2_v64typed_nvl,                         "Simple test nvl functions (Str/Fs)")
       , TESTADD(tf3_v64typed_add_bool,                    "Simple test Add and BoolNegative")      
       , TESTADD(tf4_v64typed_cast_to_int,                 "Simple test CastToInt")          

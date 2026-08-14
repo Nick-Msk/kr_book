@@ -41,34 +41,34 @@ typedef struct {
 static inline v64typed              v64typedCommon(value64 val, value64_type typ) {
     return V64TYPEDZERO(.val = val, .typ = typ);
 }
-static inline v64typed              v64typedInt(int x) {
+static inline v64typed              v64typedCreateInt(int x) {
     return v64typedCommon(LITERAL64_INT(x), VALUE64_INT);
 }
-static inline v64typed              v64typedLong(long x) {
+static inline v64typed              v64typedCreateLong(long x) {
     return (v64typed){ .val = LITERAL64_LONG(x), .typ = VALUE64_LONG };
 }
-static inline v64typed              v64typedULong(unsigned long x) {
+static inline v64typed              v64typedCreateULong(unsigned long x) {
     return (v64typed){ .val = LITERAL64_ULONG(x), .typ = VALUE64_ULONG };
 }
-static inline v64typed              v64typedChar(char x) {
+static inline v64typed              v64typedCreateChar(char x) {
     return v64typedCommon(LITERAL64_CHR(x), VALUE64_CHR);
 }
-static inline v64typed              v64typedBool(bool x) {
+static inline v64typed              v64typedCreateBool(bool x) {
     return v64typedCommon(LITERAL64_BOOL(x), VALUE64_BOOL);
 }
-static inline v64typed              v64typedDbl(double x) {
+static inline v64typed              v64typedCreateDbl(double x) {
     return (v64typed){ .val = LITERAL64_DBL(x), .typ = VALUE64_DBL };
 }
-static inline v64typed              v64typedStr(const char *s) {
+static inline v64typed              v64typedCreateStr(const char *s) {
     return (v64typed){ .val = value64_createstr(s), .typ = VALUE64_STR };
 }
-static inline v64typed              v64typedFs(fs *s) {
+static inline v64typed              v64typedCreateFs(fs *s) {
     return (v64typed){ .val = value64_createfs(s), .typ = VALUE64_FS };
 }
-static inline v64typed              v64typedFsAsStr(const char *s) {
+static inline v64typed              v64typedCreateFsAsStr(const char *s) {
     return (v64typed){ .val = value64_createfs_asstr(s), .typ = VALUE64_FS };
 }
-static inline v64typed              v64typedUnk(void) {
+static inline v64typed              v64typedCreateUnk(void) {
     return (v64typed){ .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN };
 }
 static inline v64typed              v64typedClone(v64typed v) {
