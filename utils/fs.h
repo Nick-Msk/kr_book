@@ -254,7 +254,9 @@ extern fs                   *fs_moveto_heap(fs *orig);
 // actually this is MOVE CONSTRUCTOR, *orig MUST be heap allocated c-str
 // move to heap fs (FS_FLAG_BODYALLOC) whole c-str
 extern fs                   *fs_moveto_heapstr(char **orig);
-// semi-free! move-destructor
+// semi-free! move-destructor for normal fs (mostly stacked or in array)
+char                        *fs_movetostr(fs *ps);
+// semi-free! move-destructor for BODY_ALLOC
 extern char                 *fs_movefrom_heapstr(fs **pfs);
 
 // direct access, NO change len or sz, position MUST be < sz

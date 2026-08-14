@@ -254,17 +254,25 @@ fs                                      *fs_moveto_heapstr(char **orig){
     *orig = NULL;  // clear orig
     return tmp;
 }
-// semi-free! move-destructor
+// semi-free! move-destructor for normal fs (mostly stacked or in array)
+char                                   *fs_movetostr(fs *ps) {
+    invraisecode(ps != NULL, ERR_NULLABLE_PTR, "Null pointer");
+
+    char *str = ps->v;  // save the pointer (CAN be NULL here)
+    if (ps->v != NULL)
+        ++g_free_cnt;   // inc counter only if move real data
+    ps->v = NULL;   // trick with free!
+    fs_free(ps);    // do nothing
+    
+    return str;
+}
+// semi-free! move-destructor for BODY_ALLOC
 char                                   *fs_movefrom_heapstr(fs **pfs) {
-    invraisecode(pfs != NULL && *pfs != NULL, ERR_NULLABLE_PTR, "Null pointer %p", pfs);
+    invraisecode(pfs != NULL && *pfs != NULL, ERR_NULLABLE_PTR, "Null pointer %p %p", pfs, pfs == NULL ? NULL: *pfs);
     if (!fs_bodyalloc(*pfs))
         userraiseint(ERR_FS_NOT_ALLOC_FLAG, "Only fs with body allocated in heap!");
 
-    fs   *src = *pfs;
-    char *str = src->v;
-    ++g_free_cnt;          // строка уходит из учёта fs, будет освобождена через free()
-    src->v = NULL;         // чтобы fs_free не освободила строку
-    fs_free(src);          // освобождает тело (FS_FLAG_BODYALLOC) и обнуляет поля
+    char    *str = fs_movetostr(*pfs);
     *pfs = NULL;           // обнуляем указатель у вызывающей стороны
     return str;
 }
@@ -704,7 +712,7 @@ fs                                      fs_clone(const fs *s){
 void                                    fs_free(fs *s){
     if (!s)
         return;
-    bool  moved = fs_bodyalloc(s);  // flags based
+    bool  bdllloc = fs_bodyalloc(s);  // flags based
     if (fs_alloc(s) )    // actualy alloc must be a flag, but not statememnt TODO:
         if (s->v){
             logauto(++g_free_cnt);   // calculate only  if really free memory
@@ -713,8 +721,8 @@ void                                    fs_free(fs *s){
         }
     s->sz = s->len = 0; // destroy even literals
     s->v = 0;
-    if (moved){
-        s->flags = 0;   // clear  FS_FLAG_BODYALLOC
+    if (bdllloc){
+        s->flags &= ~FS_FLAG_BODYALLOC;   // clear  FS_FLAG_BODYALLOC
         logsimple("fs body %p freed (g_free_body_cnt %d)", s, ++g_free_body_cnt);
         free(s);
     }
