@@ -807,8 +807,7 @@ tf5_gen_asc_rnd(const char *name)
 
     test_sub("subtest %d: AscRnd STR with template, data[0] increments", ++subnum);
     {
-        v64Gen gen = v64GenInit2(v64UncheckGenUnlimAscRnd, VALUE64_STR,
-                                v64typedCreateInt(0), v64typedCreateStr("item %d"));
+        v64Gen gen = v64GenCreatorUnlimAscRnd(VALUE64_STR, 0, "item %d");
 
         value64 v1 = v64GenNext(&gen);
         test_validate(strcmp(value64_str(v1), "item 0") == 0,
