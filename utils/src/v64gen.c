@@ -513,7 +513,7 @@ tf_gen_reg_api(const char *name)
 
 // ------------------------- TEST value64UncheckGenUnlimAscSeries -------------------------
 static TestStatus
-tf_gen_asc_series(const char *name)
+tf3_gen_asc_series(const char *name)
 {
     logenter("%s", name);
     int subnum = 0;
@@ -730,6 +730,73 @@ tf_gen_asc_series(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST v64gen creators (simple wrappers) -------------------------
+static TestStatus
+tf4_v64gen_creators(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. v64GenCreatorUnlimStrValue: создаёт генератор типа STR с регистром data[0] = строка,
+       а v64GenNext возвращает пустую строку (zero) */
+    test_sub("subtest %d: v64GenCreatorUnlimStrValue (STR)", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimStrValue("hello");
+
+        test_validate(gen.type == VALUE64_STR, "type must be STR");
+        test_validate(gen.data[0].typ == VALUE64_STR, "data[0] must be STR");
+        test_validate(strcmp(value64_str(gen.data[0].val), "hello") == 0,
+                      "data[0] value mismatch");
+
+        value64 v = v64GenNext(&gen);
+        test_validatefree(
+            value64_str(v) != NULL && strcmp(value64_str(v), "") == 0,
+            v64typedFree(&(v64typed){.val = v, .typ = VALUE64_STR}),
+            "Zero for STR must be empty string, got '%s'", value64_str(v)
+        );
+        v64typedFree(&(v64typed){.val = v, .typ = VALUE64_STR});
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 2. v64GenCreatorUnlimValue (LONG): генератор типа LONG, data[0]=long, zero = 0L */
+    test_sub("subtest %d: v64GenCreatorUnlimValue (LONG)", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimValue(12345L);
+
+        test_validate(gen.type == VALUE64_LONG, "type must be LONG");
+        test_validate(gen.data[0].typ == VALUE64_LONG, "data[0] must be LONG");
+        test_validate(value64_long(gen.data[0].val) == 12345L,
+                      "data[0] value mismatch");
+
+        value64 v = v64GenNext(&gen);
+        test_validate(value64_long(v) == 0L, "Zero for LONG must be 0, got %ld", value64_long(v));
+        // no ownership to free for LONG
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: v64GenCreatorUnlimDouble (DBL)", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimDouble(3.14);
+
+        // Эти проверки должны пройти после исправления типа на VALUE64_DBL
+        test_validate(gen.type == VALUE64_DBL, "type must be DBL (bug: got %d %s)",
+                      gen.type, value64_typename(gen.type));
+        test_validate(gen.data[0].typ == VALUE64_DBL, "data[0] must be DBL");
+        test_validate(fabs(value64_dbl(gen.data[0].val) - 3.14) < 1e-9,
+                      "data[0] value mismatch");
+
+        value64 v = v64GenNext(&gen);
+        test_validate(fabs(value64_dbl(v) - 0.0) < 1e-9,
+                      "Zero for DBL must be 0.0, got %f", value64_dbl(v));
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(/* int argc, const char *argv[] */)
@@ -740,7 +807,8 @@ main(/* int argc, const char *argv[] */)
         TESTADD(tf1_gen_init_free,           "Simple init and validate test")
       , TESTADD(tf2_gen_next_zero,           "v64GenNext (zero) simple test")
       //, TESTADD(tf_gen_reg_api,              "v64Gen data register API simple test")
-      , TESTADD(tf_gen_asc_series,           "value64UncheckGenUnlimAscSeries() simple test")
+      , TESTADD(tf3_gen_asc_series,           "value64UncheckGenUnlimAscSeries() simple test")
+      , TESTADD(tf4_v64gen_creators,         "value64UncheckGenUnlimAscSeries() simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()

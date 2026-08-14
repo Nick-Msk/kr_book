@@ -116,7 +116,7 @@ static inline v64Gen        v64GenCreatorUnlimValue(long val) {
 // REGITRSY ALLOCATION:
 // data[0]  value for DBL
 static inline v64Gen        v64GenCreatorUnlimDouble(double val) {
-    return v64GenInit1(v64GenUnlimZero, VALUE64_STR, v64typedCreateDbl(val));       // quite simple, LOL
+    return v64GenInit1(v64GenUnlimZero, VALUE64_DBL, v64typedCreateDbl(val));       // quite simple, LOL
 }
 
 // REGITRSY ALLOCATION:
