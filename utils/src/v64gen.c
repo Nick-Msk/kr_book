@@ -99,7 +99,6 @@ v64UncheckGenUnlimAscValue(v64Gen *gen, int value) {
             break;
 
         case VALUE64_BOOL:
-            // V64GENREG0(gen).bval = !V64GENREG0(gen).bval; // No reg API?
             v64typedBoolNegative(&V64GENREG0(gen));
             return result;  // origin
 
@@ -158,8 +157,8 @@ v64UncheckGenUnlimAscSeries(v64Gen *gen)
 value64
 v64UncheckGenUnlimAscRnd(v64Gen *gen)
 {
-    int rndinc = V64GENREG3(gen).val.ival;
-    return v64UncheckGenUnlimAscValue(gen, rndint(rndinc) + 1);
+    int r = V64GENREG2(gen).val.ival;
+    return v64UncheckGenUnlimAscValue(gen, rndint(r) + 1);
 }
 
 extern value64                  v64UncheckGenUnlimDescSeries(v64Gen *gen);
@@ -835,6 +834,8 @@ tf5_gen_asc_rnd_custom(const char *name)
     logenter("%s", name);
     int subnum = 0;
 
+    srand((unsigned)time(NULL)); 
+
     /* 1. INT with rndinc=1: increments should be 1 or 2, and both must appear */
     test_sub("subtest %d: AscRnd INT with rndinc=1 (increments 1..2)", ++subnum);
     {
@@ -853,8 +854,10 @@ tf5_gen_asc_rnd_custom(const char *name)
             int diff = value64_int(v) - prev_val;
             test_validate(diff >= 1 && diff <= 2,
                           "increment must be in [1,2], got %d", diff);
-            if (diff == 1) saw_1 = true;
-            if (diff == 2) saw_2 = true;
+            if (diff == 1)
+                saw_1 = true;
+            if (diff == 2)
+                saw_2 = true;
             prev_val = value64_int(v);
             value64_free(&v, gen.type);
         }
@@ -888,24 +891,22 @@ tf5_gen_asc_rnd_custom(const char *name)
         fs_alloc_check(true);
     }
 
-    /* 3. STR with rndinc=3 and template "val %d" */
     test_sub("subtest %d: AscRnd STR with rndinc=3 and template", ++subnum);
     {
         v64Gen gen = v64GenCreatorUnlimAscRnd(VALUE64_STR, 0, "val %d", 3);
 
         value64 v0 = v64GenNext(&gen);
         test_validate(strcmp(value64_str(v0), "val 0") == 0,
-                      "first must be 'val 0', got '%s'", value64_str(v0));
+                    "first must be 'val 0', got '%s'", value64_str(v0));
         value64_free(&v0, gen.type);
 
-        int prev_val = 0;
         for (int i = 0; i < 15; i++) {
+            int before = v64typedCastToInt(gen.data[0]);   // счётчик до вызова
             value64 v = v64GenNext(&gen);
-            int before = v64typedCastToInt(gen.data[0]);
-            int diff = before - prev_val;
+            int after = v64typedCastToInt(gen.data[0]);    // после вызова
+            int diff = after - before;
             test_validate(diff >= 1 && diff <= 4,
-                          "data[0] must increase by 1..4, got %d", diff);
-            prev_val = before;
+                        "data[0] must increase by 1..4, got %d", diff);
             value64_free(&v, gen.type);
         }
 
