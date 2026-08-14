@@ -38,11 +38,11 @@ typedef struct {
 #define V64TYPEDPTR(val)    (v64typed) { .val = LITERAL64_PTR(val),  .typ = VALUE64_PTR }
 #define V64TYPEDSTR(val)    (v64typed) { .val = LITERAL64_STR(val),  .typ = VALUE64_STR }
 
-static inline v64typed              v64typedCommon(value64 val, value64_type typ) {
+static inline v64typed              v64typedCreate(value64 val, value64_type typ) {
     return V64TYPEDZERO(.val = val, .typ = typ);
 }
 static inline v64typed              v64typedCreateInt(int x) {
-    return v64typedCommon(LITERAL64_INT(x), VALUE64_INT);
+    return v64typedCreate(LITERAL64_INT(x), VALUE64_INT);
 }
 static inline v64typed              v64typedCreateLong(long x) {
     return (v64typed){ .val = LITERAL64_LONG(x), .typ = VALUE64_LONG };
@@ -51,10 +51,10 @@ static inline v64typed              v64typedCreateULong(unsigned long x) {
     return (v64typed){ .val = LITERAL64_ULONG(x), .typ = VALUE64_ULONG };
 }
 static inline v64typed              v64typedCreateChar(char x) {
-    return v64typedCommon(LITERAL64_CHR(x), VALUE64_CHR);
+    return v64typedCreate(LITERAL64_CHR(x), VALUE64_CHR);
 }
 static inline v64typed              v64typedCreateBool(bool x) {
-    return v64typedCommon(LITERAL64_BOOL(x), VALUE64_BOOL);
+    return v64typedCreate(LITERAL64_BOOL(x), VALUE64_BOOL);
 }
 static inline v64typed              v64typedCreateDbl(double x) {
     return (v64typed){ .val = LITERAL64_DBL(x), .typ = VALUE64_DBL };

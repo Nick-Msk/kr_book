@@ -253,7 +253,7 @@ tf2_v64typed_nvl(const char *name)
 
     test_sub("subtest %d: v64typedNvlStr NULL STR returns default", ++subnum);
     {
-        v64typed tv = v64typedCommon(LITERAL64_STR(NULL), VALUE64_STR);
+        v64typed tv = v64typedCreate(LITERAL64_STR(NULL), VALUE64_STR);
         const char *res = v64typedNvlStr(tv, "default");
         test_validate(strcmp(res, "default") == 0,
                       "expected default, got '%s'", res);
@@ -295,7 +295,7 @@ tf2_v64typed_nvl(const char *name)
 
     test_sub("subtest %d: v64typedNvlFs NULL FS returns default", ++subnum);
     {
-        v64typed tv = v64typedCommon(LITERAL64_PFS(NULL), VALUE64_FS);
+        v64typed tv = v64typedCreate(LITERAL64_PFS(NULL), VALUE64_FS);
         const char *res = v64typedNvlFs(tv, "default");
         test_validate(strcmp(res, "default") == 0,
                       "expected default, got '%s'", res);
