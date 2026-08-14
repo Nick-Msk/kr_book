@@ -48,12 +48,12 @@ static inline value64         *v64GenReg1(v64Gen *gen) {
 }
 #define V64GENREG1(gen) (gen->data[1])
 
-static inline value64         *v64GenReg3(v64Gen *gen) {
+static inline value64         *v64GenReg2(v64Gen *gen) {
     return &gen->data[2].val;
 }
 #define V64GENREG2(gen) (gen->data[2])
 
-static inline value64         *v64GenReg4(v64Gen *gen) {
+static inline value64         *v64GenReg3(v64Gen *gen) {
     return &gen->data[3].val;
 }
 #define V64GENREG3(gen) (gen->data[3])
@@ -88,7 +88,6 @@ static inline void              v64GenFree(v64Gen *gen) {
             v64typedFree(&gen->data[i]);    // even if data = 0LL
     }
 }
-
 #define V64GEN_ZERO (v64Gen) { \
     .fnext = NULL, \
     .type = VALUE64_UNKNOWN, \
@@ -96,8 +95,8 @@ static inline void              v64GenFree(v64Gen *gen) {
     .data = { \
         [0] = { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN }, \
         [1] = { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN }, \
-        [3] = { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN }, \
-        [4] = { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN } \
+        [2] = { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN }, \
+        [3] = { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN } \
     } \
 }
 #define V64GENFREE(gen) { v64GenFree(gen); gen = V64GEN_ZERO; }
