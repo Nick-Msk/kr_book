@@ -8,7 +8,8 @@
 
 // ------------------------- CONSTRUCTOTS/DESTRUCTORS -------------------------------
 
-v64Gen                          v64GenInit(v64GenFunc func, value64_type type, v64typed reg0, v64typed reg1) {
+v64Gen                          v64GenInit(v64GenFunc func, value64_type type, 
+                                            v64typed reg0, v64typed reg1, v64typed reg2, v64typed reg3) {
     invraisecode(func != NULL, ERR_NULLABLE_PTR, "Generation function can't be null");
     invraisecode(value64_checktype(type), ERR_UNSUPPORTED_TYPE, "value64 type %d isn't supported", type);
 
@@ -16,7 +17,7 @@ v64Gen                          v64GenInit(v64GenFunc func, value64_type type, v
         .fnext   = func,
         .type    = type,
         .counter = 0U,
-        .data    = { [0] = reg0, [1] = reg1 }
+        .data    = { [0] = reg0, [1] = reg1, [2] = reg2, [3] = reg3 }
     };
     return res;
 }
@@ -212,7 +213,7 @@ tf1_gen_init_free(const char *name)
 
     test_sub("subtest %d: init and free with Zero generator", ++subnum);
     {
-        v64Gen gen = v64GenInit(v64GenUnlimZero, VALUE64_INT,
+        v64Gen gen = v64GenInit2(v64GenUnlimZero, VALUE64_INT,
                                         V64TYPEDZERO(), V64TYPEDZERO());
         test_validate(gen.fnext != NULL, "generator function must be set");
         test_validate(gen.type == VALUE64_INT, "type must be INT");
@@ -226,7 +227,7 @@ tf1_gen_init_free(const char *name)
 
     test_sub("subtest %d: init and free with STR type", ++subnum);
     {
-        v64Gen gen = v64GenInit(v64GenUnlimZero, VALUE64_STR,
+        v64Gen gen = v64GenInit2(v64GenUnlimZero, VALUE64_STR,
                                         V64TYPEDZERO(), V64TYPEDZERO());
         test_validate(gen.type == VALUE64_STR, "type must be STR");
         test_validate(gen.fnext != NULL, "fnext must be set");
@@ -661,6 +662,174 @@ tf4_gen_creators(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST : asc random generator -------------------------
+static TestStatus
+tf5_gen_asc_rnd(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: AscRnd INT increments by 1..6", ++subnum);
+    {
+       v64Gen gen = v64GenInit2(v64UncheckGenUnlimAscRnd, VALUE64_INT,
+                                v64typedCreateInt(10), v64typedCreateUnk());
+ 
+        value64 v1 = v64GenNext(&gen);
+        test_validate(value64_int(v1) == 10, "first must be 10");
+
+        value64 v2 = v64GenNext(&gen);
+        int diff = value64_int(v2) - value64_int(v1);
+        test_validate(diff >= 1 && diff <= 6, "increment must be in [1,6], got %d", diff);
+
+        value64 v3 = v64GenNext(&gen);
+        int diff2 = value64_int(v3) - value64_int(v2);
+        test_validate(diff2 >= 1 && diff2 <= 6, "second increment must be in [1,6], got %d", diff2);
+
+        value64_free(&v1, gen.type);
+        value64_free(&v2, gen.type);
+        value64_free(&v3, gen.type);
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: AscRnd LONG increments by 1..6", ++subnum);
+    {
+        v64Gen gen = v64GenInit2(v64UncheckGenUnlimAscRnd, VALUE64_LONG,
+                                v64typedCreateLong(100L), v64typedCreateUnk());
+
+        value64 v1 = v64GenNext(&gen);
+        test_validate(value64_long(v1) == 100L, "first must be 100");
+
+        value64 v2 = v64GenNext(&gen);
+        long diff = value64_long(v2) - value64_long(v1);
+        test_validate(diff >= 1 && diff <= 6, "increment must be in [1,6], got %ld", diff);
+
+        value64 v3 = v64GenNext(&gen);
+        long diff2 = value64_long(v3) - value64_long(v2);
+        test_validate(diff2 >= 1 && diff2 <= 6, "second increment must be in [1,6], got %ld", diff2);
+
+        value64_free(&v1, gen.type);
+        value64_free(&v2, gen.type);
+        value64_free(&v3, gen.type);
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: AscRnd DBL increments by 1.0..6.0", ++subnum);
+    {
+        v64Gen gen = v64GenInit2(v64UncheckGenUnlimAscRnd, VALUE64_DBL,
+                                v64typedCreateDbl(10.0), v64typedCreateUnk());
+
+        value64 v1 = v64GenNext(&gen);
+        test_validate(fabs(value64_dbl(v1) - 10.0) < 1e-9, "first must be 10.0");
+
+        value64 v2 = v64GenNext(&gen);
+        double diff = value64_dbl(v2) - value64_dbl(v1);
+        test_validate(diff >= 1.0 && diff <= 6.0, "increment must be in [1.0,6.0], got %f", diff);
+
+        value64 v3 = v64GenNext(&gen);
+        double diff2 = value64_dbl(v3) - value64_dbl(v2);
+        test_validate(diff2 >= 1.0 && diff2 <= 6.0, "second increment must be in [1.0,6.0], got %f", diff2);
+
+        value64_free(&v1, gen.type);
+        value64_free(&v2, gen.type);
+        value64_free(&v3, gen.type);
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: AscRnd ULONG increments by 1..6", ++subnum);
+    {
+        v64Gen gen = v64GenInit2(v64UncheckGenUnlimAscRnd, VALUE64_ULONG,
+                                v64typedCreateULong(200UL), v64typedCreateUnk());
+
+        value64 v1 = v64GenNext(&gen);
+        test_validate(value64_ulong(v1) == 200UL, "first must be 200");
+
+        value64 v2 = v64GenNext(&gen);
+        unsigned long diff = value64_ulong(v2) - value64_ulong(v1);
+        test_validate(diff >= 1 && diff <= 6, "increment must be in [1,6], got %lu", diff);
+
+        value64 v3 = v64GenNext(&gen);
+        unsigned long diff2 = value64_ulong(v3) - value64_ulong(v2);
+        test_validate(diff2 >= 1 && diff2 <= 6, "second increment must be in [1,6], got %lu", diff2);
+
+        value64_free(&v1, gen.type);
+        value64_free(&v2, gen.type);
+        value64_free(&v3, gen.type);
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: AscRnd CHAR increments by 1..6", ++subnum);
+    {
+        v64Gen gen = v64GenInit2(v64UncheckGenUnlimAscRnd, VALUE64_CHR,
+                                v64typedCreateChar('A'), v64typedCreateUnk());
+
+        value64 v1 = v64GenNext(&gen);
+        test_validate(value64_char(v1) == 'A', "first must be 'A'");
+
+        value64 v2 = v64GenNext(&gen);
+        int diff = (unsigned char)value64_char(v2) - (unsigned char)value64_char(v1);
+        test_validate(diff >= 1 && diff <= 6, "increment must be in [1,6], got %d", diff);
+
+        value64 v3 = v64GenNext(&gen);
+        int diff2 = (unsigned char)value64_char(v3) - (unsigned char)value64_char(v2);
+        test_validate(diff2 >= 1 && diff2 <= 6, "second increment must be in [1,6], got %d", diff2);
+
+        value64_free(&v1, gen.type);
+        value64_free(&v2, gen.type);
+        value64_free(&v3, gen.type);
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: AscRnd BOOL toggles", ++subnum);
+    {
+        v64Gen gen = v64GenInit2(v64UncheckGenUnlimAscRnd, VALUE64_BOOL,
+                                v64typedCreateBool(false), v64typedCreateUnk());
+
+        value64 v1 = v64GenNext(&gen);
+        test_validate(value64_bool(v1) == false, "first must be false");
+
+        value64 v2 = v64GenNext(&gen);
+        test_validate(value64_bool(v2) == true, "second must be true");
+
+        value64 v3 = v64GenNext(&gen);
+        test_validate(value64_bool(v3) == false, "third must be false");
+
+        value64_free(&v1, gen.type);
+        value64_free(&v2, gen.type);
+        value64_free(&v3, gen.type);
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: AscRnd STR with template, data[0] increments", ++subnum);
+    {
+        v64Gen gen = v64GenInit2(v64UncheckGenUnlimAscRnd, VALUE64_STR,
+                                v64typedCreateInt(0), v64typedCreateStr("item %d"));
+
+        value64 v1 = v64GenNext(&gen);
+        test_validate(strcmp(value64_str(v1), "item 0") == 0,
+                      "first must be 'item 0', got '%s'", value64_str(v1));
+        value64_free(&v1, gen.type);
+
+        int before = v64typedCastToInt(gen.data[0]);
+        value64 v2 = v64GenNext(&gen);
+        int after = v64typedCastToInt(gen.data[0]);
+        int diff = after - before;
+        test_validate(diff >= 1 && diff <= 6,
+                      "data[0] must increase by 1..6, got %d", diff);
+
+        value64_free(&v2, gen.type);
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 
 // ------------------------------------------------------------------------------------------------------------------------------
 int
@@ -672,8 +841,8 @@ main(/* int argc, const char *argv[] */)
         TESTADD(tf1_gen_init_free,           "Simple init and validate test")
       , TESTADD(tf2_gen_next_zero,           "v64GenNext (zero) simple test")
       , TESTADD(tf3_gen_asc_series,          "value64UncheckGenUnlimAscSeries() simple test")
-      , TESTADD(tf4_gen_creators,         "v64gen creators (simple wrappers) simple test")
-     //, TESTADD(tf4_v64gen_creators,         "v64gen creators (simple wrappers) simple test")
+      , TESTADD(tf4_gen_creators,            "v64gen creators (simple wrappers) simple test")
+      , TESTADD(tf5_gen_asc_rnd,             "v64UncheckGenUnlimAscRnd() simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
