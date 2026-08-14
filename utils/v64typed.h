@@ -26,17 +26,17 @@ typedef struct {
 // ---------------------------- CONSTRUCTORS / DESTRUCTORS ---------------------------
 
 // COMMON ZERO INIT
-#define V64TYPEDZERO(...) (v64typed) { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN, __VA_ARGS__ }
+#define V64TYPEDZERO(...)   (v64typed) { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN, __VA_ARGS__ }
 
 // PER TYPE
-#define V64TYPEDINT(val)    (v64typed){ .val = LITERAL64_INT(val),  .typ = VALUE64_INT }
-#define V64TYPEDLONG(val)   (v64typed){ .val = LITERAL64_LONG(val), .typ = VALUE64_LONG }
-#define V64TYPEDULONG(val)  (v64typed){ .val = LITERAL64_ULONG(val), .typ = VALUE64_ULONG }
-#define V64TYPEDCHAR(val)   (v64typed){ .val = LITERAL64_CHR(val), .typ = VALUE64_CHR }
-#define V64TYPEDBOOL(val)   (v64typed){ .val = LITERAL64_BOOL(val), .typ = VALUE64_BOOL }
-#define V64TYPEDDBL(val)    (v64typed){ .val = LITERAL64_DBL(val),  .typ = VALUE64_DBL }
-#define V64TYPEDPTR(val)    (v64typed){ .val = LITERAL64_PTR(val),  .typ = VALUE64_PTR }
-#define V64TYPEDSTR(val)    (v64typed){ .val = LITERAL64_STR(val),  .typ = VALUE64_STR }
+#define V64TYPEDINT(val)    (v64typed) { .val = LITERAL64_INT(val),  .typ = VALUE64_INT }
+#define V64TYPEDLONG(val)   (v64typed) { .val = LITERAL64_LONG(val), .typ = VALUE64_LONG }
+#define V64TYPEDULONG(val)  (v64typed) { .val = LITERAL64_ULONG(val), .typ = VALUE64_ULONG }
+#define V64TYPEDCHAR(val)   (v64typed) { .val = LITERAL64_CHR(val), .typ = VALUE64_CHR }
+#define V64TYPEDBOOL(val)   (v64typed) { .val = LITERAL64_BOOL(val), .typ = VALUE64_BOOL }
+#define V64TYPEDDBL(val)    (v64typed) { .val = LITERAL64_DBL(val),  .typ = VALUE64_DBL }
+#define V64TYPEDPTR(val)    (v64typed) { .val = LITERAL64_PTR(val),  .typ = VALUE64_PTR }
+#define V64TYPEDSTR(val)    (v64typed) { .val = LITERAL64_STR(val),  .typ = VALUE64_STR }
 
 static inline v64typed              v64typedCommon(value64 val, value64_type typ) {
     return V64TYPEDZERO(.val = val, .typ = typ);
