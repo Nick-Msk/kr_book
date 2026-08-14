@@ -4224,6 +4224,77 @@ tf35_fs_isempty(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST fs_movetostr / fs_movefrom_heapstr -------------------------
+static TestStatus
+tf36_fs_movetostr(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Stack fs: move string out */
+    test_sub("subtest %d: fs_movetostr with stacked fs", ++subnum);
+    {
+        fs s = fscopy("hello");
+        char *str = fs_movetostr(&s);
+        test_validate(str != NULL && strcmp(str, "hello") == 0,
+                      "moved string mismatch");
+        test_validate(s.v == NULL && s.sz == 0 && s.len == 0,
+                      "source fs must be empty after move");
+        
+        fs_alloc_check(true);
+        free(str);          // освобождаем строку, счётчик g_free_cnt уже был увеличен
+        // fsfree(s) не нужен, так как s пуста
+        fs_alloc_check(true);
+    }
+
+    /* 2. Stack fs with empty string (v == NULL) */
+    test_sub("subtest %d: fs_movetostr with empty fs", ++subnum);
+    {
+        fs s = FS();        // v == NULL
+        char *str = fs_movetostr(&s);
+        test_validate(str == NULL, "must return NULL for empty fs");
+        test_validate(s.v == NULL && s.sz == 0 && s.len == 0,
+                      "source fs must remain empty");
+        // ничего не освобождаем
+        fs_alloc_check(true);
+    }
+
+    /* 3. Перемещение из bodyalloc fs через fs_movefrom_heapstr */
+    test_sub("subtest %d: fs_movefrom_heapstr from bodyalloc fs", ++subnum);
+    {
+        fs *p = fs_heapcopy("world");   // создаёт fs с FS_FLAG_BODYALLOC
+        test_validate(p != NULL && fs_bodyalloc(p), "fs must be bodyalloc");
+
+        char *str = fs_movefrom_heapstr(&p);
+        test_validate(str != NULL && strcmp(str, "world") == 0,
+                      "moved string mismatch");
+        test_validate(p == NULL, "pointer must be NULL after move");
+        free(str);
+        fs_alloc_check(true);
+    }
+
+    /* 4. fs_movefrom_heapstr на стековом fs должен вызывать ошибку */
+    test_sub("subtest %d: fs_movefrom_heapstr on stacked fs raises error", ++subnum);
+    {
+        fs s = fscopy("stacked");
+        fs *p = &s;
+        // Поскольку userraiseint прерывает выполнение (SIGINT), используем try()
+        if (!try()) {
+            char *str = fs_movefrom_heapstr(&p);
+            // Если ошибка не возникла, это сбой
+            test_validate(false, "must raise error for non-bodyalloc");
+            free(str);
+        } else {
+            test_validate(true, "correctly raised error");
+            // После longjmp сюда не попадём, но если userraise вернёт управление,
+            // надо освободить ресурсы
+            fsfree(s);
+        }
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -4231,43 +4302,44 @@ main( /* int argc, const char *argv[] */)
     logsimpleinit("Start");
 
     testenginestd(
-        TESTADD(tf1,               "Simple init and validate test"),
-        TESTADD(tf2,               "Access read/write test"),
-        TESTADD(tf3,               "Elem() test"),
+        TESTADD(tf1,                    "Simple init and validate test"),
+        TESTADD(tf2,                    "Access read/write test"),
+        TESTADD(tf3,                    "Elem() test"),
         // 
-        TESTADD(tf_fs_clone,       "fs_clone() simple test"),
-        TESTADD(tf4,               "fs_cat/fs_catstr test"),
-        TESTADD(tf5,               "fs_cpy/fs_cpystr test"),
-        TESTADD(tf6,               "fsfreeall test"),
-        TESTADD(tf7,               "fsprint/printlim manual test"),
-        TESTADD(tf8,               "fsprint_arr manual test"),
-        TESTADD(tf9,               "fs_sprintf formatted test"),
-        TESTADD(tf10,              "fslocal simple test"),
-        TESTADD(tf11,              "fs_save/load test"),
-        TESTADD(tf12,              "fs_free_alloc_checker test"),
-        TESTADD(tf13,              "fs_move simple test"),
-        TESTADD(tf14,              "fs_substr/newsubstr simple test"),
-        TESTADD(tf15,              "fs_ifnotin/fs_ifinotin simple test"),
-        TESTADD(tf16,              "fs_instr/fs_iinstr simple test"),
-        TESTADD(tf17,              "fs_(n)(i)chr simple tests"),
-        TESTADD(tf18,              "fs_(i)rchr simple tests"),
-        TESTADD(tf19,              "fs_n(i)instr simple tests"),
-        TESTADD(tf20,              "fs_rev_catstr simple tests"),
-        TESTADD(tf21,              "fs_str simple tests"),
-        TESTADD(tf22,              "fs_get<int/long/double>pos simple tests"),
-        TESTADD(tf23,              "fs_cmp_strict simple tests"),
-        TESTADD(tf24,              "fs_moveto_heap simple tests"),
-        TESTADD(tf25,              "fs_fscanf simple tests"),
-        TESTADD(tf26,              "fscopyf simple tests"),
-        TESTADD(tf27,              "fs_rpad()/lpad() simple tests"),
-        TESTADD(tf28,              "fs_heapcreate() simple tests"),
-        TESTADD(tf_fs_heapcopy,    "fs_heapcopy() simple tests"),
-        TESTADD(tf_moveto_heapstr, "fs_moveto_heapstr() simple tests"),
-        TESTADD(tf_movefrom_heapstr, "fs_movefrom_heapstr() simple tests"),
-        TESTADD(tf_genrnd,         "fs_genrnd() simple tests"),
-        TESTADD(tf_initrnd,        "fs_initrnd() simple tests"),
-        TESTADD(tf34_fs_isnull,    "fs_isnull() simple tests"),
-        TESTADD(tf35_fs_isempty,   "fs_isempty() simple tests")
+        TESTADD(tf_fs_clone,            "fs_clone() simple test"),
+        TESTADD(tf4,                    "fs_cat/fs_catstr test"),
+        TESTADD(tf5,                    "fs_cpy/fs_cpystr test"),
+        TESTADD(tf6,                    "fsfreeall test"),
+        TESTADD(tf7,                    "fsprint/printlim manual test"),
+        TESTADD(tf8,                    "fsprint_arr manual test"),
+        TESTADD(tf9,                    "fs_sprintf formatted test"),
+        TESTADD(tf10,                   "fslocal simple test"),
+        TESTADD(tf11,                   "fs_save/load test"),
+        TESTADD(tf12,                   "fs_free_alloc_checker test"),
+        TESTADD(tf13,                   "fs_move simple test"),
+        TESTADD(tf14,                   "fs_substr/newsubstr simple test"),
+        TESTADD(tf15,                   "fs_ifnotin/fs_ifinotin simple test"),
+        TESTADD(tf16,                   "fs_instr/fs_iinstr simple test"),
+        TESTADD(tf17,                   "fs_(n)(i)chr simple tests"),
+        TESTADD(tf18,                   "fs_(i)rchr simple tests"),
+        TESTADD(tf19,                   "fs_n(i)instr simple tests"),
+        TESTADD(tf20,                   "fs_rev_catstr simple tests"),
+        TESTADD(tf21,                   "fs_str simple tests"),
+        TESTADD(tf22,                   "fs_get<int/long/double>pos simple tests"),
+        TESTADD(tf23,                   "fs_cmp_strict simple tests"),
+        TESTADD(tf24,                   "fs_moveto_heap simple tests"),
+        TESTADD(tf25,                   "fs_fscanf simple tests"),
+        TESTADD(tf26,                   "fscopyf simple tests"),
+        TESTADD(tf27,                   "fs_rpad()/lpad() simple tests"),
+        TESTADD(tf28,                   "fs_heapcreate() simple tests"),
+        TESTADD(tf_fs_heapcopy,         "fs_heapcopy() simple tests"),
+        TESTADD(tf_moveto_heapstr,      "fs_moveto_heapstr() simple tests"),
+        TESTADD(tf_movefrom_heapstr,    "fs_movefrom_heapstr() simple tests"),
+        TESTADD(tf_genrnd,              "fs_genrnd() simple tests"),
+        TESTADD(tf_initrnd,             "fs_initrnd() simple tests"),
+        TESTADD(tf34_fs_isnull,         "fs_isnull() simple tests"),
+        TESTADD(tf35_fs_isempty,        "fs_isempty() simple tests"),
+        TESTADD(tf36_fs_movetostr,      "fs_movetostr()/fs_movefrom_heapstr() simple tests")
     );
 
     return logret(0, "end...");  // as replace of logclose()
