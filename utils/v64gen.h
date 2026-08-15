@@ -299,6 +299,67 @@ static inline v64Gen        v64GenCreatorUnlimAscRnd(v64typed vt, int rndinc) {
     return res;
 }
 
+// ------------------------------------ DESC RANDOM SERIES -----------------------------------------------
+
+// REGITRSY ALLOCATION:
+// data[0] LONG as startpos for numeric desc random generator
+// data[1] STR as pattern for printing
+// data[2] INT as pattern for increment
+static inline v64Gen        v64GenCreatorUnlimDescFsRnd(long startpos, const char *fmt, int rndinc) {
+    v64Gen tmp;
+    if (rndinc < 1)
+        rndinc = 1;
+    if (fmt != NULL)
+        tmp = v64GenInit3(v64UncheckGenUnlimDescRnd,
+                        VALUE64_FS, v64typedCreateLong(startpos), 
+                                v64typedCreateStr(fmt), 
+                                v64typedCreateInt(rndinc));
+    else
+        tmp = v64GenInit3(v64UncheckGenUnlimDescRnd, 
+                        VALUE64_FS, v64typedCreateLong(startpos), 
+                                V64TYPEDZERO(), 
+                                v64typedCreateInt(rndinc));
+    return tmp;
+}
+
+// REGITRSY ALLOCATION:
+// data[0] LONG as startpos for numeric desc random generator
+// data[1] STR as pattern for printing
+// data[2] INT as pattern for increment
+static inline v64Gen        v64GenCreatorUnlimDescStrRnd(long startpos, const char *fmt, int rndinc) {
+    v64Gen tmp;
+    if (rndinc < 1)
+        rndinc = 1;
+    if (fmt != NULL)
+        tmp = v64GenInit3(v64UncheckGenUnlimDescRnd,
+                        VALUE64_STR, v64typedCreateLong(startpos), 
+                                v64typedCreateStr(fmt), 
+                                v64typedCreateInt(rndinc));
+    else
+        tmp = v64GenInit3(v64UncheckGenUnlimDescRnd, 
+                        VALUE64_STR, v64typedCreateLong(startpos), 
+                                V64TYPEDZERO(), 
+                                v64typedCreateInt(rndinc));
+    return tmp;
+}
+
+// REGITRSY ALLOCATION:
+// data[0] <PARAM VT TYPE> as startpos for numeric desc generator
+// data[2] INT as pattern for increment
+static inline v64Gen        v64GenCreatorUnlimDescRnd(v64typed vt, int rndinc) {
+    value64_type rettyp = vt.typ;     // that is it!!!
+
+    if (int_notin(rettyp, VALUE64_BOOL, VALUE64_CHR, VALUE64_INT, VALUE64_LONG, VALUE64_ULONG, VALUE64_DBL))
+        userraiseint(ERR_UNSUPPORTED_TYPE, "Type %d %s not supported by %s", 
+                rettyp, value64_typename(rettyp), __func__);
+
+    if (rndinc < 1)
+        rndinc = 1;
+    v64Gen res = v64GenInit3(v64UncheckGenUnlimDescRnd, rettyp, vt, V64TYPEDZERO(), v64typedCreateInt(rndinc));
+    return res;
+}
+
+
 // REGITRSY ALLOCATION:
 // data[0] LONG as startpos for numeric random generator
 // data[1] FS as pattern for printing FS/STR 

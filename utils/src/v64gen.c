@@ -174,19 +174,37 @@ value64
 v64UncheckGenUnlimDescSeries(v64Gen *gen) {
     return v64UncheckGenUnlimAscValue(gen, -1);
 }
-extern value64                  v64UncheckGenUnlimDescRnd(v64Gen *gen);
+/**
+ * @brief Unchecked unlimited descending random series generator.
+ *
+ * Numeric types: data[0] holds the current value and is incremented.
+ * Boolean:        data[0] toggles.
+ * String types:   data[0] holds the current integer, data[1] holds an
+ *                optional printf-template (STR or FS). If absent, "%d".
+ *
+ * @param gen  pointer to the generator
+ * @return     the next value64 of the generator's type (ownership passed to caller)
+ */
+value64                         v64UncheckGenUnlimDescRnd(v64Gen *gen) {
+    int r = value64_int(V64GENREGVAL2(gen) );
+
+    return v64UncheckGenUnlimAscValue(gen, -(rndint(r) + 1) );
+}
+
 extern value64                  v64UncheckGenUnlimRandom(v64Gen *gen);
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
-extern int                      v64Techfprint(FILE *restrict out, const v64Gen *restrict gen);
+int                             v64Techfprint(FILE *restrict out, const v64Gen *restrict gen) {
+    // TODO:
+}
 
 
 // ------------------------------------ ETC. ----------------------------------------
 
 // validation always use DIRECT fprintf (no userraise) to be able to work
 // if you want to log using logging system, exec value64GenValidate(logfile, gen);
-bool                      v64GenValidate(FILE *restrict out, const v64Gen *restrict gen) {
+bool                            v64GenValidate(FILE *restrict out, const v64Gen *restrict gen) {
     if (!gen) {
         if (out)
             fprintf(out, "Gen is null");
@@ -1282,6 +1300,198 @@ tf7_gen_desc_series(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST 7: DescRnd (descending random) -------------------------
+static TestStatus
+tf8_gen_desc_rnd_custom(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. INT with rndinc=1 (decrements 1..2) */
+    test_sub("subtest %d: DescRnd INT with rndinc=1 (decrements 1..2)", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimDescRnd(v64typedCreateInt(100), 1);
+
+        value64 v0 = v64GenNext(&gen);
+        test_validate(value64_int(v0) == 100, "first must be 100");
+        value64_free(&v0, gen.type);
+
+        bool saw_1 = false, saw_2 = false;
+        int prev_val = 100;
+        for (int i = 0; i < 30; i++) {
+            value64 v = v64GenNext(&gen);
+            int diff = prev_val - value64_int(v);
+            test_validate(diff >= 1 && diff <= 2,
+                          "decrement must be in [1,2], got %d", diff);
+            if (diff == 1) saw_1 = true;
+            if (diff == 2) saw_2 = true;
+            prev_val = value64_int(v);
+            value64_free(&v, gen.type);
+        }
+        test_validate(saw_1 && saw_2,
+                      "both decrements 1 and 2 should appear with rndinc=1");
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 2. LONG with rndinc=5 (decrements 1..6) */
+    test_sub("subtest %d: DescRnd LONG with rndinc=5 (decrements 1..6)", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimDescRnd(v64typedCreateLong(500L), 5);
+
+        value64 v0 = v64GenNext(&gen);
+        test_validate(value64_long(v0) == 500L, "first must be 500");
+        value64_free(&v0, gen.type);
+
+        long prev_val = 500L;
+        for (int i = 0; i < 30; i++) {
+            value64 v = v64GenNext(&gen);
+            long diff = prev_val - value64_long(v);
+            test_validate(diff >= 1 && diff <= 6,
+                          "decrement must be in [1,6], got %ld", diff);
+            prev_val = value64_long(v);
+            value64_free(&v, gen.type);
+        }
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 3. DBL with rndinc=3 (decrements 1.0..4.0) */
+    test_sub("subtest %d: DescRnd DBL with rndinc=3 (decrements 1.0..4.0)", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimDescRnd(v64typedCreateDbl(20.0), 3);
+
+        value64 v0 = v64GenNext(&gen);
+        test_validate(fabs(value64_dbl(v0) - 20.0) < 1e-9, "first must be 20.0");
+        value64_free(&v0, gen.type);
+
+        double prev_val = 20.0;
+        for (int i = 0; i < 20; i++) {
+            value64 v = v64GenNext(&gen);
+            double diff = prev_val - value64_dbl(v);
+            test_validate(diff >= 1.0 && diff <= 4.0,
+                          "decrement must be in [1.0,4.0], got %f", diff);
+            prev_val = value64_dbl(v);
+            value64_free(&v, gen.type);
+        }
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 4. ULONG with rndinc=2 (decrements 1..3) */
+    test_sub("subtest %d: DescRnd ULONG with rndinc=2 (decrements 1..3)", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimDescRnd(v64typedCreateULong(1000UL), 2);
+
+        value64 v0 = v64GenNext(&gen);
+        test_validate(value64_ulong(v0) == 1000UL, "first must be 1000");
+        value64_free(&v0, gen.type);
+
+        unsigned long prev_val = 1000UL;
+        for (int i = 0; i < 20; i++) {
+            value64 v = v64GenNext(&gen);
+            unsigned long diff = prev_val - value64_ulong(v);
+            test_validate(diff >= 1 && diff <= 3,
+                          "decrement must be in [1,3], got %lu", diff);
+            prev_val = value64_ulong(v);
+            value64_free(&v, gen.type);
+        }
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 5. CHR with rndinc=1 (decrements 1..2) */
+    test_sub("subtest %d: DescRnd CHAR with rndinc=1 (decrements 1..2)", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimDescRnd(v64typedCreateChar('Z'), 1);
+
+        value64 v0 = v64GenNext(&gen);
+        test_validate(value64_char(v0) == 'Z', "first must be 'Z'");
+        value64_free(&v0, gen.type);
+
+        int prev_val = (unsigned char)'Z';
+        for (int i = 0; i < 10; i++) {
+            value64 v = v64GenNext(&gen);
+            int diff = prev_val - (unsigned char)value64_char(v);
+            test_validate(diff >= 1 && diff <= 2,
+                          "decrement must be in [1,2], got %d", diff);
+            prev_val = (unsigned char)value64_char(v);
+            value64_free(&v, gen.type);
+        }
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 6. BOOL toggles (value ignored) */
+    test_sub("subtest %d: DescRnd BOOL toggles", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimDescRnd(v64typedCreateBool(false), 3);
+
+        value64 v1 = v64GenNext(&gen);
+        test_validate(value64_bool(v1) == false, "first must be false");
+        value64_free(&v1, gen.type);
+
+        value64 v2 = v64GenNext(&gen);
+        test_validate(value64_bool(v2) == true, "second must be true");
+        value64_free(&v2, gen.type);
+
+        value64 v3 = v64GenNext(&gen);
+        test_validate(value64_bool(v3) == false, "third must be false");
+        value64_free(&v3, gen.type);
+
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: DescRnd STR with template and rndinc=3", ++subnum);
+{
+    v64Gen gen = v64GenCreatorUnlimDescStrRnd(10, "item %d", 3);
+
+    value64 v0 = v64GenNext(&gen);
+    test_validate(strcmp(value64_str(v0), "item 10") == 0,
+                  "first must be 'item 10', got '%s'", value64_str(v0));
+    value64_free(&v0, gen.type);
+
+    for (int i = 0; i < 15; i++) {
+        int before = v64typedCastToInt(gen.data[0]);   // текущее значение до вызова
+        value64 v = v64GenNext(&gen);
+        int after = v64typedCastToInt(gen.data[0]);    // после вызова
+        int diff = before - after;
+        test_validate(diff >= 1 && diff <= 4,
+                      "data[0] must decrease by 1..4, got %d", diff);
+        value64_free(&v, gen.type);
+    }
+
+    v64GenFree(&gen);
+    fs_alloc_check(true);
+}
+
+    /* 8. FS with template "val %d" and rndinc=2 (decrements 1..3) */
+    test_sub("subtest %d: DescRnd FS with template and rndinc=2", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimDescFsRnd(7, "val %d", 2);
+
+        value64 v0 = v64GenNext(&gen);
+        test_validate(fs_cmpstr(value64_fs(v0), "val 7") == 0,
+                      "first must be 'val 7', got '%s'", fs_str(value64_fs(v0)));
+        value64_free(&v0, gen.type);
+
+        for (int i = 0; i < 10; i++) {
+            int before = v64typedCastToInt(gen.data[0]);   // текущее значение до вызова
+            value64 v = v64GenNext(&gen);
+            int after = v64typedCastToInt(gen.data[0]);    // после вызова
+            int diff = before - after;
+            test_validate(diff >= 1 && diff <= 4,
+                        "data[0] must decrease by 1..4, got %d", diff);
+            value64_free(&v, gen.type);
+        }
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(/* int argc, const char *argv[] */)
@@ -1296,6 +1506,7 @@ main(/* int argc, const char *argv[] */)
       , TESTADD(tf5_gen_asc_rnd,             "v64UncheckGenUnlimAscRnd() simple test")
       , TESTADD(tf6_gen_asc_rnd_custom,      "AscRnd with custom rndinc simple test")
       , TESTADD(tf7_gen_desc_series,         "v64UncheckGenUnlimDescSeries() simple test")
+      , TESTADD(tf8_gen_desc_rnd_custom,     "DescRnd with custom rndinc simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
