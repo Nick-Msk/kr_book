@@ -1000,7 +1000,7 @@ tf7_gen_desc_series(const char *name)
     /* 1. INT descending from 10 */
     test_sub("subtest %d: DescSeries INT from 10", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimDescSeries(VALUE64_INT, 10, NULL);
+        v64Gen gen = v64GenCreatorUnlimDescSeries(v64typedCreateInt(10) );
 
         value64 v1 = v64GenNext(&gen);
         test_validate(value64_int(v1) == 10, "first must be 10");
@@ -1022,7 +1022,7 @@ tf7_gen_desc_series(const char *name)
     /* 2. LONG descending from 100 */
     test_sub("subtest %d: DescSeries LONG from 100", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimDescSeries(VALUE64_LONG, 100L, NULL);
+        v64Gen gen = v64GenCreatorUnlimDescSeries(v64typedCreateLong(100L) );
 
         value64 v1 = v64GenNext(&gen);
         test_validate(value64_long(v1) == 100L, "first must be 100");
@@ -1042,9 +1042,9 @@ tf7_gen_desc_series(const char *name)
     }
 
     /* 3. DBL descending from 10.5 */
-    /*test_sub("subtest %d: DescSeries DBL from 10.5", ++subnum);
+    test_sub("subtest %d: DescSeries DBL from 10.5", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimDescSeries(VALUE64_DBL, (long)10.5, NULL);
+        v64Gen gen = v64GenCreatorUnlimDescSeries(v64typedCreateDbl(10.5) );
 
         value64 v1 = v64GenNext(&gen);
         test_validate(fabs(value64_dbl(v1) - 10.5) < 1e-9, "first must be 10.5");
@@ -1061,12 +1061,12 @@ tf7_gen_desc_series(const char *name)
         test_validate(gen.counter == 3, "counter must be 3");
         v64GenFree(&gen);
         fs_alloc_check(true);
-    }*/ 
+    }
 
     /* 4. ULONG descending from 200 */
     test_sub("subtest %d: DescSeries ULONG from 200", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimDescSeries(VALUE64_ULONG, 200L, NULL);
+        v64Gen gen = v64GenCreatorUnlimDescSeries(v64typedCreateULong(200UL) );
 
         value64 v1 = v64GenNext(&gen);
         test_validate(value64_ulong(v1) == 200UL, "first must be 200");
@@ -1086,9 +1086,9 @@ tf7_gen_desc_series(const char *name)
     }
 
     /* 5. BOOL toggles */
-    /*test_sub("subtest %d: DescSeries BOOL toggles", ++subnum);
+    test_sub("subtest %d: DescSeries BOOL toggles", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimDescSeries(VALUE64_BOOL, 0L, NULL);
+        v64Gen gen = v64GenCreatorUnlimDescSeries(v64typedCreateBool(false) );
 
         value64 v1 = v64GenNext(&gen);
         test_validate(value64_bool(v1) == false, "first must be false");
@@ -1105,12 +1105,12 @@ tf7_gen_desc_series(const char *name)
         test_validate(gen.counter == 3, "counter must be 3");
         v64GenFree(&gen);
         fs_alloc_check(true);
-    }*/
+    }
 
     /* 6. CHAR descending from 'C' */
     test_sub("subtest %d: DescSeries CHAR from 'C'", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimDescSeries(VALUE64_CHR, 'C', NULL);
+        v64Gen gen = v64GenCreatorUnlimDescSeries(v64typedCreateChar('C') );
 
         value64 v1 = v64GenNext(&gen);
         test_validate(value64_char(v1) == 'C', "first must be 'C'");
@@ -1132,7 +1132,7 @@ tf7_gen_desc_series(const char *name)
     /* 7. STR default template starting at 3 */
     test_sub("subtest %d: DescSeries STR default template", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimDescSeries(VALUE64_STR, 3L, NULL);
+        v64Gen gen = v64GenCreatorUnlimDescStrSeries(3L, NULL);
 
         value64 v1 = v64GenNext(&gen);
         test_validate(strcmp(value64_str(v1), "3") == 0, "first must be '3'");
@@ -1154,7 +1154,7 @@ tf7_gen_desc_series(const char *name)
     /* 8. STR with template "item %d" */
     test_sub("subtest %d: DescSeries STR with template 'item %%d'", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimDescSeries(VALUE64_STR, 3L, "item %d");
+        v64Gen gen = v64GenCreatorUnlimDescStrSeries(3L, "item %d");
 
         value64 v1 = v64GenNext(&gen);
         test_validate(strcmp(value64_str(v1), "item 3") == 0, "first must be 'item 3'");
@@ -1176,7 +1176,7 @@ tf7_gen_desc_series(const char *name)
     /* 9. FS default template starting at 2 */
     test_sub("subtest %d: DescSeries FS default template", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimDescSeries(VALUE64_FS, 2L, NULL);
+        v64Gen gen = v64GenCreatorUnlimDescFsSeries(2L, NULL);
 
         value64 v1 = v64GenNext(&gen);
         test_validate(strcmp(fs_str(value64_fs(v1)), "2") == 0, "first must be '2'");
@@ -1198,7 +1198,7 @@ tf7_gen_desc_series(const char *name)
     /* 10. FS with template "val_%d" */
     test_sub("subtest %d: DescSeries FS with template 'val_%%d'", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimDescSeries(VALUE64_FS, 7L, "val_%d");
+        v64Gen gen = v64GenCreatorUnlimDescFsSeries(7L, "val_%d");
 
         value64 v1 = v64GenNext(&gen);
         test_validate(strcmp(fs_str(value64_fs(v1)), "val_7") == 0, "first must be 'val_7'");
