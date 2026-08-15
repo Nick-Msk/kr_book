@@ -41,6 +41,10 @@ typedef struct {
 static inline v64typed              v64typedCreate(value64 val, value64_type typ) {
     return V64TYPEDZERO(.val = val, .typ = typ);
 }
+// not get ownership
+static inline v64typed              v64typedCreateCstrSource(const char *str) {
+    return v64typedCreate(LITERAL64_STR(str), VALUE64_PTR); // PTR for simulation!
+}
 static inline v64typed              v64typedCreateInt(int x) {
     return v64typedCreate(LITERAL64_INT(x), VALUE64_INT);
 }
