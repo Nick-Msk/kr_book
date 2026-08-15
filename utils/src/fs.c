@@ -4351,6 +4351,246 @@ tf36_fs_movetostr(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST fs_cmpstr() series simple tests -------------------------
+static TestStatus
+tf37_fs_cmpstr(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. fs_cmpstr equal */
+    test_sub("subtest %d: fs_cmpstr equal", ++subnum);
+    {
+        fs s = fscopy("hello");
+        int res = fs_cmpstr(&s, "hello");
+        test_validatefree(res == 0, fsfree(s), "expected 0, got %d", res);
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 2. fs_cmpstr less */
+    test_sub("subtest %d: fs_cmpstr less", ++subnum);
+    {
+        fs s = fscopy("abc");
+        int res = fs_cmpstr(&s, "abd");
+        test_validatefree(res < 0, fsfree(s), "expected negative, got %d", res);
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 3. fs_cmpstr greater */
+    test_sub("subtest %d: fs_cmpstr greater", ++subnum);
+    {
+        fs s = fscopy("xyz");
+        int res = fs_cmpstr(&s, "abc");
+        test_validatefree(res > 0, fsfree(s), "expected positive, got %d", res);
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 4. fs_cmpstr with empty string */
+    test_sub("subtest %d: fs_cmpstr empty", ++subnum);
+    {
+        fs s = fscopy("");
+        int res1 = fs_cmpstr(&s, "");
+        int res2 = fs_cmpstr(&s, "a");
+        test_validatefree(res1 == 0, fsfree(s), "expected 0 for \"\", got %d", res1);
+        test_validatefree(res2 < 0, fsfree(s), "expected negative for empty vs \"a\", got %d", res2);
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 5. fs_ncmpstr limited equal (within limit) */
+    test_sub("subtest %d: fs_ncmpstr limited equal", ++subnum);
+    {
+        fs s = fscopy("hello");
+        int res = fs_ncmpstr(&s, "help", 3);
+        test_validatefree(res == 0, fsfree(s), "expected 0 for first 3 chars, got %d", res);
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 6. fs_ncmpstr limited difference within limit */
+    test_sub("subtest %d: fs_ncmpstr limited diff within", ++subnum);
+    {
+        fs s = fscopy("hello");
+        int res = fs_ncmpstr(&s, "help", 4);
+        test_validatefree(res < 0, fsfree(s), "expected negative, got %d", res);
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 7. fs_ncmpstr limited with different length strings */
+    test_sub("subtest %d: fs_ncmpstr limited different lengths", ++subnum);
+    {
+        fs s = fscopy("abc");
+        int res1 = fs_ncmpstr(&s, "abcdef", 3);  // first 3 equal
+        int res2 = fs_ncmpstr(&s, "abcd", 4);    // 4th char '\0' vs 'd' -> negative
+        test_validatefree(res1 == 0, fsfree(s), "first 3 chars equal, expected 0, got %d", res1);
+        test_validatefree(res2 < 0, fsfree(s), "expected negative, got %d", res2);
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 8. fs_ncmpstr with empty string */
+    test_sub("subtest %d: fs_ncmpstr empty fs", ++subnum);
+    {
+        fs s = fscopy("");
+        int res1 = fs_ncmpstr(&s, "", 1);
+        int res2 = fs_ncmpstr(&s, "a", 1);
+        test_validatefree(res1 == 0, fsfree(s), "expected 0, got %d", res1);
+        test_validatefree(res2 < 0, fsfree(s), "expected negative, got %d", res2);
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 9. fscmpstr (local) equal */
+    test_sub("subtest %d: fscmpstr equal (local)", ++subnum);
+    {
+        fs s = fscopy("hello");
+        int res = fscmpstr(s, "hello");
+        test_validatefree(res == 0, fsfree(s), "expected 0, got %d", res);
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 10. fsncmpstr (local) limited */
+    test_sub("subtest %d: fsncmpstr limited (local)", ++subnum);
+    {
+        fs s = fscopy("hello");
+        int res1 = fsncmpstr(s, "help", 3);
+        int res2 = fsncmpstr(s, "help", 4);
+        test_validatefree(res1 == 0, fsfree(s), "first 3 equal, expected 0, got %d", res1);
+        test_validatefree(res2 < 0, fsfree(s), "expected negative, got %d", res2);
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
+// ------------------------- TEST fs_icmpstr / fs_nicmpstr -------------------------
+static TestStatus
+tf38_fs_icmpstr(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. fs_icmpstr equal (case-insensitive) */
+    test_sub("subtest %d: fs_icmpstr equal", ++subnum);
+    {
+        fs s = fscopy("HelloWorld");
+        int res = fs_icmpstr(&s, "helloworld");
+        test_validatefree(res == 0, fsfree(s), "expected 0, got %d", res);
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 2. fs_icmpstr less (case-insensitive) */
+    test_sub("subtest %d: fs_icmpstr less", ++subnum);
+    {
+        fs s = fscopy("abc");
+        int res = fs_icmpstr(&s, "ABCd");   // 'a' vs 'a', 'b' vs 'b', 'c' vs 'c', '\0' vs 'd'
+        test_validatefree(res < 0, fsfree(s), "expected negative, got %d", res);
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 3. fs_icmpstr greater (case-insensitive) */
+    test_sub("subtest %d: fs_icmpstr greater", ++subnum);
+    {
+        fs s = fscopy("xyz");
+        int res = fs_icmpstr(&s, "ABC");
+        test_validatefree(res > 0, fsfree(s), "expected positive, got %d", res);
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 4. fs_icmpstr with empty string */
+    test_sub("subtest %d: fs_icmpstr empty", ++subnum);
+    {
+        fs s = fscopy("");
+        int res1 = fs_icmpstr(&s, "");
+        int res2 = fs_icmpstr(&s, "A");
+        test_validatefree(res1 == 0, fsfree(s), "expected 0 for \"\", got %d", res1);
+        test_validatefree(res2 < 0, fsfree(s), "expected negative for empty vs \"A\", got %d", res2);
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 5. fs_nicmpstr limited equal (case-insensitive) */
+    test_sub("subtest %d: fs_nicmpstr limited equal", ++subnum);
+    {
+        fs s = fscopy("Hello");
+        int res = fs_nicmpstr(&s, "hElLo", 5);
+        test_validatefree(res == 0, fsfree(s), "expected 0, got %d", res);
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 6. fs_nicmpstr limited difference within limit */
+    test_sub("subtest %d: fs_nicmpstr limited diff", ++subnum);
+    {
+        fs s = fscopy("Hello");
+        int res = fs_nicmpstr(&s, "help", 3);   // 'h','e','l' equal, limit 3
+        test_validatefree(res == 0, fsfree(s), "expected 0 for first 3 chars, got %d", res);
+
+        // now compare 4 chars: 'h','e','l','l' vs 'h','e','l','p' -> 'l' (108) vs 'p' (112) => negative
+        int res2 = fs_nicmpstr(&s, "help", 4);
+        test_validatefree(res2 < 0, fsfree(s), "expected negative, got %d", res2);
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 7. fs_nicmpstr limited different lengths */
+    test_sub("subtest %d: fs_nicmpstr limited different lengths", ++subnum);
+    {
+        fs s = fscopy("abc");
+        int res1 = fs_nicmpstr(&s, "ABCdef", 3);
+        int res2 = fs_nicmpstr(&s, "ABCD", 4);    // '\0' vs 'D' (case-insensitive '\0' < 'D')
+        test_validatefree(res1 == 0, fsfree(s), "first 3 equal, expected 0, got %d", res1);
+        test_validatefree(res2 < 0, fsfree(s), "expected negative, got %d", res2);
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 8. fs_nicmpstr with empty string */
+    test_sub("subtest %d: fs_nicmpstr empty fs", ++subnum);
+    {
+        fs s = fscopy("");
+        int res1 = fs_nicmpstr(&s, "", 1);
+        int res2 = fs_nicmpstr(&s, "A", 1);
+        test_validatefree(res1 == 0, fsfree(s), "expected 0, got %d", res1);
+        test_validatefree(res2 < 0, fsfree(s), "expected negative, got %d", res2);
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+        /* 9. fsicmpstr (local) case-insensitive equal */
+    test_sub("subtest %d: fsicmpstr equal (local)", ++subnum);
+    {
+        fs s = fscopy("HeLLo");
+        int res = fsicmpstr(s, "hello");
+        test_validatefree(res == 0, fsfree(s), "expected 0, got %d", res);
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 10. fsnicmpstr (local) limited case-insensitive */
+    test_sub("subtest %d: fsnicmpstr limited (local)", ++subnum);
+    {
+        fs s = fscopy("HelloWorld");
+        int res1 = fsnicmpstr(s, "HELLO", 5);
+        int res2 = fsnicmpstr(s, "HELLO", 6);   // 'W' vs '\0' → positive
+        test_validatefree(res1 == 0, fsfree(s), "first 5 equal, expected 0, got %d", res1);
+        test_validatefree(res2 > 0, fsfree(s), "expected positive, got %d", res2);
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -4395,7 +4635,9 @@ main( /* int argc, const char *argv[] */)
         TESTADD(tf_initrnd,             "fs_initrnd() simple tests"),
         TESTADD(tf34_fs_isnull,         "fs_isnull() simple tests"),
         TESTADD(tf35_fs_isempty,        "fs_isempty() simple tests"),
-        TESTADD(tf36_fs_movetostr,      "fs_movetostr()() simple tests")
+        TESTADD(tf36_fs_movetostr,      "fs_movetostr() simple tests"),
+        TESTADD(tf37_fs_cmpstr,         "fs_cmpstr() series simple tests"),
+        TESTADD(tf38_fs_icmpstr,        "fs_icmpstr()/fs_nicmpstr()  simple tests")
     );
 
     return logret(0, "end...");  // as replace of logclose()

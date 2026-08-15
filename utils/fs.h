@@ -355,6 +355,10 @@ static inline const char    *fs_strdup(fs *s){
     return (const char *) strdup(s->v);
 }
 
+// ------------------------------------ FS Comparators --------------------------------------
+
+// fs vs fs
+
 // pointer version
 static inline int            fs_cmp(const fs *restrict str1, const fs *restrict str2){
     return strcmp(str1->v, str2->v);
@@ -394,6 +398,41 @@ static inline int            fsicmp(fs str1, fs str2){
 // local version, insensitive, limited
 static inline int            fsnicmp(fs str1, fs str2, int len){
     return strncasecmp(str1.v, str2.v, len);
+}
+
+// fs vs c-str
+
+// pointer version
+static inline int            fs_cmpstr(const fs *restrict str1, const char *restrict str2){
+    return strcmp(str1->v, str2);
+}
+// pointer version, limited
+static inline int            fs_ncmpstr(const fs *restrict str1, const char *restrict str2, int len){
+    return strncmp(str1->v, str2, len);
+}
+// local version
+static inline int            fscmpstr(fs str1, const char *str2){
+    return strcmp(str1.v, str2);
+}
+// local version, limited
+static inline int            fsncmpstr(fs str1, const char *str2, int len){
+    return strncmp(str1.v, str2, len);
+}
+// pointer version, insensitive
+static inline int            fs_icmpstr(const fs* restrict str1, const char *restrict str2){
+    return strcasecmp(str1->v, str2);
+}
+// pointer version, insensitive, limited
+static inline int            fs_nicmpstr(const fs* restrict str1, const char *restrict str2, int len){
+    return strncasecmp(str1->v, str2, len);
+}
+// local version, insensitive
+static inline int            fsicmpstr(fs str1, const char *str2){
+    return strcasecmp(str1.v, str2);
+}
+// local version, insensitive, limited
+static inline int            fsnicmpstr(fs str1, const char *str2, int len){
+    return strncasecmp(str1.v, str2, len);
 }
 
 // ------------------------------------------ substring srearch ---------------------------------------------------
