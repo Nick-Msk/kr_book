@@ -1764,13 +1764,21 @@ tf10_gen_string_source(const char *name)
     /* 3. Ограничение maxlen: строка "hello", maxlen=3 – только "hel" */
     test_sub("subtest %d: v64GenString with maxlen=3", ++subnum);
     {
-        v64Gen gen = v64GenCreatorSourceCstr("hello", 3);
+        int     cnt = 3;
+        v64Gen  gen = v64GenCreatorSourceCstr("hello", cnt);
 
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < cnt; i++) {
             value64 v = v64GenNext(&gen);
             test_validate(value64_char(v) == "hel"[i],
                           "pos %d: expected '%c', got '%c'", i, "hel"[i], value64_char(v));
             value64_free(&v, gen.type);
+        }
+        for (int i = 0; i < 33; i++)  {
+            value64 v = v64GenNext(&gen);
+            test_validate(
+                value64_char(v) == '\0',
+                "after reading all %d iter generator must return only \\0, but got %c", cnt, value64_char(v)
+            );
         }
 
         value64 v_end = v64GenNext(&gen);
@@ -1820,10 +1828,17 @@ tf10_gen_string_source(const char *name)
     /* 6. Проверка отсутствия утечек (многократные вызовы) */
     test_sub("subtest %d: v64GenString no leaks (multiple reads)", ++subnum);
     {
-        v64Gen gen = v64GenCreatorSourceCstr("abcdefghij", 0);
+        const char  pt[] = "abcdefghij";
+        v64Gen gen = v64GenCreatorSourceCstr(pt, 0);
 
         for (int i = 0; i < 20; i++) {
             value64 v = v64GenNext(&gen);
+            if (i > (int) strlen(pt))
+                test_validatefree(
+                    value64_char(v) == '\0',
+                    value64_free(&v, gen.type),
+                    "%d iter must be \\0, but got %c", i, value64_char(v)
+                );
             value64_free(&v, gen.type);
         }
 
