@@ -605,6 +605,13 @@ static inline char                 *value64_str(value64 v){
 static inline fs                   *value64_fs(value64 v){
     return v.fsval;
 }
+/**
+ * @brief Returns the pointer to the c-string in fs.
+ * @return Pointer to the filesystem object.
+ */
+static inline const char           *value64_fsstr(value64 v){
+    return v.fsval->v;
+}
 /// @brief  exchanger
 /// @param v1 pointer to first v64
 /// @param v2 pointer to second v64
