@@ -129,6 +129,9 @@ extern value64                  v64UncheckGenUnlimDescRnd(v64Gen *gen);
 extern value64                  v64GenUnlimRandom(v64Gen *gen);
 // check group: TODO:
 
+// source (Ds or c-str or FILE *) group
+extern value64                  v64GenString(v64Gen *gen);
+
 // ------------------------ Wrappers for pre-created generators ---------------------
 // ----------------------------------------------------------------------------------
 
@@ -370,6 +373,7 @@ static inline v64Gen        v64GenCreatorUnlimRnd(value64_type rettyp, int rndin
     return v64GenInit1(v64GenUnlimRandom, rettyp, v64typedCreateInt(rndinc) );
 }
 
+// RETURNS: STR
 // REGITRSY ALLOCATION:
 // data[0] INT as lim for rnsint
 // data[1] STR as pattern for printing
@@ -390,6 +394,7 @@ static inline v64Gen        v64GenCreatorUnlimStrRnd(const char *fmt, int rndinc
     return tmp;
 }
 
+// RETURNS: FS
 // REGITRSY ALLOCATION:
 // data[0] INT as lim for rnsint
 // data[1] STR as pattern for printing
@@ -408,6 +413,19 @@ static inline v64Gen        v64GenCreatorUnlimFsRnd(const char *fmt, int rndinc)
                                 v64typedCreateInt(rndinc),
                                 V64TYPEDZERO());
     return tmp;
+}
+
+// --------------------------- Creator from Source (c-str, FILE *, Ds *) series ------------
+
+// RETURNS: CHR
+// REGITRSY ALLOCATION:
+// data[0] STR as SOURCE (no ownership)
+// data[1] LONG as lim, if 0 - unlim (LONG_MAX actually)
+static inline v64Gen        v64GenCreatorSourceCstr(const char *src, long maxlen) {
+    if (maxlen <= 0)
+        maxlen = LONG_MAX; // unlim
+    return v64GenInit2(v64GenString, VALUE64_CHR, 
+            v64typedCreateCstrSource(src), v64typedCreateLong(maxlen) );
 }
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------

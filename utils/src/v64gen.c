@@ -223,6 +223,29 @@ value64                         v64GenUnlimRandom(v64Gen *gen) {
     }
 }
 
+// ------------------------- Source generators (Ds or c-str or FILE *) ------------------------
+
+// RETURNS: CHR
+// REGITRSY ALLOCATION:
+// data[0] STR as SOURCE (no ownership)
+// data[1] LONG as lim, if 0 - unlim (LONG_MAX actually)
+value64                         v64GenString(v64Gen *gen) {
+    const char *str = (const char *)V64GENREGVAL0(gen).pval;
+    if (!str || *str == '\0')
+        return value64_createchar('\0');
+
+    long        remaining = V64GENREGVAL1(gen).lval;
+    if (remaining <= 0)
+        return value64_createchar('\0');
+
+    // уменьшаем остаток
+    V64GENREGVAL1(gen).lval = remaining - 1;
+    // сдвигаем невладеющий указатель
+    V64GENREGVAL0(gen).pval = (void*) (str + 1);
+
+    return value64_createchar(*str);
+}
+
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
 int                             v64Techfprint(FILE *restrict out, const v64Gen *restrict gen) {
@@ -1695,6 +1718,122 @@ tf9_gen_unlim_random(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST 10: Source C-string to char generator (LONG lim) -------------------------
+static TestStatus
+tf10_gen_string_source(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Обычная строка "hello", безлимит (maxlen <= 0) */
+    test_sub("subtest %d: v64GenString basic 'hello' unlimited", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorSourceCstr("hello", 0);
+
+        const char expected[] = "hello";
+        for (int i = 0; i < (int)strlen(expected); i++) {
+            value64 v = v64GenNext(&gen);
+            test_validate(value64_char(v) == expected[i],
+                          "pos %d: expected '%c', got '%c'", i, expected[i], value64_char(v));
+            value64_free(&v, gen.type);
+        }
+
+        value64 v_end = v64GenNext(&gen);
+        test_validate(value64_char(v_end) == '\0',
+                      "after end expected '\\0', got '%c'", value64_char(v_end));
+        value64_free(&v_end, gen.type);
+
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 2. Пустая строка */
+    test_sub("subtest %d: v64GenString empty string", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorSourceCstr("", 0);
+
+        value64 v = v64GenNext(&gen);
+        test_validate(value64_char(v) == '\0',
+                      "empty string must return '\\0', got '%c'", value64_char(v));
+        value64_free(&v, gen.type);
+
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 3. Ограничение maxlen: строка "hello", maxlen=3 – только "hel" */
+    test_sub("subtest %d: v64GenString with maxlen=3", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorSourceCstr("hello", 3);
+
+        for (int i = 0; i < 3; i++) {
+            value64 v = v64GenNext(&gen);
+            test_validate(value64_char(v) == "hel"[i],
+                          "pos %d: expected '%c', got '%c'", i, "hel"[i], value64_char(v));
+            value64_free(&v, gen.type);
+        }
+
+        value64 v_end = v64GenNext(&gen);
+        test_validate(value64_char(v_end) == '\0',
+                      "after maxlen expected '\\0', got '%c'", value64_char(v_end));
+        value64_free(&v_end, gen.type);
+
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 4. maxlen больше длины строки: строка "abc", maxlen=10 */
+    test_sub("subtest %d: v64GenString maxlen > strlen", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorSourceCstr("abc", 10);
+
+        for (int i = 0; i < 3; i++) {
+            value64 v = v64GenNext(&gen);
+            test_validate(value64_char(v) == "abc"[i],
+                          "pos %d: expected '%c', got '%c'", i, "abc"[i], value64_char(v));
+            value64_free(&v, gen.type);
+        }
+
+        value64 v_end = v64GenNext(&gen);
+        test_validate(value64_char(v_end) == '\0',
+                      "after string expected '\\0', got '%c'", value64_char(v_end));
+        value64_free(&v_end, gen.type);
+
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 5. NULL источник должен безопасно возвращать '\0' */
+    test_sub("subtest %d: v64GenString NULL source", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorSourceCstr(NULL, 0);
+
+        value64 v = v64GenNext(&gen);
+        test_validate(value64_char(v) == '\0',
+                      "NULL source must return '\\0', got '%c'", value64_char(v));
+        value64_free(&v, gen.type);
+
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 6. Проверка отсутствия утечек (многократные вызовы) */
+    test_sub("subtest %d: v64GenString no leaks (multiple reads)", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorSourceCstr("abcdefghij", 0);
+
+        for (int i = 0; i < 20; i++) {
+            value64 v = v64GenNext(&gen);
+            value64_free(&v, gen.type);
+        }
+
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(/* int argc, const char *argv[] */)
@@ -1711,6 +1850,7 @@ main(/* int argc, const char *argv[] */)
       , TESTADD(tf7_gen_desc_series,         "v64UncheckGenUnlimDescSeries() simple test")
       , TESTADD(tf8_gen_desc_rnd_custom,     "DescRnd with custom rndinc simple test")
       , TESTADD(tf9_gen_unlim_random,        "v64GenCreatorUnlimRnd...() generators simple test")
+      , TESTADD(tf10_gen_string_source,      "Source C-string to char generator (LONG lim)")
     );
 
     return logret(0, "end...");  // as replace of logclose()
