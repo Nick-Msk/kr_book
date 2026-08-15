@@ -238,6 +238,7 @@ V64_CAST_FUNC(double, v64typedCastToDouble)
 */
 
 
+// TODO: refactor that!!
 static inline int
 v64typedCastToInt(v64typed tval) {
     // NOTE: no range checking for now TODO: use checkers from value64 converters
@@ -264,6 +265,35 @@ v64typedCastToInt(v64typed tval) {
         default:
     }
     return ival;
+}
+
+// TODO: refactor that!! TEMPORARY
+static inline int
+v64typedCastToLong(v64typed tval) {
+    // NOTE: no range checking for now TODO: use checkers from value64 converters
+    long     lval = 0;
+    switch (tval.typ) {
+        case VALUE64_INT:
+            lval = value64_int(tval.val);
+            break;
+        case VALUE64_LONG:
+            lval = value64_long(tval.val);
+            break;
+        case VALUE64_ULONG:
+            lval = value64_ulong(tval.val);
+            break;
+        case VALUE64_CHR:
+            lval = value64_char(tval.val);
+            break;
+        case VALUE64_BOOL:
+            lval = value64_bool(tval.val);
+            break;
+        case VALUE64_DBL:
+            lval = value64_dbl(tval.val);
+            break;
+        default:
+    }
+    return lval;
 }
 
 
