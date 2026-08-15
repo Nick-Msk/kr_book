@@ -6,6 +6,15 @@
 
 // --------------------------------- CONSTANTS AND GLOBALS --------------------------
 
+// --------------------------- Utilities --------------------------------------------
+static bool                     v64GenStringUpdate(v64Gen *gen, long amount) {
+    if (amount <= 0)
+        return false;
+    // only for Stream Buffer
+    V64GENREGVAL1(gen).lval += amount;
+    return true;
+}
+
 // ------------------------- CONSTRUCTOTS/DESTRUCTORS -------------------------------
 
 v64Gen                          v64GenInit(v64GenFunc func, value64_type type, 
@@ -17,9 +26,26 @@ v64Gen                          v64GenInit(v64GenFunc func, value64_type type,
         .fnext   = func,
         .type    = type,
         .counter = 0U,
+        .updater = NULL,
         .data    = { [0] = reg0, [1] = reg1, [2] = reg2, [3] = reg3 }
     };
     return res;
+}
+
+// --------------------------- Creator from Source (c-str, FILE *, Ds *) series ------------
+
+// RETURNS: CHR
+// REGITRSY ALLOCATION:
+// data[0] STR as SOURCE (no ownership)
+// data[1] LONG as lim, if 0 - unlim (LONG_MAX actually)
+v64Gen                          v64GenCreatorSourceCstr(const char *src, long maxlen) {
+    if (maxlen <= 0)
+        maxlen = LONG_MAX; // unlim
+    v64Gen gen =  v64GenInit2(v64GenString, VALUE64_CHR, 
+            v64typedCreateCstrSource(src), v64typedCreateLong(maxlen) );
+    gen.updater = v64GenStringUpdate;        // setup updater
+
+    return gen;
 }
 
 // -------------------- ACCESS AND MODIFICATORS -------------------------------------

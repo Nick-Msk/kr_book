@@ -25,14 +25,17 @@ enum v64GenConstants {
 
 // ---------------------------------- TYPES -----------------------------------------
 
+
 typedef struct v64Gen                   v64Gen;
 typedef value64                         (*v64GenFunc)(v64Gen *gen);
+typedef bool                            (*v64genUpdateStream)(v64Gen *gen, long amount);
 
 typedef struct v64Gen {
-    v64GenFunc      fnext;
-    value64_type    type;
-    unsigned int    counter;
-    v64typed        data[V64GENCOUNT];
+    v64GenFunc              fnext;
+    value64_type            type;
+    unsigned int            counter;
+    v64genUpdateStream      updater;
+    v64typed                data[V64GENCOUNT];
 } v64Gen;
 
 // -------------------------- Registry Support API -----------------------------------
@@ -95,9 +98,10 @@ static inline void                  v64GenFree(v64Gen *gen) {
 
 static inline v64Gen                v64GenZero(void) {
     return (v64Gen) {
-        .fnext = NULL,
-        .type = VALUE64_UNKNOWN,
-        .counter = 0L,
+        .fnext      = NULL,
+        .type       = VALUE64_UNKNOWN,
+        .counter    = 0U,
+        .updater  = NULL,
         .data = {
             [0] = { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN },
             [1] = { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN },
@@ -421,11 +425,16 @@ static inline v64Gen        v64GenCreatorUnlimFsRnd(const char *fmt, int rndinc)
 // REGITRSY ALLOCATION:
 // data[0] STR as SOURCE (no ownership)
 // data[1] LONG as lim, if 0 - unlim (LONG_MAX actually)
-static inline v64Gen        v64GenCreatorSourceCstr(const char *src, long maxlen) {
-    if (maxlen <= 0)
-        maxlen = LONG_MAX; // unlim
-    return v64GenInit2(v64GenString, VALUE64_CHR, 
-            v64typedCreateCstrSource(src), v64typedCreateLong(maxlen) );
+extern v64Gen                   v64GenCreatorSourceCstr(const char *src, long maxlen);
+
+// ------- Stream updater -------
+static inline void              v64GenStringAppend(v64Gen *gen, long next_amount) {
+    invraisecode(gen != NULL, ERR_NULLABLE_PTR, "NUll gen");
+
+    if (gen->updater) {
+        gen->updater(gen, next_amount);
+    } else
+        userraise(0, ERR_UNSUPPORTED_GENERATOR, "Only SOURCE generators support StringAppend");
 }
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
