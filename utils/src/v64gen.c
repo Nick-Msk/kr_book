@@ -191,7 +191,37 @@ value64                         v64UncheckGenUnlimDescRnd(v64Gen *gen) {
     return v64UncheckGenUnlimAscValue(gen, -(rndint(r) + 1) );
 }
 
-extern value64                  v64UncheckGenUnlimRandom(v64Gen *gen);
+value64                         v64GenUnlimRandom(v64Gen *gen) {
+    int         r = value64_int(V64GENREGVAL0(gen) );
+    r = rndint(r);
+    switch (gen->type) {        // type of output generation
+        case VALUE64_INT:
+            return value64_createint(r);
+        case VALUE64_LONG:
+            return value64_createlong(r);
+        case VALUE64_ULONG:
+            return value64_createulong(r);
+        case VALUE64_DBL:
+            return value64_createdbl(r);
+        case VALUE64_CHR:
+            return value64_createchar(r);
+        case VALUE64_BOOL:
+            return value64_createbool(r);
+        case VALUE64_FS: case VALUE64_STR: {
+            const char *fmt = v64typedNvlStr(V64GENREG1(gen), "%d");
+            fs          tmp = fscopyf(fmt, r);
+            value64     result;
+            if (gen->type == VALUE64_FS) 
+                result = value64_movefs(&tmp); // VALUE64_FS
+            else {
+                result = LITERAL64_STR(fs_movetostr(&tmp) );
+            }
+            return result;      // FS or STR
+        }
+        default:
+            return LITERAL64_ZERO;
+    }
+}
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
@@ -1492,6 +1522,179 @@ tf8_gen_desc_rnd_custom(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST 8: UnlimRandom generators -------------------------
+static TestStatus
+tf9_gen_unlim_random(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. INT random in [0, rndinc] */
+    test_sub("subtest %d: UnlimRandom INT with rndinc=10", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimRnd(VALUE64_INT, 10);
+        for (int i = 0; i < 50; i++) {
+            value64 v = v64GenNext(&gen);
+            int val = value64_int(v);
+            test_validate(val >= 0 && val <= 10,
+                          "INT random value out of range: %d", val);
+            value64_free(&v, gen.type);
+        }
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 2. LONG random in [0, rndinc] */
+    test_sub("subtest %d: UnlimRandom LONG with rndinc=10", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimRnd(VALUE64_LONG, 10);
+        for (int i = 0; i < 50; i++) {
+            value64 v = v64GenNext(&gen);
+            long val = value64_long(v);
+            test_validate(val >= 0 && val <= 10,
+                          "LONG random value out of range: %ld", val);
+            value64_free(&v, gen.type);
+        }
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 3. ULONG random in [0, rndinc] */
+    test_sub("subtest %d: UnlimRandom ULONG with rndinc=10", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimRnd(VALUE64_ULONG, 10);
+        for (int i = 0; i < 50; i++) {
+            value64 v = v64GenNext(&gen);
+            unsigned long val = value64_ulong(v);
+            test_validate(val >= 0 && val <= 10,
+                          "ULONG random value out of range: %lu", val);
+            value64_free(&v, gen.type);
+        }
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 4. DBL random in [0, rndinc] (integer values as double) */
+    test_sub("subtest %d: UnlimRandom DBL with rndinc=10", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimRnd(VALUE64_DBL, 10);
+        for (int i = 0; i < 50; i++) {
+            value64 v = v64GenNext(&gen);
+            double val = value64_dbl(v);
+            test_validate(val >= 0.0 && val <= 10.0,
+                          "DBL random value out of range: %f", val);
+            test_validate(fabs(val - round(val)) < 1e-9,
+                          "DBL random value should be integer, got %f", val);
+            value64_free(&v, gen.type);
+        }
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 5. CHAR random in [0, rndinc] */
+    test_sub("subtest %d: UnlimRandom CHAR with rndinc=25", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimRnd(VALUE64_CHR, 25);
+        for (int i = 0; i < 50; i++) {
+            value64 v = v64GenNext(&gen);
+            unsigned char c = (unsigned char)value64_char(v);
+            test_validate(c >= 0 && c <= 25,
+                          "CHAR random value out of range: %d", c);
+            value64_free(&v, gen.type);
+        }
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 6. BOOL random (rndinc=1) should produce both true and false */
+    test_sub("subtest %d: UnlimRandom BOOL with rndinc=1", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimRnd(VALUE64_BOOL, 1);
+        bool saw_true = false, saw_false = false;
+        for (int i = 0; i < 50; i++) {
+            value64 v = v64GenNext(&gen);
+            bool b = value64_bool(v);
+            if (b) saw_true = true;
+            else saw_false = true;
+            value64_free(&v, gen.type);
+        }
+        test_validate(saw_true && saw_false,
+                      "BOOL random should produce both true and false");
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 7. STR random with template "val %d" and rndinc=5 */
+    test_sub("subtest %d: UnlimRandom STR with template and rndinc=5", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimStrRnd("val %d", 5);
+        for (int i = 0; i < 30; i++) {
+            value64 v = v64GenNext(&gen);
+            const char *str = value64_str(v);
+            int num;
+            bool ok = (sscanf(str, "val %d", &num) == 1) && num >= 0 && num <= 5;
+            test_validate(ok,
+                          "STR random pattern mismatch: '%s'", str);
+            value64_free(&v, gen.type);
+        }
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 8. STR random without template (default "%d") and rndinc=7 */
+    test_sub("subtest %d: UnlimRandom STR without template, rndinc=7", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimStrRnd(NULL, 7);
+        for (int i = 0; i < 30; i++) {
+            value64 v = v64GenNext(&gen);
+            const char *str = value64_str(v);
+            int num;
+            bool ok = (sscanf(str, "%d", &num) == 1) && num >= 0 && num <= 7;
+            test_validate(ok,
+                          "STR random default pattern mismatch: '%s'", str);
+            value64_free(&v, gen.type);
+        }
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 9. FS random with template "item %d" and rndinc=3 */
+    test_sub("subtest %d: UnlimRandom FS with template and rndinc=3", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimFsRnd("item %d", 3);
+        for (int i = 0; i < 30; i++) {
+            value64 v = v64GenNext(&gen);
+            const char *str = fs_str(value64_fs(v));
+            int num;
+            bool ok = (sscanf(str, "item %d", &num) == 1) && num >= 0 && num <= 3;
+            test_validate(ok,
+                          "FS random pattern mismatch: '%s'", str);
+            value64_free(&v, gen.type);
+        }
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 10. FS random without template (default "%d") and rndinc=4 */
+    test_sub("subtest %d: UnlimRandom FS without template, rndinc=4", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimFsRnd(NULL, 4);
+        for (int i = 0; i < 30; i++) {
+            value64 v = v64GenNext(&gen);
+            const char *str = fs_str(value64_fs(v));
+            int num;
+            bool ok = (sscanf(str, "%d", &num) == 1) && num >= 0 && num <= 4;
+            test_validate(ok,
+                          "FS random default pattern mismatch: '%s'", str);
+            value64_free(&v, gen.type);
+        }
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(/* int argc, const char *argv[] */)
@@ -1507,6 +1710,7 @@ main(/* int argc, const char *argv[] */)
       , TESTADD(tf6_gen_asc_rnd_custom,      "AscRnd with custom rndinc simple test")
       , TESTADD(tf7_gen_desc_series,         "v64UncheckGenUnlimDescSeries() simple test")
       , TESTADD(tf8_gen_desc_rnd_custom,     "DescRnd with custom rndinc simple test")
+      , TESTADD(tf9_gen_unlim_random,        "v64GenCreatorUnlimRnd...() generators simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()

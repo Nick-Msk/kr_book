@@ -126,7 +126,7 @@ extern value64                  v64UncheckGenUnlimAscSeries(v64Gen *gen);
 extern value64                  v64UncheckGenUnlimAscRnd(v64Gen *gen);
 extern value64                  v64UncheckGenUnlimDescSeries(v64Gen *gen);
 extern value64                  v64UncheckGenUnlimDescRnd(v64Gen *gen);
-extern value64                  v64UncheckGenUnlimRandom(v64Gen *gen);
+extern value64                  v64GenUnlimRandom(v64Gen *gen);
 // check group: TODO:
 
 // ------------------------ Wrappers for pre-created generators ---------------------
@@ -359,32 +359,56 @@ static inline v64Gen        v64GenCreatorUnlimDescRnd(v64typed vt, int rndinc) {
     return res;
 }
 
+// ------------------------------------ JUST RANDOM -----------------------------------------------
+// REGITRSY ALLOCATION:
+// data[0] INT as lim for rnsint
+static inline v64Gen        v64GenCreatorUnlimRnd(value64_type rettyp, int rndinc) {
+    if (int_notin(rettyp, VALUE64_BOOL, VALUE64_CHR, VALUE64_INT, VALUE64_LONG, VALUE64_ULONG, VALUE64_DBL))
+        userraiseint(ERR_UNSUPPORTED_TYPE, "Type %d %s not supported by %s", 
+                rettyp, value64_typename(rettyp), __func__);
+
+    return v64GenInit1(v64GenUnlimRandom, rettyp, v64typedCreateInt(rndinc) );
+}
 
 // REGITRSY ALLOCATION:
-// data[0] LONG as startpos for numeric random generator
-// data[1] FS as pattern for printing FS/STR 
-// data[2] INT as pattern for desrement
-/*static inline v64Gen        v64GenCreatorUnlimDescRnd(value64_type rettyp, long startpos, const char *fmt, int rndinc) {
-    // not sure what to do, now just raiseint
-    if (!value64_checktype(rettyp))
-        userraiseint(ERR_UNSUPPORTED_TYPE, "Type %d not supported", rettyp);
-
+// data[0] INT as lim for rnsint
+// data[1] STR as pattern for printing
+static inline v64Gen        v64GenCreatorUnlimStrRnd(const char *fmt, int rndinc) {
     v64Gen tmp;
     if (rndinc < 1)
         rndinc = 1;
-    if ( (rettyp == VALUE64_FS || rettyp == VALUE64_STR) && fmt != NULL)
-        tmp = v64GenInit3(v64UncheckGenUnlimAscRnd,
-                        rettyp, v64typedCreateLong(startpos), 
-                                v64typedCreateStr(fmt), 
-                                v64typedCreateInt(rndinc));
+    if (fmt != NULL)
+        tmp = v64GenInit2(v64GenUnlimRandom,
+                        VALUE64_STR,
+                                v64typedCreateInt(rndinc),
+                                v64typedCreateStr(fmt));
     else
-        tmp = v64GenInit3(v64UncheckGenUnlimAscRnd, 
-                        rettyp, v64typedCreateLong(startpos), 
-                                V64TYPEDZERO(), 
-                                v64typedCreateInt(rndinc));
+        tmp = v64GenInit2(v64GenUnlimRandom, 
+                        VALUE64_STR, 
+                                v64typedCreateInt(rndinc),
+                                V64TYPEDZERO());
     return tmp;
-}*/
+}
 
+// REGITRSY ALLOCATION:
+// data[0] INT as lim for rnsint
+// data[1] STR as pattern for printing
+static inline v64Gen        v64GenCreatorUnlimFsRnd(const char *fmt, int rndinc) {
+    v64Gen tmp;
+    if (rndinc < 1)
+        rndinc = 1;
+    if (fmt != NULL)
+        tmp = v64GenInit2(v64GenUnlimRandom,
+                        VALUE64_FS,
+                                v64typedCreateInt(rndinc),
+                                v64typedCreateStr(fmt));
+    else
+        tmp = v64GenInit2(v64GenUnlimRandom, 
+                        VALUE64_FS, 
+                                v64typedCreateInt(rndinc),
+                                V64TYPEDZERO());
+    return tmp;
+}
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
