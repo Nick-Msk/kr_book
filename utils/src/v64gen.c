@@ -89,7 +89,7 @@ value64 v64GenUnlimZero(v64Gen *gen)    // TODO: need to be refactored via Table
 
 static value64
 v64UncheckGenUnlimAscValue(v64Gen *gen, int value) { // TODO: need to be refactored via Table!
-    value64 result = V64GENREG0(gen).val;
+    value64 result = V64GENREGVAL0(gen);
     switch (gen->type) {        // type of output generation
         case VALUE64_INT:
         case VALUE64_LONG:
@@ -104,10 +104,9 @@ v64UncheckGenUnlimAscValue(v64Gen *gen, int value) { // TODO: need to be refacto
 
         case VALUE64_STR:
         case VALUE64_FS: {
-            // this is NOT a simple V64GENREG0(gen).ival, this is type casting into int (w/o range checking for now)
-            int         val = v64typedCastToInt(V64GENREG0(gen));       
+            int         val = value64_long(V64GENREGVAL0(gen));       
 
-            const char *fmt = v64typedNvlStr(V64GENREG1(gen), "%d"); //value64GenRegFs(gen, 1, "%d");
+            const char *fmt = v64typedNvlStr(V64GENREG1(gen), "%d");
             fs          tmp = fscopyf(fmt, val);
 
             if (gen->type == VALUE64_FS) 
@@ -404,7 +403,7 @@ tf3_gen_asc_series(const char *name)
     /* 1. INT ascending from 10 */
     test_sub("subtest %d: AscSeries INT from 10", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimAscSeries(VALUE64_INT, 10, NULL);
+        v64Gen gen = v64GenCreatorUnlimAscSeries(v64typedCreateInt(10) );
         value64 v1 = v64GenNext(&gen);
         test_validate(value64_int(v1) == 10, "first must be 10");
         test_validate(gen.counter == 1, "counter must be 1");
@@ -427,7 +426,7 @@ tf3_gen_asc_series(const char *name)
     /* 2. LONG ascending from 100 */
     test_sub("subtest %d: AscSeries LONG from 100", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimAscSeries(VALUE64_LONG, 100L, NULL);
+        v64Gen gen = v64GenCreatorUnlimAscSeries(v64typedCreateLong(100L) );
         value64 v1 = v64GenNext(&gen);
         test_validate(value64_long(v1) == 100L, "first must be 100");
         value64 v2 = v64GenNext(&gen);
@@ -444,7 +443,7 @@ tf3_gen_asc_series(const char *name)
     }
 
     /* 3. DBL ascending from 10.5 */
-    test_sub("subtest %d: AscSeries DBL from 10.5", ++subnum);
+    test_sub("subtest %d: AscSeries DBL from 10.5 directly via v64GenInit1", ++subnum);
     {
         // only via v64GenInit1 for now, no simplifier for that
         v64Gen gen = v64GenInit1(v64UncheckGenUnlimAscSeries, VALUE64_DBL,
@@ -463,12 +462,30 @@ tf3_gen_asc_series(const char *name)
         v64GenFree(&gen);
         fs_alloc_check(true);
     }
+    test_sub("subtest %d: AscSeries DBL from 10.5 via creator", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimAscSeries(v64typedCreateDbl(10.5) );
+
+        value64 v1 = v64GenNext(&gen);
+        test_validate(fabs(value64_dbl(v1) - 10.5) < 1e-9, "first must be 10.5");
+        value64 v2 = v64GenNext(&gen);
+        test_validate(fabs(value64_dbl(v2) - 11.5) < 1e-9, "second must be 11.5");
+        value64 v3 = v64GenNext(&gen);
+        test_validate(fabs(value64_dbl(v3) - 12.5) < 1e-9, "third must be 12.5");
+        test_validate(gen.counter == 3, "counter must be 3");
+
+        value64_free(&v1, VALUE64_DBL);
+        value64_free(&v2, VALUE64_DBL);
+        value64_free(&v3, VALUE64_DBL);
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
 
     /* 4. ULONG ascending from 200 */
     test_sub("subtest %d: AscSeries ULONG from 200", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimAscSeries(VALUE64_ULONG,
-                                        200UL, NULL);
+        v64Gen gen = v64GenCreatorUnlimAscSeries(v64typedCreateULong(200UL) );
+
         value64 v1 = v64GenNext(&gen);
         test_validate(value64_ulong(v1) == 200UL, "first must be 200");
         value64 v2 = v64GenNext(&gen);
@@ -485,7 +502,7 @@ tf3_gen_asc_series(const char *name)
     }
 
     /* 5. BOOL toggles */
-    test_sub("subtest %d: AscSeries BOOL toggles", ++subnum);
+    test_sub("subtest %d: AscSeries BOOL toggles directly", ++subnum);
     {
         v64Gen gen = v64GenInit1(v64UncheckGenUnlimAscSeries, VALUE64_BOOL,
                                         v64typedCreateBool(false));
@@ -504,8 +521,27 @@ tf3_gen_asc_series(const char *name)
         fs_alloc_check(true);
     }
 
+    test_sub("subtest %d: AscSeries BOOL toggles, via creator", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimAscSeries(v64typedCreateBool(false) );
+
+        value64 v1 = v64GenNext(&gen);
+        test_validate(value64_bool(v1) == false, "first must be false");
+        value64 v2 = v64GenNext(&gen);
+        test_validate(value64_bool(v2) == true, "second must be true");
+        value64 v3 = v64GenNext(&gen);
+        test_validate(value64_bool(v3) == false, "third must be false");
+        test_validate(gen.counter == 3, "counter must be 3");
+
+        value64_free(&v1, VALUE64_BOOL);
+        value64_free(&v2, VALUE64_BOOL);
+        value64_free(&v3, VALUE64_BOOL);
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
     /* 6. CHAR ascending from 'A' (now supported via RegAdd) */
-    test_sub("subtest %d: AscSeries CHAR from 'A'", ++subnum);
+    test_sub("subtest %d: AscSeries CHAR from 'A' directly", ++subnum);
     {
         v64Gen gen = v64GenInit1(v64UncheckGenUnlimAscSeries, VALUE64_CHR,
                                         v64typedCreateChar('A'));
@@ -524,10 +560,29 @@ tf3_gen_asc_series(const char *name)
         fs_alloc_check(true);
     }
 
+    test_sub("subtest %d: AscSeries CHAR from 'A' via creator", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimAscSeries(v64typedCreateChar('A') );
+
+        value64 v1 = v64GenNext(&gen);
+        test_validate(value64_char(v1) == 'A', "first must be 'A'");
+        value64 v2 = v64GenNext(&gen);
+        test_validate(value64_char(v2) == 'B', "second must be 'B'");
+        value64 v3 = v64GenNext(&gen);
+        test_validate(value64_char(v3) == 'C', "third must be 'C'");
+        test_validate(gen.counter == 3, "counter must be 3");
+
+        value64_free(&v1, VALUE64_CHR);
+        value64_free(&v2, VALUE64_CHR);
+        value64_free(&v3, VALUE64_CHR);
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
     /* 7. STR without template (data[0]=int, data[1]=zero) */
     test_sub("subtest %d: AscSeries STR default template", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimAscSeries(VALUE64_STR, 0, NULL);
+        v64Gen gen = v64GenCreatorUnlimAscStrSeries(0, NULL);
 
         value64 v1 = v64GenNext(&gen);
         test_validate(strcmp(value64_str(v1), "0") == 0, "first must be '0'");
@@ -549,7 +604,7 @@ tf3_gen_asc_series(const char *name)
     /* 8. STR with template "item %d" starting at 3 (template is FS) */
     test_sub("subtest %d: AscSeries STR with template", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimAscSeries(VALUE64_STR, 3, "item %d");
+        v64Gen gen = v64GenCreatorUnlimAscStrSeries(3, "item %d");
         value64 v1 = v64GenNext(&gen);
         test_validate(strcmp(value64_str(v1), "item 3") == 0, "first must be 'item 3'");
         value64_free(&v1, VALUE64_STR);
@@ -570,7 +625,7 @@ tf3_gen_asc_series(const char *name)
     /* 9. FS without template (data[0]=int, data[1]=zero) */
     test_sub("subtest %d: AscSeries FS default template", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimAscSeries(VALUE64_FS, 0, NULL);
+        v64Gen gen = v64GenCreatorUnlimAscFsSeries(0, NULL);
 
         value64 v1 = v64GenNext(&gen);
         test_validate(strcmp(fs_str(value64_fs(v1)), "0") == 0, "first must be '0'");
@@ -592,7 +647,7 @@ tf3_gen_asc_series(const char *name)
     /* 10. FS with template "val_%d" starting at 7 */
     test_sub("subtest %d: AscSeries FS with template", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimAscSeries(VALUE64_FS, 7, "val_%d");
+        v64Gen gen = v64GenCreatorUnlimAscFsSeries(7, "val_%d");
         value64 v1 = v64GenNext(&gen);
         test_validate(strcmp(fs_str(value64_fs(v1)), "val_7") == 0, "first must be 'val_7'");
         value64_free(&v1, VALUE64_FS);

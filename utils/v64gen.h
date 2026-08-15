@@ -38,68 +38,76 @@ typedef struct v64Gen {
 // -------------------------- Registry Support API -----------------------------------
 
 // now shortcut only for 4 registers
-static inline value64         *v64GenReg0(v64Gen *gen) {
+static inline value64              *v64GenReg0(v64Gen *gen) {
     return &gen->data[0].val;
 }
 #define V64GENREG0(gen) (gen->data[0])
+#define V64GENREGVAL0(gen) V64GENREG0(gen).val
 
-static inline value64         *v64GenReg1(v64Gen *gen) {
+static inline value64              *v64GenReg1(v64Gen *gen) {
     return &gen->data[1].val;
 }
 #define V64GENREG1(gen) (gen->data[1])
+#define V64GENREGVAL1(gen) V64GENREG1(gen).val
 
-static inline value64         *v64GenReg2(v64Gen *gen) {
+static inline value64              *v64GenReg2(v64Gen *gen) {
     return &gen->data[2].val;
 }
 #define V64GENREG2(gen) (gen->data[2])
+#define V64GENREGVAL2(gen) V64GENREG2(gen).val
 
-static inline value64         *v64GenReg3(v64Gen *gen) {
+static inline value64              *v64GenReg3(v64Gen *gen) {
     return &gen->data[3].val;
 }
 #define V64GENREG3(gen) (gen->data[3])
+#define V64GENREGVAL3(gen) V64GENREG3(gen).val
 
 // ------------------------- CONSTRUCTOTS/DESTRUCTORS -------------------------------
 
-extern v64Gen                   v64GenInit(v64GenFunc func, value64_type type, 
+extern v64Gen                       v64GenInit(v64GenFunc func, value64_type type, 
                                                v64typed initdata1, v64typed initdata2,
                                                v64typed initdata3, v64typed initdata4);
-static inline v64Gen            v64GenInit0(v64GenFunc func, value64_type type) {
+static inline v64Gen                v64GenInit0(v64GenFunc func, value64_type type) {
     return v64GenInit(func, type, V64TYPEDZERO(), V64TYPEDZERO(), V64TYPEDZERO(), V64TYPEDZERO());
 }  
-static inline v64Gen            v64GenInit1(v64GenFunc func, value64_type type, v64typed initdata1) {
+static inline v64Gen                v64GenInit1(v64GenFunc func, value64_type type, v64typed initdata1) {
     return v64GenInit(func, type, initdata1, V64TYPEDZERO(), V64TYPEDZERO(), V64TYPEDZERO());
 }    
-static inline v64Gen            v64GenInit2(v64GenFunc func, value64_type type, v64typed initdata1, 
+static inline v64Gen                v64GenInit2(v64GenFunc func, value64_type type, v64typed initdata1, 
                                                 v64typed initdata2) {
     return v64GenInit(func, type, initdata1, initdata2, V64TYPEDZERO(), V64TYPEDZERO());
 }    
-static inline v64Gen            v64GenInit3(v64GenFunc func, value64_type type, v64typed initdata1, 
+static inline v64Gen                v64GenInit3(v64GenFunc func, value64_type type, v64typed initdata1, 
                                                 v64typed initdata2, v64typed initdata3) {
     return v64GenInit(func, type, initdata1, initdata2, initdata3, V64TYPEDZERO());
 } 
-static inline v64Gen            v64GenInit4(v64GenFunc func, value64_type type, v64typed initdata1, 
+static inline v64Gen                v64GenInit4(v64GenFunc func, value64_type type, v64typed initdata1, 
                                                 v64typed initdata2, v64typed initdata3, v64typed initdata4) {
     return v64GenInit(func, type, initdata1, initdata2, initdata3, initdata4);
 } 
                      
-static inline void              v64GenFree(v64Gen *gen) {
+static inline void                  v64GenFree(v64Gen *gen) {
     if (gen) {
         for (int i = 0; i < V64GENCOUNT; i++)
             v64typedFree(&gen->data[i]);    // even if data = 0LL
     }
 }
-#define V64GEN_ZERO (v64Gen) { \
-    .fnext = NULL, \
-    .type = VALUE64_UNKNOWN, \
-    .counter = 0L, \
-    .data = { \
-        [0] = { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN }, \
-        [1] = { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN }, \
-        [2] = { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN }, \
-        [3] = { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN } \
-    } \
+
+static inline v64Gen                v64GenZero(void) {
+    return (v64Gen) {
+        .fnext = NULL,
+        .type = VALUE64_UNKNOWN,
+        .counter = 0L,
+        .data = {
+            [0] = { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN },
+            [1] = { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN },
+            [2] = { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN },
+            [3] = { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN }
+        }
+    };
 }
-#define V64GENFREE(gen) { v64GenFree(gen); gen = V64GEN_ZERO; }
+
+#define V64GENFREE(gen) { v64GenFree(gen); gen = v64GenZero(); }
 
 // -------------------- ACCESS AND MODIFICATORS -------------------------------------
 
@@ -150,20 +158,28 @@ static inline v64Gen        v64GenCreatorUnlimDouble(double val) {
 
 // REGITRSY ALLOCATION:
 // data[0] LONG as startpos for numeric generator
-// data[1] FS as pattern for printing FS/STR 
-static inline v64Gen        v64GenCreatorUnlimAscStrSeries(value64_type rettyp, long startpos, const char *fmt) {
-    // not sure what to do, now just raiseint
-    if (rettyp != VALUE64_STR && rettyp != VALUE64_FS) //(!value64_checktype(rettyp))
-        userraiseint(ERR_UNSUPPORTED_TYPE, "Type %d %s not supported by %s", 
-                rettyp, value64_typename(rettyp), __func__);
-
+// data[1] STR as pattern for printing str ONLY
+static inline v64Gen        v64GenCreatorUnlimAscFsSeries(long startpos, const char *fmt) {
     v64Gen tmp;
-    if ( (rettyp == VALUE64_FS || rettyp == VALUE64_STR) && fmt != NULL)
+    if (fmt != NULL)
         tmp = v64GenInit2(v64UncheckGenUnlimAscSeries,
-                        rettyp, v64typedCreateLong(startpos), v64typedCreateStr(fmt) );
+                        VALUE64_FS, v64typedCreateLong(startpos), v64typedCreateStr(fmt) );
     else
         tmp = v64GenInit1(v64UncheckGenUnlimAscSeries, 
-                        rettyp, v64typedCreateLong(startpos));
+                        VALUE64_FS, v64typedCreateLong(startpos));
+    return tmp;
+}
+// REGITRSY ALLOCATION:
+// data[0] LONG as startpos for numeric generator
+// data[1] STR as pattern for printing STR ONLY
+static inline v64Gen        v64GenCreatorUnlimAscStrSeries(long startpos, const char *fmt) {
+    v64Gen tmp;
+    if (fmt != NULL)
+        tmp = v64GenInit2(v64UncheckGenUnlimAscSeries,
+                        VALUE64_STR, v64typedCreateLong(startpos), v64typedCreateStr(fmt) );
+    else
+        tmp = v64GenInit1(v64UncheckGenUnlimAscSeries, 
+                        VALUE64_STR, v64typedCreateLong(startpos));
     return tmp;
 }
 // REGITRSY ALLOCATION:
