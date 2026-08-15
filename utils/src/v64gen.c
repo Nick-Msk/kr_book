@@ -1849,6 +1849,67 @@ tf10_gen_string_source(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST 11: Sequential chunks from growing fs -------------------------
+static TestStatus
+tf11_gen_string_chunks(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: sequential chunks reading from growing fs", ++subnum);
+    {
+        fs          buf = FS();
+        int         total_len = 0;
+        const int   iterations = 10;
+        char        pt[] = "abcdefghijklmnopqrstuvwxyz";
+
+        srand(42); // детерминированный seed для воспроизводимости
+
+        for (int iter = 0; iter < iterations; iter++) {
+            int chunk_len = rndint(sizeof(pt) - 2) + 1;
+            
+            {
+                char c = pt[chunk_len];
+                pt[chunk_len] = '\0';
+                fs_catstr(&buf, pt);
+                pt[chunk_len] = c;  // restore
+            }
+            // Генератор читает только эту порцию
+            v64Gen gen = v64GenCreatorSourceCstr(fs_str(&buf) + total_len, chunk_len);
+
+            for (int j = 0; j < chunk_len; j++) {
+                value64 v = v64GenNext(&gen);
+                test_validate(
+                    value64_char(v) == 'a' + j,
+                    "iter %d chunk %d: expected '%c', got '%c'",
+                    iter, j, 'a' + j, value64_char(v)
+                );
+            }
+
+            // После прочтения лимита генератор должен вернуть '\0'
+            value64 v_end = v64GenNext(&gen);
+            test_validate(
+                value64_char(v_end) == '\0',
+                "iter %d: expected null after chunk, got '%c'",
+                iter, value64_char(v_end)
+            );
+            value64_free(&v_end, VALUE64_CHR);
+
+            total_len += chunk_len;
+            v64GenFree(&gen);   // for the next
+        }
+
+        // Проверяем итоговую длину
+        test_validate(total_len == (int)fs_len(&buf),
+                      "total_len %d mismatch fs_len %d", total_len, fs_len(&buf));
+
+        fsfree(buf);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(/* int argc, const char *argv[] */)
@@ -1866,6 +1927,7 @@ main(/* int argc, const char *argv[] */)
       , TESTADD(tf8_gen_desc_rnd_custom,     "DescRnd with custom rndinc simple test")
       , TESTADD(tf9_gen_unlim_random,        "v64GenCreatorUnlimRnd...() generators simple test")
       , TESTADD(tf10_gen_string_source,      "Source C-string to char generator (LONG lim)")
+      , TESTADD(tf11_gen_string_chunks,      "Sequential chunks from growing fs test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
