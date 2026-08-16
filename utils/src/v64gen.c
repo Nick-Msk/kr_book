@@ -7,10 +7,12 @@
 // --------------------------------- CONSTANTS AND GLOBALS --------------------------
 
 // --------------------------- Utilities --------------------------------------------
-static bool                     v64GenStringUpdate(v64Gen *gen, long amount) {
+static bool                     v64GenStringUpdate(v64Gen *restrict gen, const char *restrict newbuf, long amount) {
     if (amount <= 0)
         return false;
     // only for Stream Buffer
+    if (newbuf)
+        V64GENREGVAL0(gen).pval = (void *) newbuf;
     V64GENREGVAL1(gen).lval += amount;
     return true;
 }
@@ -274,8 +276,29 @@ value64                         v64GenString(v64Gen *gen) {
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
-int                             v64Techfprint(FILE *restrict out, const v64Gen *restrict gen) {
+int                             v64Techfprint(FILE *restrict out, const v64Gen *restrict gen, const char *restrict name) {
     // TODO:
+    int cnt = 0;
+    if (out) {
+        IOCHECKER(w, fprintf(out, "V64GEN:%s [", name), -1)  // name cab be NULL
+            cnt += w;
+        if (!gen) {
+            IOCHECKER(w, fprintf(out, "<NULL>"), -1)
+                cnt += w;
+        } else {
+            IOCHECKER(w, fprintf(out, "fnext=%p, updater=%p, counter=%u, type=%d/%s\t",
+                        gen->fnext, gen->updater, gen->counter, gen->type, value64_typename(gen->type) ), -1)
+                cnt += w;
+            for (int i = 0; i < V64GENCOUNT; i++) {
+                char    buf[50];
+                snprintf(buf, sizeof(buf) - 1, "REG%d", i);
+                v64typedTechfprint(out, gen->data[i], buf);
+            }
+        }
+        IOCHECKER(w, fprintf(out, "]\n"), -1)
+            cnt += w;
+    }
+    return cnt;
 }
 
 
@@ -1927,8 +1950,77 @@ tf11_gen_string_chunks(const char *name)
 
         // Проверяем итоговую длину
         test_validate(total_len == (int)fs_len(&buf),
-                      "total_len %d mismatch fs_len %d", total_len, fs_len(&buf));
+                      "total_len %d mismatch fs_len %zu", total_len, fs_len(&buf));
 
+        fsfree(buf);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
+// ------------------------- TEST 12: Append to source generator -------------------------
+static TestStatus
+tf12_gen_string_append(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: append chunks to source generator", ++subnum);
+    {
+        fs          buf = FS();
+        int         total_len = 0;
+        const int   iterations = 10;
+        char        pt[] = "abcdefghijklmnopqrstuvwxyz";
+
+        // Генератор создаём один раз, источник пустой
+        v64Gen gen = v64GenCreatorSourceCstr("", 0);
+
+        srand(42);
+
+        for (int iter = 0; iter < iterations; iter++) {
+            int chunk_len = rndint(sizeof(pt) - 2) + 1;   // 1..25
+
+            // Добавляем порцию символов в буфер
+            {
+                char c = pt[chunk_len];
+                pt[chunk_len] = '\0';
+                fs_catstr(&buf, pt);
+                pt[chunk_len] = c;
+            }
+
+            // Вычисляем актуальный адрес начала порции ПОСЛЕ fs_catstr
+            const char *chunk_start = fs_str(&buf) + total_len;
+
+            // Перенастраиваем генератор на новую порцию
+            v64GenStringAppend(&gen, chunk_start, chunk_len);
+
+            // Читаем и проверяем символы
+            for (int j = 0; j < chunk_len; j++) {
+                value64 v = v64GenNext(&gen);
+                test_validate(
+                    value64_char(v) == 'a' + j,
+                    "iter %d pos %d: expected '%c', got '%c'",
+                    iter, j, 'a' + j, value64_char(v)
+                );
+                value64_free(&v, VALUE64_CHR);
+            }
+
+            // После порции должен быть '\0'
+            value64 v_end = v64GenNext(&gen);
+            test_validate(
+                value64_char(v_end) == '\0',
+                "iter %d: expected null after chunk", iter
+            );
+            value64_free(&v_end, VALUE64_CHR);
+
+            total_len += chunk_len;
+        }
+
+        test_validate(total_len == (int)fs_len(&buf),
+                      "total_len %d mismatch fs_len %zu", total_len, fs_len(&buf));
+
+        v64GenFree(&gen);
         fsfree(buf);
         fs_alloc_check(true);
     }
@@ -1954,6 +2046,7 @@ main(/* int argc, const char *argv[] */)
       , TESTADD(tf9_gen_unlim_random,        "v64GenCreatorUnlimRnd...() generators simple test")
       , TESTADD(tf10_gen_string_source,      "Source C-string to char generator (LONG lim)")
       , TESTADD(tf11_gen_string_chunks,      "Sequential chunks from growing fs test")
+      , TESTADD(tf12_gen_string_append,      "Append to source generator test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
