@@ -2152,6 +2152,8 @@ tf12_gen_string_append(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST 13: v64GenFSToChar()  simple test -------------------------
+
 static TestStatus
 tf13_gen_fs_stream_simple(const char *name)
 {
@@ -2209,6 +2211,73 @@ tf13_gen_fs_stream_simple(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST 14: v64GenFSToFsByNewline()  simple test-------------------------
+
+static TestStatus
+tf14_gen_fs_bynewline(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: lines with empty and waiting", ++subnum);
+    {
+        // "abc\n\nqwertt" – после первого \n идёт пустая строка, затем qwertt без \n
+        fs buf = fscopy("abc\n\nqwertt");
+        v64Gen gen = v64GenCreatorSourceFsToFsByNewline(&buf);
+
+        // 1-я строка "abc"
+        value64 v1 = v64GenNext(&gen);
+        test_validatefree(
+            !fs_isnull(value64_fs(v1)) && fs_cmpstr(value64_fs(v1), "abc") == 0,
+            value64_free(&v1, VALUE64_FS),
+            "line1 mismatch"
+        );
+        value64_free(&v1, VALUE64_FS);
+
+        // 2-я строка: пустая (из-за \n\n) — должна быть НЕ null и длина 0
+        value64 v2 = v64GenNext(&gen);
+        test_validatefree(
+            !fs_isnull(value64_fs(v2)) && fs_len(value64_fs(v2)) == 0,
+            value64_free(&v2, VALUE64_FS),
+            "expected empty line (not null)"
+        );
+        value64_free(&v2, VALUE64_FS);
+
+        // 3-я строка: данных нет — должна быть null fs (ожидание)
+        value64 v3 = v64GenNext(&gen);
+        test_validatefree(
+            fs_isnull(value64_fs(v3)),
+            value64_free(&v3, VALUE64_FS),
+            "expected null fs (waiting for data)"
+        );
+        value64_free(&v3, VALUE64_FS);
+
+        // Финализация: остаток "qwertt"
+        value64 v_last = v64GenFinalize(&gen);
+        test_validatefree(
+            !fs_isnull(value64_fs(v_last)) && fs_cmpstr(value64_fs(v_last), "qwertt") == 0,
+            value64_free(&v_last, VALUE64_FS),
+            "final line mismatch"
+        );
+        value64_free(&v_last, VALUE64_FS);
+
+        // После финализации — null fs
+        value64 v_end = v64GenNext(&gen);
+        test_validatefree(
+            fs_isnull(value64_fs(v_end)),
+            value64_free(&v_end, VALUE64_FS),
+            "expected null after finalize"
+        );
+        value64_free(&v_end, VALUE64_FS);
+
+        v64GenFree(&gen);
+        fsfree(buf);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(/* int argc, const char *argv[] */)
@@ -2229,6 +2298,7 @@ main(/* int argc, const char *argv[] */)
       , TESTADD(tf11_gen_string_chunks,      "Sequential chunks from growing fs test")
       , TESTADD(tf12_gen_string_append,      "Append to source generator test")
       , TESTADD(tf13_gen_fs_stream_simple,   "v64GenFSToChar()  simple test")
+      , TESTADD(tf14_gen_fs_bynewline,       "v64GenFSToFsByNewline()  simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
