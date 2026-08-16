@@ -46,7 +46,7 @@ static inline const char * fs_flag_str(FS_FLAGS flag){
 
 // faststring
 typedef struct fs {
-    int         len, sz; // sz >= len + 1 because of last '\0'
+    size_t      len, sz; // sz >= len + 1 because of last '\0'
     FS_FLAGS    flags;
     char       *v;      // with '\0'
 } fs;
@@ -136,9 +136,9 @@ static inline fs             fscopyf(const char *fmt, ...) __attribute__ (( form
  * @warning This function may trigger a `realloc` and/or throw a system 
  *          exception if memory allocation fails.
  */
-extern int                   fs_sprintf_position(fs *restrict s, int pos, const char *restrict fmt, va_list ap);
+extern long                  fs_sprintf_position(fs *restrict s, size_t pos, const char *restrict fmt, va_list ap);
 
-#define             FSEMPTY (fs){.sz = 0, .len = 0, .flags = FS_FLAG_STATIC, .v = ""};
+#define             FSEMPTY (fs){.sz = 0, .len = 0, .flags = FS_FLAG_STATIC, .v = ""}
 #define             FSLITERAL(val) (fs){.sz = strlen(val) + 1, .len = strlen(val), .flags = FS_FLAG_STATIC, .v = (char *) (val) }
 #define             FSINITSTATIC(...)  (fs){.sz = 1, .len = 0, .flags = FS_FLAG_STATIC, .v = "", ##__VA_ARGS__}
 
@@ -196,7 +196,7 @@ static inline fs            fsliteral(const char *lit){
     s.sz = s.len + 1;
     return s;
 }
-extern fs                   fsinit(int sz);
+extern fs                   fsinit(size_t sz);
 
 // fs HEAP creator !
 
@@ -244,8 +244,8 @@ static inline fs            fscopyf(const char *fmt, ...) {
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
-static inline int            fs_sprintf(fs *restrict s, const char *restrict fmt, ...) __attribute__ (( format (printf, 2, 3) ) );
-static inline int            fs_sprintf_concat(fs *restrict s, const char *restrict fmt, ...)  __attribute__ (( format (printf, 2, 3) ) );
+static inline long           fs_sprintf(fs *restrict s, const char *restrict fmt, ...) __attribute__ (( format (printf, 2, 3) ) );
+static inline long           fs_sprintf_concat(fs *restrict s, const char *restrict fmt, ...)  __attribute__ (( format (printf, 2, 3) ) );
 
 // move only heap alloc fs
 extern fs                    fs_move(fs *orig);
@@ -260,7 +260,7 @@ char                        *fs_movetostr(fs *ps);
 // extern char                 *fs_movefrom_heapstr(fs **pfs);
 
 // direct access, NO change len or sz, position MUST be < sz
-static inline char          *fs_get(const fs *s, int pos){
+static inline char          *fs_get(const fs *s, size_t pos){
     //return logsimpleret(s->v + pos, "Getting %p[%c]", s->v + pos, s->v[pos]);
     return s->v + pos;
 }
@@ -275,7 +275,7 @@ static inline char          *fs_get(const fs *s, int pos){
  * @param pos The index of the element to retrieve.
  * @return Pointer to the character at the specified position.
  */
-extern char                 *fs_elem(fs *s, int pos);
+extern char                 *fs_elem(fs *s, size_t pos);
 
 /**
  * @brief Retrieves an element and ensures space for a null terminator.
@@ -288,9 +288,9 @@ extern char                 *fs_elem(fs *s, int pos);
  * @param pos The index of the element to retrieve.
  * @return Pointer to the character at the specified position.
  */
-extern char                 *fs_elem0(fs *s, int pos);
+extern char                 *fs_elem0(fs *s, size_t pos);
 
-static inline char          *fs_setlen(fs *s, int poslen){
+static inline char          *fs_setlen(fs *s, size_t poslen){
     s->len = poslen;
     *fs_elem(s, poslen) = '\0';
     return fs_get(s, poslen);
@@ -300,18 +300,13 @@ static inline char          *fs_clear(fs *s){
     return fs_setlen(s, 0);
 }
 
-static inline int           fs_len(const fs *s){
+static inline size_t         fs_len(const fs *s){
     return s->len;
 }
 
-static inline int           fslen(fs s){
+static inline size_t         fslen(fs s){
     return s.len;
 }
-
-/*static inline bool          fsisempty(fs s){
-    return fslen(s) == 0;
-}*/
-
 // just and FS() or after freed
 static inline bool          fsisnull(fs s){
     return s.sz == 0 && s.v == 0;
@@ -341,9 +336,9 @@ static inline int           fs_sz(const fs *s){
 // shrink to real len + 1 ( + 1 because '\0' is ASSUMED)
 extern fs                   *fs_shrink(fs *s);
 
-extern fs                   *fs_resize(fs *s, int newsz);
+extern fs                   *fs_resize(fs *s, size_t newsz);
 
-static inline fs            *fs_increase(fs *s, int inc){
+static inline fs            *fs_increase(fs *s, size_t inc){
     return fs_resize(s, s->sz + inc);
 }
 
@@ -364,7 +359,7 @@ static inline int            fs_cmp(const fs *restrict str1, const fs *restrict 
     return strcmp(str1->v, str2->v);
 }
 // pointer version, limited
-static inline int            fs_ncmp(const fs *restrict str1, const fs *restrict str2, int len){
+static inline int            fs_ncmp(const fs *restrict str1, const fs *restrict str2, size_t len){
     return strncmp(str1->v, str2->v, len);
 }
 // local version
@@ -372,7 +367,7 @@ static inline int            fscmp(fs str1, fs str2){
     return strcmp(str1.v, str2.v);
 }
 // local version, limited
-static inline int            fsncmp(fs str1, fs str2, int len){
+static inline int            fsncmp(fs str1, fs str2, size_t len){
     return strncmp(str1.v, str2.v, len);
 }
 // STRICT pointer version
@@ -388,7 +383,7 @@ static inline int            fs_icmp(const fs* restrict str1, const fs* restrict
     return strcasecmp(str1->v, str2->v);
 }
 // pointer version, insensitive, limited
-static inline int            fs_nicmp(const fs* restrict str1, const fs* restrict str2, int len){
+static inline int            fs_nicmp(const fs* restrict str1, const fs* restrict str2, size_t len){
     return strncasecmp(str1->v, str2->v, len);
 }
 // local version, insensitive
@@ -396,7 +391,7 @@ static inline int            fsicmp(fs str1, fs str2){
     return strcasecmp(str1.v, str2.v);
 }
 // local version, insensitive, limited
-static inline int            fsnicmp(fs str1, fs str2, int len){
+static inline int            fsnicmp(fs str1, fs str2, size_t len){
     return strncasecmp(str1.v, str2.v, len);
 }
 
@@ -407,7 +402,7 @@ static inline int            fs_cmpstr(const fs *restrict str1, const char *rest
     return strcmp(str1->v, str2);
 }
 // pointer version, limited
-static inline int            fs_ncmpstr(const fs *restrict str1, const char *restrict str2, int len){
+static inline int            fs_ncmpstr(const fs *restrict str1, const char *restrict str2, size_t len){
     return strncmp(str1->v, str2, len);
 }
 // local version
@@ -415,7 +410,7 @@ static inline int            fscmpstr(fs str1, const char *str2){
     return strcmp(str1.v, str2);
 }
 // local version, limited
-static inline int            fsncmpstr(fs str1, const char *str2, int len){
+static inline int            fsncmpstr(fs str1, const char *str2, size_t len){
     return strncmp(str1.v, str2, len);
 }
 // pointer version, insensitive
@@ -423,7 +418,7 @@ static inline int            fs_icmpstr(const fs* restrict str1, const char *res
     return strcasecmp(str1->v, str2);
 }
 // pointer version, insensitive, limited
-static inline int            fs_nicmpstr(const fs* restrict str1, const char *restrict str2, int len){
+static inline int            fs_nicmpstr(const fs* restrict str1, const char *restrict str2, size_t len){
     return strncasecmp(str1->v, str2, len);
 }
 // local version, insensitive
@@ -431,66 +426,66 @@ static inline int            fsicmpstr(fs str1, const char *str2){
     return strcasecmp(str1.v, str2);
 }
 // local version, insensitive, limited
-static inline int            fsnicmpstr(fs str1, const char *str2, int len){
+static inline int            fsnicmpstr(fs str1, const char *str2, size_t len){
     return strncasecmp(str1.v, str2, len);
 }
 
 // ------------------------------------------ substring srearch ---------------------------------------------------
 // pointer, sensitive, unlim
-static inline int            fs_instr(const fs* restrict str1, const fs* restrict str2){
+static inline long           fs_instr(const fs* restrict str1, const fs* restrict str2){
     const char *p = strstr(str1->v, str2->v);
     return p == 0 ? -1 : p - str1->v;
 }
 // pointer, insensitive, unlim
-static inline int            fs_iinstr(const fs* restrict str1, const fs* restrict str2){
+static inline long           fs_iinstr(const fs* restrict str1, const fs* restrict str2){
     const char *p = strcasestr(str1->v, str2->v);   // NOTE: not portable solution
     return p == 0 ? -1 : p - str1->v;
 }
 // local, sensitive, unlim
-static inline int            fsinstr(fs str1, fs str2){
+static inline long           fsinstr(fs str1, fs str2){
     const char *p = strstr(str1.v, str2.v);   // NOTE: not portable solution
     return p == 0 ? -1 : p - str1.v;
 }
 // local, insensitive, unlim
-static inline int            fsiinstr(fs str1, fs str2){
+static inline long           fsiinstr(fs str1, fs str2){
     const char *p = strcasestr(str1.v, str2.v);   // NOTE: not portable solution
     return p == 0 ? -1 : p - str1.v;
 }
 // TODO: fs_ninstr(fs *, fs *, int); fs_niinstr(fs *, fs *, n);
 // common search for limited!
-extern int                   fs_lim_instr(const fs* restrict str1, const fs* restrict str2, int lim, bool lowercase);
+extern long                  fs_lim_instr(const fs* restrict str1, const fs* restrict str2, size_t lim, bool lowercase);
 
 // pointer, sensitive, lim
-static inline int            fs_ninstr(const fs* restrict str1, const fs* restrict str2, int lim){
+static inline long           fs_ninstr(const fs* restrict str1, const fs* restrict str2, size_t lim){
     return  fs_lim_instr(str1, str2, lim, false);
 }
 // pointer, insensitive, lim
-static inline int            fs_niinstr(const fs* restrict str1, const fs* restrict str2, int lim){
+static inline long           fs_niinstr(const fs* restrict str1, const fs* restrict str2, size_t lim){
     return  fs_lim_instr(str1, str2, lim, true);
 }
 // local, sensitive, lim
-static inline int            fsninstr(fs str1, fs str2, int lim){
+static inline long           fsninstr(fs str1, fs str2, size_t lim){
     return  fs_lim_instr(&str1, &str2, lim, false);
 }
 // local, insensitive, lim
-static inline int            fsniinstr(fs str1, fs str2, int lim){
+static inline long           fsniinstr(fs str1, fs str2, size_t lim){
     return  fs_lim_instr(&str1, &str2, lim, true);
 }
 // ------------------------------------------ one symbol search --------------------------------------------------------
 // pointer, sensitive, unlim (library call)
-static inline int            fs_chr(const fs *str, char c){
+static inline long           fs_chr(const fs *str, char c){
     const char *p = strchr(str->v, c);
     return p ? p - str->v : -1;
 }
 // pointer, sensitive, lim
-static inline int            fs_nchr(const fs *str, char c, int lim){
+static inline long           fs_nchr(const fs *str, char c, size_t lim){
     const char *p = str->v;
     while (lim-- > 0 && *p != '\0' && *p != c)
         p++;
     return *p != '\0' && lim > 0 ? p - str->v : -1;
 }
 // pointer, insensitive, lim
-static inline int            fs_nichr(const fs *str, char c, int lim){
+static inline long           fs_nichr(const fs *str, char c, size_t lim){
     const char *p = str->v;
     c = tolower(c);
     while (lim-- > 0 && *p != '\0' && tolower(*p) != c)
@@ -498,39 +493,39 @@ static inline int            fs_nichr(const fs *str, char c, int lim){
     return *p != '\0' && lim > 0 ? p - str->v : -1;
 }
 // pointer, insensitive, unlim
-static inline int            fs_ichr(const fs *str, char c){
+static inline long           fs_ichr(const fs *str, char c){
     return fs_nichr(str, c, INT_MAX);
 }
 // local version
 // local, sensitive, unlim
-static inline int            fschr(fs str, char c){
+static inline long           fschr(fs str, char c){
     return fs_chr(&str, c);
 }
 // local, sensitive, lim
-static inline int            fsnchr(fs str, char c, int lim){
+static inline long           fsnchr(fs str, char c, size_t lim){
     return fs_nchr(&str, c, lim);
 }
 // local, insensitive, lim
-static inline int            fsnichr(fs str, char c, int lim){
+static inline long           fsnichr(fs str, char c, size_t lim){
     return fs_nichr(&str, c, lim);
 }
 // local, insensitive, unlim
-static inline int            fsichr(fs str, char c){
+static inline long           fsichr(fs str, char c){
     return fs_ichr(&str, c);
 }
 // ------------------------------------------ ONE SYMBOL REVERSE SEARCH  --------------------------------------------------------
 // pointer, sensitive, unlim
-static inline int            fs_rchr(const fs *str, char c){
+static inline long           fs_rchr(const fs *str, char c){
     const char *p = str->v;
-    int         pos = str->len - 1;
+    long        pos = (long) str->len - 1;
     while (pos >= 0 && p[pos] != c)
         pos--;
     return pos;
 }
 // pointer, insensitive, unlim
-static inline int            fs_irchr(const fs *str, char c){
+static inline long           fs_irchr(const fs *str, char c){
     const char *p = str->v;
-    int         pos = str->len - 1;
+    int         pos = (long) str->len - 1;
     c = tolower( (unsigned char) c);
     while (pos >= 0 && tolower( (unsigned char) p[pos] ) != c)
         pos--;
@@ -577,7 +572,7 @@ static inline fs             fs_cpystr(fs *restrict target, const char *restrict
     return fs_cpy(target, l);
 }
 
-static inline int            fs_sprintf(fs *restrict s, const char *restrict fmt, ...) {
+static inline long           fs_sprintf(fs *restrict s, const char *restrict fmt, ...) {
     invraisecode(s != 0 && fmt != 0, ERR_NULLABLE_PTR, "%p - %p", s, fmt);
     va_list ap;
     va_start(ap, fmt);
@@ -586,7 +581,7 @@ static inline int            fs_sprintf(fs *restrict s, const char *restrict fmt
     return res;
 }
 
-static inline int            fs_sprintf_concat(fs *restrict s, const char *restrict fmt, ...) {
+static inline long           fs_sprintf_concat(fs *restrict s, const char *restrict fmt, ...) {
     invraisecode(s != 0 && fmt != 0, ERR_NULLABLE_PTR, "%p - %p", s, fmt);
     va_list ap;
     va_start(ap, fmt);
@@ -596,9 +591,7 @@ static inline int            fs_sprintf_concat(fs *restrict s, const char *restr
 }
 
 // fast in-place left substring
-static inline fs             fs_left(fs *s, int cnt){
-    if (cnt < 0)
-        cnt = 0;
+static inline fs             fs_left(fs *s, size_t cnt){
     if (cnt > s->len)
         cnt = s->len;
     fs_setlen(s, cnt);
@@ -606,14 +599,14 @@ static inline fs             fs_left(fs *s, int cnt){
 }
 
 // fast in-place!
-extern fs                    fs_substr(fs *s, int from, int len);
+extern fs                    fs_substr(fs *s, size_t from, size_t len);
 
 // constructor version
-extern fs                    fs_newsubstr(const fs *s, int from, int len);
+extern fs                    fs_newsubstr(const fs *s, size_t from, size_t len);
 
-static inline fs            *fs_tolower_interval(fs *str, int from, int to){
+static inline fs            *fs_tolower_interval(fs *str, size_t from, size_t to){
     // TODO: probably fs_iter - think about it
-    for (int i = MAX(from, 0); i < MIN(to, str->len); i++)
+    for (size_t i = from; i < MIN(to, str->len); i++)
         str->v[i] = tolower(str->v[i]);
     return str;
 }
@@ -622,22 +615,22 @@ static inline fs            *fs_tolower(fs *str){
     return fs_tolower_interval(str, 0, str->len);
 }
 
-static inline fs            *fs_toupper_interval(fs *str, int from, int to){
+static inline fs            *fs_toupper_interval(fs *str, size_t from, size_t to){
     // TODO: probably fs_iter - think about it
-    for (int i = MAX(from, 0); i < MIN(to, str->len); i++)
+    for (size_t i = from; i < MIN(to, str->len); i++)
         str->v[i] = toupper(str->v[i]);
     return str;
 }
 static inline fs            *fs_toupper(fs *str){
     return fs_toupper_interval(str, 0, str->len);
 }
-extern fs                    fs_rpad(fs *restrict str, int len, const fs *restrict pad);
-extern fs                    fs_lpad(fs *restrict str, int len, const fs *restrict pad);
-static inline fs             fs_rpadstr(fs *restrict str, int len, const char *restrict padstr){
+extern fs                    fs_rpad(fs *restrict str, size_t len, const fs *restrict pad);
+extern fs                    fs_lpad(fs *restrict str, size_t len, const fs *restrict pad);
+static inline fs             fs_rpadstr(fs *restrict str, size_t len, const char *restrict padstr){
     fs l = fsliteral(padstr);
     return fs_rpad(str, len, &l);
 }
-static inline fs             fs_lpadstr(fs *restrict str, int len, const char *restrict padstr){
+static inline fs             fs_lpadstr(fs *restrict str, size_t len, const char *restrict padstr){
     fs l = fsliteral(padstr);
     return fs_lpad(str, len, &l);
 }
@@ -648,10 +641,10 @@ static inline fs             fs_lpadstr(fs *restrict str, int len, const char *r
  * @param len  desired length
  * @param type 'a' for lowercase, 'A' for uppercase, '0' for digits
  */
-static inline fs            *fs_genrnd(fs *s, int len, char type) {
+static inline fs            *fs_genrnd(fs *s, size_t len, char type) {
     invraisecode(s != NULL, ERR_NULLABLE_PTR, "Nullable fs");
 
-    for (int i = 0; i < len; i++) {
+    for (size_t i = 0; i < len; i++) {
         char    c;
         switch (type) {
             case 'a': c = rndlowchar(); 
@@ -675,7 +668,7 @@ static inline fs            *fs_genrnd(fs *s, int len, char type) {
  * @param len  desired length
  * @param type 'a' for lowercase, 'A' for uppercase, '0' for digits
  */
-static inline fs             fs_initrnd(int len, char type) {
+static inline fs             fs_initrnd(size_t len, char type) {
     fs tmp = FS();
     return *fs_genrnd(&tmp, len, type);
 }
@@ -728,7 +721,7 @@ static inline bool           fs_iin(fs s, const char *strs[]){
 // TODO: ordered version, via binsearch
 
 // try to parse value
-static inline int            fs_getintpos(const fs *ps, int pos){
+static inline int            fs_getintpos(const fs *ps, size_t pos){
     int     res;
     if (!try_parse_int(ps->v + pos, &res) )
         userraiseint(ERR_INVALID_CONVERSION, "Unablew to convert to int %.50s", ps->v + pos);            // this must be configurable! 
@@ -740,7 +733,7 @@ static inline int            fs_getint(const fs *ps){
 }
 
 // try to parse long value
-static inline long           fs_getlongpos(const fs *ps, int pos) {
+static inline long           fs_getlongpos(const fs *ps, size_t pos) {
     long     res;
     if (!try_parse_long(ps->v + pos, &res) )
         userraiseint(ERR_INVALID_CONVERSION, "Unable to convert to long %.50s", ps->v + pos);            // this must be configurable! 
@@ -751,7 +744,7 @@ static inline long            fs_getlong(const fs *ps) {
     return fs_getlongpos(ps, 0);
 }
 // try to parse long value
-static inline unsigned long  fs_getulongpos(const fs *ps, int pos) {
+static inline unsigned long  fs_getulongpos(const fs *ps, size_t pos) {
     unsigned long     res;
     if (!try_parse_ulong(ps->v + pos, &res) )
         userraiseint(ERR_INVALID_CONVERSION, "Unable to convert to unsigned long %.50s", ps->v + pos);            // this must be configurable! 
@@ -762,7 +755,7 @@ static inline unsigned long   fs_getulong(const fs *ps) {
     return fs_getulongpos(ps, 0);
 }
 // try to parse double value
-static inline double          fs_getdoublepos(const fs *ps, int pos) {
+static inline double          fs_getdoublepos(const fs *ps, size_t pos) {
     double     res;
     if (!try_parse_double(ps->v + pos, &res) )
         userraiseint(ERR_INVALID_CONVERSION, "Unablew to convert to double %.50s", ps->v + pos);            // this must be configurable!
@@ -828,23 +821,23 @@ static inline char             fs_getchar(const fs *ps) {
 
 // ------------------------ PRINTERS/CHECKERS --------------------------
 
-extern int                   fs_techfprint(FILE *restrict out, const fs *restrict s, const char *name);
-static inline int            fs_techprint(const fs *s, const char *name){
+extern long                  fs_techfprint(FILE *restrict out, const fs *restrict s, const char *name);
+static inline long           fs_techprint(const fs *s, const char *name){
     return fs_techfprint(stdout, s, name);
 }
 
-extern int                   fs_fprint(FILE *restrict out, const fs *restrict s, const char *name);
-static inline int            fs_print(const fs *restrict s, const char *restrict name){
+extern long                   fs_fprint(FILE *restrict out, const fs *restrict s, const char *name);
+static inline long           fs_print(const fs *restrict s, const char *restrict name){
     return fs_fprint(stdout, s, name);
 }
 
-extern int                   fs_fprintlim(FILE *restrict out, const fs *restrict s, int lim, const char *name);
-static inline int            fs_printlim(const fs *restrict s, int lim, const char *restrict name){
+extern long                   fs_fprintlim(FILE *restrict out, const fs *restrict s, size_t lim, const char *name);
+static inline long           fs_printlim(const fs *restrict s, size_t lim, const char *restrict name){
     return fs_fprintlim(stdout, s, lim, name);
 }
 
-extern int                   fs_fprint_arr(FILE *restrict out, const fs *restrict arrs[]);
-static inline int            fs_print_arr(const fs *restrict arrs[]){
+extern long                  fs_fprint_arr(FILE *restrict out, const fs *restrict arrs[]);
+static inline long           fs_print_arr(const fs *restrict arrs[]){
     return fs_fprint_arr(stdout, arrs);
 }
 
@@ -874,12 +867,12 @@ extern bool                  fs_fprint_checker_cnt(FILE *restrict out, const cha
 // --------------------------------- SERIALIZATION -----------------------------------------
 
 // seqialization (strictly FULL save into the steam with only FS and .len info), out must be opened for write
-extern int                   fs_fsave(FILE *restrict out, const fs *restrict str);
-extern int                   fs_save(const char *restrict fname, const fs *restrict str);
+extern long                  fs_fsave(FILE *restrict out, const fs *restrict str);
+extern long                  fs_save(const char *restrict fname, const fs *restrict str);
 
 //  arr must be a pointer to NULL terminated array!
-extern int                   fs_fsave_arr(FILE *restrict out, const fs *restrict arr);
-extern int                   fs_save_arr(const char *restrict fname, const fs *restrict arr);
+extern long                  fs_fsave_arr(FILE *restrict out, const fs *restrict arr);
+extern long                  fs_save_arr(const char *restrict fname, const fs *restrict arr);
 
 extern fs                    fs_fload(FILE *restrict in, fs *restrict s);
 extern fs                    fs_load(const char *restrict fname, fs *restrict s);
@@ -896,8 +889,8 @@ extern fs                    fs_load(const char *restrict fname, fs *restrict s)
 
 // ------------------------------------ ETC. ------------------------------------------------
 
-extern int                   FS_MIN_ACCOC;          // to config.c (via sqlite)
-extern int                   FS_TECH_PRINT_COUNT;   // to config.c TODO:
+extern size_t                   FS_MIN_ACCOC;          // to config.c (via sqlite)
+extern size_t                   FS_TECH_PRINT_COUNT;   // to config.c TODO:
 
 #endif /* !_FS_H */
 

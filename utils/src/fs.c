@@ -14,15 +14,9 @@
                     FAST STRING MODULE IMPLEMENTATION
 ********************************************************************/
 
-#if defined(FS_ALLOCATOR)
-    static char               **g_fs_ptr                = 0;
-    static int                  g_alloc                 = 0;
-    static const int            g_initsize              = 32;   // not sure
-#endif
-
 // external contol
-int                             FS_MIN_ACCOC            = 128;
-int                             FS_TECH_PRINT_COUNT     = 100; // symplos to print
+size_t                          FS_MIN_ACCOC            = 128;
+size_t                          FS_TECH_PRINT_COUNT     = 100; // symplos to print
 // mem leak checking
 static atomic_int               g_alloc_cnt             = 0;
 static atomic_int               g_free_cnt              = 0;
@@ -33,117 +27,6 @@ static atomic_int               g_free_body_cnt         = 0;
 // -------------------------- (Utility) printers -------------------
 
 // ------------------------------ Utilities -------------- ----------
-
-#if defined(FS_ALLOCATOR)
-// ------------------------- ALLOCATOR ------------------------------
-
-// non static, for atexit()
-void                            fsfreeall(void){
-    for (int i = 0; i < g_alloc; i++)
-        if (g_fs_ptr[i]){
-            free(g_fs_ptr[i]);
-            g_fs_ptr[i] = 0;
-        }
-}
-
-// find or increase size, raise if unable
-static int                      findempty(void){
-    // 1-st ver stupid alg
-    int found = -1;
-    for (int i = 0; i < g_alloc; i++)
-        if (!g_fs_ptr[i])
-            return logsimpleret(i, "found empty %d", i);
-    // alloc new
-    int tmpsz = calcnewsize(SIZE_POWER2, g_initsize) * sizeof(const char *);
-    char **tmp = realloc(g_fs_ptr, tmpsz);
-    if (!tmp)
-        sysraiseint("Unable to allocate %d", tmpsz);  // return???
-    found = g_alloc;
-    for (; g_alloc < tmpsz; g_alloc++)
-        tmp[g_alloc] = 0;
-    g_alloc = tmpsz;
-    g_fs_ptr = tmp;
-    return logsimpleret(found, "Newly allocated %d", found);
-}
-
-static int                      findstr(const void *v){
-    // now it's a stupid iteration via g_fs_ptr
-    for (int i = 0; i < g_alloc; i++)
-        if (g_fs_ptr[i] == v)
-            return logsimpleret(i, "Found %p on %d", v, i);
-    return logsimpleerr(-1, "Not found");
-}
-
-static bool                     detach(int pos){
-    g_fs_ptr[pos] = 0;
-        return logsimpleret(true, "%d detached", pos);
-}
-
-
-
-static bool                     check_duplicate(void){
-    // TODO:
-    int     totsz = g_alloc * sizeof(const char *);
-    const char **ptr = malloc(totsz);
-    if (!ptr){
-        return logsimpleerr(false, "Unable to allocated sortarea (%d)", totsz);
-    }
-    memcpy(ptr, g_fs_ptr, totsz);
-    qsort(ptr, g_alloc, sizeof(void *), pointer_cmp);
-    for (int i = 1; i < g_alloc; i++)
-        if (ptr[i - 1] == ptr[i] && ptr[i] != 0){
-            fprintf(stderr, "ptr[%d] = ptr[%d] (%p)", i - 1, i, ptr[i]);    // not sure
-            free(ptr);
-            return logsimpleret(false, "ptr[%d] = ptr[%d] (%p)", i - 1, i, ptr[i]);
-        }
-    free(ptr);
-    return true;
-}
-
-static bool                     fschecker(void){
-    logenter("check allocation");
-    if (!check_duplicate() ){
-        printf("Duplicate found\n");
-        return logerr(false, "Dupl failed");
-    }
-    printf("Checking is Passed\n");
-    return logret(true, "Ok");
-}
-
-// technical printer
-static int                      ffsprintall(FILE *f, int max){
-    int         cnt = 0;
-    bool        prev = false;
-    static int  count = 0;
-    max = (max > g_alloc || max == 0) ? g_alloc : max ;
-    for (int i = 0; i < max; i++){
-        if (g_fs_ptr[i]){
-            cnt++;
-            if (prev)
-                fprintf(f, " - till [%d]", i - 1);
-            fprintf(f, "alloc[%d] = %p ", i, g_fs_ptr[i]); count++;
-            prev = false;
-        } else if (!prev){
-             fprintf(f, "alloc[%d] = 0x0 ", i); count++;
-             prev = true;
-        }
-        if (count % 15 == 0)
-            putchar('\n');
-    }
-    // count of valuable
-    fprintf(f, "\nTotal: %d\n", cnt);
-    return cnt;
-}
-
-static inline int                       fsprintall(int max){
-    return ffsprintall(stdout, max);
-}
-static inline int                       attach(int pos, char *v){
-    if (pos >= 0)   // if not detached!
-        g_fs_ptr[pos] = v;
-    return logsimpleret(pos, "%p attached to %d", v, pos);
-}
-#endif /* FS_ALLOCATOR */
 
 /**
  * @brief Manages the capacity of an fs (file system) object.
@@ -184,8 +67,8 @@ static inline int                       attach(int pos, char *v){
  *    c. If successful, update `s->v` and `s->sz`.
  *    d. If allocation fails, raise exception via @ref userraiseint.
  */
-static fs                               increasesize(fs *s, int newsz, bool init){
-    logenter("oldsz %d, newsz %d, init %s v %p, is alloc? %s", s->sz, newsz, bool_str(init), s->v, bool_str(fs_alloc(s)) );
+static fs                               increasesize(fs *s, size_t newsz, bool init){
+    logenter("oldsz %zu, newsz %zu, init %s v %p, is alloc? %s", s->sz, newsz, bool_str(init), s->v, bool_str(fs_alloc(s)) );
     if (fs_alloc(s) ){
         if (init)
             newsz = calcnewsize(SIZE_POWER2, newsz);    // with increase type
@@ -197,7 +80,7 @@ static fs                               increasesize(fs *s, int newsz, bool init
                 attach(s->pos, s->v);
                 #endif
                 if (!v)
-                    userraiseint(ERR_UNABLE_ALLOCATE, "Unable to allocate %d bytes", newsz);
+                    userraiseint(ERR_UNABLE_ALLOCATE, "Unable to allocate %zu bytes", newsz);
                 // now it's ok
                 if (s->v == 0)      // only in case of REALLY new allocation logauto(++g_alloc_cnt);
                     atomic_fetch_add(&g_alloc_cnt, 1); 
@@ -205,7 +88,7 @@ static fs                               increasesize(fs *s, int newsz, bool init
                 s->sz = newsz;
          }
     }
-    return logret(*s, "%s%d", fs_alloc(s) ? "increased to " :"No change because non-heap ", s->sz);
+    return logret(*s, "%s%zu", fs_alloc(s) ? "increased to " :"No change because non-heap ", s->sz);
 }
 
 // low level copy, NOT check anything
@@ -266,34 +149,24 @@ char                                   *fs_movetostr(fs *ps) {
     
     return str;
 }
-// semi-free! move-destructor for BODY_ALLOC TO BE REMOVED
-/*char                                   *fs_movefrom_heapstr(fs **pfs) {
-    invraisecode(pfs != NULL && *pfs != NULL, ERR_NULLABLE_PTR, "Null pointer %p %p", pfs, pfs == NULL ? NULL: *pfs);
-    if (!fs_bodyalloc(*pfs))
-        userraiseint(ERR_FS_NOT_ALLOC_FLAG, "Only fs with body allocated in heap!");
-
-    char    *str = fs_movetostr(*pfs);
-    *pfs = NULL;           // обнуляем указатель у вызывающей стороны
-    return str;
-} */
 //
 fs                                      *fs_shrink(fs *s){
     if (fs_alloc(s)){
-        int     newsz = s->len + 1; // final '\0' is assumed!
+        size_t     newsz = s->len + 1; // final '\0' is assumed!
         increasesize(s, newsz, false);
-        return logsimpleret(s, "Shrinked %d", s->sz);
+        return logsimpleret(s, "Shrinked %zu", s->sz);
     } else
         return logsimpleret(s, "Not heap: shrink is skipped");
 }
 
-char                                    *fs_elem(fs *s, int pos){
+char                                    *fs_elem(fs *s, size_t pos){
     if (pos >= s->sz){
-        increasesize(s, pos < FS_MIN_ACCOC ? FS_MIN_ACCOC : pos, true);   // len remains the same here! sz is changed
+        increasesize(s, pos < FS_MIN_ACCOC ? FS_MIN_ACCOC : pos + 1, true);   // len remains the same here! sz is changed
     }
     return fs_get(s, pos);
 }
 
-char                                    *fs_elem0(fs *s, int pos){
+char                                    *fs_elem0(fs *s, size_t pos){
     if (pos + 1 >= s->sz){ // + 1 for '\0'
         increasesize(s, pos < FS_MIN_ACCOC ? FS_MIN_ACCOC : pos, true);   // len remains the same here! sz is changed
     }
@@ -303,7 +176,7 @@ char                                    *fs_elem0(fs *s, int pos){
 }
 
 // sprintf to particular position
-int                                     fs_sprintf_position(fs *restrict s, int pos, const char *restrict fmt, va_list ap)
+long                                    fs_sprintf_position(fs *restrict s, size_t pos, const char *restrict fmt, va_list ap)
 {
     // logenter("len %d pos %d", s->len, pos);
     va_list ap2;
@@ -315,23 +188,23 @@ int                                     fs_sprintf_position(fs *restrict s, int 
 
     if (s->sz < pos + 1 + needed)
         increasesize(s, pos + 1 + needed, true);
-    int cnt = vsnprintf(fs_str(s) + pos, s->sz - pos, fmt, ap2);
+    long cnt = vsnprintf(fs_str(s) + pos, s->sz - pos, fmt, ap2);
 
     s->len = pos + needed;      // note: string CAN BE CUTTED!
     va_end(ap2);
-    return logsimpleret(cnt, "printed %d to pos %d", cnt, pos);
+    return logsimpleret(cnt, "printed %ld to pos %zu", cnt, pos);
 }
 
-fs                                      *fs_resize(fs *s, int newsz){
+fs                                      *fs_resize(fs *s, size_t newsz){
     if (newsz > s->sz){
         increasesize(s, newsz, false);
-        logsimple("size is adjusted to %d (pos %d)", s->sz, newsz);
+        logsimple("size is adjusted to %zu (pos %zu)", s->sz, newsz);
     }
     return s;
 }
 
 fs                                      fs_cat(fs *target, fs source){
-    int sumlen = target->len + source.len;
+    size_t sumlen = target->len + source.len;
     if (target->sz <= sumlen) // sz must be at least len1 + len2 + 1
         increasesize(target, sumlen + 1, true);
     //memcpy(target->v + target->len, source.v, source.len + 1);   // with last '\0'
@@ -341,21 +214,21 @@ fs                                      fs_cat(fs *target, fs source){
 
 // put beginner at the start position of the target
 fs                                      fs_rev_catstr(fs *restrict target, const char *restrict beginner){
-    int len;
+    size_t len;
     if (beginner && (len = strlen(beginner) ) != 0 ){
         fs_resize(target, target->len + len);
         memmove(target->v + len, target->v, target->len);
         memcpy(target->v, beginner, len);
         fs_setlen(target, len + target->len);
-        logsimple("Origin moved to the end (%d)", len);
+        logsimple("Origin moved to the end (%zu)", len);
     }
     return *target;
 }
 
 // fast in-place!
-fs                                      fs_substr(fs *s, int from, int len){
+fs                                      fs_substr(fs *s, size_t from, size_t len){
     invraisecode(s != 0 && from >= 0 && len >= 0,
-        ERR_NULLABLE_PTR, "Input violation %p, from %d, len %d", s, from, len);     // asssertion if NOINVARIANT is NOT defined
+        ERR_NULLABLE_PTR, "Input violation %p, from %zu, len %zu", s, from, len);     // asssertion if NOINVARIANT is NOT defined
 
     if (from >= s->len) {
         fs_setlen(s, 0);
@@ -369,14 +242,14 @@ fs                                      fs_substr(fs *s, int from, int len){
 }
 
 // constructor version
-fs                                      fs_newsubstr(const fs *s, int from, int len){
+fs                                      fs_newsubstr(const fs *s, size_t from, size_t len){
     invraisecode(s != 0 && from >= 0 && len >= 0,
-        ERR_NULLABLE_PTR, "%p from %d, len %d", s, from, len);     // asssertion if NOINVARIANT is NOT defined
+        ERR_NULLABLE_PTR, "%p from %zu, len %zu", s, from, len);     // asssertion if NOINVARIANT is NOT defined
 
     if (from >= s->len) {
         fs tmp = fsinit(1);
         fsetlen(tmp, 0);
-        return logsimpleret(tmp, "from %d over length", from);
+        return logsimpleret(tmp, "from %zu over length", from);
     }
 
     len = MIN(len, s->len - from);
@@ -384,50 +257,51 @@ fs                                      fs_newsubstr(const fs *s, int from, int 
     if (from > 0)
         memmove(tmp.v, s->v + from, len);
     fsetlen(tmp, len);
-    return logsimpleret(tmp, "Created substr %d", tmp.len);
+    return logsimpleret(tmp, "Created substr %zu", tmp.len);
 }
 // right padding up to len
-fs                                       fs_rpad(fs *restrict str, int len, const fs *restrict pad){
+fs                                       fs_rpad(fs *restrict str, size_t len, const fs *restrict pad){
     invraisecode(str != 0 && len >= 0 && pad != 0,
-            ERR_NULLABLE_PTR, "Null pointers or negative len %p %p %d", str, pad, len);
+            ERR_NULLABLE_PTR, "Null pointers or negative len %p %p %zu", str, pad, len);
     if (fs_len(str) >= len )
-        return logsimpleret(fs_substr(str, 0, len), "Cuted to %d", len);
+        return logsimpleret(fs_substr(str, 0, len), "Cuted to %zu", len);
     if (fs_len(pad) > 0){
         fs_resize(str, len + 1);
-        for (int i = fs_len(str); i < len; i++)
+        for (size_t i = fs_len(str); i < len; i++)
             fs_str(str)[i] = fs_str( (fs *) pad)[ (i - fs_len(str) ) % fs_len(pad)];
         fs_setlen(str, len);
     }
-    return logsimpleret(*str, "padded to %d", fs_len(str) );
+    return logsimpleret(*str, "padded to %zu", fs_len(str) );
 }
 // left padding up to len
-fs                                       fs_lpad(fs *restrict str, int len, const fs *restrict pad){
+fs                                       fs_lpad(fs *restrict str, size_t len, const fs *restrict pad){
     invraisecode(str != 0 && len >= 0 && pad != 0,
-            ERR_NULLABLE_PTR, "Null pointers or negative len %p %p %d", str, pad, len);
+            ERR_NULLABLE_PTR, "Null pointers or negative len %p %p %zu", str, pad, len);
     if (fs_len(str) >= len )
-        return logsimpleret(fs_substr(str, 0, len), "Cuted to %d", len);
+        return logsimpleret(fs_substr(str, 0, len), "Cuted to %zu", len);
     // str->len < len => check size
     if (fs_len(pad) > 0){
         fs_resize(str, len + 1);
         memmove(fs_str(str) + len - fs_len(str), fs_str(str), fs_len(str) );
-        for (int i = 0; i < len - fs_len(str); i++)
+        for (size_t i = 0; i < len - fs_len(str); i++)
             fs_str(str)[i] = fs_str( (fs *) pad)[i % fs_len(pad)];
         fs_setlen(str, len);
     }
-    return logsimpleret(*str, "padded to %d", fs_len(str) );
+    return logsimpleret(*str, "padded to %zu", fs_len(str) );
 }
 // limiter search (primitive alg)
-int                                     fs_lim_instr(const fs* restrict str1, const fs* restrict str2, int lim, bool lowercase){
-    invraise(str1 != 0 && str2 != 0 && lim >= 0, "%p %p, %d", str1, str2, lim);
+long                                    fs_lim_instr(const fs* restrict str1, const fs* restrict str2, size_t lim, bool lowercase){
+    invraise(str1 != 0 && str2 != 0 && lim >= 0, 
+        "%p %p, %zu", str1, str2, lim);
     const char *s1 = str1->v, *s2 = str2->v;
-    int pos = 0;
+    size_t pos = 0;
 
     for (pos = 0; pos < MIN(str1->len, lim) - str2->len; pos++){
-        int j = pos, i = 0;
+        size_t j = pos, i = 0;
         while (clower(s1[j], lowercase) == clower(s2[i], lowercase) && s1[j] != '\0' && s2[i] != '\0' && RGUARDM)
             i++, j++;
         if (s2[i] == '\0')
-            return logsimpleret(pos, "Found %d", pos);
+            return logsimpleret(pos, "Found %zu", pos);
     }
     return logsimpleret(-1, "substr not found");
 }
@@ -439,9 +313,8 @@ void                                     fs_sort(fs *s, bool asc){
 }
 
 // -------------------------- (API) printers -----------------------
-// this is not limit!
-int                                     fs_fprint(FILE *restrict out, const fs *restrict s, const char *restrict name){
-    int     cnt = 0;
+long                                     fs_fprint(FILE *restrict out, const fs *restrict s, const char *restrict name){
+    long     cnt = 0;
     if (s){
         cnt = fprintf(out, "[%s%s%s]", name ? name : "", name ? ": " : "", s->v);
     }
@@ -449,37 +322,39 @@ int                                     fs_fprint(FILE *restrict out, const fs *
 }
 
 // with  limit!
-int                                     fs_fprintlim(FILE *restrict out, const fs *restrict s, int lim, const char *restrict name){
-    int     cnt = 0;
+long                                     fs_fprintlim(FILE *restrict out, const fs *restrict s, size_t lim, const char *restrict name){
+    long     cnt = 0;
     if (s){
-        cnt = fprintf(out, "[%s%s%.*s]", name ? name : "", name ? ": " : "", lim, s->v);
+        cnt = fprintf(out, "[%s%s%.*s]", name ? name : "", name ? ": " : "", (unsigned) lim, s->v);
     }
     return cnt;
 }
 
-int                                     fs_fprint_arr(FILE *restrict out, const fs *restrict arr[]){
-    int cnt = 0, i = 0;
+long                                    fs_fprint_arr(FILE *restrict out, const fs *restrict arr[]){
+    long    cnt = 0;
+    size_t  i = 0;
     if (arr)
         for (; arr[i] != 0 && i < G_GLOB_AVERAGE; i++) // G_GLOB_AVERAGE to avoid endless loop
-            cnt += fprintf(out, "[fs_arr_%d: %s]", i, arr[i]->v);
+            cnt += fprintf(out, "[fs_arr_%zu: %s]", i, arr[i]->v);
     if (i == G_GLOB_AVERAGE)
         logsimple("G_GLOB_AVERAGE's reached!!! %d", G_GLOB_AVERAGE);
     return cnt;
 }
 
-int                                     fs_techfprint(FILE *restrict out, const fs *restrict s, const char *restrict name){
+long                                    fs_techfprint(FILE *restrict out, const fs *restrict s, const char *restrict name){
     // technical print, statis attributes for now
-    int     cnt = 0;
+    long     cnt = 0;
     if (out){
         if (s){
             logsimple("%p", s);
-            int     len = MIN(FS_TECH_PRINT_COUNT, s->len);
-            cnt += fprintf(out, "FS: %s: len [%d], sz [%d], flags [%d], s [%.*s", name, s->len, s->sz, s->flags, len, s->v);
+            size_t     len = MIN(FS_TECH_PRINT_COUNT, s->len);
+            // TODO: use guard here
+            cnt += fprintf(out, "FS: %s: len [%zu], sz [%zu], flags [%d], s [%.*s", name, s->len, s->sz, s->flags, (unsigned) len, s->v);
             if (FS_TECH_PRINT_COUNT < s->len)
                 cnt += fprintf(out, "...");
             cnt += fprintf(out, "]\n");
         } else
-            fprintf(out, "FS: %s: <NULL>\n", name);
+            cnt += fprintf(out, "FS: %s: <NULL>\n", name);
     }
     return cnt;
 }
@@ -501,15 +376,15 @@ bool                                    fs_validate(FILE *restrict out, const fs
     // depents on which iterator engine is active
     if (s->len >= s->sz){
         if (out)
-            fprintf(out, "len [%d] must be < sz [%d]", s->len, s->sz);
-        return logerr(false, "len [%d] must be < sz [%d]", s->len, s->sz);
+            fprintf(out, "len [%zu] must be < sz [%zu]", s->len, s->sz);
+        return logerr(false, "len [%zu] must be < sz [%zu]", s->len, s->sz);
     }
     {
-        int len = strlen(s->v);
+        size_t len = strlen(s->v);
         if (len < s->len){
             if (out)
-                fprintf(out, "srtlen [%d] can't be more than len [%d]", len, s->len);
-            return logerr(false, "srtlen [%d] can't be more than len [%d]", len, s->len);
+                fprintf(out, "srtlen [%zu] can't be more than len [%zu]", len, s->len);
+            return logerr(false, "srtlen [%zu] can't be more than len [%zu]", len, s->len);
         }
     }
     return logret(true, "true");
@@ -575,18 +450,18 @@ bool                                    fs_fprint_checker_cnt(FILE *restrict out
 // --------------------------------- SERIALIZATION -----------------------------------------
 
 // seqialization (strictly FULL save into the steam with only FS and .len info), out must be opened for write
-int                                     fs_fsave(FILE *restrict out, const fs *restrict str){
-    int cnt = 0;
+long                                     fs_fsave(FILE *restrict out, const fs *restrict str){
+    long cnt = 0;
     if (out){
-        fprintf(out, "FS(%d):[%s]\n", str->len, str->v);
+        fprintf(out, "FS(%zu):[%s]\n", str->len, str->v);
         cnt++;
     }
     return cnt;
 }
 
-int                                     fs_save(const char *restrict fname, const fs *restrict str){ 
+long                                     fs_save(const char *restrict fname, const fs *restrict str){ 
     FILE *out = fopen(fname, "w");
-    int     cnt = 0;
+    long     cnt = 0;
     if (out){
         cnt = fs_fsave(out, str);
         fclose(out);
@@ -596,17 +471,17 @@ int                                     fs_save(const char *restrict fname, cons
 }
 
 //  arr must be a pointer to NULL terminated array!
-int                                     fs_fsave_arr(FILE *restrict out, const fs *restrict arr){
-    int cnt = 0;
-    while (arr)
+long                                     fs_fsave_arr(FILE *restrict out, const fs *restrict arr){
+    long cnt = 0;
+    while (arr && cnt < G_GLOB_AVERAGE)
         cnt += fs_fsave(out, arr++);
     return cnt;
 }
 
 // note: arr can be nullable, this mean 0 length array
-int                                     fs_save_arr(const char *restrict fname, const fs *restrict arr){
+long                                     fs_save_arr(const char *restrict fname, const fs *restrict arr){
     FILE *out = fopen(fname, "w");
-    int     cnt = 0;
+    long     cnt = 0;
     if (out){
         cnt = fs_fsave_arr(out, arr);
         fclose(out);
@@ -621,7 +496,7 @@ fs                                     *fs_fscanf(FILE *restrict in, fs *restric
     fs *original_s = s;
     s = fs_init_or_use(s);
     if (getpurestring(in, s) )
-        return logsimpleret(s, "Line read len %d", fs_len(s) );
+        return logsimpleret(s, "Line read len %zu", fs_len(s) );
     else {
         if (!original_s)
             fs_free(s);
@@ -634,7 +509,7 @@ fs                                      fs_fload(FILE *restrict in, fs *restrict
     invraisecode(in != 0, ERR_NULLABLE_PTR, "Null pointer %p - %p", in, s);
 
     // FORMAT: FS(%d):[%s]\n
-    unsigned     len = 0;
+    size_t       len = 0;
     char         pt1[] = "FS(", pt2[] = "):[", pt3[] = "]\n";
 
     // TODO: refactor that
@@ -643,7 +518,7 @@ fs                                      fs_fload(FILE *restrict in, fs *restrict
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read pattern '%s'", pt1);
 
     // TODO: FUGETVALUE() // int, char *, double are supported via _generic()
-    if (fscanf(in, "%u", &len) < 1)
+    if (fscanf(in, "%zu", &len) < 1)
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read fs length");
 
     if (!freadpattern(in, pt2) )
@@ -659,10 +534,10 @@ fs                                      fs_fload(FILE *restrict in, fs *restrict
     }
     // just read len bytes from current position
     if (fread(s->v, 1, len, in) < len)
-        userraiseint(ERR_NOT_ENOGH_VALUES, "Unable to read %d bytes from stream", len);
+        userraiseint(ERR_NOT_ENOGH_VALUES, "Unable to read %zu bytes from stream", len);
 
     fsend(*s, len);  // fix the fs
-    logsimple("%d[%s]", len, s->v);
+    logsimple("%zu[%s]", len, s->v);
     if (!freadpattern(in, pt3) )
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read pattern '%s'", pt3);
 
@@ -680,11 +555,11 @@ fs                                      fs_load(const char *restrict fname, fs *
 
 // ------------------ API Constructs/Destrucor  ----------------------------
 // local creation
-fs                                      fsinit(int n){
+fs                                      fsinit(size_t n){
     fs      res = FS();     // fsalloc flag
     increasesize(&res, n, true);
     *res.v = '\0';
-    return logsimpleret(res, "Created empty with sz %d", res.sz);
+    return logsimpleret(res, "Created empty with sz %zu", res.sz);
 }
 // just create fs in heap!
 fs                                     *fs_create(void){
@@ -730,22 +605,12 @@ void                                    fs_free(fs *s){
     s->v = 0;
     if (bdllloc){
         s->flags &= ~FS_FLAG_BODYALLOC;   // clear  FS_FLAG_BODYALLOC
-        logsimple("fs body %p freed (g_free_body_cnt %d)", s, ++g_free_body_cnt);
+        atomic_fetch_add(&g_free_body_cnt, 1);
+        logsimple("fs body %p freed (g_free_body_cnt %d)", s, 
+            atomic_load_explicit(&g_free_body_cnt, memory_order_relaxed));
         free(s);
     }
 }
-
-#if defined(FS_ALLOCATOR)
-// detach from allocator! Must be freed manually
-bool                                    fsdetach(fs *s){
-    bool        res = false;
-    if (fs_alloc(s)){
-        res = detach(s->pos);  // find in list and remove!
-        s->pos = 0;
-    }
-    return res;
-}
-#endif
 
 // -------------------------------Testing --------------------------
 #ifdef FSTESTING

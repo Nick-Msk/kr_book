@@ -21,18 +21,18 @@
 // ------------------- TYPES -----------------------
 
 typedef struct fsiter {
-    int     pos, from, to;
-    char   *v;
+    size_t     pos, from, to;
+    char      *v;
 } fsiter;
 
 typedef struct fsiterrev {
-    int     pos, from, to;
-    char   *v;
+    size_t     pos, from, to;
+    char      *v;
 } fsiterrev;
 
 typedef struct fsnew {
-    int     pos;
-    fs     *s;
+    size_t     pos;
+    fs        *s;
 } fsnew;
 
 // ------------- CONSTRUCTOTS/DESTRUCTORS ----------
@@ -65,7 +65,7 @@ static inline fsnew         fsiapp(fs *str){
 }
 
 // ++ slice, TODO: rev slice
-static inline fsiter        fsslice(fs s, int from, int to){
+static inline fsiter        fsslice(fs s, size_t from, size_t to){
     fsiter i = fseach(s);
     i.from = i.pos = from < s.len ? from : s.len;
     i.to = to < s.len ? to : s.len;
@@ -120,7 +120,7 @@ static inline char         *fselemclear(fsnew *i){
 static inline int           fsnew_techfprint(FILE *restrict f, fsnew *restrict i, const char *restrict name){
     int cnt = 0;
     if (f)
-        cnt = fprintf(f, "FSNEW iter %s: pos %d, len %d, sz %d\n", name, i->pos, i->s ? i->s->len: -1, i->s ? i->s->sz: -1);
+        cnt = fprintf(f, "FSNEW iter %s: pos %zu, len %zu, sz %zu\n", name, i->pos, i->s ? i->s->len: -1, i->s ? i->s->sz: -1);
     return cnt;
 }
 
