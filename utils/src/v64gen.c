@@ -13,7 +13,8 @@ static bool                     v64GenStringUpdate(v64Gen *gen, /* const char *r
     // only for Stream Buffer
     //if (newbuf)
     //    V64GENREGVAL0(gen).pval = (void *) newbuf;
-    V64GENREGVAL1(gen).lval += amount;
+    if (V64GENREGVAL1(gen).lval != LONG_MAX)
+        V64GENREGVAL1(gen).lval += amount;
     return true;
 }
 
@@ -266,8 +267,9 @@ value64                         v64GenString(v64Gen *gen) {
     if (remaining <= 0)
         return value64_createchar('\0');
 
-    // уменьшаем остаток
-    V64GENREGVAL1(gen).lval = remaining - 1;
+    // уменьшаем остаток if != LONG_MAX
+    if (V64GENREGVAL1(gen).lval != LONG_MAX)
+        V64GENREGVAL1(gen).lval = remaining - 1;
     // сдвигаем невладеющий указатель
     V64GENREGVAL0(gen).pval = (void*) (str + 1);
 
