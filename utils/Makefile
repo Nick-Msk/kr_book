@@ -136,7 +136,8 @@ test/fs_array_test: src/fs_array.c lib/log.o lib/test.o lib/error.o lib/checker.
 		lib/fileutils.o | lib/fs_array.o
 	$(CC) $(CFLAGS) -DFSARRAYTESTING $^ -o $@ $(LDLIBS)
 
-test/fileutils_test: src/fileutils.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fs.o lib/getword.o lib/buffer.o | lib/fileutils.o
+test/fileutils_test: src/fileutils.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fs.o \
+        lib/getword.o lib/buffer.o lib/ds.o | lib/fileutils.o
 	$(CC) $(CFLAGS) -DFILEUTILSTESTING $^ -o $@ $(LDLIBS)
 
 test/getword_test: src/getword.c lib/log.o lib/test.o lib/error.o lib/checker.o lib/common.o lib/fs.o\
