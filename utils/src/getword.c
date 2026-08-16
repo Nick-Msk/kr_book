@@ -415,7 +415,7 @@ tf2(const char *name)
             test_validatefree(
                 (res = getpurestring(f, &s) ) && strcmp(buf, fsstr(s) ) == 0,
                 (fsfree(s), fclose(f) ),
-                "%s - %d: Line must be equal [%s]/%d vs origin [%s]/%lu", 
+                "%s - %d: Line must be equal [%s]/%zu vs origin [%s]/%lu", 
                 bool_str(res), i, fsstr(s), fslen(s), buf, strlen(buf)
             );
         }
@@ -504,7 +504,7 @@ tf_getconvstring(const char *name)
         test_validatefree(
             getconvstring(f, &s, false) && fs_len(&s) == 0,
             (fsfree(s), fclose(f)),
-            "Empty string mismatch: len=%d, expected 0, str='%s'", fs_len(&s), fs_str(&s)
+            "Empty string mismatch: len=%zu, expected 0, str='%s'", fs_len(&s), fs_str(&s)
         );
         fsfree(s);
         fclose(f);
@@ -641,7 +641,7 @@ tf_getconvstring_removequot(const char *name)
         test_validatefree(
             getconvstring(f, &s, true) && fs_len(&s) == 0,
             (fsfree(s), fclose(f)),
-            "Empty quoted: len=%d, expected 0", fs_len(&s)
+            "Empty quoted: len=%zu, expected 0", fs_len(&s)
         );
         fsfree(s);
         fclose(f);
@@ -769,7 +769,7 @@ tf_getconvstring_str(const char *name)
             getconvstring(fp, &buf, true) && fs_len(&buf) == 11 &&
             strcmp(fs_str(&buf), "hello world") == 0,
             fsfree(buf),
-            "getconvstring file quoted: len=%d, str='%s' (expected 11, 'hello world')",
+            "getconvstring file quoted: len=%zu, str='%s' (expected 11, 'hello world')",
             fs_len(&buf), fs_str(&buf)
         );
         fsfree(buf);
@@ -783,7 +783,7 @@ tf_getconvstring_str(const char *name)
             getconvstring_cstr(input, &buf, true) && fs_len(&buf) == 13 &&
             strcmp(fs_str(&buf), "Hello, World!") == 0,
             fsfree(buf),
-            "getconvstring_cstr quoted: len=%d, str='%s'", fs_len(&buf), fs_str(&buf)
+            "getconvstring_cstr quoted: len=%zu, str='%s'", fs_len(&buf), fs_str(&buf)
         );
         fsfree(buf);
     }
@@ -796,7 +796,7 @@ tf_getconvstring_str(const char *name)
             getconvstring_cstr(input, &buf, false) && fs_len(&buf) == 5 &&
             strcmp(fs_str(&buf), "plain") == 0,
             fsfree(buf),
-            "getconvstring_cstr unquoted: len=%d, str='%s'", fs_len(&buf), fs_str(&buf)
+            "getconvstring_cstr unquoted: len=%zu, str='%s'", fs_len(&buf), fs_str(&buf)
         );
         fsfree(buf);
     }
@@ -808,7 +808,7 @@ tf_getconvstring_str(const char *name)
         test_validatefree(
             !getconvstring_cstr(input, &buf, true),
             fsfree(buf),
-            "getconvstring_cstr empty: must return false, len=%d", fs_len(&buf)
+            "getconvstring_cstr empty: must return false, len=%zu", fs_len(&buf)
         );
         fsfree(buf);
     }
@@ -833,7 +833,7 @@ tf_getconvstring_str(const char *name)
             getconvstring_cstr(input, &buf, true) && fs_len(&buf) == 3 &&
             buf.v[0] == 'a' && buf.v[1] == '\n' && buf.v[2] == 'b',
             fsfree(buf),
-            "getconvstring_cstr escape: len=%d, expected 3, chars='a','\\n','b'", fs_len(&buf)
+            "getconvstring_cstr escape: len=%zu, expected 3, chars='a','\\n','b'", fs_len(&buf)
         );
         fsfree(buf);
     }
@@ -845,7 +845,7 @@ tf_getconvstring_str(const char *name)
         test_validatefree(
             getconvstring_cstr(input, &buf, true) && fs_len(&buf) == 0,
             fsfree(buf),
-            "Empty quoted string must succeed and produce empty buffer, len=%d", fs_len(&buf)
+            "Empty quoted string must succeed and produce empty buffer, len=%zu", fs_len(&buf)
         );
         fsfree(buf);
     }
