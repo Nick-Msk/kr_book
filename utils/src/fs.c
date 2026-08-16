@@ -1,5 +1,5 @@
 #include <stdarg.h>
-
+#include <stdatomic.h>
 
 #include "fs.h"
 #include "error.h"
@@ -24,10 +24,10 @@
 int                             FS_MIN_ACCOC            = 128;
 int                             FS_TECH_PRINT_COUNT     = 100; // symplos to print
 // mem leak checking
-static int                      g_alloc_cnt             = 0;
-static int                      g_free_cnt              = 0;
-static int                      g_alloc_body_cnt        = 0;
-static int                      g_free_body_cnt         = 0;
+static atomic_int               g_alloc_cnt             = 0;
+static atomic_int               g_free_cnt              = 0;
+static atomic_int               g_alloc_body_cnt        = 0;
+static atomic_int               g_free_body_cnt         = 0;
 // ---------- pseudo-header for utility procedures -----------------
 
 // -------------------------- (Utility) printers -------------------
@@ -199,8 +199,8 @@ static fs                               increasesize(fs *s, int newsz, bool init
                 if (!v)
                     userraiseint(ERR_UNABLE_ALLOCATE, "Unable to allocate %d bytes", newsz);
                 // now it's ok
-                if (s->v == 0)      // only in case of REALLY new allocation
-                    logauto(++g_alloc_cnt);
+                if (s->v == 0)      // only in case of REALLY new allocation logauto(++g_alloc_cnt);
+                    atomic_fetch_add(&g_alloc_cnt, 1); 
                 s->v = v;
                 s->sz = newsz;
          }
@@ -247,7 +247,7 @@ fs                                      *fs_moveto_heapstr(char **orig){
     invraisecode(orig != NULL && *orig != NULL, ERR_NULLABLE_PTR, "Null pointer");
     fs  *tmp = fs_create();  // FS_FLAG_BODYALLOC here
     tmp->v = *orig;  // MOVE as pointer
-    ++g_alloc_cnt;      // refactoring is required TODO:
+    atomic_fetch_add(&g_alloc_cnt, 1);  //++g_alloc_cnt;      // refactoring is required TODO:
     tmp->flags |= FS_FLAG_ALLOC;
     tmp->len = strlen(tmp->v);
     tmp->sz = tmp->len + 1;
@@ -260,7 +260,7 @@ char                                   *fs_movetostr(fs *ps) {
    
     char *str = ps->v;  // save the pointer (CAN be NULL here)
     if (ps->v != NULL)
-        ++g_free_cnt;   // inc counter only if move real data
+        atomic_fetch_add(&g_free_cnt, 1);  //++g_free_cnt;   // inc counter only if move real data
     ps->v = NULL;   // trick with free!
     fs_free(ps);    // do nothing but free body
     
@@ -516,19 +516,23 @@ bool                                    fs_validate(FILE *restrict out, const fs
 }
 // TODO: refactor that!!!!!!!
 extern bool                             fs_free_body_alloc_checker(int *freecnt, int *alloccnt){
+    int     lfreebodycnt = atomic_load_explicit(&g_free_body_cnt, memory_order_relaxed),
+            lallocbodycnt = atomic_load_explicit(&g_alloc_body_cnt, memory_order_relaxed);
     if (freecnt)
-        *freecnt = g_free_body_cnt;
+        *freecnt = lfreebodycnt;
     if (alloccnt)
-        *alloccnt= g_alloc_body_cnt;
-    return logsimpleret(g_free_body_cnt == g_alloc_body_cnt, "body allocated %d, freed %d", g_alloc_cnt, g_free_cnt);
+        *alloccnt = lallocbodycnt;
+    return logsimpleret(lfreebodycnt == lallocbodycnt, "body allocated %d, freed %d", lallocbodycnt, lfreebodycnt);
 }
 // TODO: refactor that!!!!!!!
 bool                                    fs_free_alloc_checker(int *freecnt, int *alloccnt){
+    int     lfreecnt = atomic_load_explicit(&g_free_cnt, memory_order_relaxed),
+            lalloccnt = atomic_load_explicit(&g_alloc_cnt, memory_order_relaxed);
     if (freecnt)
-        *freecnt = g_free_cnt;
+        *freecnt = lfreecnt;
     if (alloccnt)
-        *alloccnt= g_alloc_cnt;
-    return logsimpleret(g_free_cnt == g_alloc_cnt, "string allocated %d, freed %d", g_alloc_cnt, g_free_cnt);
+        *alloccnt = lalloccnt;
+    return logsimpleret(lfreecnt == lalloccnt, "string allocated %d, freed %d", lalloccnt, lfreecnt);
 }
 // TODO: refactor that!!!!!!!
 // internal, for testing
@@ -561,7 +565,10 @@ bool                                    fs_fprint_checker_cnt(FILE *restrict out
     if (!out)
         return false;
     fprintf(out, "%.6s: g_free_cnt %d g_alloc_cnt %d g_free_body_cnt %d g_alloc_body_cnt %d\n",
-        str, g_free_cnt, g_alloc_cnt, g_free_body_cnt, g_alloc_body_cnt);
+         str, atomic_load_explicit(&g_free_cnt, memory_order_relaxed)
+            , atomic_load_explicit(&g_alloc_cnt, memory_order_relaxed)
+            , atomic_load_explicit(&g_free_body_cnt, memory_order_relaxed)
+            , atomic_load_explicit(&g_alloc_body_cnt, memory_order_relaxed));
     return true;
 }
 
@@ -687,7 +694,7 @@ fs                                     *fs_create(void){
     else {
         *new_fs = FS();
         new_fs->flags |= FS_FLAG_BODYALLOC;   // чтобы fs_free удалил и тело, и будущую строку
-        logauto(++g_alloc_body_cnt);
+        atomic_load(&g_alloc_body_cnt); //logauto(++g_alloc_body_cnt);
     }
     return new_fs;
 }
@@ -715,7 +722,7 @@ void                                    fs_free(fs *s){
     bool  bdllloc = fs_bodyalloc(s);  // flags based
     if (fs_alloc(s) )    // actualy alloc must be a flag, but not statememnt TODO:
         if (s->v){
-            logauto(++g_free_cnt);   // calculate only  if really free memory
+            atomic_fetch_add(&g_free_cnt, 1);
             logsimple("freed... %p", s->v);   // WOW, logsimpleact?
             free(s->v);
         }
