@@ -235,7 +235,7 @@ fs                                      fs_substr(fs *s, size_t from, size_t len
         return logsimpleret(*s, "[]");
     }
     len = MIN(len, s->len - from);
-    if (from > 0)
+    if (len > 0)
         memmove(s->v, s->v + from, len);     // TODO: probably to use strcopy?
     fs_setlen(s, len);
     return logsimpleret(*s, "[%.20s]", s->v);
@@ -254,7 +254,7 @@ fs                                      fs_newsubstr(const fs *s, size_t from, s
 
     len = MIN(len, s->len - from);
     fs tmp = fsinit(len + 1);  // not possible to use fs_cpy or fs_cat here!
-    if (from > 0)
+    if (len > 0)
         memmove(tmp.v, s->v + from, len);
     fsetlen(tmp, len);
     return logsimpleret(tmp, "Created substr %zu", tmp.len);
