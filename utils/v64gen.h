@@ -30,7 +30,7 @@ typedef struct v64Gen                   v64Gen;
 
 typedef value64                         (*v64GenFunc)(v64Gen *gen);
 typedef bool                            (*v64genUpdateStreamFunc) (v64Gen *gen, long amount);
-typedef long                            (*v64GenGerRemainingFunc) (v64Gen *gen);
+typedef unsigned long                   (*v64GenGerRemainingFunc) (v64Gen *gen);
 typedef value64                         (*v64GenFinalizerFunc)(v64Gen *gen);
 
 typedef struct v64Gen {
@@ -446,7 +446,7 @@ extern v64Gen                   v64GenCreatorSourceCstrChar(const char *src, lon
 // REGITRSY ALLOCATION:
 // data[0] FS as SOURCE (no ownership)
 // data[1] ULONG as position
-extern v64Gen                   v64GenCreatorSourceFsChar(const fs *src);
+extern v64Gen                   v64GenCreatorSourceFsToChar(const fs *src);
 
 
 // RETURNS: FS
@@ -468,7 +468,7 @@ static inline void              v64GenStringAppend(v64Gen *gen, /*const char *re
 }
 
 // ------- Stream checker -------
-static inline long              v64GenGetRemaining(v64Gen *gen) {
+static inline unsigned long     v64GenGetRemaining(v64Gen *gen) {
     invraisecode(gen != NULL, ERR_NULLABLE_PTR, "NUll gen");
 
     if (gen->remaining)
