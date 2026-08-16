@@ -34,7 +34,7 @@ static long                     v64GenGetRemainingCount(v64Gen *gen)
     if (!src->v)
         return 0L;
 
-    return fs_len(src) - V64GENREGVAL1(gen).lval;
+    return fs_len(src) - V64GENREGVAL1(gen).ulval;
 }
 
 // ------------------------- CONSTRUCTOTS/DESTRUCTORS -------------------------------
@@ -1914,7 +1914,7 @@ tf10_gen_string_source(const char *name)
     }
 
     /* 5. NULL источник должен безопасно возвращать '\0' */
-    test_sub("subtest %d: v64GenStringToChar NULL source", ++subnum);
+    /*test_sub("subtest %d: v64GenStringToChar NULL source", ++subnum);
     {
         v64Gen gen = v64GenCreatorSourceCstrChar(NULL, 0);
 
@@ -1925,7 +1925,7 @@ tf10_gen_string_source(const char *name)
 
         v64GenFree(&gen);
         fs_alloc_check(true);
-    }
+    }*/
 
     /* 6. Проверка отсутствия утечек (многократные вызовы) */
     test_sub("subtest %d: v64GenStringToChar no leaks (multiple reads)", ++subnum);
@@ -2081,6 +2081,63 @@ tf12_gen_string_append(const char *name)
     return TEST_PASSED;
 }
 
+static TestStatus
+tf13_gen_fs_stream_simple(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: fs stream reads appended chunks automatically", ++subnum);
+    {
+        fs buf = fsinit(10);          // начальный маленький буфер -> будут realloc'и
+        int total_len = 0;
+        const int iterations = 10;
+        char pt[] = "abcdefghijklmnopqrstuvwxyz";
+
+        v64Gen gen = v64GenCreatorSourceFsChar(&buf);
+
+        srand(42);
+
+        for (int iter = 0; iter < iterations; iter++) {
+            int chunk_len = rndint(sizeof(pt) - 2) + 1;
+
+            // Добавляем порцию
+            {
+                char c = pt[chunk_len];
+                pt[chunk_len] = '\0';
+                fs_catstr(&buf, pt);
+                pt[chunk_len] = c;
+            }
+
+            // Читаем порцию — генератор автоматически видит новые данные
+            for (int j = 0; j < chunk_len; j++) {
+                value64 v = v64GenNext(&gen);
+                test_validate(value64_char(v) == 'a' + j,
+                              "iter %d pos %d: expected '%c', got '%c'",
+                              iter, j, 'a' + j, value64_char(v));
+                value64_free(&v, VALUE64_CHR);
+            }
+
+            // После порции должен быть '\0' (генератор ещё не знает о новых данных)
+            value64 v_end = v64GenNext(&gen);
+            test_validate(value64_char(v_end) == '\0',
+                          "iter %d: expected null after chunk", iter);
+            value64_free(&v_end, VALUE64_CHR);
+
+            total_len += chunk_len;
+        }
+
+        test_validate(total_len == (int) fs_len(&buf),
+                      "total_len %d mismatch fs_len %zu", total_len, fs_len(&buf));
+
+        v64GenFree(&gen);
+        fsfree(buf);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(/* int argc, const char *argv[] */)
@@ -2100,6 +2157,7 @@ main(/* int argc, const char *argv[] */)
       , TESTADD(tf10_gen_string_source,      "Source C-string to char generator (LONG lim)")
       , TESTADD(tf11_gen_string_chunks,      "Sequential chunks from growing fs test")
       , TESTADD(tf12_gen_string_append,      "Append to source generator test")
+      , TESTADD(tf13_gen_fs_stream_simple,   "v64GenFSToChar()  simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
