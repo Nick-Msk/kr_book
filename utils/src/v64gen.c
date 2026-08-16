@@ -37,6 +37,25 @@ static long                     v64GenGetRemainingCount(v64Gen *gen)
     return fs_len(src) - V64GENREGVAL1(gen).ulval;
 }
 
+/**
+ * @brief Finalizer for newline generator: returns the remaining data as last line.
+ */
+static value64                  v64GenFSToFsByNewlineFinalize(v64Gen *gen) {
+    fs              *src = (fs *) V64GENREGVAL0(gen).pval;
+    unsigned long   pos = V64GENREGVAL1(gen).ulval;
+
+    if (!src->v || pos >= src->len)
+        return LITERAL64_ZERO;
+
+    size_t          remaining_len = src->len - pos;
+    if (remaining_len > 0 && src->v[src->len - 1] == '\r')
+        remaining_len--;
+
+    fs              line = fs_newsubstr(src, pos, remaining_len);
+    V64GENREGVAL1(gen).ulval = src->len;   // позиция в конец
+    return value64_movefs(&line);
+}
+
 // ------------------------- CONSTRUCTOTS/DESTRUCTORS -------------------------------
 
 v64Gen                          v64GenInit(v64GenFunc func, value64_type type, 
@@ -75,7 +94,7 @@ v64Gen                          v64GenCreatorSourceCstrChar(const char *src, lon
 // RETURNS: CHR
 // REGITRSY ALLOCATION:
 // data[0] FS as SOURCE (no ownership)
-// data[1] LONG as position
+// data[1] ULONG as position
 v64Gen                          v64GenCreatorSourceFsChar(const fs *src) {
     invraisecode(src != NULL, ERR_NULLABLE_PTR, "NUll src fs");
 
@@ -84,6 +103,20 @@ v64Gen                          v64GenCreatorSourceFsChar(const fs *src) {
                         v64typedCreateULong(0UL));
 
     gen.remaining = v64GenGetRemainingCount;
+    return gen;
+}
+
+// RETURNS: FS
+// REGITRSY ALLOCATION:
+// data[0] FS as SOURCE (no ownership)
+// data[1] ULONG as position
+v64Gen                          v64GenCreatorSourceFsToFsByNewline(const fs *src){
+    invraisecode(src != NULL, ERR_NULLABLE_PTR, "NUll src fs");
+
+    v64Gen gen = v64GenInit2(v64GenFSToFsByNewline, VALUE64_FS,
+                             v64typedCreateFsSource(src),    // data[0] PTR
+                             v64typedCreateULong(0UL));         // data[1] POSITION
+    gen.finalizer = v64GenFSToFsByNewlineFinalize;
     return gen;
 }
 
@@ -295,6 +328,8 @@ value64                         v64GenUnlimRandom(v64Gen *gen) {
 // data[0] STR as SOURCE (no ownership)
 // data[1] LONG as lim, if 0 - unlim (LONG_MAX actually)
 value64                         v64GenStringToChar(v64Gen *gen) {
+    invraisecode(gen != NULL, ERR_NULLABLE_PTR, "Null generator");
+
     const char *str = (const char *)V64GENREGVAL0(gen).pval;
     if (!str || *str == '\0')
         return value64_createchar('\0');
@@ -316,8 +351,9 @@ value64                         v64GenStringToChar(v64Gen *gen) {
 // REGITRSY ALLOCATION:
 // data[0] – PTR to fs (non-owning)
 // data[1] – LONG current position
-value64                         v64GenFSToChar(v64Gen *gen)
-{
+value64                         v64GenFSToChar(v64Gen *gen){
+    invraisecode(gen != NULL, ERR_NULLABLE_PTR, "Null generator");
+
     fs              *src = (fs *) V64GENREGVAL0(gen).pval;
     unsigned long    pos = V64GENREGVAL1(gen).ulval;
 
@@ -327,6 +363,41 @@ value64                         v64GenFSToChar(v64Gen *gen)
     V64GENREGVAL1(gen).lval = pos + 1;
     return value64_createchar( fs_str(src)[pos] );
 }
+
+/**
+ * @brief Parse fs from fs, dividev by newline
+ * @note
+ * @return: value64/fs
+ * @note
+ * data[0] – PTR to source fs (non-owning)
+ * data[1] – ULONG current read position
+ */
+value64                         v64GenFSToFsByNewline(v64Gen *gen){
+    invraisecode(gen != NULL, ERR_NULLABLE_PTR, "Null generator");
+
+    fs           *src = (fs *)V64GENREGVAL0(gen).pval;
+    unsigned long pos = V64GENREGVAL1(gen).ulval;
+
+    /* Нет данных или позиция вышла за пределы — возвращаем null fs (ожидание/конец) */
+    if (!src->v || pos >= src->len)
+        return LITERAL64_ZERO;
+
+    const char   *start = src->v + pos;
+    const char   *newline = strchr(start, '\n');
+
+    if (newline) {
+        size_t line_len = newline - start;
+        if (line_len > 0 && start[line_len - 1] == '\r')
+            line_len--;                       /* убираем \r */
+
+        /* Создаём копию подстроки; длина может быть 0 (пустая строка) */
+        fs  line = fs_newsubstr(src, pos, line_len);     // must be freed!!!!!
+        V64GENREGVAL1(gen).ulval = newline - src->v + 1;   /* за '\n' */
+        return value64_movefs(&line);
+    } else 
+        return LITERAL64_ZERO;
+}
+
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
