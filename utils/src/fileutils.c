@@ -83,7 +83,7 @@ fs                              readfs_file(FILE *f){
     fs      str = fsinit(cnt);
     while ( (len = fread(fsstr(str) + pos, 1, cnt - 1, f) ) > 0){
         pos += len;
-        logsimple("pos %ld, len %d sz %d", pos, fslen(str), fssz(str) );
+        logsimple("pos %ld, len %zu sz %zu", pos, fslen(str), fssz(str) );
         fsincrease(str, cnt);
     }
     fsetlen(str, pos);
