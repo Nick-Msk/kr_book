@@ -364,14 +364,14 @@ tf1(const char *name)
 
         fgetline_fs(tfile(tf), &s);
         if (s.len + 1 != sizeof(pattern1))
-            return logacterr( (fsfree(s), test_fclose(tf) ), TEST_FAILED, "Fs Len should be %lu but not %d", sizeof(pattern1) - 1, s.len);
+            return logacterr( (fsfree(s), test_fclose(tf) ), TEST_FAILED, "Fs Len should be %lu but not %zu", sizeof(pattern1) - 1, s.len);
 
         if (strcmp(pattern1, s.v) != 0)
             return logacterr( (fsfree(s), test_fclose(tf) ), TEST_FAILED, "Must be [%s] but not [%s]", pattern1, s.v);
 
         fgetline_fs(tfile(tf), &s);
         if (s.len + 1 != sizeof(pattern2))
-            return logacterr( (fsfree(s), test_fclose(tf) ), TEST_FAILED, "Fs Len should be %lu but not %d", sizeof(pattern2) - 1, s.len);
+            return logacterr( (fsfree(s), test_fclose(tf) ), TEST_FAILED, "Fs Len should be %lu but not %zu", sizeof(pattern2) - 1, s.len);
 
         if (strcmp(pattern2, s.v) != 0)
             return logacterr( (fsfree(s), test_fclose(tf) ), TEST_FAILED, "Must be [%s] but not [%s]", pattern2, s.v);
@@ -784,17 +784,17 @@ tf7(const char *name)
         test_freset(tf);
 
         fgetslim_fs(tfile(tf), &s);
-        test_validatefree( (int) strlen(pattern1) - 1 == s.len,        // without last \n
+        test_validatefree( strlen(pattern1) - 1 == s.len,        // without last \n
                                 (fsfree(s), test_fclose(tf) ),
-                                "Fs Len should be %lu but not %d", strlen(pattern1) - 1, s.len);
+                                "Fs Len should be %lu but not %zu", strlen(pattern1) - 1, s.len);
         test_validatefree(strncmp(pattern1, fsstr(s), strlen(pattern1) - 1) == 0,
                                 (fsfree(s), test_fclose(tf) ),
                                 "Must be [%s] but not [%s]", pattern1, fsstr(s) );
 
         fgetslim_fs(tfile(tf), &s);
-        test_validatefree( (int) strlen(pattern2) - 1 == s.len,        // without last \n
+        test_validatefree( strlen(pattern2) - 1 == s.len,        // without last \n
                                 (fsfree(s), test_fclose(tf) ),
-                                "Fs Len should be %lu but not %d", strlen(pattern2) - 1, s.len);
+                                "Fs Len should be %lu but not %zu", strlen(pattern2) - 1, s.len);
         test_validatefree(strncmp(pattern2, fsstr(s), strlen(pattern2) - 1) == 0,
                                 (fsfree(s), test_fclose(tf) ),
                                 "Must be [%s] but not [%s]", pattern2, fsstr(s) );
