@@ -646,7 +646,7 @@ tf1(const char *name)
         if (!fs_validate(logfile, &s) )
             return logacterr(fsfree(s), TEST_FAILED, "Validation's failed");
         if (!inv(s.len == 0 && s.sz >= 100 && s.v != 0 && fs_alloc(&s), "Failed") )
-            return logacterr(fsfree(s), TEST_FAILED, "Condition violated, len [%d], sz [%d], v [%p], is alloc? (%s)",
+            return logacterr(fsfree(s), TEST_FAILED, "Condition violated, len [%zu], sz [%zu], v [%p], is alloc? (%s)",
                     s.len, s.sz, s.v, bool_str(fs_alloc(&s) ) );
         fsfree(s);
     }
@@ -657,8 +657,8 @@ tf1(const char *name)
         fs s = fsliteral(pattern);
         if (!fs_validate(logfile, &s) )
             return logerr(TEST_FAILED, "Validation's failed");
-        if (!inv(s.len == (int)strlen(pattern) && s.sz == (int)strlen(pattern) + 1 && s.v != 0 && fs_static(&s), "Failed") )
-            return logerr(TEST_FAILED, "Condition violated, len [%d], sz [%d], v [%p], is static? (%s)",
+        if (!inv(s.len == strlen(pattern) && s.sz == strlen(pattern) + 1 && s.v != 0 && fs_static(&s), "Failed") )
+            return logerr(TEST_FAILED, "Condition violated, len [%zu], sz [%zu], v [%p], is static? (%s)",
                     s.len, s.sz, s.v, bool_str(fs_static(&s) ) );
         fsfree(s);
     }
@@ -670,8 +670,8 @@ tf1(const char *name)
         fs s = fscopy(pattern);
         if (!fs_validate(logfile, &s) )
             return logacterr(fsfree(s), TEST_FAILED, "Validation's failed");
-        if (!inv(s.len == (int)strlen(pattern) && s.sz >= (int)strlen(pattern) + 1 && s.v != 0 && fs_alloc(&s), "Failed") )
-            return logacterr(fsfree(s), TEST_FAILED, "Condition violated, len [%d], sz [%d], v [%p], is alloc? (%s)",
+        if (!inv(s.len == strlen(pattern) && s.sz >= strlen(pattern) + 1 && s.v != 0 && fs_alloc(&s), "Failed") )
+            return logacterr(fsfree(s), TEST_FAILED, "Condition violated, len [%zu], sz [%zu], v [%p], is alloc? (%s)",
                 s.len, s.sz, s.v, bool_str(fs_alloc(&s) ) );
         if (!inv(strcmp(fsstr(s), pattern) == 0, "Not equal") )
             return logacterr(fsfree(s), TEST_FAILED, "[%s] != pt [%s]", fsstr(s), pattern);
@@ -683,8 +683,8 @@ tf1(const char *name)
 
         if (!fs_validate(logfile, &s2) )
             return logacterr( fsfree(s2), TEST_FAILED, "Validation's failed");
-        if (!inv(s2.len == (int)strlen(pattern) && s2.sz >= (int)strlen(pattern) + 1 && s2.v != 0 && fs_alloc(&s2), "Failed") )
-            return logacterr( fsfree(s2), TEST_FAILED, "Condition violated, len [%d], sz [%d], v [%p], is alloc? (%s)",
+        if (!inv(s2.len == strlen(pattern) && s2.sz >= strlen(pattern) + 1 && s2.v != 0 && fs_alloc(&s2), "Failed") )
+            return logacterr( fsfree(s2), TEST_FAILED, "Condition violated, len [%zu], sz [%zu], v [%p], is alloc? (%s)",
                 s2.len, s2.sz, s2.v, bool_str(fs_alloc(&s2) ) );
         if (!inv(strcmp(fsstr(s2), pattern) == 0, "Not equal") )
             return logacterr(fsfree(s2), TEST_FAILED, "[%s] != pt [%s]", fsstr(s2), pattern);
@@ -778,7 +778,7 @@ tf3(const char *name)
         test_validatefree(
             s.sz >= 4 && s.len == 0,  // len не должен измениться
             fsfree(s),
-            "fs_elem within bounds: sz=%d (expected >=4), len=%d (expected 0)", s.sz, s.len
+            "fs_elem within bounds: sz=%zu (expected >=4), len=%zu (expected 0)", s.sz, s.len
         );
         test_validatefree(
             *fs_elem(&s, 3) == 'A',
@@ -797,7 +797,7 @@ tf3(const char *name)
         test_validatefree(
             s.sz >= 11 && s.len == 0,
             fsfree(s),
-            "fs_elem force grow: sz=%d (expected >=11), len=%d (expected 0)", s.sz, s.len
+            "fs_elem force grow: sz=%zu (expected >=11), len=%zu (expected 0)", s.sz, s.len
         );
         test_validatefree(
             *fs_elem(&s, 10) == 'X',
@@ -818,7 +818,7 @@ tf3(const char *name)
         test_validatefree(
             s.sz >= 4 && s.len == 3,
             fsfree(s),
-            "fs_elem0 pos=2: sz=%d (expected >=4), len=%d (expected 3)", s.sz, s.len
+            "fs_elem0 pos=2: sz=%zu (expected >=4), len=%zu (expected 3)", s.sz, s.len
         );
         // проверяем, что строка корректна и заканчивается '\0'
         test_validatefree(
@@ -837,7 +837,7 @@ tf3(const char *name)
         test_validatefree(
             s.sz >= 7 && s.len == 6,
             fsfree(s),
-            "fs_elem0 pos=5: sz=%d (expected >=7), len=%d (expected 6)", s.sz, s.len
+            "fs_elem0 pos=5: sz=%zu (expected >=7), len=%zu (expected 6)", s.sz, s.len
         );
         // строка должна читаться без вылета
         test_validatefree(
@@ -851,14 +851,14 @@ tf3(const char *name)
 
     test_sub("subtest %d: fs_elem0 does not shrink len", ++subnum);
     {
-        fs s = FS();
+        fs      s = FS();
         *fs_elem0(&s, 3) = 'A';
-        int old_len = s.len;
+        size_t  old_len = s.len;
         *fs_elem0(&s, 1) = 'B';       // позиция меньше текущей len
         test_validatefree(
             s.len == old_len,         // len не должен уменьшиться
             fsfree(s),
-            "fs_elem0 pos=1 after pos=3: len must stay %d, got %d", old_len, s.len
+            "fs_elem0 pos=1 after pos=3: len must stay %zu, got %zu", old_len, s.len
         );
         fsfree(s);
     }
@@ -872,7 +872,7 @@ tf3(const char *name)
         test_validatefree(
             s.sz >= 2 && s.len == 1 && s.v[0] == 'H' && s.v[1] == '\0',
             fsfree(s),
-            "fs_elem0 pos=0 on empty fs: sz=%d, len=%d, str='%s'", s.sz, s.len, fs_str(&s)
+            "fs_elem0 pos=0 on empty fs: sz=%zu, len=%zu, str='%s'", s.sz, s.len, fs_str(&s)
         );
         fsfree(s);
     }
@@ -898,13 +898,13 @@ tf_fs_clone(const char *name)
 
         // Оригинал не изменился
         test_validatefree(
-            strcmp(fsstr(orig), text) == 0 && fslen(orig) == (int)strlen(text),
+            strcmp(fsstr(orig), text) == 0 && fslen(orig) == strlen(text),
             (fsfree(orig), fsfree(clone)),
             "Original must be unchanged after clone"
         );
         // Клон содержит ту же строку
         test_validatefree(
-            strcmp(fsstr(clone), text) == 0 && fslen(clone) == (int)strlen(text),
+            strcmp(fsstr(clone), text) == 0 && fslen(clone) == strlen(text),
             (fsfree(orig), fsfree(clone)),
             "Clone must contain the same string, got '%s'", fsstr(clone)
         );
@@ -930,7 +930,7 @@ tf_fs_clone(const char *name)
         test_validatefree(
             clone.v == NULL && fslen(clone) == 0,
             fsfree(clone),
-            "Clone of empty (v=NULL) must have v=NULL and len=0, got v=%p, len=%d",
+            "Clone of empty (v=NULL) must have v=NULL and len=0, got v=%p, len=%zu",
             (void*)clone.v, fslen(clone)
         );
         test_validatefree(
@@ -952,7 +952,7 @@ tf_fs_clone(const char *name)
         test_validatefree(
             clone.v != NULL && fslen(clone) == 0,
             fsfree(clone),
-            "Clone of empty (v!=NULL) must have v!=NULL and len=0, got v=%p, len=%d",
+            "Clone of empty (v!=NULL) must have v!=NULL and len=0, got v=%p, len=%zu",
             (void*)clone.v, fslen(clone)
         );
         test_validatefree(
@@ -1035,7 +1035,7 @@ tf4(const char *name)
         fstechfprint(logfile, s1);   // for manual
 
         if (s1.len != (int) strlen(arr1) + strlen(arr2) )
-            return logacterr( fsfree(s1), TEST_FAILED, "len = %d must be equal sum of l1 + l2 = %ld", fslen(s1), strlen(arr1) + strlen(arr2) );
+            return logacterr( fsfree(s1), TEST_FAILED, "len = %zu must be equal sum of l1 + l2 = %ld", fslen(s1), strlen(arr1) + strlen(arr2) );
         if (strstr(fsstr(s1), arr1) != fsstr(s1) )
             return logacterr( fsfree(s1), TEST_FAILED, "[%s] must start from [%s]", fsstr(s1), arr1);
         if (strstr(fsstr(s1), arr2) != fsstr(s1) + strlen(arr1) )
@@ -1044,14 +1044,14 @@ tf4(const char *name)
     test_sub("subtest %d: fscatstr()", ++subnum);
 
         const char  arr3[] = "zaq1";
-        int         len1 = fslen(s1);
+        size_t         len1 = fslen(s1);
         fscatstr(s1, arr3);
         fstechfprint(logfile, s1);   // for manual
 
         if (fslen(s1) != len1 + strlen(arr3) )
-            return logacterr( fsfree(s1), TEST_FAILED, "len = %d must be equal sum of l1 + l2 = %lu", fslen(s1), len1 + strlen(arr3) );
+            return logacterr( fsfree(s1), TEST_FAILED, "len = %zu must be equal sum of l1 + l2 = %lu", fslen(s1), len1 + strlen(arr3) );
         if (strstr(fsstr(s1), arr3) != fsstr(s1) + len1 )
-            return logacterr( fsfree(s1), TEST_FAILED, "[%s] must have [%s] on position %d", fsstr(s1), arr3, len1 );
+            return logacterr( fsfree(s1), TEST_FAILED, "[%s] must have [%s] on position %zu", fsstr(s1), arr3, len1 );
         if (strstr(fsstr(s1), arr1) != fsstr(s1) )  // the same test like in subtest 1
             return logacterr( fsfree(s1), TEST_FAILED, "[%s] must start from [%s]", fsstr(s1), arr1);
 
@@ -1062,7 +1062,7 @@ tf4(const char *name)
             fscat(s3, s2);
             fstechfprint(logfile, s3);   // for manual
             if (fslen(s3) != fslen(s2) )
-                return logacterr( (fsfree(s1), fsfree(s3) ), TEST_FAILED, "len s3 = %d must be equal s2 = %d ", fslen(s3), fslen(s2) );
+                return logacterr( (fsfree(s1), fsfree(s3) ), TEST_FAILED, "len s3 = %zu must be equal s2 = %zu ", fslen(s3), fslen(s2) );
             if (fscmp(s3, s2) != 0)
                 return logacterr( (fsfree(s1), fsfree(s3) ), TEST_FAILED, "%s not equal to %s", fsstr(s3), fsstr(s2) );
             fsfree(s3);
@@ -1092,15 +1092,15 @@ tf5(const char *name)
         fscpy(s1, s2);
         fstechfprint(logfile, s1);
         if (fslen(s1) != fslen(s2) )
-            return logacterr( fsfree(s1), TEST_FAILED, "len s2 = %d must be equal s1 = %d ", fslen(s2), fslen(s1) );
+            return logacterr( fsfree(s1), TEST_FAILED, "len s2 = %zu must be equal s1 = %zu ", fslen(s2), fslen(s1) );
         if (fscmp(s1, s2) != 0)
             return logacterr( fsfree(s1), TEST_FAILED, "%s not equal to %s", fsstr(s1), fsstr(s2) );
 
         test_sub("subtest %d: fscpy()", ++subnum);
 
         fscpystr(s1, arr1);
-        if (fslen(s1) != (int)strlen(arr1) )
-            return logacterr( fsfree(s1), TEST_FAILED, "len s2 = %lu must be equal s1 = %d ",strlen(arr1), fslen(s1) );
+        if (fslen(s1) != strlen(arr1) )
+            return logacterr( fsfree(s1), TEST_FAILED, "len s2 = %lu must be equal s1 = %zu ",strlen(arr1), fslen(s1) );
         if (strcmp(fsstr(s1), arr1) != 0)
             return logacterr( fsfree(s1), TEST_FAILED, "%s not equal to %s", fsstr(s1), arr1);
 
@@ -1199,9 +1199,9 @@ tf9(const char *name)
 
         // Проверяем длину
         test_validatefree(
-            (int)strlen(buf) == fslen(s1),
+            strlen(buf) == fslen(s1),
             fsfree(s1),
-            "Length mismatch: buf=%zu, s1=%d", strlen(buf), fslen(s1)
+            "Length mismatch: buf=%zu, s1=%zu", strlen(buf), fslen(s1)
         );
         // Проверяем содержимое
         test_validatefree(
@@ -1222,9 +1222,9 @@ tf9(const char *name)
 
         // Проверяем длину
         test_validatefree(
-            (int)strlen(buf) == fslen(s1),
+            strlen(buf) == fslen(s1),
             fsfree(s1),
-            "Length mismatch: buf=%zu, s1=%d", strlen(buf), fslen(s1)
+            "Length mismatch: buf=%zu, s1=%zu", strlen(buf), fslen(s1)
         );
         // Проверяем содержимое
         test_validatefree(
@@ -1244,9 +1244,9 @@ tf9(const char *name)
         fs_sprintf(&s2, fmt, 12345, 9.8765, "XXXYYYYZZZZZZZZZRRRRR");
 
         test_validatefree(
-            (int)strlen(buf) == fslen(s2),
+            strlen(buf) == fslen(s2),
             fsfree(s2),
-            "Length mismatch after expand: buf=%zu, s2=%d", strlen(buf), fslen(s2)
+            "Length mismatch after expand: buf=%zu, s2=%zu", strlen(buf), fslen(s2)
         );
         test_validatefree(
             strcmp(buf, fsstr(s2)) == 0,
@@ -1268,9 +1268,9 @@ tf9(const char *name)
 
         const char expected[] = "Hello, World!";
         test_validatefree(
-            (int)strlen(expected) == fslen(s),
+            strlen(expected) == fslen(s),
             fsfree(s),
-            "Concat length mismatch: expected=%zu, got=%d", strlen(expected), fslen(s)
+            "Concat length mismatch: expected=%zu, got=%zu", strlen(expected), fslen(s)
         );
         test_validatefree(
             strcmp(expected, fsstr(s)) == 0,
@@ -1288,12 +1288,12 @@ tf9(const char *name)
         test_validatefree(
             cntres == 0,
             fsfree(s),
-            "Empty format should return cntres == 0, got %d", fslen(s)
+            "Empty format should return cntres == 0, got %zu", fslen(s)
         );
         test_validatefree(
             fslen(s) == 0,
             fsfree(s),
-            "Empty format should produce length 0, got %d", fslen(s)
+            "Empty format should produce length 0, got %zu", fslen(s)
         );
         test_validatefree(
             strcmp("", fsstr(s)) == 0,
@@ -1324,7 +1324,7 @@ tf9(const char *name)
             fs_sprintf(&s1, fmt, 1223, 1.445, "Blablabla");
             fstechfprint(logfile, s1);  // for manual checking
 
-            if ( (int)strlen(buf) != s1.len)
+            if ( strlen(buf) != s1.len)
                 return logacterr( fsfree(s1), TEST_FAILED, "len buf = %lu must be equal s1 = %d ", strlen(buf), fslen(s1) );
             // compary strings TODO:
             if (strcmp(buf, fsstr(s1) ) != 0)
@@ -1339,7 +1339,7 @@ tf9(const char *name)
             fs_sprintf(&s2, fmt, 12345, 9.8765, "XXXYYYYZZZZZZZZZRRRRR");
             fstechfprint(logfile, s2);  // for manual checking
 
-            if ( (int)strlen(buf) != s2.len)
+            if ( strlen(buf) != s2.len)
                 return logacterr( fsfree(s2), TEST_FAILED, "len buf = %lu must be equal s1 = %d ", strlen(buf), fslen(s2) );
             // compary strings TODO:
             if (strcmp(buf, fsstr(s2) ) != 0)
@@ -1401,7 +1401,7 @@ tf11(const char *name)
         fs s2 = fs_load(fname, 0); // w/o macro
         fstechfprint(logfile, s2);
         if (s.len != s2.len || fscmp(s, s2) != 0)
-            return logacterr(fsfreeall(&s, &s2), TEST_FAILED, "Strings not equal (%d - %d)[%s] - [%s]", s.len, s2.len, fsstr(s), fsstr(s2) );
+            return logacterr(fsfreeall(&s, &s2), TEST_FAILED, "Strings not equal (%zu - %zu)[%s] - [%s]", s.len, s2.len, fsstr(s), fsstr(s2) );
 
     test_sub("subtest %d: fs_save multiples fs", ++subnum);
 
@@ -1489,9 +1489,9 @@ tf13(const char *name)
         fs s1 = fscopy(pt);
         fs s2 = fsmove(s1);
         if (!fsisnull(s1) )
-            return logacterr( fsfree(s2), TEST_FAILED, "s1 must becaume nullable after moving, but not (%d:%d:%p)", s1.len, s1.sz, s1.v);
+            return logacterr( fsfree(s2), TEST_FAILED, "s1 must becaume nullable after moving, but not (%zu:%zu:%p)", s1.len, s1.sz, s1.v);
         if (s2.len != (int) strlen(pt) )
-            return logacterr( fsfree(s2), TEST_FAILED, "Len of origin pattern %lu must be equal of len move fs %d", strlen(pt), s2.len);
+            return logacterr( fsfree(s2), TEST_FAILED, "Len of origin pattern %lu must be equal of len move fs %zu", strlen(pt), s2.len);
         if (strcmp(fsstr(s2), pt) != 0)
             return logacterr( fsfree(s2), TEST_FAILED, "origin [%s] must be equal move fs [%s]", pt, fsstr(s2) );
         fsfree(s2);
@@ -1560,7 +1560,7 @@ tf14(const char *name)
     test_sub("subtest %d: fs_substr cut from start", ++subnum);
     {
         const char *orig = "hello world";
-        int         new_len = 5;
+        size_t      new_len = 5;
         fs          s = fscopy(orig);
         fs          result = fs_substr(&s, 0, new_len);
         fstechfprint(logfile, result);
@@ -1568,7 +1568,7 @@ tf14(const char *name)
         test_validatefree(
             fslen(s) == new_len,
             fsfree(s),
-            "fs_substr cut: length must be %d, got %d", new_len, fslen(s)
+            "fs_substr cut: length must be %zu, got %zu", new_len, fslen(s)
         );
         test_validatefree(
             strcmp(fsstr(s), "hello") == 0,
@@ -1582,7 +1582,7 @@ tf14(const char *name)
     test_sub("subtest %d: fs_substr mid part", ++subnum);
     {
         const char *orig = "abcdefghij";
-        int         from = 3, to = 4;
+        size_t      from = 3, to = 4;
         fs          s = fscopy(orig);
         fs          result = fs_substr(&s, from, to);
         fstechfprint(logfile, result);
@@ -1590,7 +1590,7 @@ tf14(const char *name)
         test_validatefree(
             fslen(s) == to,
             fsfree(s),
-            "fs_substr mid: length must be %d, got %d", to, fslen(s)
+            "fs_substr mid: length must be %zu, got %zu", to, fslen(s)
         );
         test_validatefree(
             strcmp(fsstr(s), "defg") == 0,
@@ -1612,7 +1612,7 @@ tf14(const char *name)
         test_validatefree(
             fslen(s) == 0,
             fsfree(s),
-            "fs_substr beyond: length must be 0, got %d", fslen(s)
+            "fs_substr beyond: length must be 0, got %zu", fslen(s)
         );
         test_validatefree(
             strcmp(fsstr(s), "") == 0,
@@ -1632,7 +1632,7 @@ tf14(const char *name)
         test_validatefree(
             fslen(s) == 0,
             fsfree(s),
-            "fs_substr empty: length must be 0, got %d", fslen(s)
+            "fs_substr empty: length must be 0, got %zu", fslen(s)
         );
         fsfree(s);
     }
@@ -1646,9 +1646,9 @@ tf14(const char *name)
         fstechfprint(logfile, result);
 
         test_validatefree(
-            fslen(s) == (int) strlen(orig) - from,
+            fslen(s) == strlen(orig) - from,
             fsfree(s),
-            "fs_substr beyond: length must be %d, got %d", (int) strlen(orig) - from, fslen(s)
+            "fs_substr beyond: length must be %zu, got %zu", strlen(orig) - from, fslen(s)
         );
         test_validatefree(
             strcmp(fsstr(s), "fgh") == 0,
@@ -1664,7 +1664,7 @@ tf14(const char *name)
     test_sub("subtest %d: fs_newsubstr copy mid part", ++subnum);
     {
         const char *orig_str = "abcdefghij";
-        int         from = 2, to = 5;
+        size_t      from = 2, to = 5;
         fs          orig = fscopy(orig_str);
         fs          sub = fs_newsubstr(&orig, from, to);
 
@@ -1672,7 +1672,7 @@ tf14(const char *name)
         test_validatefree(
             fslen(sub) == to,
             (fsfree(orig), fsfree(sub)),
-            "fs_newsubstr copy: length must be %d, got %d", to, fslen(sub)
+            "fs_newsubstr copy: length must be %zu, got %zu", to, fslen(sub)
         );
         test_validatefree(
             strcmp(fsstr(sub), "cdefg") == 0,
@@ -1681,9 +1681,9 @@ tf14(const char *name)
         );
         // Проверяем, что оригинал не изменился
         test_validatefree(
-            strcmp(fsstr(orig), orig_str) == 0 && fslen(orig) == (int) strlen(orig_str),
+            strcmp(fsstr(orig), orig_str) == 0 && fslen(orig) == strlen(orig_str),
             (fsfree(orig), fsfree(sub)),
-            "fs_newsubstr copy: original must stay unchanged, got '%s' (len %d)",
+            "fs_newsubstr copy: original must stay unchanged, got '%s' (len %zu)",
             fsstr(orig), fslen(orig)
         );
         fsfree(orig);
@@ -1701,7 +1701,7 @@ tf14(const char *name)
         test_validatefree(
             fslen(sub) == 0,
             (fsfree(orig), fsfree(sub)),
-            "fs_newsubstr beyond: result length must be 0, got %d", fslen(sub)
+            "fs_newsubstr beyond: result length must be 0, got %zu", fslen(sub)
         );
         test_validatefree(
             strcmp(fsstr(sub), "") == 0,
@@ -1725,11 +1725,11 @@ tf14(const char *name)
         fs          orig = fscopy(orig_str);
         fs          sub = fs_newsubstr(&orig, from, to);
 
-        int         expected_len = (int)strlen(orig_str) - from;
+        size_t      expected_len = strlen(orig_str) - from;
         test_validatefree(
             fslen(sub) == expected_len,
             (fsfree(orig), fsfree(sub)),
-            "fs_newsubstr exceed: length must be %d, got %d", expected_len, fslen(sub)
+            "fs_newsubstr exceed: length must be %zu, got %zu", expected_len, fslen(sub)
         );
         test_validatefree(
             strcmp(fsstr(sub), orig_str + from) == 0,
@@ -1749,7 +1749,7 @@ tf14(const char *name)
         test_validatefree(
             fslen(sub) == 0,
             (fsfree(orig), fsfree(sub)),
-            "fs_newsubstr empty: result length must be 0, got %d", fslen(sub)
+            "fs_newsubstr empty: result length must be 0, got %zu", fslen(sub)
         );
         fsfree(orig);
         fsfree(sub);
@@ -1821,15 +1821,15 @@ tf16(const char *name)
     {
         const char  pt[] = "qwertyuiop1234567890";
         fs          orig = fsliteral(pt);   // statis, not alloc
-        int         pos = 8, res;
+        long        pos = 8, res;
         fs          s = fsnewsubstr(orig, pos, 6);
 
         test_validatefree( (res = fs_instr(&orig, &s) ) == pos,
-                          fsfree(s), "Must be %d but returns %d", pos, res);
+                          fsfree(s), "Must be %zu but returns %zu", pos, res);
 
         fscatstr(s, "Not exists in original pattern"); 
         test_validatefree( (res = fs_instr(&orig, &s) ) == -1,
-                          fsfree(s), "Must be %d but returns %d", -1, res);
+                          fsfree(s), "Must be %d but returns %zu", -1, res);
 
         fsfree(s);
     }
@@ -1994,8 +1994,8 @@ tf19(const char *name)
         fs          s = fs_newsubstr(&lit, pos, cnt);
         logauto(lit.v);
 
-        for (int lim = 1; lim < fslen(lit); lim++)
-            if (lim >= pos + cnt){       // positive case
+        for (size_t lim = 1; lim < fslen(lit); lim++)
+            if ((int) lim >= pos + cnt){       // positive case
                 test_validatefree( (res = fs_ninstr(&lit, &s, 20) ) == pos, fsfree(s),
                         "Position must be %d but returns %d", pos, res);
             } else {    // -1
@@ -2041,7 +2041,7 @@ tf20(const char *name)
         fsrevcatstr(s, pt);
 
         test_validatefree(fslen(s) == strlen(pt) + strlen(ptinit), fsfree(s),
-                        "Length of final fs (%d) must be sum of length of original (%zu + %zu)", fslen(s), strlen(ptinit), strlen(pt) );
+                        "Length of final fs (%zu) must be sum of length of original (%zu + %zu)", fslen(s), strlen(ptinit), strlen(pt) );
 
         test_validatefree(strncmp(pt, fsstr(s), strlen(pt) ) == 0,  fsfree(s),
                         "Pattern [%s] and first %zu symbols of fs [%.*s] must be equal", pt, strlen(pt), (int) strlen(pt), fsstr(s) );
@@ -2062,7 +2062,7 @@ tf20(const char *name)
         }
 
         test_validatefree(fslen(s) == strlen(pt) * cnt + strlen(ptinit), fsfree(s),
-                             "Length of final fs (%d) must be sum of length of original (%zu + %zu * %d)", fslen(s), strlen(ptinit), strlen(pt), cnt );
+                             "Length of final fs (%zu) must be sum of length of original (%zu + %zu * %d)", fslen(s), strlen(ptinit), strlen(pt), cnt );
 
         test_validatefree(strncmp(pt, fsstr(s), strlen(pt) ) == 0,  fsfree(s),
                         "Pattern [%s] and first %zu symbols of fs [%.*s] must be equal", pt, strlen(pt), (int) strlen(pt), fsstr(s) );
@@ -2091,9 +2091,12 @@ tf21(const char *name)
         fs s = fscopy(pt);
         fssort(s, false);
 
-        for (int i = 1; i < s.len; i++)
-            test_validatefree(s.v[i - 1] >= s.v[i], fsfree(s),
-                "s[%d] == [%c] must be >= s[%d] == [%c]", i - 1, s.v[i - 1], i, s.v[i]);
+        for (size_t i = 1; i < s.len; i++)
+            test_validatefree(
+                s.v[i - 1] >= s.v[i], 
+                fsfree(s),
+                "s[%zu] == [%c] must be >= s[%zu] == [%c]", i - 1, s.v[i - 1], i, s.v[i]
+            );
 
         fsfree(s);
     }
@@ -2429,7 +2432,7 @@ tf23(const char *name)
 
         test_validatefree(
             fscmp_strict(s, s1), (fsfree(s), fsfree(s1) ),
-            "Literal and normal fs must be equal '%s' != '%s' || %d != %d", fsstr(s), fsstr(s1), fslen(s), fslen(s1)
+            "Literal and normal fs must be equal '%s' != '%s' || %zu != %zu", fsstr(s), fsstr(s1), fslen(s), fslen(s1)
         );
 
         fs_sprintf(&s, "bla bla bla %s %s %s %s ...", pt, pt, pt, pt);
@@ -2437,7 +2440,7 @@ tf23(const char *name)
 
         test_validatefree(
             fscmp_strict(s, s2), (fsfree(s), fsfree(s1), fsfree(s2) ),
-             "Origin and clone fs must be equal '%s' != '%s' || %d != %d", fsstr(s), fsstr(s2), fslen(s), fslen(s2)
+             "Origin and clone fs must be equal '%s' != '%s' || %zu != %zu", fsstr(s), fsstr(s2), fslen(s), fslen(s2)
         );
         fsfree(s), fsfree(s1), fsfree(s2);
     }
@@ -2464,7 +2467,7 @@ tf24(const char *name)
         fs      *sp = fsmoveto_heap(s);
         test_validatefree(
             s.v == NULL && s.sz == 0 && s.len == 0, fs_free(sp),
-            "Must be empty after moving but not %p %d: %d %d", s.v, s.sz, s.len, s.flags
+            "Must be empty after moving but not %p %zu: %zu %d", s.v, s.sz, s.len, s.flags
         );
         test_validatefree(
             strcmp(pattern, sp->v) == 0 && fs_len(sp) == strlen(pattern), fs_free(sp),
@@ -2487,7 +2490,7 @@ tf24(const char *name)
         //fstechprint(lit);
         test_validatefree(
              strcmp(pattern, fs_str(sp) ) == 0 && fs_len(sp) == strlen(pattern), fs_free(sp),
-             "Origin and clone fs must be equal '%s' != '%s' || %lu != %d", pattern, fs_str(sp), strlen(pattern), fs_len(sp)
+             "Origin and clone fs must be equal '%s' != '%s' || %lu != %zu", pattern, fs_str(sp), strlen(pattern), fs_len(sp)
         );
         fsfree(lit);  // should work!
         fs_free(sp);
@@ -2503,7 +2506,7 @@ tf24(const char *name)
         //fstechprint(*sp2);
         test_validatefree(
             strcmp(pattern, fs_str(sp2) ) == 0 && fs_len(sp2) == strlen(pattern), fs_free(sp2),
-            "Origin and clone fs must be equal '%s' != '%s' || %lu != %d", pattern, fs_str(sp), strlen(pattern), fs_len(sp)
+            "Origin and clone fs must be equal '%s' != '%s' || %lu != %zu", pattern, fs_str(sp), strlen(pattern), fs_len(sp)
         );
         fsfree(s);
         //fs_free(sp);  // impossible, sp pointer to nowhere
@@ -2534,7 +2537,7 @@ tf25(const char *name)
         test_validatefree(
             fs_fscanf(f, &s) == false,
             (fsfree(s), fclose(f) ),
-            "Line must NOT be read, cnt %d [%s]", fslen(s), fsstr(s)
+            "Line must NOT be read, cnt %zu [%s]", fslen(s), fsstr(s)
         );
         fsfree(s);
         fclose(f);
@@ -2585,7 +2588,7 @@ tf25(const char *name)
         test_validatefree(
             fs_fscanf(f, &s) && fslen(s) == 0,
             (fsfree(s), fclose(f)),
-            "Empty line must be read with length 0, got len=%d, str='%s'", fslen(s), fsstr(s)
+            "Empty line must be read with length 0, got len=%zu, str='%s'", fslen(s), fsstr(s)
         );
         fsfree(s);
         fclose(f);
@@ -2653,11 +2656,11 @@ tf25(const char *name)
             userraiseint(ERR_UNABLE_OPEN_FILE_WRITE, "Unable to open %s", fname);
 
         // генерируем длинную строку
-        int     long_len = 200000;
-        char   *long_str = malloc(long_len + 1);
+        size_t    long_len = 200000;
+        char     *long_str = malloc(long_len + 1);
         if (!long_str)
             userraiseint(ERR_UNABLE_ALLOCATE, "malloc failed");
-        for (int i = 0; i < long_len; i++)
+        for (size_t i = 0; i < long_len; i++)
             long_str[i] = itoupper(i % 26);   // 'A' + (i % 26);
         long_str[long_len] = '\0';
 
@@ -2669,7 +2672,7 @@ tf25(const char *name)
         test_validatefree(
             fs_fscanf(f, &s) && fslen(s) == long_len && strcmp(fsstr(s), long_str) == 0,
             (fsfree(s), free(long_str), fclose(f)),
-            "Long line length must be %d, got len=%d", long_len, fslen(s)
+            "Long line length must be %zu, got len=%zu", long_len, fslen(s)
         );
         fsfree(s);
         free(long_str);
@@ -2768,7 +2771,7 @@ tf26(const char *name)
         test_validatefree(
             fslen(s) == 0,
             fsfree(s),
-            "Empty format must have length 0, got %d", fslen(s)
+            "Empty format must have length 0, got %zu", fslen(s)
         );
         test_validatefree(
             strcmp(fsstr(s), "") == 0,
@@ -2785,9 +2788,9 @@ tf26(const char *name)
         const char *text = "hello, world";
         fs      s = fscopyf("%s", text);   /* можно и просто fscopyf("hello, world") */
         test_validatefree(
-            fslen(s) == (int) strlen(text),
+            fslen(s) == strlen(text),
             fsfree(s),
-            "Plain text: length mismatch, got %d, expected %zu", fslen(s), strlen(text)
+            "Plain text: length mismatch, got %zu, expected %zu", fslen(s), strlen(text)
         );
         test_validatefree(
             strcmp(fsstr(s), text) == 0,
@@ -2809,9 +2812,9 @@ tf26(const char *name)
 
         fs      s = fscopyf("int=%d, double=%.4f, str=%s", ival, dval, sval);
         test_validatefree(
-            fslen(s) == (int) strlen(expected),
+            fslen(s) == strlen(expected),
             fsfree(s),
-            "Formatted length: got %d, expected %zu", fslen(s), strlen(expected)
+            "Formatted length: got %zu, expected %zu", fslen(s), strlen(expected)
         );
         test_validatefree(
             strcmp(fsstr(s), expected) == 0,
@@ -2826,7 +2829,7 @@ tf26(const char *name)
     test_sub("subtest %d: long string (expands buffer)", ++subnum);
     {
         // Генерируем длинную строку из повторяющихся символов
-        int     repeat = 20000;
+        size_t   repeat = 20000;
         char    *long_text = malloc(repeat + 1);
         if (!long_text)
             userraiseint(ERR_UNABLE_ALLOCATE, "malloc failed");
@@ -2837,7 +2840,7 @@ tf26(const char *name)
         test_validatefree(
             fslen(s) == repeat,
             fsfree(s),
-            "Long string length: got %d, expected %d", fslen(s), repeat
+            "Long string length: got %zu, expected %zu", fslen(s), repeat
         );
         test_validatefree(
             strcmp(fsstr(s), long_text) == 0,
@@ -2892,7 +2895,7 @@ tf27(const char *name)
     /* 1. rpad: короткая строка, pad длиннее */
     test_sub("subtest %d: rpad short string with longer pad", ++subnum);
     {
-        int     newlen = 7;
+        size_t  newlen = 7;
         fs      s = fscopy("abc");
         fs      pad = fscopy("XY");
         fs      result = fs_rpad(&s, newlen, &pad);
@@ -2901,7 +2904,7 @@ tf27(const char *name)
         test_validatefree(
             fslen(s) == newlen,
             (fsfree(s), fsfree(pad) ),
-            "rpad: length must be %d, got %d", newlen, fslen(s)
+            "rpad: length must be %zu, got %zu", newlen, fslen(s)
         );
         test_validatefree(
             strcmp(fsstr(s), "abcXYXY") == 0,
@@ -2914,7 +2917,7 @@ tf27(const char *name)
     /* 2. rpad: обрезание длинной строки */
     test_sub("subtest %d: rpad cut long string", ++subnum);
     {
-        int     newlen = 5;
+        size_t  newlen = 5;
         fs      s = fscopy("hello world");
         fs      pad = fscopy(".");
         fs      result = fs_rpad(&s, newlen, &pad);
@@ -2923,7 +2926,7 @@ tf27(const char *name)
         test_validatefree(
             fslen(s) == newlen,
             (fsfree(s), fsfree(pad)),
-            "rpad cut: length must be %d, got %d", newlen, fslen(s)
+            "rpad cut: length must be %zu, got %zu", newlen, fslen(s)
         );
         test_validatefree(
             strcmp(fsstr(s), "hello") == 0,
@@ -2936,7 +2939,7 @@ tf27(const char *name)
     /* 3. rpad: пустой pad – строка остаётся без изменений (короткая) */
     test_sub("subtest %d: rpad empty pad (short string)", ++subnum);
     {
-        int     newlen = 5;
+        size_t  newlen = 5;
         fs      s = fscopy("abc");
         fs      pad = FS();               /* пустая строка */
         fs      result = fs_rpad(&s, newlen, &pad);
@@ -2945,7 +2948,7 @@ tf27(const char *name)
         test_validatefree(
             fslen(s) == 3,
             (fsfree(s), fsfree(pad)),
-            "rpad empty pad: length must stay 3, got %d", fslen(s)
+            "rpad empty pad: length must stay 3, got %zu", fslen(s)
         );
         test_validatefree(
             strcmp(fsstr(s), "abc") == 0,
@@ -2958,7 +2961,7 @@ tf27(const char *name)
     /* 4. rpad: циклическое заполнение (pad короче) */
     test_sub("subtest %d: rpad cyclic pad", ++subnum);
     {
-        int     newlen = 8;
+        size_t  newlen = 8;
         fs      s = fscopy("AB");
         fs      pad = fscopy("123");
         fs      result = fs_rpad(&s, newlen, &pad);
@@ -2967,7 +2970,7 @@ tf27(const char *name)
         test_validatefree(
             fslen(s) == newlen,
             (fsfree(s), fsfree(pad)),
-            "rpad cyclic: length must be %d, got %d", newlen, fslen(s)
+            "rpad cyclic: length must be %zu, got %zu", newlen, fslen(s)
         );
         test_validatefree(
             strcmp(fsstr(s), "AB123123") == 0,
@@ -2980,7 +2983,7 @@ tf27(const char *name)
     /* 5. rpad: len == 0, строка непустая – обрезается до пустой */
     test_sub("subtest %d: rpad len=0 (cut to empty)", ++subnum);
     {
-        int     newlen = 0;
+        size_t  newlen = 0;
         fs      s = fscopy("cutme");
         fs      pad = fscopy("-");
         fs      result = fs_rpad(&s, newlen, &pad);
@@ -2989,7 +2992,7 @@ tf27(const char *name)
         test_validatefree(
             fslen(s) == 0,
             (fsfree(s), fsfree(pad)),
-            "rpad len=0: length must be 0, got %d", fslen(s)
+            "rpad len=0: length must be 0, got %zu", fslen(s)
         );
         test_validatefree(
             strcmp(fsstr(s), "") == 0,
@@ -3005,7 +3008,7 @@ tf27(const char *name)
     /* 6. lpad: короткая строка, pad длиннее */
     test_sub("subtest %d: lpad short string with longer pad", ++subnum);
     {
-        int     newlen = 7;
+        size_t  newlen = 7;
         fs      s = fscopy("abc");
         fs      pad = fscopy("XY");
         fs      result = fs_lpad(&s, newlen, &pad);
@@ -3014,7 +3017,7 @@ tf27(const char *name)
         test_validatefree(
             fslen(s) == newlen,
             (fsfree(s), fsfree(pad)),
-            "lpad: length must be %d, got %d", newlen, fslen(s)
+            "lpad: length must be %zu, got %zu", newlen, fslen(s)
         );
         test_validatefree(
             strcmp(fsstr(s), "XYXYabc") == 0,
@@ -3027,7 +3030,7 @@ tf27(const char *name)
     /* 7. lpad: обрезание длинной строки */
     test_sub("subtest %d: lpad cut long string", ++subnum);
     {
-        int     newlen = 5;
+        size_t  newlen = 5;
         fs      s = fscopy("hello world");
         fs      pad = fscopy(".");
         fs      result = fs_lpad(&s, newlen, &pad);
@@ -3036,7 +3039,7 @@ tf27(const char *name)
         test_validatefree(
             fslen(s) == newlen,
             (fsfree(s), fsfree(pad)),
-            "lpad cut: length must be %d, got %d", newlen, fslen(s)
+            "lpad cut: length must be %zu, got %zu", newlen, fslen(s)
         );
         test_validatefree(
             strcmp(fsstr(s), "hello") == 0,
@@ -3049,7 +3052,7 @@ tf27(const char *name)
     /* 8. lpad: пустой pad – строка не меняется (короткая) */
     test_sub("subtest %d: lpad empty pad (short string)", ++subnum);
     {
-        int     newlen = 5;
+        size_t  newlen = 5;
         fs      s = fscopy("abc");
         fs      pad = FS();
         fs      result = fs_lpad(&s, newlen, &pad);
@@ -3058,7 +3061,7 @@ tf27(const char *name)
         test_validatefree(
             fslen(s) == 3,
             (fsfree(s), fsfree(pad)),
-            "lpad empty pad: length must stay 3, got %d", fslen(s)
+            "lpad empty pad: length must stay 3, got %zu", fslen(s)
         );
         test_validatefree(
             strcmp(fsstr(s), "abc") == 0,
@@ -3071,7 +3074,7 @@ tf27(const char *name)
     /* 9. lpad: циклическое заполнение */
     test_sub("subtest %d: lpad cyclic pad", ++subnum);
     {
-        int     newlen = 8;
+        size_t  newlen = 8;
         fs      s = fscopy("AB");
         fs      pad = fscopy("123");
         fs      result = fs_lpad(&s, newlen, &pad);
@@ -3080,7 +3083,7 @@ tf27(const char *name)
         test_validatefree(
             fslen(s) == newlen,
             (fsfree(s), fsfree(pad)),
-            "lpad cyclic: length must be %d, got %d", newlen, fslen(s)
+            "lpad cyclic: length must be %zu, got %zu", newlen, fslen(s)
         );
         test_validatefree(
             strcmp(fsstr(s), "123123AB") == 0,
@@ -3093,7 +3096,7 @@ tf27(const char *name)
     /* 10. lpad: len == 0 */
     test_sub("subtest %d: lpad len=0 (cut to empty)", ++subnum);
     {
-        int     newlen = 0;
+        size_t  newlen = 0;
         fs      s = fscopy("cutme");
         fs      pad = fscopy("-");
         fs      result = fs_lpad(&s, newlen, &pad);
@@ -3102,7 +3105,7 @@ tf27(const char *name)
         test_validatefree(
             fslen(s) == 0,
             (fsfree(s), fsfree(pad)),
-            "lpad len=0: length must be 0, got %d", fslen(s)
+            "lpad len=0: length must be 0, got %zu", fslen(s)
         );
         test_validatefree(
             strcmp(fsstr(s), "") == 0,
@@ -3160,7 +3163,7 @@ tf28(const char *name)
 
         // Оригинал не должен измениться
         test_validatefree(
-            strcmp(fsstr(orig), text) == 0 && fslen(orig) == (int)strlen(text),
+            strcmp(fsstr(orig), text) == 0 && fslen(orig) == strlen(text),
             (fsfree(orig), fs_free(copy)),
             "Original must be unchanged after heapcreate"
         );
@@ -3172,7 +3175,7 @@ tf28(const char *name)
 
         // Копия должна содержать ту же строку и быть независимой
         test_validatefree(
-            strcmp(fs_str(copy), text) == 0 && fs_len(copy) == (int)strlen(text),
+            strcmp(fs_str(copy), text) == 0 && fs_len(copy) == strlen(text),
             (fsfree(orig), fs_free(copy)),
             "Copy must contain the same string"
         );
@@ -3213,7 +3216,7 @@ tf28(const char *name)
         fs     *copy = fs_heapcreate(moved);
 
         test_validatefree(
-            strcmp(fs_str(copy), text) == 0 && fs_len(copy) == (int)strlen(text),
+            strcmp(fs_str(copy), text) == 0 && fs_len(copy) == strlen(text),
             (fs_free(moved), fs_free(copy)),
             "Copy from moved object must contain original string"
         );
@@ -3291,9 +3294,9 @@ tf_fs_heapcopy(const char *name)
         fs     *copy = fs_heapcopy(text);
 
         test_validatefree(
-            strcmp(fs_str(copy), text) == 0 && fs_len(copy) == (int)strlen(text),
+            strcmp(fs_str(copy), text) == 0 && fs_len(copy) == strlen(text),
             fs_free(copy),
-            "Heapcopy must contain '%s', got '%s' (len %d)", text, fs_str(copy), fs_len(copy)
+            "Heapcopy must contain '%s', got '%s' (len %zu)", text, fs_str(copy), fs_len(copy)
         );
         test_validatefree(
             fs_bodyalloc(copy),
@@ -3314,7 +3317,7 @@ tf_fs_heapcopy(const char *name)
         test_validatefree(
             fs_len(copy) == 0 && copy->v != NULL && fs_str(copy)[0] == '\0',
             fs_free(copy),
-            "Heapcopy of empty string must have len=0, v!=NULL, got len=%d, v=%p", fs_len(copy), (void*)copy->v
+            "Heapcopy of empty string must have len=0, v!=NULL, got len=%zu, v=%p", fs_len(copy), (void*)copy->v
         );
         test_validatefree(
             fs_bodyalloc(copy),
@@ -3389,7 +3392,7 @@ tf_moveto_heapstr(const char *name)
         test_validatefree(
             moved != NULL && strcmp(fs_str(moved), pt) == 0 && fs_len(moved) == sizeof(pt) - 1,
             fs_free(moved),
-            "Moved string mismatch: got '%s', len %d, expected '%s', %lu",
+            "Moved string mismatch: got '%s', len %zu, expected '%s', %lu",
             fs_str(moved), fs_len(moved), pt, sizeof(pt) - 1
         );
         test_validatefree(
@@ -3416,7 +3419,7 @@ tf_moveto_heapstr(const char *name)
         test_validatefree(
             moved != NULL && fs_len(moved) == 0 && fs_str(moved)[0] == '\0',
             fs_free(moved),
-            "Empty string must have len=0, got %d, str='%s'", fs_len(moved), fs_str(moved)
+            "Empty string must have len=0, got %zu, str='%s'", fs_len(moved), fs_str(moved)
         );
         test_validatefree(
             fs_bodyalloc(moved),
@@ -3634,7 +3637,7 @@ tf_genrnd(const char *name)
         test_validatefree(
             fs_len(&s) == 10,
             fsfree(s),
-            "Length must be 10, got %d", fs_len(&s)
+            "Length must be 10, got %zu", fs_len(&s)
         );
         for (int i = 0; i < 10; i++) {
             test_validatefree(
@@ -3655,7 +3658,7 @@ tf_genrnd(const char *name)
         test_validatefree(
             fs_len(&s) == 8,
             fsfree(s),
-            "Length must be 8, got %d", fs_len(&s)
+            "Length must be 8, got %zu", fs_len(&s)
         );
         for (int i = 0; i < 8; i++) {
             test_validatefree(
@@ -3676,7 +3679,7 @@ tf_genrnd(const char *name)
         test_validatefree(
             fs_len(&s) == 6,
             fsfree(s),
-            "Length must be 6, got %d", fs_len(&s)
+            "Length must be 6, got %zu", fs_len(&s)
         );
         for (int i = 0; i < 6; i++) {
             test_validatefree(
@@ -3697,7 +3700,7 @@ tf_genrnd(const char *name)
         test_validatefree(
             fs_len(&s) == 0,
             fsfree(s),
-            "Length must be 0, got %d", fs_len(&s)
+            "Length must be 0, got %zu", fs_len(&s)
         );
         fsfree(s);
     }
@@ -3711,7 +3714,7 @@ tf_genrnd(const char *name)
         test_validatefree(
             fs_len(&s) == 10,
             fsfree(s),
-            "Negative length must result in empty string, got len=%d", fs_len(&s)
+            "Negative length must result in empty string, got len=%zu", fs_len(&s)
         );
         fsfree(s);
     }
@@ -3725,7 +3728,7 @@ tf_genrnd(const char *name)
         test_validatefree(
             fs_len(&s) >= 5,
             fsfree(s),
-            "Length must be >= 5, got %d", fs_len(&s)
+            "Length must be >= 5, got %zu", fs_len(&s)
         );
         for (int i = 0; i < 5; i++) {
             test_validatefree(
@@ -3746,7 +3749,7 @@ tf_genrnd(const char *name)
         test_validatefree(
             res == &s && fs_len(&s) == 10,
             fsfree(s),
-            "Returned pointer must be &s, length must be 10, got %d", fs_len(&s)
+            "Returned pointer must be &s, length must be 10, got %zu", fs_len(&s)
         );
         for (int i = 0; i < 10; i++) {
             test_validatefree(
@@ -3767,7 +3770,7 @@ tf_genrnd(const char *name)
         test_validatefree(
             fs_len(&s) == 8,
             fsfree(s),
-            "Length must be 8, got %d", fs_len(&s)
+            "Length must be 8, got %zu", fs_len(&s)
         );
         for (int i = 0; i < 8; i++) {
             test_validatefree(
@@ -3788,7 +3791,7 @@ tf_genrnd(const char *name)
         test_validatefree(
             fs_len(&s) == 6,
             fsfree(s),
-            "Length must be 6, got %d", fs_len(&s)
+            "Length must be 6, got %zu", fs_len(&s)
         );
         for (int i = 0; i < 6; i++) {
             test_validatefree(
@@ -3809,7 +3812,7 @@ tf_genrnd(const char *name)
         test_validatefree(
             fs_len(&s) == 0,
             fsfree(s),
-            "Length must be 0, got %d", fs_len(&s)
+            "Length must be 0, got %zu", fs_len(&s)
         );
         fsfree(s);
     }
@@ -3823,7 +3826,7 @@ tf_genrnd(const char *name)
         test_validatefree(
             fs_len(&s) == 0,
             fsfree(s),
-            "Negative length must result in empty string, got len=%d", fs_len(&s)
+            "Negative length must result in empty string, got len=%zu", fs_len(&s)
         );
         fsfree(s);
     }
@@ -3837,7 +3840,7 @@ tf_genrnd(const char *name)
         test_validatefree(
             fs_len(&s) == 5,
             fsfree(s),
-            "Length must be 5, got %d", fs_len(&s)
+            "Length must be 5, got %zu", fs_len(&s)
         );
         for (int i = 0; i < 5; i++) {
             test_validatefree(
@@ -3867,7 +3870,7 @@ tf_initrnd(const char *name)
         test_validatefree(
             fs_len(&s) == 10,
             fsfree(s),
-            "Length must be 10, got %d", fs_len(&s)
+            "Length must be 10, got %zu", fs_len(&s)
         );
         for (int i = 0; i < 10; i++) {
             test_validatefree(
@@ -3887,7 +3890,7 @@ tf_initrnd(const char *name)
         test_validatefree(
             fs_len(&s) == 8,
             fsfree(s),
-            "Length must be 8, got %d", fs_len(&s)
+            "Length must be 8, got %zu", fs_len(&s)
         );
         for (int i = 0; i < 8; i++) {
             test_validatefree(
@@ -3907,7 +3910,7 @@ tf_initrnd(const char *name)
         test_validatefree(
             fs_len(&s) == 6,
             fsfree(s),
-            "Length must be 6, got %d", fs_len(&s)
+            "Length must be 6, got %zu", fs_len(&s)
         );
         for (int i = 0; i < 6; i++) {
             test_validatefree(
@@ -3927,7 +3930,7 @@ tf_initrnd(const char *name)
         test_validatefree(
             fs_len(&s) == 0,
             fsfree(s),
-            "Length must be 0, got %d", fs_len(&s)
+            "Length must be 0, got %zu", fs_len(&s)
         );
         fsfree(s);
     }
@@ -3940,7 +3943,7 @@ tf_initrnd(const char *name)
         test_validatefree(
             fs_len(&s) == 0,
             fsfree(s),
-            "Negative length must result in empty string, got len=%d", fs_len(&s)
+            "Negative length must result in empty string, got len=%zu", fs_len(&s)
         );
         fsfree(s);
     }
@@ -3953,7 +3956,7 @@ tf_initrnd(const char *name)
         test_validatefree(
             fs_len(&s) == 5,
             fsfree(s),
-            "Length must be 5, got %d", fs_len(&s)
+            "Length must be 5, got %zu", fs_len(&s)
         );
         for (int i = 0; i < 5; i++) {
             test_validatefree(
