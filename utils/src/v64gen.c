@@ -2278,6 +2278,143 @@ tf14_gen_fs_bynewline(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST 15: v64GenGetRemainingCount with fs char generator -------------------------
+static TestStatus
+tf15_gen_fs_remaining(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: remaining count decreases while reading fs char generator", ++subnum);
+    {
+        fs buf = fscopy("hello");
+        v64Gen gen = v64GenCreatorSourceFsChar(&buf);
+
+        // В начале оставшихся символов должно быть равно длине строки
+        unsigned long rem = v64GenGetRemainingCount(&gen);
+        test_validatefree(
+            rem == 5, 
+            v64GenFree(&gen),
+            "expected remaining 5, got %lu", rem
+        );
+
+        // Читаем два символа
+        value64 v1 = v64GenNext(&gen);
+        value64 v2 = v64GenNext(&gen);
+        test_validatefree(
+            value64_char(v1) == 'h' && value64_char(v2) == 'e',
+            v64GenFree(&gen),
+            "first two chars mismatch"
+        );
+
+        // После двух прочтений остаток должен быть 3
+        rem = v64GenGetRemainingCount(&gen);
+        test_validatefree(
+            rem == 3, 
+            v64GenFree(&gen),
+            "expected remaining 3 after two reads, got %lu", rem
+        );
+
+        value64_free(&v1, VALUE64_CHR);
+        value64_free(&v2, VALUE64_CHR);
+
+        // Дочитываем оставшиеся три символа
+        for (int i = 0; i < 3; i++) {
+            value64 v = v64GenNext(&gen);
+            value64_free(&v, VALUE64_CHR);
+        }
+
+        // Теперь остаток должен быть 0
+        rem = v64GenGetRemainingCount(&gen);
+        test_validatefree(
+            rem == 0, 
+            v64GenFree(&gen),
+            "expected remaining 0 after full read, got %lu", rem
+        );
+
+        // Дальше генератор должен возвращать '\0' (конец)
+        value64 v_end = v64GenNext(&gen);
+        test_validatefree(
+            value64_char(v_end) == '\0',
+            v64GenFree(&gen),
+            "expected null character after end"
+        );
+        value64_free(&v_end, VALUE64_CHR);
+
+        v64GenFree(&gen);
+        fsfree(buf);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: remaining count increases after appending data", ++subnum);
+    {
+        fs buf = fscopy("abc");
+        v64Gen gen = v64GenCreatorSourceFsChar(&buf);
+
+        unsigned long rem = v64GenGetRemainingCount(&gen);
+        test_validatefree(
+            rem == fslen(buf), 
+            v64GenFree(&gen),
+            "after full read remaining should be %zu, got %lu", fslen(buf), rem
+        );
+
+        // Читаем все три символа
+        for (int i = 0; i < 3; i++) {
+            value64 v = v64GenNext(&gen);
+            value64_free(&v, VALUE64_CHR);
+        }
+
+        rem = v64GenGetRemainingCount(&gen);
+        test_validate(rem == 0, "after full read remaining should be 0, got %lu", rem);
+
+        // Добавляем новые данные в буфер
+        fs_catstr(&buf, "def");
+
+        // Генератор должен увидеть новые данные, позиция осталась на 3
+        rem = v64GenGetRemainingCount(&gen);
+        test_validatefree(
+            rem == 3, 
+            v64GenFree(&gen),
+            "after appending remaining should be 3, got %lu", rem
+        );
+
+        // Читаем новые символы
+        value64 v1 = v64GenNext(&gen);
+        test_validatefree(
+            value64_char(v1) == 'd', 
+            v64GenFree(&gen),
+            "expected 'd', got '%c'", value64_char(v1)
+        );
+        value64_free(&v1, VALUE64_CHR);
+
+        rem = v64GenGetRemainingCount(&gen);
+        test_validatefree(
+            rem == 2, 
+            v64GenFree(&gen),
+            "after reading one new char remaining should be 2, got %lu", rem
+        );
+
+        // Дочитываем остальные
+        for (int i = 0; i < 2; i++) {
+            value64 v = v64GenNext(&gen);
+            value64_free(&v, VALUE64_CHR);
+        }
+
+        rem = v64GenGetRemainingCount(&gen);
+        test_validatefree(
+            rem == 0, 
+            v64GenFree(&gen),
+            "after reading all new chars remaining should be 0, got %lu", rem
+        );
+
+        v64GenFree(&gen);
+        fsfree(buf);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(/* int argc, const char *argv[] */)
@@ -2299,6 +2436,7 @@ main(/* int argc, const char *argv[] */)
       , TESTADD(tf12_gen_string_append,      "Append to source generator test")
       , TESTADD(tf13_gen_fs_stream_simple,   "v64GenFSToChar()  simple test")
       , TESTADD(tf14_gen_fs_bynewline,       "v64GenFSToFsByNewline()  simple test")
+      , TESTADD(tf15_gen_fs_remaining,       "v64GenGetRemainingCount with fs char generator")
     );
 
     return logret(0, "end...");  // as replace of logclose()
