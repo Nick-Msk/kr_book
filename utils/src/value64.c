@@ -1765,7 +1765,7 @@ bool                            value64_sreadval_str(value64 *restrict pval, fs 
     value64 v = value64_createstr(fs_str(buf) );    // strdup here
     if (pval)
         *pval = v;
-    return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );
+    return logsimpleret(true, "read %s %zu", pval == NULL ? "DUMMY" : "", fs_len(buf) );
 }
 /**
  * @brief Parses an integer from the buffer.
@@ -1786,7 +1786,7 @@ bool                            value64_sreadval_int(value64 *restrict pval, fs 
     value64 v = value64_createint(ival);
     if (pval)
         *pval = v;
-    return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );
+    return logsimpleret(true, "read %s %zu", pval == NULL ? "DUMMY" : "", fs_len(buf) );
 }
 /**
  * @brief Parses a long integer from the buffer.
@@ -1807,7 +1807,7 @@ bool                            value64_sreadval_lng( value64 *restrict pval, fs
     value64 v = value64_createlong(lval);
     if (pval)
         *pval = v;
-    return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );
+    return logsimpleret(true, "read %s %zu", pval == NULL ? "DUMMY" : "", fs_len(buf) );
 }
 /**
  * @brief Parses a unsigned long integer from the buffer.
@@ -1828,7 +1828,7 @@ bool                            value64_sreadval_ulong( value64 *restrict pval, 
     value64 v = value64_createulong(lval);
     if (pval)
         *pval = v;
-    return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );
+    return logsimpleret(true, "read %s %zu", pval == NULL ? "DUMMY" : "", fs_len(buf) );
 }
 /**
  * @brief Parses a double from the buffer.
@@ -1849,7 +1849,7 @@ bool                            value64_sreadval_dbl(value64 *restrict pval, fs 
     value64 v = value64_createdbl(dval);
     if (pval)
         *pval = v;
-    return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );
+    return logsimpleret(true, "read %s %zu", pval == NULL ? "DUMMY" : "", fs_len(buf) );
 }
 /**
  * @brief Validates/Extracts an FS resource from the buffer.
@@ -1867,7 +1867,7 @@ bool                            value64_sreadval_fs(value64 *restrict pval, fs *
     value64  v = value64_createfs(buf);
     if (pval)
          *pval = v;
-    return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );
+    return logsimpleret(true, "read %s %zu", pval == NULL ? "DUMMY" : "", fs_len(buf) );
 }
 /**
  * @brief Parses a single character from the buffer.
@@ -1897,7 +1897,7 @@ bool                         value64_sreadval_char(value64 *restrict pval, fs *r
     value64 v = value64_createchar(cval);
     if (pval)
         *pval = v;
-     return logsimpleret(true, "read %s %d", pval == NULL ? "DUMMY" : "", fs_len(buf) );       
+     return logsimpleret(true, "read %s %zu", pval == NULL ? "DUMMY" : "", fs_len(buf) );       
 }
 /**
  * @brief Reads a boolean value from a string buffer.
@@ -2306,7 +2306,7 @@ bool                        value64_filter_false(value64 v, value64 data) {
  */
 bool                        value64_filter_fsminlen_int(value64 v, value64 data) {
     const fs *f = value64_fs(v);
-    return !fs_isnull(f) && fs_len(f) >= value64_int(data);
+    return !fs_isnull(f) && (int) fs_len(f) >= value64_int(data);
 }
 /** 
  * @brief Checks if the fs length is at most the specified integer value.
@@ -2316,7 +2316,7 @@ bool                        value64_filter_fsminlen_int(value64 v, value64 data)
  */
 bool                        value64_filter_fsmaxlen_int(value64 v, value64 data) {
     const fs *f = value64_fs(v);
-    return !fs_isnull(f) && fs_len(f) <= value64_int(data);
+    return !fs_isnull(f) && (int) fs_len(f) <= value64_int(data);
 }
 /** 
  * @brief Checks if the fs  length matches the specified integer value exactly.
@@ -2326,7 +2326,7 @@ bool                        value64_filter_fsmaxlen_int(value64 v, value64 data)
  */
 bool                        value64_filter_fslen_int(value64 v, value64 data) {
     const fs *f = value64_fs(v);
-    return !fs_isnull(f) && fs_len(f) == value64_int(data);
+    return !fs_isnull(f) && (int) fs_len(f) == value64_int(data);
 }
 
 /** 
@@ -2673,7 +2673,7 @@ tf_init_free(const char *name)
         test_validatefree(
             fslen(orig) == 0 && fsstr(orig) == NULL,
             value64freefs(v),
-            "After move, original fs must be empty (len=%d, str=%p)", fslen(orig), (void*)fsstr(orig)
+            "After move, original fs must be empty (len=%zu, str=%p)", fslen(orig), (void*)fsstr(orig)
         );
 
         value64freefs(v);
@@ -2983,7 +2983,7 @@ tf_point_init(const char *name)
         test_validatefree(
             fslen(orig) == 0 && fsstr(orig) == NULL,
             fs_free(v.fsval),
-            "After move, original fs must be empty (len=%d, str=%p)", fslen(orig), (void*)fsstr(orig)
+            "After move, original fs must be empty (len=%zu, str=%p)", fslen(orig), (void*)fsstr(orig)
         );
 
         fs_free(v.fsval);
