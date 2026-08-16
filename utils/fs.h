@@ -327,10 +327,10 @@ static inline bool          fs_isheapalloc(const fs *s){
     return s != NULL && fs_alloc(s);
 }
 
-static inline int           fssz(fs s){
+static inline size_t        fssz(fs s){
     return s.sz;
 }
-static inline int           fs_sz(const fs *s){
+static inline size_t        fs_sz(const fs *s){
     return s->sz;
 }
 // shrink to real len + 1 ( + 1 because '\0' is ASSUMED)
@@ -480,17 +480,23 @@ static inline long           fs_chr(const fs *str, char c){
 // pointer, sensitive, lim
 static inline long           fs_nchr(const fs *str, char c, size_t lim){
     const char *p = str->v;
-    while (lim-- > 0 && *p != '\0' && *p != c)
+    while (lim-- > 0 && *p != '\0') {
+        if (*p == c)
+            return p - str->v;
         p++;
-    return *p != '\0' && lim > 0 ? p - str->v : -1;
+    }
+    return -1;
 }
 // pointer, insensitive, lim
 static inline long           fs_nichr(const fs *str, char c, size_t lim){
     const char *p = str->v;
     c = tolower(c);
-    while (lim-- > 0 && *p != '\0' && tolower(*p) != c)
+    while (lim-- > 0 && *p != '\0') {
+        if (*p == c)
+            return p - str->v;
         p++;
-    return *p != '\0' && lim > 0 ? p - str->v : -1;
+    }
+    return -1;
 }
 // pointer, insensitive, unlim
 static inline long           fs_ichr(const fs *str, char c){

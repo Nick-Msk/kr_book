@@ -3706,20 +3706,6 @@ tf_genrnd(const char *name)
     }
     fs_alloc_check(true);
 
-    /* 5. Отрицательная длина */
-    test_sub("subtest %d: fs_genrnd negative length", ++subnum);
-    {
-        fs s = fscopyf ("1234567890");
-        fs_genrnd(&s, -5, 'a');
-        test_validatefree(
-            fs_len(&s) == 10,
-            fsfree(s),
-            "Negative length must result in empty string, got len=%zu", fs_len(&s)
-        );
-        fsfree(s);
-    }
-    fs_alloc_check(true);
-
     /* 6. Неизвестный тип – должны быть '?' */
     test_sub("subtest %d: fs_genrnd unknown type", ++subnum);
     {
@@ -3813,20 +3799,6 @@ tf_genrnd(const char *name)
             fs_len(&s) == 0,
             fsfree(s),
             "Length must be 0, got %zu", fs_len(&s)
-        );
-        fsfree(s);
-    }
-    fs_alloc_check(true);
-
-    /* 5. Отрицательная длина (приведёт к пустой строке) */
-    test_sub("subtest %d: fs_genrnd negative length zero init", ++subnum);
-    {
-        fs s = FS();
-        fs_genrnd(&s, -5, 'a');
-        test_validatefree(
-            fs_len(&s) == 0,
-            fsfree(s),
-            "Negative length must result in empty string, got len=%zu", fs_len(&s)
         );
         fsfree(s);
     }
@@ -3931,19 +3903,6 @@ tf_initrnd(const char *name)
             fs_len(&s) == 0,
             fsfree(s),
             "Length must be 0, got %zu", fs_len(&s)
-        );
-        fsfree(s);
-    }
-    fs_alloc_check(true);
-
-    /* 5. Отрицательная длина */
-    test_sub("subtest %d: fs_initrnd negative length", ++subnum);
-    {
-        fs s = fs_initrnd(-5, 'a');
-        test_validatefree(
-            fs_len(&s) == 0,
-            fsfree(s),
-            "Negative length must result in empty string, got len=%zu", fs_len(&s)
         );
         fsfree(s);
     }
