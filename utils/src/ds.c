@@ -792,7 +792,7 @@ tf_ds_fs(const char *name)
 
         // проверяем внутреннее состояние Ds
         test_validate(ds.s.len == 6 && ds.s.v[5] == 'X' && ds.s.v[6] == '\0',
-                    "FS len must be 6, str[5]='X', str[6]='\\0', got len=%d, str='%s'",
+                    "FS len must be 6, str[5]='X', str[6]='\\0', got len=%zu, str='%s'",
                     ds.s.len, ds.s.v);
         dsFree(&ds);
     }
