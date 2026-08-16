@@ -29,7 +29,7 @@ enum v64GenConstants {
 typedef struct v64Gen                   v64Gen;
 typedef value64                         (*v64GenFunc)(v64Gen *gen);
 typedef bool                            (*v64genUpdateStream)
-            (v64Gen *restrict gen, const char *restrict newbuf, long amount);
+            (v64Gen *restrict gen, /*const char *restrict newbuf, */long amount);
 
 typedef struct v64Gen {
     v64GenFunc              fnext;
@@ -429,11 +429,11 @@ static inline v64Gen        v64GenCreatorUnlimFsRnd(const char *fmt, int rndinc)
 extern v64Gen                   v64GenCreatorSourceCstr(const char *src, long maxlen);
 
 // ------- Stream updater -------
-static inline void              v64GenStringAppend(v64Gen *restrict gen, const char *restrict newbuf, long next_amount) {
+static inline void              v64GenStringAppend(v64Gen *gen, /*const char *restrict newbuf, */ long next_amount) {
     invraisecode(gen != NULL, ERR_NULLABLE_PTR, "NUll gen");
 
     if (gen->updater) {
-        gen->updater(gen, newbuf, next_amount);
+        gen->updater(gen, /* newbuf, */ next_amount);
     } else
         userraise(0, ERR_UNSUPPORTED_GENERATOR, "Only SOURCE generators support StringAppend");
 }

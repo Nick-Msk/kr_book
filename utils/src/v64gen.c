@@ -7,12 +7,12 @@
 // --------------------------------- CONSTANTS AND GLOBALS --------------------------
 
 // --------------------------- Utilities --------------------------------------------
-static bool                     v64GenStringUpdate(v64Gen *restrict gen, const char *restrict newbuf, long amount) {
+static bool                     v64GenStringUpdate(v64Gen *gen, /* const char *restrict newbuf, */ long amount) {
     if (amount <= 0)
         return false;
     // only for Stream Buffer
-    if (newbuf)
-        V64GENREGVAL0(gen).pval = (void *) newbuf;
+    //if (newbuf)
+    //    V64GENREGVAL0(gen).pval = (void *) newbuf;
     V64GENREGVAL1(gen).lval += amount;
     return true;
 }
@@ -1968,13 +1968,13 @@ tf12_gen_string_append(const char *name)
 
     test_sub("subtest %d: append chunks to source generator", ++subnum);
     {
-        fs          buf = FS();
+        fs          buf = fsinit(10000); // to avoid realloc, realoc isn't suported by v64GenCreatorSourceCstr
         int         total_len = 0;
         const int   iterations = 10;
         char        pt[] = "abcdefghijklmnopqrstuvwxyz";
 
         // Генератор создаём один раз, источник пустой
-        v64Gen gen = v64GenCreatorSourceCstr("", 0);
+        v64Gen gen = v64GenCreatorSourceCstr(buf.v, 0);
 
         srand(42);
 
@@ -1990,10 +1990,10 @@ tf12_gen_string_append(const char *name)
             }
 
             // Вычисляем актуальный адрес начала порции ПОСЛЕ fs_catstr
-            const char *chunk_start = fs_str(&buf) + total_len;
+            //const char *chunk_start = fs_str(&buf) + total_len;
 
             // Перенастраиваем генератор на новую порцию
-            v64GenStringAppend(&gen, chunk_start, chunk_len);
+            v64GenStringAppend(&gen, /*chunk_start, */ chunk_len);
 
             // Читаем и проверяем символы
             for (int j = 0; j < chunk_len; j++) {
