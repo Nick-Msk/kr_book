@@ -694,7 +694,7 @@ fs                                     *fs_create(void){
     else {
         *new_fs = FS();
         new_fs->flags |= FS_FLAG_BODYALLOC;   // чтобы fs_free удалил и тело, и будущую строку
-        atomic_load(&g_alloc_body_cnt); //logauto(++g_alloc_body_cnt);
+        atomic_fetch_add(&g_alloc_body_cnt, 1); //logauto(++g_alloc_body_cnt);
     }
     return new_fs;
 }
