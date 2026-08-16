@@ -28,14 +28,15 @@ enum v64GenConstants {
 
 typedef struct v64Gen                   v64Gen;
 typedef value64                         (*v64GenFunc)(v64Gen *gen);
-typedef bool                            (*v64genUpdateStream)
-            (v64Gen *restrict gen, /*const char *restrict newbuf, */long amount);
+typedef bool                            (*v64genUpdateStream) (v64Gen *restrict gen, long amount);
+typedef long                            (*v64GenGerRemainingFunc) (v64Gen *restrict gen);
 
 typedef struct v64Gen {
     v64GenFunc              fnext;
     value64_type            type;
     unsigned int            counter;
     v64genUpdateStream      updater;
+    v64GenGerRemainingFunc  remaining;
     v64typed                data[V64GENCOUNT];
 } v64Gen;
 
@@ -135,7 +136,8 @@ extern value64                  v64GenUnlimRandom(v64Gen *gen);
 // check group: TODO:
 
 // source (Ds or c-str or FILE *) group
-extern value64                  v64GenString(v64Gen *gen);
+extern value64                  v64GenStringToChar(v64Gen *gen);
+extern value64                  v64GenFSToChar(v64Gen *gen);
 
 // ------------------------ Wrappers for pre-created generators ---------------------
 // ----------------------------------------------------------------------------------
@@ -426,7 +428,15 @@ static inline v64Gen        v64GenCreatorUnlimFsRnd(const char *fmt, int rndinc)
 // REGITRSY ALLOCATION:
 // data[0] STR as SOURCE (no ownership)
 // data[1] LONG as lim, if 0 - unlim (LONG_MAX actually)
-extern v64Gen                   v64GenCreatorSourceCstr(const char *src, long maxlen);
+extern v64Gen                   v64GenCreatorSourceCstrChar(const char *src, long maxlen);
+
+// RETURNS: CHR
+// REGITRSY ALLOCATION:
+// data[0] FS as SOURCE (no ownership)
+// data[1] LONG as position
+extern v64Gen                   v64GenCreatorSourceFsChar(const fs *src);
+
+// --------------------------------- Indirect API --------------------------------------
 
 // ------- Stream updater -------
 static inline void              v64GenStringAppend(v64Gen *gen, /*const char *restrict newbuf, */ long next_amount) {
@@ -435,7 +445,17 @@ static inline void              v64GenStringAppend(v64Gen *gen, /*const char *re
     if (gen->updater) {
         gen->updater(gen, /* newbuf, */ next_amount);
     } else
-        userraise(0, ERR_UNSUPPORTED_GENERATOR, "Only SOURCE generators support StringAppend");
+        userraise(0, ERR_UNSUPPORTED_GENERATOR, "Only sereval SOURCE generators support StringAppend");
+}
+
+// ------- Stream checker -------
+static inline long              v64GenGetRemaining(v64Gen *gen) {
+    invraisecode(gen != NULL, ERR_NULLABLE_PTR, "NUll gen");
+
+    if (gen->remaining) {
+        return gen->remaining(gen);
+    } else
+        return userraise(-1L, ERR_UNSUPPORTED_GENERATOR, "Only SOURCE generators support GetRemaining");
 }
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------

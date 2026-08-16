@@ -18,6 +18,25 @@ static bool                     v64GenStringUpdate(v64Gen *gen, /* const char *r
     return true;
 }
 
+/**
+ * @brief Returns the number of characters remaining in the source fs.
+ *
+ * Used only by generators that iterate over an fs (e.g., v64GenFSChar).
+ * data[0] holds a non-owning pointer to the source fs,
+ * data[1] holds the current read position as a long.
+ *
+ * @param gen  pointer to the generator
+ * @return     remaining characters (0 if exhausted or invalid)
+ */
+static long                     v64GenGetRemainingCount(v64Gen *gen)
+{
+    fs *src = (fs *)V64GENREGVAL0(gen).pval;
+    if (!src->v)
+        return 0L;
+
+    return fs_len(src) - V64GENREGVAL1(gen).lval;
+}
+
 // ------------------------- CONSTRUCTOTS/DESTRUCTORS -------------------------------
 
 v64Gen                          v64GenInit(v64GenFunc func, value64_type type, 
@@ -41,13 +60,30 @@ v64Gen                          v64GenInit(v64GenFunc func, value64_type type,
 // REGITRSY ALLOCATION:
 // data[0] STR as SOURCE (no ownership)
 // data[1] LONG as lim, if 0 - unlim (LONG_MAX actually)
-v64Gen                          v64GenCreatorSourceCstr(const char *src, long maxlen) {
+v64Gen                          v64GenCreatorSourceCstrChar(const char *src, long maxlen) {
+    invraisecode(src != NULL, ERR_NULLABLE_PTR, "NUll src c-str");
+
     if (maxlen <= 0)
         maxlen = LONG_MAX; // unlim
-    v64Gen gen =  v64GenInit2(v64GenString, VALUE64_CHR, 
+    v64Gen gen =  v64GenInit2(v64GenStringToChar, VALUE64_CHR, 
             v64typedCreateCstrSource(src), v64typedCreateLong(maxlen) );
     gen.updater = v64GenStringUpdate;        // setup updater
 
+    return gen;
+}
+
+// RETURNS: CHR
+// REGITRSY ALLOCATION:
+// data[0] FS as SOURCE (no ownership)
+// data[1] LONG as position
+v64Gen                          v64GenCreatorSourceFsChar(const fs *src) {
+    invraisecode(src != NULL, ERR_NULLABLE_PTR, "NUll src fs");
+
+    v64Gen gen =   v64GenInit2(v64GenFSToChar, VALUE64_CHR,
+                        v64typedCreateFsSource(src),
+                        v64typedCreateULong(0UL));
+
+    gen.remaining = v64GenGetRemainingCount;
     return gen;
 }
 
@@ -66,7 +102,7 @@ v64Gen                          v64GenCreatorSourceCstr(const char *src, long ma
 value64                         v64GenNext(v64Gen *gen)
 {
     /* The next-function is responsible for incrementing counter when required. */
-    gen->counter++;     // just for stats and LIMITS
+    gen->counter++;     // just for stats and LIMITS (not impl yet)
     return gen->fnext(gen);
 }
 
@@ -252,13 +288,13 @@ value64                         v64GenUnlimRandom(v64Gen *gen) {
     }
 }
 
-// ------------------------- Source generators (Ds or c-str or FILE *) ------------------------
+// ------------------------- Source generators (Ds or fs or c-str or FILE *) ------------------------
 
 // RETURNS: CHR
 // REGITRSY ALLOCATION:
 // data[0] STR as SOURCE (no ownership)
 // data[1] LONG as lim, if 0 - unlim (LONG_MAX actually)
-value64                         v64GenString(v64Gen *gen) {
+value64                         v64GenStringToChar(v64Gen *gen) {
     const char *str = (const char *)V64GENREGVAL0(gen).pval;
     if (!str || *str == '\0')
         return value64_createchar('\0');
@@ -276,10 +312,25 @@ value64                         v64GenString(v64Gen *gen) {
     return value64_createchar(*str);
 }
 
+// RETURNS: CHR
+// REGITRSY ALLOCATION:
+// data[0] – PTR to fs (non-owning)
+// data[1] – LONG current position
+value64                         v64GenFSToChar(v64Gen *gen)
+{
+    fs              *src = (fs *) V64GENREGVAL0(gen).pval;
+    unsigned long    pos = V64GENREGVAL1(gen).ulval;
+
+    if (!src->v || pos >= src->len)
+        return value64_createchar('\0');
+
+    V64GENREGVAL1(gen).lval = pos + 1;
+    return value64_createchar( fs_str(src)[pos] );
+}
+
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
 int                             v64Techfprint(FILE *restrict out, const v64Gen *restrict gen, const char *restrict name) {
-    // TODO:
     int cnt = 0;
     if (out) {
         IOCHECKER(w, fprintf(out, "V64GEN:%s [", name), -1)  // name cab be NULL
@@ -1777,9 +1828,9 @@ tf10_gen_string_source(const char *name)
     int subnum = 0;
 
     /* 1. Обычная строка "hello", безлимит (maxlen <= 0) */
-    test_sub("subtest %d: v64GenString basic 'hello' unlimited", ++subnum);
+    test_sub("subtest %d: v64GenStringToChar basic 'hello' unlimited", ++subnum);
     {
-        v64Gen gen = v64GenCreatorSourceCstr("hello", 0);
+        v64Gen gen = v64GenCreatorSourceCstrChar("hello", 0);
 
         const char expected[] = "hello";
         for (int i = 0; i < (int)strlen(expected); i++) {
@@ -1799,9 +1850,9 @@ tf10_gen_string_source(const char *name)
     }
 
     /* 2. Пустая строка */
-    test_sub("subtest %d: v64GenString empty string", ++subnum);
+    test_sub("subtest %d: v64GenStringToChar empty string", ++subnum);
     {
-        v64Gen gen = v64GenCreatorSourceCstr("", 0);
+        v64Gen gen = v64GenCreatorSourceCstrChar("", 0);
 
         value64 v = v64GenNext(&gen);
         test_validate(value64_char(v) == '\0',
@@ -1813,10 +1864,10 @@ tf10_gen_string_source(const char *name)
     }
 
     /* 3. Ограничение maxlen: строка "hello", maxlen=3 – только "hel" */
-    test_sub("subtest %d: v64GenString with maxlen=3", ++subnum);
+    test_sub("subtest %d: v64GenStringToChar with maxlen=3", ++subnum);
     {
         int     cnt = 3;
-        v64Gen  gen = v64GenCreatorSourceCstr("hello", cnt);
+        v64Gen  gen = v64GenCreatorSourceCstrChar("hello", cnt);
 
         for (int i = 0; i < cnt; i++) {
             value64 v = v64GenNext(&gen);
@@ -1842,9 +1893,9 @@ tf10_gen_string_source(const char *name)
     }
 
     /* 4. maxlen больше длины строки: строка "abc", maxlen=10 */
-    test_sub("subtest %d: v64GenString maxlen > strlen", ++subnum);
+    test_sub("subtest %d: v64GenStringToChar maxlen > strlen", ++subnum);
     {
-        v64Gen gen = v64GenCreatorSourceCstr("abc", 10);
+        v64Gen gen = v64GenCreatorSourceCstrChar("abc", 10);
 
         for (int i = 0; i < 3; i++) {
             value64 v = v64GenNext(&gen);
@@ -1863,9 +1914,9 @@ tf10_gen_string_source(const char *name)
     }
 
     /* 5. NULL источник должен безопасно возвращать '\0' */
-    test_sub("subtest %d: v64GenString NULL source", ++subnum);
+    test_sub("subtest %d: v64GenStringToChar NULL source", ++subnum);
     {
-        v64Gen gen = v64GenCreatorSourceCstr(NULL, 0);
+        v64Gen gen = v64GenCreatorSourceCstrChar(NULL, 0);
 
         value64 v = v64GenNext(&gen);
         test_validate(value64_char(v) == '\0',
@@ -1877,10 +1928,10 @@ tf10_gen_string_source(const char *name)
     }
 
     /* 6. Проверка отсутствия утечек (многократные вызовы) */
-    test_sub("subtest %d: v64GenString no leaks (multiple reads)", ++subnum);
+    test_sub("subtest %d: v64GenStringToChar no leaks (multiple reads)", ++subnum);
     {
         const char  pt[] = "abcdefghij";
-        v64Gen gen = v64GenCreatorSourceCstr(pt, 0);
+        v64Gen gen = v64GenCreatorSourceCstrChar(pt, 0);
 
         for (int i = 0; i < 20; i++) {
             value64 v = v64GenNext(&gen);
@@ -1926,7 +1977,7 @@ tf11_gen_string_chunks(const char *name)
                 pt[chunk_len] = c;  // restore
             }
             // Генератор читает только эту порцию
-            v64Gen gen = v64GenCreatorSourceCstr(fs_str(&buf) + total_len, chunk_len);
+            v64Gen gen = v64GenCreatorSourceCstrChar(fs_str(&buf) + total_len, chunk_len);
 
             for (int j = 0; j < chunk_len; j++) {
                 value64 v = v64GenNext(&gen);
@@ -1970,13 +2021,13 @@ tf12_gen_string_append(const char *name)
 
     test_sub("subtest %d: append chunks to source generator", ++subnum);
     {
-        fs          buf = fsinit(10000); // to avoid realloc, realoc isn't suported by v64GenCreatorSourceCstr
+        fs          buf = fsinit(10000); // to avoid realloc, realoc isn't suported by v64GenCreatorSourceCstrChar
         int         total_len = 0;
         const int   iterations = 10;
         char        pt[] = "abcdefghijklmnopqrstuvwxyz";
 
         // Генератор создаём один раз, источник пустой
-        v64Gen gen = v64GenCreatorSourceCstr(buf.v, 0);
+        v64Gen gen = v64GenCreatorSourceCstrChar(buf.v, 0);
 
         srand(42);
 
