@@ -100,7 +100,7 @@ bool                        getconvstring_ds(Ds *restrict in, fs *restrict str, 
         if (removequot && skipped_first && c == '"') {
             // closing quote – end of token, do NOT store it
             elemend(iter);
-            return logsimpleret(true, "line %d [%.10s]", fs_len(str), fs_str(str));
+            return logsimpleret(true, "line %zu [%.10s]", fs_len(str), fs_str(str));
         }
 
         // ---------- escape sequences ----------
@@ -130,7 +130,7 @@ bool                        getconvstring_ds(Ds *restrict in, fs *restrict str, 
     if (c == EOF && fs_len(str) == 0)
         return logsimpleret(false, "EOF");
 
-    return logsimpleret(true, "line %d [%.30s]", fs_len(str), fs_str(str));
+    return logsimpleret(true, "line %zu [%.30s]", fs_len(str), fs_str(str));
 }
 
 // ------------------------------------ PUBLIC API ----------------------------------------
@@ -152,7 +152,7 @@ fs                      getword(fs str, bool lower, bool comments, bool get_newl
 
     if (!isalpha_u(c) ){
         elemend(iter);
-        return logret(str, "%c:%d - [%s]", c, str.len, str.v);
+        return logret(str, "%c:%zu - [%s]", c, fslen(str), str.v);
     }
     while ( (c = getch()) != EOF){
         if (!isalnum_u(c) ){
@@ -163,7 +163,7 @@ fs                      getword(fs str, bool lower, bool comments, bool get_newl
     }
     elemend(iter);
 
-    return logret(str, "%d - [%s]", str.len, str.v); // that is probably new str
+    return logret(str, "%zu - [%s]", fslen(str), str.v); // that is probably new str
 }
 // not using buffer.c, VERY simple, empty line is OK, just "" empty fs
 bool                    getpurestring(FILE *restrict in, fs *restrict str){
@@ -177,7 +177,7 @@ bool                    getpurestring(FILE *restrict in, fs *restrict str){
     if (c == EOF && fs_len(str) == 0)   // no data at all
         return logsimpleret(false, "EOF");
     else
-        return logsimpleret(true, "line %d [%10s]", fs_len(str), fs_str(str) );
+        return logsimpleret(true, "line %zu [%10s]", fs_len(str), fs_str(str) );
 }
 
 
