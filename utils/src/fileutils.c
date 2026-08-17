@@ -1,5 +1,8 @@
 #include <sys/errno.h>
 #include <stdarg.h>
+#include <sys/stat.h>
+#include <unistd.h>
+// #include <errno.h>
 
 #include "log.h"
 #include "common.h"
@@ -324,6 +327,31 @@ int                             fstrict_scanf(FILE * restrict in, const char *re
     }
     va_end(ap);
     return logret(cnt, "Parsed %d", cnt);
+}
+/**
+ * @brief Retrieve the size of a regular file from a FILE* stream.
+ *
+ * The file position is not changed. The function works only for regular
+ * files; for pipes, sockets, devices, or on error, -1 is returned.
+ *
+ * @param file  Open file stream (may be NULL)
+ * @return      File size in bytes as off_t, or -1 if:
+ *              - file is NULL
+ *              - fstat() fails
+ *              - the descriptor is not a regular file
+ */
+off_t                               getfilesize(FILE *file) {
+    if (!file)
+        return -1;
+
+    struct stat st;
+    if (fstat(fileno(file), &st) != 0)
+        return -1;
+
+    if (!S_ISREG(st.st_mode))
+        return -1;   // FIFO, pipe, socket, device — размер неизвестен
+
+    return st.st_size;
 }
 
 // -------------------------------Testing --------------------------
@@ -807,7 +835,7 @@ tf7(const char *name)
 
 // ------------------------- TEST tf_fread_pattern_printf ---------------------------------
 static TestStatus
-tf_fread_pattern_printf(const char *name)
+tf8_fread_pattern_printf(const char *name)
 {
     logenter("%s", name);
     int subnum = 0;
@@ -920,6 +948,44 @@ tf_fread_pattern_printf(const char *name)
 
     return logret(TEST_PASSED, "done");
 }
+// ------------------------- TEST getfilesize test ---------------------------------
+static TestStatus
+tf9_getfilesize(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: regular file size", ++subnum);
+    {
+        FILE       *fp = tmpfile();
+        test_validatefree(fp != NULL, fclose(fp), "tmpfile failed");
+
+        off_t       size = getfilesize(fp);
+        test_validatefree(size == 0L,
+                          fclose(fp),
+                          "expected %zu, got %lld", 0UL, size
+        );
+
+        const char *data = "hello, world";
+        fwrite(data, 1, strlen(data), fp);
+        fflush(fp);
+
+        size = getfilesize(fp);
+        test_validatefree(size == (off_t) strlen(data),
+                          fclose(fp),
+                          "expected %zu, got %lld", strlen(data), size
+        );
+        fclose(fp);
+    }
+
+    test_sub("subtest %d: NULL pointer", ++subnum);
+    {
+        test_validate(getfilesize(NULL) == -1,
+                      "NULL must return -1");
+    }
+
+    return TEST_PASSED;
+}
 
 // -------------------------------------------------------------------
 int
@@ -927,24 +993,19 @@ main( /*int argc, const char *argv[] */ )
 {
     logsimpleinit("Start");
 
-    /* const char *logfilename = "log/fileutils.log";
-    if (argc > 1)
-        logfilename = argv[1];
-    loginit(logfilename, false, 0, "Starting"); */
-
     testenginestd(
-        testnew(.f2 = tf1,                      .num = 1, .name = "Getline_fs() simple test",                .desc = "", .mandatory=true)
-      , testnew(.f2 = tf2,                      .num = 2, .name = "Readfs_file() simple test",               .desc = "", .mandatory=true)
-      , testnew(.f2 = tf3,                      .num = 3, .name = "Realline/writeline simple test",          .desc = "", .mandatory=true)
-      , testnew(.f2 = tf4,                      .num = 4, .name = "Fprint_file test",                        .desc = "", .mandatory=true)
-      , testnew(.f2 = tf5,                      .num = 5, .name = "fread_pattern test",                      .desc = "", .mandatory=true)
-      , testnew(.f2 = tf6,                      .num = 6, .name = "strict_scanf() test",                     .desc = "", .mandatory=true)
-      , testnew(.f2 = tf7,                      .num = 7, .name = "(f)getslim_fs simple test",               .desc = "", .mandatory=true)
-      , testnew(.f2 = tf_fread_pattern_printf,  .num = 8, .name = "fread_pattern_printf simple test",        .desc = "", .mandatory=true)
+          TESTADD(tf1,                       "Getline_fs() simple test")
+        , TESTADD(tf2,                       "Readfs_file() simple test")
+        , TESTADD(tf3,                       "Realline/writeline simple test")
+        , TESTADD(tf4,                       "Fprint_file test")
+        , TESTADD(tf5,                       "fread_pattern test")
+        , TESTADD(tf6,                       "strict_scanf() test")
+        , TESTADD(tf7,                       "(f)getslim_fs simple test")
+        , TESTADD(tf8_fread_pattern_printf, "fread_pattern_printf simple test")
+        , TESTADD(tf9_getfilesize,          "getfilesize simple test")
     );
 
-    logclose("end...");
-    return 0;
+    return logret(0, "end..."); 
 }
 
 #endif /* FILEUTILSTESTING */

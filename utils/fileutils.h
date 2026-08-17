@@ -13,7 +13,7 @@
 // ---------------------- API ----------------------------------------
 
 // --------------- fs based API ---------------------------
-extern int                      fgetline_cmn_fs(FILE *restrict in, fs *restrict s, bool newline);
+extern int                     fgetline_cmn_fs(FILE *restrict in, fs *restrict s, bool newline);
 
 // line without last '\n'
 static inline int              fgetslim_fs(FILE *restrict in, fs *restrict s){
@@ -101,5 +101,7 @@ extern bool                     fread_pattern_printf(FILE *restrict f, const cha
 // universal strict scanf, current versio for int, double, long, char *.
 extern int                      fstrict_scanf(FILE * restrict f, const char *restrict fmt, ...) __attribute__ ( (format (scanf, 2, 3) ) );
 #define                         strict_scanf(fmt, ...) fstrict_scanf(stdin, (fmt), ##__VA_ARGS__);
+
+extern off_t                    getfilesize(FILE *file);
 
 #endif /* ! _FILEUTILS_H */
