@@ -9666,6 +9666,116 @@ tf_str_serialization(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST VALUE64_FILE tests -------------------------
+static TestStatus
+tf24_file(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. create FILE and getter */
+    test_sub("subtest %d: FILE create and getter", ++subnum);
+    {
+        FILE *f = tmpfile();
+        test_validatefree(f != NULL, fclose(f), "tmpfile failed");
+
+        value64 v = value64_createFILE(f);
+        test_validatefree(
+            value64_FILE(v) == f,
+            fclose(f),
+            "FILE getter mismatch"
+        );
+        fclose(f);   // файл закрыт вручную
+    }
+
+    /* 2. move constructor for FILE */
+    test_sub("subtest %d: FILE move constructor", ++subnum);
+    {
+        FILE *f = tmpfile();
+        test_validatefree(f != NULL, fclose(f), "tmpfile failed");
+
+        value64 v = value64_createFILE(f);
+        value64 moved = value64_move(&v, VALUE64_FILE);
+        test_validatefree(
+            value64_FILE(moved) == f,
+            fclose(f),
+            "move: target FILE mismatch"
+        );
+        test_validatefree(
+            v.FILEval == NULL,
+            fclose(f),
+            "move: source FILE must be cleared"
+        );
+        fclose(f);
+    }
+
+    /* 3. moveto FILE */
+    test_sub("subtest %d: FILE moveto", ++subnum);
+    {
+        FILE *f = tmpfile();
+        test_validatefree(f != NULL, fclose(f), "tmpfile failed");
+
+        value64 src = value64_createFILE(f);
+        value64 dst = LITERAL64_ZERO;
+        value64 *res = value64_moveto_FILE(&dst, &src);
+        test_validatefree(
+            res == &dst,
+            fclose(f),
+            "moveto should return target ptr"
+        );
+        test_validatefree(
+            value64_FILE(dst) == f,
+            fclose(f),
+            "moveto: target FILE mismatch"
+        );
+        test_validatefree(
+            src.FILEval == NULL,
+            fclose(f),
+            "moveto: source FILE must be cleared"
+        );
+        fclose(f);
+    }
+
+    /* 4. clone FILE must raise error */
+    test_sub("subtest %d: FILE clone must raise", ++subnum);
+    {
+        FILE *f = tmpfile();
+        test_validatefree(f != NULL, fclose(f), "tmpfile failed");
+
+        value64 v = value64_createFILE(f);
+        if (!try()) {
+            value64 cloned = value64_clone(v, VALUE64_FILE);
+            // clone должен падать, сюда не должны попасть
+            test_validatefree(
+                false,
+                (value64_free(&cloned, VALUE64_FILE), fclose(f)),
+                "clone FILE must raise error"
+            );
+        } else {
+            test_validatefree(true, fclose(f), "clone FILE correctly raised error");
+        }
+        fclose(f);
+    }
+
+    /* 5. lhash for FILE smoke test */
+    test_sub("subtest %d: FILE hash smoke", ++subnum);
+    {
+        FILE *f = tmpfile();
+        test_validatefree(f != NULL, fclose(f), "tmpfile failed");
+
+        value64 v = value64_createFILE(f);
+        unsigned long h = value64_lhash(v, VALUE64_FILE);
+        test_validatefree(
+            h == hash_long((uint64_t)f),
+            fclose(f),
+            "hash should match hash_long(ptr)"
+        );
+        fclose(f);
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(/* int argc, const char *argv[] */)
@@ -9695,7 +9805,8 @@ main(/* int argc, const char *argv[] */)
         TESTADD(tf_setzero,             "Simple value64_setzero test"),
         TESTADD(tf_value64_move,        "Simple value64_move() test"),
         TESTADD(tf_techfprint,          "Simple value64_techfprint() manual test"),
-        TESTADD(tf_str_serialization,   "Simple serialization (tostr/loadstr) test")
+        TESTADD(tf_str_serialization,   "Simple serialization (tostr/loadstr) test"),
+        TESTADD(tf24_file,              "Simple VALUE64_FILE tests")
     );
 
     return logret(0, "end...");  // as replace of logclose()
