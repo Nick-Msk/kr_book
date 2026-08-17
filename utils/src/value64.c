@@ -7,7 +7,7 @@
 
 // -------------------------- TYPE SUPPORT API ------------------------
 
-// Вся информация о типах в одном месте!
+// All infos related to the types!
 static const value64_typeinfo           value64_info[] = {
     [VALUE64_UNKNOWN]    = {"INVALID",     0,                       false    , "VALUE64_UNKNOWN"},
     [VALUE64_INT]        = {"INT",         sizeof(int),             true     , "VALUE64_INT"},
@@ -1578,6 +1578,21 @@ int                         value64_fprint_FILE(FILE *restrict out, value64 val)
 }
 /** @} */
 
+typedef int                                 (*value64_formatter_fn)(FILE *restrict, value64);
+
+static const value64_formatter_fn           value64_formatters[] = {
+    [VALUE64_INT]   = value64_fprint_int,
+    [VALUE64_LONG]  = value64_fprint_long,
+    [VALUE64_ULONG] = value64_fprint_ulong,
+    [VALUE64_DBL]   = value64_fprint_dbl,
+    [VALUE64_PTR]   = value64_fprint_ptr,
+    [VALUE64_CHR]   = value64_fprint_char,
+    [VALUE64_BOOL]  = value64_fprint_bool,
+    [VALUE64_STR]   = value64_fprint_str,
+    [VALUE64_FS]    = value64_fprint_fs,
+    [VALUE64_FILE]  = value64_fprint_FILE,
+};
+
 /**
  * @name Generic Formatter
  * @brief High-level formatting function with message support and error handling.
@@ -1597,57 +1612,21 @@ int                         value64_fprint_FILE(FILE *restrict out, value64 val)
  */
 int                         value64_fprint_msg(FILE *restrict out, const char *restrict msg, value64 val, value64_type typ){
     int     cnt = 0;
-    if (out){
-        if (msg) {   // TODO: remove that as not very usefull
+    if (!out)
+        return 0;
+
+    if (typ >= 0 && typ < VALUE64_TYPE_COUNT && value64_formatters[typ]) {
+        if (msg) {
             IOCHECKER(w, fprintf(out, "%s ", msg), -1)
-                cnt += w;
+               cnt += w;
         }
-        switch (typ){   // TODO: refactor here via table!!!
-            case VALUE64_INT:
-                IOCHECKER(w, value64_fprint_int(out, val), -1)
-                    cnt += w;
-                break;
-            case VALUE64_LONG:
-                IOCHECKER(w, value64_fprint_long(out, val), -1)
-                    cnt += w;
-                break;
-            case VALUE64_ULONG:
-                IOCHECKER(w, value64_fprint_ulong(out, val), -1)
-                    cnt += w;
-                break;
-            case VALUE64_DBL:
-                IOCHECKER(w, value64_fprint_dbl(out, val), -1)
-                    cnt += w;
-                break;
-            case VALUE64_PTR:
-                IOCHECKER(w, value64_fprint_ptr(out, val), -1)
-                    cnt += w;
-                break;
-            case VALUE64_CHR:
-                IOCHECKER(w, value64_fprint_char(out, val), -1)
-                    cnt += w;
-                break;
-            case VALUE64_BOOL:
-                IOCHECKER(w, value64_fprint_bool(out, val), -1)
-                    cnt += w;
-                break;
-            case VALUE64_STR:
-                IOCHECKER(w, value64_fprint_str(out, val), -1)
-                    cnt += w;
-                break;
-            case VALUE64_FS:
-                IOCHECKER(w, value64_fprint_fs(out, val), -1)
-                    cnt += w;
-                break;
-            case VALUE64_FILE:
-                IOCHECKER(w, value64_fprint_FILE(out, val), -1)
-                    cnt += w;
-                break;
-            default:
-                fprintf(out, "Unsupported %d!\n", typ);
-                return userraise(-1, ERR_UNSUPPORTED_TYPE, "Unsupported %d!\n", typ);
-        }
+        IOCHECKER(w, value64_formatters[typ](out, val), -1)
+            cnt += w;
+    } else {
+        fprintf(out, "Unsupported %d!\n", typ);
+        return userraise(-1, ERR_UNSUPPORTED_TYPE, "Unsupported %d!\n", typ);
     }
+
     return cnt;
 }
 
