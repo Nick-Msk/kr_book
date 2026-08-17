@@ -362,7 +362,7 @@ value64                         v64GenFSToChar(v64Gen *gen){
     if (!src->v || pos >= src->len)
         return value64_createchar('\0');
 
-    V64GENREGVAL1(gen).lval = pos + 1;
+    V64GENREGVAL1(gen).ulval = pos + 1;
     return value64_createchar( fs_str(src)[pos] );
 }
 
