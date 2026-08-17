@@ -1582,21 +1582,21 @@ typedef int                                 (*value64_formatter_fn)(FILE *restri
 typedef bool                                (*value64_fs_reader_fn)(value64 *restrict, fs *restrict);
 // TODO: need to be refactored to use Ds as common source!
 typedef struct {
-    value64_formatter_fn        file_reader;        // write TYPE from FILE *
+    value64_formatter_fn        file_writer;        // write TYPE from FILE *
     value64_fs_reader_fn        fs_reader;          // read TYPE from fs
 } value64_IO;
 
 static const value64_IO                     value64_io_adapters[] = {
-    [VALUE64_INT]   = { .file_reader = value64_fprint_int,      .fs_reader = value64_sreadval_int },
-    [VALUE64_LONG]  = { .file_reader = value64_fprint_long,     .fs_reader = value64_sreadval_long },
-    [VALUE64_ULONG] = { .file_reader = value64_fprint_ulong,    .fs_reader = value64_sreadval_ulong },
-    [VALUE64_DBL]   = { .file_reader = value64_fprint_dbl,      .fs_reader = value64_sreadval_dbl },
-    [VALUE64_PTR]   = { .file_reader = value64_fprint_ptr,      .fs_reader = NULL },
-    [VALUE64_CHR]   = { .file_reader = value64_fprint_char,     .fs_reader = value64_sreadval_char },
-    [VALUE64_BOOL]  = { .file_reader = value64_fprint_bool,     .fs_reader = value64_sreadval_bool },
-    [VALUE64_STR]   = { .file_reader = value64_fprint_str,      .fs_reader = value64_sreadval_str },
-    [VALUE64_FS]    = { .file_reader = value64_fprint_fs,       .fs_reader = value64_sreadval_fs},
-    [VALUE64_FILE]  = { .file_reader = value64_fprint_FILE,     .fs_reader = NULL }
+    [VALUE64_INT]   = { .file_writer = value64_fprint_int,      .fs_reader = value64_sreadval_int },
+    [VALUE64_LONG]  = { .file_writer = value64_fprint_long,     .fs_reader = value64_sreadval_long },
+    [VALUE64_ULONG] = { .file_writer = value64_fprint_ulong,    .fs_reader = value64_sreadval_ulong },
+    [VALUE64_DBL]   = { .file_writer = value64_fprint_dbl,      .fs_reader = value64_sreadval_dbl },
+    [VALUE64_PTR]   = { .file_writer = value64_fprint_ptr,      .fs_reader = NULL },
+    [VALUE64_CHR]   = { .file_writer = value64_fprint_char,     .fs_reader = value64_sreadval_char },
+    [VALUE64_BOOL]  = { .file_writer = value64_fprint_bool,     .fs_reader = value64_sreadval_bool },
+    [VALUE64_STR]   = { .file_writer = value64_fprint_str,      .fs_reader = value64_sreadval_str },
+    [VALUE64_FS]    = { .file_writer = value64_fprint_fs,       .fs_reader = value64_sreadval_fs},
+    [VALUE64_FILE]  = { .file_writer = value64_fprint_FILE,     .fs_reader = NULL }
 };
 
 /**
@@ -1621,12 +1621,12 @@ int                         value64_fprint_msg(FILE *restrict out, const char *r
     if (!out)
         return 0;
 
-    if (typ >= 0 && typ < VALUE64_TYPE_COUNT && value64_io_adapters[typ].file_reader) {
+    if (typ >= 0 && typ < VALUE64_TYPE_COUNT && value64_io_adapters[typ].file_writer) {
         if (msg) {
             IOCHECKER(w, fprintf(out, "%s ", msg), -1)
                cnt += w;
         }
-        IOCHECKER(w, value64_io_adapters[typ].file_reader(out, val), -1)
+        IOCHECKER(w, value64_io_adapters[typ].file_writer(out, val), -1)
             cnt += w;
     } else {
         fprintf(out, "Unsupported %d!\n", typ);
@@ -1651,8 +1651,8 @@ int                        value64_techfprint(FILE *restrict out, value64 val, v
     IOCHECKER(w, fprintf(out, "VALUE64:%s [", name ? name : "NULL"), -1)
         cnt += w;
 
-    if (typ >= 0 && typ < VALUE64_TYPE_COUNT && value64_io_adapters[typ].file_reader) {
-        IOCHECKER(w, value64_io_adapters[typ].file_reader(out, val), -1)
+    if (typ >= 0 && typ < VALUE64_TYPE_COUNT && value64_io_adapters[typ].file_writer) {
+        IOCHECKER(w, value64_io_adapters[typ].file_writer(out, val), -1)
             cnt += w;
     } else {
         IOCHECKER(w, fprintf(out, "Unsupported TYPE %d!", typ), -1)
@@ -1912,7 +1912,7 @@ bool                            value64_dsreadval(Ds *restrict ds, value64_type 
     if (!getconvstring_ds(ds, buf, true) )
         return userraise(false, ERR_WRONG_INPUT_FORMAT, "EOF or wrong format");
     
-    if (typ >= 0 && typ < VALUE64_TYPE_COUNT && value64_io_adapters[typ].file_reader)
+    if (typ >= 0 && typ < VALUE64_TYPE_COUNT && value64_io_adapters[typ].file_writer)
         return value64_io_adapters[typ].fs_reader(val, buf);
     else
         return userraise(false, ERR_UNSUPPORTED_TYPE, "Reading of %d/%s isn't supported", typ, value64_typename(typ) );
