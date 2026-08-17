@@ -1088,9 +1088,9 @@ static inline int                   value64_techprint(value64 val, value64_type 
 #define VALUE64_TECHFPRINT(out, val, typ)   value64_techfprint( (out), (val), (typ), #val)
 #define VALUE64_TECHPRINT(val, typ)         value64_techprint((val), (typ), #val)
 
-// typed
+// Write adapters, into FILE *  => NEED TO BE REFACTORE TO USE Ds (???)
 extern int                          value64_fprint_int  (FILE *out, value64 val);
-extern int                          value64_fprint_lng  (FILE *out, value64 val);
+extern int                          value64_fprint_long  (FILE *out, value64 val);
 extern int                          value64_fprint_ulong(FILE *out, value64 val);
 extern int                          value64_fprint_char (FILE *out, value64 val);
 extern int                          value64_fprint_bool (FILE *out, value64 val);
@@ -1103,22 +1103,12 @@ extern int                          value64_fprint_FILE (FILE *out, value64 val)
 
 // --------------------------------- SERIALIZATION ----------------------------------
 
-// file readers
-// f must be open for read, fs must be initialized, val can be NULL, it means just check
-// value64_freadval call value64_sreadval_<type>
-/* extern bool                         value64_readval_int(FILE *restrict f, value64 *restrict val, fs *restrict buf);
-extern bool                         value64_readval_lng(FILE *restrict f, value64 *restrict val, fs *restrict buf);
-extern bool                         value64_readval_char(FILE *restrict f, value64 *restrict val, fs *restrict buf);
-extern bool                         value64_readval_bool(FILE *restrict f, value64 *restrict val, fs *restrict buf);
-extern bool                         value64_readval_dbl(FILE *restrict f, value64 *restrict val, fs *restrict buf);
-extern bool                         value64_readval_fs(FILE *restrict f, value64 *restrict val, fs *restrict buf);
-extern bool                         value64_readval_str(FILE *restrict f, value64 *restrict val, fs *restrict buf);
-*/
-
 // string readers!
 // fs must be initialized, val can be NULL, it means just check
+// Read adapteds (from fs) => NEED TO BE REFACTORE TO USE Ds
+
 extern bool                         value64_sreadval_int(value64 *restrict val, fs *restrict buf);
-extern bool                         value64_sreadval_lng(value64 *restrict val, fs *restrict buf);
+extern bool                         value64_sreadval_long(value64 *restrict val, fs *restrict buf);
 extern bool                         value64_sreadval_ulong(value64 *restrict val, fs *restrict buf);
 extern bool                         value64_sreadval_char(value64 *restrict val, fs *restrict buf);
 extern bool                         value64_sreadval_bool(value64 *restrict val, fs *restrict buf);
