@@ -200,6 +200,17 @@ test/v64typed_test: src/v64typed.c lib/log.o lib/test.o lib/error.o lib/common.o
 	lib/getword.o lib/buffer.o lib/numeric_ops.o lib/common.o lib/ds.o lib/value64.o | lib/v64typed.o
 	$(CC) $(CFLAGS) -DV64TYPED_TESTING $^ -o $@ $(LDLIBS)
 
+CFLAGS_LEAK := $(filter-out -fsanitize=address -MD -MP,$(CFLAGS))
+
+forceleak_%:
+	$(MAKE) clean
+	$(MAKE) test/$*_test CFLAGS="$(CFLAGS_LEAK)"
+	MallocStackLogging=1 leaks --atExit -- ./test/$*_test
+
+leak_%:
+	$(MAKE) -B test/$*_test CFLAGS="$(CFLAGS_LEAK)"
+	MallocStackLogging=1 leaks --atExit -- ./test/$*_test
+
 UTIL_OBJS = lib/log.o lib/test.o lib/error.o lib/common.o lib/checker.o \
 	lib/fs.o lib/fileutils.o lib/getword.o lib/buffer.o \
 	lib/fs_iter.o lib/fs_array.o lib/command_executor.o \
