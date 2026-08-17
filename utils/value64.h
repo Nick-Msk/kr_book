@@ -1211,11 +1211,12 @@ extern int                          value64_tostr(fs *target, value64 val, value
 
 // type to string
 extern int                          value64_tostr_int(fs *target, value64 val);
-extern int                          value64_tostr_lng(fs *target, value64 val);
+extern int                          value64_tostr_long(fs *target, value64 val);
 extern int                          value64_tostr_ulong(fs *target, value64 val);
 extern int                          value64_tostr_dbl(fs *target, value64 val);
 extern int                          value64_tostr_char(fs *target, value64 val);
 extern int                          value64_tostr_bool(fs *target, value64 val);
+extern int                          value64_tostr_ptr(fs *target, value64 val);
 //  memory-alloc types
 extern int                          value64_tostr_fs(fs *target, value64 val);
 extern int                          value64_tostr_str(fs *target, value64 val);

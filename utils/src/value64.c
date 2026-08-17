@@ -1580,23 +1580,26 @@ int                         value64_fprint_FILE(FILE *restrict out, value64 val)
 
 typedef int                                 (*value64_formatter_fn)(FILE *restrict, value64);
 typedef bool                                (*value64_fs_reader_fn)(value64 *restrict, fs *restrict);
+typedef int                                 (*value64_fs_writer_fn)(fs *restrict, value64);
 // TODO: need to be refactored to use Ds as common source!
 typedef struct {
     value64_formatter_fn        file_writer;        // write TYPE from FILE *
+    value64_fs_writer_fn        fs_writer;     // write TYPE to fs*
     value64_fs_reader_fn        fs_reader;          // read TYPE from fs
 } value64_IO;
 
+
 static const value64_IO                     value64_io_adapters[] = {
-    [VALUE64_INT]   = { .file_writer = value64_fprint_int,      .fs_reader = value64_sreadval_int },
-    [VALUE64_LONG]  = { .file_writer = value64_fprint_long,     .fs_reader = value64_sreadval_long },
-    [VALUE64_ULONG] = { .file_writer = value64_fprint_ulong,    .fs_reader = value64_sreadval_ulong },
-    [VALUE64_DBL]   = { .file_writer = value64_fprint_dbl,      .fs_reader = value64_sreadval_dbl },
-    [VALUE64_PTR]   = { .file_writer = value64_fprint_ptr,      .fs_reader = NULL },
-    [VALUE64_CHR]   = { .file_writer = value64_fprint_char,     .fs_reader = value64_sreadval_char },
-    [VALUE64_BOOL]  = { .file_writer = value64_fprint_bool,     .fs_reader = value64_sreadval_bool },
-    [VALUE64_STR]   = { .file_writer = value64_fprint_str,      .fs_reader = value64_sreadval_str },
-    [VALUE64_FS]    = { .file_writer = value64_fprint_fs,       .fs_reader = value64_sreadval_fs},
-    [VALUE64_FILE]  = { .file_writer = value64_fprint_FILE,     .fs_reader = NULL }
+    [VALUE64_INT]   = { .file_writer = value64_fprint_int,      .fs_writer = value64_tostr_int,      .fs_reader = value64_sreadval_int },
+    [VALUE64_LONG]  = { .file_writer = value64_fprint_long,     .fs_writer = value64_tostr_long,     .fs_reader = value64_sreadval_long },
+    [VALUE64_ULONG] = { .file_writer = value64_fprint_ulong,    .fs_writer = value64_tostr_ulong,    .fs_reader = value64_sreadval_ulong },
+    [VALUE64_DBL]   = { .file_writer = value64_fprint_dbl,      .fs_writer = value64_tostr_dbl,      .fs_reader = value64_sreadval_dbl },
+    [VALUE64_PTR]   = { .file_writer = value64_fprint_ptr,      .fs_writer = value64_tostr_ptr,      .fs_reader = NULL },
+    [VALUE64_CHR]   = { .file_writer = value64_fprint_char,     .fs_writer = value64_tostr_char,     .fs_reader = value64_sreadval_char },
+    [VALUE64_BOOL]  = { .file_writer = value64_fprint_bool,     .fs_writer = value64_tostr_bool,     .fs_reader = value64_sreadval_bool },
+    [VALUE64_STR]   = { .file_writer = value64_fprint_str,      .fs_writer = value64_tostr_str,      .fs_reader = value64_sreadval_str },
+    [VALUE64_FS]    = { .file_writer = value64_fprint_fs,       .fs_writer = value64_tostr_fs,       .fs_reader = value64_sreadval_fs},
+    [VALUE64_FILE]  = { .file_writer = value64_fprint_FILE,     .fs_writer = NULL,                   .fs_reader = NULL }
 };
 
 /**
@@ -2005,7 +2008,7 @@ static value64_type             value64_parse_header(Ds *pds, bool loadtypeinfo,
 int                         value64_loadds(Ds *restrict pds, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf) {
     invraisecode(pds != NULL, ERR_NULLABLE_PTR,
         "Null pointers %p", pds);
-    // TODO: refactor that, table func must be here!
+
     int             currpos = dsIsstr(pds) ? pds->pos : 0;
     value64_type    newtyp = value64_parse_header(pds, loadtypeinfo, typ);
     if (newtyp == VALUE64_UNKNOWN)
@@ -2129,6 +2132,7 @@ int                         value64_tostr_char(fs *target, value64 val) {
 int                         value64_tostr_bool(fs *target, value64 val) {
     return fs_sprintf_concat(target, "\"%s\"", bool_str(value64_bool(val)) );
 }
+
 /** @} */
 
 // to string : fs MUST be initialized
@@ -2164,52 +2168,20 @@ int                          value64_tostr(fs *target, value64 val, value64_type
         "Not heap allocated or null %p %d", target, target ? target->flags : -1);
     
     int     cnt = 0;
+
     if (savetypeinfo)
         IOCHECKER(w, fs_sprintf_concat(target, "VALUE64(%s):", value64_typename(typ)), -1)
             cnt += w;
     else 
         IOCHECKER(w, fs_sprintf_concat(target, "VALUE64:"), -1)
             cnt += w;
-    switch (typ) {
-        case VALUE64_INT:
-            IOCHECKER(w, value64_tostr_int(target, val), -1)
-                cnt += w;
-            break;
-        case VALUE64_LONG:
-            IOCHECKER(w, value64_tostr_long(target, val), -1)
-                cnt += w;
-            break;
-        case VALUE64_ULONG:
-            IOCHECKER(w, value64_tostr_ulong(target, val), -1)
-                cnt += w;
-            break;
-        case VALUE64_DBL:
-            IOCHECKER(w, value64_tostr_dbl(target, val), -1)
-                cnt += w;
-            break;
-        case VALUE64_PTR:
-            IOCHECKER(w, value64_tostr_ptr(target, val), -1)
-                cnt += w;
-            break;
-        case VALUE64_CHR:
-            IOCHECKER(w, value64_tostr_char(target, val), -1)
-                cnt += w;
-            break;
-        case VALUE64_BOOL:
-            IOCHECKER(w, value64_tostr_bool(target, val), -1)
-                cnt += w;
-            break;
-        case VALUE64_STR:
-            IOCHECKER(w, value64_tostr_str(target, val), -1)
-                cnt += w;
-            break;
-        case VALUE64_FS:
-            IOCHECKER(w, value64_tostr_fs(target, val), -1)
-                cnt += w;
-            break;
-        default: // FILE * here too
-            return userraise(-1, ERR_UNSUPPORTED_TYPE, "Type %d/%s isn't supported", typ, value64_typename(typ)); 
-    }
+
+    if (typ >= 0 && typ < VALUE64_TYPE_COUNT && value64_io_adapters[typ].fs_writer) {
+        IOCHECKER(w, value64_io_adapters[typ].fs_writer(target, val), -1)
+            cnt += w;
+    } else
+        return userraise(-1, ERR_UNSUPPORTED_TYPE, "Type %d/%s serialization isn't supported", typ, value64_typename(typ));
+
     return cnt;
 }
 
