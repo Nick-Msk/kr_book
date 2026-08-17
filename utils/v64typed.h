@@ -29,14 +29,16 @@ typedef struct {
 #define V64TYPEDZERO(...)   (v64typed) { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN, __VA_ARGS__ }
 
 // PER TYPE
-#define V64TYPEDINT(val)    (v64typed) { .val = LITERAL64_INT(val),  .typ = VALUE64_INT }
-#define V64TYPEDLONG(val)   (v64typed) { .val = LITERAL64_LONG(val), .typ = VALUE64_LONG }
+#define V64TYPEDINT(val)    (v64typed) { .val = LITERAL64_INT(val),   .typ = VALUE64_INT }
+#define V64TYPEDLONG(val)   (v64typed) { .val = LITERAL64_LONG(val),  .typ = VALUE64_LONG }
 #define V64TYPEDULONG(val)  (v64typed) { .val = LITERAL64_ULONG(val), .typ = VALUE64_ULONG }
-#define V64TYPEDCHAR(val)   (v64typed) { .val = LITERAL64_CHR(val), .typ = VALUE64_CHR }
-#define V64TYPEDBOOL(val)   (v64typed) { .val = LITERAL64_BOOL(val), .typ = VALUE64_BOOL }
-#define V64TYPEDDBL(val)    (v64typed) { .val = LITERAL64_DBL(val),  .typ = VALUE64_DBL }
-#define V64TYPEDPTR(val)    (v64typed) { .val = LITERAL64_PTR(val),  .typ = VALUE64_PTR }
-#define V64TYPEDSTR(val)    (v64typed) { .val = LITERAL64_STR(val),  .typ = VALUE64_STR }
+#define V64TYPEDCHAR(val)   (v64typed) { .val = LITERAL64_CHR(val),   .typ = VALUE64_CHR }
+#define V64TYPEDBOOL(val)   (v64typed) { .val = LITERAL64_BOOL(val),  .typ = VALUE64_BOOL }
+#define V64TYPEDDBL(val)    (v64typed) { .val = LITERAL64_DBL(val),   .typ = VALUE64_DBL }
+#define V64TYPEDPTR(val)    (v64typed) { .val = LITERAL64_PTR(val),   .typ = VALUE64_PTR }
+#define V64TYPEDSTR(val)    (v64typed) { .val = LITERAL64_STR(val),   .typ = VALUE64_STR }
+#define V64TYPEDFILE(val)   (v64typed) { .val = LITERAL64_FILE(val),  .typ = VALUE64_FILE }
+
 
 static inline v64typed              v64typedCreate(value64 val, value64_type typ) {
     return V64TYPEDZERO(.val = val, .typ = typ);
@@ -75,6 +77,9 @@ static inline v64typed              v64typedCreateFs(fs *s) {
 }
 static inline v64typed              v64typedCreateFsAsStr(const char *s) {
     return (v64typed){ .val = value64_createfs_asstr(s), .typ = VALUE64_FS };
+}
+static inline v64typed              v64typedCreateFILE(FILE *file) {
+    return (v64typed){ .val = LITERAL64_FILE(file), .typ = VALUE64_FILE };
 }
 static inline v64typed              v64typedCreateUnk(void) {
     return (v64typed){ .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN };
