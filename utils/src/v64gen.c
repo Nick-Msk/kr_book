@@ -2577,6 +2577,184 @@ tf16_gen_fs_bynewline_remaining(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST 17: v64GenFSToStrByNewline() simple test -------------------------
+static TestStatus
+tf17_gen_fs_tostr_bynewline(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: lines with empty and waiting (STR)", ++subnum);
+    {
+        const char *data = "abc\n\nqwertt";
+        fs buf = fscopy(data);
+        v64Gen gen = v64GenCreatorSourceFsToStrByNewline(&buf);
+
+        /* 1-я строка "abc" */
+        value64 v1 = v64GenNext(&gen);
+        test_validatefree(
+            value64_str(v1) != NULL && strcmp(value64_str(v1), "abc") == 0,
+            (value64_free(&v1, VALUE64_STR), v64GenFree(&gen), fsfree(buf)),
+            "first line mismatch"
+        );
+        value64_free(&v1, VALUE64_STR);
+
+        /* Остаток после первой строки: 7 */
+        unsigned long rem = v64GenGetRemaining(&gen);
+        test_validatefree(
+            rem == 7, 
+            (v64GenFree(&gen), fsfree(buf) ),
+            "after first line remaining expected 7, got %lu", rem
+        );
+
+        /* 2-я строка: пустая (из-за \n\n) */
+        value64 v2 = v64GenNext(&gen);
+        test_validatefree(
+            value64_str(v2) != NULL && strlen(value64_str(v2)) == 0,
+            (value64_free(&v2, VALUE64_STR), v64GenFree(&gen), fsfree(buf)),
+            "second line should be empty"
+        );
+        value64_free(&v2, VALUE64_STR);
+
+        rem = v64GenGetRemaining(&gen);
+        test_validatefree(
+            rem == 6, 
+            (v64GenFree(&gen), fsfree(buf) ),
+            "after second line remaining expected 6, got %lu", rem
+        );
+
+        /* 3-й вызов: данных нет, возвращается null STR */
+        value64 v3 = v64GenNext(&gen);
+        test_validatefree(
+            value64_str(v3) == NULL,
+            (value64_free(&v3, VALUE64_STR), v64GenFree(&gen), fsfree(buf)),
+            "third call should return null (waiting)"
+        );
+        value64_free(&v3, VALUE64_STR);   // при успехе освобождаем вручную
+
+        rem = v64GenGetRemaining(&gen);
+        test_validatefree(
+            rem == 6, 
+            (v64GenFree(&gen), fsfree(buf) ),
+            "after waiting remaining should still be 6, got %lu", rem
+        );
+
+        /* Финализация: остаток без '\n' */
+        value64 v_last = v64GenFinalize(&gen);
+        test_validatefree(
+            value64_str(v_last) != NULL && strcmp(value64_str(v_last), "qwertt") == 0,
+            (value64_free(&v_last, VALUE64_STR), v64GenFree(&gen), fsfree(buf)),
+            "final line mismatch"
+        );
+        value64_free(&v_last, VALUE64_STR);
+
+        rem = v64GenGetRemaining(&gen);
+        test_validatefree(
+            rem == 0, 
+            (v64GenFree(&gen), fsfree(buf) ),
+            "after finalize remaining expected 0, got %lu", rem
+        );
+
+        v64GenFree(&gen);
+        fsfree(buf);
+        fs_alloc_check(true);
+    }
+    
+    test_sub("subtest %d: streaming lines with growing fs and remaining checks", ++subnum);
+    {
+        fs buf = fsinit(4); // small initial to force realloc
+        v64Gen gen = v64GenCreatorSourceFsToStrByNewline(&buf);
+
+        // Initial remaining 0
+        test_validatefree(v64GenGetRemaining(&gen) == 0,
+                          (v64GenFree(&gen), fsfree(buf)),
+                          "initial remaining must be 0");
+
+        // 1. Append "line1\n" -> remaining 6, then read "line1"
+        fs_catstr(&buf, "line1\n");
+        test_validatefree(v64GenGetRemaining(&gen) == 6,
+                          (v64GenFree(&gen), fsfree(buf)),
+                          "after appending 'line1\\n' remaining must be 6");
+        value64 v1 = v64GenNext(&gen);
+        test_validatefree(v1.sval != NULL && strcmp(v1.sval, "line1") == 0,
+                          (value64_free(&v1, VALUE64_STR), v64GenFree(&gen), fsfree(buf)),
+                          "line1 mismatch");
+        value64_free(&v1, VALUE64_STR);
+        test_validatefree(v64GenGetRemaining(&gen) == 0,
+                          (v64GenFree(&gen), fsfree(buf)),
+                          "after reading line1 remaining must be 0");
+
+        // 2. Append "partial" (no newline)
+        fs_catstr(&buf, "partial");
+        test_validatefree(v64GenGetRemaining(&gen) == 7,
+                          (v64GenFree(&gen), fsfree(buf)),
+                          "after appending 'partial' remaining must be 7");
+        value64 v2 = v64GenNext(&gen);
+        test_validatefree(v2.sval == NULL,
+                          (value64_free(&v2, VALUE64_STR), v64GenFree(&gen), fsfree(buf)),
+                          "expected NULL (partial line)");
+        value64_free(&v2, VALUE64_STR);
+        test_validatefree(v64GenGetRemaining(&gen) == 7,
+                          (v64GenFree(&gen), fsfree(buf)),
+                          "after partial line remaining must still be 7");
+
+        // 3. Append newline -> complete partial
+        fs_catstr(&buf, "\n");
+        test_validatefree(v64GenGetRemaining(&gen) == 8,
+                          (v64GenFree(&gen), fsfree(buf)),
+                          "after appending newline remaining must be 8");
+        value64 v3 = v64GenNext(&gen);
+        test_validatefree(v3.sval != NULL && strcmp(v3.sval, "partial") == 0,
+                          (value64_free(&v3, VALUE64_STR), v64GenFree(&gen), fsfree(buf)),
+                          "partial line mismatch");
+        value64_free(&v3, VALUE64_STR);
+        test_validatefree(v64GenGetRemaining(&gen) == 0,
+                          (v64GenFree(&gen), fsfree(buf)),
+                          "after reading partial remaining must be 0");
+
+        // 4. Append "line2\n" and read
+        fs_catstr(&buf, "line2\n");
+        test_validatefree(v64GenGetRemaining(&gen) == 6,
+                          (v64GenFree(&gen), fsfree(buf)),
+                          "after appending line2 remaining must be 6");
+        value64 v4 = v64GenNext(&gen);
+        test_validatefree(v4.sval != NULL && strcmp(v4.sval, "line2") == 0,
+                          (value64_free(&v4, VALUE64_STR), v64GenFree(&gen), fsfree(buf)),
+                          "line2 mismatch");
+        value64_free(&v4, VALUE64_STR);
+        test_validatefree(v64GenGetRemaining(&gen) == 0,
+                          (v64GenFree(&gen), fsfree(buf)),
+                          "after reading line2 remaining must be 0");
+
+        // 5. Append "tail" (no newline) and finalize
+        fs_catstr(&buf, "tail");
+        test_validatefree(v64GenGetRemaining(&gen) == 4,
+                          (v64GenFree(&gen), fsfree(buf)),
+                          "after appending tail remaining must be 4");
+        value64 v5 = v64GenNext(&gen);
+        test_validatefree(v5.sval == NULL,
+                          (value64_free(&v5, VALUE64_STR), v64GenFree(&gen), fsfree(buf)),
+                          "expected NULL for tail without newline");
+        value64_free(&v5, VALUE64_STR);
+
+        value64 v_tail = v64GenFinalize(&gen);
+        test_validatefree(v_tail.sval != NULL && strcmp(v_tail.sval, "tail") == 0,
+                          (value64_free(&v_tail, VALUE64_STR), v64GenFree(&gen), fsfree(buf)),
+                          "tail mismatch");
+        value64_free(&v_tail, VALUE64_STR);
+
+        test_validatefree(v64GenGetRemaining(&gen) == 0,
+                          (v64GenFree(&gen), fsfree(buf)),
+                          "after finalize remaining must be 0");
+
+        v64GenFree(&gen);
+        fsfree(buf);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(/* int argc, const char *argv[] */)
@@ -2584,22 +2762,23 @@ main(/* int argc, const char *argv[] */)
     logsimpleinit("Start");
 
     testenginestd(
-        TESTADD(tf1_gen_init_free,           "Simple init and validate test")
-      , TESTADD(tf2_gen_next_zero,           "v64GenNext (zero) simple test")
-      , TESTADD(tf3_gen_asc_series,          "value64UncheckGenUnlimAscSeries() simple test")
-      , TESTADD(tf4_gen_creators,            "v64gen creators (simple wrappers) simple test")
-      , TESTADD(tf5_gen_asc_rnd,             "v64UncheckGenUnlimAscRnd() simple test")
-      , TESTADD(tf6_gen_asc_rnd_custom,      "AscRnd with custom rndinc simple test")
-      , TESTADD(tf7_gen_desc_series,         "v64UncheckGenUnlimDescSeries() simple test")
-      , TESTADD(tf8_gen_desc_rnd_custom,     "DescRnd with custom rndinc simple test")
-      , TESTADD(tf9_gen_unlim_random,        "v64GenCreatorUnlimRnd...() generators simple test")
-      , TESTADD(tf10_gen_string_source,      "Source C-string to char generator (LONG lim)")
-      , TESTADD(tf11_gen_string_chunks,      "Sequential chunks from growing fs test")
-      , TESTADD(tf12_gen_string_append,      "Append to source generator test")
-      , TESTADD(tf13_gen_fs_stream_simple,   "v64GenFSToChar()  simple test")
-      , TESTADD(tf14_gen_fs_bynewline,       "v64GenFSToFsByNewline()  simple test")
-      , TESTADD(tf15_gen_fs_remaining,       "v64GenGetRemainingCount with fs char generator")
+        TESTADD(tf1_gen_init_free,              "Simple init and validate test")
+      , TESTADD(tf2_gen_next_zero,              "v64GenNext (zero) simple test")
+      , TESTADD(tf3_gen_asc_series,             "value64UncheckGenUnlimAscSeries() simple test")
+      , TESTADD(tf4_gen_creators,               "v64gen creators (simple wrappers) simple test")
+      , TESTADD(tf5_gen_asc_rnd,                "v64UncheckGenUnlimAscRnd() simple test")
+      , TESTADD(tf6_gen_asc_rnd_custom,         "AscRnd with custom rndinc simple test")
+      , TESTADD(tf7_gen_desc_series,            "v64UncheckGenUnlimDescSeries() simple test")
+      , TESTADD(tf8_gen_desc_rnd_custom,        "DescRnd with custom rndinc simple test")
+      , TESTADD(tf9_gen_unlim_random,           "v64GenCreatorUnlimRnd...() generators simple test")
+      , TESTADD(tf10_gen_string_source,         "Source C-string to char generator (LONG lim)")
+      , TESTADD(tf11_gen_string_chunks,         "Sequential chunks from growing fs test")
+      , TESTADD(tf12_gen_string_append,         "Append to source generator test")
+      , TESTADD(tf13_gen_fs_stream_simple,      "v64GenFSToChar()  simple test")
+      , TESTADD(tf14_gen_fs_bynewline,          "v64GenFSToFsByNewline()  simple test")
+      , TESTADD(tf15_gen_fs_remaining,          "v64GenGetRemainingCount with fs char generator")
       , TESTADD(tf16_gen_fs_bynewline_remaining, "v64GenGetRemainingCount with FsToFsByNewlin")
+      , TESTADD(tf17_gen_fs_tostr_bynewline,    "v64GenFSToStrByNewline() simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
