@@ -49,6 +49,7 @@ typedef union value64 {
         char                cval;       /**< single char! For Array compatibility */ 
         bool                bval;       /**< single char! For conf file */
         fs                 *fsval;      /**< fs string */
+        FILE               *FILEval;    /**< FILE * - NO ANY ACTIONS for now, only storage the pointer! */
         void               *pval;       /**< Generic pointer representation */
         uint64_t            u64;        /**< Raw 64-bit representation (used for hashing) */
 } value64;
@@ -73,6 +74,7 @@ typedef enum value64_type {
     VALUE64_BOOL,
     VALUE64_FS = 0x10,  // for memory-alloc types
     VALUE64_STR,
+    VALUE64_FILE,
     VALUE64_TYPE_COUNT
 } value64_type;
 
@@ -271,6 +273,12 @@ extern value64                      value64_convert_str_to_fs(value64 v);
  * @param str The string to be wrapped.
  */
 #define                             LITERAL64_FS_STR(str) (value64) {.u64 = 0L, .fsval = &FSLITERAL(str) }
+/** 
+ * @brief Creates a value64 object representing a FILE *. 
+ * @param val A pointer to be stored in the object.
+ * @note No any action except saving the pointer
+ */
+#define                             LITERAL64_FILE(val)  (value64) {.u64 = 0L, .FILEval = val }
 
 /** @} */
 
@@ -386,6 +394,12 @@ static inline value64               value64_createptr(void *pval){
     tmp.pval = pval;
     return tmp;
 }
+/** @brief Creates a FILE *-typed value. */
+static inline value64               value64_createFILE(FILE *fileval){
+    value64 tmp = LITERAL64_ZERO;
+    tmp.FILEval = fileval;
+    return tmp;
+}
 
 // TODO: movestr?
 /**
@@ -424,8 +438,14 @@ static inline value64               value64_createfs(const fs *fsval){
  * @return A value64 object holding an FS resource containing the string.
  */
 static inline value64               value64_createfs_asstr(const char *str) {
+    if (!str)
+        return LITERAL64_FS( FS()); // null fs^ but with heap alloc
     value64 v = value64_createstr(str);
-    return value64_convert_str_to_fs(v);
+
+    // forward decl
+    extern value64                     value64_convert_move_str_to_fs(value64 *v);
+
+    return value64_convert_move_str_to_fs(&v);  //return value64_convert_str_to_fs(v);
 }
 
 /** @} */
@@ -462,6 +482,8 @@ static inline value64               value64_clone(value64 source, value64_type t
             return value64_createfs(source.fsval);
         case VALUE64_STR:
             return value64_createstr(source.sval);
+        case VALUE64_FILE:
+            userraiseint(ERR_UNSUPPORTED_TYPE, "VALUE64_FILE can't be cloned! Use FILE * specific API");
         default:
             return LITERAL64_ZERO;
     }
@@ -513,12 +535,15 @@ static inline void                  value64_free(value64 *v, value64_type typ){
     switch (typ){
         case VALUE64_STR:
             value64_freestr(v);
-        break;
+            break;
         case VALUE64_FS:
             value64_freefs(v);   // even if NULL
-        break;
+            break;
+        case VALUE64_FILE:
+            // NOTING TO DO!!! for close file use FILE * API
+            break;
         default:
-        break;
+            break;
     }
 }
 
@@ -600,18 +625,28 @@ static inline char                 *value64_str(value64 v){
 }
 /**
  * @brief Returns the pointer to the fs.
- * @return Pointer to the filesystem object.
+ * @return Pointer to the fs.
  */
 static inline fs                   *value64_fs(value64 v){
     return v.fsval;
 }
 /**
  * @brief Returns the pointer to the c-string in fs.
- * @return Pointer to the filesystem object.
+ * @return Pointer to the c-str.
  */
 static inline const char           *value64_fsstr(value64 v){
     return v.fsval->v;
 }
+/**
+ * @brief Returns the pointer to the FILE *
+ * @return Pointer to the FILE object.
+ */
+static inline const FILE           *value64_FILE(value64 v){
+    return v.FILEval;
+}
+
+// ------------------------------------------------------------------------------------------------
+
 /// @brief  exchanger
 /// @param v1 pointer to first v64
 /// @param v2 pointer to second v64
@@ -668,6 +703,9 @@ static inline value64              *value64_moveto_str(value64 *restrict target,
 static inline value64              *value64_moveto_fs(value64 *restrict target, value64 *restrict source){
     return value64_moveto(target, source, VALUE64_FS);
 }
+static inline value64              *value64_moveto_FILE(value64 *restrict target, value64 *restrict source){
+    return value64_moveto(target, source, VALUE64_FILE);
+}
 
 extern unsigned long                value64_lhash(value64 value, value64_type typ);
 
@@ -677,7 +715,7 @@ extern void                         value64_exch(value64 *v1, value64 *v2);
 extern void                         value64_sort(value64_type typ, value64 *arr, int sz);
 extern void                         value64_revsort(value64_type typ, value64 *arr, int sz);
 
-// Сортировка по возрастанию для конкретных типов
+// Сортировка по возрастанию для конкретных типов, except VALUE64_FILE
 static inline void                  value64_sort_int(value64 *arr, int sz) {
     value64_sort(VALUE64_INT, arr, sz);
 }
@@ -703,7 +741,7 @@ static inline void                  value64_sort_fs(value64 *arr, int sz) {
     value64_sort(VALUE64_FS, arr, sz);
 }
 
-// Сортировка по убыванию для конкретных типов
+// Сортировка по убыванию для конкретных типов except VALUE64_FILE
 static inline void                  value64_revsort_int(value64 *arr, int sz) {
     value64_revsort(VALUE64_INT, arr, sz);
 }
@@ -1051,17 +1089,17 @@ static inline int                   value64_techprint(value64 val, value64_type 
 #define VALUE64_TECHPRINT(val, typ)         value64_techprint((val), (typ), #val)
 
 // typed
-extern int                          value64_fprint_int(FILE *restrict out, value64 val);
-extern int                          value64_fprint_lng(FILE *restrict out, value64 val);
-extern int                          value64_fprint_ulong(FILE *restrict out, value64 val);
-extern int                          value64_fprint_char(FILE *restrict out, value64 val);
-extern int                          value64_fprint_bool(FILE *restrict out, value64 val);
-extern int                          value64_fprint_dbl(FILE *restrict out, value64 val);
-extern int                          value64_fprint_ptr(FILE *restrict out, value64 val);
+extern int                          value64_fprint_int  (FILE *out, value64 val);
+extern int                          value64_fprint_lng  (FILE *out, value64 val);
+extern int                          value64_fprint_ulong(FILE *out, value64 val);
+extern int                          value64_fprint_char (FILE *out, value64 val);
+extern int                          value64_fprint_bool (FILE *out, value64 val);
+extern int                          value64_fprint_dbl  (FILE *out, value64 val);
+extern int                          value64_fprint_ptr  (FILE *out, value64 val);
 //
-extern int                          value64_fprint_fs(FILE *restrict out, value64 val);
-extern int                          value64_fprint_str(FILE *restrict out, value64 val);
-
+extern int                          value64_fprint_fs   (FILE *out, value64 val);
+extern int                          value64_fprint_str  (FILE *out, value64 val);
+extern int                          value64_fprint_FILE (FILE *out, value64 val);
 
 // --------------------------------- SERIALIZATION ----------------------------------
 

@@ -19,6 +19,7 @@ static const value64_typeinfo           value64_info[] = {
     [VALUE64_PTR]        = {"PTR",         sizeof(void *),          true     , "VALUE64_PTR"},
     [VALUE64_FS]         = {"FS",          sizeof(fs *),            true     , "VALUE64_FS"},
     [VALUE64_STR]        = {"STR",         sizeof(char *),          true     , "VALUE64_STR"},
+    [VALUE64_FILE]       = {"FILE",        sizeof(FILE *),          true     , "VALUE64_FILE"},
     [VALUE64_TYPE_COUNT] = {"",            0,                       false    , ""}
 };
 
@@ -85,6 +86,11 @@ value64                             value64_pcopy_move(void *p, value64_type typ
             else
                 tmp = value64_createfs(p);
             break;
+        case VALUE64_FILE:
+            tmp.FILEval = (FILE *) p;
+            if (move)
+                *(FILE **) p = NULL;
+            break;
         default:
             userraiseint(ERR_UNSUPPORTED_TYPE, "type %d %s isn't suppoted", typ, value64_typename(typ) );
     }
@@ -134,6 +140,9 @@ unsigned long               value64_lhash(value64 value, value64_type typ){
         break;
         case VALUE64_STR:
             return  hash_djb2(value64_str(value) );
+        break;
+        case VALUE64_FILE:
+            tmp.u64 = (uint64_t) value64_FILE(value);
         break;
         default:
         break;
@@ -233,6 +242,7 @@ typedef struct {
 /**
  * @brief Unified master matrix for comparator mappings.
  * This eliminates redundant switch-case blocks and centralizes type definitions.
+ * @note No comparator for VALUE64_FILE
  */
 static const value64_comparator_dispatch_t comparator_matrix[VALUE64_TYPE_COUNT] = {
     [VALUE64_INT] = {
@@ -458,7 +468,7 @@ int                                     value64_compare(value64 v1, value64 v2, 
 
     value64_Comparator comp = comparator_matrix[typ].val_comp;
     if (!comp)
-        userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s", value64_typename(typ));
+        userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %d/%s", typ, value64_typename(typ));
 
     return comp(v1, v2);
 }
@@ -494,11 +504,11 @@ int                                 value64_pt_compare(const value64* restrict v
         userraiseint(ERR_NULLABLE_PTR, "Null pointers %p %p", v1, v2);
     
     if (typ < 1 || typ >= VALUE64_TYPE_COUNT)
-        userraiseint(ERR_UNSUPPORTED_TYPE, "%s: %d", value64_typename(typ), typ);
+        userraiseint(ERR_UNSUPPORTED_TYPE, "%d:%s", typ, value64_typename(typ));
 
     value64_PComparator comp = comparator_matrix[typ].p_comp;
     if (!comp)
-        userraiseint(ERR_UNSUPPORTED_TYPE, "No pointer comparator for %s", value64_typename(typ));
+        userraiseint(ERR_UNSUPPORTED_TYPE, "No pointer comparator for %d/%s", typ, value64_typename(typ));
 
     return comp(v1, v2);
 }
@@ -728,7 +738,7 @@ int                         value64_revsearch(value64 val, value64_type typ, con
 
     value64_PComparator pcomp = value64_getPComparator(typ);
     if (!pcomp)
-        userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s: %d", value64_typename(typ), typ);
+        userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %d/%s", typ, value64_typename(typ));
     const value64 *find = bsearch(&val, arr, sz, sizeof(value64), pcomp);
     if (!find)
         return logsimpleerr(-1, "Not found");
@@ -759,7 +769,7 @@ int                         value64_revsearch(value64 val, value64_type typ, con
 
     value64_PComparator revpcomp = value64_getPRevComparator(typ);
     if (!revpcomp)
-        userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %s: %d", value64_typename(typ), typ);
+        userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for %d/%s", typ, value64_typename(typ));
     const value64 *find = bsearch(&val, arr, sz, sizeof(value64), revpcomp);
     if (!find)
         return logsimpleerr(-1, "Not found");
@@ -777,7 +787,7 @@ typedef struct {
     value64_ValidatorFunc       validator;    // Функция проверки на безопасность (NULL, если всегда безопасно)
 } value64_dispatch_t;
 
-#define VALUE64_DISPATCH_ALL(c, m, v)   { .converter = c, .move_converter = m, .validator = v }
+#define VALUE64_DISPATCH_ALL(c, m, v)    { .converter = c, .move_converter = m, .validator = v }
 #define VALUE64_DISPATCH_CONV(c)         { .converter = c, .move_converter = NULL, .validator = NULL }
 #define VALUE64_DISPATCH_MOVE(m)         { .converter = NULL, .move_converter = m, .validator = NULL }
 #define VALUE64_DISPATCH_SAFE(c, v)      { .converter = c, .move_converter = NULL, .validator = v }
@@ -1004,9 +1014,9 @@ value64                         value64_convert_common(value64 v, value64_type f
     value64_dispatch_t dispatch = dispatch_conv_matrix[from][to];
     if (check && dispatch.validator)
         if (!dispatch.validator(v))
-            userraiseint(ERR_VALIDATION_FAILED,  "%s => %s", value64_typename(from), value64_typename(to));
+            userraiseint(ERR_VALIDATION_FAILED,  "%d/%s => %d/%s", from, value64_typename(from), to, value64_typename(to));
     if (dispatch.converter == NULL)
-        userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "%s => %s", value64_typename(from), value64_typename(to));
+        userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "%d/%s => %d/%s", from, value64_typename(from), to, value64_typename(to));
     return  dispatch.converter(v);
 }
 
@@ -1393,9 +1403,9 @@ value64                     value64_convert_move(value64 *pv, value64_type from,
     value64_dispatch_t dispatch = dispatch_conv_matrix[from][to];
     if (dispatch.validator)
         if (!dispatch.validator(*pv) )
-            userraiseint(ERR_VALIDATION_FAILED,  "%s => %s", value64_typename(from), value64_typename(to));
+            userraiseint(ERR_VALIDATION_FAILED,  "%d/%s => %d/%s", from, value64_typename(from), to, value64_typename(to));
     if (dispatch.move_converter == NULL)
-        userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "%s => %s", value64_typename(from), value64_typename(to));
+        userraiseint(ERR_UNSUPPORTED_TYPE_CONV, "%d/%s => %d/%s", from, value64_typename(from), to, value64_typename(to));
     return  dispatch.move_converter(pv);
 }
 
@@ -1562,6 +1572,10 @@ int                         value64_fprint_str(FILE *restrict out, value64 val) 
 int                         value64_fprint_fs(FILE *restrict out, value64 val) {
     return fprint_str_escaped(out, fs_str(value64_fs(val) ) ); // till fs_fprint isn'y support escaping
 }
+/** @brief Prints a FILE * pointer address wrapped in quotes. */
+int                         value64_fprint_FILE(FILE *restrict out, value64 val) {
+    return fprintf(out, "\"%p\"", value64_FILE(val) );
+}
 /** @} */
 
 /**
@@ -1588,7 +1602,7 @@ int                         value64_fprint_msg(FILE *restrict out, const char *r
             IOCHECKER(w, fprintf(out, "%s ", msg), -1)
                 cnt += w;
         }
-        switch (typ){
+        switch (typ){   // TODO: refactor here via table!!!
             case VALUE64_INT:
                 IOCHECKER(w, value64_fprint_int(out, val), -1)
                     cnt += w;
@@ -1623,6 +1637,10 @@ int                         value64_fprint_msg(FILE *restrict out, const char *r
                 break;
             case VALUE64_FS:
                 IOCHECKER(w, value64_fprint_fs(out, val), -1)
+                    cnt += w;
+                break;
+            case VALUE64_FILE:
+                IOCHECKER(w, value64_fprint_FILE(out, val), -1)
                     cnt += w;
                 break;
             default:
@@ -1682,6 +1700,10 @@ int                        value64_techfprint(FILE *restrict out, value64 val, v
                 IOCHECKER(w, value64_fprint_fs(out, val), -1)
                     cnt += w;
             break;
+            case VALUE64_FILE:
+                IOCHECKER(w, value64_fprint_FILE(out, val), -1)
+                    cnt += w;
+            break;
             default:
                 IOCHECKER(w, fprintf(out, "Unsupported %d!\n", typ), -1)
                     cnt += w;
@@ -1718,6 +1740,7 @@ int                        value64_techfprint(FILE *restrict out, value64 val, v
 int                             value64_tofile(FILE *out, value64 val, value64_type typ, bool savetypeinfo) {
     invraisecode(out != NULL, ERR_NULLABLE_PTR,
         "Null pointer");
+    // TODO: refactor that, table func must be here!
     int cnt = 0;
     if (savetypeinfo) {
         IOCHECKER(w, fprintf(out, "VALUE64(%s):", value64_typename(typ) ), -1)
@@ -1961,6 +1984,8 @@ bool                            value64_dsreadval(Ds *restrict ds, value64_type 
             return value64_sreadval_str(val, buf);
         case VALUE64_FS:
             return value64_sreadval_fs(val, buf);
+        case VALUE64_FILE:
+            return userraise(false, ERR_UNSUPPORTED_TYPE, "Reading of %s isn't supported", value64_typename(typ) );
         default:
             return userraise(false, ERR_UNSUPPORTED_TYPE, "Type %d isn't supported", typ);
      }
@@ -2053,7 +2078,7 @@ static value64_type             value64_parse_header(Ds *pds, bool loadtypeinfo,
 int                         value64_loadds(Ds *restrict pds, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf) {
     invraisecode(pds != NULL, ERR_NULLABLE_PTR,
         "Null pointers %p", pds);
-
+    // TODO: refactor that, table func must be here!
     int             currpos = dsIsstr(pds) ? pds->pos : 0;
     value64_type    newtyp = value64_parse_header(pds, loadtypeinfo, typ);
     if (newtyp == VALUE64_UNKNOWN)
@@ -2255,8 +2280,8 @@ int                          value64_tostr(fs *target, value64 val, value64_type
             IOCHECKER(w, value64_tostr_fs(target, val), -1)
                 cnt += w;
             break;
-        default:
-            return userraise(-1, ERR_UNSUPPORTED_TYPE, "Type %d isn't supported", typ); 
+        default: // FILE * here too
+            return userraise(-1, ERR_UNSUPPORTED_TYPE, "Type %d/%s isn't supported", typ, value64_typename(typ)); 
     }
     return cnt;
 }
