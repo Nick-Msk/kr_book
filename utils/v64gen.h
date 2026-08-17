@@ -150,6 +150,15 @@ extern value64                  v64GenFSToChar(v64Gen *gen);
  * data[1] – LONG current read position
  */
 value64                         v64GenFSToFsByNewline(v64Gen *gen);
+/**
+ * @brief Parse fs from fs, dividev by newline
+ * @note
+ * @return: value64/str
+ * @note
+ * data[0] – PTR to source fs (non-owning)
+ * data[1] – LONG current read position
+ */
+value64                         v64GenFSToStrByNewline(v64Gen *gen);
 
 // ------------------------ Wrappers for pre-created generators ---------------------
 // ----------------------------------------------------------------------------------
@@ -436,24 +445,30 @@ static inline v64Gen        v64GenCreatorUnlimFsRnd(const char *fmt, int rndinc)
 
 // --------------------------- Creator from Source (c-str, FILE *, Ds *) series ------------
 
-// RETURNS: CHR
+// RETURNS: VALUE64/CHR
 // REGITRSY ALLOCATION:
 // data[0] STR as SOURCE (no ownership)
 // data[1] LONG as lim, if 0 - unlim (LONG_MAX actually)
 extern v64Gen                   v64GenCreatorSourceCstrChar(const char *src, long maxlen);
 
-// RETURNS: CHR
+// RETURNS: VALUE64/CHR
 // REGITRSY ALLOCATION:
 // data[0] FS as SOURCE (no ownership)
 // data[1] ULONG as position
 extern v64Gen                   v64GenCreatorSourceFsToChar(const fs *src);
 
 
-// RETURNS: FS
+// RETURNS: VALUE64/FS
 // REGITRSY ALLOCATION:
 // data[0] FS as SOURCE (no ownership)
 // data[1] ULONG as position
 extern v64Gen                   v64GenCreatorSourceFsToFsByNewline(const fs *src);
+
+// RETURNS: VALUE64/FS
+// REGITRSY ALLOCATION:
+// data[0] FS as SOURCE (no ownership)
+// data[1] ULONG as position
+extern v64Gen                   v64GenCreatorSourceFsToStrByNewline(const fs *src);
 
 // --------------------------------- Indirect API --------------------------------------
 
