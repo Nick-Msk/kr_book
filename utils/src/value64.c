@@ -2132,7 +2132,6 @@ int                         value64_tostr_char(fs *target, value64 val) {
 int                         value64_tostr_bool(fs *target, value64 val) {
     return fs_sprintf_concat(target, "\"%s\"", bool_str(value64_bool(val)) );
 }
-
 /** @} */
 
 // to string : fs MUST be initialized
