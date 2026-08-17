@@ -9543,10 +9543,11 @@ tf_str_serialization(const char *name)
         test_validatefree(
             value64_loadstr(fs_str(&buf), &loaded, VALUE64_UNKNOWN, true, NULL) &&
             value64_equal(orig, loaded, VALUE64_STR),
-            (value64_freestr(&orig), fsfree(buf)),
+            (value64_freestr(&orig), value64_freestr(&loaded), fsfree(buf)),
             "STR round-trip failed (string='%s')", fs_str(&buf)
         );
         value64_freestr(&orig);
+        value64_freestr(&loaded);
         fsfree(buf);
         fs_alloc_check(true);
     }
@@ -9562,10 +9563,11 @@ tf_str_serialization(const char *name)
         test_validatefree(
             value64_loadstr(fs_str(&buf), &loaded, VALUE64_UNKNOWN, true, NULL) &&
             value64_equal(orig, loaded, VALUE64_STR),
-            (value64_freestr(&orig), fsfree(buf)),
+            (value64_free(&orig, VALUE64_STR), fsfree(buf), value64_free(&loaded, VALUE64_STR) ),
             "STR escapes round-trip failed"
         );
         value64_free(&orig, VALUE64_STR);
+        value64_free(&loaded, VALUE64_STR);
         fsfree(buf);
         fs_alloc_check(true);
     }
@@ -9617,10 +9619,11 @@ tf_str_serialization(const char *name)
         test_validatefree(
             value64_loadstr(fs_str(&buf), &loaded, VALUE64_UNKNOWN, true, NULL) &&
             value64_equal(orig, loaded, VALUE64_STR),
-            (value64_freestr(&orig), fsfree(buf)),
+            (value64_freestr(&orig), value64_freestr(&loaded), fsfree(buf)),
             "Empty STR round-trip failed"
         );
         value64_freestr(&orig);
+        value64_freestr(&loaded);
         fsfree(buf);
         fs_alloc_check(true);
     }
