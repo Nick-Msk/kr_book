@@ -7,7 +7,7 @@
 // --------------------------------- CONSTANTS AND GLOBALS --------------------------
 
 // --------------------------- Utilities --------------------------------------------
-static bool                     v64GenStringUpdate(v64Gen *gen, /* const char *restrict newbuf, */ long amount) {
+static bool                     v64GenStringUpdate(v64Gen *gen, long amount) {
     if (amount <= 0)
         return false;
     // only for Stream Buffer
@@ -15,6 +15,27 @@ static bool                     v64GenStringUpdate(v64Gen *gen, /* const char *r
     //    V64GENREGVAL0(gen).pval = (void *) newbuf;
     if (V64GENREGVAL1(gen).lval != LONG_MAX)
         V64GENREGVAL1(gen).lval += amount;
+    return true;
+}
+// FILE * update
+static bool                      v64GenFileUpdate(v64Gen *gen, long amount)
+{
+    (void) amount;   // не используется, файл обновляется целиком
+
+    FILE *fp = (FILE *) V64GENREGVAL0(gen).pval;
+    if (!fp)
+        return false;
+
+    off_t total = getfilesize(fp);
+    if (total < 0)
+        return false;               // нерегулярный файл – обновить нельзя
+
+    long pos = ftell(fp);
+    if (pos < 0)
+        pos = 0;
+
+    unsigned long remaining = (total > (off_t) pos) ? (unsigned long) (total - pos) : 0;
+    V64GENREGVAL1(gen).ulval = remaining;
     return true;
 }
 
@@ -199,6 +220,73 @@ v64Gen                          v64GenCreatorSourceFsToFsByNewline(const fs *src
 // data[1] ULONG as position
 v64Gen                          v64GenCreatorSourceFsToStrByNewline(const fs *src) {
     return v64GenCreatorSourceFsToCommonStringByNewline(src, VALUE64_STR);
+}
+// RETURNS: VALUE64/CHR
+// REGITRSY ALLOCATION:
+// data[0] FILE as SOURCE (no ownership)
+// data[1] ULONG as remaining chars
+/**
+ * @brief Stream character generator over a FILE* source.
+ *
+ * data[0] – PTR to FILE* (non-owning)
+ * data[1] – ULONG remaining chars available
+ */
+value64 v64GenFileChar(v64Gen *gen)
+{
+    FILE *fp = (FILE *)V64GENREGVAL0(gen).pval;
+    if (!fp)
+        return LITERAL64_ZERO;
+
+    unsigned long remaining = V64GENREGVAL1(gen).ulval;
+    if (remaining == 0)
+        return LITERAL64_ZERO;
+
+    int c = fgetc(fp);
+    if (c == EOF) {
+        V64GENREGVAL1(gen).ulval = 0;
+        return LITERAL64_ZERO;
+    }
+
+    V64GENREGVAL1(gen).ulval = remaining - 1;
+    return value64_createchar((char)c);
+}
+
+/**
+ * @brief Returns the remaining number of characters available in the FILE* source.
+ *
+ * data[0] – PTR to FILE*
+ * data[1] – ULONG remaining chars
+ */
+static unsigned long v64GenFileCharRemaining(v64Gen *gen)
+{
+    return V64GENREGVAL1(gen).ulval;
+}
+
+/**
+ * @brief Creates a stream character generator for a FILE* source.
+ *
+ * The generator reads characters sequentially. The remaining count is
+ * initialized from the current file position to the end of the file.
+ *
+ * data[0] – PTR to FILE* (non-owning)
+ * data[1] – ULONG remaining chars
+ *
+ * @param file  Open FILE* stream (must be readable)
+ * @return      v64Gen object for character reading
+ */
+v64Gen v64GenCreatorSourceFileChar(FILE *file)
+{
+    invraisecode(file != NULL, ERR_NULLABLE_PTR, "Null FILE*");
+
+    v64Gen gen = v64GenInit2(v64GenFileChar, VALUE64_CHR,
+                             v64typedCreateFILE(file),       // data[0]
+                             v64typedCreateULong(0));        // data[1] временно 0
+
+    v64GenFileUpdate(&gen, 0L);   // пересчитать остаток на основе getfilesize/ftell
+
+    gen.updater = v64GenFileUpdate;
+    gen.remaining = v64GenFileCharRemaining;
+    return gen;
 }
 
 // -------------------- ACCESS AND MODIFICATORS -------------------------------------
@@ -466,6 +554,26 @@ value64                         v64GenFSToStrByNewline(v64Gen *gen) {
  */
 value64                         v64GenFSToFsByNewline(v64Gen *gen) {
     return v64GenFSToStringTargetByNewline(gen, VALUE64_FS);
+}
+/**
+ * @brief File stream generator
+ *
+ * data[0] – PTR на FILE* (невладеющий)
+ * data[1] – ULONG remained count
+ */
+value64                         v64GenFileToChar(v64Gen *gen) {
+    FILE            *fp = (FILE *)V64GENREGVAL0(gen).FILEval;
+    unsigned long    remaining = V64GENREGVAL1(gen).ulval;
+    if (!fp || remaining == 0L)
+        return value64_createchar('\0');
+    int c = fgetc(fp);
+    if (c == EOF) {
+        V64GENREGVAL1(gen).ulval = 0; // достигли EOF раньше ожидаемого
+        return value64_createchar('\0');
+    }
+    if (remaining > 0L)
+        V64GENREGVAL1(gen).ulval = remaining - 1;
+    return value64_createchar((char) c);
 }
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
@@ -2186,7 +2294,7 @@ tf12_gen_string_append(const char *name)
             //const char *chunk_start = fs_str(&buf) + total_len;
 
             // Перенастраиваем генератор на новую порцию
-            v64GenStringAppend(&gen, /*chunk_start, */ chunk_len);
+            v64GenStreamUpdate(&gen, /*chunk_start, */ chunk_len);
 
             // Читаем и проверяем символы
             for (int j = 0; j < chunk_len; j++) {
@@ -2755,6 +2863,120 @@ tf17_gen_fs_tostr_bynewline(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST 20: v64GenStreamUpdate with FILE* source -------------------------
+static TestStatus
+tf18_gen_stream_update_file(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: stream update after file append (two FILE*)", ++subnum);
+    {
+        const char *fname = "res/v64gen/stream_update_test.tmp";
+
+        // Начальные данные
+        FILE *w = fopen(fname, "w");
+        test_validatefree(w != NULL, remove(fname), "fopen(w) failed");
+        fwrite("abc", 1, 3, w);
+        fclose(w);
+
+        // Открываем два независимых FILE* на один файл
+        FILE *fr = fopen(fname, "r");     // для генератора
+        FILE *fa = fopen(fname, "a");     // для дозаписи
+        test_validatefree(fr != NULL && fa != NULL,
+                          (fr ? fclose(fr) : 0, fa ? fclose(fa) : 0, remove(fname)),
+                          "fopen(r/a) failed");
+
+        v64Gen gen = v64GenCreatorSourceFileChar(fr);
+
+        // Начальный остаток = 3
+        unsigned long rem = v64GenGetRemaining(&gen);
+        test_validatefree(rem == 3,
+                          (v64GenFree(&gen), fclose(fr), fclose(fa), remove(fname)),
+                          "initial remaining expected 3, got %lu", rem);
+
+        // Читаем два символа 'a', 'b'
+        value64 v1 = v64GenNext(&gen);
+        value64 v2 = v64GenNext(&gen);
+        test_validatefree(
+            value64_char(v1) == 'a' && value64_char(v2) == 'b',
+            (value64_free(&v1, VALUE64_CHR), value64_free(&v2, VALUE64_CHR),
+             v64GenFree(&gen), fclose(fr), fclose(fa), remove(fname)),
+            "first two characters mismatch"
+        );
+        value64_free(&v1, VALUE64_CHR);
+        value64_free(&v2, VALUE64_CHR);
+
+        // Остаток = 1 (ещё 'c')
+        rem = v64GenGetRemaining(&gen);
+        test_validatefree(rem == 1,
+                          (v64GenFree(&gen), fclose(fr), fclose(fa), remove(fname)),
+                          "remaining after two chars expected 1, got %lu", rem);
+
+        // Дописываем "def" в конец файла через отдельный поток
+        fwrite("def", 1, 3, fa);
+        fflush(fa);
+
+        // Обновляем информацию о потоке
+        v64GenStreamUpdate(&gen, 0L);   // amount игнорируется файловым updater
+
+        // Теперь remaining должен быть 4: 'c', 'd', 'e', 'f'
+        rem = v64GenGetRemaining(&gen);
+        test_validatefree(rem == 4,
+                          (v64GenFree(&gen), fclose(fr), fclose(fa), remove(fname)),
+                          "remaining after append expected 4, got %lu", rem);
+
+        // Читаем оставшиеся 4 символа
+        const char *expected_rest = "cdef";
+        for (int i = 0; i < 4; i++) {
+            value64 v = v64GenNext(&gen);
+            test_validatefree(
+                value64_char(v) == expected_rest[i],
+                (value64_free(&v, VALUE64_CHR), v64GenFree(&gen), fclose(fr), fclose(fa), remove(fname)),
+                "char %d mismatch: expected '%c', got '%c'",
+                i, expected_rest[i], value64_char(v)
+            );
+            value64_free(&v, VALUE64_CHR);
+        }
+
+        // Конец файла -> должен вернуть '\0'
+        value64 v_end = v64GenNext(&gen);
+        test_validatefree(
+            value64_char(v_end) == '\0',
+            (value64_free(&v_end, VALUE64_CHR), v64GenFree(&gen), fclose(fr), fclose(fa), remove(fname)),
+            "expected null after end"
+        );
+        value64_free(&v_end, VALUE64_CHR);
+
+        rem = v64GenGetRemaining(&gen);
+        test_validatefree(rem == 0,
+                          (v64GenFree(&gen), fclose(fr), fclose(fa), remove(fname)),
+                          "remaining after end expected 0, got %lu", rem);
+
+        v64GenFree(&gen);
+        fclose(fr);
+        fclose(fa);
+        remove(fname);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: stream update without updater must fail", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimZero(VALUE64_INT);
+        if (!try()) {
+            v64GenStreamUpdate(&gen, 0L);
+            // Если не выпало, это ошибка
+            test_validate(false, "v64GenStreamUpdate must raise error when updater is NULL");
+            v64GenFree(&gen);
+        } else {
+            test_validate(true, "v64GenStreamUpdate correctly raised error");
+            v64GenFree(&gen);
+        }
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(/* int argc, const char *argv[] */)
@@ -2779,6 +3001,7 @@ main(/* int argc, const char *argv[] */)
       , TESTADD(tf15_gen_fs_remaining,          "v64GenGetRemainingCount with fs char generator")
       , TESTADD(tf16_gen_fs_bynewline_remaining, "v64GenGetRemainingCount with FsToFsByNewlin")
       , TESTADD(tf17_gen_fs_tostr_bynewline,    "v64GenFSToStrByNewline() simple test")
+      , TESTADD(tf18_gen_stream_update_file,    "v64GenCreatorSourceFileChar() simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()

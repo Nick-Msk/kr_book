@@ -149,7 +149,7 @@ extern value64                  v64GenFSToChar(v64Gen *gen);
  * data[0] – PTR to source fs (non-owning)
  * data[1] – LONG current read position
  */
-value64                         v64GenFSToFsByNewline(v64Gen *gen);
+extern value64                  v64GenFSToFsByNewline(v64Gen *gen);
 /**
  * @brief Parse fs from fs, dividev by newline
  * @note
@@ -158,12 +158,19 @@ value64                         v64GenFSToFsByNewline(v64Gen *gen);
  * data[0] – PTR to source fs (non-owning)
  * data[1] – LONG current read position
  */
-value64                         v64GenFSToStrByNewline(v64Gen *gen);
+extern value64                  v64GenFSToStrByNewline(v64Gen *gen);
+/**
+ * @brief File stream generator
+ *
+ * data[0] – PTR на FILE* (невладеющий)
+ * data[1] – ULONG remained count
+ */
+extern value64                  v64GenFileToChar(v64Gen *gen);
 
 // ------------------------ Wrappers for pre-created generators ---------------------
 // ----------------------------------------------------------------------------------
 
-static inline v64Gen        v64GenCreatorUnlimZero(value64_type rettyp) {
+static inline v64Gen            v64GenCreatorUnlimZero(value64_type rettyp) {
     // not sure what to do, now just raiseint
     if (!value64_checktype(rettyp))
         userraiseint(ERR_UNSUPPORTED_TYPE, "Type %d not supported", rettyp);
@@ -174,17 +181,17 @@ static inline v64Gen        v64GenCreatorUnlimZero(value64_type rettyp) {
 
 // REGITRSY ALLOCATION:
 // data[0] as c-str for STR
-static inline v64Gen        v64GenCreatorUnlimStrValue(const char *str) {
+static inline v64Gen            v64GenCreatorUnlimStrValue(const char *str) {
     return v64GenInit1(v64GenUnlimZero, VALUE64_STR, v64typedCreateStr(str));       // quite simple, LOL
 }
 // REGITRSY ALLOCATION:
 // data[0]  value for LONG
-static inline v64Gen        v64GenCreatorUnlimValue(long val) {
+static inline v64Gen            v64GenCreatorUnlimValue(long val) {
     return v64GenInit1(v64GenUnlimZero, VALUE64_LONG, v64typedCreateLong(val));       // quite simple, LOL
 }
 // REGITRSY ALLOCATION:
 // data[0]  value for DBL
-static inline v64Gen        v64GenCreatorUnlimDouble(double val) {
+static inline v64Gen            v64GenCreatorUnlimDouble(double val) {
     return v64GenInit1(v64GenUnlimZero, VALUE64_DBL, v64typedCreateDbl(val));       // quite simple, LOL
 }
 
@@ -193,7 +200,7 @@ static inline v64Gen        v64GenCreatorUnlimDouble(double val) {
 // REGITRSY ALLOCATION:
 // data[0] LONG as startpos for numeric generator
 // data[1] STR as pattern for printing str ONLY
-static inline v64Gen        v64GenCreatorUnlimAscFsSeries(long startpos, const char *fmt) {
+static inline v64Gen            v64GenCreatorUnlimAscFsSeries(long startpos, const char *fmt) {
     v64Gen tmp;
     if (fmt != NULL)
         tmp = v64GenInit2(v64UncheckGenUnlimAscSeries,
@@ -206,7 +213,7 @@ static inline v64Gen        v64GenCreatorUnlimAscFsSeries(long startpos, const c
 // REGITRSY ALLOCATION:
 // data[0] LONG as startpos for numeric generator
 // data[1] STR as pattern for printing STR ONLY
-static inline v64Gen        v64GenCreatorUnlimAscStrSeries(long startpos, const char *fmt) {
+static inline v64Gen            v64GenCreatorUnlimAscStrSeries(long startpos, const char *fmt) {
     v64Gen tmp;
     if (fmt != NULL)
         tmp = v64GenInit2(v64UncheckGenUnlimAscSeries,
@@ -219,7 +226,7 @@ static inline v64Gen        v64GenCreatorUnlimAscStrSeries(long startpos, const 
 // REGITRSY ALLOCATION:
 // data[0] <PARAM VT TYPE> as startpos for numeric asc generator
 // usage: v64GenCreatorUnlimAscStrSeries(v64typedInt(100));
-static inline v64Gen        v64GenCreatorUnlimAscSeries(v64typed vt) {
+static inline v64Gen            v64GenCreatorUnlimAscSeries(v64typed vt) {
     value64_type rettyp = vt.typ;     // that is it!!!
 
     if (int_notin(rettyp, VALUE64_BOOL, VALUE64_CHR, VALUE64_INT, VALUE64_LONG, VALUE64_ULONG, VALUE64_DBL))
@@ -236,7 +243,7 @@ static inline v64Gen        v64GenCreatorUnlimAscSeries(v64typed vt) {
 // REGITRSY ALLOCATION:
 // data[0] LONG as startpos for numeric desc generator
 // data[1] STR as pattern for printing str ONLY
-static inline v64Gen        v64GenCreatorUnlimDescFsSeries(long startpos, const char *fmt) {
+static inline v64Gen            v64GenCreatorUnlimDescFsSeries(long startpos, const char *fmt) {
     v64Gen tmp;
     if (fmt != NULL)
         tmp = v64GenInit2(v64UncheckGenUnlimDescSeries,
@@ -249,7 +256,7 @@ static inline v64Gen        v64GenCreatorUnlimDescFsSeries(long startpos, const 
 // REGITRSY ALLOCATION:
 // data[0] LONG as startpos for numeric desc generator
 // data[1] STR as pattern for printing STR ONLY
-static inline v64Gen        v64GenCreatorUnlimDescStrSeries(long startpos, const char *fmt) {
+static inline v64Gen            v64GenCreatorUnlimDescStrSeries(long startpos, const char *fmt) {
     v64Gen tmp;
     if (fmt != NULL)
         tmp = v64GenInit2(v64UncheckGenUnlimDescSeries,
@@ -278,7 +285,7 @@ static inline v64Gen        v64GenCreatorUnlimDescSeries(v64typed vt) {
 // data[0] LONG as startpos for numeric random generator
 // data[1] STR as pattern for printing
 // data[2] INT as pattern for increment
-static inline v64Gen        v64GenCreatorUnlimAscFsRnd(long startpos, const char *fmt, int rndinc) {
+static inline v64Gen            v64GenCreatorUnlimAscFsRnd(long startpos, const char *fmt, int rndinc) {
     v64Gen tmp;
     if (rndinc < 1)
         rndinc = 1;
@@ -299,7 +306,7 @@ static inline v64Gen        v64GenCreatorUnlimAscFsRnd(long startpos, const char
 // data[0] LONG as startpos for numeric random generator
 // data[1] STR as pattern for printing
 // data[2] INT as pattern for increment
-static inline v64Gen        v64GenCreatorUnlimAscStrRnd(long startpos, const char *fmt, int rndinc) {
+static inline v64Gen            v64GenCreatorUnlimAscStrRnd(long startpos, const char *fmt, int rndinc) {
     v64Gen tmp;
     if (rndinc < 1)
         rndinc = 1;
@@ -319,7 +326,7 @@ static inline v64Gen        v64GenCreatorUnlimAscStrRnd(long startpos, const cha
 // REGITRSY ALLOCATION:
 // data[0] <PARAM VT TYPE> as startpos for numeric asc generator
 // data[2] INT as pattern for increment
-static inline v64Gen        v64GenCreatorUnlimAscRnd(v64typed vt, int rndinc) {
+static inline v64Gen            v64GenCreatorUnlimAscRnd(v64typed vt, int rndinc) {
     value64_type rettyp = vt.typ;     // that is it!!!
 
     if (int_notin(rettyp, VALUE64_BOOL, VALUE64_CHR, VALUE64_INT, VALUE64_LONG, VALUE64_ULONG, VALUE64_DBL))
@@ -336,7 +343,7 @@ static inline v64Gen        v64GenCreatorUnlimAscRnd(v64typed vt, int rndinc) {
 // data[0] LONG as startpos for numeric desc random generator
 // data[1] STR as pattern for printing
 // data[2] INT as pattern for increment
-static inline v64Gen        v64GenCreatorUnlimDescFsRnd(long startpos, const char *fmt, int rndinc) {
+static inline v64Gen            v64GenCreatorUnlimDescFsRnd(long startpos, const char *fmt, int rndinc) {
     v64Gen tmp;
     if (rndinc < 1)
         rndinc = 1;
@@ -357,7 +364,7 @@ static inline v64Gen        v64GenCreatorUnlimDescFsRnd(long startpos, const cha
 // data[0] LONG as startpos for numeric desc random generator
 // data[1] STR as pattern for printing
 // data[2] INT as pattern for increment
-static inline v64Gen        v64GenCreatorUnlimDescStrRnd(long startpos, const char *fmt, int rndinc) {
+static inline v64Gen            v64GenCreatorUnlimDescStrRnd(long startpos, const char *fmt, int rndinc) {
     v64Gen tmp;
     if (rndinc < 1)
         rndinc = 1;
@@ -377,7 +384,7 @@ static inline v64Gen        v64GenCreatorUnlimDescStrRnd(long startpos, const ch
 // REGITRSY ALLOCATION:
 // data[0] <PARAM VT TYPE> as startpos for numeric desc generator
 // data[2] INT as pattern for increment
-static inline v64Gen        v64GenCreatorUnlimDescRnd(v64typed vt, int rndinc) {
+static inline v64Gen            v64GenCreatorUnlimDescRnd(v64typed vt, int rndinc) {
     value64_type rettyp = vt.typ;     // that is it!!!
 
     if (int_notin(rettyp, VALUE64_BOOL, VALUE64_CHR, VALUE64_INT, VALUE64_LONG, VALUE64_ULONG, VALUE64_DBL))
@@ -393,7 +400,7 @@ static inline v64Gen        v64GenCreatorUnlimDescRnd(v64typed vt, int rndinc) {
 // ------------------------------------ JUST RANDOM -----------------------------------------------
 // REGITRSY ALLOCATION:
 // data[0] INT as lim for rnsint
-static inline v64Gen        v64GenCreatorUnlimRnd(value64_type rettyp, int rndinc) {
+static inline v64Gen            v64GenCreatorUnlimRnd(value64_type rettyp, int rndinc) {
     if (int_notin(rettyp, VALUE64_BOOL, VALUE64_CHR, VALUE64_INT, VALUE64_LONG, VALUE64_ULONG, VALUE64_DBL))
         userraiseint(ERR_UNSUPPORTED_TYPE, "Type %d %s not supported by %s", 
                 rettyp, value64_typename(rettyp), __func__);
@@ -405,7 +412,7 @@ static inline v64Gen        v64GenCreatorUnlimRnd(value64_type rettyp, int rndin
 // REGITRSY ALLOCATION:
 // data[0] INT as lim for rnsint
 // data[1] STR as pattern for printing
-static inline v64Gen        v64GenCreatorUnlimStrRnd(const char *fmt, int rndinc) {
+static inline v64Gen            v64GenCreatorUnlimStrRnd(const char *fmt, int rndinc) {
     v64Gen tmp;
     if (rndinc < 1)
         rndinc = 1;
@@ -426,7 +433,7 @@ static inline v64Gen        v64GenCreatorUnlimStrRnd(const char *fmt, int rndinc
 // REGITRSY ALLOCATION:
 // data[0] INT as lim for rnsint
 // data[1] STR as pattern for printing
-static inline v64Gen        v64GenCreatorUnlimFsRnd(const char *fmt, int rndinc) {
+static inline v64Gen            v64GenCreatorUnlimFsRnd(const char *fmt, int rndinc) {
     v64Gen tmp;
     if (rndinc < 1)
         rndinc = 1;
@@ -469,11 +476,16 @@ extern v64Gen                   v64GenCreatorSourceFsToFsByNewline(const fs *src
 // data[0] FS as SOURCE (no ownership)
 // data[1] ULONG as position
 extern v64Gen                   v64GenCreatorSourceFsToStrByNewline(const fs *src);
+// RETURNS: VALUE64/CHR
+// REGITRSY ALLOCATION:
+// data[0] FILE as SOURCE (no ownership)
+// data[1] ULONG as remaining chars
+extern v64Gen                   v64GenCreatorSourceFileChar(FILE *file);
 
 // --------------------------------- Indirect API --------------------------------------
 
 // ------- Stream updater -------
-static inline void              v64GenStringAppend(v64Gen *gen, /*const char *restrict newbuf, */ long next_amount) {
+static inline void              v64GenStreamUpdate(v64Gen *gen, /*const char *restrict newbuf, */ long next_amount) {
     invraisecode(gen != NULL, ERR_NULLABLE_PTR, "NUll gen");
 
     if (gen->updater)
