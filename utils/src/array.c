@@ -3111,7 +3111,7 @@ tf_v64array_str_fs(const char *name)
             test_validatefree(
                 f != NULL && fs_len(f) > 0,
                 Arrayfree(arr),
-                "RND FS[%d] must be non‑empty, got len=%d", i, f ? fs_len(f) : -1
+                "RND FS[%d] must be non‑empty, got len=%zu", i, f ? fs_len(f) : -1
             );
         }
         Arrayfree(arr);
