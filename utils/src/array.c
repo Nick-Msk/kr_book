@@ -1007,7 +1007,7 @@ static int                      ArrayFillRange_DESC_SERIES(Array *parr, int from
         case ARRAY_CHAR: {
             char val = 'Z';
             for (int i = from; i < to; i++)
-                ArraySetDblElem(parr, i, val--);    // can be ERR_OUT_OF_RANGE
+                ArraySetCharElem(parr, i, val--);    // can be ERR_OUT_OF_RANGE
             break;
         }
         default:
