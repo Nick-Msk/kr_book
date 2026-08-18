@@ -1012,6 +1012,87 @@ tf6_getstring_newline_append(const char *name)
         fs_alloc_check(true);
     }
 
+    test_sub("subtest %d: resume after EOF with partial buffer", ++subnum);
+    {
+        const char *fname = "res/getword/getword_resume_partial.tmp";
+
+        // Начальный файл: строка без завершающего \n
+        FILE *w = fopen(fname, "w");
+        test_validatefree(w != NULL, remove(fname), "fopen(w) failed");
+        fwrite("part", 1, 4, w);
+        fclose(w);
+
+        FILE *fr = fopen(fname, "r");
+        FILE *fa = fopen(fname, "a");
+        test_validatefree(fr && fa, (fr ? fclose(fr) : 0, fa ? fclose(fa) : 0),
+                        "fopen failed");
+
+        fs buf = FS();
+
+        // Читаем: достигнут EOF, но в буфере неполная строка
+        GetlineStattus st = getstring_newline_append(fr, &buf);
+        test_validatefree(st == GETLINE_PARTIAL && fs_cmpstr(&buf, "part") == 0,
+                        (fsfree(buf), fclose(fr), fclose(fa)),
+                        "expected partial line but got '%s'", fsstr(buf) );
+        
+        // Не очищаем буфер, чтобы дописать к нему новые данные
+
+        // Дописываем остаток строки с \n
+        fwrite("ial\n", 1, 4, fa);
+        fflush(fa);
+
+        //fseek(fr, 0L, SEEK_CUR);
+        clearerr(fr);
+        // Повторный вызов должен дописать к буферу и вернуть полную строку
+        st = getstring_newline_append(fr, &buf);
+        test_validatefree(st == GETLINE_LINE && fs_cmpstr(&buf, "partial") == 0,
+                        (fsfree(buf), fclose(fr), fclose(fa)),
+                        "after append expected 'partial' but got '%s'", fsstr(buf) );
+
+        fsfree(buf);
+        fclose(fr);
+        fclose(fa);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: resume after EOF from empty file", ++subnum);
+    {
+        const char *fname = "res/getword/getword_resume_emptyfile.tmp";
+        FILE *w = fopen(fname, "w");
+        test_validatefree(w != NULL, remove(fname), "fopen(w) failed");
+        fclose(w);
+
+        FILE *fr = fopen(fname, "r");
+        FILE *fa = fopen(fname, "a");
+        test_validatefree(fr && fa, (fr ? fclose(fr) :0, fa ? fclose(fa): 0),
+                        "fopen failed");
+
+        fs buf = FS();
+
+        // Первый вызов: файл пуст -> EOF, буфер пуст
+        GetlineStattus st = getstring_newline_append(fr, &buf);
+        test_validatefree(st == GETLINE_EOF && fs_len(&buf) == 0,
+                        (fsfree(buf), fclose(fr), fclose(fa)),
+                        "expected EOF for empty file");
+
+        // Дописываем строку
+        fwrite("new\n", 1, 4, fa);
+        fflush(fa);
+
+        //fseek(fr, 0L, SEEK_CUR);
+        clearerr(fr);
+        // Повторный вызов должен прочитать новую строку
+        st = getstring_newline_append(fr, &buf);
+        test_validatefree(st == GETLINE_LINE && fs_cmpstr(&buf, "new") == 0,
+                        (fsfree(buf), fclose(fr), fclose(fa)),
+                        "after append expected 'new'");
+
+        fsfree(buf);
+        fclose(fr);
+        fclose(fa);
+        fs_alloc_check(true);
+    }
+
     return TEST_PASSED;
 }
 
