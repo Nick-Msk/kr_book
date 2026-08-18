@@ -165,8 +165,37 @@ fs                      getword(fs str, bool lower, bool comments, bool get_newl
 
     return logret(str, "%zu - [%s]", fslen(str), str.v); // that is probably new str
 }
+// true if ANY data is processed (even \n), false if EOF
+// if newline then last '\n' is returned
+bool                    getstring_nl(FILE *restrict in, fs *restrict str, bool newline, bool append) {
+    invraisecode(in != NULL && str != NULL, ERR_NULLABLE_PTR, "%p - %p", in, str);
+    
+    int     c;
+    size_t  initlen = fs_len(str);
+    fsnew   iter = append ? fsiapp(str) : fsinew(str);
+    while ( (c = getc(in)) != EOF && c != '\n')
+        elemnext(iter) = c;
+    if (newline && c == '\n')
+        elemnext(iter) = c;
+    elemend(iter);
+    return c != EOF || fs_len(str) != initlen;
+}
+
+// for v64gen FILE * source
+GetlineStattus          getstring_newline_append(FILE *restrict in, fs *restrict str) {
+    if (!getstring_nl(in, str, true, true) )
+        return GETLINE_EOF;     // no new data at all
+    size_t lastpos = fs_len(str) - 1;
+    if (str->v[lastpos] == '\n') {
+        fs_setlen(str, lastpos);
+        return GETLINE_LINE;
+    }
+    else
+        return GETLINE_PARTIAL;
+}
+
 // not using buffer.c, VERY simple, empty line is OK, just "" empty fs
-bool                    getpurestring(FILE *restrict in, fs *restrict str){
+/*bool                    getpurestring(FILE *restrict in, fs *restrict str){
     invraisecode(in != NULL && str != NULL, ERR_NULLABLE_PTR, "%p - %p", in, str);
 
     int     c;
@@ -178,7 +207,18 @@ bool                    getpurestring(FILE *restrict in, fs *restrict str){
         return logsimpleret(false, "EOF");
     else
         return logsimpleret(true, "line %zu [%10s]", fs_len(str), fs_str(str) );
-}
+}*/
+
+/*bool                     getnwelinestring(FILE *restrict in, fs *restrict str) {
+    fsnew iter = fsiapp(str);
+    int   c;
+    while ((c = fgetc(in)) != EOF && c != '\n') {
+        elemnext(iter) = c;
+    }
+    elemend(iter);          // завершаем строку '\0' и обновляем len
+
+    return c == '\n';
+}*/
 
 
 // conversion string from FILE *
@@ -866,6 +906,114 @@ tf_getconvstring_str(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST getstring_newline_append -------------------------
+static TestStatus
+tf6_getstring_newline_append(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: full lines and partial", ++subnum);
+    {
+        const char *fname = "res/getword/getword_nl_test.dat";
+        FILE *w = fopen(fname, "w");
+        test_validate(w != NULL, "fopen(w) failed");
+        fwrite("line1\nline2\nlast", 1, 17, w);
+        fclose(w);
+
+        FILE *fr = fopen(fname, "r");
+        test_validate(fr != NULL, "fopen(r) failed");
+
+        fs buf = FS();
+
+        GetlineStattus st = getstring_newline_append(fr, &buf);
+        test_validatefree(st == GETLINE_LINE && fs_cmpstr(&buf, "line1") == 0,
+                          (fsfree(buf), fclose(fr)),
+                          "first line mismatch");
+        fs_clear(&buf);
+
+        st = getstring_newline_append(fr, &buf);
+        test_validatefree(st == GETLINE_LINE && fs_cmpstr(&buf, "line2") == 0,
+                          (fsfree(buf), fclose(fr)),
+                          "second line mismatch");
+        fs_clear(&buf);
+
+        st = getstring_newline_append(fr, &buf);
+        test_validatefree(st == GETLINE_PARTIAL && fs_cmpstr(&buf, "last") == 0,
+                          (fsfree(buf), fclose(fr)),
+                          "partial line mismatch");
+
+        // После частичной строки следующий вызов должен дать EOF, буфер не меняется
+        st = getstring_newline_append(fr, &buf);
+        test_validatefree(st == GETLINE_EOF && fs_cmpstr(&buf, "last") == 0,
+                          (fsfree(buf), fclose(fr)),
+                          "expected EOF after partial");
+
+        fsfree(buf);
+        fclose(fr);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: empty lines", ++subnum);
+    {
+        const char *fname = "res/getword/getword_nl_empty.dat";
+        FILE *w = fopen(fname, "w");
+        test_validate(w != NULL, "fopen(w) failed");
+        fwrite("\n\n", 1, 2, w);
+        fclose(w);
+
+        FILE *fr = fopen(fname, "r");
+        test_validate(fr != NULL, "fopen(r) failed");
+
+        fs buf = FS();
+
+        GetlineStattus st = getstring_newline_append(fr, &buf);
+        test_validatefree(st == GETLINE_LINE && fs_len(&buf) == 0,
+                          (fsfree(buf), fclose(fr)),
+                          "first empty line mismatch");
+        fs_clear(&buf);
+
+        st = getstring_newline_append(fr, &buf);
+        test_validatefree(st == GETLINE_LINE && fs_len(&buf) == 0,
+                          (fsfree(buf), fclose(fr)),
+                          "second empty line mismatch");
+        fs_clear(&buf);
+
+        st = getstring_newline_append(fr, &buf);
+        test_validatefree(st == GETLINE_EOF && fs_len(&buf) == 0,
+                          (fsfree(buf), fclose(fr)),
+                          "expected EOF after empty lines");
+
+        fsfree(buf);
+        fclose(fr);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: empty file", ++subnum);
+    {
+        const char *fname = "res/getword/getword_nl_emptyfile.dat";
+        FILE *w = fopen(fname, "w");
+        test_validate(w != NULL, "fopen(w) failed");
+        fclose(w);
+
+        FILE *fr = fopen(fname, "r");
+        test_validate(fr != NULL, "fopen(r) failed");
+
+        fs buf = FS();
+
+        GetlineStattus st = getstring_newline_append(fr, &buf);
+        test_validatefree(st == GETLINE_EOF && fs_len(&buf) == 0,
+                          (fsfree(buf), fclose(fr)),
+                          "expected EOF for empty file");
+
+        fsfree(buf);
+        fclose(fr);
+        remove(fname);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
 
 // ------------------------------------------------------------------------------------------------------------------------------
 int
@@ -874,11 +1022,12 @@ main( /* int argc, const char *argv[] */)
     logsimpleinit("Start");
 
     testenginestd(
-        TESTADD(tf1,                         "getstring() simple file test"),
-        TESTADD(tf2,                         "getpurestring() simple file test"),
-        TESTADD(tf_getconvstring,            "getconvstring() simple file test"),
-        TESTADD(tf_getconvstring_removequot, "getconvstring() removequot==true simple file test"),
-        TESTADD(tf_getconvstring_str,        "getconvstring_str() simple test")
+        TESTADD(tf1,                            "getstring() simple file test"),
+        TESTADD(tf2,                            "getpurestring() simple file test"),
+        TESTADD(tf_getconvstring,               "getconvstring() simple file test"),
+        TESTADD(tf_getconvstring_removequot,    "getconvstring() removequot==true simple file test"),
+        TESTADD(tf_getconvstring_str,           "getconvstring_str() simple test"),
+        TESTADD(tf6_getstring_newline_append,   "getstring_newline_append() simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()

@@ -18,9 +18,21 @@ static inline bool                  getsimpleword(fs *str){
 }
 
 // LEXEM_CMD for \<cmd>
-typedef enum { LEXEM_UNK = -1, LEXEM_WORD, LEXEM_INT, LEXEM_FLOAT, LEXEM_SYM, LEXEM_CMD,
+typedef enum { 
+    LEXEM_UNK = -1, 
+    LEXEM_WORD, 
+    LEXEM_INT, 
+    LEXEM_FLOAT, 
+    LEXEM_SYM, 
+    LEXEM_CMD,
     LEXEM_STR = 10000000 // separate api getstring!
 } Lexemtype;
+
+typedef enum {
+    GETLINE_EOF = 0,
+    GETLINE_LINE,
+    GETLINE_PARTIAL
+} GetlineStattus;
 
 static inline const char           *Lexemtype_str(Lexemtype typ){
     switch (typ){
@@ -82,8 +94,17 @@ static inline void                  lexem_free(Lexem *l){
 #define                     lexeminit(...) {.str = FS(), .typ = LEXEM_UNK }
 #define                     lexemfree(l) lexem_free( &(l) )
 
+// true if ANY data is processed (even \n), false if EOF
+// if newline then last '\n' is returned
+extern bool                         getstring_nl(FILE *restrict in, fs *restrict str, bool newline, bool append);
+
 // not using buffer.c, VERY simple, empty line is OK, just "" empty fs
-extern bool                         getpurestring(FILE *restrict in, fs *restrict str);
+static inline bool                  getpurestring(FILE *restrict in, fs *restrict str) {
+    return getstring_nl(in, str, false, false);
+}
+
+// for v64gen FILE * source
+extern GetlineStattus                getstring_newline_append(FILE *restrict in, fs *restrict str);
 
 /**
  * @brief Reads a text token from a generic data source (file, string, const string).
