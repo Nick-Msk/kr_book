@@ -26,6 +26,7 @@ static bool                      v64GenFileUpdate(v64Gen *gen, long amount)
     if (!fp)
         return false;
 
+    clearerr(fp);       // if was EOF
     off_t total = getfilesize(fp);
     if (total < 0)
         return false;               // нерегулярный файл – обновить нельзя
@@ -93,16 +94,6 @@ static value64                  v64GenFSToStringTargetByNewlineFinalize(v64Gen *
     return res;
 }
 
-// forward decl
-static value64                  v64GenFileToStringTargetByNewline_common(v64Gen *gen, value64_type typ, bool partial);
-
-/**
- * @brief Finalizer for fs newline generator: returns the remaining data as last line.
- */
-static inline value64           v64GenFileToStringTargetByNewlineFinalize(v64Gen *gen, value64_type typ) {
-    return v64GenFileToStringTargetByNewline_common(gen, typ, true);
-}
-
 /**
  * @brief Parse fs from fs, dividev by newline
  * @note
@@ -142,32 +133,7 @@ static value64                         v64GenFSToStringTargetByNewline(v64Gen *g
     };
     return res;
 }
-// reg + finallize
-static inline value64                         v64GenFileToStringTargetByNewline_common(v64Gen *gen, value64_type typ, bool partial) {
-    invraisecode(gen != NULL, ERR_NULLABLE_PTR, "Null generator");
-    invraisecode(typ == VALUE64_FS || typ == VALUE64_STR, ERR_UNSUPPORTED_TYPE
-        , "Type %d/%s isn't supported by %s", typ, value64_typename(typ), __func__);
-    
-    fs      *buf = V64GENREGVAL2(gen).fsval;
-    FILE    *in = V64GENREGVAL0(gen).FILEval;
-    if (fs_isnull(buf) )   // no init
-        return logsimpleret(LITERAL64_ZERO, "buf is null");
-    
-    GetlineStattus st = getstring_newline_append(in, buf);
-    
-    if (st == GETLINE_EOF)
-        return logsimpleret(LITERAL64_ZERO, "EOF detected");
-    if (!partial && st != GETLINE_LINE)
-        return logsimpleret(LITERAL64_ZERO, "EOF detected");
 
-    value64  res;
-    if (typ == VALUE64_STR) 
-        res = value64_createstr(fs_str(buf));
-    else
-        res = value64_createfs(buf);
-    fs_clear(buf);
-    return res;
-}
 
 /**
  * @brief Parse fs/str from FILE *, dividev by newline
@@ -178,8 +144,28 @@ static inline value64                         v64GenFileToStringTargetByNewline_
  * data[1] – ULONG current read position
  * data[2] - fs as buffer
  */
-static inline value64           v64GenFileToStringTargetByNewline(v64Gen *gen, value64_type typ) {
-    return v64GenFileToStringTargetByNewline_common(gen, typ, false);
+static inline value64           v64GenFileToStringTargetByNewline(v64Gen *gen) {
+    invraisecode(gen != NULL, ERR_NULLABLE_PTR, "Null generator");
+    
+    fs      *buf = V64GENREGVAL2(gen).fsval;
+    FILE    *in = V64GENREGVAL0(gen).FILEval;
+    //if (fs_isnull(buf) )   // no init
+    if (!buf)
+        return logsimpleret(LITERAL64_ZERO, "buf is null");
+    
+    GetlineStattus st = getstring_newline_append(in, buf);
+    
+    if (st != GETLINE_LINE)
+        return logsimpleret(LITERAL64_ZERO, "Partial line or EOF detected %d", st);
+
+    value64  res;
+    if (gen->type == VALUE64_STR) 
+        res = value64_createstr(fs_str(buf));
+    else
+        res = value64_createfs(buf);
+    fs_clear(buf);
+    // VALUE64_TECHFPRINT(logfile, res, gen->typ);
+    return res;
 } 
 
 
@@ -191,13 +177,23 @@ value64                         v64GenFSToStrByNewlineFinalize(v64Gen *gen) {
     return v64GenFSToStringTargetByNewlineFinalize(gen, VALUE64_STR);
 }
 // FILE -> FS/STR by newline finallizers
-value64                         v64GenFileToFsByNewlineFinalize(v64Gen *gen) {
-    return v64GenFileToStringTargetByNewlineFinalize(gen, VALUE64_FS);
-}
-value64                         v64GenFileToStrByNewlineFinalize(v64Gen *gen) {
-    return v64GenFileToStringTargetByNewlineFinalize(gen, VALUE64_STR);
-}
+/** 
+ * @brief Finalizer: returns the remaining partial line without reading file.
+ */
+static value64                  v64GenFileToStringTargetByNewlineFinalize(v64Gen *gen) {
+    fs *buf = V64GENREGVAL2(gen).fsval;
+    if (!buf || fs_isempty(buf))
+        return LITERAL64_ZERO;
 
+    value64 res;
+    if (gen->type == VALUE64_STR)
+        res = value64_createstr(fs_str(buf));
+    else
+        res = value64_createfs(buf);
+
+    fs_clear(buf);
+    return res;
+}
 
 // ---------------------- Utilities constructors (Common private versions) -----------------------
 
@@ -238,20 +234,19 @@ static v64Gen                   v64GenCreatorSourceFileToCommonStringByNewline(F
     invraisecode(typ == VALUE64_FS || typ == VALUE64_STR, ERR_UNSUPPORTED_TYPE,
                  "Type %d/%s not supported", typ, value64_typename(typ));
 
-    v64Gen gen = v64GenInit3(typ == VALUE64_FS ? v64GenFileToFsByNewline: 
-                                                 v64GenFileToStrByNewline, 
+    v64Gen gen = v64GenInit3(v64GenFileToStringTargetByNewline,
                              typ,
                              v64typedCreateFILE(file),
                              v64typedCreateULong(0L),
-                             v64typedCreateFs(fs_create()));
+                             //v64typedCreateFs(fs_create())
+                             v64typedCreate(LITERAL64_PFS(fs_create()), VALUE64_FS)
+                             );
 
-    gen.updater = v64GenFileUpdate;                     
-    gen.finalizer = typ == VALUE64_FS ? 
-                        v64GenFileToFsByNewlineFinalize: 
-                        v64GenFileToStrByNewlineFinalize;
+    gen.updater   = v64GenFileUpdate;                     
+    gen.finalizer = v64GenFileToStringTargetByNewlineFinalize;
     gen.remaining = v64GenFileGetRemainingCount;
 
-    v64GenFileUpdate(&gen, 0);   // t
+    v64GenFileUpdate(&gen, 0);   // set up remaining REG1
 
     return gen;
 }
@@ -667,26 +662,6 @@ value64                         v64GenFileToChar(v64Gen *gen)
     // > 0
     V64GENREGVAL1(gen).ulval = remaining - 1;
     return value64_createchar((char)c);
-}
-/**
- * @brief File stream generator
- *
- * data[0] – PTR на FILE* (невладеющий)
- * data[1] – ULONG remained count
- * data[2] = fs as buf (owner)
- */
-value64                         v64GenFileToFsByNewline(v64Gen *gen) {
-    return v64GenFileToStringTargetByNewline(gen, VALUE64_FS);
-}
-/**
- * @brief File stream generator
- *
- * data[0] – PTR на FILE* (невладеющий)
- * data[1] – ULONG remained count
- * data[2] = fs as buf (owner)
- */
-value64                         v64GenFileToStrByNewline(v64Gen *gen) {
-    return v64GenFileToStringTargetByNewline(gen, VALUE64_STR);
 }
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
@@ -2989,7 +2964,7 @@ tf18_gen_stream_update_file(const char *name)
 
         // Начальные данные
         FILE *w = fopen(fname, "w");
-        test_validatefree(w != NULL, remove(fname), "fopen(w) failed");
+        test_validate(w != NULL, "fopen(w) failed");
         fwrite("abc", 1, 3, w);
         fclose(w);
 
@@ -2997,7 +2972,7 @@ tf18_gen_stream_update_file(const char *name)
         FILE *fr = fopen(fname, "r");     // для генератора
         FILE *fa = fopen(fname, "a");     // для дозаписи
         test_validatefree(fr != NULL && fa != NULL,
-                          (fr ? fclose(fr) : 0, fa ? fclose(fa) : 0, remove(fname)),
+                          (fr ? fclose(fr) : 0, fa ? fclose(fa) : 0),
                           "fopen(r/a) failed");
 
         v64Gen gen = v64GenCreatorSourceFileChar(fr);
@@ -3005,7 +2980,7 @@ tf18_gen_stream_update_file(const char *name)
         // Начальный остаток = 3
         unsigned long rem = v64GenGetRemaining(&gen);
         test_validatefree(rem == 3,
-                          (v64GenFree(&gen), fclose(fr), fclose(fa), remove(fname)),
+                          (v64GenFree(&gen), fclose(fr), fclose(fa)),
                           "initial remaining expected 3, got %lu", rem);
 
         // Читаем два символа 'a', 'b'
@@ -3014,7 +2989,7 @@ tf18_gen_stream_update_file(const char *name)
         test_validatefree(
             value64_char(v1) == 'a' && value64_char(v2) == 'b',
             (value64_free(&v1, VALUE64_CHR), value64_free(&v2, VALUE64_CHR),
-             v64GenFree(&gen), fclose(fr), fclose(fa), remove(fname)),
+             v64GenFree(&gen), fclose(fr), fclose(fa)),
             "first two characters mismatch"
         );
         value64_free(&v1, VALUE64_CHR);
@@ -3023,7 +2998,7 @@ tf18_gen_stream_update_file(const char *name)
         // Остаток = 1 (ещё 'c')
         rem = v64GenGetRemaining(&gen);
         test_validatefree(rem == 1,
-                          (v64GenFree(&gen), fclose(fr), fclose(fa), remove(fname)),
+                          (v64GenFree(&gen), fclose(fr), fclose(fa)),
                           "remaining after two chars expected 1, got %lu", rem);
 
         // Дописываем "def" в конец файла через отдельный поток
@@ -3036,7 +3011,7 @@ tf18_gen_stream_update_file(const char *name)
         // Теперь remaining должен быть 4: 'c', 'd', 'e', 'f'
         rem = v64GenGetRemaining(&gen);
         test_validatefree(rem == 4,
-                          (v64GenFree(&gen), fclose(fr), fclose(fa), remove(fname)),
+                          (v64GenFree(&gen), fclose(fr), fclose(fa)),
                           "remaining after append expected 4, got %lu", rem);
 
         // Читаем оставшиеся 4 символа
@@ -3045,7 +3020,7 @@ tf18_gen_stream_update_file(const char *name)
             value64 v = v64GenNext(&gen);
             test_validatefree(
                 value64_char(v) == expected_rest[i],
-                (value64_free(&v, VALUE64_CHR), v64GenFree(&gen), fclose(fr), fclose(fa), remove(fname)),
+                (value64_free(&v, VALUE64_CHR), v64GenFree(&gen), fclose(fr), fclose(fa)),
                 "char %d mismatch: expected '%c', got '%c'",
                 i, expected_rest[i], value64_char(v)
             );
@@ -3056,20 +3031,19 @@ tf18_gen_stream_update_file(const char *name)
         value64 v_end = v64GenNext(&gen);
         test_validatefree(
             value64_char(v_end) == '\0',
-            (value64_free(&v_end, VALUE64_CHR), v64GenFree(&gen), fclose(fr), fclose(fa), remove(fname)),
+            (value64_free(&v_end, VALUE64_CHR), v64GenFree(&gen), fclose(fr), fclose(fa)),
             "expected null after end"
         );
         value64_free(&v_end, VALUE64_CHR);
 
         rem = v64GenGetRemaining(&gen);
         test_validatefree(rem == 0,
-                          (v64GenFree(&gen), fclose(fr), fclose(fa), remove(fname)),
+                          (v64GenFree(&gen), fclose(fr), fclose(fa)),
                           "remaining after end expected 0, got %lu", rem);
 
         v64GenFree(&gen);
         fclose(fr);
         fclose(fa);
-        remove(fname);
         fs_alloc_check(true);
     }
 
@@ -3090,6 +3064,252 @@ tf18_gen_stream_update_file(const char *name)
 
     return TEST_PASSED;
 }
+
+// ------------------------- TEST 19: FILE* -> FS/STR by newline generator -------------------------
+static TestStatus
+tf19_gen_file_bynewline(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. FS version: полные строки, пустая строка, финализация */
+    test_sub("subtest %d: FS version lines and finalize", ++subnum);
+    {
+        const char *fname = "res/v64gen/v64gen_file_bynewline_fs.tmp";
+        FILE *w = fopen(fname, "w");
+        test_validate(w != NULL, "fopen(w) failed");
+        fwrite("line1\n\nline2\nlast", 1, 18, w);   // line1 + пустая + line2 + last(без \n)
+        fclose(w);
+
+        FILE *fr = fopen(fname, "r");
+        test_validate(fr != NULL, "fopen(r) failed");
+
+        v64Gen gen = v64GenCreatorSourceFileToCommonStringByNewline(fr, VALUE64_FS);
+
+        // Первая строка "line1"
+        value64 v1 = v64GenNext(&gen);
+        test_validatefree(
+            !fs_isnull(value64_fs(v1)) && fs_cmpstr(value64_fs(v1), "line1") == 0,
+            (value64_free(&v1, VALUE64_FS), v64GenFree(&gen), fclose(fr)),
+            "first line mismatch %p", value64_fs(v1)
+        );
+        value64_free(&v1, VALUE64_FS);
+
+        // Вторая строка: пустая (между \n\n)
+        value64 v2 = v64GenNext(&gen);
+        test_validatefree(
+            !fs_isnull(value64_fs(v2)) && fs_len(value64_fs(v2)) == 0,
+            (value64_free(&v2, VALUE64_FS), v64GenFree(&gen), fclose(fr)),
+            "empty line mismatch"
+        );
+        value64_free(&v2, VALUE64_FS);
+
+        // Третья строка "line2"
+        value64 v3 = v64GenNext(&gen);
+        test_validatefree(
+            !fs_isnull(value64_fs(v3)) && fs_cmpstr(value64_fs(v3), "line2") == 0,
+            (value64_free(&v3, VALUE64_FS), v64GenFree(&gen), fclose(fr)),
+            "third line mismatch"
+        );
+        value64_free(&v3, VALUE64_FS);
+
+        // Четвёртая строка: "last" без \n -> ожидание (NULL)
+        value64 v4 = v64GenNext(&gen);
+        test_validatefree(
+            fs_isnull(value64_fs(v4)),
+            (value64_free(&v4, VALUE64_FS), v64GenFree(&gen), fclose(fr)),
+            "expected null (waiting for newline)"
+        );
+        value64_free(&v4, VALUE64_FS);
+
+        // Финализация: "last"
+        value64 v_last = v64GenFinalize(&gen);
+        test_validatefree(
+            !fs_isnull(value64_fs(v_last)) && fs_cmpstr(value64_fs(v_last), "last") == 0,
+            (value64_free(&v_last, VALUE64_FS), v64GenFree(&gen), fclose(fr)),
+            "final line mismatch"
+        );
+        value64_free(&v_last, VALUE64_FS);
+
+        // После финализации следующий вызов должен вернуть NULL
+        value64 v_end = v64GenNext(&gen);
+        test_validatefree(
+            fs_isnull(value64_fs(v_end)),
+            (value64_free(&v_end, VALUE64_FS), v64GenFree(&gen), fclose(fr)),
+            "expected null after finalize"
+        );
+        value64_free(&v_end, VALUE64_FS);
+
+        v64GenFree(&gen);
+        fclose(fr);
+        fs_alloc_check(true);
+    }
+
+    /* 2. STR version: полные строки, пустая строка, финализация */
+    test_sub("subtest %d: STR version lines and finalize", ++subnum);
+    {
+        const char *fname = "res/v64gen/v64gen_file_bynewline_str.tmp";
+        FILE *w = fopen(fname, "w");
+        test_validate(w != NULL, "fopen(w) failed");
+        fwrite("line1\n\nline2\nlast", 1, 18, w);
+        fclose(w);
+
+        FILE *fr = fopen(fname, "r");
+        test_validate(fr != NULL, "fopen(r) failed");
+
+        v64Gen gen = v64GenCreatorSourceFileToStrByNewline(fr);
+
+        value64 v1 = v64GenNext(&gen);
+        test_validatefree(
+            value64_str(v1) != NULL && strcmp(value64_str(v1), "line1") == 0,
+            (value64_free(&v1, VALUE64_STR), v64GenFree(&gen), fclose(fr)),
+            "first line mismatch"
+        );
+        value64_free(&v1, VALUE64_STR);
+
+        value64 v2 = v64GenNext(&gen);
+        test_validatefree(
+            value64_str(v2) != NULL && strlen(value64_str(v2)) == 0,
+            (value64_free(&v2, VALUE64_STR), v64GenFree(&gen), fclose(fr)),
+            "empty line mismatch"
+        );
+        value64_free(&v2, VALUE64_STR);
+
+        value64 v3 = v64GenNext(&gen);
+        test_validatefree(
+            value64_str(v3) != NULL && strcmp(value64_str(v3), "line2") == 0,
+            (value64_free(&v3, VALUE64_STR), v64GenFree(&gen), fclose(fr)),
+            "third line mismatch"
+        );
+        value64_free(&v3, VALUE64_STR);
+
+        value64 v4 = v64GenNext(&gen);
+        test_validatefree(
+            value64_str(v4) == NULL,
+            (value64_free(&v4, VALUE64_STR), v64GenFree(&gen), fclose(fr)),
+            "expected null (waiting for newline)"
+        );
+        value64_free(&v4, VALUE64_STR);
+
+        value64 v_last = v64GenFinalize(&gen);
+        test_validatefree(
+            value64_str(v_last) != NULL && strcmp(value64_str(v_last), "last") == 0,
+            (value64_free(&v_last, VALUE64_STR), v64GenFree(&gen), fclose(fr)),
+            "final line mismatch"
+        );
+        value64_free(&v_last, VALUE64_STR);
+
+        value64 v_end = v64GenNext(&gen);
+        test_validatefree(
+            value64_str(v_end) == NULL,
+            (value64_free(&v_end, VALUE64_STR), v64GenFree(&gen), fclose(fr)),
+            "expected null after finalize"
+        );
+        value64_free(&v_end, VALUE64_STR);
+
+        v64GenFree(&gen);
+        fclose(fr);
+        fs_alloc_check(true);
+    }
+
+    /* 3. Дописывание в файл после EOF и продолжение чтения */
+    test_sub("subtest %d: resume after EOF with file append (STR)", ++subnum);
+    {
+        const char *fname = "res/v64gen/v64gen_file_bynewline_append.tmp";
+        FILE *w = fopen(fname, "w");
+        test_validate(w != NULL, "fopen(w) failed");
+        fwrite("first\n", 1, 6, w);
+        fclose(w);
+
+        FILE *fr = fopen(fname, "r");
+        FILE *fa = fopen(fname, "a");
+        test_validatefree(fr && fa,
+                          (fr?fclose(fr):0, fa?fclose(fa):0),
+                          "fopen failed");
+
+        v64Gen gen = v64GenCreatorSourceFileToCommonStringByNewline(fr, VALUE64_STR);
+
+        // Читаем первую строку
+        value64 v1 = v64GenNext(&gen);
+        test_validatefree(
+            value64_str(v1) != NULL && strcmp(value64_str(v1), "first") == 0,
+            (value64_free(&v1, VALUE64_STR), v64GenFree(&gen), fclose(fr), fclose(fa)),
+            "first line mismatch"
+        );
+        value64_free(&v1, VALUE64_STR);
+
+        // Файл закончился: должен вернуть NULL
+        value64 v2 = v64GenNext(&gen);
+        test_validatefree(
+            value64_str(v2) == NULL,
+            (value64_free(&v2, VALUE64_STR), v64GenFree(&gen), fclose(fr), fclose(fa)),
+            "expected NULL after EOF"
+        );
+        value64_free(&v2, VALUE64_STR);
+
+        // Дописываем вторую строку
+        fwrite("second\n", 1, 7, fa);
+        fflush(fa);
+
+        // Обновляем генератор (пересчёт remaining + сброс EOF)
+        v64GenStreamUpdate(&gen, 0L);
+
+        // Читаем новую строку
+        value64 v3 = v64GenNext(&gen);
+
+        VALUE64_TECHFPRINT(logfile, v3, gen.type);
+
+        test_validatefree(
+            value64_str(v3) != NULL && strcmp(value64_str(v3), "second") == 0,
+            (value64_free(&v3, VALUE64_STR), v64GenFree(&gen), fclose(fr), fclose(fa)),
+            "second line mismatch %p", value64_str(v3) 
+        );
+        value64_free(&v3, VALUE64_STR);
+
+        v64GenFree(&gen);
+        fclose(fr);
+        fclose(fa);
+        fs_alloc_check(true);
+    }
+
+    /* 4. Проверка remaining для файлового генератора */
+    test_sub("subtest %d: remaining count for file generator", ++subnum);
+    {
+        const char *fname = "res/v64gen/v64gen_file_bynewline_remaining.tmp";
+        FILE *w = fopen(fname, "w");
+        test_validate(w != NULL, "fopen(w) failed");
+        fwrite("abc\n", 1, 4, w);
+        fclose(w);
+
+        FILE *fr = fopen(fname, "r");
+        test_validate(fr != NULL, "fopen(r) failed");
+
+        v64Gen gen = v64GenCreatorSourceFileToCommonStringByNewline(fr, VALUE64_STR);
+
+        // Начальный остаток: 4 байта
+        unsigned long rem = v64GenGetRemaining(&gen);
+        test_validatefree(rem == 4,
+                          (v64GenFree(&gen), fclose(fr)),
+                          "initial remaining expected 4, got %lu", rem);
+
+        // Читаем строку "abc"
+        value64 v = v64GenNext(&gen);
+        value64_free(&v, VALUE64_STR);
+
+        // Остаток должен стать 0 (файл прочитан до конца)
+        rem = v64GenGetRemaining(&gen);
+        test_validatefree(rem == 0,
+                          (v64GenFree(&gen), fclose(fr)),
+                          "remaining after reading expected 0, got %lu", rem);
+
+        v64GenFree(&gen);
+        fclose(fr);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(/* int argc, const char *argv[] */)
@@ -3115,6 +3335,8 @@ main(/* int argc, const char *argv[] */)
       , TESTADD(tf16_gen_fs_bynewline_remaining, "v64GenGetRemainingCount with FsToFsByNewlin")
       , TESTADD(tf17_gen_fs_tostr_bynewline,    "v64GenFSToStrByNewline() simple test")
       , TESTADD(tf18_gen_stream_update_file,    "v64GenCreatorSourceFileChar() simple test")
+      , TESTADD(tf19_gen_file_bynewline, "v64GenCreatorSourceFileToCommonStringByNewline() simple test")
+
     );
 
     return logret(0, "end...");  // as replace of logclose()

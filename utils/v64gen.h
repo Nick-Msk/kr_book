@@ -549,8 +549,8 @@ static inline int               v64Techprint(const v64Gen *restrict gen, const c
     return v64Techfprint(stdout, gen, name);
 }
 
-#define                         V64TECHFPRINT(out, gen) v64Techfprint( (out), (gen), #gen)
-#define                         V64TECHPRINT(gen) v64Techfprint( (gen), #gen)
+#define                         V64TECHFPRINT(out, gen) v64Techfprint( (out), &(gen), #gen)
+#define                         V64TECHPRINT(gen) v64Techprint( &(gen), #gen)
 
 // ------------------------------------ ETC. ----------------------------------------
 
