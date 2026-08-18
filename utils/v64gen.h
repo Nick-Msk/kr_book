@@ -16,6 +16,7 @@
 #include "value64.h"
 #include "v64typed.h"
 #include "error.h"
+#include "getword.h"
 
 // --------------------------------- CONSTANTS AND GLOBALS --------------------------
 
@@ -166,6 +167,22 @@ extern value64                  v64GenFSToStrByNewline(v64Gen *gen);
  * data[1] – ULONG remained count
  */
 extern value64                  v64GenFileToChar(v64Gen *gen);
+/**
+ * @brief File stream generator
+ *
+ * data[0] – PTR на FILE* (невладеющий)
+ * data[1] – ULONG remained count
+ * data[2] = fs as buf (owner)
+ */
+extern value64                  v64GenFileToFsByNewline(v64Gen *gen);
+/**
+ * @brief File stream generator
+ *
+ * data[0] – PTR на FILE* (невладеющий)
+ * data[1] – ULONG remained count
+ * data[2] = fs as buf (owner)
+ */
+extern value64                  v64GenFileToStrByNewline(v64Gen *gen);
 
 // ------------------------ Wrappers for pre-created generators ---------------------
 // ----------------------------------------------------------------------------------
@@ -238,7 +255,7 @@ static inline v64Gen            v64GenCreatorUnlimAscSeries(v64typed vt) {
 }
 
 
-// -------------------------------------------- ACS SERIES ------------------------------------------------
+// -------------------------------------------- DESC SERIES ------------------------------------------------
 
 // REGITRSY ALLOCATION:
 // data[0] LONG as startpos for numeric desc generator
@@ -471,7 +488,7 @@ extern v64Gen                   v64GenCreatorSourceFsToChar(const fs *src);
 // data[1] ULONG as position
 extern v64Gen                   v64GenCreatorSourceFsToFsByNewline(const fs *src);
 
-// RETURNS: VALUE64/FS
+// RETURNS: VALUE64/STR
 // REGITRSY ALLOCATION:
 // data[0] FS as SOURCE (no ownership)
 // data[1] ULONG as position
@@ -481,6 +498,18 @@ extern v64Gen                   v64GenCreatorSourceFsToStrByNewline(const fs *sr
 // data[0] FILE as SOURCE (no ownership)
 // data[1] ULONG as remaining chars
 extern v64Gen                   v64GenCreatorSourceFileChar(FILE *file);
+// RETURNS: VALUE64/FS
+// REGITRSY ALLOCATION:
+// data[0] FILE * (no ownership)
+// data[1] ULONG as remaining
+// data[2] FS as buf (owner)
+extern v64Gen                   v64GenCreatorSourceFileToFsByNewline(FILE *src);
+// RETURNS: VALUE64/STR
+// REGITRSY ALLOCATION:
+// data[0] FILE * (no ownership)
+// data[1] ULONG as remaining
+// data[2] FS as buf (owner)
+extern v64Gen                   v64GenCreatorSourceFileToStrByNewline(FILE *src);
 
 // --------------------------------- Indirect API --------------------------------------
 

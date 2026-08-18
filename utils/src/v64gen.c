@@ -17,7 +17,7 @@ static bool                     v64GenStringUpdate(v64Gen *gen, long amount) {
         V64GENREGVAL1(gen).lval += amount;
     return true;
 }
-// FILE * update
+// FILE * update, REG0 as FILE *
 static bool                      v64GenFileUpdate(v64Gen *gen, long amount)
 {
     (void) amount;   // не используется, файл обновляется целиком
@@ -58,8 +58,15 @@ static unsigned long            v64GenGetRemainingCount(v64Gen *gen)
     return fs_len(src) - V64GENREGVAL1(gen).ulval;
 }
 
+static unsigned long             v64GenFileGetRemainingCount(v64Gen *gen) {
+    v64GenFileUpdate(gen, 0L);
+    return V64GENREGVAL1(gen).ulval;
+}
+
+// ---------------------- Utilities generators (Common private versions) -----------------------
+
 /**
- * @brief Finalizer for newline generator: returns the remaining data as last line.
+ * @brief Finalizer for fs newline generator: returns the remaining data as last line.
  */
 static value64                  v64GenFSToStringTargetByNewlineFinalize(v64Gen *gen, value64_type typ) {
     invraisecode(gen != NULL, ERR_NULLABLE_PTR, "NUll gen");
@@ -86,14 +93,16 @@ static value64                  v64GenFSToStringTargetByNewlineFinalize(v64Gen *
     return res;
 }
 
-static value64                  v64GenFSToFsByNewlineFinalize(v64Gen *gen) {
-    return v64GenFSToStringTargetByNewlineFinalize(gen, VALUE64_FS);
-}
-static value64                  v64GenFSToStrByNewlineFinalize(v64Gen *gen) {
-    return v64GenFSToStringTargetByNewlineFinalize(gen, VALUE64_STR);
+// forward decl
+static value64                  v64GenFileToStringTargetByNewline_common(v64Gen *gen, value64_type typ, bool partial);
+
+/**
+ * @brief Finalizer for fs newline generator: returns the remaining data as last line.
+ */
+static inline value64           v64GenFileToStringTargetByNewlineFinalize(v64Gen *gen, value64_type typ) {
+    return v64GenFileToStringTargetByNewline_common(gen, typ, true);
 }
 
-// ---------------------- Utilities generators (Common private versions) -----------------------
 /**
  * @brief Parse fs from fs, dividev by newline
  * @note
@@ -118,7 +127,7 @@ static value64                         v64GenFSToStringTargetByNewline(v64Gen *g
     const char   *newline = strchr(start, '\n');
     value64       res = LITERAL64_ZERO;
 
-    if (newline) {
+    if (newline) {  // TODO: refactor here!
         size_t line_len = newline - start;
         if (line_len > 0 && start[line_len - 1] == '\r')
             line_len--;                       /* remove trailing \r */
@@ -133,6 +142,62 @@ static value64                         v64GenFSToStringTargetByNewline(v64Gen *g
     };
     return res;
 }
+// reg + finallize
+static inline value64                         v64GenFileToStringTargetByNewline_common(v64Gen *gen, value64_type typ, bool partial) {
+    invraisecode(gen != NULL, ERR_NULLABLE_PTR, "Null generator");
+    invraisecode(typ == VALUE64_FS || typ == VALUE64_STR, ERR_UNSUPPORTED_TYPE
+        , "Type %d/%s isn't supported by %s", typ, value64_typename(typ), __func__);
+    
+    fs      *buf = V64GENREGVAL2(gen).fsval;
+    FILE    *in = V64GENREGVAL0(gen).FILEval;
+    if (fs_isnull(buf) )   // no init
+        return logsimpleret(LITERAL64_ZERO, "buf is null");
+    
+    GetlineStattus st = getstring_newline_append(in, buf);
+    
+    if (st == GETLINE_EOF)
+        return logsimpleret(LITERAL64_ZERO, "EOF detected");
+    if (!partial && st != GETLINE_LINE)
+        return logsimpleret(LITERAL64_ZERO, "EOF detected");
+
+    value64  res;
+    if (typ == VALUE64_STR) 
+        res = value64_createstr(fs_str(buf));
+    else
+        res = value64_createfs(buf);
+    fs_clear(buf);
+    return res;
+}
+
+/**
+ * @brief Parse fs/str from FILE *, dividev by newline
+ * @note
+ * @return: value64/(fs|str)
+ * @note
+ * data[0] – PTR to source FILE * (non-owning)
+ * data[1] – ULONG current read position
+ * data[2] - fs as buffer
+ */
+static inline value64           v64GenFileToStringTargetByNewline(v64Gen *gen, value64_type typ) {
+    return v64GenFileToStringTargetByNewline_common(gen, typ, false);
+} 
+
+
+// FS -> FS/STR by newline finallizers
+value64                         v64GenFSToFsByNewlineFinalize(v64Gen *gen) {
+    return v64GenFSToStringTargetByNewlineFinalize(gen, VALUE64_FS);
+}
+value64                         v64GenFSToStrByNewlineFinalize(v64Gen *gen) {
+    return v64GenFSToStringTargetByNewlineFinalize(gen, VALUE64_STR);
+}
+// FILE -> FS/STR by newline finallizers
+value64                         v64GenFileToFsByNewlineFinalize(v64Gen *gen) {
+    return v64GenFileToStringTargetByNewlineFinalize(gen, VALUE64_FS);
+}
+value64                         v64GenFileToStrByNewlineFinalize(v64Gen *gen) {
+    return v64GenFileToStringTargetByNewlineFinalize(gen, VALUE64_STR);
+}
+
 
 // ---------------------- Utilities constructors (Common private versions) -----------------------
 
@@ -154,6 +219,40 @@ static v64Gen                    v64GenCreatorSourceFsToCommonStringByNewline(co
 
     gen.finalizer = typ == VALUE64_FS ? v64GenFSToFsByNewlineFinalize : v64GenFSToStrByNewlineFinalize;
     gen.remaining = v64GenGetRemainingCount;
+    return gen;
+}
+/**
+ * @brief Создаёт построчный генератор из FILE*.
+ *
+ * @param file  FILE * opened for r, not owned
+ * @param typ   target type: VALUE64_FS или VALUE64_STR
+ * @return      v64Gen
+ * @note Регистры:
+ *      data[0] = FILE* (PTR)
+ *      data[1] ULONG as remaining
+ *      data[2] = fs as buf (owner)
+ */
+static v64Gen                   v64GenCreatorSourceFileToCommonStringByNewline(FILE *file, value64_type typ)
+{
+    invraisecode(file != NULL, ERR_NULLABLE_PTR, "Null FILE*");
+    invraisecode(typ == VALUE64_FS || typ == VALUE64_STR, ERR_UNSUPPORTED_TYPE,
+                 "Type %d/%s not supported", typ, value64_typename(typ));
+
+    v64Gen gen = v64GenInit3(typ == VALUE64_FS ? v64GenFileToFsByNewline: 
+                                                 v64GenFileToStrByNewline, 
+                             typ,
+                             v64typedCreateFILE(file),
+                             v64typedCreateULong(0L),
+                             v64typedCreateFs(fs_create()));
+
+    gen.updater = v64GenFileUpdate;                     
+    gen.finalizer = typ == VALUE64_FS ? 
+                        v64GenFileToFsByNewlineFinalize: 
+                        v64GenFileToStrByNewlineFinalize;
+    gen.remaining = v64GenFileGetRemainingCount;
+
+    v64GenFileUpdate(&gen, 0);   // t
+
     return gen;
 }
 
@@ -221,35 +320,24 @@ v64Gen                          v64GenCreatorSourceFsToFsByNewline(const fs *src
 v64Gen                          v64GenCreatorSourceFsToStrByNewline(const fs *src) {
     return v64GenCreatorSourceFsToCommonStringByNewline(src, VALUE64_STR);
 }
-// RETURNS: VALUE64/CHR
+// RETURNS: VALUE64/FS
 // REGITRSY ALLOCATION:
-// data[0] FILE as SOURCE (no ownership)
-// data[1] ULONG as remaining chars
-/**
- * @brief Stream character generator over a FILE* source.
- *
- * data[0] – PTR to FILE* (non-owning)
- * data[1] – ULONG remaining chars available
- */
-value64 v64GenFileChar(v64Gen *gen)
-{
-    FILE *fp = (FILE *)V64GENREGVAL0(gen).pval;
-    if (!fp)
-        return LITERAL64_ZERO;
-
-    unsigned long remaining = V64GENREGVAL1(gen).ulval;
-    if (remaining == 0)
-        return LITERAL64_ZERO;
-
-    int c = fgetc(fp);
-    if (c == EOF) {
-        V64GENREGVAL1(gen).ulval = 0;
-        return LITERAL64_ZERO;
-    }
-
-    V64GENREGVAL1(gen).ulval = remaining - 1;
-    return value64_createchar((char)c);
+// data[0] FILE * (no ownership)
+// data[1] ULONG as remaining
+// data[2] FS as buf (owner)
+v64Gen                          v64GenCreatorSourceFileToFsByNewline(FILE *src) {
+    return v64GenCreatorSourceFileToCommonStringByNewline(src, VALUE64_FS);
 }
+// RETURNS: VALUE64/STR
+// REGITRSY ALLOCATION:
+// data[0] FILE * (no ownership)
+// data[1] ULONG as remaining
+// data[2] FS as buf (owner)
+v64Gen                           v64GenCreatorSourceFileToStrByNewline(FILE *src) {
+    return v64GenCreatorSourceFileToCommonStringByNewline(src, VALUE64_STR);
+}
+
+
 
 /**
  * @brief Returns the remaining number of characters available in the FILE* source.
@@ -278,7 +366,7 @@ v64Gen v64GenCreatorSourceFileChar(FILE *file)
 {
     invraisecode(file != NULL, ERR_NULLABLE_PTR, "Null FILE*");
 
-    v64Gen gen = v64GenInit2(v64GenFileChar, VALUE64_CHR,
+    v64Gen gen = v64GenInit2(v64GenFileToChar, VALUE64_CHR,
                              v64typedCreateFILE(file),       // data[0]
                              v64typedCreateULong(0));        // data[1] временно 0
 
@@ -307,7 +395,6 @@ value64                         v64GenNext(v64Gen *gen)
     gen->counter++;     // just for stats and LIMITS (not impl yet)
     return gen->fnext(gen);
 }
-
 
 // ------------------------ pre-created func V64 typed ------------------------------
 
@@ -556,24 +643,50 @@ value64                         v64GenFSToFsByNewline(v64Gen *gen) {
     return v64GenFSToStringTargetByNewline(gen, VALUE64_FS);
 }
 /**
+ * @brief Stream character generator over a FILE* source.
+ * @note
+ * RETURNS: VALUE64/CHR
+ * data[0] – PTR to FILE* (non-owning)
+ * data[1] – ULONG remaining chars available
+ */
+value64                         v64GenFileToChar(v64Gen *gen)
+{
+    FILE    *fp = (FILE *)V64GENREGVAL0(gen).pval;
+    if (!fp)
+        return LITERAL64_ZERO;
+
+    unsigned long remaining = V64GENREGVAL1(gen).ulval;
+    if (remaining == 0)
+        return value64_createchar('\0');;
+
+    int c = fgetc(fp);
+    if (c == EOF) {
+        V64GENREGVAL1(gen).ulval = 0;
+        return LITERAL64_ZERO;
+    }
+    // > 0
+    V64GENREGVAL1(gen).ulval = remaining - 1;
+    return value64_createchar((char)c);
+}
+/**
  * @brief File stream generator
  *
  * data[0] – PTR на FILE* (невладеющий)
  * data[1] – ULONG remained count
+ * data[2] = fs as buf (owner)
  */
-value64                         v64GenFileToChar(v64Gen *gen) {
-    FILE            *fp = (FILE *)V64GENREGVAL0(gen).FILEval;
-    unsigned long    remaining = V64GENREGVAL1(gen).ulval;
-    if (!fp || remaining == 0L)
-        return value64_createchar('\0');
-    int c = fgetc(fp);
-    if (c == EOF) {
-        V64GENREGVAL1(gen).ulval = 0; // достигли EOF раньше ожидаемого
-        return value64_createchar('\0');
-    }
-    if (remaining > 0L)
-        V64GENREGVAL1(gen).ulval = remaining - 1;
-    return value64_createchar((char) c);
+value64                         v64GenFileToFsByNewline(v64Gen *gen) {
+    return v64GenFileToStringTargetByNewline(gen, VALUE64_FS);
+}
+/**
+ * @brief File stream generator
+ *
+ * data[0] – PTR на FILE* (невладеющий)
+ * data[1] – ULONG remained count
+ * data[2] = fs as buf (owner)
+ */
+value64                         v64GenFileToStrByNewline(v64Gen *gen) {
+    return v64GenFileToStringTargetByNewline(gen, VALUE64_STR);
 }
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
