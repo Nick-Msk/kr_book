@@ -1661,6 +1661,8 @@ int                        value64_techfprint(FILE *restrict out, value64 val, v
         IOCHECKER(w, fprintf(out, "Unsupported TYPE %d!", typ), -1)
             cnt += w;
     }
+    IOCHECKER(w, fprintf(out, "]"), -1)
+        cnt += w;
 
     return cnt;
 }
