@@ -30,7 +30,7 @@
  * @brief Defines strategies for initializing array elements.
  */
 typedef enum ArrayFillType{
-    ARRAY_FILLTYPE_NONE      = 0,
+    ARRAY_FILLTYPE_SAFE_EMPTY      = 0,
     ARRAY_FILLTYPE_DESC,
     ARRAY_FILLTYPE_ASC,
     ARRAY_FILLTYPE_RND,
@@ -88,7 +88,7 @@ static const ArrayTypeInfo          ARRAY_TYPE_TABLE[] = {
 };
 
 static const ArrayFillTypeInfo      ARRAY_FILLTYPE_TABLE[] = {
-    { ARRAY_FILLTYPE_NONE,           "FILLTYPE_NONE" },
+    { ARRAY_FILLTYPE_SAFE_EMPTY,           "FILLTYPE_NONE" },
     { ARRAY_FILLTYPE_DESC,           "FILLTYPE_DESC" },
     { ARRAY_FILLTYPE_ASC,            "FILLTYPE_ASC" },
     { ARRAY_FILLTYPE_RND,            "FILLTYPE_RND" },
@@ -278,7 +278,7 @@ extern Array                   *Array_create(int cnt, ArrayFillType filltyp, Arr
  * @return Array* A pointer to the newly allocated Array, or NULL on error.
  */
 static inline Array            *ArrayOnlyCreate(int cnt, ArrayType typ, value64_type vt) {
-    return Array_create(cnt, ARRAY_FILLTYPE_NONE, typ, vt);
+    return Array_create(cnt, ARRAY_FILLTYPE_SAFE_EMPTY, typ, vt);
 }
 
 /**

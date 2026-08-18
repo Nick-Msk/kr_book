@@ -512,23 +512,23 @@ static Array                  *ArrayParseHeaderFile(FILE *in) {
             value64_type vt = value64_gettype(v64typ);
             if (vt == VALUE64_UNKNOWN)
                 userraiseint(ERR_WRONG_INPUT_FORMAT, "Array header V64 wrong format '%s'", v64typ);
-            parr = V64Array_create(cnt, ARRAY_FILLTYPE_NONE, vt);
+            parr = V64Array_create(cnt, ARRAY_FILLTYPE_SAFE_EMPTY, vt);
             break;
         }
         case ARRAY_INT:
-            parr = IArray_create(cnt, ARRAY_FILLTYPE_NONE);
+            parr = IArray_create(cnt, ARRAY_FILLTYPE_SAFE_EMPTY);
             break;
         case ARRAY_LONG:
-            parr = LArray_create(cnt, ARRAY_FILLTYPE_NONE);
+            parr = LArray_create(cnt, ARRAY_FILLTYPE_SAFE_EMPTY);
             break;
         case ARRAY_DOUBLE:
-            parr = DArray_create(cnt, ARRAY_FILLTYPE_NONE);
+            parr = DArray_create(cnt, ARRAY_FILLTYPE_SAFE_EMPTY);
             break;
         case ARRAY_POINTER:
-            parr = PArray_create(cnt, ARRAY_FILLTYPE_NONE);
+            parr = PArray_create(cnt, ARRAY_FILLTYPE_SAFE_EMPTY);
             break;
         case ARRAY_CHAR:
-            parr = CArray_create(cnt, ARRAY_FILLTYPE_NONE);
+            parr = CArray_create(cnt, ARRAY_FILLTYPE_SAFE_EMPTY);
             break;
         default:
             parr = NULL;
@@ -1050,7 +1050,7 @@ int                             ArrayFillRange(Array *parr, ArrayFillType typ, i
         case ARRAY_FILLTYPE_RND:
             ArrayFillRange_RND(parr, from, to);
             break;
-        case ARRAY_FILLTYPE_NONE:
+        case ARRAY_FILLTYPE_SAFE_EMPTY:
             // just do nothing for scalar types
             ArrayFillRange_NONE(parr, from, to);
             break;
@@ -2642,7 +2642,7 @@ tf11(const char *name)
     test_sub("subtest %d: full fill with desc series (long)", ++subnum);
     {
         int     cnt = 30;
-        Array   *arr = LArray_create(cnt, ARRAY_FILLTYPE_NONE);
+        Array   *arr = LArray_create(cnt, ARRAY_FILLTYPE_SAFE_EMPTY);
         ArrayFillRange(arr, ARRAY_FILLTYPE_DESC_SERIES, 0, cnt);
 
         int     len = Arraylen(arr);
@@ -2819,7 +2819,7 @@ tf12(const char *name)
     test_sub("subtest %d: pointer array (no‑op)", ++subnum);
     {
         int     cnt = 3;
-        Array   *arr = PArray_create(cnt, ARRAY_FILLTYPE_NONE);
+        Array   *arr = PArray_create(cnt, ARRAY_FILLTYPE_SAFE_EMPTY);
         arr->pv[0] = (void*)1; arr->pv[1] = (void*)2; arr->pv[2] = (void*)3;
 
         PArray_foreach(arr, elem) {
@@ -2952,7 +2952,7 @@ tf_v64array_str_fs(const char *name)
     /* ---------- VALUE64_STR ---------- */
     test_sub("subtest %d: create empty STR array", ++subnum);
     {
-        Array *arr = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array *arr = V64Array_create(0, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
         test_validatefree(
             arr->len == 0 && arr->sz == 0 && arr->v64 == NULL,
             Arrayfree(arr),
@@ -2985,7 +2985,7 @@ tf_v64array_str_fs(const char *name)
 
     test_sub("subtest %d: create NONE FS array", ++subnum);
     {
-        Array *arrtmp = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *arrtmp = V64Array_create(2, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
         Arrayfree(arrtmp);
     }
     fs_alloc_check(true);
@@ -3031,7 +3031,7 @@ tf_v64array_str_fs(const char *name)
     /* ---------- VALUE64_FS ---------- */
     test_sub("subtest %d: create empty FS array", ++subnum);
     {
-        Array *arr = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *arr = V64Array_create(0, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
         test_validatefree(
             arr->len == 0 && arr->sz == 0 && arr->v64 == NULL,
             Arrayfree(arr),
@@ -3247,7 +3247,7 @@ tf_v64array_shrink_increase(const char *name)
     /* ========== FS array: increase then shrink ========== */
     test_sub("subtest %d: FS increase + shrink", ++subnum);
     {
-        Array *arr = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *arr = V64Array_create(2, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
         // заполним явно
         arr->v64[0] = value64_createfs_asstr("/first");
         arr->v64[1] = value64_createfs_asstr("/second");
@@ -3324,7 +3324,7 @@ tf_v64array_sort(const char *name)
     /* ========== STR sorting ========== */
     test_sub("subtest %d: STR sort ASC", ++subnum);
     {
-        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
         arr->v64[0] = value64_createstr("delta");
         arr->v64[1] = value64_createstr("alpha");
         arr->v64[2] = value64_createstr("charlie");
@@ -3347,7 +3347,7 @@ tf_v64array_sort(const char *name)
 
     test_sub("subtest %d: STR sort DESC", ++subnum);
     {
-        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
         arr->v64[0] = value64_createstr("delta");
         arr->v64[1] = value64_createstr("alpha");
         arr->v64[2] = value64_createstr("charlie");
@@ -3371,7 +3371,7 @@ tf_v64array_sort(const char *name)
     /* ========== FS sorting ========== */
     test_sub("subtest %d: FS sort ASC", ++subnum);
     {
-        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
         arr->v64[0] = value64_createfs_asstr("/zzz");
         arr->v64[1] = value64_createfs_asstr("/aaa");
         arr->v64[2] = value64_createfs_asstr("/mmm");
@@ -3394,7 +3394,7 @@ tf_v64array_sort(const char *name)
 
     test_sub("subtest %d: FS sort DESC", ++subnum);
     {
-        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
         arr->v64[0] = value64_createfs_asstr("/zzz");
         arr->v64[1] = value64_createfs_asstr("/aaa");
         arr->v64[2] = value64_createfs_asstr("/mmm");
@@ -3419,7 +3419,7 @@ tf_v64array_sort(const char *name)
 
     test_sub("subtest %d: STR sort empty array", ++subnum);
     {
-        Array *arr = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array *arr = V64Array_create(0, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
         Array_qsort(arr, ARRAY_FILLTYPE_ASC);   // must not crash
         test_validatefree(
             arr->len == 0,
@@ -3432,7 +3432,7 @@ tf_v64array_sort(const char *name)
 
     test_sub("subtest %d: STR sort single element", ++subnum);
     {
-        Array *arr = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array *arr = V64Array_create(1, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
         arr->v64[0] = value64_createstr("single");
         Array_qsort(arr, ARRAY_FILLTYPE_ASC);
         test_validatefree(
@@ -3446,7 +3446,7 @@ tf_v64array_sort(const char *name)
 
     test_sub("subtest %d: STR sort already sorted", ++subnum);
     {
-        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
         arr->v64[0] = value64_createstr("a");
         arr->v64[1] = value64_createstr("b");
         arr->v64[2] = value64_createstr("c");
@@ -3465,7 +3465,7 @@ tf_v64array_sort(const char *name)
 
     test_sub("subtest %d: STR sort with duplicates", ++subnum);
     {
-        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
         arr->v64[0] = value64_createstr("a");
         arr->v64[1] = value64_createstr("b");
         arr->v64[2] = value64_createstr("a");
@@ -3485,7 +3485,7 @@ tf_v64array_sort(const char *name)
 
     test_sub("subtest %d: FS sort empty array", ++subnum);
     {
-        Array *arr = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *arr = V64Array_create(0, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
         Array_qsort(arr, ARRAY_FILLTYPE_ASC);
         test_validatefree(arr->len == 0, Arrayfree(arr), "Empty FS array after sort must still be empty");
         Arrayfree(arr);
@@ -3494,7 +3494,7 @@ tf_v64array_sort(const char *name)
 
     test_sub("subtest %d: FS sort single element", ++subnum);
     {
-        Array *arr = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *arr = V64Array_create(1, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
         arr->v64[0] = value64_createfs_asstr("/only");
         Array_qsort(arr, ARRAY_FILLTYPE_ASC);
         test_validatefree(
@@ -3508,7 +3508,7 @@ tf_v64array_sort(const char *name)
 
     test_sub("subtest %d: FS sort already sorted", ++subnum);
     {
-        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
         arr->v64[0] = value64_createfs_asstr("/a");
         arr->v64[1] = value64_createfs_asstr("/b");
         arr->v64[2] = value64_createfs_asstr("/c");
@@ -3527,7 +3527,7 @@ tf_v64array_sort(const char *name)
 
     test_sub("subtest %d: FS sort with duplicates", ++subnum);
     {
-        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
         arr->v64[0] = value64_createfs_asstr("/a");
         arr->v64[1] = value64_createfs_asstr("/b");
         arr->v64[2] = value64_createfs_asstr("/a");
@@ -3560,7 +3560,7 @@ tf_v64ArraySaveFile_load(const char *name)
     {
         const char *fname = "res/array/v64str.sv";
 
-        Array *orig = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array *orig = V64Array_create(3, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
         orig->v64[0] = value64_createstr("one");
         orig->v64[1] = value64_createstr("two");
         orig->v64[2] = value64_createstr("three");
@@ -3598,7 +3598,7 @@ tf_v64ArraySaveFile_load(const char *name)
     {
         const char *fname = "res/array/v64fs.sv";
 
-        Array *orig = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *orig = V64Array_create(3, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
         orig->v64[0] = value64_createfs_asstr("/alpha");
         orig->v64[1] = value64_createfs_asstr("/beta");
         orig->v64[2] = value64_createfs_asstr("/gamma");
@@ -3636,7 +3636,7 @@ tf_v64ArraySaveFile_load(const char *name)
     {
         const char *fname = "res/array/v64str_empty.sv";
 
-        Array *orig = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array *orig = V64Array_create(0, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
         long written = ArraySaveFileName(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "STR empty save failed");
 
@@ -3656,7 +3656,7 @@ tf_v64ArraySaveFile_load(const char *name)
     {
         const char *fname = "res/array/v64str_single.sv";
 
-        Array *orig = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array *orig = V64Array_create(1, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
         orig->v64[0] = value64_createstr("single");
         long written = ArraySaveFileName(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "STR single save failed");
@@ -3685,7 +3685,7 @@ tf_v64ArraySaveFile_load(const char *name)
     {
         const char *fname = "res/array/v64fs_empty.sv";
 
-        Array *orig = V64Array_create(0, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *orig = V64Array_create(0, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
         long written = ArraySaveFileName(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "FS empty save failed");
 
@@ -3705,7 +3705,7 @@ tf_v64ArraySaveFile_load(const char *name)
     {
         const char *fname = "res/array/v64fs_single.sv";
 
-        Array *orig = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *orig = V64Array_create(1, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
         orig->v64[0] = value64_createfs_asstr("/only");
         long written = ArraySaveFileName(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "FS single save failed");
@@ -3790,7 +3790,7 @@ tf_array_bsearch(const char *name)
 
     test_sub("subtest %d: INT empty array", ++subnum);
     {
-        Array *arr = IArray_create(0, ARRAY_FILLTYPE_NONE);
+        Array *arr = IArray_create(0, ARRAY_FILLTYPE_SAFE_EMPTY);
         test_validatefree(
             ArrayBsearchInt(arr, 5) == -1,
             Arrayfree(arr),
@@ -3851,7 +3851,7 @@ tf_array_bsearch(const char *name)
     /* ========== V64 (STR) ========== */
     test_sub("subtest %d: V64 STR find existing", ++subnum);
     {
-        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
         arr->v64[0] = value64_createstr("a");
         arr->v64[1] = value64_createstr("b");
         arr->v64[2] = value64_createstr("c");
@@ -3870,7 +3870,7 @@ tf_array_bsearch(const char *name)
 
     test_sub("subtest %d: V64 STR rev missing", ++subnum);
     {
-        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
         arr->v64[0] = value64_createstr("d");
         arr->v64[1] = value64_createstr("c");
         arr->v64[2] = value64_createstr("b");
@@ -3890,7 +3890,7 @@ tf_array_bsearch(const char *name)
     /* ========== V64 (FS) ========== */
     test_sub("subtest %d: V64 FS find existing", ++subnum);
     {
-        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *arr = V64Array_create(4, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
         arr->v64[0] = value64_createfs_asstr("/alpha");
         arr->v64[1] = value64_createfs_asstr("/beta");
         arr->v64[2] = value64_createfs_asstr("/gamma");
@@ -3936,7 +3936,7 @@ tf_carray_create_fill_free(const char *name)
     /* 1. Создание пустого CHAR массива */
     test_sub("subtest %d: create empty CHAR array", ++subnum);
     {
-        Array *arr = CArray_create(0, ARRAY_FILLTYPE_NONE);
+        Array *arr = CArray_create(0, ARRAY_FILLTYPE_SAFE_EMPTY);
         test_validatefree(
             arr->len == 0 && arr->sz == 0 && arr->cv == NULL,
             Arrayfree(arr),
@@ -4053,7 +4053,7 @@ tf_carray_sort(const char *name)
     /* 3. Пустой массив */
     test_sub("subtest %d: CHAR sort empty", ++subnum);
     {
-        Array *arr = CArray_create(0, ARRAY_FILLTYPE_NONE);
+        Array *arr = CArray_create(0, ARRAY_FILLTYPE_SAFE_EMPTY);
         Array_qsort(arr, ARRAY_FILLTYPE_ASC);   // не должно упасть
         test_validatefree(arr->len == 0, Arrayfree(arr), "Empty array must stay empty after sort");
         Arrayfree(arr);
@@ -4062,7 +4062,7 @@ tf_carray_sort(const char *name)
     /* 4. Один элемент */
     test_sub("subtest %d: CHAR sort single element", ++subnum);
     {
-        Array *arr = CArray_create(1, ARRAY_FILLTYPE_NONE);
+        Array *arr = CArray_create(1, ARRAY_FILLTYPE_SAFE_EMPTY);
         arr->cv[0] = 'x';
         Array_qsort(arr, ARRAY_FILLTYPE_ASC);
         test_validatefree(
@@ -4076,7 +4076,7 @@ tf_carray_sort(const char *name)
     /* 5. Уже отсортированный */
     test_sub("subtest %d: CHAR sort already sorted", ++subnum);
     {
-        Array *arr = CArray_create(3, ARRAY_FILLTYPE_NONE);
+        Array *arr = CArray_create(3, ARRAY_FILLTYPE_SAFE_EMPTY);
         arr->cv[0] = 'a'; arr->cv[1] = 'b'; arr->cv[2] = 'c';
         Array_qsort(arr, ARRAY_FILLTYPE_ASC);
         test_validatefree(
@@ -4090,7 +4090,7 @@ tf_carray_sort(const char *name)
     /* 6. Дубликаты */
     test_sub("subtest %d: CHAR sort duplicates", ++subnum);
     {
-        Array *arr = CArray_create(4, ARRAY_FILLTYPE_NONE);
+        Array *arr = CArray_create(4, ARRAY_FILLTYPE_SAFE_EMPTY);
         arr->cv[0] = 'b'; arr->cv[1] = 'a'; arr->cv[2] = 'b'; arr->cv[3] = 'c';
         Array_qsort(arr, ARRAY_FILLTYPE_ASC);
         test_validatefree(
@@ -4114,7 +4114,7 @@ tf_array_bsearch_char(const char *name)
     /* ========== CHAR ========== */
     test_sub("subtest %d: CHAR find existing", ++subnum);
     {
-        Array *arr = CArray_create(5, ARRAY_FILLTYPE_NONE);
+        Array *arr = CArray_create(5, ARRAY_FILLTYPE_SAFE_EMPTY);
         arr->cv[0] = 'a'; arr->cv[1] = 'b'; arr->cv[2] = 'c'; arr->cv[3] = 'd'; arr->cv[4] = 'e';
         int idx = ArrayBsearchChar(arr, 'c');
         test_validatefree(
@@ -4127,7 +4127,7 @@ tf_array_bsearch_char(const char *name)
 
     test_sub("subtest %d: CHAR find missing", ++subnum);
     {
-        Array *arr = CArray_create(5, ARRAY_FILLTYPE_NONE);
+        Array *arr = CArray_create(5, ARRAY_FILLTYPE_SAFE_EMPTY);
         arr->cv[0] = 'a'; arr->cv[1] = 'b'; arr->cv[2] = 'c'; arr->cv[3] = 'd'; arr->cv[4] = 'e';
         int idx = ArrayBsearchChar(arr, 'z');
         test_validatefree(
@@ -4140,7 +4140,7 @@ tf_array_bsearch_char(const char *name)
 
     test_sub("subtest %d: CHAR rev search", ++subnum);
     {
-        Array *arr = CArray_create(5, ARRAY_FILLTYPE_NONE);
+        Array *arr = CArray_create(5, ARRAY_FILLTYPE_SAFE_EMPTY);
         arr->cv[0] = 'e'; arr->cv[1] = 'd'; arr->cv[2] = 'c'; arr->cv[3] = 'b'; arr->cv[4] = 'a';
         int idx = ArrayBsearchCharRev(arr, 'b');
         test_validatefree(
@@ -4167,7 +4167,7 @@ tf_ArraySaveFile_load_char(const char *name)
         const char *fname = "res/array/carr.sv";
 
         // создаём массив и заполняем
-        Array *orig = CArray_create(5, ARRAY_FILLTYPE_NONE);
+        Array *orig = CArray_create(5, ARRAY_FILLTYPE_SAFE_EMPTY);
         orig->cv[0] = 'h'; orig->cv[1] = 'e'; orig->cv[2] = 'l';
         orig->cv[3] = 'l'; orig->cv[4] = 'o';
 
@@ -4202,7 +4202,7 @@ tf_ArraySaveFile_load_char(const char *name)
     {
         const char *fname = "res/array/carr_empty.sv";
 
-        Array *orig = CArray_create(0, ARRAY_FILLTYPE_NONE);
+        Array *orig = CArray_create(0, ARRAY_FILLTYPE_SAFE_EMPTY);
         long written = ArraySaveFileName(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "CHAR empty save failed");
 
@@ -4222,7 +4222,7 @@ tf_ArraySaveFile_load_char(const char *name)
     {
         const char *fname = "res/array/carr_single.sv";
 
-        Array *orig = CArray_create(1, ARRAY_FILLTYPE_NONE);
+        Array *orig = CArray_create(1, ARRAY_FILLTYPE_SAFE_EMPTY);
         orig->cv[0] = 'Z';
         long written = ArraySaveFileName(orig, fname);
         test_validatefree(written > 0, Arrayfree(orig), "CHAR single save failed");
@@ -4251,8 +4251,8 @@ tf_array_eq_noteq(const char *name)
     /* ========== INT ========== */
     test_sub("subtest %d: INT equal", ++subnum);
     {
-        Array *a = IArray_create(3, ARRAY_FILLTYPE_NONE);
-        Array *b = IArray_create(3, ARRAY_FILLTYPE_NONE);
+        Array *a = IArray_create(3, ARRAY_FILLTYPE_SAFE_EMPTY);
+        Array *b = IArray_create(3, ARRAY_FILLTYPE_SAFE_EMPTY);
         a->iv[0] = 1; a->iv[1] = 2; a->iv[2] = 3;
         b->iv[0] = 1; b->iv[1] = 2; b->iv[2] = 3;
         test_validatefree(
@@ -4265,8 +4265,8 @@ tf_array_eq_noteq(const char *name)
 
     test_sub("subtest %d: INT not equal (different values)", ++subnum);
     {
-        Array *a = IArray_create(2, ARRAY_FILLTYPE_NONE);
-        Array *b = IArray_create(2, ARRAY_FILLTYPE_NONE);
+        Array *a = IArray_create(2, ARRAY_FILLTYPE_SAFE_EMPTY);
+        Array *b = IArray_create(2, ARRAY_FILLTYPE_SAFE_EMPTY);
         a->iv[0] = 10; a->iv[1] = 20;
         b->iv[0] = 10; b->iv[1] = 30;
         test_validatefree(
@@ -4279,8 +4279,8 @@ tf_array_eq_noteq(const char *name)
 
     test_sub("subtest %d: INT not equal (different lengths)", ++subnum);
     {
-        Array *a = IArray_create(2, ARRAY_FILLTYPE_NONE);
-        Array *b = IArray_create(3, ARRAY_FILLTYPE_NONE);
+        Array *a = IArray_create(2, ARRAY_FILLTYPE_SAFE_EMPTY);
+        Array *b = IArray_create(3, ARRAY_FILLTYPE_SAFE_EMPTY);
         test_validatefree(
             !ArrayEq(a, b) && ArrayNoteq(a, b),
             (Arrayfree(a), Arrayfree(b)),
@@ -4291,8 +4291,8 @@ tf_array_eq_noteq(const char *name)
 
     test_sub("subtest %d: INT empty arrays", ++subnum);
     {
-        Array *a = IArray_create(0, ARRAY_FILLTYPE_NONE);
-        Array *b = IArray_create(0, ARRAY_FILLTYPE_NONE);
+        Array *a = IArray_create(0, ARRAY_FILLTYPE_SAFE_EMPTY);
+        Array *b = IArray_create(0, ARRAY_FILLTYPE_SAFE_EMPTY);
         test_validatefree(
             ArrayEq(a, b) && !ArrayNoteq(a, b),
             (Arrayfree(a), Arrayfree(b)),
@@ -4304,8 +4304,8 @@ tf_array_eq_noteq(const char *name)
     /* ========== CHAR ========== */
     test_sub("subtest %d: CHAR equal", ++subnum);
     {
-        Array *a = CArray_create(2, ARRAY_FILLTYPE_NONE);
-        Array *b = CArray_create(2, ARRAY_FILLTYPE_NONE);
+        Array *a = CArray_create(2, ARRAY_FILLTYPE_SAFE_EMPTY);
+        Array *b = CArray_create(2, ARRAY_FILLTYPE_SAFE_EMPTY);
         a->cv[0] = 'x'; a->cv[1] = 'y';
         b->cv[0] = 'x'; b->cv[1] = 'y';
         test_validatefree(
@@ -4318,8 +4318,8 @@ tf_array_eq_noteq(const char *name)
 
     test_sub("subtest %d: CHAR not equal", ++subnum);
     {
-        Array *a = CArray_create(1, ARRAY_FILLTYPE_NONE);
-        Array *b = CArray_create(1, ARRAY_FILLTYPE_NONE);
+        Array *a = CArray_create(1, ARRAY_FILLTYPE_SAFE_EMPTY);
+        Array *b = CArray_create(1, ARRAY_FILLTYPE_SAFE_EMPTY);
         a->cv[0] = 'a';
         b->cv[0] = 'b';
         test_validatefree(
@@ -4333,8 +4333,8 @@ tf_array_eq_noteq(const char *name)
     /* ========== V64 STR ========== */
     test_sub("subtest %d: V64 STR equal", ++subnum);
     {
-        Array *a = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_STR);
-        Array *b = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array *a = V64Array_create(2, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
+        Array *b = V64Array_create(2, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
         a->v64[0] = value64_createstr("hello");
         a->v64[1] = value64_createstr("world");
         b->v64[0] = value64_createstr("hello");
@@ -4350,8 +4350,8 @@ tf_array_eq_noteq(const char *name)
 
     test_sub("subtest %d: V64 STR not equal", ++subnum);
     {
-        Array *a = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_STR);
-        Array *b = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array *a = V64Array_create(1, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
+        Array *b = V64Array_create(1, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
         a->v64[0] = value64_createstr("abc");
         b->v64[0] = value64_createstr("xyz");
         test_validatefree(
@@ -4366,8 +4366,8 @@ tf_array_eq_noteq(const char *name)
     /* ========== V64 FS ========== */
     test_sub("subtest %d: V64 FS equal", ++subnum);
     {
-        Array *a = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_FS);
-        Array *b = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *a = V64Array_create(2, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
+        Array *b = V64Array_create(2, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
         a->v64[0] = value64_createfs_asstr("/tmp/a");
         a->v64[1] = value64_createfs_asstr("/tmp/b");
         b->v64[0] = value64_createfs_asstr("/tmp/a");
@@ -4383,8 +4383,8 @@ tf_array_eq_noteq(const char *name)
 
     test_sub("subtest %d: V64 FS not equal", ++subnum);
     {
-        Array *a = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_FS);
-        Array *b = V64Array_create(1, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *a = V64Array_create(1, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
+        Array *b = V64Array_create(1, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
         a->v64[0] = value64_createfs_asstr("/first");
         b->v64[0] = value64_createfs_asstr("/second");
         test_validatefree(
@@ -4399,8 +4399,8 @@ tf_array_eq_noteq(const char *name)
     /* ========== Type mismatch (must raise SIGINT) ========== */
     test_sub("subtest %d: type mismatch raises SIGINT", ++subnum);
     {
-        Array *a = IArray_create(1, ARRAY_FILLTYPE_NONE);
-        Array *b = CArray_create(1, ARRAY_FILLTYPE_NONE);
+        Array *a = IArray_create(1, ARRAY_FILLTYPE_SAFE_EMPTY);
+        Array *b = CArray_create(1, ARRAY_FILLTYPE_SAFE_EMPTY);
         if (!try()) {
             ArrayNoteq(a, b);
             test_validatefree(false, (Arrayfree(a), Arrayfree(b)),
@@ -4691,7 +4691,7 @@ tf_ArrayAdd(const char *name)
     /* ========== V64 ArrayAdd (STR type) ========== */
     test_sub("subtest %d: V64(STR) ArrayAdd one element middle", ++subnum);
     {
-        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
         arr->v64[0] = value64_createstr("a");
         arr->v64[1] = value64_createstr("b");
         arr->v64[2] = value64_createstr("c");
@@ -4721,7 +4721,7 @@ tf_ArrayAdd(const char *name)
 
     test_sub("subtest %d: V64(STR) ArrayAdd multiple middle", ++subnum);
     {
-        Array *arr = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array *arr = V64Array_create(2, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
         arr->v64[0] = value64_createstr("first");
         arr->v64[1] = value64_createstr("last");
         arr->len = 2;
@@ -4747,7 +4747,7 @@ tf_ArrayAdd(const char *name)
 
     test_sub("subtest %d: V64(STR) ArrayAdd at beginning", ++subnum);
     {
-        Array *arr = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array *arr = V64Array_create(2, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
         arr->v64[0] = value64_createstr("world");
         arr->v64[1] = value64_createstr("!");
         arr->len = 2;
@@ -4768,7 +4768,7 @@ tf_ArrayAdd(const char *name)
 
     test_sub("subtest %d: V64(STR) ArrayAdd at end", ++subnum);
     {
-        Array *arr = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array *arr = V64Array_create(2, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
         arr->v64[0] = value64_createstr("x");
         arr->v64[1] = value64_createstr("y");
         arr->len = 2;
@@ -4789,7 +4789,7 @@ tf_ArrayAdd(const char *name)
 
     test_sub("subtest %d: V64(STR) ArrayAdd zero cnt (no-op)", ++subnum);
     {
-        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
         arr->v64[0] = value64_createstr("1");
         arr->v64[1] = value64_createstr("2");
         arr->v64[2] = value64_createstr("3");
@@ -4809,7 +4809,7 @@ tf_ArrayAdd(const char *name)
 
     test_sub("subtest %d: V64(STR) ArrayAdd out of bounds (no-op)", ++subnum);
     {
-        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_STR);
+        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
         arr->v64[0] = value64_createstr("a");
         arr->v64[1] = value64_createstr("b");
         arr->v64[2] = value64_createstr("c");
@@ -4830,7 +4830,7 @@ tf_ArrayAdd(const char *name)
     /* ========== V64(FS) ArrayAdd ========== */
     test_sub("subtest %d: V64(FS) ArrayAdd one element middle", ++subnum);
     {
-        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
         arr->v64[0] = value64_createfs_asstr("a");
         arr->v64[1] = value64_createfs_asstr("b");
         arr->v64[2] = value64_createfs_asstr("c");
@@ -4860,7 +4860,7 @@ tf_ArrayAdd(const char *name)
 
     test_sub("subtest %d: V64(FS) ArrayAdd multiple middle", ++subnum);
     {
-        Array *arr = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *arr = V64Array_create(2, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
         arr->v64[0] = value64_createfs_asstr("first");
         arr->v64[1] = value64_createfs_asstr("last");
         arr->len = 2;
@@ -4886,7 +4886,7 @@ tf_ArrayAdd(const char *name)
 
     test_sub("subtest %d: V64(FS) ArrayAdd at beginning", ++subnum);
     {
-        Array *arr = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *arr = V64Array_create(2, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
         arr->v64[0] = value64_createfs_asstr("world");
         arr->v64[1] = value64_createfs_asstr("!");
         arr->len = 2;
@@ -4907,7 +4907,7 @@ tf_ArrayAdd(const char *name)
 
     test_sub("subtest %d: V64(FS) ArrayAdd at end", ++subnum);
     {
-        Array *arr = V64Array_create(2, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *arr = V64Array_create(2, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
         arr->v64[0] = value64_createfs_asstr("x");
         arr->v64[1] = value64_createfs_asstr("y");
         arr->len = 2;
@@ -4928,7 +4928,7 @@ tf_ArrayAdd(const char *name)
 
     test_sub("subtest %d: V64(FS) ArrayAdd zero cnt (no-op)", ++subnum);
     {
-        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
         arr->v64[0] = value64_createfs_asstr("1");
         arr->v64[1] = value64_createfs_asstr("2");
         arr->v64[2] = value64_createfs_asstr("3");
@@ -4948,7 +4948,7 @@ tf_ArrayAdd(const char *name)
 
     test_sub("subtest %d: V64(FS) ArrayAdd out of bounds (no-op)", ++subnum);
     {
-        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_NONE, VALUE64_FS);
+        Array *arr = V64Array_create(3, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
         arr->v64[0] = value64_createfs_asstr("a");
         arr->v64[1] = value64_createfs_asstr("b");
         arr->v64[2] = value64_createfs_asstr("c");
