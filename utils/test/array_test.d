@@ -125,7 +125,7 @@ test/array_test: \
   /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/21/include/__stdarg___va_copy.h \
   /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/21/include/__stdarg_va_copy.h \
   fs.h fs_iter.h numeric_ops.h getword.h buffer.h ds.h fileutils.h \
-  test.h
+  v64gen.h v64typed.h test.h
 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/21/share/asan_ignorelist.txt:
 array.h:
 /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/stdio.h:
@@ -260,4 +260,6 @@ getword.h:
 buffer.h:
 ds.h:
 fileutils.h:
+v64gen.h:
+v64typed.h:
 test.h:

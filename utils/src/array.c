@@ -796,31 +796,15 @@ static int                      ArrayFillRange_ZERO(Array *parr, int from, int t
                 ArraySetCharElem(parr, i, '\0');
             break;
         // not real type => container v64
-        case ARRAY_V64: 
-        /* typedef value64 (*value64_gen_func)(value64_gen *gen);
-         v64Gen gn = v64GenInit(value64_func_zero/rnd/acs/desc, parr->v64type);
-         for (int i = from; i < to; i++) {
-                value64 tmp = value64_gen_next(&gn);
-                parr->v64[i] = tmp;
+        case ARRAY_V64: {
+            v64Gen gen = v64GenCreatorUnlimZero(parr->v64type);   // обёртка, если есть
+            // SHOULD BE: v64GenCreatorLimZero(parr->v64type, to - from);
+            // valud64 *pv = parr->v64;
+            // while (v64GenHasNext(&gen, pv) ) pv;
+            for (int i = from; i < to; i++) {
+                parr->v64[i] = v64GenNext(&gen);
             }
-            v64GenFree(&gn);
-        */ 
-        {
-            switch (parr->v64type) {
-                case VALUE64_FS: {
-                    fs s = FSLITERAL("");
-                    for (int i = from; i < to; i++)
-                        ArraySetV64fsElem(parr, i, &s);  
-                    break;
-                }
-                case VALUE64_STR: {
-                    for (int i = from; i < to; i++)
-                        ArraySetV64strElem(parr, i, "");
-                    break;
-                }
-                default:
-                    return userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ZERO v64 type %s", ArrayGetV64typeName(parr) );
-            }
+            v64GenFree(&gen);
             break;
         }
         default:
@@ -4944,6 +4928,144 @@ tf_ArrayAdd(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST ArrayFillRange_ZERO with V64 generator -------------------------
+static TestStatus
+tf26_array_v64_zero_fill_all(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. INT */
+    test_sub("subtest %d: V64 ZERO fill for INT", ++subnum);
+    {
+        Array *arr = V64Array_create(5, ARRAY_FILLTYPE_ZERO, VALUE64_INT);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        for (int i = 0; i < 5; i++) {
+            test_validatefree(value64_int(arr->v64[i]) == 0,
+                              Arrayfree(arr), "INT[%d] must be 0", i);
+        }
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    /* 2. LONG */
+    test_sub("subtest %d: V64 ZERO fill for LONG", ++subnum);
+    {
+        Array *arr = V64Array_create(5, ARRAY_FILLTYPE_ZERO, VALUE64_LONG);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        for (int i = 0; i < 5; i++) {
+            test_validatefree(value64_long(arr->v64[i]) == 0L,
+                              Arrayfree(arr), "LONG[%d] must be 0", i);
+        }
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    /* 3. ULONG */
+    test_sub("subtest %d: V64 ZERO fill for ULONG", ++subnum);
+    {
+        Array *arr = V64Array_create(5, ARRAY_FILLTYPE_ZERO, VALUE64_ULONG);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        for (int i = 0; i < 5; i++) {
+            test_validatefree(value64_ulong(arr->v64[i]) == 0UL,
+                              Arrayfree(arr), "ULONG[%d] must be 0", i);
+        }
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    /* 4. DBL */
+    test_sub("subtest %d: V64 ZERO fill for DBL", ++subnum);
+    {
+        Array *arr = V64Array_create(5, ARRAY_FILLTYPE_ZERO, VALUE64_DBL);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        for (int i = 0; i < 5; i++) {
+            test_validatefree(fabs(value64_dbl(arr->v64[i]) - 0.0) < 1e-9,
+                              Arrayfree(arr), "DBL[%d] must be 0.0", i);
+        }
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    /* 5. CHR */
+    test_sub("subtest %d: V64 ZERO fill for CHR", ++subnum);
+    {
+        Array *arr = V64Array_create(5, ARRAY_FILLTYPE_ZERO, VALUE64_CHR);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        for (int i = 0; i < 5; i++) {
+            test_validatefree(value64_char(arr->v64[i]) == '\0',
+                              Arrayfree(arr), "CHR[%d] must be \\0", i);
+        }
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    /* 6. BOOL */
+    test_sub("subtest %d: V64 ZERO fill for BOOL", ++subnum);
+    {
+        Array *arr = V64Array_create(5, ARRAY_FILLTYPE_ZERO, VALUE64_BOOL);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        for (int i = 0; i < 5; i++) {
+            test_validatefree(value64_bool(arr->v64[i]) == false,
+                              Arrayfree(arr), "BOOL[%d] must be false", i);
+        }
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    /* 7. PTR (NULL) */
+    test_sub("subtest %d: V64 ZERO fill for PTR", ++subnum);
+    {
+        Array *arr = V64Array_create(5, ARRAY_FILLTYPE_ZERO, VALUE64_PTR);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        for (int i = 0; i < 5; i++) {
+            test_validatefree(value64_ptr(arr->v64[i]) == NULL,
+                              Arrayfree(arr), "PTR[%d] must be NULL", i);
+        }
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    /* 8. FS (пустой fs) */
+    test_sub("subtest %d: V64 ZERO fill for FS", ++subnum);
+    {
+        Array *arr = V64Array_create(5, ARRAY_FILLTYPE_ZERO, VALUE64_FS);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        for (int i = 0; i < 5; i++) {
+            test_validatefree(
+                value64_fs(arr->v64[i]) != NULL && fs_len(value64_fs(arr->v64[i])) == 0,
+                Arrayfree(arr), "FS[%d] must be empty", i);
+        }
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    /* 9. STR (пустая строка) */
+    test_sub("subtest %d: V64 ZERO fill for STR", ++subnum);
+    {
+        Array *arr = V64Array_create(5, ARRAY_FILLTYPE_ZERO, VALUE64_STR);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        for (int i = 0; i < 5; i++) {
+            test_validatefree(
+                value64_str(arr->v64[i]) != NULL && strcmp(value64_str(arr->v64[i]), "") == 0,
+                Arrayfree(arr), "STR[%d] must be empty string", i);
+        }
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -4975,7 +5097,8 @@ main( /*int argc, char *argv[] */ )
         TESTADD(tf_ArraySaveFile_load_char,     "CHAR Array save/load simple test"),
         TESTADD(tf_array_eq_noteq,              "ArrayEq / ArrayNoteq (all types, edge cases)"),
         TESTADD(tf_ArrayDel,                    "ArrayDel simple test"),
-        TESTADD(tf_ArrayAdd,                    "ArrayAdd simple test")
+        TESTADD(tf_ArrayAdd,                    "ArrayAdd simple test"),
+        TESTADD(tf26_array_v64_zero_fill_all,   "ArrayFillRange_ZERO with V64 generator")
     );
 
     return logret(0, "end...");  // as replace of logclose()
