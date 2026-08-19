@@ -542,7 +542,11 @@ value64                         v64UncheckGenUnlimDescRnd(v64Gen *gen) {
 
 value64                         v64GenUnlimRandom(v64Gen *gen) {
     int         r = value64_int(V64GENREGVAL0(gen) );
-    r = rndint(r);
+    double      dr;
+    if (gen->type == VALUE64_DBL)
+        dr = rnddbl( (double) r);
+    else
+        r = rndint(r);
     switch (gen->type) {        // type of output generation
         case VALUE64_INT:
             return value64_createint(r);
@@ -551,7 +555,7 @@ value64                         v64GenUnlimRandom(v64Gen *gen) {
         case VALUE64_ULONG:
             return value64_createulong(r);
         case VALUE64_DBL:
-            return value64_createdbl(r);
+            return value64_createdbl(dr);
         case VALUE64_CHR:
             return value64_createchar(r);
         case VALUE64_BOOL:
@@ -2044,8 +2048,6 @@ tf9_gen_unlim_random(const char *name)
             double val = value64_dbl(v);
             test_validate(val >= 0.0 && val <= 10.0,
                           "DBL random value out of range: %f", val);
-            test_validate(fabs(val - round(val)) < 1e-9,
-                          "DBL random value should be integer, got %f", val);
             value64_free(&v, gen.type);
         }
         v64GenFree(&gen);
