@@ -84,25 +84,36 @@ static inline void              _v64GenFixRndinc(int *rndinc) {
 // ------------------------- CONSTRUCTOTS/DESTRUCTORS -------------------------------
 
 extern v64Gen                       v64GenInit(v64GenFunc func, value64_type type, 
+                                               off_t limit,
                                                v64typed initdata1, v64typed initdata2,
                                                v64typed initdata3, v64typed initdata4);
-static inline v64Gen                v64GenInit0(v64GenFunc func, value64_type type) {
-    return v64GenInit(func, type, V64TYPEDZERO(), V64TYPEDZERO(), V64TYPEDZERO(), V64TYPEDZERO());
+static inline v64Gen                v64GenInit0(v64GenFunc func, value64_type type, off_t limit) {
+    return v64GenInit(func, type, limit,
+        V64TYPEDZERO(), V64TYPEDZERO(), V64TYPEDZERO(), V64TYPEDZERO());
 }  
-static inline v64Gen                v64GenInit1(v64GenFunc func, value64_type type, v64typed initdata1) {
-    return v64GenInit(func, type, initdata1, V64TYPEDZERO(), V64TYPEDZERO(), V64TYPEDZERO());
+static inline v64Gen                v64GenInit1(v64GenFunc func, value64_type type, 
+                                                off_t limit, v64typed initdata1) {
+    return v64GenInit(func, type, limit, initdata1, 
+        V64TYPEDZERO(), V64TYPEDZERO(), V64TYPEDZERO());
 }    
-static inline v64Gen                v64GenInit2(v64GenFunc func, value64_type type, v64typed initdata1, 
+static inline v64Gen                v64GenInit2(v64GenFunc func, value64_type type, 
+                                                off_t limit,
+                                                v64typed initdata1, 
                                                 v64typed initdata2) {
-    return v64GenInit(func, type, initdata1, initdata2, V64TYPEDZERO(), V64TYPEDZERO());
+    return v64GenInit(func, type, limit, initdata1, initdata2, 
+        V64TYPEDZERO(), V64TYPEDZERO());
 }    
-static inline v64Gen                v64GenInit3(v64GenFunc func, value64_type type, v64typed initdata1, 
+static inline v64Gen                v64GenInit3(v64GenFunc func, value64_type type, 
+                                                off_t limit, v64typed initdata1, 
                                                 v64typed initdata2, v64typed initdata3) {
-    return v64GenInit(func, type, initdata1, initdata2, initdata3, V64TYPEDZERO());
+    return v64GenInit(func, type, limit,
+            initdata1, initdata2, initdata3, V64TYPEDZERO());
 } 
-static inline v64Gen                v64GenInit4(v64GenFunc func, value64_type type, v64typed initdata1, 
-                                                v64typed initdata2, v64typed initdata3, v64typed initdata4) {
-    return v64GenInit(func, type, initdata1, initdata2, initdata3, initdata4);
+static inline v64Gen                v64GenInit4(v64GenFunc func, value64_type type, 
+                                                off_t limit, v64typed initdata1, 
+                                                v64typed initdata2, v64typed initdata3, 
+                                                v64typed initdata4) {
+    return v64GenInit(func, type, limit, initdata1, initdata2, initdata3, initdata4);
 } 
                      
 static inline void                  v64GenFree(v64Gen *gen) {
@@ -224,7 +235,7 @@ static inline v64Gen            v64GenCreatorUnlimDouble(double val) {
     return v64GenInit1(v64GenUnlimZero, VALUE64_DBL, v64typedCreateDbl(val));       // quite simple, LOL
 } */
 
-// -------------------------------------------- ACS SERIES ------------------------------------------------
+// ---------------------------- CONSTRUCTORSACS SERIES ------------------------------------------------
 
 // REGITRSY ALLOCATION:
 // data[0] LONG as startpos for numeric generator

@@ -254,15 +254,18 @@ static v64Gen                   v64GenCreatorSourceFileToCommonStringByNewline(F
 
 // ------------------------- CONSTRUCTOTS/DESTRUCTORS -------------------------------
 
-v64Gen                          v64GenInit(v64GenFunc func, value64_type type, 
+v64Gen                          v64GenInit(v64GenFunc func, value64_type type, off_t limit, 
                                             v64typed reg0, v64typed reg1, v64typed reg2, v64typed reg3) {
     invraisecode(func != NULL, ERR_NULLABLE_PTR, "Generation function can't be null");
     invraisecode(value64_checktype(type), ERR_UNSUPPORTED_TYPE, "value64 type %d isn't supported", type);
 
     v64Gen res = (v64Gen) {
-        .fnext    = func,
-        .type     = type,
-        .position = 0L,
+        .fnext      = func,
+        .type       = type,
+        .position   = 0L,
+        .limit      = limit,
+        .remaining  = NULL,
+        .finalizer  = NULL,
         .data     = { [0] = reg0, [1] = reg1, [2] = reg2, [3] = reg3 }
     };
     return res;
@@ -371,16 +374,17 @@ v64Gen v64GenCreatorSourceFileChar(FILE *file)
  */
 value64                         v64GenNext(v64Gen *gen)
 {
-    if (gen->limit <= 0)
+    if (gen->limit == 0)
         return LITERAL64_ZERO;
     value64 res = gen->fnext(gen);
     gen->position++;    // even for FILE *!! But not that FILE * control position itself
-    gen->limit--;
+    if (gen->limit > 0)
+        gen->limit--;
     return res;
 }
 
 bool                              v64hasNext(v64Gen *restrict gen, value64 *restrict val) {
-    if  (gen->limit <= 0)
+    if  (gen->limit == 0)
         return false;
     value64 res = v64GenNext(gen);
     if (val)
