@@ -183,68 +183,6 @@ static int                  moveelem(Array *parr, int dest_idx, int src_idx, int
 }
 
 /**
- * @brief Writes an integer value into an array (plain or value64).
- *
- * If the array is a value64 array (ArrayIsV64), the value is wrapped
- * via value64_createint and stored in a.v64[i].  Otherwise it is written
- * directly to a.iv[i].
- *
- * @param a   array
- * @param i   element index
- * @param val value to write
- */
-static inline void                  ArraySetIntElem(Array *parr, int i, int val) {
-    if (ArrayIsV64(parr))
-        parr->v64[i] = value64_createint(val);
-    else
-        parr->iv[i] = val;
-}
-
-/**
- * @brief Writes a long integer into an array (plain or value64).
- * @see ArraySetIntElem
- */
-static inline void                  ArraySetLongElem(Array *parr, int i, long val) {
-    if (ArrayIsV64(parr))
-        parr->v64[i] = value64_createlong(val);
-    else
-        parr->lv[i] = val;
-}
-
-/**
- * @brief Writes a double into an array (plain or value64).
- * @see ArraySetIntElem
- */
-static inline void                  ArraySetDblElem(Array *parr, int i, double val) {
-    if (ArrayIsV64(parr))
-        parr->v64[i] = value64_createdbl(val);
-    else
-        parr->dv[i] = val;
-}
-
-/**
- * @brief Writes a pointer into an array (plain or value64).
- * @see ArraySetIntElem
- */
-static inline void                  ArraySetPtrElem(Array *parr, int i, void *val) {
-    if (ArrayIsV64(parr))
-        parr->v64[i] = value64_createptr(val);
-    else
-        parr->pv[i] = val;
-}
-/**
- * @brief Writes a pointer into an array (plain or value64).
- * @see ArraySetIntElem
- */
-static inline void                  ArraySetCharElem(Array *parr, int i, char val) {
-    if (ArrayIsV64(parr))
-        //a.v64[i] = value64_createptr(val); // TODO:
-        userraiseint(ERR_UNSUPPORTED_TYPE, "V64 container don't support char type for now");
-    else
-        parr->cv[i] = val;
-}
-
-/**
  * @brief Loads array elements from a text stream.
  *
  * The array header must already be read, and the array must be correctly
@@ -604,25 +542,25 @@ static int                      ArrayFillRange_ASC(Array *parr, int from, int to
         case ARRAY_INT: {
             int val = 0;
             for (int i = from; i < to; i++, incintrnd(&val, 1) )
-                ArraySetIntElem(parr, i, val);
+                parr->iv[i] = val;
             break;
         }
         case ARRAY_LONG: {
             long val = 0;
             for (int i = from; i < to; i++, inclongrnd(&val, 1) )
-                ArraySetLongElem(parr, i, val);
+                parr->lv[i] = val;
             break;
         }
         case ARRAY_DOUBLE: {
             double val = 0.0;
             for (int i = from; i < to; i++, incdoublernd(&val, 1) )
-                ArraySetDblElem(parr, i, val);
+                parr->dv[i] = val;
             break;
         }
         case ARRAY_CHAR: {
             char val = 'a';
             for (int i = from; i < to; i++, incchar(&val, 1) )
-                ArraySetCharElem(parr, i, val);
+                parr->cv[i] = val;
             break;
         }
         case ARRAY_V64: {
@@ -686,25 +624,25 @@ static int                      ArrayFillRange_DESC(Array *parr, int from, int t
         case ARRAY_INT: {
             int val = 10 * parr->len;   // hope it'll ne owerwelhm int;
             for (int i = from; i < to; i++, incintrnd(&val, -1) )
-                ArraySetIntElem(parr, i, val);
+                parr->iv[i] = val;
             break;
         }
         case ARRAY_LONG: {
             long val = 100L * parr->len;
             for (int i = from; i < to; i++, inclongrnd(&val, -1) )
-                ArraySetLongElem(parr, i, val);
+                parr->lv[i] = val;
             break;
         }
         case ARRAY_DOUBLE: {
             double val = 0.0;
             for (int i = from; i < to; i++, incdoublernd(&val, -1) )
-                ArraySetDblElem(parr, i, val);
+                parr->dv[i] = val;
             break;
         }
         case ARRAY_CHAR: {
             char val = 'z';
             for (int i = from; i < to; i++, incchar(&val, -1) )
-                ArraySetCharElem(parr, i, val);
+                parr->cv[i] = val;
             break;
         }
         case ARRAY_V64: {
@@ -768,23 +706,23 @@ static int                      ArrayFillRange_ZERO(Array *parr, int from, int t
     switch (ArrayGettype(parr) ) {
         case ARRAY_INT:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                ArraySetIntElem(parr, i, 0);
+                parr->iv[i] = 0;
             break;
         case ARRAY_LONG:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                ArraySetLongElem(parr, i, 0L);
+                parr->lv[i] = 0L;
             break;
         case ARRAY_DOUBLE:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                ArraySetDblElem(parr, i, 0.0);
+                parr->dv[i] = 0.0;
             break;
         case ARRAY_POINTER:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                ArraySetPtrElem(parr, i, NULL);
+                parr->pv[i] = NULL;
             break;
         case ARRAY_CHAR:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                ArraySetCharElem(parr, i, '\0');
+                parr->cv[i] = '\0';
             break;
         case ARRAY_V64: {
             v64Gen gen = v64GenCreatorUnlimZero(parr->v64type);   // обёртка, если есть
@@ -808,7 +746,7 @@ static int                      ArrayFillRange_ZERO(Array *parr, int from, int t
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-/// @note         no generator here
+/// @note         no generator here!
 static int                      ArrayFillRange_SAFE_EMPTY(Array *parr, int from, int to) {
     switch (ArrayGettype(parr) ) {
         case ARRAY_V64: {   // V64
@@ -837,7 +775,7 @@ static int                      ArrayFillRange_SAFE_EMPTY(Array *parr, int from,
 }
 
 /// @brief        random value filler
-/// @param parr      array 
+/// @param parr   array 
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
@@ -845,19 +783,19 @@ static int                      ArrayFillRange_RND(Array *parr, int from, int to
     switch (ArrayGettype(parr) ) {
         case ARRAY_INT:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                 ArraySetIntElem(parr, i, rndint(10 * (to - from + 1) ) );
+                 parr->iv[i] = rndint(10 * (to - from + 1) );
             break;
         case ARRAY_LONG:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                 ArraySetLongElem(parr, i, rndlong(10 * (to - from + 1) ) );
+                 parr->lv[i] = rndlong(10 * (to - from + 1) );
             break;
         case ARRAY_DOUBLE:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                ArraySetDblElem(parr, i, rnddbl(10 * (to - from + 1) ) );
+                parr->dv[i] = rnddbl(10 * (to - from + 1) );
             break;
         case ARRAY_CHAR:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                ArraySetCharElem(parr, i, rndupperchar() );    // upper/lower must be in context.c
+                parr->cv[i] = rndupperchar();    // upper/lower must be in context.c
             break;
         case ARRAY_V64: {
             const int rnd_max = 10 * (to - from);
@@ -916,25 +854,25 @@ static int                      ArrayFillRange_ASC_SERIES(Array *parr, int from,
         case ARRAY_INT: {
             int val = from;
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                 ArraySetIntElem(parr, i, val++);
+                 parr->iv[i] = val++;
             break;
         }
         case ARRAY_LONG: {
             long val = from;
             for (int i = from; i < to; i++)
-                ArraySetLongElem(parr, i, val++);
+                 parr->lv[i] = val++;
             break;
         }
         case ARRAY_DOUBLE: {
             double val = from + 0.0;
             for (int i = from; i < to; i++)
-                ArraySetDblElem(parr, i, val++);
+                 parr->dv[i] = val++;
             break;
         }
         case ARRAY_CHAR: {
             char val = 'A';
             for (int i = from; i < to; i++)
-                ArraySetCharElem(parr, i, val++);    // can be ERR_OUT_OF_RANGE
+                 parr->cv[i] = val++;   // can be ERR_OUT_OF_RANGE
             break;
         }
         case ARRAY_V64: {
@@ -998,25 +936,25 @@ static int                      ArrayFillRange_DESC_SERIES(Array *parr, int from
         case ARRAY_INT: {
             int val = to - 1;
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                 ArraySetIntElem(parr, i, val--);
+                parr->iv[i] = val--;
             break;
         }
         case ARRAY_LONG: {
             long val = to - 1;
             for (int i = from; i < to; i++)
-                ArraySetLongElem(parr, i, val--);
+                parr->lv[i] = val--;
             break;
         }
         case ARRAY_DOUBLE: {
             double val = to - 1;
             for (int i = from; i < to; i++)
-                ArraySetDblElem(parr, i, val--);
+                parr->dv[i] = val--;
             break;
         }
         case ARRAY_CHAR: {
             char val = 'Z';
             for (int i = from; i < to; i++)
-                ArraySetCharElem(parr, i, val--);    // can be ERR_OUT_OF_RANGE
+                parr->cv[i] = val--;    // can be ERR_OUT_OF_RANGE
             break;
         }
         case ARRAY_V64: {
