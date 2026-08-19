@@ -116,10 +116,10 @@ static inline v64Gen                v64GenZero(void) {
     return (v64Gen) {
         .fnext      = NULL,
         .type       = VALUE64_UNKNOWN,
-        // .counter    = 0U,
         .position   = 0L,
         .limit      = 0L,  // -1 no limit, 0 out of lim
-        //.updater    = NULL,
+        .finalizer  = NULL,
+        .remaining  = null,
         .data = {
             [0] = { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN },
             [1] = { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN },
@@ -133,13 +133,15 @@ static inline v64Gen                v64GenZero(void) {
 
 // -------------------- ACCESS AND MODIFICATORS -------------------------------------
 
-// ------------- GENERALLIZED ACCESS -----------------
+// -------------------------- GENERALLIZED ACCESS ------------------------------
 extern value64                  v64GenNext(v64Gen *gen);
 extern value64                  v64GenCurr(v64Gen *gen);
+extern bool                     v64hasNext(v64Gen *restrict gen, value64 *restrict val);
 
+// ----------------------- GENERATORS (extern all) ---------------------------
 // ------------------ pre-created func V64 typed -----------------------------
 
-// TODO: add FS/STR pattern
+// truly genenarator constrctors
 extern value64                  v64GenUnlimZero(v64Gen *gen);
 // unchecker group. 0 -> 1 -> 2 ... INT_MAX -> INT_MIN etc...
 // for bool false -> true -> false ...
@@ -149,8 +151,8 @@ extern value64                  v64UncheckGenUnlimAscRnd(v64Gen *gen);
 extern value64                  v64UncheckGenUnlimDescSeries(v64Gen *gen);
 extern value64                  v64UncheckGenUnlimDescRnd(v64Gen *gen);
 extern value64                  v64GenUnlimRandom(v64Gen *gen);
-// check group: TODO:
 
+// SOURCE based genenarator constrctors
 // source (Ds or c-str or FILE *) group
 extern value64                  v64GenStringToChar(v64Gen *gen);
 extern value64                  v64GenFSToChar(v64Gen *gen);
@@ -160,7 +162,6 @@ extern value64                  v64GenFSToChar(v64Gen *gen);
  * @return: value64/fs
  * @note
  * data[0] – PTR to source fs (non-owning)
- * data[1] – LONG current read position
  */
 extern value64                  v64GenFSToFsByNewline(v64Gen *gen);
 /**
@@ -169,21 +170,19 @@ extern value64                  v64GenFSToFsByNewline(v64Gen *gen);
  * @return: value64/str
  * @note
  * data[0] – PTR to source fs (non-owning)
- * data[1] – LONG current read position
  */
 extern value64                  v64GenFSToStrByNewline(v64Gen *gen);
 /**
  * @brief File stream generator
  *
  * data[0] – PTR на FILE* (невладеющий)
- * data[1] – ULONG remained count
  */
 extern value64                  v64GenFileToChar(v64Gen *gen);
 /**
  * @brief File stream generator
  *
  * data[0] – PTR на FILE* (невладеющий)
- * data[1] – ULONG remained count
+ * 
  * data[2] = fs as buf (owner)
  */
 extern value64                  v64GenFileToFsByNewline(v64Gen *gen);
@@ -191,14 +190,15 @@ extern value64                  v64GenFileToFsByNewline(v64Gen *gen);
  * @brief File stream generator
  *
  * data[0] – PTR на FILE* (невладеющий)
- * data[1] – ULONG remained count
+ * 
  * data[2] = fs as buf (owner)
  */
 extern value64                  v64GenFileToStrByNewline(v64Gen *gen);
 
-// ------------------------ Wrappers for pre-created generators ---------------------
+// ---------------------------- CONSTRUCTORS ---------------------------------------
 // ----------------------------------------------------------------------------------
 
+// ----------------------- truly genenarator -----------------------------------
 static inline v64Gen            v64GenCreatorUnlimZero(value64_type rettyp) {
     // not sure what to do, now just raiseint
     if (!value64_checktype(rettyp))
@@ -207,7 +207,7 @@ static inline v64Gen            v64GenCreatorUnlimZero(value64_type rettyp) {
     // REGITRSY ALLOCATION: NONE
     return v64GenInit0(v64GenUnlimZero, rettyp);       // quite simple, LOL
 }
-
+/*
 // REGITRSY ALLOCATION:
 // data[0] as c-str for STR
 static inline v64Gen            v64GenCreatorUnlimStrValue(const char *str) {
@@ -222,7 +222,7 @@ static inline v64Gen            v64GenCreatorUnlimValue(long val) {
 // data[0]  value for DBL
 static inline v64Gen            v64GenCreatorUnlimDouble(double val) {
     return v64GenInit1(v64GenUnlimZero, VALUE64_DBL, v64typedCreateDbl(val));       // quite simple, LOL
-}
+} */
 
 // -------------------------------------------- ACS SERIES ------------------------------------------------
 

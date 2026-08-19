@@ -331,19 +331,6 @@ v64Gen                           v64GenCreatorSourceFileToStrByNewline(FILE *src
     return v64GenCreatorSourceFileToCommonStringByNewline(src, VALUE64_STR);
 }
 
-
-
-/**
- * @brief Returns the remaining number of characters available in the FILE* source.
- *
- * data[0] – PTR to FILE*
- * data[1] – ULONG remaining chars
- */
-static unsigned long v64GenFileCharRemaining(v64Gen *gen)
-{
-    return V64GENREGVAL1(gen).ulval;
-}
-
 /**
  * @brief Creates a stream character generator for a FILE* source.
  *
@@ -393,9 +380,15 @@ value64                         v64GenNext(v64Gen *gen)
 }
 
 bool                              v64hasNext(v64Gen *restrict gen, value64 *restrict val) {
-
+    if  (gen->limit <= 0)
+        return false;
+    value64 res = v64GenNext(gen);
+    if (val)
+        *val = res;
+    return true;
 }
 
+// ------------------------------ GENERATORS ----------------------------------------
 // ------------------------ pre-created func V64 typed ------------------------------
 
 /**
@@ -1185,14 +1178,14 @@ tf3_gen_asc_series(const char *name)
 }
 
 // ------------------------- TEST v64gen creators (simple wrappers) -------------------------
-static TestStatus
+/*static TestStatus
 tf4_gen_creators(const char *name)
 {
     logenter("%s", name);
     int subnum = 0;
 
     /* 1. v64GenCreatorUnlimStrValue: cоздаёт генератор типа STR c региcтром data[0] = cтрока,
-       а v64GenNext возвращает пуcтую cтроку (zero) */
+       а v64GenNext возвращает пуcтую cтроку (zero) 
     test_sub("subtest %d: v64GenCreatorUnlimStrValue (STR)", ++subnum);
     {
         v64Gen gen = v64GenCreatorUnlimStrValue("hello");
@@ -1213,7 +1206,7 @@ tf4_gen_creators(const char *name)
         fs_alloc_check(true);
     }
 
-    /* 2. v64GenCreatorUnlimValue (LONG): генератор типа LONG, data[0]=long, zero = 0L */
+    /* 2. v64GenCreatorUnlimValue (LONG): генератор типа LONG, data[0]=long, zero = 0L 
     test_sub("subtest %d: v64GenCreatorUnlimValue (LONG)", ++subnum);
     {
         v64Gen gen = v64GenCreatorUnlimValue(12345L);
@@ -1249,7 +1242,7 @@ tf4_gen_creators(const char *name)
     }
 
     return TEST_PASSED;
-}
+} */
 
 // ------------------------- TEST : asc random generator -------------------------
 static TestStatus
