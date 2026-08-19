@@ -7,36 +7,10 @@
 // --------------------------------- CONSTANTS AND GLOBALS --------------------------
 
 // --------------------------- Utilities --------------------------------------------
-static bool                     v64GenStringUpdate(v64Gen *gen, long amount) {
-    if (amount <= 0)
-        return false;
-    // only for Stream Buffer
-    if (V64GENREGVAL1(gen).lval != LONG_MAX)
-        V64GENREGVAL1(gen).lval += amount;
-    return true;
-}
+// ----------------------- Utilities REMAINING -----------------------------------------
 
-// FILE * update, REG0 as FILE *
-static bool                      v64GenFileUpdate(v64Gen *gen, long amount)
-{
-    (void) amount;   // не используется, файл обновляется целиком
-
-    FILE *fp = (FILE *) V64GENREGVAL0(gen).pval;
-    if (!fp)
-        return false;
-
-    clearerr(fp);       // if was EOF
-    off_t total = getfilesize(fp);
-    if (total < 0)
-        return false;               // нерегулярный файл – обновить нельзя
-
-    long pos = ftell(fp);
-    if (pos < 0)
-        pos = 0;
-
-    unsigned long remaining = (total > (off_t) pos) ? (unsigned long) (total - pos) : 0;
-    V64GENREGVAL1(gen).ulval = remaining;
-    return true;
+static off_t            v64GenRemainingCount(v64Gen *gen) {
+    return gen->limit;
 }
 
 /**
@@ -44,26 +18,54 @@ static bool                      v64GenFileUpdate(v64Gen *gen, long amount)
  *
  * Used only by generators that iterate over an fs (e.g., v64GenFSChar).
  * data[0] holds a non-owning pointer to the source fs,
- * data[1] holds the current read position as a long.
  *
  * @param gen  pointer to the generator
  * @return     remaining characters (0 if exhausted or invalid)
  */
-static unsigned long            v64GenGetRemainingCount(v64Gen *gen)
-{
-    fs *src = (fs *)V64GENREGVAL0(gen).pval;
+static off_t            v64GenFsRemainingCount(v64Gen *gen) {
+    fs *src = (fs *) V64GENREGVAL0(gen).pval;    // REG
     if (!src->v)
-        return 0L;
+        return userraise(0L, ERR_NULLABLE_PTR, "Nullable fs-source");
+    // update limit
+    if (fs_len(src) < gen->position)   // log the issue
+        userraise(0L, ERR_STREAM_ERROR, 
+            "fs source reduced!!! from %ld to %lu", gen->position, fs_len(src));
+    gen->limit = fs_len(src) - gen->position;
+    return gen->limit;
+}
+/**
+ * @brief Returns the number of characters remaining in the source FILE *.
+ *
+ * Used only by generators that iterate over an fs (e.g., v64GenFSChar).
+ * data[0] holds a non-owning pointer to the source fs,
+ *
+ * @param gen  pointer to the generator
+ * @return     remaining characters (0 if exhausted or invalid)
+ */
+static off_t            v64GenFileRemainingCount(v64Gen *gen) {
+    FILE        *fp = (FILE *) V64GENREGVAL0(gen).pval;
+    if (!fp)
+        return userraise(0L, ERR_NULLABLE_PTR, "Nullable FILE-source");
 
-    return fs_len(src) - V64GENREGVAL1(gen).ulval;
+    clearerr(fp);       // if was EOF
+    off_t        total = getfilesize(fp);
+    if (total < 0)
+        return userraise(0L, ERR_IRREGULAR_STREAM, "Unable to get file size");               // нерегулярный файл – обновить нельзя
+
+    if (total < gen->position)  // log the issue
+        userraise(0L, ERR_STREAM_ERROR, 
+            "fs source reduced!!! from %ld to %ld", gen->position, total);
+
+    off_t        pos = ftell(fp);
+    if (pos < 0)
+        pos = 0;
+    gen->position = pos;    // just for log, because FILE source used FILE position, but not gen->position
+
+    gen->limit = (total > (off_t) pos) ? (off_t) (total - pos) : 0;
+    return gen->limit;
 }
 
-static unsigned long             v64GenFileGetRemainingCount(v64Gen *gen) {
-    v64GenFileUpdate(gen, 0L);
-    return V64GENREGVAL1(gen).ulval;
-}
-
-// ---------------------- Utilities generators (Common private versions) -----------------------
+// ----------------------- Utilities FINALIZERS -----------------------------------------
 
 /**
  * @brief Finalizer for fs newline generator: returns the remaining data as last line.
@@ -92,6 +94,8 @@ static value64                  v64GenFSToStringTargetByNewlineFinalize(v64Gen *
         res = LITERAL64_STR(fs_movetostr(&line));
     return res;
 }
+
+// ---------------------- Utilities generators (Common private versions) -----------------------
 
 /**
  * @brief Parse fs from fs, dividev by newline
@@ -199,7 +203,6 @@ static value64                  v64GenFileToStringTargetByNewlineFinalize(v64Gen
 // RETURNS: FS
 // REGITRSY ALLOCATION:
 // data[0] FS as SOURCE (no ownership)
-// data[1] ULONG as position
 static v64Gen                    v64GenCreatorSourceFsToCommonStringByNewline(const fs *src, value64_type typ){
     invraisecode(src != NULL, ERR_NULLABLE_PTR, 
         "NUll fs source %p", src);
@@ -213,7 +216,7 @@ static v64Gen                    v64GenCreatorSourceFsToCommonStringByNewline(co
                     v64typedCreateULong(0UL));         // data[1] POSITION
 
     gen.finalizer = typ == VALUE64_FS ? v64GenFSToFsByNewlineFinalize : v64GenFSToStrByNewlineFinalize;
-    gen.remaining = v64GenGetRemainingCount;
+    gen.remaining = v64GenFsRemainingCount;
     return gen;
 }
 /**
@@ -241,9 +244,8 @@ static v64Gen                   v64GenCreatorSourceFileToCommonStringByNewline(F
                              v64typedCreate(LITERAL64_PFS(fs_create()), VALUE64_FS)
                              );
 
-    gen.updater   = v64GenFileUpdate;                     
     gen.finalizer = v64GenFileToStringTargetByNewlineFinalize;
-    gen.remaining = v64GenFileGetRemainingCount;
+    gen.remaining = v64GenFileRemainingCount;
 
     v64GenFileUpdate(&gen, 0);   // set up remaining REG1
 
@@ -258,11 +260,10 @@ v64Gen                          v64GenInit(v64GenFunc func, value64_type type,
     invraisecode(value64_checktype(type), ERR_UNSUPPORTED_TYPE, "value64 type %d isn't supported", type);
 
     v64Gen res = (v64Gen) {
-        .fnext   = func,
-        .type    = type,
-        .counter = 0U,
-        .updater = NULL,
-        .data    = { [0] = reg0, [1] = reg1, [2] = reg2, [3] = reg3 }
+        .fnext    = func,
+        .type     = type,
+        .position = 0L,
+        .data     = { [0] = reg0, [1] = reg1, [2] = reg2, [3] = reg3 }
     };
     return res;
 }
@@ -280,7 +281,6 @@ v64Gen                          v64GenCreatorSourceCstrChar(const char *src, lon
         maxlen = LONG_MAX; // unlim
     v64Gen gen =  v64GenInit2(v64GenStringToChar, VALUE64_CHR, 
             v64typedCreateCstrSource(src), v64typedCreateLong(maxlen) );
-    gen.updater = v64GenStringUpdate;        // setup updater
 
     return gen;
 }
@@ -296,7 +296,7 @@ v64Gen                          v64GenCreatorSourceFsToChar(const fs *src) {
                         v64typedCreateFsSource(src),
                         v64typedCreateULong(0UL));
 
-    gen.remaining = v64GenGetRemainingCount;
+    gen.remaining = v64GenFsGetRemainingCount;
     return gen;
 }
 
@@ -366,7 +366,6 @@ v64Gen v64GenCreatorSourceFileChar(FILE *file)
 
     v64GenFileUpdate(&gen, 0L);   // пересчитать остаток на основе getfilesize/ftell
 
-    gen.updater = v64GenFileUpdate;
     gen.remaining = v64GenFileCharRemaining;
     return gen;
 }
@@ -385,9 +384,16 @@ v64Gen v64GenCreatorSourceFileChar(FILE *file)
  */
 value64                         v64GenNext(v64Gen *gen)
 {
-    /* The next-function is responsible for incrementing counter when required. */
-    gen->counter++;     // just for stats and LIMITS (not impl yet)
-    return gen->fnext(gen);
+    if (gen->limit <= 0)
+        return LITERAL64_ZERO;
+    value64 res = gen->fnext(gen);
+    gen->position++;    // even for FILE *!! But not that FILE * control position itself
+    gen->limit--;
+    return res;
+}
+
+bool                              v64hasNext(v64Gen *restrict gen, value64 *restrict val) {
+
 }
 
 // ------------------------ pre-created func V64 typed ------------------------------
@@ -402,8 +408,6 @@ value64                         v64GenNext(v64Gen *gen)
  * - pointer       → NULL
  * - fs            → empty fs (via value64_createfs_asstr(""))
  * - str           → empty string (via value64_createstr(""))
- *
- * The counter is left unchanged.
  *
  * @param gen  pointer to the generator (type must be set)
  * @return     a zero value64 of the requested type (ownership passed to caller)
@@ -678,8 +682,8 @@ int                             v64Techfprint(FILE *restrict out, const v64Gen *
             IOCHECKER(w, fprintf(out, "<NULL>"), -1)
                 cnt += w;
         } else {
-            IOCHECKER(w, fprintf(out, "fnext=%p, updater=%p, counter=%u, type=%d/%s\t",
-                        gen->fnext, gen->updater, gen->counter, gen->type, value64_typename(gen->type) ), -1)
+            IOCHECKER(w, fprintf(out, "fnext=%p, remaining=%p, pos=%ld, limit=%ld type=%d/%s\t",
+                        gen->fnext, gen->remaining, gen->position, gen->limit, gen->type, value64_typename(gen->type) ), -1)
                 cnt += w;
             for (int i = 0; i < V64GENCOUNT; i++) {
                 char    buf[50];

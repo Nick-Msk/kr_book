@@ -30,17 +30,18 @@ enum v64GenConstants {
 typedef struct v64Gen                   v64Gen;
 
 typedef value64                         (*v64GenFunc)(v64Gen *gen);
-typedef bool                            (*v64genUpdateStreamFunc) (v64Gen *gen, long amount);
-typedef unsigned long                   (*v64GenGerRemainingFunc) (v64Gen *gen);
+typedef off_t                           (*v64GenGerRemainingFunc) (v64Gen *gen);
 typedef value64                         (*v64GenFinalizerFunc)(v64Gen *gen);
 
 typedef struct v64Gen {
     v64GenFunc              fnext;
     value64_type            type;
-    unsigned int            counter;
-    v64genUpdateStreamFunc  updater;
+    off_t                   limit;
+    off_t                   position;  // remaned from counter 
+    // func
     v64GenGerRemainingFunc  remaining;
     v64GenFinalizerFunc     finalizer;
+    // register for common usage
     v64typed                data[V64GENCOUNT];
 } v64Gen;
 
@@ -115,8 +116,10 @@ static inline v64Gen                v64GenZero(void) {
     return (v64Gen) {
         .fnext      = NULL,
         .type       = VALUE64_UNKNOWN,
-        .counter    = 0U,
-        .updater  = NULL,
+        // .counter    = 0U,
+        .position   = 0L,
+        .limit      = 0L,  // -1 no limit, 0 out of lim
+        //.updater    = NULL,
         .data = {
             [0] = { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN },
             [1] = { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN },
@@ -313,7 +316,7 @@ static inline v64Gen        v64GenCreatorUnlimDescSeries(v64typed vt) {
 // data[2] INT as pattern for increment
 static inline v64Gen            v64GenCreatorUnlimAscFsRnd(long startpos, const char *fmt, int rndinc) {
     v64Gen tmp;
-    
+
     _v64GenFixRndinc(&rndinc);
     if (fmt != NULL)
         tmp = v64GenInit3(v64UncheckGenUnlimAscRnd,
