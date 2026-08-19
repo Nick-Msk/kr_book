@@ -154,26 +154,55 @@ rndint(int max)
 }
 static inline char 
 rndlowchar(void) {
-    return (char)('a' + rand() % 26);
+    return (char)('a' + rndint(25));
 }
+
 static inline char 
 rndupperchar(void) {
-    return (char)('A' + rand() % 26);
+    return (char)('A' + rndint(25));
 }
+
 static inline char 
 rnddigitchar(void) {
-    return (char)('0' + rand() % 10);
+    return (char)('0' + rndint(9));
 }
-// probably rework is required
 static inline unsigned
 rnduint(unsigned max)
 {
-    return (unsigned long)rand() * max / RAND_MAX;
+    if (max == 0)
+        return 0;
+
+    // Если max больше, чем RAND_MAX, метод с RAND_MAX % range не сработает
+    // так же, как и в rndint. Но для unsigned max это критично.
+    // Для простоты и точности в рамках стандартного rand():
+    if (max >= (unsigned) RAND_MAX) {
+        return (unsigned)(((double)rand() / (double)RAND_MAX) * max);
+    }
+
+    unsigned range = max + 1;
+    unsigned limit = (unsigned)RAND_MAX - ((unsigned)RAND_MAX % range);
+    unsigned r;
+
+    do {
+        r = (unsigned) rand();
+    } while (r >= limit);
+
+    return r % range;
 }
 static inline long
-rndlong(unsigned max)
+rndlong(long max)
 {
-    return (long)rand() * max / RAND_MAX;
+    if (max <= 0 && max > RAND_MAX)
+        return 0;       // as we can't userraise here
+    // 
+    long    range = max + 1;
+    long    limit = RAND_MAX - (RAND_MAX % range);
+    long    r;
+    do {
+        r = rand();
+    } while (r >= limit);
+    //
+    return r % range;
 }
 // probably rework is required
 static inline unsigned long
@@ -340,18 +369,26 @@ static inline void              str_exch(const char **s1, const char **s2) {
 /// @param v1 pointer to the elem
 /// @param v2 pointer to the elem
 /// @param sz size of elem
-static inline void              item_exch(void *restrict v1, void *restrict v2, size_t sz) {
-    char buffer[256]; // Маленький буфер на стеке
-    void *tmp;
+static inline void              item_exch(void *v1, void *v2, size_t sz) {
+    char        buffer[256]; // Маленький буфер на стеке
+    bool        allocflag = false;
+    void       *tmp;
+
+    if (v1 == v2) 
+        return;
     if (sz <= sizeof(buffer)) {
         tmp = buffer;
     } else {
         tmp = malloc(sz);
-        if (!tmp) return; 
+        if (!tmp) 
+            return;         // can't userraise there!!!
+        allocflag = true;
     }
     memcpy(tmp, v1, sz);
     memcpy(v1, v2, sz);
     memcpy(v2, tmp, sz);
+    if (allocflag)
+        free(tmp);
 }
 
 // -------------------------------- Converters ---------------------------
@@ -361,8 +398,11 @@ static inline int               ctoi(char c){
 static inline int               ctoihex(char c){
     if (isdigit(c) )
         return c - '0';
+    char low = tolower((unsigned char)c);
+    if (low >= 'a' && low <= 'f')
+        return low - 'a' + 10;
     else
-        return tolower(c) - 'a';        // a - f
+        return -1;
 }
 static inline char              itoc(int c){
     return c + '0';
