@@ -11,12 +11,11 @@ static bool                     v64GenStringUpdate(v64Gen *gen, long amount) {
     if (amount <= 0)
         return false;
     // only for Stream Buffer
-    //if (newbuf)
-    //    V64GENREGVAL0(gen).pval = (void *) newbuf;
     if (V64GENREGVAL1(gen).lval != LONG_MAX)
         V64GENREGVAL1(gen).lval += amount;
     return true;
 }
+
 // FILE * update, REG0 as FILE *
 static bool                      v64GenFileUpdate(v64Gen *gen, long amount)
 {
@@ -506,7 +505,8 @@ value64
 v64UncheckGenUnlimAscRnd(v64Gen *gen)
 {
     int r = value64_int(V64GENREGVAL2(gen) );
-    return v64UncheckGenUnlimAscValue(gen, rndint(r) + 1);
+
+    return v64UncheckGenUnlimAscValue(gen, rndint(r - 1) + 1);
 }
 /**
  * @brief Unchecked unlimited descending series generator.
@@ -1458,9 +1458,9 @@ tf6_gen_asc_rnd_custom(const char *name)
     srand((unsigned)time(NULL)); 
 
     /* 1. INT with rndinc=1: increments should be 1 or 2, and both must appear */
-    test_sub("subtest %d: AscRnd INT with rndinc=1 (increments 1..2)", ++subnum);
+    test_sub("subtest %d: AscRnd INT with rndinc=2 (increments 1..2)", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimAscRnd(v64typedCreateInt(100), 1);
+        v64Gen gen = v64GenCreatorUnlimAscRnd(v64typedCreateInt(100), 2);
 
         value64 v0 = v64GenNext(&gen);
         test_validate(value64_int(v0) == 100, "first must be 100");
@@ -1492,7 +1492,7 @@ tf6_gen_asc_rnd_custom(const char *name)
     /* 2. LONG with rndinc=5: increments should be 1..6 (по текущей реализации) */
     test_sub("subtest %d: AscRnd LONG with rndinc=5 (increments 1..6)", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimAscRnd(v64typedCreateInt(500L), 5);
+        v64Gen gen = v64GenCreatorUnlimAscRnd(v64typedCreateInt(500L), 6);
 
         value64 v0 = v64GenNext(&gen);
         test_validate(value64_long(v0) == 500L, "first must be 500");
@@ -1514,7 +1514,7 @@ tf6_gen_asc_rnd_custom(const char *name)
 
     test_sub("subtest %d: AscRnd STR with rndinc=3 and template", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimAscStrRnd(0, "val %d", 3);
+        v64Gen gen = v64GenCreatorUnlimAscStrRnd(0, "val %d", 4);
 
         value64 v0 = v64GenNext(&gen);
         test_validate(strcmp(value64_str(v0), "val 0") == 0,
@@ -1537,7 +1537,7 @@ tf6_gen_asc_rnd_custom(const char *name)
 
     test_sub("subtest %d: AscRnd FS with rndinc=3 and template", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimAscFsRnd(0, "val %d", 3);
+        v64Gen gen = v64GenCreatorUnlimAscFsRnd(0, "val %d", 4);
 
         value64 v0 = v64GenNext(&gen);
         test_validate(fs_cmpstr(value64_fs(v0), "val 0") == 0,
