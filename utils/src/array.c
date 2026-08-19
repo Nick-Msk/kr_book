@@ -243,33 +243,6 @@ static inline void                  ArraySetCharElem(Array *parr, int i, char va
     else
         parr->cv[i] = val;
 }
-/**
- * @brief Writes an fs value into a value64 array.
- *
- * The array must be a value64 array (Array_isv64).  The fs object is
- * deep‑copied into the array element.
- *
- * @param a   value64 array
- * @param i   element index
- * @param val pointer to the fs object to copy
- */
-static inline void                  ArraySetV64fsElem(Array *restrict parr, int i, const fs *restrict val) {
-    parr->v64[i] = value64_createfs(val);
-}
-
-/**
- * @brief Writes a C‑string into a value64 array (owned copy).
- *
- * The array must be a value64 array (Array_isv64).  The string is
- * duplicated and stored as a VALUE64_STR element.
- *
- * @param a   value64 array
- * @param i   element index
- * @param val C‑string to copy
- */
-static inline void                  ArraySetV64strElem(Array *restrict parr, int i, const char *restrict val) {
-    parr->v64[i] = value64_createstr(val);
-}
 
 /**
  * @brief Loads array elements from a text stream.
@@ -835,6 +808,7 @@ static int                      ArrayFillRange_ZERO(Array *parr, int from, int t
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
+/// @note         no generator here
 static int                      ArrayFillRange_SAFE_EMPTY(Array *parr, int from, int to) {
     switch (ArrayGettype(parr) ) {
         case ARRAY_V64: {   // V64
@@ -886,29 +860,44 @@ static int                      ArrayFillRange_RND(Array *parr, int from, int to
                 ArraySetCharElem(parr, i, rndupperchar() );    // upper/lower must be in context.c
             break;
         case ARRAY_V64: {
+            const int rnd_max = 10 * (to - from);
+            v64Gen gen;
+
             switch (parr->v64type) {
-                case VALUE64_FS: {
-                    fs s = FS();
-                    for (int i = from; i < to; i++) {
-                        fs_genrnd(&s, to - from + 1, 'A');
-                        ArraySetV64fsElem(parr, i, &s);  
-                    }
-                    fsfree(s);
+                case VALUE64_INT:
+                    gen = v64GenCreatorUnlimRnd(VALUE64_INT, rnd_max);
                     break;
-                }
-                case VALUE64_STR: {
-                    fs s = FS();
-                    for (int i = from; i < to; i++) {
-                        fs_genrnd(&s, to - from + 1, 'A');
-                        ArraySetV64strElem(parr, i, fsstr(s) );
-                    }
-                    fsfree(s);
+                case VALUE64_LONG:
+                    gen = v64GenCreatorUnlimRnd(VALUE64_LONG, rnd_max);
                     break;
-                }
+                case VALUE64_ULONG:
+                    gen = v64GenCreatorUnlimRnd(VALUE64_ULONG, rnd_max);
+                    break;
+                case VALUE64_DBL:
+                    gen = v64GenCreatorUnlimRnd(VALUE64_DBL, rnd_max);
+                    break;
+                case VALUE64_CHR:
+                    gen = v64GenCreatorUnlimRnd(VALUE64_CHR, rnd_max);
+                    break;
+                case VALUE64_BOOL:
+                    gen = v64GenCreatorUnlimRnd(VALUE64_BOOL, 1);
+                    break;
+                case VALUE64_STR:
+                    gen = v64GenCreatorUnlimStrRnd("%d", rnd_max);
+                    break;
+                case VALUE64_FS:
+                    gen = v64GenCreatorUnlimFsRnd("%d", rnd_max);
+                    break;
                 default:
-                    userraiseint(ERR_ACTION_NOT_APPLICABLE, "Unsupported v64 type for ZERO v64 fill %s", ArrayGetV64typeName(parr) );
-                    break;
+                    return userraise(-1, ERR_ACTION_NOT_APPLICABLE,
+                                    "Unsupported v64 type for RND fill: %d/%s",
+                                    parr->v64type, ArrayGetV64typeName(parr));
             }
+
+            for (int i = from; i < to; i++) {
+                parr->v64[i] = v64GenNext(&gen);
+            }
+            v64GenFree(&gen);
             break;
         }
         default:
@@ -5740,6 +5729,207 @@ tf30_array_v64_desc_series_fill_all(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST ArrayFillRange_RND with V64 generator -------------------------
+static TestStatus
+tf31_array_v64_rnd_fill_all(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. INT */
+    test_sub("subtest %d: V64 RND fill for INT", ++subnum);
+    {
+        const int N = 8;
+        Array *arr = V64Array_create(N, ARRAY_FILLTYPE_RND, VALUE64_INT);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        int prev = value64_int(arr->v64[0]);
+        bool all_same = true;
+        for (int i = 0; i < Arraylen(arr); i++) {
+            int val = value64_int(arr->v64[i]);
+            test_validatefree(val >= 0 && val <= 10 * N,
+                              Arrayfree(arr),
+                              "INT[%d] out of range: %d", i, val);
+            if (i > 0 && val != prev) all_same = false;
+            prev = val;
+        }
+        test_validatefree(!all_same, Arrayfree(arr), "INT values should not be all identical");
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    /* 2. LONG */
+    test_sub("subtest %d: V64 RND fill for LONG", ++subnum);
+    {
+        const int N = 8;
+        Array *arr = V64Array_create(N, ARRAY_FILLTYPE_RND, VALUE64_LONG);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        long prev = value64_long(arr->v64[0]);
+        bool all_same = true;
+        for (int i = 0; i < Arraylen(arr); i++) {
+            long val = value64_long(arr->v64[i]);
+            test_validatefree(val >= 0 && val <= 10 * N,
+                              Arrayfree(arr),
+                              "LONG[%d] out of range: %ld", i, val);
+            if (i > 0 && val != prev) all_same = false;
+            prev = val;
+        }
+        test_validatefree(!all_same, Arrayfree(arr), "LONG values should not be all identical");
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    /* 3. ULONG */
+    test_sub("subtest %d: V64 RND fill for ULONG", ++subnum);
+    {
+        const int N = 8;
+        Array *arr = V64Array_create(N, ARRAY_FILLTYPE_RND, VALUE64_ULONG);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        unsigned long prev = value64_ulong(arr->v64[0]);
+        bool all_same = true;
+        for (int i = 0; i < Arraylen(arr); i++) {
+            unsigned long val = value64_ulong(arr->v64[i]);
+            test_validatefree(val >= 0 && val <= 10UL * N,
+                              Arrayfree(arr),
+                              "ULONG[%d] out of range: %lu", i, val);
+            if (i > 0 && val != prev) all_same = false;
+            prev = val;
+        }
+        test_validatefree(!all_same, Arrayfree(arr), "ULONG values should not be all identical");
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    /* 4. DBL */
+    test_sub("subtest %d: V64 RND fill for DBL", ++subnum);
+    {
+        const int N = 8;
+        Array *arr = V64Array_create(N, ARRAY_FILLTYPE_RND, VALUE64_DBL);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        double prev = value64_dbl(arr->v64[0]);
+        bool all_same = true;
+        for (int i = 0; i < Arraylen(arr); i++) {
+            double val = value64_dbl(arr->v64[i]);
+            test_validatefree(val >= 0.0 && val <= 10.0 * N,
+                              Arrayfree(arr),
+                              "DBL[%d] out of range: %f", i, val);
+            if (i > 0 && fabs(val - prev) > 1e-9) all_same = false;
+            prev = val;
+        }
+        test_validatefree(!all_same, Arrayfree(arr), "DBL values should not be all identical");
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    /* 5. CHR */
+    test_sub("subtest %d: V64 RND fill for CHR", ++subnum);
+    {
+        const int N = 8;
+        Array *arr = V64Array_create(N, ARRAY_FILLTYPE_RND, VALUE64_CHR);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        unsigned char prev = (unsigned char)value64_char(arr->v64[0]);
+        bool all_same = true;
+        for (int i = 0; i < Arraylen(arr); i++) {
+            unsigned char val = (unsigned char)value64_char(arr->v64[i]);
+            test_validatefree(val <= 10 * N,
+                              Arrayfree(arr),
+                              "CHR[%d] out of range: %u", i, val);
+            if (i > 0 && val != prev) all_same = false;
+            prev = val;
+        }
+        test_validatefree(!all_same, Arrayfree(arr), "CHR values should not be all identical");
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    /* 6. BOOL */
+    test_sub("subtest %d: V64 RND fill for BOOL", ++subnum);
+    {
+        const int N = 8;
+        Array *arr = V64Array_create(N, ARRAY_FILLTYPE_RND, VALUE64_BOOL);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        bool saw_true = false, saw_false = false;
+        for (int i = 0; i < Arraylen(arr); i++) {
+            bool b = value64_bool(arr->v64[i]);
+            test_validatefree(b == true || b == false,
+                              Arrayfree(arr),
+                              "BOOL[%d] must be true or false", i);
+            if (b) saw_true = true;
+            else saw_false = true;
+        }
+        test_validatefree(saw_true && saw_false,
+                          Arrayfree(arr),
+                          "BOOL values should include both true and false");
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    /* 7. STR */
+    test_sub("subtest %d: V64 RND fill for STR", ++subnum);
+    {
+        const int N = 8;
+        Array *arr = V64Array_create(N, ARRAY_FILLTYPE_RND, VALUE64_STR);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        int prev = -1;
+        bool all_same = true;
+        for (int i = 0; i < Arraylen(arr); i++) {
+            const char *s = value64_str(arr->v64[i]);
+            test_validatefree(s != NULL && s[0] != '\0',
+                              Arrayfree(arr),
+                              "STR[%d] must be non-empty", i);
+            int num;
+            test_validatefree(sscanf(s, "%d", &num) == 1,
+                              Arrayfree(arr),
+                              "STR[%d] must be numeric, got '%s'", i, s);
+            test_validatefree(num >= 0 && num <= 10 * N,
+                              Arrayfree(arr),
+                              "STR[%d] out of range: %d", i, num);
+            if (i > 0 && num != prev) all_same = false;
+            prev = num;
+        }
+        test_validatefree(!all_same, Arrayfree(arr), "STR values should not be all identical");
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    /* 8. FS */
+    test_sub("subtest %d: V64 RND fill for FS", ++subnum);
+    {
+        const int N = 8;
+        Array *arr = V64Array_create(N, ARRAY_FILLTYPE_RND, VALUE64_FS);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        int prev = -1;
+        bool all_same = true;
+        for (int i = 0; i < Arraylen(arr); i++) {
+            const char *s = fs_str(value64_fs(arr->v64[i]));
+            test_validatefree(s != NULL && s[0] != '\0',
+                              Arrayfree(arr),
+                              "FS[%d] must be non-empty", i);
+            int num;
+            test_validatefree(sscanf(s, "%d", &num) == 1,
+                              Arrayfree(arr),
+                              "FS[%d] must be numeric, got '%s'", i, s);
+            test_validatefree(num >= 0 && num <= 10 * N,
+                              Arrayfree(arr),
+                              "FS[%d] out of range: %d", i, num);
+            if (i > 0 && num != prev) all_same = false;
+            prev = num;
+        }
+        test_validatefree(!all_same, Arrayfree(arr), "FS values should not be all identical");
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -5776,7 +5966,8 @@ main( /*int argc, char *argv[] */ )
         TESTADD(tf27_array_v64_asc_series_fill_all,     "ArrayFillRange_ASC_SERIES with V64 generator"),
         TESTADD(tf28_array_v64_asc_fill_all_random,     "ArrayFillRange_ASC_RND with V64 generator (random increase)"),
         TESTADD(tf29_array_v64_desc_fill_all_random,    "ArrayFillRange_DESC_RND with V64 generators (random decrease)"),
-        TESTADD(tf30_array_v64_desc_series_fill_all,    "ArrayFillRange_DESC_SERIES with V64 generator")
+        TESTADD(tf30_array_v64_desc_series_fill_all,    "ArrayFillRange_DESC_SERIES with V64 generator"),
+        TESTADD(tf31_array_v64_rnd_fill_all,            "ArrayFillRange_RND with V64 generators all types")
     );
 
     return logret(0, "end...");  // as replace of logclose()
