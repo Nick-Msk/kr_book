@@ -829,7 +829,7 @@ static int                      ArrayFillRange_ZERO(Array *parr, int from, int t
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      ArrayFillRange_NONE(Array *parr, int from, int to) {
+static int                      ArrayFillRange_SAFE_EMPTY(Array *parr, int from, int to) {
     switch (ArrayGettype(parr) ) {
         case ARRAY_V64: {   // V64
             switch (parr->v64type) {
@@ -1062,7 +1062,7 @@ int                             ArrayFillRange(Array *parr, ArrayFillType typ, i
             break;
         case ARRAY_FILLTYPE_SAFE_EMPTY:
             // just do nothing for scalar types
-            ArrayFillRange_NONE(parr, from, to);
+            ArrayFillRange_SAFE_EMPTY(parr, from, to);
             break;
         case ARRAY_FILLTYPE_ASC_SERIES:
             ArrayFillRange_ASC_SERIES(parr, from, to);
@@ -5579,4 +5579,3 @@ main( /*int argc, char *argv[] */ )
 }
 
 #endif /* ARRAYTESTING */
-
