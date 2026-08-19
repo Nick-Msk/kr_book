@@ -537,7 +537,7 @@ v64UncheckGenUnlimDescSeries(v64Gen *gen) {
 value64                         v64UncheckGenUnlimDescRnd(v64Gen *gen) {
     int r = value64_int(V64GENREGVAL2(gen) );
 
-    return v64UncheckGenUnlimAscValue(gen, -(rndint(r) + 1) );
+    return v64UncheckGenUnlimAscValue(gen, -(rndint(r - 1) + 1) );
 }
 
 value64                         v64GenUnlimRandom(v64Gen *gen) {
@@ -1801,7 +1801,7 @@ tf8_gen_desc_rnd_custom(const char *name)
     /* 1. INT with rndinc=1 (decrements 1..2) */
     test_sub("subtest %d: DescRnd INT with rndinc=1 (decrements 1..2)", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimDescRnd(v64typedCreateInt(100), 1);
+        v64Gen gen = v64GenCreatorUnlimDescRnd(v64typedCreateInt(100), 2);
 
         value64 v0 = v64GenNext(&gen);
         test_validate(value64_int(v0) == 100, "first must be 100");
@@ -1828,7 +1828,7 @@ tf8_gen_desc_rnd_custom(const char *name)
     /* 2. LONG with rndinc=5 (decrements 1..6) */
     test_sub("subtest %d: DescRnd LONG with rndinc=5 (decrements 1..6)", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimDescRnd(v64typedCreateLong(500L), 5);
+        v64Gen gen = v64GenCreatorUnlimDescRnd(v64typedCreateLong(500L), 6);
 
         value64 v0 = v64GenNext(&gen);
         test_validate(value64_long(v0) == 500L, "first must be 500");
@@ -1850,7 +1850,7 @@ tf8_gen_desc_rnd_custom(const char *name)
     /* 3. DBL with rndinc=3 (decrements 1.0..4.0) */
     test_sub("subtest %d: DescRnd DBL with rndinc=3 (decrements 1.0..4.0)", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimDescRnd(v64typedCreateDbl(20.0), 3);
+        v64Gen gen = v64GenCreatorUnlimDescRnd(v64typedCreateDbl(20.0), 4);
 
         value64 v0 = v64GenNext(&gen);
         test_validate(fabs(value64_dbl(v0) - 20.0) < 1e-9, "first must be 20.0");
@@ -1872,7 +1872,7 @@ tf8_gen_desc_rnd_custom(const char *name)
     /* 4. ULONG with rndinc=2 (decrements 1..3) */
     test_sub("subtest %d: DescRnd ULONG with rndinc=2 (decrements 1..3)", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimDescRnd(v64typedCreateULong(1000UL), 2);
+        v64Gen gen = v64GenCreatorUnlimDescRnd(v64typedCreateULong(1000UL), 3);
 
         value64 v0 = v64GenNext(&gen);
         test_validate(value64_ulong(v0) == 1000UL, "first must be 1000");
@@ -1894,7 +1894,7 @@ tf8_gen_desc_rnd_custom(const char *name)
     /* 5. CHR with rndinc=1 (decrements 1..2) */
     test_sub("subtest %d: DescRnd CHAR with rndinc=1 (decrements 1..2)", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimDescRnd(v64typedCreateChar('Z'), 1);
+        v64Gen gen = v64GenCreatorUnlimDescRnd(v64typedCreateChar('Z'), 2);
 
         value64 v0 = v64GenNext(&gen);
         test_validate(value64_char(v0) == 'Z', "first must be 'Z'");
@@ -1936,7 +1936,7 @@ tf8_gen_desc_rnd_custom(const char *name)
 
     test_sub("subtest %d: DescRnd STR with template and rndinc=3", ++subnum);
 {
-    v64Gen gen = v64GenCreatorUnlimDescStrRnd(10, "item %d", 3);
+    v64Gen gen = v64GenCreatorUnlimDescStrRnd(10, "item %d", 4);
 
     value64 v0 = v64GenNext(&gen);
     test_validate(strcmp(value64_str(v0), "item 10") == 0,
@@ -1960,7 +1960,7 @@ tf8_gen_desc_rnd_custom(const char *name)
     /* 8. FS with template "val %d" and rndinc=2 (decrements 1..3) */
     test_sub("subtest %d: DescRnd FS with template and rndinc=2", ++subnum);
     {
-        v64Gen gen = v64GenCreatorUnlimDescFsRnd(7, "val %d", 2);
+        v64Gen gen = v64GenCreatorUnlimDescFsRnd(7, "val %d", 4);
 
         value64 v0 = v64GenNext(&gen);
         test_validate(fs_cmpstr(value64_fs(v0), "val 7") == 0,
