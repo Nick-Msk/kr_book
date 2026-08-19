@@ -669,8 +669,13 @@ static int                      ArrayFillRange_ASC(Array *parr, int from, int to
                     gen = v64GenCreatorUnlimAscRnd(v64typedCreateDbl(from), g_array_acs_rndinc);
                     break;
                 case VALUE64_CHR:
-                    gen = v64GenCreatorUnlimAscRnd(v64typedCreateChar((char) from), g_array_acs_rndinc);
+                {
+                    int     start_chr = from;
+                        if (start_chr > UCHAR_MAX)
+                            start_chr = UCHAR_MAX;
+                    gen = v64GenCreatorUnlimAscRnd(v64typedCreateChar((char) start_chr), g_array_acs_rndinc);
                     break;
+                }
                 case VALUE64_BOOL:
                     gen = v64GenCreatorUnlimAscRnd(v64typedCreateBool(from != 0), g_array_acs_rndinc);
                     break;
@@ -748,7 +753,8 @@ static int                      ArrayFillRange_DESC(Array *parr, int from, int t
                     break;
                 case VALUE64_CHR: {
                     int     start_chr = start_num;
-                        if (start_chr > UCHAR_MAX) start_chr = UCHAR_MAX;
+                        if (start_chr > UCHAR_MAX)
+                            start_chr = UCHAR_MAX;
                         gen = v64GenCreatorUnlimDescRnd(v64typedCreateChar((char) start_chr), g_array_desc_rndinc);
                     break;
                 }
@@ -957,9 +963,13 @@ static int                      ArrayFillRange_ASC_SERIES(Array *parr, int from,
                 case VALUE64_DBL:
                     gen = v64GenCreatorUnlimAscSeries(v64typedCreateDbl(from));
                     break;
-                case VALUE64_CHR:
-                    gen = v64GenCreatorUnlimAscSeries(v64typedCreateChar((char)from));
+                case VALUE64_CHR: {
+                    int     start_chr = from;
+                        if (start_chr > UCHAR_MAX)
+                            start_chr = UCHAR_MAX;
+                    gen = v64GenCreatorUnlimAscSeries(v64typedCreateChar((char) start_chr));
                     break;
+                }
                 case VALUE64_BOOL:
                     gen = v64GenCreatorUnlimAscSeries(v64typedCreateBool(from != 0));
                     break;
@@ -1018,6 +1028,51 @@ static int                      ArrayFillRange_DESC_SERIES(Array *parr, int from
             char val = 'Z';
             for (int i = from; i < to; i++)
                 ArraySetCharElem(parr, i, val--);    // can be ERR_OUT_OF_RANGE
+            break;
+        }
+        case ARRAY_V64: {
+            v64Gen gen;
+            const int start_num = (to - 1); // the same as for scalar types
+
+            switch (parr->v64type) {
+                case VALUE64_INT:
+                    gen = v64GenCreatorUnlimDescSeries(v64typedCreateInt(start_num));
+                    break;
+                case VALUE64_LONG:
+                    gen = v64GenCreatorUnlimDescSeries(v64typedCreateLong(start_num));
+                    break;
+                case VALUE64_ULONG:
+                    gen = v64GenCreatorUnlimDescSeries(v64typedCreateULong(start_num));
+                    break;
+                case VALUE64_DBL:
+                    gen = v64GenCreatorUnlimDescSeries(v64typedCreateDbl(start_num));
+                    break;
+                case VALUE64_CHR: {
+                    int     start_chr = start_num;
+                        if (start_chr > UCHAR_MAX)
+                            start_chr = UCHAR_MAX;
+                    gen = v64GenCreatorUnlimDescSeries(v64typedCreateChar((unsigned char)(UCHAR_MAX)));
+                    break;
+                }
+                case VALUE64_BOOL:
+                    gen = v64GenCreatorUnlimDescSeries(v64typedCreateBool(false));
+                    break;
+                case VALUE64_STR:
+                    gen = v64GenCreatorUnlimDescStrSeries(start_num, "%d");
+                    break;
+                case VALUE64_FS:
+                    gen = v64GenCreatorUnlimDescFsSeries(start_num, "%d");
+                    break;
+                default:
+                    return userraise(-1, ERR_ACTION_NOT_APPLICABLE,
+                                    "Unsupported v64 type for DESC series fill: %d/%s",
+                                    parr->v64type, ArrayGetV64typeName(parr));
+            }
+
+            for (int i = from; i < to; i++) {
+                parr->v64[i] = v64GenNext(&gen);
+            }
+            v64GenFree(&gen);
             break;
         }
         default:
@@ -5537,6 +5592,154 @@ tf29_array_v64_desc_fill_all_random(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST ArrayFillRange_DESC_SERIES with V64 generator -------------------------
+static TestStatus
+tf30_array_v64_desc_series_fill_all(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. INT */
+    test_sub("subtest %d: V64 DESC_SERIES fill for INT", ++subnum);
+    {
+        const int N = 8;
+        Array *arr = V64Array_create(N, ARRAY_FILLTYPE_DESC_SERIES, VALUE64_INT);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        for (int i = 0; i < Arraylen(arr); i++) {
+            int expected = N - 1 - i;
+            test_validatefree(value64_int(arr->v64[i]) == expected,
+                              Arrayfree(arr),
+                              "INT[%d] must be %d, got %d", i, expected, value64_int(arr->v64[i]));
+        }
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    /* 2. LONG */
+    test_sub("subtest %d: V64 DESC_SERIES fill for LONG", ++subnum);
+    {
+        const int N = 8;
+        Array *arr = V64Array_create(N, ARRAY_FILLTYPE_DESC_SERIES, VALUE64_LONG);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        for (int i = 0; i < Arraylen(arr); i++) {
+            long expected = N - 1 - i;
+            test_validatefree(value64_long(arr->v64[i]) == expected,
+                              Arrayfree(arr),
+                              "LONG[%d] must be %ld, got %ld", i, expected, value64_long(arr->v64[i]));
+        }
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    /* 3. ULONG */
+    test_sub("subtest %d: V64 DESC_SERIES fill for ULONG", ++subnum);
+    {
+        const int N = 8;
+        Array *arr = V64Array_create(N, ARRAY_FILLTYPE_DESC_SERIES, VALUE64_ULONG);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        for (int i = 0; i < Arraylen(arr); i++) {
+            unsigned long expected = N - 1 - i;
+            test_validatefree(value64_ulong(arr->v64[i]) == expected,
+                              Arrayfree(arr),
+                              "ULONG[%d] must be %lu, got %lu", i, expected, value64_ulong(arr->v64[i]));
+        }
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    /* 4. DBL */
+    test_sub("subtest %d: V64 DESC_SERIES fill for DBL", ++subnum);
+    {
+        const int N = 8;
+        Array *arr = V64Array_create(N, ARRAY_FILLTYPE_DESC_SERIES, VALUE64_DBL);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        for (int i = 0; i < Arraylen(arr); i++) {
+            double expected = N - 1 - i;
+            test_validatefree(fabs(value64_dbl(arr->v64[i]) - expected) < 1e-9,
+                              Arrayfree(arr),
+                              "DBL[%d] must be %f, got %f", i, expected, value64_dbl(arr->v64[i]));
+        }
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    /* 5. CHR */
+    test_sub("subtest %d: V64 DESC_SERIES fill for CHR", ++subnum);
+    {
+        const int N = 8;
+        Array *arr = V64Array_create(N, ARRAY_FILLTYPE_DESC_SERIES, VALUE64_CHR);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        char expected = (char) (UCHAR_MAX);
+        for (int i = 0; i < Arraylen(arr); i++) {
+            test_validatefree(value64_char(arr->v64[i]) == expected,
+                              Arrayfree(arr),
+                              "CHR[%d] must be '%c', got '%c'", i, expected, value64_char(arr->v64[i]));
+            expected--;
+        }
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    /* 6. BOOL */
+    test_sub("subtest %d: V64 DESC_SERIES fill for BOOL", ++subnum);
+    {
+        const int N = 8;
+        Array *arr = V64Array_create(N, ARRAY_FILLTYPE_DESC_SERIES, VALUE64_BOOL);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        for (int i = 0; i < Arraylen(arr); i++) {
+            test_validatefree(value64_bool(arr->v64[i]) == true || value64_bool(arr->v64[i]) == false,
+                              Arrayfree(arr),
+                              "BOOL[%d] must be true or false", i);
+        }
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    /* 7. STR */
+    test_sub("subtest %d: V64 DESC_SERIES fill for STR", ++subnum);
+    {
+        const int N = 8;
+        Array *arr = V64Array_create(N, ARRAY_FILLTYPE_DESC_SERIES, VALUE64_STR);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        for (int i = 0; i < Arraylen(arr); i++) {
+            char expected[16];
+            snprintf(expected, sizeof(expected), "%d", N - 1 - i);
+            test_validatefree(strcmp(value64_str(arr->v64[i]), expected) == 0,
+                              Arrayfree(arr),
+                              "STR[%d] must be '%s', got '%s'", i, expected, value64_str(arr->v64[i]));
+        }
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    /* 8. FS */
+    test_sub("subtest %d: V64 DESC_SERIES fill for FS", ++subnum);
+    {
+        const int N = 8;
+        Array *arr = V64Array_create(N, ARRAY_FILLTYPE_DESC_SERIES, VALUE64_FS);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        for (int i = 0; i < Arraylen(arr); i++) {
+            char expected[16];
+            snprintf(expected, sizeof(expected), "%d", N - 1 - i);
+            test_validatefree(fs_cmpstr(value64_fs(arr->v64[i]), expected) == 0,
+                              Arrayfree(arr),
+                              "FS[%d] must be '%s', got '%s'", i, expected, fs_str(value64_fs(arr->v64[i])));
+        }
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -5571,8 +5774,9 @@ main( /*int argc, char *argv[] */ )
         TESTADD(tf_ArrayAdd,                        "ArrayAdd simple test"),
         TESTADD(tf26_array_v64_zero_fill_all,           "ArrayFillRange_ZERO with V64 generator"),
         TESTADD(tf27_array_v64_asc_series_fill_all,     "ArrayFillRange_ASC_SERIES with V64 generator"),
-        TESTADD(tf28_array_v64_asc_fill_all_random,     "ArrayFillRange_ASC_RND with V64 generator"),
-        TESTADD(tf29_array_v64_desc_fill_all_random,    "ArrayFillRange_DESC_RND with V64 generators (random decrease)")
+        TESTADD(tf28_array_v64_asc_fill_all_random,     "ArrayFillRange_ASC_RND with V64 generator (random increase)"),
+        TESTADD(tf29_array_v64_desc_fill_all_random,    "ArrayFillRange_DESC_RND with V64 generators (random decrease)"),
+        TESTADD(tf30_array_v64_desc_series_fill_all,    "ArrayFillRange_DESC_SERIES with V64 generator")
     );
 
     return logret(0, "end...");  // as replace of logclose()
