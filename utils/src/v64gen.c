@@ -542,11 +542,7 @@ value64                         v64UncheckGenUnlimDescRnd(v64Gen *gen) {
 
 value64                         v64GenUnlimRandom(v64Gen *gen) {
     int         r = value64_int(V64GENREGVAL0(gen) );
-    double      dr;
-    if (gen->type == VALUE64_DBL)
-        dr = rnddbl( (double) r);
-    else
-        r = rndint(r);
+    r = rndint(r);
     switch (gen->type) {        // type of output generation
         case VALUE64_INT:
             return value64_createint(r);
@@ -554,8 +550,11 @@ value64                         v64GenUnlimRandom(v64Gen *gen) {
             return value64_createlong(r);
         case VALUE64_ULONG:
             return value64_createulong(r);
-        case VALUE64_DBL:
+        case VALUE64_DBL: {
+            double      dr;
+            dr = rnddbl( (double) r);
             return value64_createdbl(dr);
+        }
         case VALUE64_CHR:
             return value64_createchar(r);
         case VALUE64_BOOL:
