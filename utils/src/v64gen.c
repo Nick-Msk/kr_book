@@ -436,8 +436,10 @@ value64 v64GenUnlimZero(v64Gen *gen)    // TODO: need to be refactored via Table
     }
 }
 
+// REG0 - value
+// REG1 - only for FS/STR pattern "bla bla %d" or like that
 static value64
-v64UncheckGenUnlimAscValue(v64Gen *gen, int value) { // TODO: need to be refactored via Table!
+v64GenAscValue(v64Gen *gen, int value) { // TODO: need to be refactored via Table!
     value64 result = V64GENREGVAL0(gen);
     switch (gen->type) {        // type of output generation
         case VALUE64_INT:
@@ -486,9 +488,9 @@ v64UncheckGenUnlimAscValue(v64Gen *gen, int value) { // TODO: need to be refacto
  * @return     the next value64 of the generator's type (ownership passed to caller)
  */
 value64
-v64UncheckGenUnlimAscSeries(v64Gen *gen)
+v64GenAscSeries(v64Gen *gen)
 {
-    return v64UncheckGenUnlimAscValue(gen, 1);
+    return v64GenAscValue(gen, 1);
 }
 
 /**
@@ -503,11 +505,11 @@ v64UncheckGenUnlimAscSeries(v64Gen *gen)
  * @return     the next value64 of the generator's type (ownership passed to caller)
  */
 value64
-v64UncheckGenUnlimAscRnd(v64Gen *gen)
+v64GenAscRnd(v64Gen *gen)
 {
     int r = value64_int(V64GENREGVAL2(gen) );
 
-    return v64UncheckGenUnlimAscValue(gen, rndint(r - 1) + 1);
+    return v64GenAscValue(gen, rndint(r - 1) + 1);
 }
 /**
  * @brief Unchecked unlimited descending series generator.
@@ -521,8 +523,8 @@ v64UncheckGenUnlimAscRnd(v64Gen *gen)
  * @return     the next value64 of the generator's type (ownership passed to caller)
  */
 value64                         
-v64UncheckGenUnlimDescSeries(v64Gen *gen) {
-    return v64UncheckGenUnlimAscValue(gen, -1);
+v64GenDescSeries(v64Gen *gen) {
+    return v64GenAscValue(gen, -1);
 }
 /**
  * @brief Unchecked unlimited descending random series generator.
@@ -535,13 +537,13 @@ v64UncheckGenUnlimDescSeries(v64Gen *gen) {
  * @param gen  pointer to the generator
  * @return     the next value64 of the generator's type (ownership passed to caller)
  */
-value64                         v64UncheckGenUnlimDescRnd(v64Gen *gen) {
+value64                         v64GenDescRnd(v64Gen *gen) {
     int r = value64_int(V64GENREGVAL2(gen) );
 
-    return v64UncheckGenUnlimAscValue(gen, -(rndint(r - 1) + 1) );
+    return v64GenAscValue(gen, -(rndint(r - 1) + 1) );
 }
 
-value64                         v64GenUnlimRandom(v64Gen *gen) {
+value64                         v64GenRandom(v64Gen *gen) {
     int         r = value64_int(V64GENREGVAL0(gen) );
     r = rndint(r);
     switch (gen->type) {        // type of output generation
@@ -959,7 +961,7 @@ tf3_gen_asc_series(const char *name)
     test_sub("subtest %d: AscSeries DBL from 10.5 directly via v64GenInit1", ++subnum);
     {
         // only via v64GenInit1 for now, no simplifier for that
-        v64Gen gen = v64GenInit1(v64UncheckGenUnlimAscSeries, VALUE64_DBL,
+        v64Gen gen = v64GenInit1(v64GenAscSeries, VALUE64_DBL,
                                         v64typedCreateDbl(10.5));
         value64 v1 = v64GenNext(&gen);
         test_validate(fabs(value64_dbl(v1) - 10.5) < 1e-9, "first must be 10.5");
@@ -1017,7 +1019,7 @@ tf3_gen_asc_series(const char *name)
     /* 5. BOOL toggles */
     test_sub("subtest %d: AscSeries BOOL toggles directly", ++subnum);
     {
-        v64Gen gen = v64GenInit1(v64UncheckGenUnlimAscSeries, VALUE64_BOOL,
+        v64Gen gen = v64GenInit1(v64GenAscSeries, VALUE64_BOOL,
                                         v64typedCreateBool(false));
         value64 v1 = v64GenNext(&gen);
         test_validate(value64_bool(v1) == false, "first must be false");
@@ -1056,7 +1058,7 @@ tf3_gen_asc_series(const char *name)
     /* 6. CHAR ascending from 'A' (now supported via RegAdd) */
     test_sub("subtest %d: AscSeries CHAR from 'A' directly", ++subnum);
     {
-        v64Gen gen = v64GenInit1(v64UncheckGenUnlimAscSeries, VALUE64_CHR,
+        v64Gen gen = v64GenInit1(v64GenAscSeries, VALUE64_CHR,
                                         v64typedCreateChar('A'));
         value64 v1 = v64GenNext(&gen);
         test_validate(value64_char(v1) == 'A', "first must be 'A'");
@@ -1301,7 +1303,7 @@ tf5_gen_asc_rnd(const char *name)
 
     test_sub("subtest %d: AscRnd DBL increments by 1.0..6.0 direct call", ++subnum);
     {
-        v64Gen gen = v64GenInit3(v64UncheckGenUnlimAscRnd, VALUE64_DBL,
+        v64Gen gen = v64GenInit3(v64GenAscRnd, VALUE64_DBL,
                                 v64typedCreateDbl(10.0), V64TYPEDZERO(), v64typedCreateInt(5) );
 
         value64 v1 = v64GenNext(&gen);
@@ -3323,9 +3325,9 @@ main(/* int argc, const char *argv[] */)
       , TESTADD(tf2_gen_next_zero,              "v64GenNext (zero) simple test")
       , TESTADD(tf3_gen_asc_series,             "value64UncheckGenUnlimAscSeries() simple test")
       , TESTADD(tf4_gen_creators,               "v64gen creators (simple wrappers) simple test")
-      , TESTADD(tf5_gen_asc_rnd,                "v64UncheckGenUnlimAscRnd() simple test")
+      , TESTADD(tf5_gen_asc_rnd,                "v64GenAscRnd() simple test")
       , TESTADD(tf6_gen_asc_rnd_custom,         "AscRnd with custom rndinc simple test")
-      , TESTADD(tf7_gen_desc_series,            "v64UncheckGenUnlimDescSeries() simple test")
+      , TESTADD(tf7_gen_desc_series,            "v64GenDescSeries() simple test")
       , TESTADD(tf8_gen_desc_rnd_custom,        "DescRnd with custom rndinc simple test")
       , TESTADD(tf9_gen_unlim_random,           "v64GenCreatorUnlimRnd...() generators simple test")
       , TESTADD(tf10_gen_string_source,         "Source C-string to char generator (LONG lim)")
