@@ -601,7 +601,6 @@ extern v64Gen                   v64GenCreatorSourceFileToStrByNewline(FILE *src)
 
 // --------------------------------- Indirect API --------------------------------------
 
-
 // ------- Stream checker -------
 static inline unsigned long     v64GenGetRemaining(v64Gen *gen) {
     invraisecode(gen != NULL, ERR_NULLABLE_PTR, "NUll gen");
@@ -609,9 +608,10 @@ static inline unsigned long     v64GenGetRemaining(v64Gen *gen) {
     if (gen->remaining)
         return gen->remaining(gen);
     else
-        return userraise(-1L, ERR_UNSUPPORTED_GENERATOR, "Only sereval SOURCE generators support GetRemaining");
+        //return userraise(-1L, ERR_UNSUPPORTED_GENERATOR, "Only sereval SOURCE generators support GetRemaining");
+        return gen->limit;
 }
-
+// ----- Source stream finallizer -------------
 static inline value64           v64GenFinalize(v64Gen *gen) {
     invraisecode(gen != NULL, ERR_NULLABLE_PTR, "NUll gen");
 
@@ -633,6 +633,6 @@ static inline int               v64Techprint(const v64Gen *restrict gen, const c
 
 // ------------------------------------ ETC. ----------------------------------------
 
-extern bool                      v64GenValidate(FILE *restrict out, const v64Gen *restrict gen);
+extern bool                     v64GenValidate(FILE *restrict out, const v64Gen *restrict gen);
 
 #endif /* !_VALUE64GEN_H */
