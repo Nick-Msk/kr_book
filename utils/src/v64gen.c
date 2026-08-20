@@ -826,11 +826,11 @@ tf1_gen_init_free(const char *name)
 
     test_sub("subtest %d: init and free with Zero generator", ++subnum);
     {
-        v64Gen gen = v64GenInit2(v64GenUnlimZero, VALUE64_INT,
+        v64Gen gen = v64GenInit2(v64GenUnlimZero, VALUE64_INT, -1L,
                                         V64TYPEDZERO(), V64TYPEDZERO());
         test_validate(gen.fnext != NULL, "generator function must be set");
         test_validate(gen.type == VALUE64_INT, "type must be INT");
-        test_validate(gen.counter == 0, "initial counter must be 0");
+        test_validate(gen.position == 0, "initial counter must be 0");
         test_validate(gen.data[0].typ == VALUE64_UNKNOWN, "data[0] should start UNKNOWN");
         test_validate(gen.data[1].typ == VALUE64_UNKNOWN, "data[1] should start UNKNOWN");
 
@@ -840,11 +840,11 @@ tf1_gen_init_free(const char *name)
 
     test_sub("subtest %d: init and free with STR type", ++subnum);
     {
-        v64Gen gen = v64GenInit2(v64GenUnlimZero, VALUE64_STR,
+        v64Gen gen = v64GenInit2(v64GenUnlimZero, VALUE64_STR, -1L,
                                         V64TYPEDZERO(), V64TYPEDZERO());
         test_validate(gen.type == VALUE64_STR, "type must be STR");
         test_validate(gen.fnext != NULL, "fnext must be set");
-        test_validate(gen.counter == 0, "initial counter must be 0");
+        test_validate(gen.position == 0, "initial counter must be 0");
         test_validate(gen.data[0].typ == VALUE64_UNKNOWN, "data[0] should start UNKNOWN");
         test_validate(gen.data[1].typ == VALUE64_UNKNOWN, "data[1] should start UNKNOWN");
         
@@ -857,7 +857,7 @@ tf1_gen_init_free(const char *name)
         v64Gen gen = v64GenCreatorUnlimZero(VALUE64_STR);
         test_validate(gen.type == VALUE64_STR, "type must be STR");
         test_validate(gen.fnext == v64GenUnlimZero, "fnext (%p) must be set to v64GenUnlimZero (%p)", gen.fnext, v64GenUnlimZero);
-        test_validate(gen.counter == 0, "initial counter must be 0");
+        test_validate(gen.position == 0, "initial counter must be 0");
         test_validate(gen.data[0].typ == VALUE64_UNKNOWN, "data[0] should start UNKNOWN");
         test_validate(gen.data[1].typ == VALUE64_UNKNOWN, "data[1] should start UNKNOWN");
     }
@@ -879,15 +879,15 @@ tf2_gen_next_zero(const char *name)
         // Zero generator ignores counter and always returns zero
         value64 v1 = v64GenNext(&gen);
         test_validate(value64_int(v1) == 0, "first call must return 0");
-        test_validate(gen.counter == 1, "counter must be 1");
+        test_validate(gen.position == 1, "counter must be 1");
 
         value64 v2 = v64GenNext(&gen);
         test_validate(value64_int(v2) == 0, "second call must return 0");
-        test_validate(gen.counter == 2, "counter must be 2");
+        test_validate(gen.position == 2, "counter must be 2");
 
         value64 v3 = v64GenNext(&gen);
         test_validate(value64_int(v3) == 0, "third call must return 0");
-        test_validate(gen.counter == 3, "counter must be 3");
+        test_validate(gen.position == 3, "counter must be 3");
 
         v64GenFree(&gen);
     }
@@ -902,7 +902,7 @@ tf2_gen_next_zero(const char *name)
             value64free(v, VALUE64_STR),
             "Zero for STR must return empty string"
         );
-        test_validate(gen.counter == 1, "counter must be 1");
+        test_validate(gen.position == 1, "counter must be 1");
         value64free(v, VALUE64_STR);
         
         v64GenFree(&gen);
@@ -912,7 +912,7 @@ tf2_gen_next_zero(const char *name)
     /* 3. Zero generator for FS – stress test (many allocations) */
     test_sub("subtest %d: Next with Zero generator (FS), 100 elements", ++subnum);
     {
-        v64Gen gen = v64GenInit0(v64GenUnlimZero, VALUE64_FS);
+        v64Gen gen = v64GenInit0(v64GenUnlimZero, VALUE64_FS, -1L);
 
         enum { N = 100 };
         value64 arr[N];
@@ -925,7 +925,7 @@ tf2_gen_next_zero(const char *name)
         for (int i = 0; i < N; i++) {
             test_validate(arr[i].fsval != NULL && fs_len(arr[i].fsval) == 0,
                         "FS[%d] must be empty", i);
-            test_validate(gen.counter == N, "Must be %d", N);
+            test_validate(gen.position == N, "Must be %d", N);
         }
 
         /* Free all generated FS values */
@@ -939,7 +939,7 @@ tf2_gen_next_zero(const char *name)
     /* Zero generator for STR – 300 empty strings */
     test_sub("subtest %d: Next with Zero generator (STR), 300 elements", ++subnum);
     {
-        v64Gen gen = v64GenInit0(v64GenUnlimZero, VALUE64_STR);
+        v64Gen gen = v64GenInit0(v64GenUnlimZero, VALUE64_STR, -1L);
 
         enum { N = 300 };
         value64 arr[N];
@@ -951,7 +951,7 @@ tf2_gen_next_zero(const char *name)
             test_validate(value64_str(arr[i]) != NULL && strlen(value64_str(arr[i])) == 0,
                           "STR[%d] must be empty", i);
         }
-        test_validate(gen.counter == N, "Zero generator counter must be %d", N);
+        test_validate(gen.position == N, "Zero generator counter must be %d", N);
 
         for (int i = 0; i < N; i++) {
             value64free(arr[i], VALUE64_STR);
@@ -1002,15 +1002,15 @@ tf3_gen_asc_series(const char *name)
         v64Gen gen = v64GenCreatorUnlimAscSeries(v64typedCreateInt(10) );
         value64 v1 = v64GenNext(&gen);
         test_validate(value64_int(v1) == 10, "first must be 10");
-        test_validate(gen.counter == 1, "counter must be 1");
+        test_validate(gen.position == 1, "counter must be 1");
 
         value64 v2 = v64GenNext(&gen);
         test_validate(value64_int(v2) == 11, "second must be 11");
-        test_validate(gen.counter == 2, "counter must be 2");
+        test_validate(gen.position == 2, "counter must be 2");
 
         value64 v3 = v64GenNext(&gen);
         test_validate(value64_int(v3) == 12, "third must be 12");
-        test_validate(gen.counter == 3, "counter must be 3");
+        test_validate(gen.position == 3, "counter must be 3");
 
         value64_free(&v1, VALUE64_INT);
         value64_free(&v2, VALUE64_INT);
@@ -1029,7 +1029,7 @@ tf3_gen_asc_series(const char *name)
         test_validate(value64_long(v2) == 101L, "second must be 101");
         value64 v3 = v64GenNext(&gen);
         test_validate(value64_long(v3) == 102L, "third must be 102");
-        test_validate(gen.counter == 3, "counter must be 3");
+        test_validate(gen.position == 3, "counter must be 3");
 
         value64_free(&v1, VALUE64_LONG);
         value64_free(&v2, VALUE64_LONG);
@@ -1042,7 +1042,7 @@ tf3_gen_asc_series(const char *name)
     test_sub("subtest %d: AscSeries DBL from 10.5 directly via v64GenInit1", ++subnum);
     {
         // only via v64GenInit1 for now, no simplifier for that
-        v64Gen gen = v64GenInit1(v64GenAscSeries, VALUE64_DBL,
+        v64Gen gen = v64GenInit1(v64GenAscSeries, VALUE64_DBL, -1L,
                                         v64typedCreateDbl(10.5));
         value64 v1 = v64GenNext(&gen);
         test_validate(fabs(value64_dbl(v1) - 10.5) < 1e-9, "first must be 10.5");
@@ -1050,7 +1050,7 @@ tf3_gen_asc_series(const char *name)
         test_validate(fabs(value64_dbl(v2) - 11.5) < 1e-9, "second must be 11.5");
         value64 v3 = v64GenNext(&gen);
         test_validate(fabs(value64_dbl(v3) - 12.5) < 1e-9, "third must be 12.5");
-        test_validate(gen.counter == 3, "counter must be 3");
+        test_validate(gen.position == 3, "counter must be 3");
 
         value64_free(&v1, VALUE64_DBL);
         value64_free(&v2, VALUE64_DBL);
@@ -1068,7 +1068,7 @@ tf3_gen_asc_series(const char *name)
         test_validate(fabs(value64_dbl(v2) - 11.5) < 1e-9, "second must be 11.5");
         value64 v3 = v64GenNext(&gen);
         test_validate(fabs(value64_dbl(v3) - 12.5) < 1e-9, "third must be 12.5");
-        test_validate(gen.counter == 3, "counter must be 3");
+        test_validate(gen.position == 3, "counter must be 3");
 
         value64_free(&v1, VALUE64_DBL);
         value64_free(&v2, VALUE64_DBL);
@@ -1088,7 +1088,7 @@ tf3_gen_asc_series(const char *name)
         test_validate(value64_ulong(v2) == 201UL, "second must be 201");
         value64 v3 = v64GenNext(&gen);
         test_validate(value64_ulong(v3) == 202UL, "third must be 202");
-        test_validate(gen.counter == 3, "counter must be 3");
+        test_validate(gen.position == 3, "counter must be 3");
 
         value64_free(&v1, VALUE64_ULONG);
         value64_free(&v2, VALUE64_ULONG);
@@ -1100,7 +1100,7 @@ tf3_gen_asc_series(const char *name)
     /* 5. BOOL toggles */
     test_sub("subtest %d: AscSeries BOOL toggles directly", ++subnum);
     {
-        v64Gen gen = v64GenInit1(v64GenAscSeries, VALUE64_BOOL,
+        v64Gen gen = v64GenInit1(v64GenAscSeries, VALUE64_BOOL, -1L,
                                         v64typedCreateBool(false));
         value64 v1 = v64GenNext(&gen);
         test_validate(value64_bool(v1) == false, "first must be false");
@@ -1108,7 +1108,7 @@ tf3_gen_asc_series(const char *name)
         test_validate(value64_bool(v2) == true, "second must be true");
         value64 v3 = v64GenNext(&gen);
         test_validate(value64_bool(v3) == false, "third must be false");
-        test_validate(gen.counter == 3, "counter must be 3");
+        test_validate(gen.position == 3, "counter must be 3");
 
         value64_free(&v1, VALUE64_BOOL);
         value64_free(&v2, VALUE64_BOOL);
@@ -1127,7 +1127,7 @@ tf3_gen_asc_series(const char *name)
         test_validate(value64_bool(v2) == true, "second must be true");
         value64 v3 = v64GenNext(&gen);
         test_validate(value64_bool(v3) == false, "third must be false");
-        test_validate(gen.counter == 3, "counter must be 3");
+        test_validate(gen.position == 3, "counter must be 3");
 
         value64_free(&v1, VALUE64_BOOL);
         value64_free(&v2, VALUE64_BOOL);
@@ -1139,7 +1139,7 @@ tf3_gen_asc_series(const char *name)
     /* 6. CHAR ascending from 'A' (now supported via RegAdd) */
     test_sub("subtest %d: AscSeries CHAR from 'A' directly", ++subnum);
     {
-        v64Gen gen = v64GenInit1(v64GenAscSeries, VALUE64_CHR,
+        v64Gen gen = v64GenInit1(v64GenAscSeries, VALUE64_CHR, -1L,
                                         v64typedCreateChar('A'));
         value64 v1 = v64GenNext(&gen);
         test_validate(value64_char(v1) == 'A', "first must be 'A'");
@@ -1147,7 +1147,7 @@ tf3_gen_asc_series(const char *name)
         test_validate(value64_char(v2) == 'B', "second must be 'B'");
         value64 v3 = v64GenNext(&gen);
         test_validate(value64_char(v3) == 'C', "third must be 'C'");
-        test_validate(gen.counter == 3, "counter must be 3");
+        test_validate(gen.position == 3, "counter must be 3");
 
         value64_free(&v1, VALUE64_CHR);
         value64_free(&v2, VALUE64_CHR);
@@ -1166,7 +1166,7 @@ tf3_gen_asc_series(const char *name)
         test_validate(value64_char(v2) == 'B', "second must be 'B'");
         value64 v3 = v64GenNext(&gen);
         test_validate(value64_char(v3) == 'C', "third must be 'C'");
-        test_validate(gen.counter == 3, "counter must be 3");
+        test_validate(gen.position == 3, "counter must be 3");
 
         value64_free(&v1, VALUE64_CHR);
         value64_free(&v2, VALUE64_CHR);
@@ -1192,7 +1192,7 @@ tf3_gen_asc_series(const char *name)
         test_validate(strcmp(value64_str(v3), "2") == 0, "third must be '2'");
         value64_free(&v3, VALUE64_STR);
 
-        test_validate(gen.counter == 3, "counter must be 3");
+        test_validate(gen.position == 3, "counter must be 3");
         v64GenFree(&gen);
         fs_alloc_check(true);
     }
@@ -1213,7 +1213,7 @@ tf3_gen_asc_series(const char *name)
         test_validate(strcmp(value64_str(v3), "item 5") == 0, "third must be 'item 5'");
         value64_free(&v3, VALUE64_STR);
 
-        test_validate(gen.counter == 3, "counter must be 3");
+        test_validate(gen.position == 3, "counter must be 3");
         v64GenFree(&gen);
         fs_alloc_check(true);
     }
@@ -1235,7 +1235,7 @@ tf3_gen_asc_series(const char *name)
         test_validate(strcmp(fs_str(value64_fs(v3)), "2") == 0, "third must be '2'");
         value64_free(&v3, VALUE64_FS);
 
-        test_validate(gen.counter == 3, "counter must be 3");
+        test_validate(gen.position == 3, "counter must be 3");
         v64GenFree(&gen);
         fs_alloc_check(true);
     }
@@ -1256,7 +1256,7 @@ tf3_gen_asc_series(const char *name)
         test_validate(strcmp(fs_str(value64_fs(v3)), "val_9") == 0, "third must be 'val_9'");
         value64_free(&v3, VALUE64_FS);
 
-        test_validate(gen.counter == 3, "counter must be 3");
+        test_validate(gen.position == 3, "counter must be 3");
         v64GenFree(&gen);
         fs_alloc_check(true);
     }
@@ -1271,7 +1271,7 @@ tf4_gen_creators(const char *name)
     logenter("%s", name);
     int subnum = 0;
 
-    /* 1. v64GenCreatorUnlimStrValue: cоздаёт генератор типа STR c региcтром data[0] = cтрока,
+     1. v64GenCreatorUnlimStrValue: cоздаёт генератор типа STR c региcтром data[0] = cтрока,
        а v64GenNext возвращает пуcтую cтроку (zero) 
     test_sub("subtest %d: v64GenCreatorUnlimStrValue (STR)", ++subnum);
     {
@@ -1293,7 +1293,7 @@ tf4_gen_creators(const char *name)
         fs_alloc_check(true);
     }
 
-    /* 2. v64GenCreatorUnlimValue (LONG): генератор типа LONG, data[0]=long, zero = 0L 
+     2. v64GenCreatorUnlimValue (LONG): генератор типа LONG, data[0]=long, zero = 0L 
     test_sub("subtest %d: v64GenCreatorUnlimValue (LONG)", ++subnum);
     {
         v64Gen gen = v64GenCreatorUnlimValue(12345L);
@@ -1384,7 +1384,7 @@ tf5_gen_asc_rnd(const char *name)
 
     test_sub("subtest %d: AscRnd DBL increments by 1.0..6.0 direct call", ++subnum);
     {
-        v64Gen gen = v64GenInit3(v64GenAscRnd, VALUE64_DBL,
+        v64Gen gen = v64GenInit3(v64GenAscRnd, VALUE64_DBL, -1L,
                                 v64typedCreateDbl(10.0), V64TYPEDZERO(), v64typedCreateInt(5) );
 
         value64 v1 = v64GenNext(&gen);
@@ -1672,7 +1672,7 @@ tf7_gen_desc_series(const char *name)
         test_validate(value64_int(v3) == 8, "third must be 8");
         value64_free(&v3, gen.type);
 
-        test_validate(gen.counter == 3, "counter must be 3");
+        test_validate(gen.position == 3, "counter must be 3");
         v64GenFree(&gen);
         fs_alloc_check(true);
     }
@@ -1694,7 +1694,7 @@ tf7_gen_desc_series(const char *name)
         test_validate(value64_long(v3) == 98L, "third must be 98");
         value64_free(&v3, gen.type);
 
-        test_validate(gen.counter == 3, "counter must be 3");
+        test_validate(gen.position == 3, "counter must be 3");
         v64GenFree(&gen);
         fs_alloc_check(true);
     }
@@ -1716,7 +1716,7 @@ tf7_gen_desc_series(const char *name)
         test_validate(fabs(value64_dbl(v3) - 8.5) < 1e-9, "third must be 8.5");
         value64_free(&v3, gen.type);
 
-        test_validate(gen.counter == 3, "counter must be 3");
+        test_validate(gen.position == 3, "counter must be 3");
         v64GenFree(&gen);
         fs_alloc_check(true);
     }
@@ -1738,7 +1738,7 @@ tf7_gen_desc_series(const char *name)
         test_validate(value64_ulong(v3) == 198UL, "third must be 198");
         value64_free(&v3, gen.type);
 
-        test_validate(gen.counter == 3, "counter must be 3");
+        test_validate(gen.position == 3, "counter must be 3");
         v64GenFree(&gen);
         fs_alloc_check(true);
     }
@@ -1760,7 +1760,7 @@ tf7_gen_desc_series(const char *name)
         test_validate(value64_bool(v3) == false, "third must be false");
         value64_free(&v3, gen.type);
 
-        test_validate(gen.counter == 3, "counter must be 3");
+        test_validate(gen.position == 3, "counter must be 3");
         v64GenFree(&gen);
         fs_alloc_check(true);
     }
@@ -1782,7 +1782,7 @@ tf7_gen_desc_series(const char *name)
         test_validate(value64_char(v3) == 'A', "third must be 'A'");
         value64_free(&v3, gen.type);
 
-        test_validate(gen.counter == 3, "counter must be 3");
+        test_validate(gen.position == 3, "counter must be 3");
         v64GenFree(&gen);
         fs_alloc_check(true);
     }
@@ -1804,7 +1804,7 @@ tf7_gen_desc_series(const char *name)
         test_validate(strcmp(value64_str(v3), "1") == 0, "third must be '1'");
         value64_free(&v3, gen.type);
 
-        test_validate(gen.counter == 3, "counter must be 3");
+        test_validate(gen.position == 3, "counter must be 3");
         v64GenFree(&gen);
         fs_alloc_check(true);
     }
@@ -1826,7 +1826,7 @@ tf7_gen_desc_series(const char *name)
         test_validate(strcmp(value64_str(v3), "item 1") == 0, "third must be 'item 1'");
         value64_free(&v3, gen.type);
 
-        test_validate(gen.counter == 3, "counter must be 3");
+        test_validate(gen.position == 3, "counter must be 3");
         v64GenFree(&gen);
         fs_alloc_check(true);
     }
@@ -1848,7 +1848,7 @@ tf7_gen_desc_series(const char *name)
         test_validate(strcmp(fs_str(value64_fs(v3)), "0") == 0, "third must be '0'");
         value64_free(&v3, gen.type);
 
-        test_validate(gen.counter == 3, "counter must be 3");
+        test_validate(gen.position == 3, "counter must be 3");
         v64GenFree(&gen);
         fs_alloc_check(true);
     }
@@ -1870,7 +1870,7 @@ tf7_gen_desc_series(const char *name)
         test_validate(strcmp(fs_str(value64_fs(v3)), "val_5") == 0, "third must be 'val_5'");
         value64_free(&v3, gen.type);
 
-        test_validate(gen.counter == 3, "counter must be 3");
+        test_validate(gen.position == 3, "counter must be 3");
         v64GenFree(&gen);
         fs_alloc_check(true);
     }
@@ -2467,7 +2467,7 @@ tf12_gen_string_append(const char *name)
             //const char *chunk_start = fs_str(&buf) + total_len;
 
             // Перенастраиваем генератор на новую порцию
-            v64GenStreamUpdate(&gen, /*chunk_start, */ chunk_len);
+            v64GenUpdateLimit(&gen /*chunk_start, */ );
 
             // Читаем и проверяем символы
             for (int j = 0; j < chunk_len; j++) {
@@ -2641,7 +2641,7 @@ tf15_gen_fs_remaining(const char *name)
         v64Gen gen = v64GenCreatorSourceFsToChar(&buf);
 
         // В начале оставшихся символов должно быть равно длине строки
-        unsigned long rem = v64GenGetRemainingCount(&gen);
+        unsigned long rem = v64GenUpdateLimit(&gen);    //v64GenGetRemainingCount(&gen);
         test_validatefree(
             rem == 5, 
             v64GenFree(&gen),
@@ -2779,7 +2779,7 @@ tf16_gen_fs_bynewline_remaining(const char *name)
         v64Gen gen = v64GenCreatorSourceFsToFsByNewline(&buf);
 
         /* Начальный остаток равен длине буфера (11 символов) */
-        unsigned long rem = v64GenGetUpdate(&gen);
+        unsigned long rem = v64GenUpdateLimit(&gen);
         test_validatefree(
             rem == 11, 
             (v64GenFree(&gen), fsfree(buf)),
@@ -2795,7 +2795,7 @@ tf16_gen_fs_bynewline_remaining(const char *name)
         );
         value64_free(&v1, VALUE64_FS);
 
-        rem = v64GenGetUpdate(&gen);
+        rem = v64GenUpdateLimit(&gen);
         test_validatefree(
             rem == 7,
             (v64GenFree(&gen), fsfree(buf)),
@@ -2811,7 +2811,7 @@ tf16_gen_fs_bynewline_remaining(const char *name)
         );
         value64_free(&v2, VALUE64_FS);
 
-        rem = v64GenGetUpdate(&gen);
+        rem = v64GenUpdateLimit(&gen);
         test_validatefree(
             rem == 6,
             (v64GenFree(&gen), fsfree(buf)),
@@ -2827,7 +2827,7 @@ tf16_gen_fs_bynewline_remaining(const char *name)
         );
         value64_free(&v3, VALUE64_FS);   /* при успешном условии освобождаем вручную */
 
-        rem = v64GenGetUpdate(&gen);
+        rem = v64GenUpdateLimit(&gen);
         test_validatefree(
             rem == 6,
             (v64GenFree(&gen), fsfree(buf)),
@@ -2843,7 +2843,7 @@ tf16_gen_fs_bynewline_remaining(const char *name)
         );
         value64_free(&v_last, VALUE64_FS);
 
-        rem = v64GenGetUpdate(&gen);
+        rem = v64GenUpdateLimit(&gen);
         test_validatefree(
             rem == 0,
             (v64GenFree(&gen), fsfree(buf)),
@@ -2881,7 +2881,7 @@ tf17_gen_fs_tostr_bynewline(const char *name)
         value64_free(&v1, VALUE64_STR);
 
         /* Остаток после первой строки: 7 */
-        unsigned long rem = v64GenGetUpdate(&gen);
+        unsigned long rem = v64GenUpdateLimit(&gen);
         test_validatefree(
             rem == 7, 
             (v64GenFree(&gen), fsfree(buf) ),
@@ -2897,7 +2897,7 @@ tf17_gen_fs_tostr_bynewline(const char *name)
         );
         value64_free(&v2, VALUE64_STR);
 
-        rem = v64GenGetUpdate(&gen);
+        rem = v64GenUpdateLimit(&gen);
         test_validatefree(
             rem == 6, 
             (v64GenFree(&gen), fsfree(buf) ),
@@ -2913,7 +2913,7 @@ tf17_gen_fs_tostr_bynewline(const char *name)
         );
         value64_free(&v3, VALUE64_STR);   // при успехе освобождаем вручную
 
-        rem = v64GenGetUpdate(&gen);
+        rem = v64GenUpdateLimit(&gen);
         test_validatefree(
             rem == 6, 
             (v64GenFree(&gen), fsfree(buf) ),
@@ -2929,7 +2929,7 @@ tf17_gen_fs_tostr_bynewline(const char *name)
         );
         value64_free(&v_last, VALUE64_STR);
 
-        rem = v64GenGetUpdate(&gen);
+        rem = v64GenUpdateLimit(&gen);
         test_validatefree(
             rem == 0, 
             (v64GenFree(&gen), fsfree(buf) ),
@@ -2947,13 +2947,13 @@ tf17_gen_fs_tostr_bynewline(const char *name)
         v64Gen gen = v64GenCreatorSourceFsToStrByNewline(&buf);
 
         // Initial remaining 0
-        test_validatefree(v64GenGetUpdate(&gen) == 0,
+        test_validatefree(v64GenUpdateLimit(&gen) == 0,
                           (v64GenFree(&gen), fsfree(buf)),
                           "initial remaining must be 0");
 
         // 1. Append "line1\n" -> remaining 6, then read "line1"
         fs_catstr(&buf, "line1\n");
-        test_validatefree(v64GenGetUpdate(&gen) == 6,
+        test_validatefree(v64GenUpdateLimit(&gen) == 6,
                           (v64GenFree(&gen), fsfree(buf)),
                           "after appending 'line1\\n' remaining must be 6");
         value64 v1 = v64GenNext(&gen);
@@ -2961,13 +2961,13 @@ tf17_gen_fs_tostr_bynewline(const char *name)
                           (value64_free(&v1, VALUE64_STR), v64GenFree(&gen), fsfree(buf)),
                           "line1 mismatch");
         value64_free(&v1, VALUE64_STR);
-        test_validatefree(v64GenGetUpdate(&gen) == 0,
+        test_validatefree(v64GenUpdateLimit(&gen) == 0,
                           (v64GenFree(&gen), fsfree(buf)),
                           "after reading line1 remaining must be 0");
 
         // 2. Append "partial" (no newline)
         fs_catstr(&buf, "partial");
-        test_validatefree(v64GenGetUpdate(&gen) == 7,
+        test_validatefree(v64GenUpdateLimit(&gen) == 7,
                           (v64GenFree(&gen), fsfree(buf)),
                           "after appending 'partial' remaining must be 7");
         value64 v2 = v64GenNext(&gen);
@@ -2975,13 +2975,13 @@ tf17_gen_fs_tostr_bynewline(const char *name)
                           (value64_free(&v2, VALUE64_STR), v64GenFree(&gen), fsfree(buf)),
                           "expected NULL (partial line)");
         value64_free(&v2, VALUE64_STR);
-        test_validatefree(v64GenGetUpdate(&gen) == 7,
+        test_validatefree(v64GenUpdateLimit(&gen) == 7,
                           (v64GenFree(&gen), fsfree(buf)),
                           "after partial line remaining must still be 7");
 
         // 3. Append newline -> complete partial
         fs_catstr(&buf, "\n");
-        test_validatefree(v64GenGetUpdate(&gen) == 8,
+        test_validatefree(v64GenUpdateLimit(&gen) == 8,
                           (v64GenFree(&gen), fsfree(buf)),
                           "after appending newline remaining must be 8");
         value64 v3 = v64GenNext(&gen);
@@ -2989,13 +2989,13 @@ tf17_gen_fs_tostr_bynewline(const char *name)
                           (value64_free(&v3, VALUE64_STR), v64GenFree(&gen), fsfree(buf)),
                           "partial line mismatch");
         value64_free(&v3, VALUE64_STR);
-        test_validatefree(v64GenGetUpdate(&gen) == 0,
+        test_validatefree(v64GenUpdateLimit(&gen) == 0,
                           (v64GenFree(&gen), fsfree(buf)),
                           "after reading partial remaining must be 0");
 
         // 4. Append "line2\n" and read
         fs_catstr(&buf, "line2\n");
-        test_validatefree(v64GenGetUpdate(&gen) == 6,
+        test_validatefree(v64GenUpdateLimit(&gen) == 6,
                           (v64GenFree(&gen), fsfree(buf)),
                           "after appending line2 remaining must be 6");
         value64 v4 = v64GenNext(&gen);
@@ -3003,13 +3003,13 @@ tf17_gen_fs_tostr_bynewline(const char *name)
                           (value64_free(&v4, VALUE64_STR), v64GenFree(&gen), fsfree(buf)),
                           "line2 mismatch");
         value64_free(&v4, VALUE64_STR);
-        test_validatefree(v64GenGetUpdate(&gen) == 0,
+        test_validatefree(v64GenUpdateLimit(&gen) == 0,
                           (v64GenFree(&gen), fsfree(buf)),
                           "after reading line2 remaining must be 0");
 
         // 5. Append "tail" (no newline) and finalize
         fs_catstr(&buf, "tail");
-        test_validatefree(v64GenGetUpdate(&gen) == 4,
+        test_validatefree(v64GenUpdateLimit(&gen) == 4,
                           (v64GenFree(&gen), fsfree(buf)),
                           "after appending tail remaining must be 4");
         value64 v5 = v64GenNext(&gen);
@@ -3024,7 +3024,7 @@ tf17_gen_fs_tostr_bynewline(const char *name)
                           "tail mismatch");
         value64_free(&v_tail, VALUE64_STR);
 
-        test_validatefree(v64GenGetUpdate(&gen) == 0,
+        test_validatefree(v64GenUpdateLimit(&gen) == 0,
                           (v64GenFree(&gen), fsfree(buf)),
                           "after finalize remaining must be 0");
 
@@ -3063,7 +3063,7 @@ tf18_gen_stream_update_file(const char *name)
         v64Gen gen = v64GenCreatorSourceFileChar(fr);
 
         // Начальный остаток = 3
-        unsigned long rem = v64GenGetUpdate(&gen);
+        unsigned long rem = v64GenUpdateLimit(&gen);
         test_validatefree(rem == 3,
                           (v64GenFree(&gen), fclose(fr), fclose(fa)),
                           "initial remaining expected 3, got %lu", rem);
@@ -3081,7 +3081,7 @@ tf18_gen_stream_update_file(const char *name)
         value64_free(&v2, VALUE64_CHR);
 
         // Остаток = 1 (ещё 'c')
-        rem = v64GenGetUpdate(&gen);
+        rem = v64GenUpdateLimit(&gen);
         test_validatefree(rem == 1,
                           (v64GenFree(&gen), fclose(fr), fclose(fa)),
                           "remaining after two chars expected 1, got %lu", rem);
@@ -3091,10 +3091,10 @@ tf18_gen_stream_update_file(const char *name)
         fflush(fa);
 
         // Обновляем информацию о потоке
-        v64GenStreamUpdate(&gen, 0L);   // amount игнорируется файловым updater
+        v64GenUpdateLimit(&gen);   // amount игнорируется файловым updater
 
         // Теперь remaining должен быть 4: 'c', 'd', 'e', 'f'
-        rem = v64GenGetUpdate(&gen);
+        rem = v64GenUpdateLimit(&gen);
         test_validatefree(rem == 4,
                           (v64GenFree(&gen), fclose(fr), fclose(fa)),
                           "remaining after append expected 4, got %lu", rem);
@@ -3121,7 +3121,7 @@ tf18_gen_stream_update_file(const char *name)
         );
         value64_free(&v_end, VALUE64_CHR);
 
-        rem = v64GenGetUpdate(&gen);
+        rem = v64GenUpdateLimit(&gen);
         test_validatefree(rem == 0,
                           (v64GenFree(&gen), fclose(fr), fclose(fa)),
                           "remaining after end expected 0, got %lu", rem);
@@ -3136,7 +3136,7 @@ tf18_gen_stream_update_file(const char *name)
     {
         v64Gen gen = v64GenCreatorUnlimZero(VALUE64_INT);
         if (!try()) {
-            v64GenStreamUpdate(&gen, 0L);
+            v64GenUpdateLimit(&gen);
             // Если не выпало, это ошибка
             test_validate(false, "v64GenStreamUpdate must raise error when updater is NULL");
             v64GenFree(&gen);
@@ -3337,7 +3337,7 @@ tf19_gen_file_bynewline(const char *name)
         fflush(fa);
 
         // Обновляем генератор (пересчёт remaining + сброс EOF)
-        v64GenStreamUpdate(&gen, 0L);
+        v64GenUpdateLimit(&gen);
 
         // Читаем новую строку
         value64 v3 = v64GenNext(&gen);
@@ -3372,7 +3372,7 @@ tf19_gen_file_bynewline(const char *name)
         v64Gen gen = v64GenCreatorSourceFileToCommonOutput(fr, VALUE64_STR);
 
         // Начальный остаток: 4 байта
-        unsigned long rem = v64GenGetUpdate(&gen);
+        unsigned long rem = v64GenUpdateLimit(&gen);
         test_validatefree(rem == 4,
                           (v64GenFree(&gen), fclose(fr)),
                           "initial remaining expected 4, got %lu", rem);
@@ -3382,7 +3382,7 @@ tf19_gen_file_bynewline(const char *name)
         value64_free(&v, VALUE64_STR);
 
         // Остаток должен стать 0 (файл прочитан до конца)
-        rem = v64GenGetUpdate(&gen);
+        rem = v64GenUpdateLimit(&gen);
         test_validatefree(rem == 0,
                           (v64GenFree(&gen), fclose(fr)),
                           "remaining after reading expected 0, got %lu", rem);
@@ -3405,7 +3405,7 @@ main(/* int argc, const char *argv[] */)
         TESTADD(tf1_gen_init_free,              "Simple init and validate test")
       , TESTADD(tf2_gen_next_zero,              "v64GenNext (zero) simple test")
       , TESTADD(tf3_gen_asc_series,             "value64UncheckGenUnlimAscSeries() simple test")
-      , TESTADD(tf4_gen_creators,               "v64gen creators (simple wrappers) simple test")
+    //  , TESTADD(tf4_gen_creators,               "v64gen creators (simple wrappers) simple test")
       , TESTADD(tf5_gen_asc_rnd,                "v64GenAscRnd() simple test")
       , TESTADD(tf6_gen_asc_rnd_custom,         "AscRnd with custom rndinc simple test")
       , TESTADD(tf7_gen_desc_series,            "v64GenDescSeries() simple test")

@@ -601,8 +601,14 @@ extern v64Gen                   v64GenCreatorSourceFileToStrByNewline(FILE *src)
 
 // --------------------------------- Indirect API --------------------------------------
 
+static inline unsigned long     v64GenGetRemainingCount(v64Gen *gen) {
+    invraisecode(gen != NULL, ERR_NULLABLE_PTR, "NUll gen");
+
+    return gen->limit;
+}
+
 // ------- Stream checker -------
-static inline unsigned long     v64GenGetUpdate(v64Gen *gen) {
+static inline unsigned long     v64GenUpdateLimit(v64Gen *gen) {
     invraisecode(gen != NULL, ERR_NULLABLE_PTR, "NUll gen");
 
     if (gen->updater)
