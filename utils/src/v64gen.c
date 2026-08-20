@@ -428,19 +428,7 @@ v64GenAscValue(v64Gen *gen, int value) { // TODO: need to be refactored via Tabl
     v64GenAdvance(gen, 1);
 
     value64 result = V64GENREGVAL0(gen);
-    switch (gen->type) {        // type of output generation
-        case VALUE64_INT:
-        case VALUE64_LONG:
-        case VALUE64_DBL:
-        case VALUE64_ULONG:
-        case VALUE64_CHR:
-            break;
-
-        case VALUE64_BOOL:
-            v64typedBoolNegative(&V64GENREG0(gen));
-            break;
-        case VALUE64_STR:
-        case VALUE64_FS: {
+   if (gen->type == VALUE64_STR || gen->type == VALUE64_FS) {
             int         val = value64_long(result);       
 
             const char *fmt = v64typedNvlStr(V64GENREG1(gen), "%d");
@@ -451,14 +439,7 @@ v64GenAscValue(v64Gen *gen, int value) { // TODO: need to be refactored via Tabl
             else {
                 result = LITERAL64_STR(fs_movetostr(&tmp) );
             }
-            break;
-        }
-
-        default:
-            return userraise(LITERAL64_ZERO, ERR_UNSUPPORTED_TYPE, "Unsupported type %d", gen->type);
-    }
-
-    if (gen->type != VALUE64_BOOL)   // TODO: refactor is required
+    } else
         v64typedAdd(&V64GENREG0(gen), value);
 
     return result;

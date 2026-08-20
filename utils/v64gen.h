@@ -75,10 +75,8 @@ static inline value64              *v64GenReg3(v64Gen *gen) {
 // ---------------------------- Unility -------------------------------
 // internal, no-checking
 static inline void              v64GenFixRndinc(int *rndinc) {
-    if (*rndinc < 1) {
-        logsimple("rndinc = %d, set to 1", *rndinc);
+    if (*rndinc < 1)
         *rndinc = 1;
-    }
 }
 
 // ------------------------- CONSTRUCTOTS/DESTRUCTORS -------------------------------
