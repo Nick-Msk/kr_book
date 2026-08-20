@@ -30,7 +30,7 @@ enum v64GenConstants {
 typedef struct v64Gen                   v64Gen;
 
 typedef value64                         (*v64GenFunc)(v64Gen *gen);
-typedef off_t                           (*v64GenGerRemainingFunc) (v64Gen *gen);
+typedef off_t                           (*v64GenUpdaterFunc) (v64Gen *gen);
 typedef value64                         (*v64GenFinalizerFunc)(v64Gen *gen);
 
 typedef struct v64Gen {
@@ -39,7 +39,7 @@ typedef struct v64Gen {
     off_t                   limit;
     off_t                   position;  // remaned from counter 
     // func
-    v64GenGerRemainingFunc  remaining;
+    v64GenUpdaterFunc       updater;
     v64GenFinalizerFunc     finalizer;
     // register for common usage
     v64typed                data[V64GENCOUNT];
@@ -74,7 +74,7 @@ static inline value64              *v64GenReg3(v64Gen *gen) {
 
 // ---------------------------- Unility -------------------------------
 // internal, no-checking
-static inline void              _v64GenFixRndinc(int *rndinc) {
+static inline void              v64GenFixRndinc(int *rndinc) {
     if (*rndinc < 1) {
         logsimple("rndinc = %d, set to 1", *rndinc);
         *rndinc = 1;
@@ -130,7 +130,7 @@ static inline v64Gen                v64GenZero(void) {
         .position   = 0L,
         .limit      = 0L,  // -1 no limit, 0 out of lim
         .finalizer  = NULL,
-        .remaining  = NULL,
+        .updater  = NULL,
         .data = {
             [0] = { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN },
             [1] = { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN },
@@ -147,7 +147,7 @@ static inline v64Gen                v64GenZero(void) {
 // -------------------------- GENERALLIZED ACCESS ------------------------------
 extern value64                  v64GenNext(v64Gen *gen);
 extern value64                  v64GenCurr(v64Gen *gen);
-extern bool                     v64hasNext(v64Gen *restrict gen, value64 *restrict val);
+extern bool                     v64GenHasnext(v64Gen *restrict gen, value64 *restrict val);
 
 // ----------------------- GENERATORS (extern all) ---------------------------
 // ------------------ pre-created func V64 typed -----------------------------
@@ -368,7 +368,7 @@ static inline v64Gen        v64GenCreatorUnlimDescSeries(v64typed vt) {
 static inline v64Gen
 v64GenCreatorAscRndCommon(value64_type typ, off_t limit, v64typed reg0, v64typed reg1, int rndinc)
 {
-    _v64GenFixRndinc(&rndinc);
+    v64GenFixRndinc(&rndinc);
     return v64GenInit3(v64GenAscRnd, typ, limit,
                        reg0,
                        reg1,
@@ -440,7 +440,7 @@ v64GenCreatorUnlimAscRnd(v64typed vt, int rndinc)
 static inline v64Gen
 v64GenCreatorDescRndCommon(value64_type typ, off_t limit, v64typed reg0, v64typed reg1, int rndinc)
 {
-    _v64GenFixRndinc(&rndinc);
+    v64GenFixRndinc(&rndinc);
     return v64GenInit3(v64GenDescRnd, typ, limit,
                        reg0,
                        reg1,
@@ -511,7 +511,7 @@ v64GenCreatorUnlimDescRnd(v64typed vt, int rndinc)
 static inline v64Gen
 v64GenCreatorRndCommon(value64_type typ, off_t limit, int rndinc, v64typed reg1)
 {
-    _v64GenFixRndinc(&rndinc);
+    v64GenFixRndinc(&rndinc);
     return v64GenInit2(v64GenRandom, typ, limit,
                        v64typedCreateInt(rndinc),
                        reg1);
