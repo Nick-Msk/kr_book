@@ -371,8 +371,8 @@ tf3_v64typed_add_bool(const char *name)
     {
         v64typed tv = v64typedCreateBool(true);
         bool ok = v64typedAdd(&tv, 1);
-        test_validate(ok == false, "Add must fail for BOOL");
-        test_validate(value64_bool(tv.val) == true, "BOOL value must remain unchanged");
+        test_validate(ok == true, "Add must ok for BOOL");
+        test_validate(value64_bool(tv.val) == false, "BOOL value must change");
         v64typedFree(&tv);
     }
 

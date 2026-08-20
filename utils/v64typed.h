@@ -172,6 +172,19 @@ v64typedNvlFs(v64typed tv, const char *restrict default_fmt) {
         return logsimpleerr(default_fmt, "Incorrent type %d %s, FS expected", tv.typ, value64_typename(tv.typ) );
 }
 
+static inline bool
+v64typedBoolNegative(v64typed *tv) {
+    switch (tv->typ) {
+        case VALUE64_BOOL:
+            tv->val.bval = !tv->val.bval;
+            break;
+        default:
+            return userraise(false, ERR_UNSUPPORTED_TYPE, 
+                "Unsupported typ %d %s", tv->typ, value64_typename(tv->typ) );
+    }
+    return true;
+}
+
 // note only int value to add, but generally it's ok
 // no OF checking version
 static inline bool
@@ -192,18 +205,8 @@ v64typedAdd(v64typed *tv, int value) {
         case VALUE64_DBL:
             tv->val.dval += (double) value;
             break;
-        default:
-            return userraise(false, ERR_UNSUPPORTED_TYPE, 
-                "Unsupported typ %d %s", tv->typ, value64_typename(tv->typ) );
-    }
-    return true;
-}
-
-static inline bool
-v64typedBoolNegative(v64typed *tv) {
-    switch (tv->typ) {
         case VALUE64_BOOL:
-            tv->val.bval = !tv->val.bval;
+            v64typedBoolNegative(tv);   // true -> false -> true...
             break;
         default:
             return userraise(false, ERR_UNSUPPORTED_TYPE, 
@@ -211,6 +214,8 @@ v64typedBoolNegative(v64typed *tv) {
     }
     return true;
 }
+
+
 
 
 
