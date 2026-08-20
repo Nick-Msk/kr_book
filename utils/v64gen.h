@@ -602,11 +602,11 @@ extern v64Gen                   v64GenCreatorSourceFileToStrByNewline(FILE *src)
 // --------------------------------- Indirect API --------------------------------------
 
 // ------- Stream checker -------
-static inline unsigned long     v64GenGetRemaining(v64Gen *gen) {
+static inline unsigned long     v64GenGetUpdate(v64Gen *gen) {
     invraisecode(gen != NULL, ERR_NULLABLE_PTR, "NUll gen");
 
-    if (gen->remaining)
-        return gen->remaining(gen);
+    if (gen->updater)
+        return gen->updater(gen);
     else
         //return userraise(-1L, ERR_UNSUPPORTED_GENERATOR, "Only sereval SOURCE generators support GetRemaining");
         return gen->limit;

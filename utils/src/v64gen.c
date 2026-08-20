@@ -8,6 +8,9 @@
 
 // --------------------------- Utilities --------------------------------------------
 
+static value64           
+v64GenFileToStringTargetByNewline(v64Gen *gen);
+
 static inline void 
 v64GenAdvance(v64Gen *gen, off_t steps)
 {
@@ -38,9 +41,9 @@ v64GenFsUpdateCount(v64Gen *gen) {
     if (!src->v)
         return userraise(-1L, ERR_NULLABLE_PTR, "Nullable fs-source");
     
-    if (fs_len(src) < gen->position)   // log the issue
+    if (fs_len(src) < (size_t) gen->position)   // log the issue
         userraise(-1L, ERR_STREAM_ERROR, 
-            "fs source reduced!!! from %ld to %zu", gen->position, fs_len(src));
+            "fs source reduced!!! from %lld to %zu", gen->position, fs_len(src));
 
     // update limit
     gen->limit = fs_len(src) - gen->position;
@@ -54,37 +57,48 @@ v64GenStrUpdateCount(v64Gen *gen) {
     if (!src->v)
         return userraise(-1L, ERR_NULLABLE_PTR, "Nullable fs-source");
     
-    if (fs_len(src) < gen->position)   // log the issue
+    if (fs_len(src) < (size_t) gen->position)   // log the issue
         userraise(-1L, ERR_STREAM_ERROR, 
-            "fs source reduced!!! from %ld to %zu", gen->position, fs_len(src));
+            "fs source reduced!!! from %lld to %zu", gen->position, fs_len(src));
 
     // update limit to unlim
     gen->limit = -1L;
 
     return gen->limit;
 }
+
 // for FILE * source
-static off_t            
-v64GenFileUpdateCount(v64Gen *gen) {
-    FILE        *fp = (FILE *) V64GENREGVAL0(gen).pval;
+static off_t
+v64GenFileUpdateCount(v64Gen *gen)
+{
+    FILE *fp = (FILE *) V64GENREGVAL0(gen).pval;
     if (!fp)
-        return userraise(0L, ERR_NULLABLE_PTR, "Nullable FILE-source");
+        return userraiseint(ERR_NULLABLE_PTR, "Nullable FILE-source");
 
-    clearerr(fp);       // if was EOF
-    off_t        total = getfilesize(fp);
-    if (total < 0)
-        return userraise(0L, ERR_IRREGULAR_STREAM, "Unable to get file size");               // нерегулярный файл – обновить нельзя
+    off_t new_size = getfilesize(fp);
 
-    if (total < gen->position)  // log the issue
-        userraise(0L, ERR_STREAM_ERROR, 
-            "fs source reduced!!! from %ld to %ld", gen->position, total);
+    if (new_size < 0)
+        return userraise(new_size, ERR_IRREGULAR_STREAM, "Unable to get file size");
 
-    off_t        pos = ftell(fp);
-    if (pos < 0)
-        pos = 0;
-    gen->position = pos;    // just for log, because FILE source used FILE position, but not gen->position
+    off_t prev_size = V64GENREGVAL1(gen).ulval;   // предыдущий размер
+    if (prev_size == 0 && new_size > 0) {
+        off_t pos = ftell(fp);
+        if (pos < 0)
+            pos = 0;    //not sure
+        gen->limit = (new_size > pos) ? (new_size - pos) : 0;
+        V64GENREGVAL1(gen).ulval = new_size;
+    } else {
+        off_t delta = new_size - prev_size;
 
-    gen->limit = (total > (off_t) pos) ? (off_t) (total - pos) : 0;
+        if (delta < 0)
+            return userraise(delta, ERR_STREAM_ERROR, "File size decreased");
+
+        if (delta > 0) {
+            clearerr(fp);   // если был EOF
+            gen->limit += delta;                     // добавляем только новые байты
+            V64GENREGVAL1(gen).ulval = new_size;     // обновляем предыдущий размер
+        }
+    }
     return gen->limit;
 }
 
@@ -103,9 +117,9 @@ static value64                  v64GenFSToStringTargetByNewlineFinalize(v64Gen *
     fs              *src = (fs *) V64GENREGVAL0(gen).pval;
     off_t            pos = gen->position;
 
-    if (!src->v || pos >= src->len)
+    if (!src->v || (size_t) pos >= src->len)
         return userraise(LITERAL64_ZERO, ERR_NULLABLE_PTR, 
-            "source fs is null (%p) or out of range (%lld/%lu)  %p", src, pos, src->len);
+            "source fs is null (%p) or out of range (%lld/%lu)", src, pos, src->len);
 
     size_t          remaining_len = src->len - pos;
     if (remaining_len > 0 && src->v[src->len - 1] == '\r')
@@ -159,7 +173,7 @@ static value64                  v64GenFileToStringTargetByNewlineFinalize(v64Gen
 
 v64Gen                          
 v64GenInit(v64GenFunc func, value64_type type, off_t limit, 
-            v64typed reg0, v64typed reg1, v64typed reg2, v64typed reg3, v64typed reg4) {
+            v64typed reg0, v64typed reg1, v64typed reg2, v64typed reg3) {
             
     invraisecode(func != NULL, ERR_NULLABLE_PTR, "Generation function can't be null");
     invraisecode(value64_checktype(type), ERR_UNSUPPORTED_TYPE, "value64 type %d isn't supported", type);
@@ -190,6 +204,8 @@ v64Gen                          v64GenCreatorSourceCstrChar(const char *src, lon
                                 maxlen,
                                 v64typedCreateCstrSource(src));
 
+    gen.updater = v64GenStrUpdateCount;
+
     return gen;
 }
 
@@ -211,7 +227,7 @@ static v64Gen                    v64GenCreatorSourceFsToCommonOutput(const fs *s
     else if (typ == VALUE64_CHR)
         func = v64GenFSToChar;
     // determine finallizer
-    v64GenUpdaterFunc final = NULL;
+    v64GenFinalizerFunc final = NULL;
     if (typ == VALUE64_FS)
         final = v64GenFSToFsByNewlineFinalize;
     else if (typ == VALUE64_STR)
@@ -223,8 +239,8 @@ static v64Gen                    v64GenCreatorSourceFsToCommonOutput(const fs *s
                     src->len,     // not sure
                     v64typedCreateFsSource(src));    // data[0] PTR to fs
 
-    gen.finalizer =final;
-    gen.updater = v64GenFsUpdateCount;
+    gen.finalizer   = final;
+    gen.updater     = v64GenFsUpdateCount;
     return gen;
 }
 
@@ -257,6 +273,7 @@ v64Gen                          v64GenCreatorSourceFsToStrByNewline(const fs *sr
  * @return      v64Gen
  * @note Регистры:
  *      data[0] = FILE* (PTR)
+ *      data[1] = file size
  *      data[2] = fs as buf (owner)
  */
 static v64Gen                   v64GenCreatorSourceFileToCommonOutput(FILE *file, value64_type typ)
@@ -266,23 +283,25 @@ static v64Gen                   v64GenCreatorSourceFileToCommonOutput(FILE *file
                  "Type %d/%s not supported", typ, value64_typename(typ));
 
     // determine generator
-    v64GenFunc func = typ == VALUE64_CHR ? v64GenFileToChar: v64GenFileToStringTargetByNewline;
+    v64GenFunc func = 
+            typ == VALUE64_CHR ? v64GenFileToChar: v64GenFileToStringTargetByNewline;
     // determine finallizer
-    v64GenUpdaterFunc final = typ == VALUE64_CHR ? NULL : v64GenFileToStringTargetByNewlineFinalize;
+    v64GenFinalizerFunc final = 
+            typ == VALUE64_CHR ? NULL : v64GenFileToStringTargetByNewlineFinalize;
 
     v64Gen gen = v64GenInit3(func,
                              typ,
                              0L,        // Temporary
                              v64typedCreateFILE(file),
-                             v64typedCreateUnk(),
+                             v64typedCreateULong(0UL),
                              typ == VALUE64_CHR ? v64typedCreateUnk() :
                                 v64typedCreate(LITERAL64_PFS(fs_create()), VALUE64_FS) // TODO: do that normal
                              );
 
     gen.finalizer   = final;
-    gen.updater     = v64GenFileUpdateCount;
+    gen.updater     = v64GenFileUpdateCount;   
 
-    v64GenFileUpdateCount(&gen);   // FILL limit!
+    v64GenFileUpdateCount(&gen);   //  // fill limit and REG1
 
     return gen;
 }
@@ -349,8 +368,11 @@ v64GenHasnext(v64Gen *restrict gen, value64 *restrict val) {
 
 value64                             
 v64GenCurr(v64Gen *gen) {
+    (void ) gen;
+    value64     res = LITERAL64_ZERO;
     // TODO: SUGGESTION: stoge in v64Gen value64 oldval;
     userraiseint(ERR_NOT_IMPLEMENTED_FEATURE, "N/A");
+    return res;
 }
 
 // ------------------------------ GENERATORS ----------------------------------------
@@ -571,7 +593,7 @@ v64GenFSToStringTargetByNewline(v64Gen *gen, value64_type typ){
     if (fs_isnull(src))
         userraiseint(ERR_NULLABLE_PTR, "Source fs is null %p", src);
         
-    if (pos >= src->len)
+    if ( (size_t) pos >= src->len)
         return userraise(LITERAL64_ZERO, ERR_OUT_OF_RANGE, 
             "Fs is out of range (%lld/%zu)", pos, src ? src->len : 0LU);
 
@@ -629,7 +651,8 @@ v64GenFSToFsByNewline(v64Gen *gen) {
  * 
  * data[2] - fs as buffer
  */
-static inline value64           v64GenFileToStringTargetByNewline(v64Gen *gen) {
+static value64           
+v64GenFileToStringTargetByNewline(v64Gen *gen) {
     invraisecode(gen != NULL, ERR_NULLABLE_PTR, "Null generator");
     
     fs      *buf = V64GENREGVAL2(gen).fsval;
@@ -661,7 +684,8 @@ static inline value64           v64GenFileToStringTargetByNewline(v64Gen *gen) {
 // RETURNS: CHR
 // REGITRSY ALLOCATION:
 // data[0]: STR as SOURCE (no ownership)
-value64                         v64GenStringToChar(v64Gen *gen) {
+value64                         
+v64GenStringToChar(v64Gen *gen) {
     invraisecode(gen != NULL, ERR_NULLABLE_PTR, "Null generator");
 
     const char  *base = (const char *) V64GENREGVAL0(gen).pval;
@@ -684,7 +708,8 @@ value64                         v64GenStringToChar(v64Gen *gen) {
 // RETURNS: CHR
 // REGITRSY ALLOCATION:
 // data[0]: fs (non-owning)
-value64                         v64GenFSToChar(v64Gen *gen){
+value64                         
+v64GenFSToChar(v64Gen *gen){
     invraisecode(gen != NULL, ERR_NULLABLE_PTR, "Null generator");
 
     fs              *src = (fs *) V64GENREGVAL0(gen).pval;
@@ -692,7 +717,7 @@ value64                         v64GenFSToChar(v64Gen *gen){
 
     if (fs_isnull(src) )
         userraiseint(ERR_NULLABLE_PTR, "fs (REG0) is null");
-    if (pos >= src->len)
+    if ( (size_t) pos >= src->len)
         return logsimpleret(value64_createchar('\0'), "fs source is exhausted by limit");
 
     v64GenAdvance(gen, 1);
@@ -737,8 +762,8 @@ int                             v64Techfprint(FILE *restrict out, const v64Gen *
             IOCHECKER(w, fprintf(out, "<NULL>"), -1)
                 cnt += w;
         } else {
-            IOCHECKER(w, fprintf(out, "fnext=%p, remaining=%p, pos=%ld, limit=%ld type=%d/%s\t",
-                        gen->fnext, gen->remaining, gen->position, gen->limit, gen->type, value64_typename(gen->type) ), -1)
+            IOCHECKER(w, fprintf(out, "fnext=%p, updater=%p, pos=%lld, limit=%lld type=%d/%s\t",
+                        gen->fnext, gen->updater, gen->position, gen->limit, gen->type, value64_typename(gen->type) ), -1)
                 cnt += w;
             for (int i = 0; i < V64GENCOUNT; i++) {
                 char    buf[50];
@@ -2754,7 +2779,7 @@ tf16_gen_fs_bynewline_remaining(const char *name)
         v64Gen gen = v64GenCreatorSourceFsToFsByNewline(&buf);
 
         /* Начальный остаток равен длине буфера (11 символов) */
-        unsigned long rem = v64GenGetRemaining(&gen);
+        unsigned long rem = v64GenGetUpdate(&gen);
         test_validatefree(
             rem == 11, 
             (v64GenFree(&gen), fsfree(buf)),
@@ -2770,7 +2795,7 @@ tf16_gen_fs_bynewline_remaining(const char *name)
         );
         value64_free(&v1, VALUE64_FS);
 
-        rem = v64GenGetRemaining(&gen);
+        rem = v64GenGetUpdate(&gen);
         test_validatefree(
             rem == 7,
             (v64GenFree(&gen), fsfree(buf)),
@@ -2786,7 +2811,7 @@ tf16_gen_fs_bynewline_remaining(const char *name)
         );
         value64_free(&v2, VALUE64_FS);
 
-        rem = v64GenGetRemaining(&gen);
+        rem = v64GenGetUpdate(&gen);
         test_validatefree(
             rem == 6,
             (v64GenFree(&gen), fsfree(buf)),
@@ -2802,7 +2827,7 @@ tf16_gen_fs_bynewline_remaining(const char *name)
         );
         value64_free(&v3, VALUE64_FS);   /* при успешном условии освобождаем вручную */
 
-        rem = v64GenGetRemaining(&gen);
+        rem = v64GenGetUpdate(&gen);
         test_validatefree(
             rem == 6,
             (v64GenFree(&gen), fsfree(buf)),
@@ -2818,7 +2843,7 @@ tf16_gen_fs_bynewline_remaining(const char *name)
         );
         value64_free(&v_last, VALUE64_FS);
 
-        rem = v64GenGetRemaining(&gen);
+        rem = v64GenGetUpdate(&gen);
         test_validatefree(
             rem == 0,
             (v64GenFree(&gen), fsfree(buf)),
@@ -2856,7 +2881,7 @@ tf17_gen_fs_tostr_bynewline(const char *name)
         value64_free(&v1, VALUE64_STR);
 
         /* Остаток после первой строки: 7 */
-        unsigned long rem = v64GenGetRemaining(&gen);
+        unsigned long rem = v64GenGetUpdate(&gen);
         test_validatefree(
             rem == 7, 
             (v64GenFree(&gen), fsfree(buf) ),
@@ -2872,7 +2897,7 @@ tf17_gen_fs_tostr_bynewline(const char *name)
         );
         value64_free(&v2, VALUE64_STR);
 
-        rem = v64GenGetRemaining(&gen);
+        rem = v64GenGetUpdate(&gen);
         test_validatefree(
             rem == 6, 
             (v64GenFree(&gen), fsfree(buf) ),
@@ -2888,7 +2913,7 @@ tf17_gen_fs_tostr_bynewline(const char *name)
         );
         value64_free(&v3, VALUE64_STR);   // при успехе освобождаем вручную
 
-        rem = v64GenGetRemaining(&gen);
+        rem = v64GenGetUpdate(&gen);
         test_validatefree(
             rem == 6, 
             (v64GenFree(&gen), fsfree(buf) ),
@@ -2904,7 +2929,7 @@ tf17_gen_fs_tostr_bynewline(const char *name)
         );
         value64_free(&v_last, VALUE64_STR);
 
-        rem = v64GenGetRemaining(&gen);
+        rem = v64GenGetUpdate(&gen);
         test_validatefree(
             rem == 0, 
             (v64GenFree(&gen), fsfree(buf) ),
@@ -2922,13 +2947,13 @@ tf17_gen_fs_tostr_bynewline(const char *name)
         v64Gen gen = v64GenCreatorSourceFsToStrByNewline(&buf);
 
         // Initial remaining 0
-        test_validatefree(v64GenGetRemaining(&gen) == 0,
+        test_validatefree(v64GenGetUpdate(&gen) == 0,
                           (v64GenFree(&gen), fsfree(buf)),
                           "initial remaining must be 0");
 
         // 1. Append "line1\n" -> remaining 6, then read "line1"
         fs_catstr(&buf, "line1\n");
-        test_validatefree(v64GenGetRemaining(&gen) == 6,
+        test_validatefree(v64GenGetUpdate(&gen) == 6,
                           (v64GenFree(&gen), fsfree(buf)),
                           "after appending 'line1\\n' remaining must be 6");
         value64 v1 = v64GenNext(&gen);
@@ -2936,13 +2961,13 @@ tf17_gen_fs_tostr_bynewline(const char *name)
                           (value64_free(&v1, VALUE64_STR), v64GenFree(&gen), fsfree(buf)),
                           "line1 mismatch");
         value64_free(&v1, VALUE64_STR);
-        test_validatefree(v64GenGetRemaining(&gen) == 0,
+        test_validatefree(v64GenGetUpdate(&gen) == 0,
                           (v64GenFree(&gen), fsfree(buf)),
                           "after reading line1 remaining must be 0");
 
         // 2. Append "partial" (no newline)
         fs_catstr(&buf, "partial");
-        test_validatefree(v64GenGetRemaining(&gen) == 7,
+        test_validatefree(v64GenGetUpdate(&gen) == 7,
                           (v64GenFree(&gen), fsfree(buf)),
                           "after appending 'partial' remaining must be 7");
         value64 v2 = v64GenNext(&gen);
@@ -2950,13 +2975,13 @@ tf17_gen_fs_tostr_bynewline(const char *name)
                           (value64_free(&v2, VALUE64_STR), v64GenFree(&gen), fsfree(buf)),
                           "expected NULL (partial line)");
         value64_free(&v2, VALUE64_STR);
-        test_validatefree(v64GenGetRemaining(&gen) == 7,
+        test_validatefree(v64GenGetUpdate(&gen) == 7,
                           (v64GenFree(&gen), fsfree(buf)),
                           "after partial line remaining must still be 7");
 
         // 3. Append newline -> complete partial
         fs_catstr(&buf, "\n");
-        test_validatefree(v64GenGetRemaining(&gen) == 8,
+        test_validatefree(v64GenGetUpdate(&gen) == 8,
                           (v64GenFree(&gen), fsfree(buf)),
                           "after appending newline remaining must be 8");
         value64 v3 = v64GenNext(&gen);
@@ -2964,13 +2989,13 @@ tf17_gen_fs_tostr_bynewline(const char *name)
                           (value64_free(&v3, VALUE64_STR), v64GenFree(&gen), fsfree(buf)),
                           "partial line mismatch");
         value64_free(&v3, VALUE64_STR);
-        test_validatefree(v64GenGetRemaining(&gen) == 0,
+        test_validatefree(v64GenGetUpdate(&gen) == 0,
                           (v64GenFree(&gen), fsfree(buf)),
                           "after reading partial remaining must be 0");
 
         // 4. Append "line2\n" and read
         fs_catstr(&buf, "line2\n");
-        test_validatefree(v64GenGetRemaining(&gen) == 6,
+        test_validatefree(v64GenGetUpdate(&gen) == 6,
                           (v64GenFree(&gen), fsfree(buf)),
                           "after appending line2 remaining must be 6");
         value64 v4 = v64GenNext(&gen);
@@ -2978,13 +3003,13 @@ tf17_gen_fs_tostr_bynewline(const char *name)
                           (value64_free(&v4, VALUE64_STR), v64GenFree(&gen), fsfree(buf)),
                           "line2 mismatch");
         value64_free(&v4, VALUE64_STR);
-        test_validatefree(v64GenGetRemaining(&gen) == 0,
+        test_validatefree(v64GenGetUpdate(&gen) == 0,
                           (v64GenFree(&gen), fsfree(buf)),
                           "after reading line2 remaining must be 0");
 
         // 5. Append "tail" (no newline) and finalize
         fs_catstr(&buf, "tail");
-        test_validatefree(v64GenGetRemaining(&gen) == 4,
+        test_validatefree(v64GenGetUpdate(&gen) == 4,
                           (v64GenFree(&gen), fsfree(buf)),
                           "after appending tail remaining must be 4");
         value64 v5 = v64GenNext(&gen);
@@ -2999,7 +3024,7 @@ tf17_gen_fs_tostr_bynewline(const char *name)
                           "tail mismatch");
         value64_free(&v_tail, VALUE64_STR);
 
-        test_validatefree(v64GenGetRemaining(&gen) == 0,
+        test_validatefree(v64GenGetUpdate(&gen) == 0,
                           (v64GenFree(&gen), fsfree(buf)),
                           "after finalize remaining must be 0");
 
@@ -3038,7 +3063,7 @@ tf18_gen_stream_update_file(const char *name)
         v64Gen gen = v64GenCreatorSourceFileChar(fr);
 
         // Начальный остаток = 3
-        unsigned long rem = v64GenGetRemaining(&gen);
+        unsigned long rem = v64GenGetUpdate(&gen);
         test_validatefree(rem == 3,
                           (v64GenFree(&gen), fclose(fr), fclose(fa)),
                           "initial remaining expected 3, got %lu", rem);
@@ -3056,7 +3081,7 @@ tf18_gen_stream_update_file(const char *name)
         value64_free(&v2, VALUE64_CHR);
 
         // Остаток = 1 (ещё 'c')
-        rem = v64GenGetRemaining(&gen);
+        rem = v64GenGetUpdate(&gen);
         test_validatefree(rem == 1,
                           (v64GenFree(&gen), fclose(fr), fclose(fa)),
                           "remaining after two chars expected 1, got %lu", rem);
@@ -3069,7 +3094,7 @@ tf18_gen_stream_update_file(const char *name)
         v64GenStreamUpdate(&gen, 0L);   // amount игнорируется файловым updater
 
         // Теперь remaining должен быть 4: 'c', 'd', 'e', 'f'
-        rem = v64GenGetRemaining(&gen);
+        rem = v64GenGetUpdate(&gen);
         test_validatefree(rem == 4,
                           (v64GenFree(&gen), fclose(fr), fclose(fa)),
                           "remaining after append expected 4, got %lu", rem);
@@ -3096,7 +3121,7 @@ tf18_gen_stream_update_file(const char *name)
         );
         value64_free(&v_end, VALUE64_CHR);
 
-        rem = v64GenGetRemaining(&gen);
+        rem = v64GenGetUpdate(&gen);
         test_validatefree(rem == 0,
                           (v64GenFree(&gen), fclose(fr), fclose(fa)),
                           "remaining after end expected 0, got %lu", rem);
@@ -3347,7 +3372,7 @@ tf19_gen_file_bynewline(const char *name)
         v64Gen gen = v64GenCreatorSourceFileToCommonOutput(fr, VALUE64_STR);
 
         // Начальный остаток: 4 байта
-        unsigned long rem = v64GenGetRemaining(&gen);
+        unsigned long rem = v64GenGetUpdate(&gen);
         test_validatefree(rem == 4,
                           (v64GenFree(&gen), fclose(fr)),
                           "initial remaining expected 4, got %lu", rem);
@@ -3357,7 +3382,7 @@ tf19_gen_file_bynewline(const char *name)
         value64_free(&v, VALUE64_STR);
 
         // Остаток должен стать 0 (файл прочитан до конца)
-        rem = v64GenGetRemaining(&gen);
+        rem = v64GenGetUpdate(&gen);
         test_validatefree(rem == 0,
                           (v64GenFree(&gen), fclose(fr)),
                           "remaining after reading expected 0, got %lu", rem);
