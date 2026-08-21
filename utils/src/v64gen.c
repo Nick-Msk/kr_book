@@ -607,7 +607,8 @@ v64GenFSToStringTargetByNewline(v64Gen *gen, value64_type typ){
             res = value64_movefs(&line);
         else    // VALUE64_STR
             res = LITERAL64_STR(fs_movetostr(&line));
-    };
+    } else
+        gen->limit = 0;     // not sure
 
     return res;
 }
@@ -4104,6 +4105,165 @@ tf22_gen_file_char(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST 34: fs -> STR by newline generator -------------------------
+static TestStatus
+tf23_gen_fs_tostr_bynewline(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Обычные строки и пустая строка */
+    test_sub("subtest %d: lines with empty and waiting", ++subnum);
+    {
+        const char *data = "abc\n\nqwertt";   // qwertt без \n
+        fs src = fscopy(data);
+        v64Gen gen = v64GenCreatorSourceFsToStrByNewline(&src);
+
+        value64 v1 = v64GenNext(&gen);
+        test_validatefree(
+            value64_str(v1) != NULL && strcmp(value64_str(v1), "abc") == 0,
+            (value64_free(&v1, VALUE64_STR), v64GenFree(&gen), fsfree(src)),
+            "first line mismatch"
+        );
+        value64_free(&v1, VALUE64_STR);
+
+        value64 v2 = v64GenNext(&gen);
+        test_validatefree(
+            value64_str(v2) != NULL && strlen(value64_str(v2)) == 0,
+            (value64_free(&v2, VALUE64_STR), v64GenFree(&gen), fsfree(src)),
+            "empty line mismatch"
+        );
+        value64_free(&v2, VALUE64_STR);
+
+        // Неполная строка: обычный вызов должен вернуть NULL
+        value64 v3 = v64GenNext(&gen);
+        test_validatefree(
+            value64_str(v3) == NULL,
+            (value64_free(&v3, VALUE64_STR), v64GenFree(&gen), fsfree(src)),
+            "expected NULL for incomplete line"
+        );
+        value64_free(&v3, VALUE64_STR);
+
+        // Финализатор вернёт "qwertt"
+        value64 v_last = v64GenFinalize(&gen);
+        test_validatefree(
+            value64_str(v_last) != NULL && strcmp(value64_str(v_last), "qwertt") == 0,
+            (value64_free(&v_last, VALUE64_STR), v64GenFree(&gen), fsfree(src)),
+            "final line mismatch"
+        );
+        value64_free(&v_last, VALUE64_STR);
+
+        v64GenFree(&gen);
+        fsfree(src);
+        fs_alloc_check(true);
+    }
+
+    /* 2. Пустая fs */
+    test_sub("subtest %d: empty fs", ++subnum);
+    {
+        fs src = fscopy("");
+        v64Gen gen = v64GenCreatorSourceFsToStrByNewline(&src);
+
+        value64 v;
+        bool has = v64GenGetIfHasnext(&gen, &v);
+        test_validatefree(
+            has == false,
+            (v64GenFree(&gen), fsfree(src)),
+            "expected no data for empty fs"
+        );
+
+        // Финализатор тоже не должен ничего вернуть
+        value64 vf = v64GenFinalize(&gen);
+        test_validatefree(
+            value64_str(vf) == NULL,
+            (value64_free(&vf, VALUE64_STR), v64GenFree(&gen), fsfree(src)),
+            "finalizer should return NULL for empty fs"
+        );
+        value64_free(&vf, VALUE64_STR);
+
+        v64GenFree(&gen);
+        fsfree(src);
+        fs_alloc_check(true);
+    }
+
+    /* 3. Дозапись: после EOF добавляем новые строки */
+    test_sub("subtest %d: append data after EOF and continue", ++subnum);
+    {
+        fs src = fscopy("line1\n");
+        v64Gen gen = v64GenCreatorSourceFsToStrByNewline(&src);
+
+        // Читаем первую строку
+        value64 v1 = v64GenNext(&gen);
+        test_validatefree(
+            value64_str(v1) != NULL && strcmp(value64_str(v1), "line1") == 0,
+            (value64_free(&v1, VALUE64_STR), v64GenFree(&gen), fsfree(src)),
+            "first line mismatch"
+        );
+        value64_free(&v1, VALUE64_STR);
+
+        // После этого лимит должен быть 0
+        unsigned long rem = v64GenUpdateLimit(&gen);
+        test_validatefree(rem == 0,
+                          (v64GenFree(&gen), fsfree(src)),
+                          "expected remaining 0 after first line, got %lu", rem);
+
+        // Дозаписываем "line2\n"
+        fs_catstr(&src, "line2\n");
+        v64GenUpdateLimit(&gen);   // пересчитывает limit
+
+        // Читаем вторую строку
+        value64 v2 = v64GenNext(&gen);
+        test_validatefree(
+            value64_str(v2) != NULL && strcmp(value64_str(v2), "line2") == 0,
+            (value64_free(&v2, VALUE64_STR), v64GenFree(&gen), fsfree(src)),
+            "second line mismatch"
+        );
+        value64_free(&v2, VALUE64_STR);
+
+        // После этого снова 0
+        rem = v64GenUpdateLimit(&gen);
+        test_validatefree(rem == 0,
+                          (v64GenFree(&gen), fsfree(src)),
+                          "expected remaining 0 after second line, got %lu", rem);
+
+        v64GenFree(&gen);
+        fsfree(src);
+        fs_alloc_check(true);
+    }
+
+    /* 4. Обновление лимита без дописывания не приводит к появлению данных */
+    test_sub("subtest %d: update limit without append", ++subnum);
+    {
+        fs src = fscopy("one\n");
+        v64Gen gen = v64GenCreatorSourceFsToStrByNewline(&src);
+
+        value64 v1 = v64GenNext(&gen);
+        value64_free(&v1, VALUE64_STR);
+
+        unsigned long rem = v64GenUpdateLimit(&gen);
+        test_validatefree(rem == 0,
+                          (v64GenFree(&gen), fsfree(src)),
+                          "expected remaining 0, got %lu", rem);
+
+        // ещё раз обновляем без изменений
+        v64GenUpdateLimit(&gen);
+
+        value64 v;
+        bool has = v64GenGetIfHasnext(&gen, &v);
+        test_validatefree(
+            has == false,
+            (v64GenFree(&gen), fsfree(src)),
+            "expected no data after update without append"
+        );
+
+        v64GenFree(&gen);
+        fsfree(src);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(/* int argc, const char *argv[] */)
@@ -4133,6 +4293,7 @@ main(/* int argc, const char *argv[] */)
       , TESTADD(tf20_gen_string_source_limited, "Limited C-string to CHAR generator simple test")
       , TESTADD(tf21_gen_fs_char,               "fs -> CHAR generator (limit, append) simple test")
       , TESTADD(tf22_gen_file_char,             "FILE* -> CHAR generator simple test")
+      , TESTADD(tf23_gen_fs_tostr_bynewline,    "fs -> STR by newline generator simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
