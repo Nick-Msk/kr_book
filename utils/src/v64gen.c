@@ -3426,24 +3426,18 @@ tf20_gen_string_source_limited(const char *name)
         const char *text = "hello";
         v64Gen gen = v64GenCreatorSourceCstrChar(text, 5);
 
-        for (int i = 0; i < 5; i++) {
-            value64 v = v64GenNext(&gen);
+        size_t i = 0;
+        value64 v;
+        while (v64GenGetIfHasnext(&gen, &v)) {
             test_validatefree(
                 value64_char(v) == text[i],
                 (value64_free(&v, VALUE64_CHR), v64GenFree(&gen)),
-                "pos %d: expected '%c', got '%c'",
-                i, text[i], value64_char(v)
+                "pos %zu: expected '%c', got '%c'", i, text[i], value64_char(v)
             );
             value64_free(&v, VALUE64_CHR);
+            i++;
         }
-
-        value64 v_end = v64GenNext(&gen);
-        test_validatefree(
-            value64_char(v_end) == '\0',
-            (value64_free(&v_end, VALUE64_CHR), v64GenFree(&gen)),
-            "after limit expected null char"
-        );
-        value64_free(&v_end, VALUE64_CHR);
+        test_validate(i == 5, "expected 5 chars, got %zu", i);
 
         v64GenFree(&gen);
         fs_alloc_check(true);
@@ -3455,24 +3449,18 @@ tf20_gen_string_source_limited(const char *name)
         const char *text = "hello";
         v64Gen gen = v64GenCreatorSourceCstrChar(text, 3);
 
-        for (int i = 0; i < 3; i++) {
-            value64 v = v64GenNext(&gen);
+        size_t i = 0;
+        value64 v;
+        while (v64GenGetIfHasnext(&gen, &v)) {
             test_validatefree(
                 value64_char(v) == text[i],
                 (value64_free(&v, VALUE64_CHR), v64GenFree(&gen)),
-                "pos %d: expected '%c', got '%c'",
-                i, text[i], value64_char(v)
+                "pos %zu: expected '%c', got '%c'", i, text[i], value64_char(v)
             );
             value64_free(&v, VALUE64_CHR);
+            i++;
         }
-
-        value64 v_end = v64GenNext(&gen);
-        test_validatefree(
-            value64_char(v_end) == '\0',
-            (value64_free(&v_end, VALUE64_CHR), v64GenFree(&gen)),
-            "after limit expected null char"
-        );
-        value64_free(&v_end, VALUE64_CHR);
+        test_validate(i == 3, "expected 3 chars, got %zu", i);
 
         v64GenFree(&gen);
         fs_alloc_check(true);
@@ -3484,29 +3472,22 @@ tf20_gen_string_source_limited(const char *name)
         const char *text = "hi";
         v64Gen gen = v64GenCreatorSourceCstrChar(text, 10);
 
-        value64 v0 = v64GenNext(&gen);
+        size_t i = 0;
+        value64 v;
+        while (v64GenGetIfHasnext(&gen, &v)) {
+            test_validatefree(
+                value64_char(v) == text[i],
+                (value64_free(&v, VALUE64_CHR), v64GenFree(&gen)),
+                "pos %zu: expected '%c', got '%c'", i, text[i], value64_char(v)
+            );
+            value64_free(&v, VALUE64_CHR);
+            i++;
+        }
         test_validatefree(
-            value64_char(v0) == 'h',
-            (value64_free(&v0, VALUE64_CHR), v64GenFree(&gen)),
-            "first char mismatch"
+            i == strlen(text) + 1, 
+            (value64_free(&v, VALUE64_CHR), v64GenFree(&gen)),
+            "expected %zu chars, got %zu", strlen(text) + 1, i
         );
-        value64_free(&v0, VALUE64_CHR);
-
-        value64 v1 = v64GenNext(&gen);
-        test_validatefree(
-            value64_char(v1) == 'i',
-            (value64_free(&v1, VALUE64_CHR), v64GenFree(&gen)),
-            "second char mismatch"
-        );
-        value64_free(&v1, VALUE64_CHR);
-
-        value64 v_end = v64GenNext(&gen);
-        test_validatefree(
-            value64_char(v_end) == '\0',
-            (value64_free(&v_end, VALUE64_CHR), v64GenFree(&gen)),
-            "after string expected null char"
-        );
-        value64_free(&v_end, VALUE64_CHR);
 
         v64GenFree(&gen);
         fs_alloc_check(true);
@@ -3518,24 +3499,86 @@ tf20_gen_string_source_limited(const char *name)
         const char *text = "abc";
         v64Gen gen = v64GenCreatorSourceCstrChar(text, 0);
 
-        for (int i = 0; i < 3; i++) {
-            value64 v = v64GenNext(&gen);
+        size_t i = 0;
+        value64 v;
+        while (v64GenGetIfHasnext(&gen, &v)) {
             test_validatefree(
                 value64_char(v) == text[i],
                 (value64_free(&v, VALUE64_CHR), v64GenFree(&gen)),
-                "pos %d: expected '%c', got '%c'",
-                i, text[i], value64_char(v)
+                "pos %zu: expected '%c', got '%c'", i, text[i], value64_char(v)
             );
             value64_free(&v, VALUE64_CHR);
+            i++;
         }
-
-        value64 v_end = v64GenNext(&gen);
         test_validatefree(
-            value64_char(v_end) == '\0',
-            (value64_free(&v_end, VALUE64_CHR), v64GenFree(&gen)),
-            "after string expected null"
+            i == strlen(text) + 1, 
+            (value64_free(&v, VALUE64_CHR), v64GenFree(&gen)),
+            "expected %zu chars, got %zu", strlen(text) + 1, i
         );
-        value64_free(&v_end, VALUE64_CHR);
+
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 5. имитация дозаписи: после исчерпания лимита дополняем строку и продолжаем */
+    test_sub("subtest %d: append data after limit", ++subnum);
+    {
+        char buf[64];
+        const char *part1 = "hello";
+        const char *part2 = " world";
+
+        strcpy(buf, part1);
+        v64Gen gen = v64GenCreatorSourceCstrChar(buf, 5);
+
+        size_t i = 0;
+        value64 v;
+        while (v64GenGetIfHasnext(&gen, &v)) {
+            test_validatefree(
+                value64_char(v) == part1[i],
+                (value64_free(&v, VALUE64_CHR), v64GenFree(&gen)),
+                "part1 pos %zu mismatch", i
+            );
+            value64_free(&v, VALUE64_CHR);
+            i++;
+        }
+        test_validatefree(
+            i == strlen(part1), 
+            (value64_free(&v, VALUE64_CHR), v64GenFree(&gen)),
+            "expected %zu chars from part1, got %zu", strlen(part1), i
+        );
+
+        // дописываем новые данные
+        strcpy(buf + 5, part2);           // теперь "hello world"
+
+        test_validatefree(
+            !v64GenHasnext(&gen),
+            v64GenFree(&gen),
+            "Hasnext must return false before v64GenUpdateLimit()!"
+        );
+
+        v64GenUpdateLimit(&gen);          // сбрасываем лимит на unlimited
+
+        test_validatefree(
+            v64GenHasnext(&gen),
+            v64GenFree(&gen),
+            "Hasnext must return true after v64GenUpdateLimit()!"
+        );
+
+        i = 0;
+        while (v64GenGetIfHasnext(&gen, &v)) {
+            test_validatefree(
+                value64_char(v) == part2[i],
+                (value64_free(&v, VALUE64_CHR), v64GenFree(&gen)),
+                "part2 pos %zu mismatch", i
+            );
+            value64_free(&v, VALUE64_CHR);
+            i++;
+        }
+        test_validatefree(
+            i == strlen(part2) + 1, 
+            (value64_free(&v, VALUE64_CHR), v64GenFree(&gen)),
+            "expected %zu chars from part2, got %zu", strlen(part2), i
+        );
 
         v64GenFree(&gen);
         fs_alloc_check(true);
