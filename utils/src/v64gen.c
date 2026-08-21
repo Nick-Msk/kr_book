@@ -3894,6 +3894,216 @@ tf21_gen_fs_char(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST 33: FILE* -> CHAR generator -------------------------
+static TestStatus
+tf22_gen_file_char(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Обычное чтение из файла */
+    test_sub("subtest %d: read chars from file", ++subnum);
+    {
+        FILE *fp = tmpfile();
+        test_validatefree(fp != NULL, fclose(fp), "tmpfile failed");
+
+        const char *text = "hello";
+        fwrite(text, 1, strlen(text), fp);
+        fflush(fp);
+        rewind(fp);
+
+        v64Gen gen = v64GenCreatorSourceFileToChar(fp);
+
+        size_t i = 0;
+        value64 v;
+        while (v64GenGetIfHasnext(&gen, &v)) {
+            test_validatefree(
+                value64_char(v) == text[i],
+                (value64_free(&v, VALUE64_CHR), v64GenFree(&gen), fclose(fp)),
+                "pos %zu: expected '%c', got '%c'", i, text[i], value64_char(v)
+            );
+            value64_free(&v, VALUE64_CHR);
+            i++;
+        }
+        test_validatefree(i == strlen(text),
+                          (v64GenFree(&gen), fclose(fp)),
+                          "expected %zu chars, got %zu", strlen(text), i);
+
+        v64GenFree(&gen);
+        fclose(fp);
+        fs_alloc_check(true);
+    }
+
+    /* 2. Пустой файл */
+    test_sub("subtest %d: empty file", ++subnum);
+    {
+        FILE *fp = tmpfile();
+        test_validatefree(fp != NULL, fclose(fp), "tmpfile failed");
+        rewind(fp);
+
+        v64Gen gen = v64GenCreatorSourceFileToChar(fp);
+
+        value64 v;
+        bool has = v64GenGetIfHasnext(&gen, &v);
+        test_validatefree(
+            has == false,
+            (v64GenFree(&gen), fclose(fp)),
+            "expected no data for empty file"
+        );
+
+        v64GenFree(&gen);
+        fclose(fp);
+        fs_alloc_check(true);
+    }
+
+    /* 3. Дозапись после EOF */
+    test_sub("subtest %d: append data after EOF and continue", ++subnum);
+    {
+        FILE *fp = tmpfile();
+        test_validatefree(fp != NULL, fclose(fp), "tmpfile failed");
+
+        const char *part1 = "hello";
+        fwrite(part1, 1, strlen(part1), fp);
+        fflush(fp);
+        rewind(fp);
+
+        v64Gen gen = v64GenCreatorSourceFileToChar(fp);
+
+        // читаем первую часть
+        size_t i = 0;
+        value64 v;
+        while (v64GenGetIfHasnext(&gen, &v)) {
+            test_validatefree(value64_char(v) == part1[i],
+                              (value64_free(&v, VALUE64_CHR), v64GenFree(&gen), fclose(fp)),
+                              "part1 pos %zu mismatch", i);
+            value64_free(&v, VALUE64_CHR);
+            i++;
+        }
+        test_validatefree(i == strlen(part1),
+                          (v64GenFree(&gen), fclose(fp)),
+                          "expected %zu chars from part1, got %zu", strlen(part1), i);
+
+        // дописываем вторую часть
+        const char *part2 = " world";
+        fseek(fp, 0, SEEK_END);
+        fwrite(part2, 1, strlen(part2), fp);
+        fflush(fp);
+        // возвращаемся в позицию, где остановились (ftell после чтения = strlen(part1))
+        fseek(fp, strlen(part1), SEEK_SET);
+
+        v64GenUpdateLimit(&gen);   // пересчитает limit
+
+        i = 0;
+        while (v64GenGetIfHasnext(&gen, &v)) {
+            test_validatefree(value64_char(v) == part2[i],
+                              (value64_free(&v, VALUE64_CHR), v64GenFree(&gen), fclose(fp)),
+                              "part2 pos %zu mismatch", i);
+            value64_free(&v, VALUE64_CHR);
+            i++;
+        }
+        test_validatefree(i == strlen(part2),
+                          (v64GenFree(&gen), fclose(fp)),
+                          "expected %zu chars from part2, got %zu", strlen(part2), i);
+
+        v64GenFree(&gen);
+        fclose(fp);
+        fs_alloc_check(true);
+    }
+
+        /* 4. Пустой файл, попытка чтения, затем дозапись и продолжение */
+    test_sub("subtest %d: empty file, read attempt, append, continue", ++subnum);
+    {
+        FILE *fp = tmpfile();
+        test_validatefree(fp != NULL, fclose(fp), "tmpfile failed");
+
+        // Файл пустой, генератор создан
+        v64Gen gen = v64GenCreatorSourceFileToChar(fp);
+
+        value64 v;
+        bool has = v64GenGetIfHasnext(&gen, &v);
+        test_validatefree(
+            has == false,
+            (v64GenFree(&gen), fclose(fp)),
+            "expected no data on empty file"
+        );
+
+        // Дозаписываем строку
+        const char *text = "hello";
+        fwrite(text, 1, strlen(text), fp);
+        fflush(fp);
+
+        // Возвращаемся в начало, чтобы updater корректно вычислил позицию
+        fseek(fp, 0, SEEK_SET);
+
+        // Обновляем лимит
+        v64GenUpdateLimit(&gen);
+
+        // Читаем все символы
+        size_t i = 0;
+        while (v64GenGetIfHasnext(&gen, &v)) {
+            test_validatefree(
+                value64_char(v) == text[i],
+                (value64_free(&v, VALUE64_CHR), v64GenFree(&gen), fclose(fp)),
+                "pos %zu: expected '%c', got '%c'", i, text[i], value64_char(v)
+            );
+            value64_free(&v, VALUE64_CHR);
+            i++;
+        }
+        test_validatefree(
+            i == strlen(text),
+            (v64GenFree(&gen), fclose(fp)),
+            "expected %zu chars, got %zu", strlen(text), i
+        );
+
+        v64GenFree(&gen);
+        fclose(fp);
+        fs_alloc_check(true);
+    }
+
+    /* 5. Фиктивный v64GenUpdateLimit() без изменения файла */
+    test_sub("subtest %d: update limit without file change", ++subnum);
+    {
+        FILE *fp = tmpfile();
+        test_validatefree(fp != NULL, fclose(fp), "tmpfile failed");
+
+        const char *text = "abc";
+        fwrite(text, 1, strlen(text), fp);
+        fflush(fp);
+        rewind(fp);
+
+        v64Gen gen = v64GenCreatorSourceFileToChar(fp);
+
+        // Читаем все символы
+        size_t i = 0;
+        value64 v;
+        while (v64GenGetIfHasnext(&gen, &v)) {
+            value64_free(&v, VALUE64_CHR);
+            i++;
+        }
+        test_validatefree(
+            i == strlen(text),
+            (v64GenFree(&gen), fclose(fp)),
+            "expected %zu chars, got %zu", strlen(text), i
+        );
+
+        // Вызываем обновление без изменения размера
+        v64GenUpdateLimit(&gen);
+
+        // Данных быть не должно
+        test_validatefree(
+            !v64GenGetIfHasnext(&gen, &v),
+            (v64GenFree(&gen), fclose(fp)),
+            "expected no data after update without appending"
+        );
+
+        v64GenFree(&gen);
+        fclose(fp);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(/* int argc, const char *argv[] */)
@@ -3922,6 +4132,7 @@ main(/* int argc, const char *argv[] */)
       , TESTADD(tf19_gen_file_bynewline,        "v64GenCreatorSourceFileToCommonOutput() simple test")
       , TESTADD(tf20_gen_string_source_limited, "Limited C-string to CHAR generator simple test")
       , TESTADD(tf21_gen_fs_char,               "fs -> CHAR generator (limit, append) simple test")
+      , TESTADD(tf22_gen_file_char,             "FILE* -> CHAR generator simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
