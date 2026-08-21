@@ -572,7 +572,6 @@ v64GenRandom(v64Gen *gen) {
  * @note
  * data[0] – PTR to source fs (non-owning)
  */
-// TODO: refactor to avoid parsing
 static value64                 
 v64GenFSToStringTargetByNewline(v64Gen *gen, value64_type typ){
     invraisecode(gen != NULL, ERR_NULLABLE_PTR, "Null generator");
@@ -593,20 +592,21 @@ v64GenFSToStringTargetByNewline(v64Gen *gen, value64_type typ){
     const char   *start = src->v + pos;
     const char   *newline = strchr(start, '\n');
     value64       res = LITERAL64_ZERO;
+    size_t        line_len;
 
     if (newline) {  // TODO: refactor here!
-        size_t line_len = newline - start + 1;
-      
-        fs      line = fs_newsubstr(src, pos, line_len);     // must be freed!!!!!
-        
-        // update current position
-        v64GenAdvanceByLine(gen, newline - src->v + 1 - pos);   /* because of '\n' */
-        if (typ == VALUE64_FS)
-            res = value64_movefs(&line);
-        else    // VALUE64_STR
-            res = LITERAL64_STR(fs_movetostr(&line));
+        line_len = newline - start + 1;
     } else
-        gen->limit = 0;     // TODO:
+        line_len = src->len - pos;      // until '\0'
+
+    fs      line = fs_newsubstr(src, pos, line_len);     // must be freed!!!!!
+    
+    // update current position and limit
+    v64GenAdvanceByLine(gen, line_len);
+    if (typ == VALUE64_FS)
+        res = value64_movefs(&line);
+    else    // VALUE64_STR
+        res = LITERAL64_STR(fs_movetostr(&line));
 
     return res;
 }
@@ -653,22 +653,20 @@ v64GenFileToStringTargetByNewline(v64Gen *gen) {
     if (!buf || !in)
         return userraise(LITERAL64_ZERO, ERR_NULLABLE_PTR, "buf is null %p %p", buf, in);
     
-    GetlineStattus st = getstring_newline_append(in, buf);
-    
-    if (st != GETLINE_LINE) {// not an error!
-        gen->limit = 0L;    // out of data!!!
-        return logsimpleret(LITERAL64_ZERO, "Partial line or EOF detected %d", st);
+    //GetlineStattus st = //getstring_newline_append(in, buf);
+    if (!getstring_nl(in, buf, true, false) ) {
+        gen->limit = 0L; 
+        return logsimpleret(LITERAL64_ZERO, "EOF detected");
     }
+
     value64  res;
     if (gen->type == VALUE64_STR) 
         res = value64_createstr(fs_str(buf));
     else
         res = value64_createfs(buf);
 
-    if (st == GETLINE_LINE)
-        v64GenAdvanceByLine(gen, buf->len + 1 - gen->position);
-    fs_clear(buf);
-    // VALUE64_TECHFPRINT(logfile, res, gen->typ);
+    v64GenAdvanceByLine(gen, buf->len);
+
     return res;
 } 
 
