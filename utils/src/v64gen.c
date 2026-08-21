@@ -3409,6 +3409,137 @@ tf19_gen_file_bynewline(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST 29: Limited C-string to CHAR generator -------------------------
+static TestStatus
+tf20_gen_string_source_limited(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. maxlen equal to string length */
+    test_sub("subtest %d: limit equals string length", ++subnum);
+    {
+        const char *text = "hello";
+        v64Gen gen = v64GenCreatorSourceCstrChar(text, 5);
+
+        for (int i = 0; i < 5; i++) {
+            value64 v = v64GenNext(&gen);
+            test_validatefree(
+                value64_char(v) == text[i],
+                (value64_free(&v, VALUE64_CHR), v64GenFree(&gen)),
+                "pos %d: expected '%c', got '%c'",
+                i, text[i], value64_char(v)
+            );
+            value64_free(&v, VALUE64_CHR);
+        }
+
+        value64 v_end = v64GenNext(&gen);
+        test_validatefree(
+            value64_char(v_end) == '\0',
+            (value64_free(&v_end, VALUE64_CHR), v64GenFree(&gen)),
+            "after limit expected null char"
+        );
+        value64_free(&v_end, VALUE64_CHR);
+
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 2. maxlen less than string length */
+    test_sub("subtest %d: limit less than string length", ++subnum);
+    {
+        const char *text = "hello";
+        v64Gen gen = v64GenCreatorSourceCstrChar(text, 3);
+
+        for (int i = 0; i < 3; i++) {
+            value64 v = v64GenNext(&gen);
+            test_validatefree(
+                value64_char(v) == text[i],
+                (value64_free(&v, VALUE64_CHR), v64GenFree(&gen)),
+                "pos %d: expected '%c', got '%c'",
+                i, text[i], value64_char(v)
+            );
+            value64_free(&v, VALUE64_CHR);
+        }
+
+        value64 v_end = v64GenNext(&gen);
+        test_validatefree(
+            value64_char(v_end) == '\0',
+            (value64_free(&v_end, VALUE64_CHR), v64GenFree(&gen)),
+            "after limit expected null char"
+        );
+        value64_free(&v_end, VALUE64_CHR);
+
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 3. maxlen greater than string length */
+    test_sub("subtest %d: limit greater than string length", ++subnum);
+    {
+        const char *text = "hi";
+        v64Gen gen = v64GenCreatorSourceCstrChar(text, 10);
+
+        value64 v0 = v64GenNext(&gen);
+        test_validatefree(
+            value64_char(v0) == 'h',
+            (value64_free(&v0, VALUE64_CHR), v64GenFree(&gen)),
+            "first char mismatch"
+        );
+        value64_free(&v0, VALUE64_CHR);
+
+        value64 v1 = v64GenNext(&gen);
+        test_validatefree(
+            value64_char(v1) == 'i',
+            (value64_free(&v1, VALUE64_CHR), v64GenFree(&gen)),
+            "second char mismatch"
+        );
+        value64_free(&v1, VALUE64_CHR);
+
+        value64 v_end = v64GenNext(&gen);
+        test_validatefree(
+            value64_char(v_end) == '\0',
+            (value64_free(&v_end, VALUE64_CHR), v64GenFree(&gen)),
+            "after string expected null char"
+        );
+        value64_free(&v_end, VALUE64_CHR);
+
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 4. unlimited (maxlen=0) */
+    test_sub("subtest %d: unlimited (maxlen=0)", ++subnum);
+    {
+        const char *text = "abc";
+        v64Gen gen = v64GenCreatorSourceCstrChar(text, 0);
+
+        for (int i = 0; i < 3; i++) {
+            value64 v = v64GenNext(&gen);
+            test_validatefree(
+                value64_char(v) == text[i],
+                (value64_free(&v, VALUE64_CHR), v64GenFree(&gen)),
+                "pos %d: expected '%c', got '%c'",
+                i, text[i], value64_char(v)
+            );
+            value64_free(&v, VALUE64_CHR);
+        }
+
+        value64 v_end = v64GenNext(&gen);
+        test_validatefree(
+            value64_char(v_end) == '\0',
+            (value64_free(&v_end, VALUE64_CHR), v64GenFree(&gen)),
+            "after string expected null"
+        );
+        value64_free(&v_end, VALUE64_CHR);
+
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(/* int argc, const char *argv[] */)
@@ -3434,8 +3565,8 @@ main(/* int argc, const char *argv[] */)
       , TESTADD(tf16_gen_fs_bynewline_remaining, "v64GenGetRemainingCount with FsToFsByNewlin")
       , TESTADD(tf17_gen_fs_tostr_bynewline,    "v64GenFSToStrByNewline() simple test")
       , TESTADD(tf18_gen_stream_update_file,    "v64GenCreatorSourceFileChar() simple test")
-      , TESTADD(tf19_gen_file_bynewline, "v64GenCreatorSourceFileToCommonOutput() simple test")
-
+      , TESTADD(tf19_gen_file_bynewline,        "v64GenCreatorSourceFileToCommonOutput() simple test")
+      , TESTADD(tf20_gen_string_source_limited, "Limited C-string to CHAR generator simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
