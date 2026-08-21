@@ -682,13 +682,17 @@ v64GenStringToChar(v64Gen *gen) {
         userraiseint(ERR_NULLABLE_PTR, "str (REG0) is null");
 
     const char  *str = base + gen->position;
-    if (*str == '\0')       // not an error, normal situation
+    if (*str == '\0') {    // not an error, normal situation
+        gen->limit = 0UL;
         return logsimpleret(value64_createchar('\0'), "cstr source is exhausted by \\0");
+    }
 
     off_t        remaining = gen->limit;   // -1L - unlim
-    if (!haslimit(remaining))
+    if (!haslimit(remaining)) {
+        gen->limit = 0UL;
         return logsimpleret(value64_createchar('\0'), 
                     "cstr source is exhausted by limit (%lld)", remaining);
+    }
 
     v64GenAdvance(gen, 1);
 
