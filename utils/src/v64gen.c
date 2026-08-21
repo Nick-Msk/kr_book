@@ -204,6 +204,11 @@ v64Gen                          v64GenCreatorSourceCstrToChar(const char *src, l
 
     if (maxlen <= 0)
         maxlen = -1L; // unlim
+    if (*src == '\0') {
+        logsimple("Since src is empty limit is truncated to 0");
+        maxlen = 0L;
+    }
+
     v64Gen gen =  v64GenInit1(v64GenStringToChar, VALUE64_CHR,
                                 maxlen,
                                 v64typedCreateCstrSource(src));
@@ -3579,6 +3584,32 @@ tf20_gen_string_source_limited(const char *name)
             (value64_free(&v, VALUE64_CHR), v64GenFree(&gen)),
             "expected %zu chars from part2, got %zu", strlen(part2), i
         );
+
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: empty c-string source returns no data", ++subnum);
+    {
+        const char *empty = "";
+        v64Gen gen = v64GenCreatorSourceCstrToChar(empty, -1L);   // unlimited, но пустая строка
+
+        value64 v;
+        bool has = v64GenGetIfHasnext(&gen, &v);
+        test_validatefree(
+            has == false,
+            (v64GenFree(&gen)),
+            "expected no data for empty string"
+        );
+
+        // Дополнительно проверяем, что v64GenNext тоже возвращает '\0'
+        value64 res = v64GenNext(&gen);
+        test_validatefree(
+            value64_char(res) == '\0',
+            (value64_free(&res, VALUE64_CHR), v64GenFree(&gen)),
+            "expected null char from v64GenNext"
+        );
+        value64_free(&res, VALUE64_CHR);
 
         v64GenFree(&gen);
         fs_alloc_check(true);
