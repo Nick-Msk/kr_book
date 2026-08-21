@@ -565,7 +565,7 @@ v64GenCreatorUnlimFsRnd(const char *fmt, int rndinc)
 // RETURNS: VALUE64/CHR
 // REGITRSY ALLOCATION:
 // data[0] STR as SOURCE (no ownership)
-extern v64Gen                   v64GenCreatorSourceCstrChar(const char *src, long maxlen);
+extern v64Gen                   v64GenCreatorSourceCstrToChar(const char *src, long maxlen);
 
 // RETURNS: VALUE64/CHR
 // REGITRSY ALLOCATION:
@@ -584,7 +584,7 @@ extern v64Gen                   v64GenCreatorSourceFsToStrByNewline(const fs *sr
 // RETURNS: VALUE64/CHR
 // REGITRSY ALLOCATION:
 // data[0] FILE as SOURCE (no ownership)
-extern v64Gen                   v64GenCreatorSourceFileChar(FILE *file);
+extern v64Gen                   v64GenCreatorSourceFileToChar(FILE *file);
 // RETURNS: VALUE64/FS
 // REGITRSY ALLOCATION:
 // data[0] FILE * (no ownership)

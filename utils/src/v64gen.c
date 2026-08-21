@@ -199,7 +199,7 @@ v64GenInit(v64GenFunc func, value64_type type, off_t limit,
 // RETURNS: CHR
 // REGITRSY ALLOCATION:
 // data[0] STR as SOURCE (no ownership)
-v64Gen                          v64GenCreatorSourceCstrChar(const char *src, long maxlen) {
+v64Gen                          v64GenCreatorSourceCstrToChar(const char *src, long maxlen) {
     invraisecode(src != NULL, ERR_NULLABLE_PTR, "NUll src c-str");
 
     if (maxlen <= 0)
@@ -336,7 +336,7 @@ v64Gen                           v64GenCreatorSourceFileToStrByNewline(FILE *src
  * @param file  Open FILE* stream (must be readable)
  * @return      v64Gen object for character reading
  */
-v64Gen                          v64GenCreatorSourceFileChar(FILE *src) {
+v64Gen                          v64GenCreatorSourceFileToChar(FILE *src) {
     return v64GenCreatorSourceFileToCommonOutput(src, VALUE64_CHR);
 }
 
@@ -2253,7 +2253,7 @@ tf10_gen_string_source(const char *name)
     /* 1. Обычная строка "hello", безлимит (maxlen <= 0) */
     test_sub("subtest %d: v64GenStringToChar basic 'hello' unlimited", ++subnum);
     {
-        v64Gen gen = v64GenCreatorSourceCstrChar("hello", 0);
+        v64Gen gen = v64GenCreatorSourceCstrToChar("hello", 0);
 
         const char expected[] = "hello";
         for (int i = 0; i < (int)strlen(expected); i++) {
@@ -2281,7 +2281,7 @@ tf10_gen_string_source(const char *name)
     /* 2. Пустая строка */
     test_sub("subtest %d: v64GenStringToChar empty string", ++subnum);
     {
-        v64Gen gen = v64GenCreatorSourceCstrChar("", 0);
+        v64Gen gen = v64GenCreatorSourceCstrToChar("", 0);
 
         value64 v = v64GenNext(&gen);
         test_validate(value64_char(v) == '\0',
@@ -2296,7 +2296,7 @@ tf10_gen_string_source(const char *name)
     test_sub("subtest %d: v64GenStringToChar with maxlen=3", ++subnum);
     {
         int     cnt = 3;
-        v64Gen  gen = v64GenCreatorSourceCstrChar("hello", cnt);
+        v64Gen  gen = v64GenCreatorSourceCstrToChar("hello", cnt);
 
         for (int i = 0; i < cnt; i++) {
             value64 v = v64GenNext(&gen);
@@ -2324,7 +2324,7 @@ tf10_gen_string_source(const char *name)
     /* 4. maxlen больше длины строки: строка "abc", maxlen=10 */
     test_sub("subtest %d: v64GenStringToChar maxlen > strlen", ++subnum);
     {
-        v64Gen gen = v64GenCreatorSourceCstrChar("abc", 10);
+        v64Gen gen = v64GenCreatorSourceCstrToChar("abc", 10);
 
         for (int i = 0; i < 3; i++) {
             value64 v = v64GenNext(&gen);
@@ -2345,7 +2345,7 @@ tf10_gen_string_source(const char *name)
     /* 5. NULL источник должен безопасно возвращать '\0' */
     /*test_sub("subtest %d: v64GenStringToChar NULL source", ++subnum);
     {
-        v64Gen gen = v64GenCreatorSourceCstrChar(NULL, 0);
+        v64Gen gen = v64GenCreatorSourceCstrToChar(NULL, 0);
 
         value64 v = v64GenNext(&gen);
         test_validate(value64_char(v) == '\0',
@@ -2360,7 +2360,7 @@ tf10_gen_string_source(const char *name)
     test_sub("subtest %d: v64GenStringToChar no leaks (multiple reads)", ++subnum);
     {
         const char  pt[] = "abcdefghij";
-        v64Gen gen = v64GenCreatorSourceCstrChar(pt, 0);
+        v64Gen gen = v64GenCreatorSourceCstrToChar(pt, 0);
 
         for (int i = 0; i < 20; i++) {
             value64 v = v64GenNext(&gen);
@@ -2406,7 +2406,7 @@ tf11_gen_string_chunks(const char *name)
                 pt[chunk_len] = c;  // restore
             }
             // Генератор читает только эту порцию
-            v64Gen gen = v64GenCreatorSourceCstrChar(fs_str(&buf) + total_len, chunk_len);
+            v64Gen gen = v64GenCreatorSourceCstrToChar(fs_str(&buf) + total_len, chunk_len);
 
             for (int j = 0; j < chunk_len; j++) {
                 value64 v = v64GenNext(&gen);
@@ -2450,13 +2450,13 @@ tf12_gen_string_append(const char *name)
 
     test_sub("subtest %d: append chunks to source generator", ++subnum);
     {
-        fs          buf = fsinit(10000); // to avoid realloc, realoc isn't suported by v64GenCreatorSourceCstrChar
+        fs          buf = fsinit(10000); // to avoid realloc, realoc isn't suported by v64GenCreatorSourceCstrToChar
         int         total_len = 0;
         const int   iterations = 10;
         char        pt[] = "abcdefghijklmnopqrstuvwxyz";
 
         // Генератор создаём один раз, источник пустой
-        v64Gen gen = v64GenCreatorSourceCstrChar(buf.v, 0);
+        v64Gen gen = v64GenCreatorSourceCstrToChar(buf.v, 0);
 
         srand(42);
 
@@ -3078,7 +3078,7 @@ tf18_gen_stream_update_file(const char *name)
                           (fr ? fclose(fr) : 0, fa ? fclose(fa) : 0),
                           "fopen(r/a) failed");
 
-        v64Gen gen = v64GenCreatorSourceFileChar(fr);
+        v64Gen gen = v64GenCreatorSourceFileToChar(fr);
 
         // Начальный остаток = 3
         unsigned long rem = v64GenUpdateLimit(&gen);
@@ -3424,7 +3424,7 @@ tf20_gen_string_source_limited(const char *name)
     test_sub("subtest %d: limit equals string length", ++subnum);
     {
         const char *text = "hello";
-        v64Gen gen = v64GenCreatorSourceCstrChar(text, 5);
+        v64Gen gen = v64GenCreatorSourceCstrToChar(text, 5);
 
         size_t i = 0;
         value64 v;
@@ -3447,7 +3447,7 @@ tf20_gen_string_source_limited(const char *name)
     test_sub("subtest %d: limit less than string length", ++subnum);
     {
         const char *text = "hello";
-        v64Gen gen = v64GenCreatorSourceCstrChar(text, 3);
+        v64Gen gen = v64GenCreatorSourceCstrToChar(text, 3);
 
         size_t i = 0;
         value64 v;
@@ -3470,7 +3470,7 @@ tf20_gen_string_source_limited(const char *name)
     test_sub("subtest %d: limit greater than string length", ++subnum);
     {
         const char *text = "hi";
-        v64Gen gen = v64GenCreatorSourceCstrChar(text, 10);
+        v64Gen gen = v64GenCreatorSourceCstrToChar(text, 10);
 
         size_t i = 0;
         value64 v;
@@ -3497,7 +3497,7 @@ tf20_gen_string_source_limited(const char *name)
     test_sub("subtest %d: unlimited (maxlen=0)", ++subnum);
     {
         const char *text = "abc";
-        v64Gen gen = v64GenCreatorSourceCstrChar(text, 0);
+        v64Gen gen = v64GenCreatorSourceCstrToChar(text, 0);
 
         size_t i = 0;
         value64 v;
@@ -3528,7 +3528,7 @@ tf20_gen_string_source_limited(const char *name)
         const char *part2 = " world";
 
         strcpy(buf, part1);
-        v64Gen gen = v64GenCreatorSourceCstrChar(buf, 5);
+        v64Gen gen = v64GenCreatorSourceCstrToChar(buf, 5);
 
         size_t i = 0;
         value64 v;
@@ -3887,7 +3887,7 @@ main(/* int argc, const char *argv[] */)
       , TESTADD(tf15_gen_fs_remaining,          "v64GenGetRemainingCount with fs char generator")
       , TESTADD(tf16_gen_fs_bynewline_remaining, "v64GenGetRemainingCount with FsToFsByNewlin")
       , TESTADD(tf17_gen_fs_tostr_bynewline,    "v64GenFSToStrByNewline() simple test")
-      , TESTADD(tf18_gen_stream_update_file,    "v64GenCreatorSourceFileChar() simple test")
+      , TESTADD(tf18_gen_stream_update_file,    "v64GenCreatorSourceFileToChar() simple test")
       , TESTADD(tf19_gen_file_bynewline,        "v64GenCreatorSourceFileToCommonOutput() simple test")
       , TESTADD(tf20_gen_string_source_limited, "Limited C-string to CHAR generator simple test")
       , TESTADD(tf21_gen_fs_char,               "fs -> CHAR generator (limit, append) simple test")
