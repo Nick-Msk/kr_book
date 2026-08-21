@@ -145,7 +145,8 @@ static inline v64Gen                v64GenZero(void) {
 // -------------------------- GENERALLIZED ACCESS ------------------------------
 extern value64                  v64GenNext(v64Gen *gen);
 extern value64                  v64GenCurr(v64Gen *gen);
-extern bool                     v64GenHasnext(v64Gen *restrict gen, value64 *restrict val);
+extern bool                     v64GenHasnext(const v64Gen *gen);
+extern bool                     v64GenGetIfHasnext(v64Gen *restrict gen, value64 *restrict val);
 
 // ----------------------- GENERATORS (extern all) ---------------------------
 // ------------------ pre-created func V64 typed -----------------------------
@@ -627,13 +628,13 @@ static inline value64           v64GenFinalize(v64Gen *gen) {
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
-extern int                      v64Techfprint(FILE *restrict out, const v64Gen *restrict gen, const char *restrict name);
-static inline int               v64Techprint(const v64Gen *restrict gen, const char *restrict name) {
-    return v64Techfprint(stdout, gen, name);
+extern int                      v64GenTechfprint(FILE *restrict out, const v64Gen *restrict gen, const char *restrict name);
+static inline int               v64GenTechprint(const v64Gen *restrict gen, const char *restrict name) {
+    return v64GenTechfprint(stdout, gen, name);
 }
 
-#define                         V64TECHFPRINT(out, gen) v64Techfprint( (out), &(gen), #gen)
-#define                         V64TECHPRINT(gen) v64Techprint( &(gen), #gen)
+#define                         V64GENTECHFPRINT(out, gen) v64GenTechfprint( (out), &(gen), #gen)
+#define                         V64GENTECHPRINT(gen) v64GenTechprint( &(gen), #gen)
 
 // ------------------------------------ ETC. ----------------------------------------
 

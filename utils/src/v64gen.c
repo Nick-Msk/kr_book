@@ -11,6 +11,11 @@
 static value64           
 v64GenFileToStringTargetByNewline(v64Gen *gen);
 
+static inline bool
+haslimit(off_t remaining) {
+    return remaining == -1L || remaining > 0;
+}
+
 static inline void 
 v64GenAdvance(v64Gen *gen, off_t steps)
 {
@@ -23,12 +28,13 @@ v64GenAdvance(v64Gen *gen, off_t steps)
 }
 // for byNewline generators
 static inline void
-v64GenAdvanceByLine(v64Gen *gen, size_t line_len)
+v64GenAdvanceByLine(v64Gen *gen, off_t delta)
 {
-    gen->position += (off_t) line_len;
+    gen->position += delta;
     if (gen->limit > 0) {
-        gen->limit -= (off_t) (line_len + 1);
-        if (gen->limit < 0) gen->limit = 0;
+        gen->limit -= delta;
+        if (gen->limit < 0)
+            gen->limit = 0;
     }
 }
 
@@ -37,7 +43,7 @@ v64GenAdvanceByLine(v64Gen *gen, size_t line_len)
 // for fs source
 static off_t            
 v64GenFsUpdateCount(v64Gen *gen) {
-    fs *src = (fs *) V64GENREGVAL0(gen).pval;    // REG
+    const fs *src = V64GENREGVAL0(gen).fsval;    // REG
     if (!src->v)
         return userraise(-1L, ERR_NULLABLE_PTR, "Nullable fs-source");
     
@@ -53,15 +59,11 @@ v64GenFsUpdateCount(v64Gen *gen) {
 // for c-str source
 static off_t            
 v64GenStrUpdateCount(v64Gen *gen) {
-    fs *src = (fs *) V64GENREGVAL0(gen).pval;    // REG
-    if (!src->v)
-        return userraise(-1L, ERR_NULLABLE_PTR, "Nullable fs-source");
+    const char *src = V64GENREGVAL0(gen).sval;    // REG
+    if (!src)
+        return userraise(-1L, ERR_NULLABLE_PTR, "Nullable cstr-source");
     
-    if (fs_len(src) < (size_t) gen->position)   // log the issue
-        userraise(-1L, ERR_STREAM_ERROR, 
-            "fs source reduced!!! from %lld to %zu", gen->position, fs_len(src));
-
-    // update limit to unlim
+    // update limit to unlimit, because we have no idea where the end ('\0)
     gen->limit = -1L;
 
     return gen->limit;
@@ -133,6 +135,7 @@ static value64                  v64GenFSToStringTargetByNewlineFinalize(v64Gen *
         res = value64_movefs(&line);
     else // VALUE64_STR
         res = LITERAL64_STR(fs_movetostr(&line));
+        
     return res;
 }
 
@@ -166,6 +169,7 @@ static value64                  v64GenFileToStringTargetByNewlineFinalize(v64Gen
     gen->limit = 0;                 // останавливаем генератор
 
     fs_clear(buf);
+    
     return res;
 }
 
@@ -349,23 +353,25 @@ v64Gen                          v64GenCreatorSourceFileChar(FILE *src) {
  * @return     the next value64 of the generator's type
  */
 value64                         
-v64GenNext(v64Gen *gen)
-{
-    if (gen->limit == 0)
-        return LITERAL64_ZERO;
+v64GenNext(v64Gen *gen) {
     return gen->fnext(gen);
 }
 
+bool
+v64GenHasnext(const v64Gen *gen) {
+    return gen->limit > 0 || gen->limit == -1L;
+}
+
 bool                              
-v64GenHasnext(v64Gen *restrict gen, value64 *restrict val) {
-    if  (gen->limit == 0)
+v64GenGetIfHasnext(v64Gen *restrict gen, value64 *restrict val) {
+    if (!v64GenHasnext(gen) )
         return false;
     value64 res = gen->fnext(gen);
     if (val)
         *val = res;
     return true;
 }
-
+// NOT IMPLEMENTED YET
 value64                             
 v64GenCurr(v64Gen *gen) {
     (void ) gen;
@@ -428,7 +434,7 @@ v64GenAscValue(v64Gen *gen, int value) { // TODO: need to be refactored via Tabl
     v64GenAdvance(gen, 1);
 
     value64 result = V64GENREGVAL0(gen);
-   if (gen->type == VALUE64_STR || gen->type == VALUE64_FS) {
+    if (gen->type == VALUE64_STR || gen->type == VALUE64_FS) {
             int         val = value64_long(result);       
 
             const char *fmt = v64typedNvlStr(V64GENREG1(gen), "%d");
@@ -439,8 +445,8 @@ v64GenAscValue(v64Gen *gen, int value) { // TODO: need to be refactored via Tabl
             else {
                 result = LITERAL64_STR(fs_movetostr(&tmp) );
             }
-    } else
-        v64typedAdd(&V64GENREG0(gen), value);
+    } 
+    v64typedAdd(&V64GENREG0(gen), value);
 
     return result;
 }
@@ -589,14 +595,15 @@ v64GenFSToStringTargetByNewline(v64Gen *gen, value64_type typ){
             line_len--;                       /* remove trailing \r */
         
         fs      line = fs_newsubstr(src, pos, line_len);     // must be freed!!!!!
+        
         // update current position
-        //gen->position = newline - src->v + 1;   /* because of '\n' */
-        v64GenAdvanceByLine(gen, newline - src->v + 1);
+        v64GenAdvanceByLine(gen, newline - src->v + 1 - pos);   /* because of '\n' */
         if (typ == VALUE64_FS)
             res = value64_movefs(&line);
         else    // VALUE64_STR
             res = LITERAL64_STR(fs_movetostr(&line));
     };
+
     return res;
 }
 
@@ -655,11 +662,12 @@ v64GenFileToStringTargetByNewline(v64Gen *gen) {
         res = value64_createfs(buf);
 
     if (st == GETLINE_LINE)
-        v64GenAdvanceByLine(gen, buf->len + 1);
+        v64GenAdvanceByLine(gen, buf->len + 1 - gen->position);
     fs_clear(buf);
     // VALUE64_TECHFPRINT(logfile, res, gen->typ);
     return res;
 } 
+
 
 
 // RETURNS: CHR
@@ -677,9 +685,10 @@ v64GenStringToChar(v64Gen *gen) {
     if (*str == '\0')       // not an error, normal situation
         return logsimpleret(value64_createchar('\0'), "cstr source is exhausted by \\0");
 
-    off_t        remaining = gen->limit;
-    if (remaining <= 0)
-        return logsimpleret(value64_createchar('\0'), "cstr source is exhausted by limit");
+    off_t        remaining = gen->limit;   // -1L - unlim
+    if (!haslimit(remaining))
+        return logsimpleret(value64_createchar('\0'), 
+                    "cstr source is exhausted by limit (%lld)", remaining);
 
     v64GenAdvance(gen, 1);
 
@@ -734,7 +743,7 @@ value64                         v64GenFileToChar(v64Gen *gen)
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
-int                             v64Techfprint(FILE *restrict out, const v64Gen *restrict gen, const char *restrict name) {
+int                             v64GenTechfprint(FILE *restrict out, const v64Gen *restrict gen, const char *restrict name) {
     int cnt = 0;
     if (out) {
         IOCHECKER(w, fprintf(out, "V64GEN:%s [", name), -1)  // name cab be NULL
@@ -1162,11 +1171,17 @@ tf3_gen_asc_series(const char *name)
         v64Gen gen = v64GenCreatorUnlimAscStrSeries(0, NULL);
 
         value64 v1 = v64GenNext(&gen);
-        test_validate(strcmp(value64_str(v1), "0") == 0, "first must be '0'");
+        test_validate(
+            strcmp(value64_str(v1), "0") == 0, 
+            "first must be '0', but got '%s'", value64_str(v1)
+        );
         value64_free(&v1, VALUE64_STR);
 
         value64 v2 = v64GenNext(&gen);
-        test_validate(strcmp(value64_str(v2), "1") == 0, "second must be '1'");
+        test_validate(
+            strcmp(value64_str(v2), "1") == 0,
+            "second must be '1', got '%s'", value64_str(v2)
+        );
         value64_free(&v2, VALUE64_STR);
 
         value64 v3 = v64GenNext(&gen);
@@ -2212,7 +2227,9 @@ tf9_gen_unlim_random(const char *name)
             int num;
             bool ok = (sscanf(str, "%d", &num) == 1) && num >= 0 && num <= 4;
             test_validate(ok,
-                          "FS random default pattern mismatch: '%s'", str);
+                          "FS random default pattern mismatch: '%s', num %d", 
+                          str, num
+            );
             value64_free(&v, gen.type);
         }
         v64GenFree(&gen);
@@ -2237,14 +2254,20 @@ tf10_gen_string_source(const char *name)
         const char expected[] = "hello";
         for (int i = 0; i < (int)strlen(expected); i++) {
             value64 v = v64GenNext(&gen);
-            test_validate(value64_char(v) == expected[i],
-                          "pos %d: expected '%c', got '%c'", i, expected[i], value64_char(v));
+            test_validatefree(
+                value64_char(v) == expected[i],
+                v64GenFree(&gen),
+                "pos %d: expected '%c', got '%c'", i, expected[i], value64_char(v)
+            );
             value64_free(&v, gen.type);
         }
 
         value64 v_end = v64GenNext(&gen);
-        test_validate(value64_char(v_end) == '\0',
-                      "after end expected '\\0', got '%c'", value64_char(v_end));
+        test_validatefree(
+            value64_char(v_end) == '\0',
+            v64GenFree(&gen),
+            "after end expected '\\0', got '%c'", value64_char(v_end)
+        );
         value64_free(&v_end, gen.type);
 
         v64GenFree(&gen);
@@ -2559,9 +2582,14 @@ tf14_gen_fs_bynewline(const char *name)
         // 1-я строка "abc"
         value64 v1 = v64GenNext(&gen);
         test_validatefree(
-            !fs_isnull(value64_fs(v1)) && fs_cmpstr(value64_fs(v1), "abc") == 0,
-            value64_free(&v1, VALUE64_FS),
-            "line1 mismatch"
+            !fs_isnull(value64_fs(v1)),
+            (value64_free(&v1, VALUE64_FS), v64GenFree(&gen) ),
+            "fs v1 is null '%p",  value64_fs(v1) 
+        );
+        test_validatefree(
+            fs_cmpstr(value64_fs(v1), "abc") == 0,
+            (value64_free(&v1, VALUE64_FS), v64GenFree(&gen) ),
+            "line1 mismatch '%s", value64_fs(v1)->v
         );
         value64_free(&v1, VALUE64_FS);
 
@@ -2569,7 +2597,7 @@ tf14_gen_fs_bynewline(const char *name)
         value64 v2 = v64GenNext(&gen);
         test_validatefree(
             !fs_isnull(value64_fs(v2)) && fs_len(value64_fs(v2)) == 0,
-            value64_free(&v2, VALUE64_FS),
+            (value64_free(&v2, VALUE64_FS), v64GenFree(&gen) ),
             "expected empty line (not null)"
         );
         value64_free(&v2, VALUE64_FS);
@@ -2578,7 +2606,7 @@ tf14_gen_fs_bynewline(const char *name)
         value64 v3 = v64GenNext(&gen);
         test_validatefree(
             fs_isnull(value64_fs(v3)),
-            value64_free(&v3, VALUE64_FS),
+            (value64_free(&v3, VALUE64_FS), v64GenFree(&gen) ),
             "expected null fs (waiting for data)"
         );
         value64_free(&v3, VALUE64_FS);
@@ -2586,9 +2614,14 @@ tf14_gen_fs_bynewline(const char *name)
         // Финализация: остаток "qwertt"
         value64 v_last = v64GenFinalize(&gen);
         test_validatefree(
-            !fs_isnull(value64_fs(v_last)) && fs_cmpstr(value64_fs(v_last), "qwertt") == 0,
+            !fs_isnull(value64_fs(v_last)),
             value64_free(&v_last, VALUE64_FS),
-            "final line mismatch"
+            "final line is null %p", value64_fs(v_last)
+        );
+        test_validatefree(
+            fs_cmpstr(value64_fs(v_last), "qwertt") == 0,
+            (value64_free(&v_last, VALUE64_FS), v64GenFree(&gen) ),
+            "final line mismatch '%s'", value64_fs(v_last)->v
         );
         value64_free(&v_last, VALUE64_FS);
 
@@ -2596,7 +2629,7 @@ tf14_gen_fs_bynewline(const char *name)
         value64 v_end = v64GenNext(&gen);
         test_validatefree(
             fs_isnull(value64_fs(v_end)),
-            value64_free(&v_end, VALUE64_FS),
+            (value64_free(&v_end, VALUE64_FS), v64GenFree(&gen) ),
             "expected null after finalize"
         );
         value64_free(&v_end, VALUE64_FS);
@@ -2682,7 +2715,7 @@ tf15_gen_fs_remaining(const char *name)
         fs buf = fscopy("abc");
         v64Gen gen = v64GenCreatorSourceFsToChar(&buf);
 
-        unsigned long rem = v64GenGetRemainingCount(&gen);
+        unsigned long rem = v64GenUpdateLimit(&gen);
         test_validatefree(
             rem == fslen(buf), 
             v64GenFree(&gen),
@@ -2695,14 +2728,14 @@ tf15_gen_fs_remaining(const char *name)
             value64_free(&v, VALUE64_CHR);
         }
 
-        rem = v64GenGetRemainingCount(&gen);
+        rem = v64GenUpdateLimit(&gen);
         test_validate(rem == 0, "after full read remaining should be 0, got %lu", rem);
 
         // Добавляем новые данные в буфер
         fs_catstr(&buf, "def");
 
         // Генератор должен увидеть новые данные, позиция осталась на 3
-        rem = v64GenGetRemainingCount(&gen);
+        rem = v64GenUpdateLimit(&gen);
         test_validatefree(
             rem == 3, 
             v64GenFree(&gen),
@@ -2718,7 +2751,7 @@ tf15_gen_fs_remaining(const char *name)
         );
         value64_free(&v1, VALUE64_CHR);
 
-        rem = v64GenGetRemainingCount(&gen);
+        rem = v64GenUpdateLimit(&gen);
         test_validatefree(
             rem == 2, 
             v64GenFree(&gen),
@@ -2731,7 +2764,7 @@ tf15_gen_fs_remaining(const char *name)
             value64_free(&v, VALUE64_CHR);
         }
 
-        rem = v64GenGetRemainingCount(&gen);
+        rem = v64GenUpdateLimit(&gen);
         test_validatefree(
             rem == 0, 
             v64GenFree(&gen),
