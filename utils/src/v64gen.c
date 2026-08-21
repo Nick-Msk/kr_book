@@ -3587,6 +3587,117 @@ tf20_gen_string_source_limited(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST 30: fs -> CHAR generator (limit, append) -------------------------
+static TestStatus
+tf21_gen_fs_char(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Чтение всего содержимого */
+    test_sub("subtest %d: read all chars", ++subnum);
+    {
+        const char *text = "hello";
+        fs src = fscopy(text);
+        v64Gen gen = v64GenCreatorSourceFsToChar(&src);
+
+        size_t i = 0;
+        value64 v;
+        while (v64GenGetIfHasnext(&gen, &v)) {
+            test_validatefree(
+                value64_char(v) == text[i],
+                (value64_free(&v, VALUE64_CHR), v64GenFree(&gen), fsfree(src)),
+                "pos %zu: expected '%c', got '%c'", i, text[i], value64_char(v)
+            );
+            value64_free(&v, VALUE64_CHR);
+            i++;
+        }
+        test_validatefree(i == 5,
+                          (v64GenFree(&gen), fsfree(src)),
+                          "expected 5 chars, got %zu", i);
+
+        v64GenFree(&gen);
+        fsfree(src);
+        fs_alloc_check(true);
+    }
+
+    /* 2. Дозапись после первоначального чтения */
+    test_sub("subtest %d: append data and continue reading", ++subnum);
+    {
+        fs src = fscopy("hello");
+        v64Gen gen = v64GenCreatorSourceFsToChar(&src);
+
+        // читаем первые 5 символов
+        size_t i = 0;
+        value64 v;
+        while (v64GenGetIfHasnext(&gen, &v)) {
+            test_validatefree(
+                value64_char(v) == "hello"[i],
+                (value64_free(&v, VALUE64_CHR), v64GenFree(&gen), fsfree(src)),
+                "part1 pos %zu mismatch", i
+            );
+            value64_free(&v, VALUE64_CHR);
+            i++;
+        }
+        test_validatefree(i == 5,
+                          (v64GenFree(&gen), fsfree(src)),
+                          "expected 5 chars from part1, got %zu", i);
+
+        // дозаписываем " world"
+        fs_catstr(&src, " world");
+        v64GenUpdateLimit(&gen);   // пересчитает limit = fs_len - position
+
+        i = 0;
+        const char *expect = " world";
+        while (v64GenGetIfHasnext(&gen, &v)) {
+            test_validatefree(
+                value64_char(v) == expect[i],
+                (value64_free(&v, VALUE64_CHR), v64GenFree(&gen), fsfree(src)),
+                "part2 pos %zu mismatch", i
+            );
+            value64_free(&v, VALUE64_CHR);
+            i++;
+        }
+        test_validatefree(i == strlen(expect),
+                          (v64GenFree(&gen), fsfree(src)),
+                          "expected %zu chars from part2, got %zu", strlen(expect), i);
+
+        v64GenFree(&gen);
+        fsfree(src);
+        fs_alloc_check(true);
+    }
+
+    /* 3. Проверка что после конца данных возвращается false */
+    test_sub("subtest %d: no more data after end", ++subnum);
+    {
+        fs src = fscopy("abc");
+        v64Gen gen = v64GenCreatorSourceFsToChar(&src);
+
+        value64 v;
+        int count = 0;
+        while (v64GenGetIfHasnext(&gen, &v)) {
+            value64_free(&v, VALUE64_CHR);
+            count++;
+        }
+        test_validatefree(count == 3,
+                          (v64GenFree(&gen), fsfree(src)),
+                          "expected 3 chars, got %d", count);
+
+        // ещё раз убеждаемся, что цикл не пойдёт снова
+        test_validatefree(
+            !v64GenGetIfHasnext(&gen, &v),
+            (v64GenFree(&gen), fsfree(src)),
+            "expected no more data"
+        );
+
+        v64GenFree(&gen);
+        fsfree(src);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(/* int argc, const char *argv[] */)
@@ -3614,6 +3725,7 @@ main(/* int argc, const char *argv[] */)
       , TESTADD(tf18_gen_stream_update_file,    "v64GenCreatorSourceFileChar() simple test")
       , TESTADD(tf19_gen_file_bynewline,        "v64GenCreatorSourceFileToCommonOutput() simple test")
       , TESTADD(tf20_gen_string_source_limited, "Limited C-string to CHAR generator simple test")
+      , TESTADD(tf21_gen_fs_char,               "fs -> CHAR generator (limit, append) simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
