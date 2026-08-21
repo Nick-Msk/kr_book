@@ -40,7 +40,7 @@ typedef struct v64Gen {
     off_t                   position;  // remaned from counter 
     // func
     v64GenUpdaterFunc       updater;
-    v64GenFinalizerFunc     finalizer;
+    //v64GenFinalizerFunc     finalizer;
     // register for common usage
     v64typed                data[V64GENCOUNT];
 } v64Gen;
@@ -127,7 +127,7 @@ static inline v64Gen                v64GenZero(void) {
         .type       = VALUE64_UNKNOWN,
         .position   = 0L,
         .limit      = 0L,  // -1 no limit, 0 out of lim
-        .finalizer  = NULL,
+        //.finalizer  = NULL,
         .updater  = NULL,
         .data = {
             [0] = { .val = LITERAL64_ZERO, .typ = VALUE64_UNKNOWN },
@@ -617,14 +617,14 @@ static inline unsigned long     v64GenUpdateLimit(v64Gen *gen) {
         return gen->limit;
 }
 // ----- Source stream finallizer -------------
-static inline value64           v64GenFinalize(v64Gen *gen) {
-    invraisecode(gen != NULL, ERR_NULLABLE_PTR, "NUll gen");
+// static inline value64           v64GenFinalize(v64Gen *gen) {
+//     invraisecode(gen != NULL, ERR_NULLABLE_PTR, "NUll gen");
 
-    if (gen->finalizer)
-        return gen->finalizer(gen);
-    else
-        return userraise(LITERAL64_ZERO, ERR_UNSUPPORTED_GENERATOR, "Only sereval SOURCE generators support GenFinalize");
-}
+//     if (gen->finalizer)
+//         return gen->finalizer(gen);
+//     else
+//         return userraise(LITERAL64_ZERO, ERR_UNSUPPORTED_GENERATOR, "Only sereval SOURCE generators support GenFinalize");
+// }
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
