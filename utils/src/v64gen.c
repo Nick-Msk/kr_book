@@ -647,6 +647,9 @@ static value64
 v64GenFileToStringTargetByNewline(v64Gen *gen) {
     invraisecode(gen != NULL, ERR_NULLABLE_PTR, "Null generator");
     
+    if (gen->limit == 0L)
+        return logsimpleret(LITERAL64_ZERO, "zero limit! stream eshausted");
+
     fs      *buf = V64GENREGVAL2(gen).fsval;
     FILE    *in = V64GENREGVAL0(gen).FILEval;
 
