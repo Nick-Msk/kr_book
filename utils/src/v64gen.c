@@ -3695,6 +3695,171 @@ tf21_gen_fs_char(const char *name)
         fs_alloc_check(true);
     }
 
+    /* 1. Пустая строка fscopy("") – должно быть 0 символов */
+    test_sub("subtest %d: empty fs (fscopy empty)", ++subnum);
+    {
+        fs src = fscopy("");
+        v64Gen gen = v64GenCreatorSourceFsToChar(&src);
+
+        value64 v;
+        bool has = v64GenGetIfHasnext(&gen, &v);
+        test_validatefree(
+            has == false,
+            (v64GenFree(&gen), fsfree(src)),
+            "expected no chars for empty fs, but got hasnext=true"
+        );
+
+        v64GenFree(&gen);
+        fsfree(src);
+        fs_alloc_check(true);
+    }
+
+    /* 2. Неинициализированный FS() – тоже 0 символов */
+    test_sub("subtest %d: uninitialized FS()", ++subnum);
+    {
+        fs src = FS();
+        v64Gen gen = v64GenCreatorSourceFsToChar(&src);
+
+        value64 v;
+        bool has = v64GenGetIfHasnext(&gen, &v);
+        test_validatefree(
+            has == false,
+            (v64GenFree(&gen), fsfree(src)),
+            "expected no chars for FS(), but got hasnext=true"
+        );
+
+        v64GenFree(&gen);
+        fsfree(src);
+        fs_alloc_check(true);
+    }
+
+    /* 3. Полное чтение, затем вызов v64GenUpdateLimit без изменений */
+    test_sub("subtest %d: update limit without appending data", ++subnum);
+    {
+        fs src = fscopy("abc");
+        v64Gen gen = v64GenCreatorSourceFsToChar(&src);
+
+        // читаем все 3 символа
+        value64 v;
+        int count = 0;
+        while (v64GenGetIfHasnext(&gen, &v)) {
+            value64_free(&v, VALUE64_CHR);
+            count++;
+        }
+        test_validatefree(count == 3,
+                          (v64GenFree(&gen), fsfree(src)),
+                          "expected 3 chars, got %d", count);
+
+        test_validatefree(
+            !v64GenHasnext(&gen),
+            (v64GenFree(&gen), fsfree(src)),
+            "v64GenHasnext must return false because no data"
+        );
+
+        // вызываем обновление без изменения источника
+        v64GenUpdateLimit(&gen);
+
+        // данных быть не должно
+        test_validatefree(
+            !v64GenGetIfHasnext(&gen, &v),
+            (v64GenFree(&gen), fsfree(src)),
+            "after update without appending, hasnext must be false"
+        );
+
+        v64GenFree(&gen);
+        fsfree(src);
+        fs_alloc_check(true);
+    }
+
+    /* 4. Частичное чтение, затем дозапись и продолжение */
+    test_sub("subtest %d: partial read, append, continue", ++subnum);
+    {
+        fs src = fscopy("hello");
+        v64Gen gen = v64GenCreatorSourceFsToChar(&src);
+
+        // читаем два символа
+        value64 v1, v2;
+        bool h1 = v64GenGetIfHasnext(&gen, &v1);
+        bool h2 = v64GenGetIfHasnext(&gen, &v2);
+        test_validatefree(
+            h1 && h2 && value64_char(v1) == 'h' && value64_char(v2) == 'e',
+            (value64_free(&v1, VALUE64_CHR), value64_free(&v2, VALUE64_CHR),
+             v64GenFree(&gen), fsfree(src)),
+            "first two chars mismatch"
+        );
+        value64_free(&v1, VALUE64_CHR);
+        value64_free(&v2, VALUE64_CHR);
+
+        // дозаписываем " world"
+        fs_catstr(&src, " world");
+        v64GenUpdateLimit(&gen);   // пересчитает limit = fs_len - position
+
+        // читаем оставшиеся символы
+        size_t i = 0;
+        const char *expect = "llo world";
+        value64 v;
+        while (v64GenGetIfHasnext(&gen, &v)) {
+            test_validatefree(
+                value64_char(v) == expect[i],
+                (value64_free(&v, VALUE64_CHR), v64GenFree(&gen), fsfree(src)),
+                "pos %zu: expected '%c', got '%c'", i, expect[i], value64_char(v)
+            );
+            value64_free(&v, VALUE64_CHR);
+            i++;
+        }
+        test_validatefree(i == strlen(expect),
+                          (v64GenFree(&gen), fsfree(src)),
+                          "expected %zu chars, got %zu", strlen(expect), i);
+
+        v64GenFree(&gen);
+        fsfree(src);
+        fs_alloc_check(true);
+    }
+
+        /* 5. Пустая fs, попытка чтения, затем дозапись и продолжение */
+    test_sub("subtest %d: empty fs, read attempt, append, continue", ++subnum);
+    {
+        fs src = fscopy("");     // или FS()
+        v64Gen gen = v64GenCreatorSourceFsToChar(&src);
+
+        // Попытка чтения при пустом буфере
+        value64 v;
+        bool has = v64GenGetIfHasnext(&gen, &v);
+        test_validatefree(
+            has == false,
+            (v64GenFree(&gen), fsfree(src)),
+            "expected no data on empty fs"
+        );
+
+        // Дозаписываем строку
+        const char *text = "hello";
+        fs_catstr(&src, text);
+
+        // Обновляем лимит: теперь должен появиться доступ к данным
+        v64GenUpdateLimit(&gen);
+
+        // Читаем все символы
+        size_t i = 0;
+        while (v64GenGetIfHasnext(&gen, &v)) {
+            test_validatefree(
+                value64_char(v) == text[i],
+                (value64_free(&v, VALUE64_CHR), v64GenFree(&gen), fsfree(src)),
+                "pos %zu: expected '%c', got '%c'", i, text[i], value64_char(v)
+            );
+            value64_free(&v, VALUE64_CHR);
+            i++;
+        }
+        test_validatefree(
+            i == strlen(text),
+            (v64GenFree(&gen), fsfree(src)),
+            "expected %zu chars, got %zu", strlen(text), i
+        );
+
+        v64GenFree(&gen);
+        fsfree(src);
+        fs_alloc_check(true);
+    }
+
     return TEST_PASSED;
 }
 
