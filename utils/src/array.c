@@ -561,13 +561,8 @@ static int                      ArrayFillRange_ASC(Array *parr, int from, int to
                     gen = v64GenCreatorAscRnd(v64typedCreateDbl(from), to - from,  g_array_acs_rndinc);
                     break;
                 case VALUE64_CHR:
-                {
-                    int     start_chr = from;
-                        if (start_chr > UCHAR_MAX)
-                            start_chr = UCHAR_MAX;
-                    gen = v64GenCreatorAscRnd(v64typedCreateChar((char) start_chr), to - from, g_array_acs_rndinc);
+                    gen = v64GenCreatorAscRnd(v64typedCreateChar(ucharmax(from)), to - from, g_array_acs_rndinc);
                     break;
-                }
                 case VALUE64_BOOL:
                     gen = v64GenCreatorAscRnd(v64typedCreateBool(from != 0), to - from, g_array_acs_rndinc);
                     break;
@@ -644,8 +639,7 @@ static int                      ArrayFillRange_DESC(Array *parr, int from, int t
                     break;
                 case VALUE64_CHR:
                     gen = v64GenCreatorDescRnd(
-                        v64typedCreateChar( (unsigned char ) (start_num > UCHAR_MAX ? UCHAR_MAX: start_num) ), 
-                        to - from, g_array_desc_rndinc);
+                        v64typedCreateChar(ucharmax(start_num)), to - from, g_array_desc_rndinc);
                     break;
                 case VALUE64_BOOL:
                     gen = v64GenCreatorDescRnd(v64typedCreateBool(from != 0), to - from, g_array_desc_rndinc);
@@ -864,13 +858,10 @@ static int                      ArrayFillRange_ASC_SERIES(Array *parr, int from,
                 case VALUE64_DBL:
                     gen = v64GenCreatorAscSeries(v64typedCreateDbl(from), to - from);
                     break;
-                case VALUE64_CHR: {
-                    int     start_chr = from;
-                        if (start_chr > UCHAR_MAX)
-                            start_chr = UCHAR_MAX;
-                    gen = v64GenCreatorAscSeries(v64typedCreateChar((char) start_chr), to - from);
+                case VALUE64_CHR:
+                    gen = v64GenCreatorAscSeries(
+                        v64typedCreateChar(ucharmax(from)), to - from);
                     break;
-                }
                 case VALUE64_BOOL:
                     gen = v64GenCreatorAscSeries(v64typedCreateBool(from != 0), to - from);
                     break;
@@ -947,13 +938,10 @@ static int                      ArrayFillRange_DESC_SERIES(Array *parr, int from
                 case VALUE64_DBL:
                     gen = v64GenCreatorDescSeries(v64typedCreateDbl(start_num), to - from);
                     break;
-                case VALUE64_CHR: {
-                    int     start_chr = start_num;
-                        if (start_chr > UCHAR_MAX)
-                            start_chr = UCHAR_MAX;
-                    gen = v64GenCreatorDescSeries(v64typedCreateChar((unsigned char)(UCHAR_MAX)), to - from);
+                case VALUE64_CHR:
+                    gen = v64GenCreatorDescSeries(
+                        v64typedCreateChar((unsigned char) UCHAR_MAX), to - from);
                     break;
-                }
                 case VALUE64_BOOL:
                     gen = v64GenCreatorDescSeries(v64typedCreateBool(false), to - from);
                     break;
