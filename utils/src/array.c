@@ -1384,6 +1384,101 @@ int                         Array_foreach_proc(Array *restrict arr, Array_cond c
     return logsimpleret(cnt, "processed %d", cnt);
 }
 
+/**
+ * @brief Fills a specified range within a v64 Array using a generator.
+ * 
+ * This function takes elements from the provided v64 generator and writes them 
+ * into the destination array starting from index @p from up to (but not including) 
+ * index @p to. 
+ * 
+ * @note **Safety Features:**
+ * - If @p from or @p to are outside the actual bounds of the array, they are 
+ *   automatically clamped to the array's size to prevent memory corruption.
+ * - The operation stops if the generator runs out of elements before the 
+ *   specified range is completed.
+ * - If @p from > @p to, the function returns an error via userraise.
+ *
+ * @param[in] parr Pointer to the destination Array (must be of type ARRAY_V64).
+ * @param[in] gen  Pointer to the v64 generator providing the data.
+ * @param[in] from The starting index for the fill operation (inclusive).
+ * @param[in] to   The ending index for the fill operation (exclusive).
+ * 
+ * @return The number of elements successfully written to the array.
+ *         Returns -1 (via userraise) if input pointers are NULL or indices are negative.
+ */
+int                                 ArrayGenPumprangeV64(Array *restrict parr, v64Gen *restrict gen, int from, int to) {
+    invraisecode(parr != NULL && gen != NULL, ERR_NULLABLE_PTR, 
+        "Null input %p %p", parr, gen);
+    invraisecode(ArrayIsV64(parr), ERR_UNSUPPORTED_TYPE, "Only V64 supported by pump");
+
+    if (from < 0 || to < 0 || from > to)
+        return userraise(-1, ERR_OUT_OF_RANGE, "%d - %d is negative", from, to);
+
+    if (to > Arraysz(parr)) {
+        logsimple("last postion %d is out of bound, cut to %d", to, Arraysz(parr));
+        to = Arraysz(parr);
+    }
+    if (from > Arraysz(parr)) {
+        logsimple("first postion %d is out of bound, cut to %d", from, Arraysz(parr));
+        from = Arraysz(parr);
+    }
+    int cnt = 0;
+    value64 *const end = parr->v64 + to;
+    value64 *pv = parr->v64 + from;
+
+    while (v64GenHasnext(gen) && pv < end) {
+        *pv++ = v64GenNext(gen);
+        cnt++;
+    }
+    return cnt; // cnt can be less than to - from
+}
+// intenal, no checking, size copy
+static int                   ArrayGenPumprangeBySize(Array *restrict parr, v64Gen *restrict gen, int from, int to, int sz) {
+    int             cnt = 0;
+    char           *pv = (char *) parr->v + from * sz;
+    char    *const end = (char *) parr->v + to * sz;
+
+    while (v64GenHasnext(gen) && pv < end) {
+        void    *source, *target;
+        value64 tmp = v64GenNext(gen);
+        switch (ArrayGettype(parr)) {
+            case ARRAY_INT: 
+                target = parr->iv; source = &tmp.ival;
+                break;
+            // ...
+        }
+        memcpy(target, source, sz); // ?????????
+        pv += sz;   // next elem in th array
+        cnt++;
+    }
+    return cnt;
+}
+
+// pump gen data into parr, no convertatiob here! Types must be equal
+int                          ArrayGenPumprangeScalar(Array *restrict parr, v64Gen *restrict gen, int from, int to) {
+    invraisecode(parr != NULL && gen != NULL, ERR_NULLABLE_PTR, 
+        "Null input %p %p", parr, gen);
+    invraisecode(!ArrayIsV64(parr), ERR_UNSUPPORTED_TYPE, 
+        "Only scalar supported by scalar pump, but not %d/%s", ArrayGettype(parr), ArrayGetTypeName(parr));
+    // TODO: better via matrix, that is temp solution
+    int elemsz;
+    if (ArrayGettype(parr) == ARRAY_INT && gen->type == VALUE64_INT)
+        elemsz = ArrayGetelemsize(parr);
+    else if (ArrayGettype(parr) == ARRAY_LONG && gen->type == VALUE64_LONG)
+        elemsz = ArrayGetelemsize(parr);
+    else if (ArrayGettype(parr) == ARRAY_DOUBLE && gen->type == VALUE64_DBL)
+        elemsz = ArrayGetelemsize(parr);
+    else if (ArrayGettype(parr) == ARRAY_CHAR && gen->type == VALUE64_CHR)
+        elemsz = ArrayGetelemsize(parr);
+    else
+        return userraise(-1, ERR_TYPES_MISMATCH, 
+            "%d/%s vs %d/%s", ArrayGettype(parr), ArrayGetTypeName(parr),
+            gen->type, value64_typename(gen->type)
+        );
+    return ArrayGenPumprangeBySize(parr, gen, from, to, elemsz);
+}
+
+
 // -------------------------- (API) printers -----------------------
 
 /**
