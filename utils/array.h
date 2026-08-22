@@ -709,6 +709,7 @@ extern int                      Array_foreach_rev_proc(Array *restrict parr, Arr
 static inline int                   ArrayGenPumprange(const Array *restrict parr, v64Gen *restrict gen, int from, int to) {
     invraisecode(parr != NULL && gen != NULL, ERR_NULLABLE_PTR, 
         "Null input %p %p", parr, gen);
+    invraisecode(ArrayIsV64(parr), ERR_UNSUPPORTED_TYPE, "Only V64 supported by pump");
 
     if (from < 0 || to < 0 || from > to)
         return userraise(-1, ERR_OUT_OF_RANGE, "%d - %d is negative", from, to);
