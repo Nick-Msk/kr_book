@@ -552,12 +552,18 @@ static inline bool              isdigit_signed(int c){
     return isdigit(c) || c == '+' || c == '-';
 }
 
-static inline int clower(int c, bool lower){
+static inline int               clower(int c, bool lower){
     return lower ? tolower(c) : c;
 }
 
-static inline int cupper(int c, bool upper){
+static inline int               cupper(int c, bool upper){
     return upper ? toupper(c) : c;
+}
+// unsigned char max normalizer
+static inline unsigned char     ucharmax(int c) {
+    if (c > UCHAR_MAX)
+        c = UCHAR_MAX;
+    return c;
 }
 
 typedef enum {SIZE_NONE = 0, SIZE_POWER2, SIZE_MIN10 } Tincrease;
