@@ -723,6 +723,7 @@ static inline int                   ArrayGenPumprange(const Array *restrict parr
     }
     int cnt = 0;
     value64 *const end = parr->v64 + to;
+
     value64 *pv = parr->v64 + from;
         while (v64GenHasnext(gen) && pv < end) {
             *pv++ = v64GenNext(gen);
