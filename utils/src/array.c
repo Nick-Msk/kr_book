@@ -568,33 +568,33 @@ static int                      ArrayFillRange_ASC(Array *parr, int from, int to
 
             switch (parr->v64type) {
                 case VALUE64_INT:
-                    gen = v64GenCreatorUnlimAscRnd(v64typedCreateInt(from), g_array_acs_rndinc); // g_array_acs_rndinc= 5 must be in context!
+                    gen = v64GenCreatorAscRnd(v64typedCreateInt(from), to - from, g_array_acs_rndinc); // g_array_acs_rndinc= 5 must be in context!
                     break;
                 case VALUE64_LONG:
-                    gen = v64GenCreatorUnlimAscRnd(v64typedCreateLong(from), g_array_acs_rndinc);
+                    gen = v64GenCreatorAscRnd(v64typedCreateLong(from), to - from, g_array_acs_rndinc);
                     break;
                 case VALUE64_ULONG:
-                    gen = v64GenCreatorUnlimAscRnd(v64typedCreateULong(from), g_array_acs_rndinc);
+                    gen = v64GenCreatorAscRnd(v64typedCreateULong(from), to - from, g_array_acs_rndinc);
                     break;
                 case VALUE64_DBL:
-                    gen = v64GenCreatorUnlimAscRnd(v64typedCreateDbl(from), g_array_acs_rndinc);
+                    gen = v64GenCreatorAscRnd(v64typedCreateDbl(from), to - from,  g_array_acs_rndinc);
                     break;
                 case VALUE64_CHR:
                 {
                     int     start_chr = from;
                         if (start_chr > UCHAR_MAX)
                             start_chr = UCHAR_MAX;
-                    gen = v64GenCreatorUnlimAscRnd(v64typedCreateChar((char) start_chr), g_array_acs_rndinc);
+                    gen = v64GenCreatorAscRnd(v64typedCreateChar((char) start_chr), to - from, g_array_acs_rndinc);
                     break;
                 }
                 case VALUE64_BOOL:
-                    gen = v64GenCreatorUnlimAscRnd(v64typedCreateBool(from != 0), g_array_acs_rndinc);
+                    gen = v64GenCreatorAscRnd(v64typedCreateBool(from != 0), to - from, g_array_acs_rndinc);
                     break;
                 case VALUE64_STR:
-                    gen = v64GenCreatorUnlimAscStrRnd(from, "%d", g_array_acs_rndinc);
+                    gen = v64GenCreatorAscStrRnd( to - from, from, "%d", g_array_acs_rndinc);
                     break;
                 case VALUE64_FS:
-                    gen = v64GenCreatorUnlimAscFsRnd(from, "%d", g_array_acs_rndinc);
+                    gen = v64GenCreatorAscFsRnd(to - from, from, "%d", g_array_acs_rndinc);
                     break;
                 default:
                     v64GenFree(&gen);
@@ -603,8 +603,12 @@ static int                      ArrayFillRange_ASC(Array *parr, int from, int to
                                     parr->v64type, ArrayGetV64typeName(parr));
             }
 
-            for (int i = from; i < to; i++)
-                parr->v64[i] = v64GenNext(&gen);
+            /*for (int i = from; i < to; i++)
+                parr->v64[i] = v64GenNext(&gen);*/
+            value64 *pv = parr->v64;
+            while (v64GenHasnext(&gen) )
+                *pv++ = v64GenNext(&gen);
+            // break;
 
             v64GenFree(&gen);
             break;

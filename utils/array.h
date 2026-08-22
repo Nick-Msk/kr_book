@@ -115,11 +115,11 @@ typedef struct {
         void   **pv;    // pointer array
         char    *cv;    // char array, NOT a char * array!
         struct {
-            value64 *v64;   // container type
+            value64        *v64;   // container type
             value64_type    v64type;        // applicable only for ARRAY_V64
         };
     };
-    // Slice API support
+    // Slice API support (not implemented yet)
     int             max_slice_end_pos;
     ArraySlice      *first_child;
 } Array;
