@@ -704,8 +704,28 @@ extern int                      Array_foreach_rev_proc(Array *restrict parr, Arr
 #define PArray_foreach(parr, elem)   _Array_foreach_gen((parr)->pv, (parr)->len, elem)
 #define V64Array_foreach(parr, elem) _Array_foreach_gen((parr)->v64, (parr)->len, elem)
 
-// partial v64 gen => array pump
-// currently ONLY for v64 containter type
+/**
+ * @brief Fills a specified range within a v64 Array using a generator.
+ * 
+ * This function takes elements from the provided v64 generator and writes them 
+ * into the destination array starting from index @p from up to (but not including) 
+ * index @p to. 
+ * 
+ * @note **Safety Features:**
+ * - If @p from or @p to are outside the actual bounds of the array, they are 
+ *   automatically clamped to the array's size to prevent memory corruption.
+ * - The operation stops if the generator runs out of elements before the 
+ *   specified range is completed.
+ * - If @p from > @p to, the function returns an error via userraise.
+ *
+ * @param[in] parr Pointer to the destination Array (must be of type ARRAY_V64).
+ * @param[in] gen  Pointer to the v64 generator providing the data.
+ * @param[in] from The starting index for the fill operation (inclusive).
+ * @param[in] to   The ending index for the fill operation (exclusive).
+ * 
+ * @return The number of elements successfully written to the array.
+ *         Returns -1 (via userraise) if input pointers are NULL or indices are negative.
+ */
 static inline int                   ArrayGenPumprange(const Array *restrict parr, v64Gen *restrict gen, int from, int to) {
     invraisecode(parr != NULL && gen != NULL, ERR_NULLABLE_PTR, 
         "Null input %p %p", parr, gen);
@@ -732,8 +752,18 @@ static inline int                   ArrayGenPumprange(const Array *restrict parr
         }
     return cnt; // cnt can be less than to - from
 }
-// full v64 gen => array pump
-// currently ONLY for v64 containter type
+
+/**
+ * @brief Fills the entire v64 Array using a generator.
+ * 
+ * A convenience wrapper for @ref ArrayGenPumprange that fills the array 
+ * from index 0 to the end of the array.
+ *
+ * @param[in] parr Pointer to the destination Array (must be of type ARRAY_V64).
+ * @param[in] gen  Pointer to the v64 generator.
+ * 
+ * @return The number of elements successfully written to the array.
+ */
 static inline int                   ArrayGenPumpall(const Array *restrict parr, v64Gen *restrict gen) {
     return ArrayGenPumprange(parr, gen, 0, Arraylen(parr));
 }
