@@ -734,7 +734,7 @@ static int                      ArrayFillRange_SAFE_EMPTY(Array *parr, int from,
                 }
                 case VALUE64_STR: {
                     for (int i = from; i < to; i++)
-                        parr->v64[i] = LITERAL64_STR("");
+                        parr->v64[i] = LITERAL64_STR(NULL);
                     break;
                 }
                 default:
