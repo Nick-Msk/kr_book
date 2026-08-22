@@ -726,7 +726,7 @@ extern int                      Array_foreach_rev_proc(Array *restrict parr, Arr
  * @return The number of elements successfully written to the array.
  *         Returns -1 (via userraise) if input pointers are NULL or indices are negative.
  */
-static inline int                   ArrayGenPumprange(const Array *restrict parr, v64Gen *restrict gen, int from, int to) {
+static inline int                   ArrayGenPumprangeV64(const Array *restrict parr, v64Gen *restrict gen, int from, int to) {
     invraisecode(parr != NULL && gen != NULL, ERR_NULLABLE_PTR, 
         "Null input %p %p", parr, gen);
     invraisecode(ArrayIsV64(parr), ERR_UNSUPPORTED_TYPE, "Only V64 supported by pump");
@@ -756,7 +756,7 @@ static inline int                   ArrayGenPumprange(const Array *restrict parr
 /**
  * @brief Fills the entire v64 Array using a generator.
  * 
- * A convenience wrapper for @ref ArrayGenPumprange that fills the array 
+ * A convenience wrapper for @ref ArrayGenPumprangeV64 that fills the array 
  * from index 0 to the end of the array.
  *
  * @param[in] parr Pointer to the destination Array (must be of type ARRAY_V64).
@@ -764,8 +764,8 @@ static inline int                   ArrayGenPumprange(const Array *restrict parr
  * 
  * @return The number of elements successfully written to the array.
  */
-static inline int                   ArrayGenPumpall(const Array *restrict parr, v64Gen *restrict gen) {
-    return ArrayGenPumprange(parr, gen, 0, Arraylen(parr));
+static inline int                   ArrayGenPumpallV64(const Array *restrict parr, v64Gen *restrict gen) {
+    return ArrayGenPumprangeV64(parr, gen, 0, Arraylen(parr));
 }
 
 // ----------------- PRINTERS/SERIALYZATION ----------------------

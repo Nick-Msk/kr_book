@@ -579,7 +579,7 @@ static int                      ArrayFillRange_ASC(Array *parr, int from, int to
                                     parr->v64type, ArrayGetV64typeName(parr));
             }
             // move the data!
-            ArrayGenPumprange(parr, &gen, from, to);
+            ArrayGenPumprangeV64(parr, &gen, from, to);
 
             v64GenFree(&gen);
             break;
@@ -657,7 +657,7 @@ static int                      ArrayFillRange_DESC(Array *parr, int from, int t
                                     parr->v64type, ArrayGetV64typeName(parr));
             }
             // move the data!
-            ArrayGenPumprange(parr, &gen, from, to);
+            ArrayGenPumprangeV64(parr, &gen, from, to);
 
             v64GenFree(&gen);
             break;
@@ -699,7 +699,7 @@ static int                      ArrayFillRange_ZERO(Array *parr, int from, int t
         case ARRAY_V64: {
             v64Gen gen = v64GenCreatorZero(parr->v64type, to - from);   // обёртка, если есть
             // move the data!
-            ArrayGenPumprange(parr, &gen, from, to);
+            ArrayGenPumprangeV64(parr, &gen, from, to);
 
             v64GenFree(&gen);
             break;
@@ -801,7 +801,7 @@ static int                      ArrayFillRange_RND(Array *parr, int from, int to
                                     parr->v64type, ArrayGetV64typeName(parr));
             }
             // move the data!
-            ArrayGenPumprange(parr, &gen, from, to);
+            ArrayGenPumprangeV64(parr, &gen, from, to);
 
             v64GenFree(&gen);
             break;
@@ -877,7 +877,7 @@ static int                      ArrayFillRange_ASC_SERIES(Array *parr, int from,
                         ArrayGetV64typeName(parr));
             }
             // move the data!
-            ArrayGenPumprange(parr, &gen, from, to);
+            ArrayGenPumprangeV64(parr, &gen, from, to);
 
             v64GenFree(&gen);
             break;
@@ -957,7 +957,7 @@ static int                      ArrayFillRange_DESC_SERIES(Array *parr, int from
                                     parr->v64type, ArrayGetV64typeName(parr));
             }
             // move the data!
-            ArrayGenPumprange(parr, &gen, from, to);
+            ArrayGenPumprangeV64(parr, &gen, from, to);
 
             v64GenFree(&gen);
             break;
