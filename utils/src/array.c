@@ -583,10 +583,8 @@ static int                      ArrayFillRange_ASC(Array *parr, int from, int to
                                     "Unsupported v64 type for ASC fill: %d/%s",
                                     parr->v64type, ArrayGetV64typeName(parr));
             }
-
-            value64 *pv = parr->v64 + from;
-            while (v64GenHasnext(&gen) && pv < parr->v64 + to)
-                *pv++ = v64GenNext(&gen);
+            // move the data!
+            ArrayGenPumprange(parr, &gen, from, to);
 
             v64GenFree(&gen);
             break;
@@ -664,10 +662,8 @@ static int                      ArrayFillRange_DESC(Array *parr, int from, int t
                                     "Unsupported v64 type for ASC fill: %d/%s",
                                     parr->v64type, ArrayGetV64typeName(parr));
             }
-
-            value64 *pv = parr->v64 + from;
-            while (v64GenHasnext(&gen) && pv < parr->v64 + to)
-                *pv++ = v64GenNext(&gen);
+            // move the data!
+            ArrayGenPumprange(parr, &gen, from, to);
 
             v64GenFree(&gen);
             break;

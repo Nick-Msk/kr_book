@@ -704,24 +704,56 @@ extern int                      Array_foreach_rev_proc(Array *restrict parr, Arr
 #define PArray_foreach(parr, elem)   _Array_foreach_gen((parr)->pv, (parr)->len, elem)
 #define V64Array_foreach(parr, elem) _Array_foreach_gen((parr)->v64, (parr)->len, elem)
 
+// partial v64 gen => array pump
+// currently ONLY for v64 containter type
+static inline int                   ArrayGenPumprange(const Array *restrict parr, v64Gen *restrict gen, int from, int to) {
+    invraisecode(parr != NULL && gen != NULL, ERR_NULLABLE_PTR, 
+        "Null input %p %p", parr, gen);
+
+    if (from < 0 || to < 0 || from > to)
+        return userraise(-1, ERR_OUT_OF_RANGE, "%d - %d is negative", from, to);
+
+    if (to > Arraylen(parr)) {
+        logsimple("last postion %d is out of bound, cut to %d", to, Arraylen(parr));
+        to = Arraylen(parr);
+    }
+    if (from > Arraylen(parr)) {
+        logsimple("first postion %d is out of bound, cut to %d", from, Arraylen(parr));
+        from = Arraylen(parr);
+    }
+    int cnt = 0;
+    value64 *const end = parr->v64 + to;
+    value64 *pv = parr->v64 + from;
+        while (v64GenHasnext(gen) && pv < end) {
+            *pv++ = v64GenNext(gen);
+            cnt++;
+        }
+    return cnt; // cnt can be less than to - from
+}
+// full v64 gen => array pump
+// currently ONLY for v64 containter type
+static inline int                   ArrayGenPumpall(const Array *restrict parr, v64Gen *restrict gen) {
+    return ArrayGenPumprange(parr, gen, 0, Arraylen(parr));
+}
+
 // ----------------- PRINTERS/SERIALYZATION ----------------------
 
-extern long                     Arrayfprint(FILE *restrict out, const Array *restrict parr, int limit);
+extern long                         Arrayfprint(FILE *restrict out, const Array *restrict parr, int limit);
 
-static inline long              Array_print(const Array *parr, int limit){
+static inline long                  Array_print(const Array *parr, int limit){
     return Arrayfprint(stdout, parr, limit);
 }
 
-extern long                     ArraySaveFileName(const Array *restrict parr, const char *restrict fname);
-extern long                     ArraySaveFile(FILE *restrict out, const Array *restrict parr);
-extern Array                   *ArrayLoadFileName(const char *fname);
-extern Array                   *ArrayLoadFile(FILE *in);
+extern long                         ArraySaveFileName(const Array *restrict parr, const char *restrict fname);
+extern long                         ArraySaveFile(FILE *restrict out, const Array *restrict parr);
+extern Array                       *ArrayLoadFileName(const char *fname);
+extern Array                       *ArrayLoadFile(FILE *in);
 
 /** 
  * @brief   Value-only Saver by delim for file
  * @note    Deprecated
  */
-extern long                     ArraySaveFilevalues(const Array *parr, const char *restrict fname, char delim);
+extern long                         ArraySaveFilevalues(const Array *parr, const char *restrict fname, char delim);
 
 
 /**
@@ -734,7 +766,7 @@ extern long                     ArraySaveFilevalues(const Array *parr, const cha
  * @return    number of characters written, or -1 if `s` failed
  */
 
-extern long                     ArraySavefs(fs *restrict s, const Array *restrict parr);
+extern long                         ArraySavefs(fs *restrict s, const Array *restrict parr);
 /**
  * @brief Deserializes an array from a fs previously created by ArraySerialyze().
  *
@@ -742,7 +774,7 @@ extern long                     ArraySavefs(fs *restrict s, const Array *restric
  * @param arr pointer to the array to fill or NULL (dump read)
  * @return    number of characters consumed, or -1 on error
  */
-extern long                     ArrayLoadfs(const fs *restrict s, Array *restrict parr); 
+extern long                         ArrayLoadfs(const fs *restrict s, Array *restrict parr); 
 
 // ------------------ ETC. -------------------------
 
