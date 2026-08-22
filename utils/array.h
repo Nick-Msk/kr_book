@@ -713,13 +713,13 @@ static inline int                   ArrayGenPumprange(const Array *restrict parr
     if (from < 0 || to < 0 || from > to)
         return userraise(-1, ERR_OUT_OF_RANGE, "%d - %d is negative", from, to);
 
-    if (to > Arraylen(parr)) {
-        logsimple("last postion %d is out of bound, cut to %d", to, Arraylen(parr));
-        to = Arraylen(parr);
+    if (to > Arraysz(parr)) {
+        logsimple("last postion %d is out of bound, cut to %d", to, Arraysz(parr));
+        to = Arraysz(parr);
     }
-    if (from > Arraylen(parr)) {
-        logsimple("first postion %d is out of bound, cut to %d", from, Arraylen(parr));
-        from = Arraylen(parr);
+    if (from > Arraysz(parr)) {
+        logsimple("first postion %d is out of bound, cut to %d", from, Arraysz(parr));
+        from = Arraysz(parr);
     }
     int cnt = 0;
     value64 *const end = parr->v64 + to;
