@@ -1439,16 +1439,27 @@ static int                   ArrayGenPumprangeBySize(Array *restrict parr, v64Ge
     char    *const end = (char *) parr->v + to * sz;
 
     while (v64GenHasnext(gen) && pv < end) {
-        void    *source, *target;
-        value64 tmp = v64GenNext(gen);
+        value64 tmp = v64GenNext(gen);   // сохраняем значение, чтобы не брать адрес rvalue
+
         switch (ArrayGettype(parr)) {
-            case ARRAY_INT: 
-                target = parr->iv; source = &tmp.ival;
+            case ARRAY_INT:
+                *(int *)pv = tmp.ival;
                 break;
-            // ...
+            case ARRAY_LONG:
+                *(long *)pv = tmp.lval;
+                break;
+            case ARRAY_DOUBLE:
+                *(double *)pv = tmp.dval;
+                break;
+            case ARRAY_CHAR:
+                *(char *)pv = tmp.cval;
+                break;
+            default:
+                return userraise(-1, ERR_UNSUPPORTED_TYPE,
+                                 "Unsupported scalar type %d/%s",
+                                 ArrayGettype(parr), ArrayGetTypeName(parr));
         }
-        memcpy(target, source, sz); // ?????????
-        pv += sz;   // next elem in th array
+        pv += sz;
         cnt++;
     }
     return cnt;
