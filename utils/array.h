@@ -332,7 +332,7 @@ static inline Array            *DArray_create(int cnt, ArrayFillType typ){
  * @param fill     Initialization pattern.
  * @return Array*  Pointer to the new Array, or NULL.
  */
-static inline Array            *PArray_create(int cnt, ArrayFillType typ){
+static inline Array                *PArray_create(int cnt, ArrayFillType typ){
     return Array_create(cnt, typ, ARRAY_POINTER, VALUE64_UNKNOWN);
 }
 
@@ -342,7 +342,7 @@ static inline Array            *PArray_create(int cnt, ArrayFillType typ){
  * @param fill     Initialization pattern.
  * @return Array*  Pointer to the new Array, or NULL.
  */
-static inline Array            *CArray_create(int cnt, ArrayFillType typ){
+static inline Array                *CArray_create(int cnt, ArrayFillType typ){
     return Array_create(cnt, typ, ARRAY_CHAR, VALUE64_UNKNOWN);
 }
 
@@ -353,35 +353,35 @@ static inline Array            *CArray_create(int cnt, ArrayFillType typ){
  * @param v64_type   The specific v64 subtype.
  * @return Array*    Pointer to the new Array, or NULL.
  */
-static inline Array            *V64Array_create(int cnt, ArrayFillType typ, value64_type vt){
+static inline Array                *V64Array_create(int cnt, ArrayFillType typ, value64_type vt){
     return Array_create(cnt, typ, ARRAY_V64, vt);
 }
 
 // -------------- ACCESS AND MODIFICATION --------------
 
-static inline bool                ArrayIsV64(const Array *a);
-static inline bool                ArrayIschar(const Array *a);
+static inline bool                  ArrayIsV64(const Array *a);
+static inline bool                  ArrayIschar(const Array *a);
 
 static inline const ArrayTypeInfo *ArrayGetTypeInfo(const Array *parr) {
     invraisecode(parr != NULL, ERR_NULLABLE_PTR, "NUll input");
     return ArrayTypeGetInfo(parr->flags);
 }
 
-static inline ArrayType           ArrayGettype(const Array *parr) {
+static inline ArrayType             ArrayGettype(const Array *parr) {
     invraisecode(parr != NULL, ERR_NULLABLE_PTR, "Null input");
 
     return parr->flags & 0xFF;
 }
 
-static inline const char       *ArrayGetTypeName(const Array *parr) {
+static inline const char           *ArrayGetTypeName(const Array *parr) {
     return ArrayTypeGetName(ArrayGettype(parr));
 }
 
-static inline const char       *ArrayGetTypeRealName(const Array *parr) {
+static inline const char           *ArrayGetTypeRealName(const Array *parr) {
     return ArrayTypeGetRealName(ArrayGettype(parr));
 }
 
-static inline const char       *ArrayGetV64typeName(const Array *parr) {
+static inline const char           *ArrayGetV64typeName(const Array *parr) {
     if (ArrayIsV64(parr))
         return value64_typename(parr->v64type);    // query V64 API
     else
@@ -391,56 +391,94 @@ static inline const char       *ArrayGetV64typeName(const Array *parr) {
 /// @brief check if array is INT
 /// @param a array
 /// @return true if INT
-static inline bool              ArrayIsint(const Array *parr){
+static inline bool                  ArrayIsint(const Array *parr){
     return ArrayGettype(parr) == ARRAY_INT;
 }
 /// @brief check if array is LONG
 /// @param a array
 /// @return true if LONG
-static inline bool              ArrayIslong(const Array *parr){
+static inline bool                  ArrayIslong(const Array *parr){
     return ArrayGettype(parr) == ARRAY_LONG;
 } 
 /// @brief check if array is DBL
 /// @param a array
 /// @return true if DBL
-static inline bool              ArrayIsdouble(const Array *parr){
+static inline bool                  ArrayIsdouble(const Array *parr){
     return ArrayGettype(parr) == ARRAY_DOUBLE;
 }
 /// @brief check if array is PTR
 /// @param a array
 /// @return true if PTR
-static inline bool              ArrayIspointer(const Array *parr){
+static inline bool                  ArrayIspointer(const Array *parr){
     return ArrayGettype(parr) == ARRAY_POINTER;
 }
 /// @brief check if array is CHAR
 /// @param a array
 /// @return true if CHAR
-static inline bool              ArrayIschar(const Array *parr){
+static inline bool                  ArrayIschar(const Array *parr){
     return ArrayGettype(parr) == ARRAY_CHAR;
 }
 /// @brief check if array is VALUE64
 /// @param a array
 /// @return true if VALUE64
-static inline bool              ArrayIsV64(const Array *parr){
+static inline bool                  ArrayIsV64(const Array *parr){
     return ArrayGettype(parr) == ARRAY_V64;
 }
 
 /// @brief check if array is valuuable
 /// @param a array
 /// @return true if ok 
-static inline bool              ArrayIsvalid(const Array *parr){
+static inline bool                  ArrayIsvalid(const Array *parr){
     return ( parr != NULL && ( /*!(a.flags & ARRAY_ERROR) && */
              parr->flags &
             (ARRAY_INT | ARRAY_LONG | ARRAY_DOUBLE | ARRAY_POINTER | ARRAY_CHAR | ARRAY_V64
             ) ) > 0) && parr->sz >= parr->len && parr->len >= 0 && parr->v != 0;
 }
+
+/**
+ * @brief Retrieves the size of a single element in bytes.
+ * 
+ * @details This function is a high-performance utility used for pointer 
+ *          arithmetic and calculating memory offsets. It queries the 
+ *          centralized metadata table to determine the element size 
+ *          based on the array's type.
+ * 
+ * @param parr Pointer to the array instance.
+ * @return size_t The size of one element in bytes.
+ * 
+ * @note This function assumes that the array type is valid and 
+ *       matches a known entry in the metadata table.
+ */
+static int                          ArrayGetelemsize(const Array *parr) {
+    invraisecode(ERR_NULLABLE_PTR, parr != NULL, "Null pointer");
+
+    return ArrayGetTypeInfo(parr)->elem_size;
+}
+
 /// @brief get array length (count of formatted values)
 /// @param a array
 /// @return count of formatted values
-static inline int               Arraylen(const Array *parr){
+static inline int                   Arraylen(const Array *parr){
     invraisecode(parr != NULL, ERR_NULLABLE_PTR, "Null input");
 
     return parr->len;
+}
+
+/// @brief get array min position (just v)
+/// @param a array
+/// @return count of formatted values
+static inline const void           *Arraymin(const Array *parr){
+    invraisecode(parr != NULL, ERR_NULLABLE_PTR, "Null input");
+
+    return parr->v;
+}
+/// @brief get  v64 array max position (just v64)
+/// @param a array
+/// @return count of formatted values
+static inline const value64        *Arraymaxv64(const Array *parr){
+    invraisecode(parr != NULL, ERR_NULLABLE_PTR, "Null input");
+
+    return parr->v64 + parr->len;
 }
 /// @brief get array size (total allocated values)
 /// @param a array

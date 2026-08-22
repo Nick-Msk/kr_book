@@ -11,6 +11,7 @@
 // TODO: context must be used for that
 int                      g_array_rec_line        = 20;  // TODO: rework that to normal (in Array structure)
 const char              *g_custom_print_line     = 0;   // TODO: rework that to normal (in Array structure)
+// TODO: move into context
 const char              *g_save_format_double    = "%6d      %15.15lg\n";
 const char              *g_save_format_int       = "%6d\t%6d\n";
 const char              *g_save_format_long      = "%6d\t%6ld\n";
@@ -102,26 +103,6 @@ static void                     freeV64elems(Array *arr, int from, int to) {
         }
         logsimple("freed %s  %d - %d", value64_typename(arr->v64type), from, to);
     }
-} 
-
-/**
- * @brief Retrieves the size of a single element in bytes.
- * 
- * @details This function is a high-performance utility used for pointer 
- *          arithmetic and calculating memory offsets. It queries the 
- *          centralized metadata table to determine the element size 
- *          based on the array's type.
- * 
- * @param parr Pointer to the array instance.
- * @return size_t The size of one element in bytes.
- * 
- * @note This function assumes that the array type is valid and 
- *       matches a known entry in the metadata table.
- */
-static int                      getelemsize(const Array *parr) {
-    invraisecode(ERR_NULLABLE_PTR, parr != NULL, "Null pointer");
-
-    return ArrayGetTypeInfo(parr)->elem_size;
 }
 
 /// @brief increase or descrease size of array
@@ -137,7 +118,7 @@ static int                      increase(Array *arr, int newsz){
     if (newsz > arr->sz)
         newsz = round_up_2(newsz);
 
-    int bytes = newsz * getelemsize(arr);
+    int bytes = newsz * ArrayGetelemsize(arr);
     if (bytes < 0) 
         return userraise(-1, ERR_UNKNOWN_TYPE, "Unknown type");
 
@@ -172,7 +153,7 @@ static int                      increase(Array *arr, int newsz){
 static int                  moveelem(Array *parr, int dest_idx, int src_idx, int cnt) {
     invraisecode(parr != NULL, ERR_NULLABLE_PTR, "Null array pointer");
 
-    size_t es = getelemsize(parr);
+    size_t es = ArrayGetelemsize(parr);
 
     // memmove is used to safely handle overlapping memory regions
     memmove((char *)parr->v + (dest_idx * es), 
@@ -603,12 +584,9 @@ static int                      ArrayFillRange_ASC(Array *parr, int from, int to
                                     parr->v64type, ArrayGetV64typeName(parr));
             }
 
-            /*for (int i = from; i < to; i++)
-                parr->v64[i] = v64GenNext(&gen);*/
             value64 *pv = parr->v64;
             while (v64GenHasnext(&gen) )
                 *pv++ = v64GenNext(&gen);
-            // break;
 
             v64GenFree(&gen);
             break;
@@ -655,32 +633,30 @@ static int                      ArrayFillRange_DESC(Array *parr, int from, int t
 
             switch (parr->v64type) {
                 case VALUE64_INT:
-                    gen = v64GenCreatorUnlimDescRnd(v64typedCreateInt(start_num), g_array_desc_rndinc); // g_array_desc_rndinc ==5 must be in context!
+                    gen = v64GenCreatorDescRnd(v64typedCreateInt(start_num), to - from, g_array_desc_rndinc); // g_array_desc_rndinc ==5 must be in context!
                     break;
                 case VALUE64_LONG:
-                    gen = v64GenCreatorUnlimDescRnd(v64typedCreateLong(start_num), g_array_desc_rndinc);
+                    gen = v64GenCreatorDescRnd(v64typedCreateLong(start_num), to - from, g_array_desc_rndinc);
                     break;
                 case VALUE64_ULONG:
-                    gen = v64GenCreatorUnlimDescRnd(v64typedCreateULong(start_num), g_array_desc_rndinc);
+                    gen = v64GenCreatorDescRnd(v64typedCreateULong(start_num), to - from, g_array_desc_rndinc);
                     break;
                 case VALUE64_DBL:
-                    gen = v64GenCreatorUnlimDescRnd(v64typedCreateDbl(start_num), g_array_desc_rndinc);
+                    gen = v64GenCreatorDescRnd(v64typedCreateDbl(start_num), to - from, g_array_desc_rndinc);
                     break;
-                case VALUE64_CHR: {
-                    int     start_chr = start_num;
-                        if (start_chr > UCHAR_MAX)
-                            start_chr = UCHAR_MAX;
-                        gen = v64GenCreatorUnlimDescRnd(v64typedCreateChar((char) start_chr), g_array_desc_rndinc);
+                case VALUE64_CHR:
+                    gen = v64GenCreatorDescRnd(
+                        v64typedCreateChar( (unsigned char ) (start_num > UCHAR_MAX ? UCHAR_MAX: start_num) ), 
+                        to - from, g_array_desc_rndinc);
                     break;
-                }
                 case VALUE64_BOOL:
-                    gen = v64GenCreatorUnlimDescRnd(v64typedCreateBool(from != 0), g_array_desc_rndinc);
+                    gen = v64GenCreatorDescRnd(v64typedCreateBool(from != 0), to - from, g_array_desc_rndinc);
                     break;
                 case VALUE64_STR:
-                    gen = v64GenCreatorUnlimDescStrRnd(start_num, "%d", g_array_desc_rndinc);
+                    gen = v64GenCreatorDescStrRnd(to - from, start_num, "%d", g_array_desc_rndinc);
                     break;
                 case VALUE64_FS:
-                    gen = v64GenCreatorUnlimDescFsRnd(start_num, "%d", g_array_desc_rndinc);
+                    gen = v64GenCreatorDescFsRnd(to - from, start_num, "%d", g_array_desc_rndinc);
                     break;
                 default:
                     v64GenFree(&gen);
@@ -688,8 +664,11 @@ static int                      ArrayFillRange_DESC(Array *parr, int from, int t
                                     "Unsupported v64 type for ASC fill: %d/%s",
                                     parr->v64type, ArrayGetV64typeName(parr));
             }
-            for (int i = from; i < to; i++)
-                parr->v64[i] = v64GenNext(&gen);
+            /*for (int i = from; i < to; i++)
+                parr->v64[i] = v64GenNext(&gen); */
+            value64 *pv = parr->v64;
+            while (v64GenHasnext(&gen) && pv < Arraymaxv64(parr) )
+                *pv++ = v64GenNext(&gen);
 
             v64GenFree(&gen);
             break;
@@ -1088,7 +1067,7 @@ Array                          *ArrayShrink(Array *parr, int newsz){
  * @param arr array (by value)
  */
 Array                       *ArrayShuffle(Array *parr) {
-    int elem_size = getelemsize(parr);
+    int elem_size = ArrayGetelemsize(parr);
     if (elem_size <= 0)
         userraise(NULL, ERR_UNSUPPORTED_TYPE, 
                         "unsupported type for shuffle %s", ArrayGetTypeName(parr));
@@ -1280,7 +1259,7 @@ bool                            ArrayNoteq(const Array *restrict parr1, const Ar
  * @throws ERR_UNSUPPORTED_TYPE if the array type cannot be sorted
  */
 void                                Array_qsort(Array *parr, ArrayFillType ord) {
-    int                 sz = getelemsize(parr);
+    int                 sz = ArrayGetelemsize(parr);
     if (sz <= 0) {
         userraiseint(ERR_UNSUPPORTED_TYPE, "Unable to get type size %d/%s", ArrayGettype(parr), ArrayGetTypeName(parr));
     }
