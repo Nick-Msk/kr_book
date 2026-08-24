@@ -672,12 +672,15 @@ static int                      ArrayFillRange_DESC(Array *parr, int from, int t
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-// TODO: refctor that to func table!
 static int                      ArrayFillRange_ZERO(Array *parr, int from, int to){
     v64Gen gen = v64GenCreatorZero(
             ArrayGetV64mapType(parr), to - from);
+    int cnt = ArrayGenPumprange(parr, &gen, from, to);
 
-    switch (ArrayGettype(parr) ) {
+    v64GenFree(&gen);
+    return cnt;
+
+    /*switch (ArrayGettype(parr) ) {
         case ARRAY_INT:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
                 parr->iv[i] = 0;
@@ -706,8 +709,7 @@ static int                      ArrayFillRange_ZERO(Array *parr, int from, int t
             break;
         default:
             return userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ZERO fill %s", ArrayGetTypeName(parr) );
-    }
-    return to - from;
+    }*/
 }
 
 /// @brief        none filler (fs & str)
@@ -1436,6 +1438,9 @@ static int                   ArrayGenPumprangeBySize(Array *restrict parr, v64Ge
             case ARRAY_CHAR:
                 *(char *)pv = tmp.cval;
                 break;
+            case ARRAY_POINTER:
+                *(void **)pv = tmp.pval;
+                break;
             default:
                 return userraise(-1, ERR_UNSUPPORTED_TYPE,
                                  "Unsupported scalar type %d/%s",
@@ -1462,6 +1467,8 @@ int                          ArrayGenPumprangeScalar(Array *restrict parr, v64Ge
     else if (ArrayGettype(parr) == ARRAY_DOUBLE && gen->type == VALUE64_DBL)
         elemsz = ArrayGetelemsize(parr);
     else if (ArrayGettype(parr) == ARRAY_CHAR && gen->type == VALUE64_CHR)
+        elemsz = ArrayGetelemsize(parr);
+     else if (ArrayGettype(parr) == ARRAY_POINTER && gen->type == VALUE64_PTR)
         elemsz = ArrayGetelemsize(parr);
     else
         return userraise(-1, ERR_TYPES_MISMATCH, 
