@@ -18,7 +18,6 @@ const char              *g_save_format_long      = "%6d\t%6ld\n";
 const char              *g_save_format_pointer   = "%6d\t%p\n";
 const char              *g_save_format_char      = "%6d\t%c\n";
 // not possible to format v64 that way!
-static const double     g_array_dbl_increment   = 0.01;
 static const int        g_array_acs_rndinc      = 5;
 static const int        g_array_desc_rndinc     = 5;
 
@@ -31,38 +30,6 @@ static const int        g_array_desc_rndinc     = 5;
 // ---------- pseudo-header for utility procedures -----------------
 
 // ------------------------------ Utilities ------------------------
-
-/// @brief      int incrementer (or dec)
-/// @param val  int value pointer
-/// @param sign sign (1/-1) 
-/// @return adjusted value
-static inline int               incintrnd(int *val, int sign){
-    return (*val += sign * (rndint(10) + 1) );
-}
-/// @brief      long incrementer (or dec)
-/// @param val  long value pointer
-/// @param sign sign (1/-1) 
-/// @return adjusted value
-static inline long              inclongrnd(long *val, int sign){
-    return (*val += sign * (rndlong(10) + 1) );
-}
-/// @brief       double incrementer (or dec)
-/// @param val   double value pointer
-/// @param sign  sign (1/-1) 
-/// @return adjusted value
-static inline double           incdoublernd(double *val, int sign){
-    return (*val += sign * (rnddbl(10) + g_array_dbl_increment) );
-}
-/// @brief       char incrementer (or dec)
-/// @param val   char value pointer
-/// @param sign  sign (1/-1) 
-/// @return adjusted value or OUT_OF_RANGE exception
-/// @note low level (no NULL pointer checking)
-static inline char             incchar(char *val, int sign){
-    if ( (toupper(*val) >= 'Z' && sign > 0) || (toupper(*val) <= 'A' && sign < 0) )
-        userraiseint(ERR_OUT_OF_RANGE, "Out of range %c with direction %d", *val, sign);
-    return (*val += sign * 1);  // just 1, no random here
-}
 
 /**
  * @brief Allocates and initializes a new Array descriptor.
@@ -621,7 +588,6 @@ static int                      ArrayFillRange_ZERO(Array *parr, int from, int t
 
     v64GenFree(&gen);
     return cnt;
-
 }
 
 /// @brief        none filler (fs & str)
@@ -666,7 +632,44 @@ static int                      ArrayFillRange_RND(Array *parr, int from, int to
     const int   rnd_max = 10 * (to - from);
     v64Gen      gen;
 
-    switch (ArrayGettype(parr) ) {
+    switch (ArrayGetV64mapType(parr)) {
+        case VALUE64_INT:
+            gen = v64GenCreatorRnd(VALUE64_INT, rnd_max, to - from);
+            break;
+        case VALUE64_LONG:
+            gen = v64GenCreatorRnd(VALUE64_LONG, rnd_max, to - from);
+            break;
+        case VALUE64_ULONG:
+            gen = v64GenCreatorRnd(VALUE64_ULONG, rnd_max, to - from);
+            break;
+        case VALUE64_DBL:
+            gen = v64GenCreatorRnd(VALUE64_DBL, rnd_max, to - from);
+            break;
+        case VALUE64_CHR:
+            gen = v64GenCreatorRnd(VALUE64_CHR, rnd_max, to - from);
+            break;
+        case VALUE64_BOOL:
+            gen = v64GenCreatorRnd(VALUE64_BOOL, 1, to - from);
+            break;
+        case VALUE64_STR:
+            gen = v64GenCreatorStrRnd(to - from, "%d", rnd_max);
+            break;
+        case VALUE64_FS:
+            gen = v64GenCreatorFsRnd(to - from, "%d", rnd_max);
+            break;
+        default:
+            return userraise(-1, ERR_ACTION_NOT_APPLICABLE,
+                            "Unsupported v64 type for RND fill: %d/%s or  %d/%s",
+                            ArrayGettype(parr), ArrayGetTypeName(parr),
+                            parr->v64type, ArrayGetV64typeName(parr));
+    }
+    // move the data!
+    int cnt = ArrayGenPumprange(parr, &gen, from, to);
+
+    v64GenFree(&gen);
+    return cnt;
+
+    /* switch (ArrayGettype(parr) ) {
         case ARRAY_INT:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
                  parr->iv[i] = rndint(10 * (to - from + 1) );
@@ -684,45 +687,13 @@ static int                      ArrayFillRange_RND(Array *parr, int from, int to
                 parr->cv[i] = rndupperchar();    // upper/lower must be in context.c
             break;
         case ARRAY_V64:
-            switch (parr->v64type) {
-                case VALUE64_INT:
-                    gen = v64GenCreatorRnd(VALUE64_INT, rnd_max, to - from);
-                    break;
-                case VALUE64_LONG:
-                    gen = v64GenCreatorRnd(VALUE64_LONG, rnd_max, to - from);
-                    break;
-                case VALUE64_ULONG:
-                    gen = v64GenCreatorRnd(VALUE64_ULONG, rnd_max, to - from);
-                    break;
-                case VALUE64_DBL:
-                    gen = v64GenCreatorRnd(VALUE64_DBL, rnd_max, to - from);
-                    break;
-                case VALUE64_CHR:
-                    gen = v64GenCreatorRnd(VALUE64_CHR, rnd_max, to - from);
-                    break;
-                case VALUE64_BOOL:
-                    gen = v64GenCreatorRnd(VALUE64_BOOL, 1, to - from);
-                    break;
-                case VALUE64_STR:
-                    gen = v64GenCreatorStrRnd(to - from, "%d", rnd_max);
-                    break;
-                case VALUE64_FS:
-                    gen = v64GenCreatorFsRnd(to - from, "%d", rnd_max);
-                    break;
-                default:
-                    return userraise(-1, ERR_ACTION_NOT_APPLICABLE,
-                                    "Unsupported v64 type for RND fill: %d/%s",
-                                    parr->v64type, ArrayGetV64typeName(parr));
-            }
-            // move the data!
-            ArrayGenPumprange(parr, &gen, from, to);
-
-            v64GenFree(&gen);
+            
+            
             break;
         default:
             return userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ZERO fill %s", ArrayGetTypeName(parr) );
     }
-    return to - from;
+    return to - from; */
 }
 
 /// @brief        ascending series filler
