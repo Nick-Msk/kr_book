@@ -680,36 +680,6 @@ static int                      ArrayFillRange_ZERO(Array *parr, int from, int t
     v64GenFree(&gen);
     return cnt;
 
-    /*switch (ArrayGettype(parr) ) {
-        case ARRAY_INT:
-            for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                parr->iv[i] = 0;
-            break;
-        case ARRAY_LONG:
-            for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                parr->lv[i] = 0L;
-            break;
-        case ARRAY_DOUBLE:
-            for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                parr->dv[i] = 0.0;
-            break;
-        case ARRAY_POINTER:
-            for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                parr->pv[i] = NULL;
-            break;
-        case ARRAY_CHAR:
-            for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
-                parr->cv[i] = '\0';
-            break;
-        case ARRAY_V64:
-            // move the data!
-            ArrayGenPumprange(parr, &gen, from, to);
-
-            v64GenFree(&gen);
-            break;
-        default:
-            return userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ZERO fill %s", ArrayGetTypeName(parr) );
-    }*/
 }
 
 /// @brief        none filler (fs & str)
@@ -1458,24 +1428,15 @@ int                          ArrayGenPumprangeScalar(Array *restrict parr, v64Ge
         "Null input %p %p", parr, gen);
     invraisecode(!ArrayIsV64(parr), ERR_UNSUPPORTED_TYPE, 
         "Only scalar supported by scalar pump, but not %d/%s", ArrayGettype(parr), ArrayGetTypeName(parr));
-    // TODO: better via matrix, that is temp solution
-    int elemsz;
-    if (ArrayGettype(parr) == ARRAY_INT && gen->type == VALUE64_INT)
-        elemsz = ArrayGetelemsize(parr);
-    else if (ArrayGettype(parr) == ARRAY_LONG && gen->type == VALUE64_LONG)
-        elemsz = ArrayGetelemsize(parr);
-    else if (ArrayGettype(parr) == ARRAY_DOUBLE && gen->type == VALUE64_DBL)
-        elemsz = ArrayGetelemsize(parr);
-    else if (ArrayGettype(parr) == ARRAY_CHAR && gen->type == VALUE64_CHR)
-        elemsz = ArrayGetelemsize(parr);
-     else if (ArrayGettype(parr) == ARRAY_POINTER && gen->type == VALUE64_PTR)
-        elemsz = ArrayGetelemsize(parr);
-    else
+    
+    if (ArrayGetV64mapType(parr) != gen->type) {
         return userraise(-1, ERR_TYPES_MISMATCH, 
-            "%d/%s vs %d/%s", ArrayGettype(parr), ArrayGetTypeName(parr),
-            gen->type, value64_typename(gen->type)
-        );
-    return ArrayGenPumprangeBySize(parr, gen, from, to, elemsz);
+            "%d/%s vs %d/%s", 
+            ArrayGettype(parr), ArrayGetTypeName(parr),
+            gen->type, value64_typename(gen->type));
+    }
+   
+    return ArrayGenPumprangeBySize(parr, gen, from, to, ArrayGetelemsize(parr));
 }
 
 // entry point, check here!
