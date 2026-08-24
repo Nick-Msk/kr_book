@@ -389,6 +389,24 @@ v64GenCurr(v64Gen *gen) {
 // ------------------------------ GENERATORS ----------------------------------------
 // ------------------------ pre-created func V64 typed ------------------------------
 
+value64
+v64GenUnlimNull(v64Gen *gen) {
+    value64 res;
+    fs s = FS();
+    switch (gen->type) {
+        case VALUE64_FS:
+            res = LITERAL64_FS(s);
+        case VALUE64_STR:
+            res = LITERAL64_STR(NULL);
+        default:
+            /* unknown type – return literal zero */
+            return userraise(LITERAL64_ZERO, ERR_UNSUPPORTED_TYPE, 
+                "%d/%s not supported", gen->type, value64_typename(gen->type));
+    }
+    v64GenAdvance(gen, 1);
+    return res;
+}
+
 /**
  * @brief Standard generator for zero / empty values.
  *
@@ -428,7 +446,8 @@ v64GenUnlimZero(v64Gen *gen) {   // TODO: need to be refactored via Table!
             return value64_createstr("");
         default:
             /* unknown type – return literal zero */
-            return LITERAL64_ZERO;
+            return userraise(LITERAL64_ZERO, ERR_UNSUPPORTED_TYPE, 
+                "%d/%s not supported", gen->type, value64_typename(gen->type));
     }
 }
 

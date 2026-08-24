@@ -152,6 +152,8 @@ extern bool                     v64GenGetIfHasnext(v64Gen *restrict gen, value64
 // ------------------ pre-created func V64 typed -----------------------------
 
 // truly genenarator constrctors
+extern value64                  v64GenUnlimNull(v64Gen *gen);
+// zero/empty
 extern value64                  v64GenUnlimZero(v64Gen *gen);
 // unchecker group. 0 -> 1 -> 2 ... INT_MAX -> INT_MIN etc...
 // for bool false -> true -> false ...
@@ -209,6 +211,18 @@ extern value64                  v64GenFileToStrByNewline(v64Gen *gen);
 // ----------------------------------------------------------------------------------
 // ----------------------- truly genenarators (NON SOURCE) -----------------------------------
 
+// limited NULL (fs & str only)
+static inline v64Gen                v64GenCreatorNull(value64_type rettyp, off_t limit) {
+    if (rettyp != VALUE64_FS && rettyp != VALUE64_STR)
+        userraiseint(ERR_UNSUPPORTED_TYPE, "Type %d not supported", rettyp);
+    
+    // REGITRSY ALLOCATION: NONE
+    return v64GenInit0(v64GenUnlimNull, rettyp, limit);
+}
+// unlimited
+static inline v64Gen                v64GenCreatorUnlimNull(value64_type rettyp) {
+    return v64GenCreatorNull(rettyp, -1L);
+}
 // limited ZERO
 static inline v64Gen            v64GenCreatorZero(value64_type rettyp, off_t limit) {
     // not sure what to do, now just raiseint
