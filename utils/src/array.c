@@ -558,36 +558,6 @@ static int                      ArrayFillRange_ASC(Array *parr, int from, int to
 
     v64GenFree(&gen);
     return cnt;
-
-    /* switch (ArrayGettype(parr) ) {
-        case ARRAY_INT: {
-            int val = 0;
-            for (int i = from; i < to; i++, incintrnd(&val, 1) )
-                parr->iv[i] = val;
-            break;
-        }
-        case ARRAY_LONG: {
-            long val = 0;
-            for (int i = from; i < to; i++, inclongrnd(&val, 1) )
-                parr->lv[i] = val;
-            break;
-        }
-        case ARRAY_DOUBLE: {
-            double val = 0.0;
-            for (int i = from; i < to; i++, incdoublernd(&val, 1) )
-                parr->dv[i] = val;
-            break;
-        }
-        case ARRAY_CHAR: {
-            char val = 'a';
-            for (int i = from; i < to; i++, incchar(&val, 1) )
-                parr->cv[i] = val;
-            break;
-        }
-        
-        default:
-            return userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayGetTypeName(parr) );
-    } */
 }
 /// @brief        descending filler
 /// @param parr   array 
@@ -598,73 +568,44 @@ static int                      ArrayFillRange_DESC(Array *parr, int from, int t
     v64Gen gen;
     const int start_num = (to - from + 1) * g_array_desc_rndinc;
 
-    switch (ArrayGettype(parr) ) {
-        case ARRAY_INT: {
-            int val = 10 * parr->len;   // hope it'll ne owerwelhm int;
-            for (int i = from; i < to; i++, incintrnd(&val, -1) )
-                parr->iv[i] = val;
+    switch (ArrayGetV64mapType(parr)) {
+        case VALUE64_INT:
+            gen = v64GenCreatorDescRnd(v64typedCreateInt(start_num), to - from, g_array_desc_rndinc); // g_array_desc_rndinc ==5 must be in context!
             break;
-        }
-        case ARRAY_LONG: {
-            long val = 100L * parr->len;
-            for (int i = from; i < to; i++, inclongrnd(&val, -1) )
-                parr->lv[i] = val;
+        case VALUE64_LONG:
+            gen = v64GenCreatorDescRnd(v64typedCreateLong(start_num), to - from, g_array_desc_rndinc);
             break;
-        }
-        case ARRAY_DOUBLE: {
-            double val = 0.0;
-            for (int i = from; i < to; i++, incdoublernd(&val, -1) )
-                parr->dv[i] = val;
+        case VALUE64_ULONG:
+            gen = v64GenCreatorDescRnd(v64typedCreateULong(start_num), to - from, g_array_desc_rndinc);
             break;
-        }
-        case ARRAY_CHAR: {
-            char val = 'z';
-            for (int i = from; i < to; i++, incchar(&val, -1) )
-                parr->cv[i] = val;
+        case VALUE64_DBL:
+            gen = v64GenCreatorDescRnd(v64typedCreateDbl(start_num), to - from, g_array_desc_rndinc);
             break;
-        }
-        case ARRAY_V64:
-            switch (parr->v64type) {
-                case VALUE64_INT:
-                    gen = v64GenCreatorDescRnd(v64typedCreateInt(start_num), to - from, g_array_desc_rndinc); // g_array_desc_rndinc ==5 must be in context!
-                    break;
-                case VALUE64_LONG:
-                    gen = v64GenCreatorDescRnd(v64typedCreateLong(start_num), to - from, g_array_desc_rndinc);
-                    break;
-                case VALUE64_ULONG:
-                    gen = v64GenCreatorDescRnd(v64typedCreateULong(start_num), to - from, g_array_desc_rndinc);
-                    break;
-                case VALUE64_DBL:
-                    gen = v64GenCreatorDescRnd(v64typedCreateDbl(start_num), to - from, g_array_desc_rndinc);
-                    break;
-                case VALUE64_CHR:
-                    gen = v64GenCreatorDescRnd(
-                        v64typedCreateChar(ucharmax(start_num)), to - from, g_array_desc_rndinc);
-                    break;
-                case VALUE64_BOOL:
-                    gen = v64GenCreatorDescRnd(v64typedCreateBool(from != 0), to - from, g_array_desc_rndinc);
-                    break;
-                case VALUE64_STR:
-                    gen = v64GenCreatorDescStrRnd(to - from, start_num, "%d", g_array_desc_rndinc);
-                    break;
-                case VALUE64_FS:
-                    gen = v64GenCreatorDescFsRnd(to - from, start_num, "%d", g_array_desc_rndinc);
-                    break;
-                default:
-                    v64GenFree(&gen);
-                    return userraise(-1, ERR_ACTION_NOT_APPLICABLE,
-                                    "Unsupported v64 type for ASC fill: %d/%s",
-                                    parr->v64type, ArrayGetV64typeName(parr));
-            }
-            // move the data!
-            ArrayGenPumprange(parr, &gen, from, to);
-
-            v64GenFree(&gen);
+        case VALUE64_CHR:
+            gen = v64GenCreatorDescRnd(
+                v64typedCreateChar(ucharmax(start_num)), to - from, g_array_desc_rndinc);
+            break;
+        case VALUE64_BOOL:
+            gen = v64GenCreatorDescRnd(v64typedCreateBool(from != 0), to - from, g_array_desc_rndinc);
+            break;
+        case VALUE64_STR:
+            gen = v64GenCreatorDescStrRnd(to - from, start_num, "%d", g_array_desc_rndinc);
+            break;
+        case VALUE64_FS:
+            gen = v64GenCreatorDescFsRnd(to - from, start_num, "%d", g_array_desc_rndinc);
             break;
         default:
-            return userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for DESC fill %s", ArrayGetTypeName(parr) );
+            v64GenFree(&gen);
+            return userraise(-1, ERR_ACTION_NOT_APPLICABLE,
+                            "Unsupported v64 type for ASC fill: %d/%s or  %d/%s",
+                            ArrayGettype(parr), ArrayGetTypeName(parr),
+                            parr->v64type, ArrayGetV64typeName(parr));
     }
-    return to - from;
+    // move the data via common (v64/scalar) entry point
+    int cnt = ArrayGenPumprange(parr, &gen, from, to);
+
+    v64GenFree(&gen);
+    return cnt;
 }
 
 
