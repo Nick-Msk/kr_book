@@ -521,7 +521,45 @@ int                             Array_fill(Array *parr, ArrayFillType typ){
 static int                      ArrayFillRange_ASC(Array *parr, int from, int to){
     v64Gen gen;
 
-    switch (ArrayGettype(parr) ) {
+    switch (ArrayGetV64mapType(parr)) {
+        case VALUE64_INT:
+            gen = v64GenCreatorAscRnd(v64typedCreateInt(from), to - from, g_array_acs_rndinc); // g_array_acs_rndinc= 5 must be in context!
+            break;
+        case VALUE64_LONG:
+            gen = v64GenCreatorAscRnd(v64typedCreateLong(from), to - from, g_array_acs_rndinc);
+            break;
+        case VALUE64_ULONG:
+            gen = v64GenCreatorAscRnd(v64typedCreateULong(from), to - from, g_array_acs_rndinc);
+            break;
+        case VALUE64_DBL:
+            gen = v64GenCreatorAscRnd(v64typedCreateDbl(from), to - from,  g_array_acs_rndinc);
+            break;
+        case VALUE64_CHR:
+            gen = v64GenCreatorAscRnd(v64typedCreateChar(ucharmax(from)), to - from, g_array_acs_rndinc);
+            break;
+        case VALUE64_BOOL:
+            gen = v64GenCreatorAscRnd(v64typedCreateBool(from != 0), to - from, g_array_acs_rndinc);
+            break;
+        case VALUE64_STR:
+            gen = v64GenCreatorAscStrRnd( to - from, from, "%d", g_array_acs_rndinc);
+            break;
+        case VALUE64_FS:
+            gen = v64GenCreatorAscFsRnd(to - from, from, "%d", g_array_acs_rndinc);
+            break;
+        default:
+            v64GenFree(&gen);
+            return userraise(-1, ERR_ACTION_NOT_APPLICABLE,
+                            "Unsupported scalar/v64 type for ASC fill: %d/%s or %d/%s",
+                            ArrayGettype(parr), ArrayGetTypeName(parr),
+                            parr->v64type, ArrayGetV64typeName(parr));
+    }
+    // move the data via common (v64/scalar) entry point
+    int cnt = ArrayGenPumprange(parr, &gen, from, to);
+
+    v64GenFree(&gen);
+    return cnt;
+
+    /* switch (ArrayGettype(parr) ) {
         case ARRAY_INT: {
             int val = 0;
             for (int i = from; i < to; i++, incintrnd(&val, 1) )
@@ -546,47 +584,10 @@ static int                      ArrayFillRange_ASC(Array *parr, int from, int to
                 parr->cv[i] = val;
             break;
         }
-        case ARRAY_V64:
-            switch (parr->v64type) {
-                case VALUE64_INT:
-                    gen = v64GenCreatorAscRnd(v64typedCreateInt(from), to - from, g_array_acs_rndinc); // g_array_acs_rndinc= 5 must be in context!
-                    break;
-                case VALUE64_LONG:
-                    gen = v64GenCreatorAscRnd(v64typedCreateLong(from), to - from, g_array_acs_rndinc);
-                    break;
-                case VALUE64_ULONG:
-                    gen = v64GenCreatorAscRnd(v64typedCreateULong(from), to - from, g_array_acs_rndinc);
-                    break;
-                case VALUE64_DBL:
-                    gen = v64GenCreatorAscRnd(v64typedCreateDbl(from), to - from,  g_array_acs_rndinc);
-                    break;
-                case VALUE64_CHR:
-                    gen = v64GenCreatorAscRnd(v64typedCreateChar(ucharmax(from)), to - from, g_array_acs_rndinc);
-                    break;
-                case VALUE64_BOOL:
-                    gen = v64GenCreatorAscRnd(v64typedCreateBool(from != 0), to - from, g_array_acs_rndinc);
-                    break;
-                case VALUE64_STR:
-                    gen = v64GenCreatorAscStrRnd( to - from, from, "%d", g_array_acs_rndinc);
-                    break;
-                case VALUE64_FS:
-                    gen = v64GenCreatorAscFsRnd(to - from, from, "%d", g_array_acs_rndinc);
-                    break;
-                default:
-                    v64GenFree(&gen);
-                    return userraise(-1, ERR_ACTION_NOT_APPLICABLE,
-                                    "Unsupported v64 type for ASC fill: %d/%s",
-                                    parr->v64type, ArrayGetV64typeName(parr));
-            }
-            // move the data via common (v64/scalar) entry point
-            ArrayGenPumprange(parr, &gen, from, to);
-
-            v64GenFree(&gen);
-            break;
+        
         default:
             return userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayGetTypeName(parr) );
-    }
-    return to - from;
+    } */
 }
 /// @brief        descending filler
 /// @param parr   array 
