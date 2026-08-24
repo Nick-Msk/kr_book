@@ -396,8 +396,10 @@ v64GenUnlimNull(v64Gen *gen) {
     switch (gen->type) {
         case VALUE64_FS:
             res = LITERAL64_FS(s);
+            break;
         case VALUE64_STR:
             res = LITERAL64_STR(NULL);
+            break;
         default:
             /* unknown type – return literal zero */
             return userraise(LITERAL64_ZERO, ERR_UNSUPPORTED_TYPE, 
@@ -4043,6 +4045,9 @@ tf23_gen_fs_tostr_bynewline(const char *name)
 
     return TEST_PASSED;
 }
+
+
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main(/* int argc, const char *argv[] */)
@@ -4073,6 +4078,7 @@ main(/* int argc, const char *argv[] */)
       , TESTADD(tf21_gen_fs_char,               "fs -> CHAR generator (limit, append) simple test")
       , TESTADD(tf22_gen_file_char,             "FILE* -> CHAR generator simple test")
       , TESTADD(tf23_gen_fs_tostr_bynewline,    "fs -> STR by newline generator simple test")
+      , TESTADD(tf24_gen_null,                  "v64GenCreatorNull (FS/STR) simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
