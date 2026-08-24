@@ -69,6 +69,7 @@ typedef enum ArrayType{
  */
 typedef struct {
     ArrayType       type;           /**< The base enum identifier */
+    value64_type    vt64;           /**< value64 map (if exists) */
     const char     *name;           /**< Pretty name (e.g., "DOUBLE") */
     const char     *name_raw;       /**< Parsing name (e.g., "ARRAY_DOUBLE") */
     size_t          elem_size;       /**< Size of the element in bytes */
@@ -76,19 +77,19 @@ typedef struct {
 
 static const ArrayTypeInfo          ARRAY_TYPE_TABLE[] = {
     /* Базовый тип | Подтип (v64) | Имя (pretty) | Имя (raw) | Размер */
-    { ARRAY_INT,     "INT",        "ARRAY_INT",     sizeof(int) },
-    { ARRAY_LONG,    "LONG",       "ARRAY_LONG",    sizeof(long) },
-    { ARRAY_DOUBLE,  "DOUBLE",     "ARRAY_DOUBLE",  sizeof(double) },
-    { ARRAY_POINTER, "POINTER",    "ARRAY_POINTER", sizeof(void*) },
-    { ARRAY_CHAR,    "CHAR",       "ARRAY_CHAR",    sizeof(char) },
+    { ARRAY_INT,     VALUE64_INT,   "INT",        "ARRAY_INT",     sizeof(int) },
+    { ARRAY_LONG,    VALUE64_LONG,  "LONG",       "ARRAY_LONG",    sizeof(long) },
+    { ARRAY_DOUBLE,  VALUE64_DBL,   "DOUBLE",     "ARRAY_DOUBLE",  sizeof(double) },
+    { ARRAY_POINTER, VALUE64_PTR,   "POINTER",    "ARRAY_POINTER", sizeof(void*) },
+    { ARRAY_CHAR,    VALUE64_CHR,   "CHAR",       "ARRAY_CHAR",    sizeof(char) },
     //    V64 container
-    { ARRAY_V64,     "V64",        "ARRAY_V64",     sizeof(value64) },
+    { ARRAY_V64,     VALUE64_UNKNOWN, "V64",        "ARRAY_V64",     sizeof(value64) },
     // 
-    { ARRAY_UNKNOWN, "UNKNOWN",    "ARRAY_UNKNOWN", 0 }
+    { ARRAY_UNKNOWN, VALUE64_UNKNOWN, "UNKNOWN",    "ARRAY_UNKNOWN", 0 }
 };
 
 static const ArrayFillTypeInfo      ARRAY_FILLTYPE_TABLE[] = {
-    { ARRAY_FILLTYPE_SAFE_EMPTY,           "FILLTYPE_NONE" },
+    { ARRAY_FILLTYPE_SAFE_EMPTY,     "FILLTYPE_NONE" },
     { ARRAY_FILLTYPE_DESC,           "FILLTYPE_DESC" },
     { ARRAY_FILLTYPE_ASC,            "FILLTYPE_ASC" },
     { ARRAY_FILLTYPE_RND,            "FILLTYPE_RND" },
@@ -162,13 +163,21 @@ typedef struct ArraySlice {
  *         Returns a pointer to the ARRAY_UNKNOWN entry if no match is found.
  */
 static inline const ArrayTypeInfo   *ArrayTypeGetInfo(ArrayType t) {
-    size_t i;
+    size_t      i;
     for (i = 0; i < COUNT(ARRAY_TYPE_TABLE); i++) {
         if (ARRAY_TYPE_TABLE[i].type == t)
             return ARRAY_TYPE_TABLE + i;
     }
     return ARRAY_TYPE_TABLE + i - 1;    // ARRAY_UNKNOWN
  }
+
+// mapper ARRAY_INT -> VALUE64_INT... etc
+static inline value64_type          ArrayTypeV64map(ArrayType typ, value64_type vt) {
+    value64_type vt64 = ArrayTypeGetInfo(typ)->vt64;
+    if (vt64 == VALUE64_UNKNOWN)
+        vt64 = vt;
+    return vt64;
+}
 
 /**
  * @brief Gets the human-readable name of the array's type.
@@ -362,7 +371,7 @@ static inline Array                *V64Array_create(int cnt, ArrayFillType typ, 
 static inline bool                  ArrayIsV64(const Array *a);
 static inline bool                  ArrayIschar(const Array *a);
 
-static inline const ArrayTypeInfo *ArrayGetTypeInfo(const Array *parr) {
+static inline const ArrayTypeInfo   *ArrayGetTypeInfo(const Array *parr) {
     invraisecode(parr != NULL, ERR_NULLABLE_PTR, "NUll input");
     return ArrayTypeGetInfo(parr->flags);
 }
@@ -372,7 +381,12 @@ static inline ArrayType             ArrayGettype(const Array *parr) {
 
     return parr->flags & 0xFF;
 }
-
+// array wrapper over ArrayTypeV64map
+static inline value64_type          ArrayGetV64mapType(const Array *parr) {
+    invraisecode(parr != NULL, ERR_NULLABLE_PTR, "Null array ptr");
+    return ArrayTypeV64map(ArrayGettype(parr), parr->v64type);
+}
+// 
 static inline const char           *ArrayGetTypeName(const Array *parr) {
     return ArrayTypeGetName(ArrayGettype(parr));
 }
@@ -704,7 +718,8 @@ extern int                          Array_foreach_rev_proc(Array *restrict parr,
 #define PArray_foreach(parr, elem)   _Array_foreach_gen((parr)->pv, (parr)->len, elem)
 #define V64Array_foreach(parr, elem) _Array_foreach_gen((parr)->v64, (parr)->len, elem)
 
-extern int                          ArrayGenPumprangeV64(Array *restrict parr, v64Gen *restrict gen, int from, int to);
+// pump entry point
+extern int                          ArrayGenPumprange(Array *restrict parr, v64Gen *restrict gen, int from, int to);
 
 /**
  * @brief Fills the entire v64 Array using a generator.
@@ -717,14 +732,8 @@ extern int                          ArrayGenPumprangeV64(Array *restrict parr, v
  * 
  * @return The number of elements successfully written to the array.
  */
-static inline int                   ArrayGenPumpallV64(Array *restrict parr, v64Gen *restrict gen) {
-    return ArrayGenPumprangeV64(parr, gen, 0, Arraylen(parr));
-}
-// for scalar array types
-extern int                          ArrayGenPumprangeScalar(Array *restrict parr, v64Gen *restrict gen, int from, int to);
-
-static inline int                   ArrayGenPumpallScalar(Array *restrict parr, v64Gen *restrict gen) {
-    return ArrayGenPumprangeScalar(parr, gen, 0, Arraylen(parr));
+static inline int                   ArrayGenPumpall(Array *restrict parr, v64Gen *restrict gen) {
+    return ArrayGenPumprange(parr, gen, 0, Arraylen(parr));
 }
 
 // ----------------- PRINTERS/SERIALYZATION ----------------------

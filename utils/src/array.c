@@ -519,6 +519,8 @@ int                             Array_fill(Array *parr, ArrayFillType typ){
 /// @param to     end index 
 /// @return       count of filled elements
 static int                      ArrayFillRange_ASC(Array *parr, int from, int to){
+    v64Gen gen;
+
     switch (ArrayGettype(parr) ) {
         case ARRAY_INT: {
             int val = 0;
@@ -544,9 +546,7 @@ static int                      ArrayFillRange_ASC(Array *parr, int from, int to
                 parr->cv[i] = val;
             break;
         }
-        case ARRAY_V64: {
-            v64Gen gen;
-
+        case ARRAY_V64:
             switch (parr->v64type) {
                 case VALUE64_INT:
                     gen = v64GenCreatorAscRnd(v64typedCreateInt(from), to - from, g_array_acs_rndinc); // g_array_acs_rndinc= 5 must be in context!
@@ -578,12 +578,11 @@ static int                      ArrayFillRange_ASC(Array *parr, int from, int to
                                     "Unsupported v64 type for ASC fill: %d/%s",
                                     parr->v64type, ArrayGetV64typeName(parr));
             }
-            // move the data!
-            ArrayGenPumprangeV64(parr, &gen, from, to);
+            // move the data via common (v64/scalar) entry point
+            ArrayGenPumprange(parr, &gen, from, to);
 
             v64GenFree(&gen);
             break;
-        }
         default:
             return userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayGetTypeName(parr) );
     }
@@ -595,6 +594,9 @@ static int                      ArrayFillRange_ASC(Array *parr, int from, int to
 /// @param to     end index 
 /// @return       count of filled elements
 static int                      ArrayFillRange_DESC(Array *parr, int from, int to){
+    v64Gen gen;
+    const int start_num = (to - from + 1) * g_array_desc_rndinc;
+
     switch (ArrayGettype(parr) ) {
         case ARRAY_INT: {
             int val = 10 * parr->len;   // hope it'll ne owerwelhm int;
@@ -620,10 +622,7 @@ static int                      ArrayFillRange_DESC(Array *parr, int from, int t
                 parr->cv[i] = val;
             break;
         }
-        case ARRAY_V64: {
-            v64Gen gen;
-            const int start_num = (to - from + 1) * g_array_desc_rndinc;
-
+        case ARRAY_V64:
             switch (parr->v64type) {
                 case VALUE64_INT:
                     gen = v64GenCreatorDescRnd(v64typedCreateInt(start_num), to - from, g_array_desc_rndinc); // g_array_desc_rndinc ==5 must be in context!
@@ -657,16 +656,16 @@ static int                      ArrayFillRange_DESC(Array *parr, int from, int t
                                     parr->v64type, ArrayGetV64typeName(parr));
             }
             // move the data!
-            ArrayGenPumprangeV64(parr, &gen, from, to);
+            ArrayGenPumprange(parr, &gen, from, to);
 
             v64GenFree(&gen);
             break;
-        }
         default:
             return userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for DESC fill %s", ArrayGetTypeName(parr) );
     }
     return to - from;
 }
+
 
 /// @brief        zero filler
 /// @param parr   array 
@@ -675,6 +674,9 @@ static int                      ArrayFillRange_DESC(Array *parr, int from, int t
 /// @return       count of filled elements
 // TODO: refctor that to func table!
 static int                      ArrayFillRange_ZERO(Array *parr, int from, int to){
+    v64Gen gen = v64GenCreatorZero(
+            ArrayGetV64mapType(parr), to - from);
+
     switch (ArrayGettype(parr) ) {
         case ARRAY_INT:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
@@ -696,14 +698,12 @@ static int                      ArrayFillRange_ZERO(Array *parr, int from, int t
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
                 parr->cv[i] = '\0';
             break;
-        case ARRAY_V64: {
-            v64Gen gen = v64GenCreatorZero(parr->v64type, to - from);   // обёртка, если есть
+        case ARRAY_V64:
             // move the data!
-            ArrayGenPumprangeV64(parr, &gen, from, to);
+            ArrayGenPumprange(parr, &gen, from, to);
 
             v64GenFree(&gen);
             break;
-        }
         default:
             return userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ZERO fill %s", ArrayGetTypeName(parr) );
     }
@@ -749,6 +749,9 @@ static int                      ArrayFillRange_SAFE_EMPTY(Array *parr, int from,
 /// @param to     end index 
 /// @return       count of filled elements
 static int                      ArrayFillRange_RND(Array *parr, int from, int to) {
+    const int   rnd_max = 10 * (to - from);
+    v64Gen      gen;
+
     switch (ArrayGettype(parr) ) {
         case ARRAY_INT:
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
@@ -766,10 +769,7 @@ static int                      ArrayFillRange_RND(Array *parr, int from, int to
             for (int i = from; i < to; i++) // iter??? TODO: check if it's correct
                 parr->cv[i] = rndupperchar();    // upper/lower must be in context.c
             break;
-        case ARRAY_V64: {
-            const int rnd_max = 10 * (to - from);
-            v64Gen gen;
-
+        case ARRAY_V64:
             switch (parr->v64type) {
                 case VALUE64_INT:
                     gen = v64GenCreatorRnd(VALUE64_INT, rnd_max, to - from);
@@ -801,11 +801,10 @@ static int                      ArrayFillRange_RND(Array *parr, int from, int to
                                     parr->v64type, ArrayGetV64typeName(parr));
             }
             // move the data!
-            ArrayGenPumprangeV64(parr, &gen, from, to);
+            ArrayGenPumprange(parr, &gen, from, to);
 
             v64GenFree(&gen);
             break;
-        }
         default:
             return userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ZERO fill %s", ArrayGetTypeName(parr) );
     }
@@ -818,6 +817,7 @@ static int                      ArrayFillRange_RND(Array *parr, int from, int to
 /// @param to     end index 
 /// @return       count of filled elements
 static int                      ArrayFillRange_ASC_SERIES(Array *parr, int from, int to){
+    v64Gen gen;
     switch (ArrayGettype(parr) ) {
         case ARRAY_INT: {
             int val = from;
@@ -843,8 +843,7 @@ static int                      ArrayFillRange_ASC_SERIES(Array *parr, int from,
                  parr->cv[i] = val++;   // can be ERR_OUT_OF_RANGE
             break;
         }
-        case ARRAY_V64: {
-            v64Gen gen;
+        case ARRAY_V64:
             switch (parr->v64type) {
                 case VALUE64_INT:
                     gen = v64GenCreatorAscSeries(v64typedCreateInt(from), to - from);
@@ -877,11 +876,10 @@ static int                      ArrayFillRange_ASC_SERIES(Array *parr, int from,
                         ArrayGetV64typeName(parr));
             }
             // move the data!
-            ArrayGenPumprangeV64(parr, &gen, from, to);
+            ArrayGenPumprange(parr, &gen, from, to);
 
             v64GenFree(&gen);
             break;
-        }
         default:
             return userraise(-1, ERR_ACTION_NOT_APPLICABLE, 
                 "Unsupported type for ASC series fill %d/%s", parr->v64type, ArrayGetTypeName(parr) );
@@ -896,6 +894,9 @@ static int                      ArrayFillRange_ASC_SERIES(Array *parr, int from,
 /// @param to     end index 
 /// @return       count of filled elements
 static int                      ArrayFillRange_DESC_SERIES(Array *parr, int from, int to){
+    v64Gen      gen;
+    const int   start_num = (to - 1); // the same as for scalar types
+    
     switch (ArrayGettype(parr) ) {
         case ARRAY_INT: {
             int val = to - 1;
@@ -921,10 +922,7 @@ static int                      ArrayFillRange_DESC_SERIES(Array *parr, int from
                 parr->cv[i] = val--;    // can be ERR_OUT_OF_RANGE
             break;
         }
-        case ARRAY_V64: {
-            v64Gen gen;
-            const int start_num = (to - 1); // the same as for scalar types
-
+        case ARRAY_V64: 
             switch (parr->v64type) {
                 case VALUE64_INT:
                     gen = v64GenCreatorDescSeries(v64typedCreateInt(start_num), to - from);
@@ -957,11 +955,10 @@ static int                      ArrayFillRange_DESC_SERIES(Array *parr, int from
                                     parr->v64type, ArrayGetV64typeName(parr));
             }
             // move the data!
-            ArrayGenPumprangeV64(parr, &gen, from, to);
+            ArrayGenPumprange(parr, &gen, from, to);
 
             v64GenFree(&gen);
             break;
-        }
         default:
             return userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Unsupported type for ASC fill %s", ArrayGetTypeName(parr) );
             break;
@@ -1406,22 +1403,7 @@ int                         Array_foreach_proc(Array *restrict arr, Array_cond c
  * @return The number of elements successfully written to the array.
  *         Returns -1 (via userraise) if input pointers are NULL or indices are negative.
  */
-int                                 ArrayGenPumprangeV64(Array *restrict parr, v64Gen *restrict gen, int from, int to) {
-    invraisecode(parr != NULL && gen != NULL, ERR_NULLABLE_PTR, 
-        "Null input %p %p", parr, gen);
-    invraisecode(ArrayIsV64(parr), ERR_UNSUPPORTED_TYPE, "Only V64 supported by pump");
-
-    if (from < 0 || to < 0 || from > to)
-        return userraise(-1, ERR_OUT_OF_RANGE, "%d - %d is negative", from, to);
-
-    if (to > Arraysz(parr)) {
-        logsimple("last postion %d is out of bound, cut to %d", to, Arraysz(parr));
-        to = Arraysz(parr);
-    }
-    if (from > Arraysz(parr)) {
-        logsimple("first postion %d is out of bound, cut to %d", from, Arraysz(parr));
-        from = Arraysz(parr);
-    }
+static int                   ArrayGenPumprangeV64(Array *restrict parr, v64Gen *restrict gen, int from, int to) {    
     int cnt = 0;
     value64 *const end = parr->v64 + to;
     value64 *pv = parr->v64 + from;
@@ -1489,6 +1471,32 @@ int                          ArrayGenPumprangeScalar(Array *restrict parr, v64Ge
     return ArrayGenPumprangeBySize(parr, gen, from, to, elemsz);
 }
 
+// entry point, check here!
+// pump for v64 & scalar
+int                          ArrayGenPumprange(Array *restrict parr, v64Gen *restrict gen, int from, int to) {
+    invraisecode(parr != NULL && gen != NULL, ERR_NULLABLE_PTR, 
+        "Null input %p %p", parr, gen);
+    // checking
+    if (from < 0 || to < 0 || from > to)
+        return userraise(-1, ERR_OUT_OF_RANGE, 
+            "%d - %d is negative or out of range", from, to);
+
+    if (to > Arraysz(parr)) {
+        logsimple("last postion %d is out of bound, cut to %d", to, Arraysz(parr));
+        to = Arraysz(parr);
+    }
+    if (from > Arraysz(parr)) {
+        logsimple("first postion %d is out of bound, cut to %d", from, Arraysz(parr));
+        from = Arraysz(parr);
+    }
+    int     cnt = 0;
+    // v64 have universale pumper while every scalar type - it's own
+    if (ArrayIsV64(parr))
+        cnt = ArrayGenPumprangeV64(parr, gen, from, to);
+    else
+        cnt = ArrayGenPumprangeScalar(parr, gen, from, to);
+    return logsimpleret(cnt, "Generated %d", cnt);
+}
 
 // -------------------------- (API) printers -----------------------
 
