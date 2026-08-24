@@ -4046,7 +4046,104 @@ tf23_gen_fs_tostr_bynewline(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST Null generator (FS/STR) -------------------------
+static TestStatus
+tf24_gen_null(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
 
+    /* 1. FS limited 3 */
+    test_sub("subtest %d: Null FS limited 3", ++subnum);
+    {
+        v64Gen  gen = v64GenCreatorNull(VALUE64_FS, 3);
+        int     count = 0;
+        fs      nullfs = FS();
+        while (v64GenHasnext(&gen)) {
+            value64 v = v64GenNext(&gen);
+            test_validatefree(value64_fs(v) == &nullfs,
+                              (v64GenFree(&gen)),
+                              "expected non-NULL fs pointer");
+            count++;
+        }
+        test_validate(count == 3, "expected 3 elements, got %d", count);
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 2. STR limited 2 */
+    test_sub("subtest %d: Null STR limited 2", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorNull(VALUE64_STR, 2);
+        int count = 0;
+        while (v64GenHasnext(&gen)) {
+            value64 v = v64GenNext(&gen);
+            test_validatefree(value64_str(v) == NULL,
+                              (v64GenFree(&gen)),
+                              "expected NULL string");
+            count++;
+        }
+        test_validate(count == 2, "expected 2 elements, got %d", count);
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 3. Unsupported type must fail */
+    test_sub("subtest %d: Null INT not supported", ++subnum);
+    {
+        if (!try()) {
+            v64Gen gen = v64GenCreatorNull(VALUE64_INT, 1);
+            test_validate(false, "must raise error");
+            v64GenFree(&gen);
+        } else {
+            test_validate(true, "correctly raised error");
+        }
+        fs_alloc_check(true);
+    }
+    /* 4. FS unlimited – read 5 values */
+    test_sub("subtest %d: Null FS unlimited (5 reads)", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimNull(VALUE64_FS);
+        const int reads = 5;
+        int count = 0;
+        for (int i = 0; i < reads; i++) {
+            test_validatefree(v64GenHasnext(&gen),
+                              (v64GenFree(&gen)),
+                              "expected hasnext true");
+            value64 v = v64GenNext(&gen);
+            test_validatefree(value64_fs(v) != NULL,
+                              (v64GenFree(&gen)),
+                              "expected non-NULL fs pointer");
+            count++;
+        }
+        test_validate(count == reads, "expected %d reads, got %d", reads, count);
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    /* 5. STR unlimited – read 5 values */
+    test_sub("subtest %d: Null STR unlimited (5 reads)", ++subnum);
+    {
+        v64Gen gen = v64GenCreatorUnlimNull(VALUE64_STR);
+        const int reads = 5;
+        int count = 0;
+        for (int i = 0; i < reads; i++) {
+            test_validatefree(v64GenHasnext(&gen),
+                              (v64GenFree(&gen)),
+                              "expected hasnext true");
+            value64 v = v64GenNext(&gen);
+            test_validatefree(value64_str(v) == NULL,
+                              (v64GenFree(&gen)),
+                              "expected NULL string");
+            count++;
+        }
+        test_validate(count == reads, "expected %d reads, got %d", reads, count);
+        v64GenFree(&gen);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
 
 // ------------------------------------------------------------------------------------------------------------------------------
 int
