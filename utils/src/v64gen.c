@@ -3994,6 +3994,12 @@ tf24_gen_null(const char *name)
             test_validatefree(value64_fs(v) != NULL && fs_isempty(value64_fs(v) ),
                               (v64GenFree(&gen)),
                               "expected fs == FS() but not null");
+            // try to free just for fun
+            value64_free(&v, VALUE64_FS);
+            // try to clone
+            fs clones = fs_clone(v.fsval);
+            fs_sprintf(&clones, "bla bla");
+            fsfree(clones);
             count++;
         }
         test_validate(count == 3, "expected 3 elements, got %d", count);
