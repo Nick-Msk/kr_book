@@ -592,7 +592,7 @@ fs                                      fs_clone(const fs *s){
 // destructor, macro wrapper will be
 // free fs string and fs body if FS_FLAG_BODYALLOC
 void                                    fs_free(fs *s){
-    if (!s)
+    if (!s || fs_static(s))     // don't modify literals!
         return;
     bool  bdllloc = fs_bodyalloc(s);  // flags based
     if (fs_alloc(s) )    // actualy alloc must be a flag, but not statememnt TODO:
@@ -601,7 +601,7 @@ void                                    fs_free(fs *s){
             logsimple("freed... %p", s->v);   // WOW, logsimpleact?
             free(s->v);
         }
-    s->sz = s->len = 0; // destroy even literals
+    s->sz = s->len = 0;
     s->v = 0;
     if (bdllloc){
         s->flags &= ~FS_FLAG_BODYALLOC;   // clear  FS_FLAG_BODYALLOC
