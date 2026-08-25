@@ -171,13 +171,15 @@ bool                    getstring_nl(FILE *restrict in, fs *restrict str, bool n
     invraisecode(in != NULL && str != NULL, ERR_NULLABLE_PTR, "%p - %p", in, str);
     
     int     c;
-    size_t  initlen = fs_len(str);
+    size_t  initlen = append ? fs_len(str): 0;
     fsnew   iter = append ? fsiapp(str) : fsinew(str);
     while ( (c = getc(in)) != EOF && c != '\n')
         elemnext(iter) = c;
     if (newline && c == '\n')
         elemnext(iter) = c;
     elemend(iter);
+
+    fstechprint(*str);
     return c != EOF || fs_len(str) != initlen;
 }
 
