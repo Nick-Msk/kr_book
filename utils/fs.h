@@ -222,14 +222,6 @@ static inline  fs          *fs_heapcopy(const char *str){
     return fs_heapcreate(&tmp);
 }
 
-#if defined(FS_ALLOCATOR)
-// detach from allocator! Must be freed manually
-extern bool                 fsdetach(fs *s);
-
-// free all allocated
-extern void                 fsfreeall(void);
-#endif
-
 // TODO: fs_const() NOT SURE
 
 static inline fs            fscopyf(const char *fmt, ...) {
@@ -308,22 +300,22 @@ static inline size_t         fslen(fs s){
     return s.len;
 }
 // just and FS() or after freed
-static inline bool          fsisnull(fs s){
+static inline bool           fsisnull(fs s){
     return s.sz == 0 && s.v == 0;
 }
-static inline bool          fs_isnull(const fs *s){
+static inline bool           fs_isnull(const fs *s){
     return s == NULL || (s->sz == 0 && s->v == 0);
 }
 // check in fs is empty! stacked version
-static inline bool          fsisempty(fs s) {
+static inline bool           fsisempty(fs s) {
     return s.v == 0 || *s.v == '\0';
 }
 // check in fs is empty! pointer version
-static inline bool          fs_isempty(const fs *s){
+static inline bool           fs_isempty(const fs *s){
     return s == NULL || s->v == 0 || *s->v == '\0';
 }
 //
-static inline bool          fs_isheapalloc(const fs *s){
+static inline bool           fs_isheapalloc(const fs *s){
     return s != NULL && fs_alloc(s);
 }
 
