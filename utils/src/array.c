@@ -31,7 +31,7 @@ static const int        g_array_desc_rndinc     = 5;
 
 // ------------------------------ Utilities ------------------------
 
-// --- Фабрики-обертки (Internal) ---
+// factory-wrappers -- ACS rnd series
 static v64Gen                   f_v64_acs_int(long c, long s, int i) { 
     return v64GenCreatorAscRnd(v64typedCreateInt(s), c, i); 
 }
@@ -56,22 +56,49 @@ static v64Gen                   f_v64_acs_str(long c, long s, int i)  {
 static v64Gen                   f_v64_acs_fs(long c, long s, int i)   { 
     return v64GenCreatorAscFsRnd(c, s, "%d", i); 
 }
+// factory-wrappers -- DESC rnd series
+static v64Gen                   f_v64_desc_int(long c, long s, int i) { 
+    return v64GenCreatorDescRnd(v64typedCreateInt(s), c, i); 
+}
+static v64Gen                   f_v64_desc_long(long c, long s, int i) {
+    return v64GenCreatorDescRnd(v64typedCreateLong(s), c, i); 
+}
+static v64Gen                   f_v64_desc_ulong(long c, long s, int i) {
+    return v64GenCreatorDescRnd(v64typedCreateULong(s), c, i); 
+}
+static v64Gen                   f_v64_desc_dbl(long c, long s, int i)  { 
+    return v64GenCreatorDescRnd(v64typedCreateDbl(s), c, i); 
+}
+static v64Gen                   f_v64_desc_chr(long c, long s, int i)  { 
+    return v64GenCreatorDescRnd(v64typedCreateChar(ucharmax(s)), c, i); 
+}
+static v64Gen                   f_v64_desc_bool(long c, long s, int i) { 
+    return v64GenCreatorDescRnd(v64typedCreateBool(s != 0), c, i); 
+}
+static v64Gen                   f_v64_desc_str(long c, long s, int i)  { 
+    return v64GenCreatorDescStrRnd(c, s, "%d", i); 
+}
+static v64Gen                   f_v64_desc_fs(long c, long s, int i)   { 
+    return v64GenCreatorDescFsRnd(c, s, "%d", i); 
+}
+
 
 typedef struct {
     v64GenConstructor       fillAcs;
+    v64GenConstructor       fillDesc;
     // ... TODO:
 } ArrayTypeInterface;
 
 static const ArrayTypeInterface         ARRAYTYPEINTERFACE[] = {
-    [VALUE64_INT]   = {.fillAcs = f_v64_acs_int },
-    [VALUE64_LONG]  = {.fillAcs = f_v64_acs_long },
-    [VALUE64_ULONG] = {.fillAcs = f_v64_acs_ulong },
-    [VALUE64_DBL]   = {.fillAcs = f_v64_acs_dbl },
-    [VALUE64_CHR]   = {.fillAcs = f_v64_acs_chr },
-    [VALUE64_BOOL]  = {.fillAcs = f_v64_acs_bool },
-    [VALUE64_STR]   = {.fillAcs = f_v64_acs_str },
-    [VALUE64_FS]    = {.fillAcs = f_v64_acs_fs },
-    [VALUE64_UNKNOWN] = {.fillAcs = NULL } // по умолчанию
+    [VALUE64_INT]   = {.fillAcs = f_v64_acs_int,   .fillDesc = f_v64_desc_int },
+    [VALUE64_LONG]  = {.fillAcs = f_v64_acs_long,  .fillDesc = f_v64_desc_long },
+    [VALUE64_ULONG] = {.fillAcs = f_v64_acs_ulong, .fillDesc = f_v64_desc_ulong },
+    [VALUE64_DBL]   = {.fillAcs = f_v64_acs_dbl,   .fillDesc = f_v64_desc_dbl },
+    [VALUE64_CHR]   = {.fillAcs = f_v64_acs_chr,   .fillDesc = f_v64_desc_chr },
+    [VALUE64_BOOL]  = {.fillAcs = f_v64_acs_bool,  .fillDesc = f_v64_desc_bool },
+    [VALUE64_STR]   = {.fillAcs = f_v64_acs_str,   .fillDesc = f_v64_desc_str },
+    [VALUE64_FS]    = {.fillAcs = f_v64_acs_fs,    .fillDesc = f_v64_desc_fs },
+    [VALUE64_UNKNOWN] = {0} 
 };
 
 // internal
@@ -546,6 +573,7 @@ static int                      ArrayFillRange_ASC(Array *parr, int from, int to
 
         int cnt = ArrayGenPumprange(parr, &gen, from, to);
         v64GenFree(&gen);
+
         return cnt;
     } else 
         return userraise(-1, ERR_ACTION_NOT_APPLICABLE,
@@ -560,47 +588,23 @@ static int                      ArrayFillRange_ASC(Array *parr, int from, int to
 /// @param to     end index 
 /// @return       count of filled elements
 static int                      ArrayFillRange_DESC(Array *parr, int from, int to){
-    v64Gen gen;
-    const int start_num = (to - from + 1) * g_array_desc_rndinc;
+    ;
+    const int                 start_num = (to - from + 1) * g_array_desc_rndinc;
+    const ArrayTypeInterface *ti = getTypedInterface(ArrayGetV64mapType(parr));
 
-    switch (ArrayGetV64mapType(parr)) {
-        case VALUE64_INT:
-            gen = v64GenCreatorDescRnd(v64typedCreateInt(start_num), to - from, g_array_desc_rndinc); // g_array_desc_rndinc ==5 must be in context!
-            break;
-        case VALUE64_LONG:
-            gen = v64GenCreatorDescRnd(v64typedCreateLong(start_num), to - from, g_array_desc_rndinc);
-            break;
-        case VALUE64_ULONG:
-            gen = v64GenCreatorDescRnd(v64typedCreateULong(start_num), to - from, g_array_desc_rndinc);
-            break;
-        case VALUE64_DBL:
-            gen = v64GenCreatorDescRnd(v64typedCreateDbl(start_num), to - from, g_array_desc_rndinc);
-            break;
-        case VALUE64_CHR:
-            gen = v64GenCreatorDescRnd(
-                v64typedCreateChar(ucharmax(start_num)), to - from, g_array_desc_rndinc);
-            break;
-        case VALUE64_BOOL:
-            gen = v64GenCreatorDescRnd(v64typedCreateBool(from != 0), to - from, g_array_desc_rndinc);
-            break;
-        case VALUE64_STR:
-            gen = v64GenCreatorDescStrRnd(to - from, start_num, "%d", g_array_desc_rndinc);
-            break;
-        case VALUE64_FS:
-            gen = v64GenCreatorDescFsRnd(to - from, start_num, "%d", g_array_desc_rndinc);
-            break;
-        default:
-            v64GenFree(&gen);
-            return userraise(-1, ERR_ACTION_NOT_APPLICABLE,
-                            "Unsupported v64 type for ASC fill: %d/%s or  %d/%s",
+    if (ti->fillDesc) {
+        v64Gen gen = ti->fillDesc(to - from, start_num, g_array_desc_rndinc);
+
+        int cnt = ArrayGenPumprange(parr, &gen, from, to);
+        v64GenFree(&gen);
+    
+        return cnt;
+    } else {
+        return userraise(-1, ERR_ACTION_NOT_APPLICABLE,
+                            "Type mismatch: Type %d/%s (v64: %d/%s) does not support DESC fill",
                             ArrayGettype(parr), ArrayGetTypeName(parr),
                             parr->v64type, ArrayGetV64typeName(parr));
     }
-    // move the data via common (v64/scalar) entry point
-    int cnt = ArrayGenPumprange(parr, &gen, from, to);
-
-    v64GenFree(&gen);
-    return cnt;
 }
 
 
