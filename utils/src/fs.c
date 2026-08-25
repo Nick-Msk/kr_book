@@ -500,7 +500,7 @@ fs                                     *fs_fscanf(FILE *restrict in, fs *restric
     else {
         if (!original_s)
             fs_free(s);
-        return logsimpleerr(NULL, "EOF detectod");
+        return logsimpleerr(NULL, "EOF detected while fs_fscanf");
     }
 }
 
