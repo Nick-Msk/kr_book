@@ -178,8 +178,7 @@ bool                    getstring_nl(FILE *restrict in, fs *restrict str, bool n
     if (newline && c == '\n')
         elemnext(iter) = c;
     elemend(iter);
-
-    fstechprint(*str);
+    
     return c != EOF || fs_len(str) != initlen;
 }
 
