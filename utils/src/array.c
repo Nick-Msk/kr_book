@@ -597,13 +597,24 @@ static int                      ArrayFillRange_ZERO(Array *parr, int from, int t
 /// @return       count of filled elements
 /// @note         no generator here!
 static int                      ArrayFillRange_SAFE_EMPTY(Array *parr, int from, int to) {
+
+    // TODO:
+    /*
+        v64Gen gen = v64GenCreatorNull(
+            parr->v64type, to - from);
+        int cnt = ArrayGenPumprange(parr, &gen, from, to);
+
+        v64GenFree(&gen);
+        return cnt;
+    */
+
     switch (ArrayGettype(parr) ) {
         case ARRAY_V64: {   // V64
             switch (parr->v64type) {
                 case VALUE64_FS: {  // THINK: what if create generator for that
                     fs s = FS();
                     for (int i = from; i < to; i++)
-                        parr->v64[i] = LITERAL64_FS(s);;  
+                        parr->v64[i] = LITERAL64_FS(s);  
                     break;
                 }
                 case VALUE64_STR: {
@@ -774,12 +785,12 @@ static int                      ArrayFillRange_DESC_SERIES(Array *parr, int from
 int                             ArrayFillRange(Array *parr, ArrayFillType typ, int from, int to) {
     logenter("%d - %d, %s (%s/v64: %s)", 
             from, to, ArrayFillTypeName(typ), ArrayGetTypeName(parr), ArrayGetV64typeName(parr) );
-    // Нормализация границ
+    
     if (from < 0) {
         from = 0;
         logmsg("'from' was negative, normalized to 0");
     }
-    if (to > parr->sz){
+    if (to > parr->sz){ // sz but not len!
         to = parr->sz;
         logmsg("'to' was out of range - normalized to sz %d", parr->sz);
     }
@@ -4964,7 +4975,7 @@ tf26_array_v64_zero_fill_all(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST ArrayFillRange_ASC_SERIES with V64 generator -------------------------
@@ -5075,7 +5086,7 @@ tf27_array_v64_asc_series_fill_all(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST ArrayFillRange_ASC with V64 generator (random increase) -------------------------
@@ -5229,7 +5240,7 @@ tf28_array_v64_asc_fill_all_random(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST ArrayFillRange_DESC with V64 generator (random decrease) -------------------------
@@ -5383,7 +5394,7 @@ tf29_array_v64_desc_fill_all_random(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST ArrayFillRange_DESC_SERIES with V64 generator -------------------------
@@ -5531,7 +5542,7 @@ tf30_array_v64_desc_series_fill_all(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST ArrayFillRange_RND with V64 generator -------------------------
@@ -5732,7 +5743,7 @@ tf31_array_v64_rnd_fill_all(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // -------------------------------------------------------------------
