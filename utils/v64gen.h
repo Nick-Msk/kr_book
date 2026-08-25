@@ -45,7 +45,7 @@ typedef struct v64Gen {
 } v64Gen;
 
 // for common API
-typedef v64Gen          (*v64GenConstructor)(long count, long start, int increment);
+typedef v64Gen          (*v64GenTypedFactory)(/*value64_type vt, */long count, long start, int increment);
 
 // -------------------------- Registry Support API -----------------------------------
 
