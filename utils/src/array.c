@@ -5723,6 +5723,82 @@ tf31_array_v64_rnd_fill_all(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST ArrayFillRange_SAFE_EMPTY -------------------------
+static TestStatus
+tf32_array_safe_empty(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. STR array: все элементы должны быть NULL-строками */
+    test_sub("subtest %d: SAFE_EMPTY for STR", ++subnum);
+    {
+        Array *arr = V64Array_create(5, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        int cnt = ArrayFillRange_SAFE_EMPTY(arr, 0, Arraylen(arr));
+        test_validatefree(cnt == Arraylen(arr), Arrayfree(arr),
+                          "expected %d filled, got %d", Arraylen(arr), cnt);
+
+        for (int i = 0; i < Arraylen(arr); i++) {
+            test_validatefree(value64_str(arr->v64[i]) == NULL,
+                              Arrayfree(arr),
+                              "STR[%d] must be NULL", i);
+        }
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    /* 2. FS array: все элементы должны быть пустыми fs (не NULL) */
+    test_sub("subtest %d: SAFE_EMPTY for FS", ++subnum);
+    {
+        Array *arr = V64Array_create(5, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
+        test_validatefree(arr != NULL, Arrayfree(arr), "V64Array_create failed");
+
+        int cnt = ArrayFillRange_SAFE_EMPTY(arr, 0, Arraylen(arr));
+        test_validatefree(cnt == Arraylen(arr), Arrayfree(arr),
+                          "expected %d filled, got %d", Arraylen(arr), cnt);
+
+        for (int i = 0; i < Arraylen(arr); i++) {
+            fs *f = value64_fs(arr->v64[i]);
+
+            fstechprint(*f);
+
+            test_validatefree(f != NULL && fs_isempty(f),
+                            Arrayfree(arr),
+                            "FS[%d] must be non-NULL %p and == FS() ", i, f
+            );
+            if (f)
+                test_validatefree(fs_len(f) == 0, Arrayfree(arr),
+                                  "FS[%d] must be empty, len=%zu", i, fs_len(f));
+        }
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    /* 3. Скалярный массив: SAFE_EMPTY ничего не делает, возвращает 0 */
+    test_sub("subtest %d: SAFE_EMPTY for scalar", ++subnum);
+    {
+        Array *arr = IArray_create(5, ARRAY_FILLTYPE_ASC_SERIES);
+        test_validatefree(arr != NULL, Arrayfree(arr), "IArray_create failed");
+
+        int cnt = ArrayFillRange_SAFE_EMPTY(arr, 0, Arraylen(arr));
+        test_validatefree(cnt == 0, Arrayfree(arr),
+                          "expected 0, got %d", cnt);
+
+        // Значения должны остаться прежними (заполнены ASC_SERIES)
+        for (int i = 0; i < Arraylen(arr); i++) {
+            test_validatefree(arr->iv[i] == i,
+                              Arrayfree(arr),
+                              "INT[%d] must be %d, got %d", i, i, arr->iv[i]);
+        }
+        Arrayfree(arr);
+        fs_alloc_check(true);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -5730,37 +5806,38 @@ main( /*int argc, char *argv[] */ )
     logsimpleinit("Start");
 
     testenginestd(
-        TESTADD(tf1,                                "Int/double creation/descr test"),
-        TESTADD(tf2,                                "Int/double filling test"),
-        TESTADD(tf3,                                "Shrink test"),
-        TESTADD(tf4,                                "Save/load int test"),
-        TESTADD(tf5,                                "Save/load dbl test"),
-        TESTADD(tf6,                                "Shuffle array(dbl/int) simple test"),
-        TESTADD(tf7,                                "Sort array(dbl/int) simple test"),
-        TESTADD(tf8,                                "ArrayIncrease simple test"),
-        TESTADD(tf9,                                "PArray simple test"),
-        TESTADD(tf10,                               "Creation with ARRAY_(DE)ASC_SERIES simple test"),
-        TESTADD(tf11,                               "ArrayFillRange simple test"),
-        TESTADD(tf12,                               "Array_foreach macro simple test"),
-        TESTADD(tf13,                               "Array_foreach_prod simple test"),
-        TESTADD(tf_v64array_str_fs,                 "V64Array (STR / FS) simple test"),
-        TESTADD(tf_v64array_shrink_increase,        "V64Array (STR / FS) shrink / increase simple test"),
-        TESTADD(tf_v64array_sort,                   "V64Array (STR / FS) sorting simple test"),
-        TESTADD(tf_v64ArraySaveFile_load,           "V64Array STR/FS save/load simple test"),
-        TESTADD(tf_array_bsearch,                   "ArrayBsearch (INT / LONG / DBL / V64) simple test"),
-        TESTADD(tf_carray_create_fill_free,         "CHAR create/fill/free simple test"),
-        TESTADD(tf_carray_sort,                     "CHAR sorting simple test"),
-        TESTADD(tf_array_bsearch_char,              "CHAR ArrayBsearch simple test"),
-        TESTADD(tf_ArraySaveFile_load_char,         "CHAR Array save/load simple test"),
-        TESTADD(tf_array_eq_noteq,                  "ArrayEq / ArrayNoteq (all types, edge cases)"),
-        TESTADD(tf_ArrayDel,                        "ArrayDel simple test"),
-        TESTADD(tf_ArrayAdd,                        "ArrayAdd simple test"),
-        TESTADD(tf26_array_v64_zero_fill_all,           "ArrayFillRange_ZERO with V64 generator"),
-        TESTADD(tf27_array_v64_asc_series_fill_all,     "ArrayFillRange_ASC_SERIES with V64 generator"),
-        TESTADD(tf28_array_v64_asc_fill_all_random,     "ArrayFillRange_ASC_RND with V64 generator (random increase)"),
-        TESTADD(tf29_array_v64_desc_fill_all_random,    "ArrayFillRange_DESC_RND with V64 generators (random decrease)"),
-        TESTADD(tf30_array_v64_desc_series_fill_all,    "ArrayFillRange_DESC_SERIES with V64 generator"),
-        TESTADD(tf31_array_v64_rnd_fill_all,            "ArrayFillRange_RND with V64 generators all types")
+        TESTADD(tf1,                                    "Int/double creation/descr test")
+      , TESTADD(tf2,                                    "Int/double filling test")
+      , TESTADD(tf3,                                    "Shrink test")
+      , TESTADD(tf4,                                    "Save/load int test")
+      , TESTADD(tf5,                                    "Save/load dbl test")
+      , TESTADD(tf6,                                    "Shuffle array(dbl/int) simple test")
+      , TESTADD(tf7,                                    "Sort array(dbl/int) simple test")
+      , TESTADD(tf8,                                    "ArrayIncrease simple test")
+      , TESTADD(tf9,                                    "PArray simple test")
+      , TESTADD(tf10,                                   "Creation with ARRAY_(DE)ASC_SERIES simple test")
+      , TESTADD(tf11,                                   "ArrayFillRange simple test")
+      , TESTADD(tf12,                                   "Array_foreach macro simple test")
+      , TESTADD(tf13,                                   "Array_foreach_prod simple test")
+      , TESTADD(tf_v64array_str_fs,                     "V64Array (STR / FS) simple test")
+      , TESTADD(tf_v64array_shrink_increase,            "V64Array (STR / FS) shrink / increase simple test")
+      , TESTADD(tf_v64array_sort,                       "V64Array (STR / FS) sorting simple test")
+      , TESTADD(tf_v64ArraySaveFile_load,               "V64Array STR/FS save/load simple test")
+      , TESTADD(tf_array_bsearch,                       "ArrayBsearch (INT / LONG / DBL / V64) simple test")
+      , TESTADD(tf_carray_create_fill_free,             "CHAR create/fill/free simple test")
+      , TESTADD(tf_carray_sort,                         "CHAR sorting simple test")
+      , TESTADD(tf_array_bsearch_char,                  "CHAR ArrayBsearch simple test")
+      , TESTADD(tf_ArraySaveFile_load_char,             "CHAR Array save/load simple test")
+      , TESTADD(tf_array_eq_noteq,                      "ArrayEq / ArrayNoteq (all types, edge cases)")
+      , TESTADD(tf_ArrayDel,                            "ArrayDel simple test")
+      , TESTADD(tf_ArrayAdd,                            "ArrayAdd simple test")
+      , TESTADD(tf26_array_v64_zero_fill_all,           "ArrayFillRange_ZERO with V64 generator")
+      , TESTADD(tf27_array_v64_asc_series_fill_all,     "ArrayFillRange_ASC_SERIES with V64 generator")
+      , TESTADD(tf28_array_v64_asc_fill_all_random,     "ArrayFillRange_ASC_RND with V64 generator (random increase)")
+      , TESTADD(tf29_array_v64_desc_fill_all_random,    "ArrayFillRange_DESC_RND with V64 generators (random decrease)")
+      , TESTADD(tf30_array_v64_desc_series_fill_all,    "ArrayFillRange_DESC_SERIES with V64 generator")
+      , TESTADD(tf31_array_v64_rnd_fill_all,            "ArrayFillRange_RND with V64 generators all types")
+      , TESTADD(tf32_array_safe_empty,                  "ArrayFillRange_SAFE_EMPTY simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
