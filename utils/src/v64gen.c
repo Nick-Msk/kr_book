@@ -6,6 +6,8 @@
 
 // --------------------------------- CONSTANTS AND GLOBALS --------------------------
 
+static const fs                 V64GEN_NULL_FS = FSEMPTY;
+
 // --------------------------- Utilities --------------------------------------------
 
 static value64           
@@ -104,75 +106,6 @@ v64GenFileUpdateCount(v64Gen *gen)
     return gen->limit;
 }
 
-// ----------------------- Utilities FINALIZERS -----------------------------------------
-
-// /**
-//  * @brief Finalizer for fs newline generator: returns the remaining data as last line.
-//  * @note 
-//  * REG0 - source fs
-//  */
-// static value64                  v64GenFSToStringTargetByNewlineFinalize(v64Gen *gen, value64_type typ) {
-//     invraisecode(gen != NULL, ERR_NULLABLE_PTR, "NUll gen");
-//     invraisecode(typ == VALUE64_FS || typ == VALUE64_STR, ERR_UNSUPPORTED_TYPE
-//         , "Type %d/%s isn't supported by %s", typ, value64_typename(typ), __func__);
-
-//     fs              *src = (fs *) V64GENREGVAL0(gen).pval;
-//     off_t            pos = gen->position;
-
-//     if (!src->v || (size_t) pos >= src->len)
-//         return userraise(LITERAL64_ZERO, ERR_NULLABLE_PTR, 
-//             "source fs is null (%p) or out of range (%lld/%lu)", src, pos, src->len);
-
-//     size_t          remaining_len = src->len - pos;
-//     if (remaining_len > 0 && src->v[src->len - 1] == '\r')
-//         remaining_len--;
-
-//     value64         res = LITERAL64_ZERO;
-//     fs              line = fs_newsubstr(src, pos, remaining_len);
-//     gen->position = src->len;   // позиция в конец
-//     gen->limit    = 0L;
-//     if (typ == VALUE64_FS) 
-//         res = value64_movefs(&line);
-//     else // VALUE64_STR
-//         res = LITERAL64_STR(fs_movetostr(&line));
-        
-//     return res;
-// }
-
-// static value64                         v64GenFSToFsByNewlineFinalize(v64Gen *gen) {
-//     return v64GenFSToStringTargetByNewlineFinalize(gen, VALUE64_FS);
-// }
-// // 
-// static value64                         v64GenFSToStrByNewlineFinalize(v64Gen *gen) {
-//     return v64GenFSToStringTargetByNewlineFinalize(gen, VALUE64_STR);
-// }
-
-// // FILE -> FS/STR by newline finallizers
-// /** 
-//  * @brief Finalizer: returns the remaining partial line without reading file.
-//  * @note
-//  * REG[2] - fs buffer
-//  */
-// static value64                  v64GenFileToStringTargetByNewlineFinalize(v64Gen *gen) {
-//     fs *buf = V64GENREGVAL2(gen).fsval;
-//     if (!buf || fs_isempty(buf))
-//         return userraise(LITERAL64_ZERO, ERR_NULLABLE_PTR, 
-//             "fs buffer is null or empty %p", buf);
-
-//     value64 res;
-//     if (gen->type == VALUE64_STR)
-//         res = value64_createstr(fs_str(buf));
-//     else
-//         res = value64_createfs(buf);
-
-//     gen->position += fs_len(buf);   // учитываем полезные символы
-//     gen->limit = 0;                 // останавливаем генератор
-
-//     fs_clear(buf);
-    
-//     return res;
-// }
-
 // ------------------------- CONSTRUCTOTS/DESTRUCTORS -------------------------------
 
 v64Gen                          
@@ -188,7 +121,6 @@ v64GenInit(v64GenFunc func, value64_type type, off_t limit,
         .position   = 0L,
         .limit      = limit,
         .updater    = NULL,
-        //.finalizer  = NULL,
         .data     = { [0] = reg0, [1] = reg1, [2] = reg2, [3] = reg3 }
     };
     return res;
@@ -391,10 +323,10 @@ v64GenCurr(v64Gen *gen) {
 
 value64
 v64GenUnlimNull(v64Gen *gen) {
-    value64 res;
+    value64 res = LITERAL64_ZERO;
     switch (gen->type) {
         case VALUE64_FS:
-            res = LITERAL64_PFS(fs_create());
+            res.fsval = (fs *) &V64GEN_NULL_FS;
             break;
         case VALUE64_STR:
             res = LITERAL64_STR(NULL);
