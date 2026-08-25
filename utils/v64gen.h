@@ -44,6 +44,9 @@ typedef struct v64Gen {
     v64typed                data[V64GENCOUNT];
 } v64Gen;
 
+// for common API
+typedef v64Gen          (*v64GenConstructor)(int count, int start, int increment);
+
 // -------------------------- Registry Support API -----------------------------------
 
 // now shortcut only for 4 registers
