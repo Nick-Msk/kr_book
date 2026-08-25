@@ -598,40 +598,17 @@ static int                      ArrayFillRange_ZERO(Array *parr, int from, int t
 /// @note         no generator here!
 static int                      ArrayFillRange_SAFE_EMPTY(Array *parr, int from, int to) {
 
-    // TODO:
-    /*
-        v64Gen gen = v64GenCreatorNull(
+    switch (ArrayGetV64mapType(parr)) {
+        case VALUE64_STR: case VALUE64_FS:
+            v64Gen gen = v64GenCreatorNull(
             parr->v64type, to - from);
-        int cnt = ArrayGenPumprange(parr, &gen, from, to);
+            int cnt = ArrayGenPumprange(parr, &gen, from, to);
 
-        v64GenFree(&gen);
-        return cnt;
-    */
-
-    switch (ArrayGettype(parr) ) {
-        case ARRAY_V64: {   // V64
-            switch (parr->v64type) {
-                case VALUE64_FS: {  // THINK: what if create generator for that
-                    fs s = FS();
-                    for (int i = from; i < to; i++)
-                        parr->v64[i] = LITERAL64_FS(s);  
-                    break;
-                }
-                case VALUE64_STR: {
-                    for (int i = from; i < to; i++)
-                        parr->v64[i] = LITERAL64_STR(NULL);
-                    break;
-                }
-                default:
-                    return userraise(-1, ERR_ACTION_NOT_APPLICABLE, 
-                        "Unsupported v64 type for ZERO v64 type %s", ArrayGetV64typeName(parr) );
-            }
-            break;
-        }
+            v64GenFree(&gen);
+            return cnt;
         default:
-        break;
+            return 0;   // nothing to for for scalar types
     }
-    return to - from;
 }
 
 /// @brief        random value filler
