@@ -36,7 +36,9 @@ typedef enum ArrayFillType{
     ARRAY_FILLTYPE_RND,
     ARRAY_FILLTYPE_ZERO,
     ARRAY_FILLTYPE_ASC_SERIES,
-    ARRAY_FILLTYPE_DESC_SERIES
+    ARRAY_FILLTYPE_DESC_SERIES,
+    //
+    ARRAY_FILLTYPE_MAX          // not a real value
 } ArrayFillType;
 
 /**
