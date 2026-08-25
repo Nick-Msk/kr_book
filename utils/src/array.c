@@ -31,6 +31,7 @@ static const int        g_array_desc_rndinc     = 5;
 
 // ------------------------------ Utilities ------------------------
 
+// typedef v64Gen (*v64GenFactory)(value64_type vt, long count, long start, int increment);
 // factory-wrappers -- ACS rnd series
 static v64Gen                   f_v64_acs_int(long c, long s, int i) { 
     return v64GenCreatorAscRnd(v64typedCreateInt(s), c, i); 
@@ -81,6 +82,16 @@ static v64Gen                   f_v64_desc_str(long c, long s, int i)  {
 static v64Gen                   f_v64_desc_fs(long c, long s, int i)   { 
     return v64GenCreatorDescFsRnd(c, s, "%d", i); 
 }
+/*
+// ZERO (всегда возвращает ноль для любого типа)
+static v64Gen f_zero(value64_type vt, long c, long s, int i)     { 
+    return v64GenCreatorZero(vt, c); 
+}
+
+// EMPTY (возвращает пустой генератор)
+static v64Gen f_empty(value64_type vt, long c, long s, int i)    { 
+    return (v64Gen){0}; 
+}*/
 
 
 typedef struct {
