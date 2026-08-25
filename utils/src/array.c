@@ -5762,8 +5762,6 @@ tf32_array_safe_empty(const char *name)
         for (int i = 0; i < Arraylen(arr); i++) {
             fs *f = value64_fs(arr->v64[i]);
 
-            fstechprint(*f);
-
             test_validatefree(f != NULL && fs_isempty(f),
                             Arrayfree(arr),
                             "FS[%d] must be non-NULL %p and == FS() ", i, f
