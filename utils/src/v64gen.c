@@ -392,10 +392,9 @@ v64GenCurr(v64Gen *gen) {
 value64
 v64GenUnlimNull(v64Gen *gen) {
     value64 res;
-    fs s = FS();
     switch (gen->type) {
         case VALUE64_FS:
-            res = LITERAL64_FS(s);
+            res = LITERAL64_PFS(fs_create());
             break;
         case VALUE64_STR:
             res = LITERAL64_STR(NULL);
