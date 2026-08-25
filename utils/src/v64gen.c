@@ -4058,12 +4058,11 @@ tf24_gen_null(const char *name)
     {
         v64Gen  gen = v64GenCreatorNull(VALUE64_FS, 3);
         int     count = 0;
-        fs      nullfs = FS();
         while (v64GenHasnext(&gen)) {
             value64 v = v64GenNext(&gen);
-            test_validatefree(value64_fs(v) == &nullfs,
+            test_validatefree(value64_fs(v) != NULL && fs_isempty(value64_fs(v) ),
                               (v64GenFree(&gen)),
-                              "expected non-NULL fs pointer");
+                              "expected fs == FS() but not null");
             count++;
         }
         test_validate(count == 3, "expected 3 elements, got %d", count);
@@ -4104,16 +4103,16 @@ tf24_gen_null(const char *name)
     test_sub("subtest %d: Null FS unlimited (5 reads)", ++subnum);
     {
         v64Gen gen = v64GenCreatorUnlimNull(VALUE64_FS);
-        const int reads = 5;
-        int count = 0;
+        const int   reads = 5;
+        int         count = 0;
         for (int i = 0; i < reads; i++) {
             test_validatefree(v64GenHasnext(&gen),
                               (v64GenFree(&gen)),
                               "expected hasnext true");
             value64 v = v64GenNext(&gen);
-            test_validatefree(value64_fs(v) != NULL,
+            test_validatefree(value64_fs(v) != NULL && fs_isempty(value64_fs(v) ),
                               (v64GenFree(&gen)),
-                              "expected non-NULL fs pointer");
+                              "expected FS() , but not null");
             count++;
         }
         test_validate(count == reads, "expected %d reads, got %d", reads, count);
