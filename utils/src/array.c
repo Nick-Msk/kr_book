@@ -31,6 +31,57 @@ static const int        g_array_desc_rndinc     = 5;
 
 // ------------------------------ Utilities ------------------------
 
+// --- Фабрики-обертки (Internal) ---
+static v64Gen                   f_v64_acs_int(long c, long s, int i) { 
+    return v64GenCreatorAscRnd(v64typedCreateInt(s), c, i); 
+}
+static v64Gen                   f_v64_acs_long(long c, long s, int i) {
+    return v64GenCreatorAscRnd(v64typedCreateLong(s), c, i); 
+}
+static v64Gen                   f_v64_acs_ulong(long c, long s, int i) {
+    return v64GenCreatorAscRnd(v64typedCreateULong(s), c, i); 
+}
+static v64Gen                   f_v64_acs_dbl(long c, long s, int i)  { 
+    return v64GenCreatorAscRnd(v64typedCreateDbl(s), c, i); 
+}
+static v64Gen                   f_v64_acs_chr(long c, long s, int i)  { 
+    return v64GenCreatorAscRnd(v64typedCreateChar(ucharmax(s)), c, i); 
+}
+static v64Gen                   f_v64_acs_bool(long c, long s, int i) { 
+    return v64GenCreatorAscRnd(v64typedCreateBool(s != 0), c, i); 
+}
+static v64Gen                   f_v64_acs_str(long c, long s, int i)  { 
+    return v64GenCreatorAscStrRnd(c, s, "%d", i); 
+}
+static v64Gen                   f_v64_acs_fs(long c, long s, int i)   { 
+    return v64GenCreatorAscFsRnd(c, s, "%d", i); 
+}
+
+typedef struct {
+    v64GenConstructor       fillAcs;
+    // ... TODO:
+} ArrayTypeInterface;
+
+static const ArrayTypeInterface         ARRAYTYPEINTERFACE[] = {
+    [VALUE64_INT]   = {.fillAcs = f_v64_acs_int },
+    [VALUE64_LONG]  = {.fillAcs = f_v64_acs_long },
+    [VALUE64_ULONG] = {.fillAcs = f_v64_acs_ulong },
+    [VALUE64_DBL]   = {.fillAcs = f_v64_acs_dbl },
+    [VALUE64_CHR]   = {.fillAcs = f_v64_acs_chr },
+    [VALUE64_BOOL]  = {.fillAcs = f_v64_acs_bool },
+    [VALUE64_STR]   = {.fillAcs = f_v64_acs_str },
+    [VALUE64_FS]    = {.fillAcs = f_v64_acs_fs },
+    [VALUE64_UNKNOWN] = {.fillAcs = NULL } // по умолчанию
+};
+
+// internal
+static const ArrayTypeInterface     *getTypedInterface(value64_type vt64) {
+    if (vt64 < 0 || vt64 >= COUNT(ARRAYTYPEINTERFACE)) {
+        vt64 = VALUE64_UNKNOWN;
+    }
+    return ARRAYTYPEINTERFACE + vt64;
+}
+
 /**
  * @brief Allocates and initializes a new Array descriptor.
  * 
@@ -486,46 +537,23 @@ int                             Array_fill(Array *parr, ArrayFillType typ){
 /// @param to     end index 
 /// @return       count of filled elements
 static int                      ArrayFillRange_ASC(Array *parr, int from, int to){
-    v64Gen gen;
 
-    switch (ArrayGetV64mapType(parr)) {
-        case VALUE64_INT:
-            gen = v64GenCreatorAscRnd(v64typedCreateInt(from), to - from, g_array_acs_rndinc); // g_array_acs_rndinc= 5 must be in context!
-            break;
-        case VALUE64_LONG:
-            gen = v64GenCreatorAscRnd(v64typedCreateLong(from), to - from, g_array_acs_rndinc);
-            break;
-        case VALUE64_ULONG:
-            gen = v64GenCreatorAscRnd(v64typedCreateULong(from), to - from, g_array_acs_rndinc);
-            break;
-        case VALUE64_DBL:
-            gen = v64GenCreatorAscRnd(v64typedCreateDbl(from), to - from,  g_array_acs_rndinc);
-            break;
-        case VALUE64_CHR:
-            gen = v64GenCreatorAscRnd(v64typedCreateChar(ucharmax(from)), to - from, g_array_acs_rndinc);
-            break;
-        case VALUE64_BOOL:
-            gen = v64GenCreatorAscRnd(v64typedCreateBool(from != 0), to - from, g_array_acs_rndinc);
-            break;
-        case VALUE64_STR:
-            gen = v64GenCreatorAscStrRnd( to - from, from, "%d", g_array_acs_rndinc);
-            break;
-        case VALUE64_FS:
-            gen = v64GenCreatorAscFsRnd(to - from, from, "%d", g_array_acs_rndinc);
-            break;
-        default:
-            v64GenFree(&gen);
-            return userraise(-1, ERR_ACTION_NOT_APPLICABLE,
-                            "Unsupported scalar/v64 type for ASC fill: %d/%s or %d/%s",
+    value64_type              vt64 = ArrayGetV64mapType(parr);
+    const ArrayTypeInterface *ti = getTypedInterface(vt64);
+
+    if (ti->fillAcs) {
+        v64Gen gen = ti->fillAcs(to - from, from, g_array_acs_rndinc);
+
+        int cnt = ArrayGenPumprange(parr, &gen, from, to);
+        v64GenFree(&gen);
+        return cnt;
+    } else 
+        return userraise(-1, ERR_ACTION_NOT_APPLICABLE,
+                            "Type mismatch: Type %d/%s (v64: %d/%s) does not support ASC fill",
                             ArrayGettype(parr), ArrayGetTypeName(parr),
                             parr->v64type, ArrayGetV64typeName(parr));
-    }
-    // move the data via common (v64/scalar) entry point
-    int cnt = ArrayGenPumprange(parr, &gen, from, to);
-
-    v64GenFree(&gen);
-    return cnt;
 }
+
 /// @brief        descending filler
 /// @param parr   array 
 /// @param from   start index 
