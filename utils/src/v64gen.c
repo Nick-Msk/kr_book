@@ -882,7 +882,7 @@ tf1_gen_init_free(const char *name)
         test_validate(gen.data[1].typ == VALUE64_UNKNOWN, "data[1] should start UNKNOWN");
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST v64GenNext (zero) -------------------------
@@ -1006,7 +1006,7 @@ tf2_gen_next_zero(const char *name)
         v64GenFree(&gen);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST value64UncheckGenUnlimAscSeries -------------------------
@@ -1287,7 +1287,7 @@ tf3_gen_asc_series(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST v64gen creators (simple wrappers) -------------------------
@@ -1354,7 +1354,7 @@ tf4_gen_creators(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 } */
 
 // ------------------------- TEST : asc random generator -------------------------
@@ -1558,7 +1558,7 @@ tf5_gen_asc_rnd(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST: AscRnd with custom rndinc -------------------------
@@ -1671,7 +1671,7 @@ tf6_gen_asc_rnd_custom(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 6: DescSeries -------------------------
@@ -1901,7 +1901,7 @@ tf7_gen_desc_series(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 7: DescRnd (descending random) -------------------------
@@ -2093,7 +2093,7 @@ tf8_gen_desc_rnd_custom(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 8: UnlimRandom generators -------------------------
@@ -2266,7 +2266,7 @@ tf9_gen_unlim_random(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 10: Source C-string to char generator (LONG lim) -------------------------
@@ -2403,7 +2403,7 @@ tf10_gen_string_source(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 11: Sequential chunks from growing fs -------------------------
@@ -2464,7 +2464,7 @@ tf11_gen_string_chunks(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 12: Append to source generator -------------------------
@@ -2533,7 +2533,7 @@ tf12_gen_string_append(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 13: v64GenFSToChar()  simple test -------------------------
@@ -2592,7 +2592,7 @@ tf13_gen_fs_stream_simple(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 14: v64GenFSToFsByNewline()  simple test-------------------------
@@ -2679,7 +2679,7 @@ tf14_gen_fs_bynewline(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 15: v64GenGetRemainingCount with fs char generator -------------------------
@@ -2816,7 +2816,7 @@ tf15_gen_fs_remaining(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 16: FsToFsByNewline remaining count -------------------------
@@ -2865,7 +2865,7 @@ tf16_gen_fs_bynewline_remaining(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 17: v64GenFSToStrByNewline simple test (hasnext/getnext) -------------------------
@@ -2911,7 +2911,7 @@ tf17_gen_fs_tostr_bynewline(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 // ------------------------- TEST 20: v64GenStreamUpdate with FILE* source -------------------------
 static TestStatus
@@ -3024,7 +3024,7 @@ tf18_gen_stream_update_file(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 19: v64GenCreatorSourceFileToCommonOutput simple test -------------------------
@@ -3190,7 +3190,7 @@ tf19_gen_file_bynewline(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 20: Limited C-string to CHAR generator -------------------------
@@ -3395,7 +3395,7 @@ tf20_gen_string_source_limited(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 30: fs -> CHAR generator (limit, append) -------------------------
@@ -3671,7 +3671,7 @@ tf21_gen_fs_char(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 33: FILE* -> CHAR generator -------------------------
@@ -3881,7 +3881,7 @@ tf22_gen_file_char(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST 23: fs -> STR by newline generator -------------------------
@@ -4043,7 +4043,7 @@ tf23_gen_fs_tostr_bynewline(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST Null generator (FS/STR) -------------------------
@@ -4142,7 +4142,7 @@ tf24_gen_null(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------------------------------------------------------------------------------------------------------------
