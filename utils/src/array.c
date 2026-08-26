@@ -382,17 +382,17 @@ static bool                     equal_v64(const Array *p1, const Array *p2) {
 
 // general interface
 typedef struct {
-    ArrayCompareFunc            typefiller;     // fill part of array
+    ArrayCompareFunc            basic_comparator;     // fill part of array
     // others
 } ArrayInterface;
 
 static const                    ArrayInterface ARRAYINTERFACE[] = {
-    [ARRAY_INT]     = { .typefiller = equal_int },
-    [ARRAY_LONG]    = { .typefiller = equal_long },
-    [ARRAY_DOUBLE]  = { .typefiller = equal_double },
-    [ARRAY_POINTER] = { .typefiller = equal_pointer },
-    [ARRAY_CHAR]    = { .typefiller = equal_char },
-    [ARRAY_V64]     = { .typefiller = equal_v64 },
+    [ARRAY_INT]     = { .basic_comparator = equal_int },
+    [ARRAY_LONG]    = { .basic_comparator = equal_long },
+    [ARRAY_DOUBLE]  = { .basic_comparator = equal_double },
+    [ARRAY_POINTER] = { .basic_comparator = equal_pointer },
+    [ARRAY_CHAR]    = { .basic_comparator = equal_char },
+    [ARRAY_V64]     = { .basic_comparator = equal_v64 },
 };
 
 static const ArrayInterface       *getTypedInterface(ArrayType typ) {
@@ -1244,46 +1244,12 @@ bool                            ArrayNoteq(const Array *restrict parr1, const Ar
     const ArrayInterface *ti = getTypedInterface(typ);
     bool    res = true;
 
-    if (ti->typefiller) {
-        res = !ti->typefiller(parr1, parr2);
+    if (ti && ti->basic_comparator) {
+        res = !ti->basic_comparator(parr1, parr2);
     } else
         userraiseint(ERR_UNSUPPORTED_TYPE, "Unsupported type for comparison: %d/%s",
                         ArrayGettype(parr1), ArrayGetTypeName(parr1));
     return res;
-/*
-#define ArrayNoteq_COMPARE_LOOP(field) \
-    for (int i = 0; i < parr1->len; i++) \
-        if (parr1->field[i] != parr2->field[i]) return true;        
-
-
-    ArrayType typ = ArrayGettype(parr1);
-    switch (typ) {
-        case ARRAY_INT: 
-            ArrayNoteq_COMPARE_LOOP(iv);
-            break;
-        case ARRAY_LONG:
-            ArrayNoteq_COMPARE_LOOP(lv);
-            break;
-        case ARRAY_DOUBLE:
-            ArrayNoteq_COMPARE_LOOP(dv);
-            break;
-        case ARRAY_POINTER:
-            ArrayNoteq_COMPARE_LOOP(pv);
-            break;
-        case ARRAY_CHAR:
-            ArrayNoteq_COMPARE_LOOP(cv);
-            break;
-        case ARRAY_V64:
-            for (int i = 0; i < parr1->len; i++)
-                if (!value64_equal(parr1->v64[i], parr2->v64[i], parr1->v64type))
-                    return true;
-            break;
-        default:
-            userraiseint(ERR_UNSUPPORTED_TYPE, "Unsupported type for comparison: %s",
-                         ArrayGetTypeName(parr1));
-            return true;
-    }
-    return false;   // all elements equal */
 }
 
 /**
