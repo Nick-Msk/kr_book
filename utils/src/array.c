@@ -259,18 +259,50 @@ static inline Array             *arraycreate(ArrayType typ, value64_type vt) {
     return arr;
 }
 
+static inline void             fixbysz(Array *parr, int *pos) {
+    if (*pos < 0) { // TODO: remove that after switch to size_t
+        logsimple("postion %d is out of bound, cut to %d", *pos, 0);
+        *pos = 0;
+    }
+    if (*pos > Arraysz(parr)) {
+        logsimple("postion %d is out of bound, cut to sz %d", *pos, Arraysz(parr));
+        *pos = Arraysz(parr);
+    }
+}
+static inline void             fixbylen(Array *parr, int *pos) {
+    if (*pos < 0) { // TODO: remove that after switch to size_t
+        logsimple("postion %d is out of bound, cut to %d", *pos, 0);
+        *pos = 0;
+    }
+    if (*pos > Arraysz(parr)) {
+        logsimple("postion %d is out of bound, cut to sz %d", *pos, Arraysz(parr));
+        *pos = Arraysz(parr);
+    }
+}
+static inline void              fixrangesbysz(Array *parr, int *from, int *to) {
+    fixbysz(parr, from);
+    fixbysz(parr, to);
+    // from > to isn't checker for now
+}
+static inline void              fixrangesbylen(Array *parr, int *from, int *to) {
+    fixbylen(parr, from);
+    fixbylen(parr, to);
+    // from > to isn't checker for now
+}
+
 /// @brief free value64 elements of array
 /// @param arr pointer to array
 /// @param from from
 /// @param to to
-static void                     freeV64elems(Array *arr, int from, int to) {
-    invraisecode(ERR_NULLABLE_PTR, arr != NULL, "Null pointer");
-    invraisecode(ERR_OUT_OF_RANGE, from >= 0 && to <= arr->sz, "Invalid range");
-    if (arr->v64type == VALUE64_STR || arr->v64type == VALUE64_FS) {   
+static void                     freeV64elems(Array *parr, int from, int to) {
+    invraisecode(ERR_NULLABLE_PTR, parr != NULL, "Null pointer");
+
+    fixrangesbysz(parr, &from, &to);
+    if (parr->v64type == VALUE64_STR || parr->v64type == VALUE64_FS) {   
         for (int i = from; i < to; i++) {
-            value64free(arr->v64[i], arr->v64type);
+            value64free(parr->v64[i], parr->v64type);
         }
-        logsimple("freed %s  %d - %d", value64_typename(arr->v64type), from, to);
+        logsimple("freed %s  %d - %d", value64_typename(parr->v64type), from, to);
     }
 }
 
@@ -755,10 +787,10 @@ static int                      ArrayFillRange_ZERO(Array *parr, int from, int t
 /// @note         no generator here!
 static int                      ArrayFillRange_SAFE_EMPTY(Array *parr, int from, int to) {
 
-    switch (ArrayGetV64mapType(parr)) {
+    switch (ArrayGetV64mapType(parr)) { // TODO: refactor via factory
         case VALUE64_STR: case VALUE64_FS:
-            v64Gen gen = v64GenCreatorNull(
-            parr->v64type, to - from);
+            v64Gen gen = v64GenCreatorNull(parr->v64type, to - from);
+            
             int cnt = ArrayGenPumprange(parr, &gen, from, to);
 
             v64GenFree(&gen);
@@ -872,14 +904,8 @@ int                             ArrayFillRange(Array *parr, ArrayFillType typ, i
     logenter("%d - %d, %s (%s/v64: %s)", 
             from, to, ArrayFillTypeName(typ), ArrayGetTypeName(parr), ArrayGetV64typeName(parr) );
     
-    if (from < 0) {
-        from = 0;
-        logmsg("'from' was negative, normalized to 0");
-    }
-    if (to > parr->sz){ // sz but not len!
-        to = parr->sz;
-        logmsg("'to' was out of range - normalized to sz %d", parr->sz);
-    }
+    fixrangesbysz(parr, &from, &to);
+
     switch (typ) {
         case ARRAY_FILLTYPE_ASC:
             ArrayFillRange_ASC(parr, from, to);
@@ -922,10 +948,8 @@ Array                          *ArrayIncrease(Array *parr, int newcnt){
 
 Array                          *ArrayShrink(Array *parr, int newsz){
     logenter("newsz %d", newsz);
-    if (newsz < 0)
-        newsz = 0;
-    if (newsz > parr->sz)
-        newsz = parr->sz;
+    fixbysz(parr, &newsz);
+
     increase(parr, newsz);
     return logret(parr, "shrinked to (len %d == sz %d)", parr->len, parr->sz);
 }
@@ -1366,19 +1390,9 @@ int                          ArrayGenPumprangeScalar(Array *restrict parr, v64Ge
 int                          ArrayGenPumprange(Array *restrict parr, v64Gen *restrict gen, int from, int to) {
     invraisecode(parr != NULL && gen != NULL, ERR_NULLABLE_PTR, 
         "Null input %p %p", parr, gen);
-    // checking
-    if (from < 0 || to < 0 || from > to)
-        return userraise(-1, ERR_OUT_OF_RANGE, 
-            "%d - %d is negative or out of range", from, to);
+    // fixing ranges
+    fixrangesbysz(parr, &from, &to);
 
-    if (to > Arraysz(parr)) {
-        logsimple("last postion %d is out of bound, cut to %d", to, Arraysz(parr));
-        to = Arraysz(parr);
-    }
-    if (from > Arraysz(parr)) {
-        logsimple("first postion %d is out of bound, cut to %d", from, Arraysz(parr));
-        from = Arraysz(parr);
-    }
     int     cnt = 0;
     // v64 have universale pumper while every scalar type - it's own
     if (ArrayIsV64(parr))
