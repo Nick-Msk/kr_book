@@ -182,6 +182,17 @@ static v64Gen                   f_v64_rnd_fs(long c, long s, int i) {
     (void) s;
     return v64GenCreatorFsRnd(c, "%d", i); 
 }
+// --- SAFE_EMPTY Master Factories (Internal) ---
+static v64Gen                   f_v64_empty_provider_fs(long c, long s, int i) {
+    (void) i;
+    (void) s;
+    return v64GenCreatorNull(VALUE64_FS, c);
+}
+static v64Gen                   f_v64_empty_provider_str(long c, long s, int i) {
+    (void) i;
+    (void) s;
+    return v64GenCreatorNull(VALUE64_STR, c);
+}
 
 /*
 // ZERO (всегда возвращает ноль для любого типа)
@@ -252,13 +263,15 @@ static const v64GenTypedFactory         ARRAYTYPEINTERFACE[][ARRAY_FILLTYPE_MAX]
                         [ARRAY_FILLTYPE_DESC]        = f_v64_desc_str,
                         [ARRAY_FILLTYPE_ASC_SERIES]  = f_v64_acs_series_str,   
                         [ARRAY_FILLTYPE_DESC_SERIES] = f_v64_desc_series_str,
-                        [ARRAY_FILLTYPE_RND]         = f_v64_rnd_str
+                        [ARRAY_FILLTYPE_RND]         = f_v64_rnd_str,
+                        [ARRAY_FILLTYPE_SAFE_EMPTY]  = f_v64_empty_provider_str
                     },
     [VALUE64_FS]    = { [ARRAY_FILLTYPE_ASC]         = f_v64_acs_fs,    
                         [ARRAY_FILLTYPE_DESC]        = f_v64_desc_fs,
                         [ARRAY_FILLTYPE_ASC_SERIES]  = f_v64_acs_series_fs,    
                         [ARRAY_FILLTYPE_DESC_SERIES] = f_v64_desc_series_fs,
-                        [ARRAY_FILLTYPE_RND]         = f_v64_rnd_fs
+                        [ARRAY_FILLTYPE_RND]         = f_v64_rnd_fs,
+                        [ARRAY_FILLTYPE_SAFE_EMPTY]  = f_v64_empty_provider_fs
                     },
     [VALUE64_UNKNOWN] = {0} 
 };
@@ -829,8 +842,20 @@ static int                      ArrayFillRange_ZERO(Array *parr, int from, int t
 /// @return       count of filled elements
 /// @note         no generator here!
 static int                      ArrayFillRange_SAFE_EMPTY(Array *parr, int from, int to) {
+    value64_type    vt64 = ArrayGetV64mapType(parr);
 
-    switch (ArrayGetV64mapType(parr)) { // TODO: refactor via factory
+    v64GenTypedFactory ti = getTypedFillFactory(vt64, ARRAY_FILLTYPE_SAFE_EMPTY);
+
+    if (ti) {
+        v64Gen gen = ti(to - from, 0, 0);
+        int cnt = ArrayGenPumprange(parr, &gen, from, to);
+        v64GenFree(&gen);
+
+        return cnt;
+    } else
+        return 0;
+
+    /*switch (ArrayGetV64mapType(parr)) { // TODO: refactor via factory
         case VALUE64_STR: case VALUE64_FS:
             v64Gen gen = v64GenCreatorNull(parr->v64type, to - from);
             
@@ -840,7 +865,7 @@ static int                      ArrayFillRange_SAFE_EMPTY(Array *parr, int from,
             return cnt;
         default:
             return 0;   // nothing to for for scalar types
-    }
+    }*/
 }
 
 /// @brief        random value filler
@@ -866,44 +891,6 @@ static int                      ArrayFillRange_RND(Array *parr, int from, int to
                             "Unsupported v64 type for RND fill: %d/%s or  %d/%s",
                             ArrayGettype(parr), ArrayGetTypeName(parr),
                             parr->v64type, ArrayGetV64typeName(parr));
-    /* v64Gen      gen;
-
-    switch (ArrayGetV64mapType(parr)) {
-        case VALUE64_INT:
-            gen = v64GenCreatorRnd(VALUE64_INT, rnd_max, to - from);
-            break;
-        case VALUE64_LONG:
-            gen = v64GenCreatorRnd(VALUE64_LONG, rnd_max, to - from);
-            break;
-        case VALUE64_ULONG:
-            gen = v64GenCreatorRnd(VALUE64_ULONG, rnd_max, to - from);
-            break;
-        case VALUE64_DBL:
-            gen = v64GenCreatorRnd(VALUE64_DBL, rnd_max, to - from);
-            break;
-        case VALUE64_CHR:
-            gen = v64GenCreatorRnd(VALUE64_CHR, rnd_max, to - from);
-            break;
-        case VALUE64_BOOL:
-            gen = v64GenCreatorRnd(VALUE64_BOOL, 1, to - from);
-            break;
-        case VALUE64_STR:
-            gen = v64GenCreatorStrRnd(to - from, "%d", rnd_max);
-            break;
-        case VALUE64_FS:
-            gen = v64GenCreatorFsRnd(to - from, "%d", rnd_max);
-            break;
-        default:
-            return userraise(-1, ERR_ACTION_NOT_APPLICABLE,
-                            "Unsupported v64 type for RND fill: %d/%s or  %d/%s",
-                            ArrayGettype(parr), ArrayGetTypeName(parr),
-                            parr->v64type, ArrayGetV64typeName(parr));
-    }
-    // move the data!
-    int cnt = ArrayGenPumprange(parr, &gen, from, to);
-
-    v64GenFree(&gen);
-    return cnt; */
 }
 
 /// @brief        ascending series filler
