@@ -380,19 +380,49 @@ static bool                     equal_v64(const Array *p1, const Array *p2) {
     return true;
 }
 
+typedef                         int (*pointer_comparator)(const void *restrict i1, const void *restrict i2);
+typedef                         pointer_comparator (*QsortGetcompFunc)(const Array *parr, ArrayFillType ord);
+
+#define DEFINE_SIMPLE_QSORT_FACTORY(name, asc_func, desc_func) \
+static pointer_comparator       get_##name##_cmp(const Array *p, ArrayFillType ord) { \
+    (void) p; \
+    return (ord == ARRAY_FILLTYPE_ASC) ? (pointer_comparator) asc_func : (pointer_comparator) desc_func; \
+}
+
+DEFINE_SIMPLE_QSORT_FACTORY(int,        pint_cmp,  pint_revcmp)
+DEFINE_SIMPLE_QSORT_FACTORY(long,       plong_cmp, plong_revcmp)
+DEFINE_SIMPLE_QSORT_FACTORY(double,     pdbl_cmp,  pdbl_revcmp)
+DEFINE_SIMPLE_QSORT_FACTORY(pointer,    pptr_cmp,  pptr_revcmp)
+DEFINE_SIMPLE_QSORT_FACTORY(char,       pchar_cmp, pchar_revcmp)
+
+#undef DEFINE_SIMPLE_QSORT_FACTORY
+
+static pointer_comparator           get_v64_cmp(const Array *parr, ArrayFillType ord) {
+    return (ord == ARRAY_FILLTYPE_ASC) 
+            ? value64_getPComparator(parr->v64type) 
+            : value64_getPRevComparator(parr->v64type);
+}
+
 // general interface
 typedef struct {
     ArrayCompareFunc            basic_comparator;     // fill part of array
+    QsortGetcompFunc            get_qsort_comparator;       // per element
     // others
 } ArrayInterface;
 
 static const                    ArrayInterface ARRAYINTERFACE[] = {
-    [ARRAY_INT]     = { .basic_comparator = equal_int },
-    [ARRAY_LONG]    = { .basic_comparator = equal_long },
-    [ARRAY_DOUBLE]  = { .basic_comparator = equal_double },
-    [ARRAY_POINTER] = { .basic_comparator = equal_pointer },
-    [ARRAY_CHAR]    = { .basic_comparator = equal_char },
-    [ARRAY_V64]     = { .basic_comparator = equal_v64 },
+    [ARRAY_INT]     = { .basic_comparator = equal_int, 
+                        .get_qsort_comparator = get_int_cmp },
+    [ARRAY_LONG]    = { .basic_comparator = equal_long,
+                        .get_qsort_comparator = get_long_cmp },
+    [ARRAY_DOUBLE]  = { .basic_comparator = equal_double, 
+                        .get_qsort_comparator = get_double_cmp},
+    [ARRAY_POINTER] = { .basic_comparator = equal_pointer,
+                        .get_qsort_comparator = get_pointer_cmp },
+    [ARRAY_CHAR]    = { .basic_comparator = equal_char,
+                        .get_qsort_comparator = get_char_cmp },
+    [ARRAY_V64]     = { .basic_comparator = equal_v64,
+                        .get_qsort_comparator = get_v64_cmp }
 };
 
 static const ArrayInterface       *getTypedInterface(ArrayType typ) {
@@ -1264,14 +1294,25 @@ bool                            ArrayNoteq(const Array *restrict parr1, const Ar
  *
  * @throws ERR_UNSUPPORTED_TYPE if the array type cannot be sorted
  */
-void                                Array_qsort(Array *parr, ArrayFillType ord) {
+void                                ArrayQsort(Array *parr, ArrayFillType ord) {
     int                 sz = ArrayGetelemsize(parr);
-    if (sz <= 0) {
-        userraiseint(ERR_UNSUPPORTED_TYPE, "Unable to get type size %d/%s", ArrayGettype(parr), ArrayGetTypeName(parr));
-    }
+    if (sz <= 0)
+        userraiseint(ERR_UNSUPPORTED_TYPE, 
+            "Unable to get type size %d/%s", ArrayGettype(parr), ArrayGetTypeName(parr));
     pointer_comparator  cmp = NULL;
    
-    ArrayType typ = ArrayGettype(parr);
+    const ArrayInterface *ti = getTypedInterface(ArrayGettype(parr));
+    if (ti && ti->get_qsort_comparator)
+        cmp = ti->get_qsort_comparator(parr, ord);
+
+    if (cmp)
+        qsort(parr->v, parr->len, sz, cmp);
+    else
+        userraiseint(ERR_UNSUPPORTED_TYPE, 
+                "Unsupported type %d/%s", ArrayGettype(parr), ArrayGetTypeName(parr));
+    
+
+    /*ArrayType typ = ArrayGettype(parr);
     switch (typ) {
         case ARRAY_INT:     
             cmp = (ord == ARRAY_FILLTYPE_ASC) ? pint_cmp  : pint_revcmp;  
@@ -1297,7 +1338,7 @@ void                                Array_qsort(Array *parr, ArrayFillType ord) 
     }
     
     if (cmp)
-        qsort(parr->v, parr->len, sz, cmp);
+        qsort(parr->v, parr->len, sz, cmp);*/
 }
 
 /**
@@ -2231,7 +2272,7 @@ tf7(const char *name)
     test_sub("subtest %d: double asc/desc", ++subnum);
     {
         Array *arr = DArray_create(10000, ARRAY_FILLTYPE_RND);
-        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
         for (int i = 1; i < arr->len; i++)
             test_validatefree(
                 arr->dv[i - 1] <= arr->dv[i],
@@ -2240,7 +2281,7 @@ tf7(const char *name)
                 i - 1, arr->dv[i - 1], i, arr->dv[i]
             );
 
-        Array_qsort(arr, ARRAY_FILLTYPE_DESC);
+        ArrayQsort(arr, ARRAY_FILLTYPE_DESC);
         for (int i = 1; i < arr->len; i++)
             test_validatefree(
                 arr->dv[i - 1] >= arr->dv[i],
@@ -2255,7 +2296,7 @@ tf7(const char *name)
     test_sub("subtest %d: int asc/desc", ++subnum);
     {
         Array *arr = IArray_create(100000, ARRAY_FILLTYPE_RND);
-        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
         for (int i = 1; i < arr->len; i++)
             test_validatefree(
                 arr->iv[i - 1] <= arr->iv[i],
@@ -2264,7 +2305,7 @@ tf7(const char *name)
                 i - 1, arr->iv[i - 1], i, arr->iv[i]
             );
 
-        Array_qsort(arr, ARRAY_FILLTYPE_DESC);
+        ArrayQsort(arr, ARRAY_FILLTYPE_DESC);
         for (int i = 1; i < arr->len; i++)
             test_validatefree(
                 arr->iv[i - 1] >= arr->iv[i],
@@ -2279,7 +2320,7 @@ tf7(const char *name)
     test_sub("subtest %d: long asc/desc", ++subnum);
     {
         Array *arr = LArray_create(100000, ARRAY_FILLTYPE_RND);
-        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
         for (int i = 1; i < arr->len; i++)
             test_validatefree(
                 arr->lv[i - 1] <= arr->lv[i],
@@ -2288,7 +2329,7 @@ tf7(const char *name)
                 i - 1, arr->lv[i - 1], i, arr->lv[i]
             );
 
-        Array_qsort(arr, ARRAY_FILLTYPE_DESC);
+        ArrayQsort(arr, ARRAY_FILLTYPE_DESC);
         for (int i = 1; i < arr->len; i++)
             test_validatefree(
                 arr->lv[i - 1] >= arr->lv[i],
@@ -2457,7 +2498,7 @@ tf9(const char *name)
         for (int i = 0; i < parr->len; i++)
             parr->pv[i] = parr->pv + cnt - 1 - i;
 
-        Array_qsort(parr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(parr, ARRAY_FILLTYPE_ASC);
         for (int i = 1; i < parr->len; i++)
             test_validatefree(
                 (uintptr_t)parr->pv[i - 1] <= (uintptr_t)parr->pv[i],
@@ -2466,7 +2507,7 @@ tf9(const char *name)
                 i - 1, (void*)parr->pv[i - 1], i, (void*)parr->pv[i]
             );
 
-        Array_qsort(parr, ARRAY_FILLTYPE_DESC);
+        ArrayQsort(parr, ARRAY_FILLTYPE_DESC);
         for (int i = 1; i < parr->len; i++)
             test_validatefree(
                 (uintptr_t)parr->pv[i - 1] >= (uintptr_t)parr->pv[i],
@@ -3415,7 +3456,7 @@ tf_v64array_sort(const char *name)
         arr->v64[2] = value64_createstr("charlie");
         arr->v64[3] = value64_createstr("beta");
 
-        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
 
         const char *expected[] = {"alpha", "beta", "charlie", "delta"};
         for (int i = 0; i < 4; i++) {
@@ -3438,7 +3479,7 @@ tf_v64array_sort(const char *name)
         arr->v64[2] = value64_createstr("charlie");
         arr->v64[3] = value64_createstr("beta");
 
-        Array_qsort(arr, ARRAY_FILLTYPE_DESC);
+        ArrayQsort(arr, ARRAY_FILLTYPE_DESC);
 
         const char *expected[] = {"delta", "charlie", "beta", "alpha"};
         for (int i = 0; i < 4; i++) {
@@ -3462,7 +3503,7 @@ tf_v64array_sort(const char *name)
         arr->v64[2] = value64_createfs_asstr("/mmm");
         arr->v64[3] = value64_createfs_asstr("/bbb");
 
-        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
 
         const char *expected[] = {"/aaa", "/bbb", "/mmm", "/zzz"};
         for (int i = 0; i < 4; i++) {
@@ -3485,7 +3526,7 @@ tf_v64array_sort(const char *name)
         arr->v64[2] = value64_createfs_asstr("/mmm");
         arr->v64[3] = value64_createfs_asstr("/bbb");
 
-        Array_qsort(arr, ARRAY_FILLTYPE_DESC);
+        ArrayQsort(arr, ARRAY_FILLTYPE_DESC);
 
         const char *expected[] = {"/zzz", "/mmm", "/bbb", "/aaa"};
         for (int i = 0; i < 4; i++) {
@@ -3505,7 +3546,7 @@ tf_v64array_sort(const char *name)
     test_sub("subtest %d: STR sort empty array", ++subnum);
     {
         Array *arr = V64Array_create(0, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
-        Array_qsort(arr, ARRAY_FILLTYPE_ASC);   // must not crash
+        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);   // must not crash
         test_validatefree(
             arr->len == 0,
             Arrayfree(arr),
@@ -3519,7 +3560,7 @@ tf_v64array_sort(const char *name)
     {
         Array *arr = V64Array_create(1, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
         arr->v64[0] = value64_createstr("single");
-        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
         test_validatefree(
             strcmp(value64_str(arr->v64[0]), "single") == 0,
             Arrayfree(arr),
@@ -3535,7 +3576,7 @@ tf_v64array_sort(const char *name)
         arr->v64[0] = value64_createstr("a");
         arr->v64[1] = value64_createstr("b");
         arr->v64[2] = value64_createstr("c");
-        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
         const char *exp[] = {"a", "b", "c"};
         for (int i = 0; i < 3; i++) {
             test_validatefree(
@@ -3555,7 +3596,7 @@ tf_v64array_sort(const char *name)
         arr->v64[1] = value64_createstr("b");
         arr->v64[2] = value64_createstr("a");
         arr->v64[3] = value64_createstr("c");
-        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
         const char *exp[] = {"a", "a", "b", "c"};
         for (int i = 0; i < 4; i++) {
             test_validatefree(
@@ -3571,7 +3612,7 @@ tf_v64array_sort(const char *name)
     test_sub("subtest %d: FS sort empty array", ++subnum);
     {
         Array *arr = V64Array_create(0, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
-        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
         test_validatefree(arr->len == 0, Arrayfree(arr), "Empty FS array after sort must still be empty");
         Arrayfree(arr);
     }
@@ -3581,7 +3622,7 @@ tf_v64array_sort(const char *name)
     {
         Array *arr = V64Array_create(1, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
         arr->v64[0] = value64_createfs_asstr("/only");
-        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
         test_validatefree(
             strcmp(fs_str(value64_fs(arr->v64[0])), "/only") == 0,
             Arrayfree(arr),
@@ -3597,7 +3638,7 @@ tf_v64array_sort(const char *name)
         arr->v64[0] = value64_createfs_asstr("/a");
         arr->v64[1] = value64_createfs_asstr("/b");
         arr->v64[2] = value64_createfs_asstr("/c");
-        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
         const char *exp[] = {"/a", "/b", "/c"};
         for (int i = 0; i < 3; i++) {
             test_validatefree(
@@ -3617,7 +3658,7 @@ tf_v64array_sort(const char *name)
         arr->v64[1] = value64_createfs_asstr("/b");
         arr->v64[2] = value64_createfs_asstr("/a");
         arr->v64[3] = value64_createfs_asstr("/c");
-        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
         const char *exp[] = {"/a", "/a", "/b", "/c"};
         for (int i = 0; i < 4; i++) {
             test_validatefree(
@@ -3981,7 +4022,7 @@ tf_array_bsearch(const char *name)
         arr->v64[2] = value64_createfs_asstr("/gamma");
         arr->v64[3] = value64_createfs_asstr("/delta");
 
-        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
 
         value64 key = value64_createfs_asstr("/beta");
         int idx;
@@ -4105,7 +4146,7 @@ tf_carray_sort(const char *name)
     test_sub("subtest %d: CHAR sort ASC", ++subnum);
     {
         Array *arr = CArray_create(6, ARRAY_FILLTYPE_RND);
-        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
 
         for (int i = 1; i < arr->len; i++) {
             test_validatefree(
@@ -4122,7 +4163,7 @@ tf_carray_sort(const char *name)
     test_sub("subtest %d: CHAR sort DESC", ++subnum);
     {
         Array *arr = CArray_create(6, ARRAY_FILLTYPE_RND);
-        Array_qsort(arr, ARRAY_FILLTYPE_DESC);
+        ArrayQsort(arr, ARRAY_FILLTYPE_DESC);
 
         for (int i = 1; i < arr->len; i++) {
             test_validatefree(
@@ -4139,7 +4180,7 @@ tf_carray_sort(const char *name)
     test_sub("subtest %d: CHAR sort empty", ++subnum);
     {
         Array *arr = CArray_create(0, ARRAY_FILLTYPE_SAFE_EMPTY);
-        Array_qsort(arr, ARRAY_FILLTYPE_ASC);   // не должно упасть
+        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);   // не должно упасть
         test_validatefree(arr->len == 0, Arrayfree(arr), "Empty array must stay empty after sort");
         Arrayfree(arr);
     }
@@ -4149,7 +4190,7 @@ tf_carray_sort(const char *name)
     {
         Array *arr = CArray_create(1, ARRAY_FILLTYPE_SAFE_EMPTY);
         arr->cv[0] = 'x';
-        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
         test_validatefree(
             arr->cv[0] == 'x',
             Arrayfree(arr),
@@ -4163,7 +4204,7 @@ tf_carray_sort(const char *name)
     {
         Array *arr = CArray_create(3, ARRAY_FILLTYPE_SAFE_EMPTY);
         arr->cv[0] = 'a'; arr->cv[1] = 'b'; arr->cv[2] = 'c';
-        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
         test_validatefree(
             arr->cv[0] == 'a' && arr->cv[1] == 'b' && arr->cv[2] == 'c',
             Arrayfree(arr),
@@ -4177,7 +4218,7 @@ tf_carray_sort(const char *name)
     {
         Array *arr = CArray_create(4, ARRAY_FILLTYPE_SAFE_EMPTY);
         arr->cv[0] = 'b'; arr->cv[1] = 'a'; arr->cv[2] = 'b'; arr->cv[3] = 'c';
-        Array_qsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
         test_validatefree(
             arr->cv[0] == 'a' && arr->cv[1] == 'b' && arr->cv[2] == 'b' && arr->cv[3] == 'c',
             Arrayfree(arr),

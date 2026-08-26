@@ -646,7 +646,7 @@ extern Array                       *ArrayAdd(Array *parr, int from, int cnt, Arr
  * @param arr array (by value)
  * @param ord sort order (ARRAY_FILLTYPE_ASC or ARRAY_FILLTYPE_DESC)
  */
-extern void                         Array_qsort(Array *parr, ArrayFillType ord);
+extern void                         ArrayQsort(Array *parr, ArrayFillType ord);
 // ---------------------------- binary searchers --------------------------------
 // int
 extern int                          ArrayBsearchIntCommon(const Array *parr, int val, bool acs);
