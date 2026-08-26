@@ -301,8 +301,8 @@ static v64GenTypedFactory          getTypedFillFactory(value64_type vt64, ArrayF
         NULL;
     return ARRAYTYPEFILLERINTERFACE[vt64][ft];
 }
-// ----------------------------- Basic Array Interfaces -------------------------------------
-// ----- Sorting, binary search ect... 1 API method per 1 V64 type!
+// ----------------------------- Basic Filler Interfaces -------------------------------------
+// -------------------------- 1 API method per 1 filler type! --------------------------------
 
 typedef int                     (*ArrayFillRangeFunc)(Array *parr, int from, int to);
 
@@ -334,9 +334,75 @@ static const FilledInterface      *getFilledInterface(ArrayFillType filltyp) {
     if (filltyp < 0 || filltyp >= COUNT(FILLERINTERFACE) ) 
         return userraise(NULL, ERR_UNSUPPORTED_INTERFACE, 
                     "Unable to find  filler interface for %d/%s", 
-                        filltyp, ArrayFillTypeName(filltyp));
+                        filltyp, ArrayFillTypeGetName(filltyp));
     return &FILLERINTERFACE[filltyp];
 }
+
+// ----------------------------- Basic Array Interfaces -------------------------------------
+// ----- Sorting, binary search ect... 1 API method per 1 ArrayType type!
+
+typedef bool                    (*ArrayCompareFunc)(const Array *restrict, const Array *restrict);
+
+static bool                     equal_int(const Array *p1, const Array *p2) {
+    for (int i = 0; i < p1->len; i++)
+        if (p1->iv[i] != p2->iv[i])
+            return false;
+    return true;
+}
+static bool                     equal_long(const Array *p1, const Array *p2) {
+    for (int i = 0; i < p1->len; i++)
+        if (p1->lv[i] != p2->lv[i])
+            return false;
+    return true;
+}
+static bool                     equal_double(const Array *p1, const Array *p2) {
+    for (int i = 0; i < p1->len; i++)
+        if (p1->dv[i] != p2->dv[i])
+            return false;
+    return true;
+}
+static bool                     equal_pointer(const Array *p1, const Array *p2) {
+    for (int i = 0; i < p1->len; i++)
+        if (p1->pv[i] != p2->pv[i])
+            return false;
+    return true;
+}
+static bool                     equal_char(const Array *p1, const Array *p2) {
+    for (int i = 0; i < p1->len; i++)
+        if (p1->cv[i] != p2->cv[i])
+            return false;
+    return true;
+}
+static bool                     equal_v64(const Array *p1, const Array *p2) {
+    for (int i = 0; i < p1->len; i++)
+        if (!value64_equal(p1->v64[i], p2->v64[i], p1->v64type))
+            return false;
+    return true;
+}
+
+// general interface
+typedef struct {
+    ArrayCompareFunc            typefiller;     // fill part of array
+    // others
+} ArrayInterface;
+
+static const                    ArrayInterface ARRAYINTERFACE[] = {
+    [ARRAY_INT]     = { .typefiller = equal_int },
+    [ARRAY_LONG]    = { .typefiller = equal_long },
+    [ARRAY_DOUBLE]  = { .typefiller = equal_double },
+    [ARRAY_POINTER] = { .typefiller = equal_pointer },
+    [ARRAY_CHAR]    = { .typefiller = equal_char },
+    [ARRAY_V64]     = { .typefiller = equal_v64 },
+};
+
+static const ArrayInterface       *getTypedInterface(ArrayType typ) {
+    if (typ < 0 || typ >= COUNT(ARRAYINTERFACE) ) 
+        return userraise(NULL, ERR_UNSUPPORTED_INTERFACE, 
+                    "Unable to find  filler interface for %d/%s", 
+                        typ, ArrayTypeGetName(typ));
+    return &ARRAYINTERFACE[typ];
+}
+
 
 /**
  * @brief Allocates and initializes a new Array descriptor.
@@ -374,26 +440,26 @@ static inline void             fixbysz(Array *parr, int *pos) {
         *pos = Arraysz(parr);
     }
 }
-static inline void             fixbylen(Array *parr, int *pos) {
-    if (*pos < 0) { // TODO: remove that after switch to size_t
-        logsimple("postion %d is out of bound, cut to %d", *pos, 0);
-        *pos = 0;
-    }
-    if (*pos > Arraysz(parr)) {
-        logsimple("postion %d is out of bound, cut to sz %d", *pos, Arraysz(parr));
-        *pos = Arraysz(parr);
-    }
-}
+// static inline void             fixbylen(Array *parr, int *pos) {
+//     if (*pos < 0) { // TODO: remove that after switch to size_t
+//         logsimple("postion %d is out of bound, cut to %d", *pos, 0);
+//         *pos = 0;
+//     }
+//     if (*pos > Arraysz(parr)) {
+//         logsimple("postion %d is out of bound, cut to sz %d", *pos, Arraysz(parr));
+//         *pos = Arraysz(parr);
+//     }
+// }
 static inline void              fixrangesbysz(Array *parr, int *from, int *to) {
     fixbysz(parr, from);
     fixbysz(parr, to);
     // from > to isn't checker for now
 }
-static inline void              fixrangesbylen(Array *parr, int *from, int *to) {
-    fixbylen(parr, from);
-    fixbylen(parr, to);
-    // from > to isn't checker for now
-}
+// static inline void              fixrangesbylen(Array *parr, int *from, int *to) {
+//     fixbylen(parr, from);
+//     fixbylen(parr, to);
+//     // from > to isn't checker for now
+// }
 
 /// @brief free value64 elements of array
 /// @param arr pointer to array
@@ -784,7 +850,7 @@ static bool                     ArrayParseFooterStr(const char **base) {
 
 // CREATE  and fill with method
 Array                          *Array_create(int cnt, ArrayFillType filltyp, ArrayType typ, value64_type vt){
-    logenter("cnt %d, filltyp %s typ %s", cnt, ArrayFillTypeName(filltyp), ArrayTypeGetName(typ) );
+    logenter("cnt %d, filltyp %s typ %s", cnt, ArrayFillTypeGetName(filltyp), ArrayTypeGetName(typ) );
     // TODO: refactor via ArrayIncrease
     Array   *res = arraycreate(typ, vt);      
     if (cnt <= 0)
@@ -995,17 +1061,17 @@ int                             ArrayFillRange(Array *parr, ArrayFillType fillty
     if (!parr)
         return userraise(-1, ERR_NULLABLE_PTR, "Null parr");
     logenter("%d - %d, %s (%s/v64: %s)", 
-            from, to, ArrayFillTypeName(filltyp), ArrayGetTypeName(parr), ArrayGetV64typeName(parr) );
+            from, to, ArrayFillTypeGetName(filltyp), ArrayGetTypeName(parr), ArrayGetV64typeName(parr) );
     
     const FilledInterface      *fi = getFilledInterface(filltyp);
     if (fi->typefiller) {
         fixrangesbysz(parr, &from, &to);
         int cnt = fi->typefiller(parr, from, to);
 
-        return logret(cnt, "Filled by %s %d", ArrayFillTypeName(filltyp), cnt);
+        return logret(cnt, "Filled by %s %d", ArrayFillTypeGetName(filltyp), cnt);
     } else
         return userraise(-1, ERR_ACTION_NOT_APPLICABLE, 
-                "Not supported filltype %d/%s", filltyp, ArrayFillTypeName(filltyp));
+                "Not supported filltype %d/%s", filltyp, ArrayFillTypeGetName(filltyp));
 }
 
 // -------------- ACCESS AND MODIFICATION --------------
@@ -1170,11 +1236,21 @@ bool                            ArrayNoteq(const Array *restrict parr1, const Ar
     invraisecode(ERR_NULLABLE_PTR, parr1 != NULL && parr2 != NULL,
                  "Null pointers %p %p", (void*) parr1, (void*) parr2);
     // raise exception if not equal
-    ArrayCheckComparable(parr1, parr2);
+    ArrayType typ = ArrayCheckComparable(parr1, parr2);
 
     if (parr1->len != parr2->len)
         return true;   // different lengths -> not equal
 
+    const ArrayInterface *ti = getTypedInterface(typ);
+    bool    res = true;
+
+    if (ti->typefiller) {
+        res = !ti->typefiller(parr1, parr2);
+    } else
+        userraiseint(ERR_UNSUPPORTED_TYPE, "Unsupported type for comparison: %d/%s",
+                        ArrayGettype(parr1), ArrayGetTypeName(parr1));
+    return res;
+/*
 #define ArrayNoteq_COMPARE_LOOP(field) \
     for (int i = 0; i < parr1->len; i++) \
         if (parr1->field[i] != parr2->field[i]) return true;        
@@ -1207,7 +1283,7 @@ bool                            ArrayNoteq(const Array *restrict parr1, const Ar
                          ArrayGetTypeName(parr1));
             return true;
     }
-    return false;   // all elements equal
+    return false;   // all elements equal */
 }
 
 /**

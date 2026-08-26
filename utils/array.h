@@ -237,7 +237,7 @@ static ArrayType                    ArrayTypeFromName(const char *name) {
  * @param t The ArrayFillType enum value.
  * @return const char* A pointer to the name string. Returns an empty string if not found.
  */
-static inline const char           *ArrayFillTypeName(ArrayFillType t) {
+static inline const char           *ArrayFillTypeGetName(ArrayFillType t) {
     for (size_t i = 0; i < COUNT(ARRAY_FILLTYPE_TABLE); i++) {
         if (ARRAY_FILLTYPE_TABLE[i].type == t)
             return ARRAY_FILLTYPE_TABLE[i].name;
@@ -539,10 +539,11 @@ static inline bool                  ArrayComparable(const Array *restrict arr1, 
  * @param arr2 pointer to the second array
  * @note raise ERR_TYPES_MISMATCH  if the arrays have diff types
  */
-static inline void                  ArrayCheckComparable(const Array *restrict arr1, const Array *restrict arr2) {
+static inline ArrayType             ArrayCheckComparable(const Array *restrict arr1, const Array *restrict arr2) {
     if (!ArrayComparable(arr1, arr2) )
         userraiseint(ERR_TYPES_MISMATCH, "Type of arr1 %s and arr2 %s are not compatiple (equal for now)", 
             ArrayGetTypeName(arr1), ArrayGetTypeName(arr2) );   // different types -> not equal
+    return ArrayGettype(arr1);
 }
 
 /**
