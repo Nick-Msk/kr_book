@@ -31,6 +31,7 @@ static const int        g_array_desc_rndinc     = 5;
 
 // ------------------------------ Utilities ------------------------
 
+// ---------------------- TYPE FILLERS -----------------------------
 // factory-wrappers -- ACS (rnd) series
 static v64Gen                   f_v64_acs_int(long c, long s, int i) { 
     return v64GenCreatorAscRnd(v64typedCreateInt(s), c, i); 
@@ -230,22 +231,8 @@ static v64Gen                   f_v64_zero_provider_ptr(long c, long s, int i) {
     (void) s; (void) i;
     return v64GenCreatorZero(VALUE64_PTR, c);
 }
-
-
-
-
-
-/*v64Gen gen = v64GenCreatorZero(
-            ArrayGetV64mapType(parr), to - from);
-    int cnt = ArrayGenPumprange(parr, &gen, from, to);
-*/
-/*
-// ZERO (всегда возвращает ноль для любого типа)
-static v64Gen f_zero(value64_type vt, long c, long s, int i)     { 
-    return v64GenCreatorZero(vt, c); 
-} */
-
-static const v64GenTypedFactory         ARRAYTYPEINTERFACE[][ARRAY_FILLTYPE_MAX] = {
+// 
+static const v64GenTypedFactory         ARRAYTYPEFILLERINTERFACE[][ARRAY_FILLTYPE_MAX] = {
     [VALUE64_INT]   = { [ARRAY_FILLTYPE_ASC]         = f_v64_acs_int,   
                         [ARRAY_FILLTYPE_DESC]        = f_v64_desc_int,
                         [ARRAY_FILLTYPE_ASC_SERIES]  = f_v64_acs_series_int,   
@@ -308,18 +295,47 @@ static const v64GenTypedFactory         ARRAYTYPEINTERFACE[][ARRAY_FILLTYPE_MAX]
                     },
     [VALUE64_UNKNOWN] = {0} 
 };
-
-// // internal 
-// static v64GenTypedFactory         *getTypedInterface(value64_type vt64) {
-//     if (vt64 < 0 || vt64 >= COUNT(ARRAYTYPEINTERFACE))
-//         vt64 = VALUE64_UNKNOWN;
-//     return ARRAYTYPEINTERFACE + vt64;
-// }
-// internal
+// internal, type-filler constructor
 static v64GenTypedFactory          getTypedFillFactory(value64_type vt64, ArrayFillType ft) {
-    if (vt64 < 0 || vt64 >= COUNT(ARRAYTYPEINTERFACE) || ft < 0 || ft >= ARRAY_FILLTYPE_MAX)
+    if (vt64 < 0 || vt64 >= COUNT(ARRAYTYPEFILLERINTERFACE) || ft < 0 || ft >= ARRAY_FILLTYPE_MAX)
         NULL;
-    return ARRAYTYPEINTERFACE[vt64][ft];
+    return ARRAYTYPEFILLERINTERFACE[vt64][ft];
+}
+// ----------------------------- Basic Array Interfaces -------------------------------------
+// ----- Sorting, binary search ect... 1 API method per 1 V64 type!
+
+typedef int                     (*ArrayFillRangeFunc)(Array *parr, int from, int to);
+
+static int                      ArrayFillRange_ASC(Array *parr, int from, int to);
+static int                      ArrayFillRange_DESC(Array *parr, int from, int to);
+static int                      ArrayFillRange_ZERO(Array *parr, int from, int to);
+static int                      ArrayFillRange_SAFE_EMPTY(Array *parr, int from, int to);
+static int                      ArrayFillRange_RND(Array *parr, int from, int to);
+static int                      ArrayFillRange_ASC_SERIES(Array *parr, int from, int to);
+static int                      ArrayFillRange_DESC_SERIES(Array *parr, int from, int to);
+
+// general interface
+typedef struct {
+    ArrayFillRangeFunc      typefiller;     // fill part of array
+    // others
+} FilledInterface;
+
+static const FilledInterface         FILLERINTERFACE[] = {
+    [ARRAY_FILLTYPE_ASC]         = { .typefiller = ArrayFillRange_ASC },
+    [ARRAY_FILLTYPE_DESC]        = { .typefiller = ArrayFillRange_DESC },
+    [ARRAY_FILLTYPE_ZERO]        = { .typefiller = ArrayFillRange_ZERO },
+    [ARRAY_FILLTYPE_SAFE_EMPTY]  = { .typefiller = ArrayFillRange_SAFE_EMPTY },
+    [ARRAY_FILLTYPE_RND]         = { .typefiller = ArrayFillRange_RND },
+    [ARRAY_FILLTYPE_ASC_SERIES]  = { .typefiller = ArrayFillRange_ASC_SERIES },
+    [ARRAY_FILLTYPE_DESC_SERIES] = { .typefiller = ArrayFillRange_DESC_SERIES },
+};
+
+static const FilledInterface      *getFilledInterface(ArrayFillType filltyp) {
+    if (filltyp < 0 || filltyp >= COUNT(FILLERINTERFACE) ) 
+        return userraise(NULL, ERR_UNSUPPORTED_INTERFACE, 
+                    "Unable to find  filler interface for %d/%s", 
+                        filltyp, ArrayFillTypeName(filltyp));
+    return &FILLERINTERFACE[filltyp];
 }
 
 /**
@@ -874,12 +890,6 @@ static int                      ArrayFillRange_ZERO(Array *parr, int from, int t
         return cnt;
     } else
         return 0;
-    /*v64Gen gen = v64GenCreatorZero(
-            ArrayGetV64mapType(parr), to - from);
-    int cnt = ArrayGenPumprange(parr, &gen, from, to);
-
-    v64GenFree(&gen);
-    return cnt;*/
 }
 
 /// @brief        none filler (fs & str)
@@ -982,57 +992,20 @@ static int                      ArrayFillRange_DESC_SERIES(Array *parr, int from
 /// @param to  to (will be normilized if out of range)
 /// @return Count of formatter data
 int                             ArrayFillRange(Array *parr, ArrayFillType filltyp, int from, int to) {
+    if (!parr)
+        return userraise(-1, ERR_NULLABLE_PTR, "Null parr");
     logenter("%d - %d, %s (%s/v64: %s)", 
             from, to, ArrayFillTypeName(filltyp), ArrayGetTypeName(parr), ArrayGetV64typeName(parr) );
     
-    fixrangesbysz(parr, &from, &to);
+    const FilledInterface      *fi = getFilledInterface(filltyp);
+    if (fi->typefiller) {
+        fixrangesbysz(parr, &from, &to);
+        int cnt = fi->typefiller(parr, from, to);
 
-    // value64_type              vt64 = ArrayGetV64mapType(parr);
-    // v64GenTypedFactory        ti = getTypedFillFactory(vt64,  filltyp);
-    // if (ti) {
-    //.   startnum = arrayGetInterface()
-    //     TODO: startvalue method to generate startnum v64Gen gen = ti(to - from, start_num, 1);
-
-    //     int cnt = ArrayGenPumprange(parr, &gen, from, to);
-    //     v64GenFree(&gen);
-
-    //     return cnt;
-    // } else 
-    //     return userraise(-1, ERR_ACTION_NOT_APPLICABLE,
-    //                         "Type mismatch: Type %d/%s (v64: %d/%s) does not support ASC series fill",
-    //                         ArrayGettype(parr), ArrayGetTypeName(parr),
-    //                         parr->v64type, ArrayGetV64typeName(parr));
-
-    int cnt;
-    switch (filltyp) {
-        case ARRAY_FILLTYPE_ASC:
-            cnt = ArrayFillRange_ASC(parr, from, to);
-            break;
-        case ARRAY_FILLTYPE_DESC:
-            cnt = ArrayFillRange_DESC(parr, from, to);
-            break;
-        case ARRAY_FILLTYPE_ZERO:
-            cnt = ArrayFillRange_ZERO(parr, from, to);
-            break;
-        case ARRAY_FILLTYPE_RND:
-            cnt = ArrayFillRange_RND(parr, from, to);
-            break;
-        case ARRAY_FILLTYPE_SAFE_EMPTY:
-            // just do nothing for scalar types
-            cnt = ArrayFillRange_SAFE_EMPTY(parr, from, to);
-            break;
-        case ARRAY_FILLTYPE_ASC_SERIES:
-            cnt = ArrayFillRange_ASC_SERIES(parr, from, to);
-            break;
-        case ARRAY_FILLTYPE_DESC_SERIES:
-            cnt = ArrayFillRange_DESC_SERIES(parr, from, to);
-            break;
-        default:
-            return userraise(-1, ERR_ACTION_NOT_APPLICABLE, 
+        return logret(cnt, "Filled by %s %d", ArrayFillTypeName(filltyp), cnt);
+    } else
+        return userraise(-1, ERR_ACTION_NOT_APPLICABLE, 
                 "Not supported filltype %d/%s", filltyp, ArrayFillTypeName(filltyp));
-    }
-
-    return logret(cnt, "Filled %d", cnt);
 }
 
 // -------------- ACCESS AND MODIFICATION --------------
