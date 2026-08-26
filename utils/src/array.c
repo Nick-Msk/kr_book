@@ -147,6 +147,41 @@ static v64Gen                   f_v64_desc_series_fs(long c, long s, int i) {
     (void) i; 
     return v64GenCreatorDescFsSeries(c, s, "%d"); 
 }
+// --- RND Master Factories (Internal) ---
+// Параметры: (count, start, increment)
+static v64Gen                   f_v64_rnd_int(long c, long s, int i)  { 
+    (void) s;
+    return v64GenCreatorRnd(VALUE64_INT, c, i); 
+}
+static v64Gen                   f_v64_rnd_long(long c, long s, int i) { 
+    (void) s;
+    return v64GenCreatorRnd(VALUE64_LONG, c, i); 
+}
+static v64Gen                   f_v64_rnd_ulong(long c, long s, int i) { 
+    (void) s;
+    return v64GenCreatorRnd(VALUE64_ULONG, c, i); 
+}
+static v64Gen                   f_v64_rnd_dbl(long c, long s, int i) { 
+    (void) s;
+    return v64GenCreatorRnd(VALUE64_DBL, c, i); 
+}
+static v64Gen                   f_v64_rnd_chr(long c, long s, int i) { 
+    (void) s;
+    return v64GenCreatorRnd(VALUE64_CHR, c, i); 
+}
+static v64Gen                   f_v64_rnd_bool(long c, long s, int i) { 
+    (void) s;
+    (void) i;
+    return v64GenCreatorRnd(VALUE64_BOOL, c, 1); 
+}
+static v64Gen                   f_v64_rnd_str(long c, long s, int i) { 
+    (void) s;
+    return v64GenCreatorStrRnd(c, "%d", i); 
+}
+static v64Gen                   f_v64_rnd_fs(long c, long s, int i) { 
+    (void) s;
+    return v64GenCreatorFsRnd(c, "%d", i); 
+}
 
 /*
 // ZERO (всегда возвращает ноль для любого типа)
@@ -180,42 +215,50 @@ static const v64GenTypedFactory         ARRAYTYPEINTERFACE[][ARRAY_FILLTYPE_MAX]
     [VALUE64_INT]   = { [ARRAY_FILLTYPE_ASC]         = f_v64_acs_int,   
                         [ARRAY_FILLTYPE_DESC]        = f_v64_desc_int,
                         [ARRAY_FILLTYPE_ASC_SERIES]  = f_v64_acs_series_int,   
-                        [ARRAY_FILLTYPE_DESC_SERIES] = f_v64_desc_series_int 
+                        [ARRAY_FILLTYPE_DESC_SERIES] = f_v64_desc_series_int,
+                        [ARRAY_FILLTYPE_RND]         = f_v64_rnd_int
                     },
     [VALUE64_LONG]  = { [ARRAY_FILLTYPE_ASC]         = f_v64_acs_long,  
                         [ARRAY_FILLTYPE_DESC]        = f_v64_desc_long,
                         [ARRAY_FILLTYPE_ASC_SERIES]  = f_v64_acs_series_long,  
-                        [ARRAY_FILLTYPE_DESC_SERIES] = f_v64_desc_series_long
+                        [ARRAY_FILLTYPE_DESC_SERIES] = f_v64_desc_series_long,
+                        [ARRAY_FILLTYPE_RND]         = f_v64_rnd_long
                     },
     [VALUE64_ULONG] = { [ARRAY_FILLTYPE_ASC]         = f_v64_acs_ulong, 
                         [ARRAY_FILLTYPE_DESC]        = f_v64_desc_ulong,
                         [ARRAY_FILLTYPE_ASC_SERIES]  = f_v64_acs_series_ulong, 
-                        [ARRAY_FILLTYPE_DESC_SERIES] = f_v64_desc_series_ulong
+                        [ARRAY_FILLTYPE_DESC_SERIES] = f_v64_desc_series_ulong,
+                        [ARRAY_FILLTYPE_RND]         = f_v64_rnd_ulong
                     },
     [VALUE64_DBL]   = { [ARRAY_FILLTYPE_ASC]         = f_v64_acs_dbl,   
                         [ARRAY_FILLTYPE_DESC]        = f_v64_desc_dbl,
                         [ARRAY_FILLTYPE_ASC_SERIES]  = f_v64_acs_series_dbl,   
-                        [ARRAY_FILLTYPE_DESC_SERIES] = f_v64_desc_series_dbl
+                        [ARRAY_FILLTYPE_DESC_SERIES] = f_v64_desc_series_dbl,
+                        [ARRAY_FILLTYPE_RND]         = f_v64_rnd_dbl
                     },
     [VALUE64_CHR]   = { [ARRAY_FILLTYPE_ASC]         = f_v64_acs_chr,   
                         [ARRAY_FILLTYPE_DESC]        = f_v64_desc_chr,
                         [ARRAY_FILLTYPE_ASC_SERIES]  = f_v64_acs_series_chr,   
-                        [ARRAY_FILLTYPE_DESC_SERIES] = f_v64_desc_series_chr 
+                        [ARRAY_FILLTYPE_DESC_SERIES] = f_v64_desc_series_chr,
+                        [ARRAY_FILLTYPE_RND]         = f_v64_rnd_chr
                     },
     [VALUE64_BOOL]  = { [ARRAY_FILLTYPE_ASC]         = f_v64_acs_bool,  
                         [ARRAY_FILLTYPE_DESC]        = f_v64_desc_bool,
                         [ARRAY_FILLTYPE_ASC_SERIES]  = f_v64_acs_series_bool,  
-                        [ARRAY_FILLTYPE_DESC_SERIES] = f_v64_desc_series_bool 
+                        [ARRAY_FILLTYPE_DESC_SERIES] = f_v64_desc_series_bool,
+                        [ARRAY_FILLTYPE_RND]         = f_v64_rnd_bool
                     },
     [VALUE64_STR]   = { [ARRAY_FILLTYPE_ASC]         = f_v64_acs_str,   
                         [ARRAY_FILLTYPE_DESC]        = f_v64_desc_str,
                         [ARRAY_FILLTYPE_ASC_SERIES]  = f_v64_acs_series_str,   
-                        [ARRAY_FILLTYPE_DESC_SERIES] = f_v64_desc_series_str 
+                        [ARRAY_FILLTYPE_DESC_SERIES] = f_v64_desc_series_str,
+                        [ARRAY_FILLTYPE_RND]         = f_v64_rnd_str
                     },
     [VALUE64_FS]    = { [ARRAY_FILLTYPE_ASC]         = f_v64_acs_fs,    
                         [ARRAY_FILLTYPE_DESC]        = f_v64_desc_fs,
                         [ARRAY_FILLTYPE_ASC_SERIES]  = f_v64_acs_series_fs,    
-                        [ARRAY_FILLTYPE_DESC_SERIES] = f_v64_desc_series_fs 
+                        [ARRAY_FILLTYPE_DESC_SERIES] = f_v64_desc_series_fs,
+                        [ARRAY_FILLTYPE_RND]         = f_v64_rnd_fs
                     },
     [VALUE64_UNKNOWN] = {0} 
 };
@@ -806,8 +849,24 @@ static int                      ArrayFillRange_SAFE_EMPTY(Array *parr, int from,
 /// @param to     end index 
 /// @return       count of filled elements
 static int                      ArrayFillRange_RND(Array *parr, int from, int to) {
-    const int   rnd_max = 10 * (to - from);
-    v64Gen      gen;
+    const int       rnd_max = 10 * (to - from);
+    const int       rndinc  = to - from;
+    value64_type    vt64 = ArrayGetV64mapType(parr);
+
+    v64GenTypedFactory ti = getTypedFillFactory(vt64, ARRAY_FILLTYPE_RND);
+
+    if (ti) {
+        v64Gen gen = ti(rnd_max, 0 /* not used*/, rndinc);
+        int cnt = ArrayGenPumprange(parr, &gen, from, to);
+        v64GenFree(&gen);
+
+        return cnt;
+    } else 
+        return userraise(-1, ERR_ACTION_NOT_APPLICABLE,
+                            "Unsupported v64 type for RND fill: %d/%s or  %d/%s",
+                            ArrayGettype(parr), ArrayGetTypeName(parr),
+                            parr->v64type, ArrayGetV64typeName(parr));
+    /* v64Gen      gen;
 
     switch (ArrayGetV64mapType(parr)) {
         case VALUE64_INT:
@@ -844,7 +903,7 @@ static int                      ArrayFillRange_RND(Array *parr, int from, int to
     int cnt = ArrayGenPumprange(parr, &gen, from, to);
 
     v64GenFree(&gen);
-    return cnt;
+    return cnt; */
 }
 
 /// @brief        ascending series filler
@@ -900,40 +959,58 @@ static int                      ArrayFillRange_DESC_SERIES(Array *parr, int from
 /// @param from from (will be normilized if out of range)
 /// @param to  to (will be normilized if out of range)
 /// @return Count of formatter data
-int                             ArrayFillRange(Array *parr, ArrayFillType typ, int from, int to) {
+int                             ArrayFillRange(Array *parr, ArrayFillType filltyp, int from, int to) {
     logenter("%d - %d, %s (%s/v64: %s)", 
-            from, to, ArrayFillTypeName(typ), ArrayGetTypeName(parr), ArrayGetV64typeName(parr) );
+            from, to, ArrayFillTypeName(filltyp), ArrayGetTypeName(parr), ArrayGetV64typeName(parr) );
     
     fixrangesbysz(parr, &from, &to);
 
-    switch (typ) {
+    // value64_type              vt64 = ArrayGetV64mapType(parr);
+    // v64GenTypedFactory        ti = getTypedFillFactory(vt64,  filltyp);
+    // if (ti) {
+    //.   startnum = arrayGetInterface()
+    //     TODO: startvalue method to generate startnum v64Gen gen = ti(to - from, start_num, 1);
+
+    //     int cnt = ArrayGenPumprange(parr, &gen, from, to);
+    //     v64GenFree(&gen);
+
+    //     return cnt;
+    // } else 
+    //     return userraise(-1, ERR_ACTION_NOT_APPLICABLE,
+    //                         "Type mismatch: Type %d/%s (v64: %d/%s) does not support ASC series fill",
+    //                         ArrayGettype(parr), ArrayGetTypeName(parr),
+    //                         parr->v64type, ArrayGetV64typeName(parr));
+
+    int cnt;
+    switch (filltyp) {
         case ARRAY_FILLTYPE_ASC:
-            ArrayFillRange_ASC(parr, from, to);
+            cnt = ArrayFillRange_ASC(parr, from, to);
             break;
         case ARRAY_FILLTYPE_DESC:
-            ArrayFillRange_DESC(parr, from, to);
+            cnt = ArrayFillRange_DESC(parr, from, to);
             break;
         case ARRAY_FILLTYPE_ZERO:
-            ArrayFillRange_ZERO(parr, from, to);
+            cnt = ArrayFillRange_ZERO(parr, from, to);
             break;
         case ARRAY_FILLTYPE_RND:
-            ArrayFillRange_RND(parr, from, to);
+            cnt = ArrayFillRange_RND(parr, from, to);
             break;
         case ARRAY_FILLTYPE_SAFE_EMPTY:
             // just do nothing for scalar types
-            ArrayFillRange_SAFE_EMPTY(parr, from, to);
+            cnt = ArrayFillRange_SAFE_EMPTY(parr, from, to);
             break;
         case ARRAY_FILLTYPE_ASC_SERIES:
-            ArrayFillRange_ASC_SERIES(parr, from, to);
+            cnt = ArrayFillRange_ASC_SERIES(parr, from, to);
             break;
         case ARRAY_FILLTYPE_DESC_SERIES:
-            ArrayFillRange_DESC_SERIES(parr, from, to);
+            cnt = ArrayFillRange_DESC_SERIES(parr, from, to);
             break;
         default:
-            return userraise(-1, ERR_ACTION_NOT_APPLICABLE, "Not supported filltype %s", ArrayFillTypeName(typ));
+            return userraise(-1, ERR_ACTION_NOT_APPLICABLE, 
+                "Not supported filltype %d/%s", filltyp, ArrayFillTypeName(filltyp));
     }
 
-    return logret(to - from, "Filled %d", to - from);
+    return logret(cnt, "Filled %d", cnt);
 }
 
 // -------------- ACCESS AND MODIFICATION --------------
