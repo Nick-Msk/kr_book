@@ -12,11 +12,11 @@
 int                      g_array_rec_line        = 20;  // TODO: rework that to normal (in Array structure)
 const char              *g_custom_print_line     = 0;   // TODO: rework that to normal (in Array structure)
 // TODO: move into context
-const char              *g_save_format_double    = "%6d      %15.15lg\n";
-const char              *g_save_format_int       = "%6d\t%6d\n";
-const char              *g_save_format_long      = "%6d\t%6ld\n";
-const char              *g_save_format_pointer   = "%6d\t%p\n";
-const char              *g_save_format_char      = "%6d\t%c\n";
+const char              *g_save_format_double    = "%6zu      %15.15lg\n";
+const char              *g_save_format_int       = "%6zu\t%6d\n";
+const char              *g_save_format_long      = "%6zu\t%6ld\n";
+const char              *g_save_format_pointer   = "%6zu\t%p\n";
+const char              *g_save_format_char      = "%6zu\t%c\n";
 // not possible to format v64 that way!
 static const int        g_array_acs_rndinc      = 5;
 static const int        g_array_desc_rndinc     = 5;
@@ -304,15 +304,15 @@ static v64GenTypedFactory          getTypedFillFactory(value64_type vt64, ArrayF
 // ----------------------------- Basic Filler Interfaces -------------------------------------
 // -------------------------- 1 API method per 1 filler type! --------------------------------
 
-typedef int                     (*ArrayFillRangeFunc)(Array *parr, int from, int to);
+typedef long                    (*ArrayFillRangeFunc)(Array *parr, size_t from, size_t to);
 
-static int                      arrayFillRangeASC(Array *parr, int from, int to);
-static int                      arrayFillRangeDESC(Array *parr, int from, int to);
-static int                      arrayFillRangeZERO(Array *parr, int from, int to);
-static int                      arrayFillRangeSAFEEMPTY(Array *parr, int from, int to);
-static int                      arrayFillRangeRND(Array *parr, int from, int to);
-static int                      arrayFillRangeASCSERIES(Array *parr, int from, int to);
-static int                      arrayFillRangeDESCSERIES(Array *parr, int from, int to);
+static long                      arrayFillRangeASC(Array *parr, size_t from, size_t to);
+static long                      arrayFillRangeDESC(Array *parr, size_t from, size_t to);
+static long                      arrayFillRangeZERO(Array *parr, size_t from, size_t to);
+static long                      arrayFillRangeSAFEEMPTY(Array *parr, size_t from, size_t to);
+static long                      arrayFillRangeRND(Array *parr, size_t from, size_t to);
+static long                      arrayFillRangeASCSERIES(Array *parr, size_t from, size_t to);
+static long                      arrayFillRangeDESCSERIES(Array *parr, size_t from, size_t to);
 
 // general interface
 typedef struct {
@@ -344,37 +344,37 @@ static const FilledInterface      *getFilledInterface(ArrayFillType filltyp) {
 typedef bool                    (*ArrayCompareFunc)(const Array *restrict, const Array *restrict);
 
 static bool                     equal_int(const Array *p1, const Array *p2) {
-    for (int i = 0; i < p1->len; i++)
+    for (size_t i = 0; i < p1->len; i++)
         if (p1->iv[i] != p2->iv[i])
             return false;
     return true;
 }
 static bool                     equal_long(const Array *p1, const Array *p2) {
-    for (int i = 0; i < p1->len; i++)
+    for (size_t i = 0; i < p1->len; i++)
         if (p1->lv[i] != p2->lv[i])
             return false;
     return true;
 }
 static bool                     equal_double(const Array *p1, const Array *p2) {
-    for (int i = 0; i < p1->len; i++)
+    for (size_t i = 0; i < p1->len; i++)
         if (p1->dv[i] != p2->dv[i])
             return false;
     return true;
 }
 static bool                     equal_pointer(const Array *p1, const Array *p2) {
-    for (int i = 0; i < p1->len; i++)
+    for (size_t i = 0; i < p1->len; i++)
         if (p1->pv[i] != p2->pv[i])
             return false;
     return true;
 }
 static bool                     equal_char(const Array *p1, const Array *p2) {
-    for (int i = 0; i < p1->len; i++)
+    for (size_t i = 0; i < p1->len; i++)
         if (p1->cv[i] != p2->cv[i])
             return false;
     return true;
 }
 static bool                     equal_v64(const Array *p1, const Array *p2) {
-    for (int i = 0; i < p1->len; i++)
+    for (size_t i = 0; i < p1->len; i++)
         if (!value64_equal(p1->v64[i], p2->v64[i], p1->v64type))
             return false;
     return true;
@@ -403,51 +403,51 @@ static pointer_comparator               get_v64_cmp(const Array *parr, ArraySort
             : value64_getPRevComparator(parr->v64type);
 }
 
-typedef int                    (*ArrayPumpFunc)(const Array*, v64Gen*, int, int);
+typedef long                   (*ArrayPumpFunc)(const Array*, v64Gen*, size_t, size_t);
 
-static int                      pump_v64(const Array *p, v64Gen *g, int from, int to) {
+static long                     pump_v64(const Array *p, v64Gen *g, size_t from, size_t to) {
     int cnt = 0;
-    for (int i = from; i < to && v64GenHasnext(g); i++) {
+    for (size_t i = from; i < to && v64GenHasnext(g); i++) {
         p->v64[i] = v64GenNext(g);
         cnt++;
     }
     return cnt;
 }
-static int                      pump_int(const Array *p, v64Gen *g, int from, int to) {
-    int cnt = 0;
-    for (int i = from; i < to && v64GenHasnext(g); i++) {
+static long                     pump_int(const Array *p, v64Gen *g, size_t from, size_t to) {
+    long cnt = 0;
+    for (size_t i = from; i < to && v64GenHasnext(g); i++) {
         p->iv[i] = v64GenNext(g).ival;
         cnt++;
     }
     return cnt;
 }
-static int                      pump_long(const Array *p, v64Gen *g, int from, int to) {
-    int cnt = 0;
-    for (int i = from; i < to && v64GenHasnext(g); i++) {
+static long                     pump_long(const Array *p, v64Gen *g, size_t from, size_t to) {
+    long cnt = 0;
+    for (size_t i = from; i < to && v64GenHasnext(g); i++) {
         p->lv[i] = v64GenNext(g).lval;
         cnt++;
     }
     return cnt;
 }
-static int                      pump_double(const Array *p, v64Gen *g, int from, int to) {
-    int cnt = 0;
-    for (int i = from; i < to && v64GenHasnext(g); i++) {
+static long                     pump_double(const Array *p, v64Gen *g, size_t from, size_t to) {
+    long cnt = 0;
+    for (size_t i = from; i < to && v64GenHasnext(g); i++) {
         p->dv[i] = v64GenNext(g).dval;
         cnt++;
     }
     return cnt;
 }
-static int                      pump_char(const Array *p, v64Gen *g, int from, int to) {
-    int cnt = 0;
-    for (int i = from; i < to && v64GenHasnext(g); i++) {
+static long                     pump_char(const Array *p, v64Gen *g, size_t from, size_t to) {
+    long cnt = 0;
+    for (size_t i = from; i < to && v64GenHasnext(g); i++) {
         p->cv[i] = v64GenNext(g).cval;
         cnt++;
     }
     return cnt;
 }
-static int                      pump_pointer(const Array *p, v64Gen *g, int from, int to) {
-    int cnt = 0;
-    for (int i = from; i < to && v64GenHasnext(g); i++) {
+static long                     pump_pointer(const Array *p, v64Gen *g, size_t from, size_t to) {
+    long cnt = 0;
+    for (size_t i = from; i < to && v64GenHasnext(g); i++) {
         p->pv[i] = v64GenNext(g).pval;
         cnt++;
     }
@@ -525,32 +525,24 @@ static inline Array             *arraycreate(ArrayType typ, value64_type vt) {
     return arr;
 }
 
-static inline void             fixbysz(Array *parr, int *pos) {
-    if (*pos < 0) { // TODO: remove that after switch to size_t
-        logsimple("postion %d is out of bound, cut to %d", *pos, 0);
-        *pos = 0;
-    }
+static inline void             fixbysz(Array *parr, size_t *pos) {
     if (*pos > arraysz(parr)) {
-        logsimple("postion %d is out of bound, cut to sz %d", *pos, arraysz(parr));
+        logsimple("postion %zu is out of bound, cut to sz %zu", *pos, arraysz(parr));
         *pos = arraysz(parr);
     }
 }
-// static inline void             fixbylen(Array *parr, int *pos) {
-//     if (*pos < 0) { // TODO: remove that after switch to size_t
-//         logsimple("postion %d is out of bound, cut to %d", *pos, 0);
-//         *pos = 0;
-//     }
+// static inline void             fixbylen(Array *parr, size_t *pos) {
 //     if (*pos > arraysz(parr)) {
 //         logsimple("postion %d is out of bound, cut to sz %d", *pos, arraysz(parr));
 //         *pos = arraysz(parr);
 //     }
 // }
-static inline void              fixrangesbysz(Array *parr, int *from, int *to) {
+static inline void              fixrangesbysz(Array *parr, size_t *from, size_t *to) {
     fixbysz(parr, from);
     fixbysz(parr, to);
     // from > to isn't checker for now
 }
-// static inline void              fixrangesbylen(Array *parr, int *from, int *to) {
+// static inline void              fixrangesbylen(Array *parr, size_t *from, size_t *to) {
 //     fixbylen(parr, from);
 //     fixbylen(parr, to);
 //     // from > to isn't checker for now
@@ -560,15 +552,15 @@ static inline void              fixrangesbysz(Array *parr, int *from, int *to) {
 /// @param arr pointer to array
 /// @param from from
 /// @param to to
-static void                     freeV64elems(Array *parr, int from, int to) {
+static void                     freeV64elems(Array *parr, size_t from, size_t to) {
     invraisecode(ERR_NULLABLE_PTR, parr != NULL, "Null pointer");
 
     fixrangesbysz(parr, &from, &to);
     if (parr->v64type == VALUE64_STR || parr->v64type == VALUE64_FS) {   
-        for (int i = from; i < to; i++) {
+        for (size_t i = from; i < to; i++) {
             value64free(parr->v64[i], parr->v64type);
         }
-        logsimple("freed %s  %d - %d", value64_typename(parr->v64type), from, to);
+        logsimple("freed %s  %zu - %zu", value64_typename(parr->v64type), from, to);
     }
 }
 
@@ -576,23 +568,23 @@ static void                     freeV64elems(Array *parr, int from, int to) {
 /// @param arr pointer to array
 /// @param newsz new size
 /// @return 
-static int                      increase(Array *arr, int newsz){
-    invraisecode(ERR_NULLABLE_PTR, arr != NULL, "Null pointer");
-    invraisecode(ERR_OUT_OF_RANGE, newsz >= 0, "Size must be >= 0");
-    logenter("newsz %d", newsz);
+static size_t                    increase(Array *arr, size_t newsz){
+    invraisecode(ERR_NULLABLE_PTR, arr != NULL, 
+        "Null pointer");
+
     if (newsz == arr->sz)
-        return logret(arr->sz, "No change sz %d", arr->sz);
+        return logsimpleret(arr->sz, "No change sz %zu", arr->sz);
     if (newsz > arr->sz)
         newsz = round_up_2(newsz);
 
-    int bytes = newsz * arrayGetelemsize(arr);
+    int         bytes = newsz * arrayGetelemsize(arr);
     if (bytes < 0) 
         return userraise(-1, ERR_UNKNOWN_TYPE, "Unknown type");
 
     if (newsz < arr->len)
         freeV64elems(arr, newsz, arr->len);    
-    logmsg("Arr: bytes=%d, sz=%d", bytes, newsz);
-    void *p = NULL;  
+
+    void       *p = NULL;  
     if (bytes > 0) {
         if ( (p = realloc(arr->v, bytes) ) == NULL)
             userraise(-1, ERR_UNABLE_ALLOCATE, "Unable to allocate %d", bytes);
@@ -602,7 +594,7 @@ static int                      increase(Array *arr, int newsz){
     if (arr->len > newsz)   // shrink case, 0 if newsz == 0 (free)
         arr->len = newsz;
     arr->sz = newsz;
-    return logret(arr->sz, "New sz %d", arr->sz);
+    return logsimpleret(arr->sz, "New sz %zu", arr->sz);
 }
 
 /**
@@ -617,7 +609,7 @@ static int                      increase(Array *arr, int newsz){
  * @param cnt       The number of elements to move.
  * @return          The number of elements moved.
  */
-static int                  moveelem(Array *parr, int dest_idx, int src_idx, int cnt) {
+static int                  moveelem(Array *parr, size_t dest_idx, size_t src_idx, size_t cnt) {
     invraisecode(parr != NULL, ERR_NULLABLE_PTR, "Null array pointer");
 
     size_t es = arrayGetelemsize(parr);
@@ -640,17 +632,17 @@ static int                  moveelem(Array *parr, int dest_idx, int src_idx, int
  * @param arr pointer to the array to fill
  * @return positive value in suceess, -1 if failed 
  */
-static int                          arrayFileLoadValues(FILE *restrict in, Array *restrict parr) {
+static long                         arrayFileLoadValues(FILE *restrict in, Array *restrict parr) {
     ArrayType   typ = arrayGettype(parr);
     fs          buf = FS();
-    int         cnt = 0;
+    long        cnt = 0;
     
     Array_pforeach_idx(parr, i) {
-        int         ind;
-        if (fscanf(in, "%6d\t", &ind) != 1)
+        size_t        ind;
+        if (fscanf(in, "%6ld\t", &ind) != 1)
             return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Can't parse index");        
-        if (ind < 0 || ind >= parr->len)
-            return userraise(-1, ERR_OUT_OF_RANGE, "%d must be between 0 and %d", ind, parr->len);
+        if (ind >= parr->len)
+            return userraise(-1, ERR_OUT_OF_RANGE, "%ld must be < %zu", ind, parr->len);
 
         switch (typ) {
             case ARRAY_INT:
@@ -683,7 +675,7 @@ static int                          arrayFileLoadValues(FILE *restrict in, Array
         cnt++;
     }
     fsfree(buf);
-    return logsimpleret(cnt, "Readed %d", cnt);
+    return logsimpleret(cnt, "Readed %ld", cnt);
 }
 
 /**
@@ -721,7 +713,7 @@ static long                         arraySaveValues(FILE *restrict out, const Ar
                     total += written;
                 break;
             case ARRAY_V64:
-                IOCHECKER(written, fprintf(out, "%6d\t", i), -1)   // to supply format
+                IOCHECKER(written, fprintf(out, "%8zu\t", i), -1)   // to supply format
                     total += written;
                 IOCHECKER(written, value64_tofile(out, parr->v64[i], parr->v64type, true), -1)
                     total += written;
@@ -767,14 +759,11 @@ static long                 arraySerializeValues(fs *restrict s, const Array *re
                     total += written;
                 break;
             case ARRAY_V64: {
-                //fs tmp = FS();      // TODO: rework to append logic
                 total += value64_tostr(s, parr->v64[i], parr->v64type, true);
-               //fs_cat(s, tmp);
-                //fsfree(tmp);
                 break;
             }
             default:
-                userraise(-1, ERR_UNKNOWN_TYPE, "Unknown type %s", arrayTypeGetName(typ));
+                userraise(-1, ERR_UNKNOWN_TYPE, "Unknown type %d/%s", typ, arrayTypeGetName(typ));
         }
     }
     return total;
@@ -804,9 +793,9 @@ static long             arrayFsLoadValues(const char *restrict initdata, Array *
         if (data == endptr)
             return userraise(-1, ERR_WRONG_INPUT_FORMAT, "Can't parse index");        
         if (lind < 0 || lind >= (long) parr->len)
-            return userraise(-1, ERR_OUT_OF_RANGE, "%ld must be between 0 and %d", lind, parr->len);
+            return userraise(-1, ERR_OUT_OF_RANGE, "%ld must be between 0 and %zu", lind, parr->len);
         data = endptr;
-        int              ind = lind;
+        size_t              ind = lind;
         switch (typ) {
             case ARRAY_INT:
                 parr->iv[ind] = strtol(data, &endptr, 10);
@@ -841,7 +830,7 @@ static long             arrayFsLoadValues(const char *restrict initdata, Array *
                 break;
             }
             default:
-                return userraise(-1, ERR_UNSUPPORTED_TYPE, "%d", typ);   // unsupported type
+                return userraise(-1, ERR_UNSUPPORTED_TYPE, "unsupported type %d/%s", typ, arrayTypeGetName(typ));   // unsupported type
         }
     }
     fsfree(buf);
@@ -849,11 +838,11 @@ static long             arrayFsLoadValues(const char *restrict initdata, Array *
 }
 
 static Array                  *arrayParseHeaderFile(FILE *in) {
-    int                 cnt = 0;
+    long                cnt = 0;
     char                typ[ARRAY_MAX_TYPE_STR], v64typ[ARRAY_MAX_TYPE_STR] = "";
 
     // Read header: "ARRAY: <type> / <v64type> : <count>"
-    if (fscanf(in, "ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s / %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s : %d ", 
+    if (fscanf(in, "ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s / %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s : %ld ", 
                 typ, 
                 v64typ, 
                 &cnt) != 3)
@@ -897,11 +886,12 @@ static Array                  *arrayParseHeaderFile(FILE *in) {
 static Array                   *arrayParseHeaderStr(const char **base) {
     // ---------- 1. Parse header ----------
     char            typ[ARRAY_MAX_TYPE_STR], v64typ[ARRAY_MAX_TYPE_STR] = "";
-    int             cnt = 0, header_len = 0;
+    size_t          cnt = 0;
+    int             header_len = 0;
     Array           *parr = NULL;  // = ArrayInit();
     const char     *data = *base;
 
-    if (sscanf(data, "ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s / %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s : %d %n", typ, v64typ, &cnt, &header_len) != 3) {
+    if (sscanf(data, "ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s / %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s : %zu %n", typ, v64typ, &cnt, &header_len) != 3) {
         return userraise(parr, ERR_WRONG_INPUT_FORMAT, "arrayLoadFromfs: header mismatch");
     } 
     data += header_len;
@@ -944,20 +934,18 @@ static bool                     arrayParseFooterStr(const char **base) {
 // ------------- CONSTRUCTOTS/DESTRUCTORS --------------
 
 // CREATE  and fill with method
-Array                          *arrayCreate(int cnt, ArrayFillType filltyp, ArrayType typ, value64_type vt){
-    logenter("cnt %d, filltyp %s typ %s", cnt, arrayFillTypeGetName(filltyp), arrayTypeGetName(typ) );
+Array                          *arrayCreate(size_t cnt, ArrayFillType filltyp, ArrayType typ, value64_type vt){
+    logenter("cnt %zu, filltyp %s typ %s", cnt, arrayFillTypeGetName(filltyp), arrayTypeGetName(typ) );
     // TODO: refactor via arrayIncrease
     Array   *res = arraycreate(typ, vt);      
-    if (cnt <= 0)
-        return userraise(res, ERR_WRONG_INPUT_PARAMETERS, "sz = %d must be > 0", res->sz);
-
+    
     if (increase(res, cnt) < 0)
-        return userraise(NULL, ERR_UNABLE_ALLOCATE, "Unable to allocate %d elems", cnt);
+        return userraise(NULL, ERR_UNABLE_ALLOCATE, "Unable to allocate %zu elems", cnt);
     else {
         res->len = cnt;
         arrayFillAll(res, filltyp);
     }
-    return logret(res, "sz = %d, len = %d", res->sz, res->len );
+    return logret(res, "sz = %zu, len = %zu", res->sz, res->len );
 }
 /// @brief free array
 /// @param val pointer to array
@@ -974,7 +962,7 @@ void                           arrayFree(Array *val){
 /// @param typ  Array type 
 /// @param vt   V64 type, only for for V64
 /// @return Count of formatter data
-int                             arrayFillAll(Array *parr, ArrayFillType typ){
+long                            arrayFillAll(Array *parr, ArrayFillType typ){
     invraisecode(parr != NULL, ERR_NULLABLE_PTR, "Null input");
     return arrayFillRange(parr, typ, 0, parr->len);
 }
@@ -985,7 +973,7 @@ int                             arrayFillAll(Array *parr, ArrayFillType typ){
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      arrayFillRangeASC(Array *parr, int from, int to) {
+static long                     arrayFillRangeASC(Array *parr, size_t from, size_t to) {
 
     value64_type              vt64 = arrayGetV64mapType(parr);
     v64GenTypedFactory        ti = getTypedFillFactory(vt64, ARRAY_FILLTYPE_ASC);
@@ -993,7 +981,7 @@ static int                      arrayFillRangeASC(Array *parr, int from, int to)
     if (ti) {
         v64Gen gen = ti(to - from, from, g_array_acs_rndinc);
 
-        int cnt = arrayGenPumprange(parr, &gen, from, to);
+        long cnt = arrayGenPumprange(parr, &gen, from, to);
         v64GenFree(&gen);
 
         return cnt;
@@ -1009,16 +997,16 @@ static int                      arrayFillRangeASC(Array *parr, int from, int to)
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      arrayFillRangeDESC(Array *parr, int from, int to) {
+static long                     arrayFillRangeDESC(Array *parr, size_t from, size_t to) {
 
     value64_type              vt64 = arrayGetV64mapType(parr);
-    const int                 start_num = (to - from + 1) * g_array_desc_rndinc;
+    const long                start_num = (to - from + 1) * g_array_desc_rndinc;
     v64GenTypedFactory        ti = getTypedFillFactory(vt64, ARRAY_FILLTYPE_DESC);
 
     if (ti) {
         v64Gen gen = ti(to - from, start_num, g_array_desc_rndinc);
 
-        int cnt = arrayGenPumprange(parr, &gen, from, to);
+        long cnt = arrayGenPumprange(parr, &gen, from, to);
         v64GenFree(&gen);
     
         return cnt;
@@ -1036,7 +1024,7 @@ static int                      arrayFillRangeDESC(Array *parr, int from, int to
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      arrayFillRangeZERO(Array *parr, int from, int to){
+static long                     arrayFillRangeZERO(Array *parr, size_t from, size_t to){
 
     value64_type    vt64 = arrayGetV64mapType(parr);
 
@@ -1045,7 +1033,7 @@ static int                      arrayFillRangeZERO(Array *parr, int from, int to
     if (ti) {
         // first param - c [ count ]
         v64Gen gen = ti(to - from, 0, 0);
-        int cnt = arrayGenPumprange(parr, &gen, from, to);
+        long cnt = arrayGenPumprange(parr, &gen, from, to);
         v64GenFree(&gen);
 
         return cnt;
@@ -1059,14 +1047,14 @@ static int                      arrayFillRangeZERO(Array *parr, int from, int to
 /// @param to     end index 
 /// @return       count of filled elements
 /// @note         no generator here!
-static int                      arrayFillRangeSAFEEMPTY(Array *parr, int from, int to) {
+static long                     arrayFillRangeSAFEEMPTY(Array *parr, size_t from, size_t to) {
     value64_type    vt64 = arrayGetV64mapType(parr);
 
     v64GenTypedFactory ti = getTypedFillFactory(vt64, ARRAY_FILLTYPE_SAFE_EMPTY);
 
     if (ti) {
         v64Gen gen = ti(to - from, 0, 0);
-        int cnt = arrayGenPumprange(parr, &gen, from, to);
+        long cnt = arrayGenPumprange(parr, &gen, from, to);
         v64GenFree(&gen);
 
         return cnt;
@@ -1079,16 +1067,16 @@ static int                      arrayFillRangeSAFEEMPTY(Array *parr, int from, i
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      arrayFillRangeRND(Array *parr, int from, int to) {
-    const int       rnd_max = 10 * (to - from);
-    const int       rndinc  = to - from;
+static long                     arrayFillRangeRND(Array *parr, size_t from, size_t to) {
+    const long      rnd_max = 10 * (to - from);
+    const long      rndinc  = to - from;
     value64_type    vt64 = arrayGetV64mapType(parr);
 
     v64GenTypedFactory ti = getTypedFillFactory(vt64, ARRAY_FILLTYPE_RND);
 
     if (ti) {
         v64Gen gen = ti(rnd_max, 0 /* not used*/, rndinc);
-        int cnt = arrayGenPumprange(parr, &gen, from, to);
+        long cnt = arrayGenPumprange(parr, &gen, from, to);
         v64GenFree(&gen);
 
         return cnt;
@@ -1104,14 +1092,14 @@ static int                      arrayFillRangeRND(Array *parr, int from, int to)
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      arrayFillRangeASCSERIES(Array *parr, int from, int to){
+static long                     arrayFillRangeASCSERIES(Array *parr, size_t from, size_t to){
     value64_type              vt64 = arrayGetV64mapType(parr);
     v64GenTypedFactory        ti = getTypedFillFactory(vt64,  ARRAY_FILLTYPE_ASC_SERIES);
 
     if (ti) {
         v64Gen gen = ti(to - from, from, 1);
 
-        int cnt = arrayGenPumprange(parr, &gen, from, to);
+        long cnt = arrayGenPumprange(parr, &gen, from, to);
         v64GenFree(&gen);
 
         return cnt;
@@ -1127,15 +1115,15 @@ static int                      arrayFillRangeASCSERIES(Array *parr, int from, i
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      arrayFillRangeDESCSERIES(Array *parr, int from, int to) {
+static long                     arrayFillRangeDESCSERIES(Array *parr, size_t from, size_t to) {
     value64_type              vt64 = arrayGetV64mapType(parr);
     v64GenTypedFactory        ti = getTypedFillFactory(vt64, ARRAY_FILLTYPE_DESC_SERIES);
-    const int                 start_num = (to - 1); // the same as for scalar types
+    const long                start_num = (to - 1); // the same as for scalar types
 
     if (ti) {
         v64Gen gen = ti(to - from, start_num, 1);
 
-        int cnt = arrayGenPumprange(parr, &gen, from, to);
+        long cnt = arrayGenPumprange(parr, &gen, from, to);
         v64GenFree(&gen);
 
         return cnt;
@@ -1152,18 +1140,18 @@ static int                      arrayFillRangeDESCSERIES(Array *parr, int from, 
 /// @param from from (will be normilized if out of range)
 /// @param to  to (will be normilized if out of range)
 /// @return Count of formatter data
-int                             arrayFillRange(Array *parr, ArrayFillType filltyp, int from, int to) {
+long                            arrayFillRange(Array *parr, ArrayFillType filltyp, size_t from, size_t to) {
     if (!parr)
         return userraise(-1, ERR_NULLABLE_PTR, "Null parr");
-    logenter("%d - %d, %s (%s/v64: %s)", 
+    logenter("%zu - %zu, %s (%s/v64: %s)", 
             from, to, arrayFillTypeGetName(filltyp), arrayGetTypeName(parr), arrayGetV64typeName(parr) );
     
     const FilledInterface      *fi = getFilledInterface(filltyp);
     if (fi->typefiller) {
         fixrangesbysz(parr, &from, &to);
-        int cnt = fi->typefiller(parr, from, to);
+        long cnt = fi->typefiller(parr, from, to);
 
-        return logret(cnt, "Filled by %s %d", arrayFillTypeGetName(filltyp), cnt);
+        return logret(cnt, "Filled by %s %ld", arrayFillTypeGetName(filltyp), cnt);
     } else
         return userraise(-1, ERR_ACTION_NOT_APPLICABLE, 
                 "Not supported filltype %d/%s", filltyp, arrayFillTypeGetName(filltyp));
@@ -1171,7 +1159,7 @@ int                             arrayFillRange(Array *parr, ArrayFillType fillty
 
 // -------------- ACCESS AND MODIFICATION --------------
 
-Array                          *arrayIncrease(Array *parr, int newcnt){
+Array                          *arrayIncrease(Array *parr, size_t newcnt){
     if (newcnt > arraysz(parr) )
         increase(parr, newcnt);
     arrayFillRange(parr, ARRAY_FILLTYPE_ZERO, parr->len, newcnt);
@@ -1179,12 +1167,11 @@ Array                          *arrayIncrease(Array *parr, int newcnt){
     return parr;
 }
 
-Array                          *arrayShrink(Array *parr, int newsz){
-    logenter("newsz %d", newsz);
+Array                          *arrayShrink(Array *parr, size_t newsz){
     fixbysz(parr, &newsz);
-
     increase(parr, newsz);
-    return logret(parr, "shrinked to (len %d == sz %d)", parr->len, parr->sz);
+
+    return logsimpleret(parr, "shrinked to (len %zu == sz %zu)", parr->len, parr->sz);
 }
 
 /**
@@ -1192,13 +1179,13 @@ Array                          *arrayShrink(Array *parr, int newsz){
  * @param arr array (by value)
  */
 Array                          *arrayShuffle(Array *parr) {
-    int elem_size = arrayGetelemsize(parr);
+    size_t elem_size = arrayGetelemsize(parr);
     if (elem_size <= 0)
         userraise(NULL, ERR_UNSUPPORTED_TYPE, 
-                        "unsupported type for shuffle %s", arrayGetTypeName(parr));
+                        "unsupported type for shuffle %d/%s", arrayGettype(parr), arrayGetTypeName(parr));
     // in case if arr.len < 2 that'll do nothing
     char    *data = parr->v;  // raw byte pointer
-    for (int i = parr->len - 1; i > 0; i--) {
+    for (size_t i = parr->len - 1; i > 0; i--) {
         int j = rndint(i);
         // swap elements at indices i and j
         item_exch(data + i * elem_size, data + j * elem_size, elem_size);   
@@ -1226,16 +1213,16 @@ Array                          *arrayShuffle(Array *parr) {
  * 
  * @warning The function performs a linear time O(n) shift operation.
  */
-Array                        *arrayDel(Array *parr, int from, int cnt) {
+Array                        *arrayDel(Array *parr, size_t from, size_t cnt) {
     invraisecode(parr != NULL, ERR_NULLABLE_PTR, 
         "Null array pointer %p", parr);
 
-    // 1. Validation: Ensure the range is within [0, parr->len) and cnt > 0
-    if (cnt <= 0 || from < 0 || from >= parr->len) {
-        return logsimpleret(parr, "Nothing to del from %d, cnt %d, len %d", from, cnt, parr->len);
+    // THINK: refactor is required
+    if (from >= parr->len) {
+        return logsimpleret(parr, "Nothing to del from %zu, cnt %zu, len %zu", from, cnt, parr->len);
     }
     if ( (from + cnt) > parr->len) {
-        logsimple("since %d + %d > total len %d cnt reduced to %d", 
+        logsimple("since %zu + %zu > total len %zu cnt reduced to %zu", 
                 from, cnt, parr->len, parr->len - from);
         cnt = parr->len - from;
     }
@@ -1250,7 +1237,7 @@ Array                        *arrayDel(Array *parr, int from, int cnt) {
 
     // 3. Shift: Move the suffix (elements after the removed block) to the deletion point.
     // Number of elements to move = Total length - end of deleted block
-    int elements_to_move = parr->len - (from + cnt);
+    long elements_to_move = parr->len - (from + cnt);
     if (elements_to_move > 0) {
         moveelem(parr, from, from + cnt, elements_to_move);
     }
@@ -1289,18 +1276,18 @@ Array                        *arrayDel(Array *parr, int from, int cnt) {
  * @warning If an error occurs during the capacity expansion (reallocation), 
  *          the array remains unchanged and in its original valid state.
  */
-Array                   *arrayAdd(Array *parr, int from, int cnt, ArrayFillType ftyp) {
+Array                   *arrayAdd(Array *parr, size_t from, size_t cnt, ArrayFillType ftyp) {
     // TODO:
     invraisecode(parr != NULL, ERR_NULLABLE_PTR, 
         "Null array pointer %p", parr);
 
-    if (cnt <= 0 || from < 0 || from > parr->len)
-        return logsimpleret(parr, "Nothing to add: from %d, cnt %d, len %d", from, cnt, parr->len);
+    if (from > parr->len)
+        return logsimpleret(parr, "Nothing to add: from %zu, cnt %zu, len %zu", from, cnt, parr->len);
 
     if (increase(parr, parr->len + cnt) < 0)
-        return userraise(NULL, ERR_UNABLE_ALLOCATE, "Unable to fill range, from %d, cnt %d, len %d", from, cnt, parr->len);
+        return userraise(NULL, ERR_UNABLE_ALLOCATE, "Unable to fill range, from %zu, cnt %zu, len %zu", from, cnt, parr->len);
     
-    int     elements_to_move = parr->len - from;
+    long     elements_to_move = parr->len - from;
 
     moveelem(parr, from + cnt, from, elements_to_move);
     parr->len += cnt;   // cnt > 0!!!
@@ -1362,7 +1349,7 @@ bool                            arrayNoteq(const Array *restrict parr1, const Ar
 void                                arrayQsort(Array *parr, ArraySortType ord) {
     invraisecode(ERR_NULLABLE_PTR, parr != NULL,
                  "Null pointers %p", parr);
-    int                 sz = arrayGetelemsize(parr);
+    size_t                 sz = arrayGetelemsize(parr);
     if (sz <= 0)
         userraiseint(ERR_UNSUPPORTED_TYPE, 
             "Unable to get type size %d/%s", arrayGettype(parr), arrayGetTypeName(parr));
@@ -1402,7 +1389,7 @@ void                                arrayQsort(Array *parr, ArraySortType ord) {
  * @warning If the array is not sorted in the direction specified by @p acs, 
  *          the result is undefined.
  */
-int                         arrayBsearchCommon(const Array *parr, value64 val, bool acs) {
+long                        arrayBsearchCommon(const Array *parr, value64 val, bool acs) {
     invraisecode(ERR_NULLABLE_PTR, parr != NULL,
                  "Null pointers %p", parr);
 
@@ -1410,13 +1397,13 @@ int                         arrayBsearchCommon(const Array *parr, value64 val, b
         return -1;
     pointer_comparator    cmp = NULL;
     const ArrayInterface *ti = getTypedInterface(arrayGettype(parr));
-    int                   elemsize = arrayGetelemsize(parr);
+    size_t                   elemsize = arrayGetelemsize(parr);
 
     if (elemsize > 0 && ti && ti->get_comparator)
         cmp = ti->get_comparator(parr, acs ? ARRAY_SORTTYPE_ASC: ARRAY_SORTTYPE_DESC);
 
     if (!cmp) {
-        return userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for type (size %d) %d/%s, v64(%d/%s)", elemsize,
+        return userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for type (size %zu) %d/%s, v64(%d/%s)", elemsize,
                      arrayGettype(parr), arrayGetTypeName(parr), 
                      parr->v64type, value64_typename(parr->v64type));
     }
@@ -1428,9 +1415,8 @@ int                         arrayBsearchCommon(const Array *parr, value64 val, b
 
 // -----------------------------------------------------------------------------------------------------
 // if condition is 0-ptr == ALL
-int                         arrayForeach(Array *restrict arr, ArrayCond cond, ArrayProc func){
-    int     cnt = 0;
-    //for (int i = 0; i < arraylen(arr); i++)
+long                        arrayForeach(Array *restrict arr, ArrayCond cond, ArrayProc func){
+    long    cnt = 0;
     Array_pforeach_idx(arr, i) {
         if (cond == NULL || cond(arr, i) ){
             if (func)
@@ -1438,7 +1424,7 @@ int                         arrayForeach(Array *restrict arr, ArrayCond cond, Ar
             cnt++;
         }
     }
-    return logsimpleret(cnt, "processed %d", cnt);
+    return logsimpleret(cnt, "processed %ld", cnt);
 }
 
 /**
@@ -1457,7 +1443,7 @@ int                         arrayForeach(Array *restrict arr, ArrayCond cond, Ar
  * 
  * @return The number of elements successfully written to the array.
  */
-int                         arrayGenPumprange(Array *restrict parr, v64Gen *restrict gen, int from, int to) {
+long                        arrayGenPumprange(Array *restrict parr, v64Gen *restrict gen, size_t from, size_t to) {
     invraisecode(parr != NULL && gen != NULL, ERR_NULLABLE_PTR, 
         "Null input %p %p", parr, gen);
 
@@ -1480,9 +1466,9 @@ int                         arrayGenPumprange(Array *restrict parr, v64Gen *rest
     }
 
     // 5. Запуск специализированного цикла (VTable call)
-    int cnt = ti->pump(parr, gen, from, to);
+    long cnt = ti->pump(parr, gen, from, to);
 
-    return logsimpleret(cnt, "Generated %d", cnt);
+    return logsimpleret(cnt, "Generated %ld", cnt);
 }
 
 // -------------------------- (API) printers -----------------------
@@ -1499,18 +1485,19 @@ int                         arrayGenPumprange(Array *restrict parr, v64Gen *rest
  * @param limit maximum number of elements to print (0 = print all)
  * @return      number of characters printed
  */
-long                         arrayfprint(FILE *restrict out, const Array *restrict val, int limit) {
+long                         arrayfprint(FILE *restrict out, const Array *restrict val, size_t limit) {
     invraisecode(val != NULL, ERR_NULLABLE_PTR, "Input array is null");
     if (!out)
         return logsimpleerr(0L, "Output file is null");
-    long    cnt = 0, i;
+    long    cnt = 0;
+    size_t  i;
     int     array_rec_line = 20;      // default value
 
     limit = (limit == 0) ? val->len : (limit < val->len) ? limit : val->len;
     if (g_array_rec_line)
         array_rec_line = g_array_rec_line;
 
-    cnt += fprintf(out, "Array (%s[%d of total %d]):\n",
+    cnt += fprintf(out, "Array (%s[%zu of total %zu]):\n",
                    arrayTypeGetName(val->flags), limit, val->len);
 
     const char *custom = g_custom_print_line;
@@ -1518,23 +1505,23 @@ long                         arrayfprint(FILE *restrict out, const Array *restri
     for (i = 0; i < limit; i++) {
         switch (arrayGettype(val)) {
             case ARRAY_INT:
-                IOCHECKER(written, fprintf(out, custom ? custom : "[%d - %6d]\t", i, val->iv[i]), -1L)
+                IOCHECKER(written, fprintf(out, custom ? custom : "[%zu - %6d]\t", i, val->iv[i]), -1L)
                      cnt += written;
                 break;
             case ARRAY_LONG:
-                IOCHECKER(written, fprintf(out, custom ? custom : "[%ld - %6ld]\t", i, val->lv[i]), -1L)
+                IOCHECKER(written, fprintf(out, custom ? custom : "[%zu - %6ld]\t", i, val->lv[i]), -1L)
                     cnt += written;
                 break;
             case ARRAY_DOUBLE:
-                IOCHECKER(written, fprintf(out, custom ? custom : "[%d - %.8lg]\t", i, val->dv[i]), -1L)
+                IOCHECKER(written, fprintf(out, custom ? custom : "[%zu - %.8lg]\t", i, val->dv[i]), -1L)
                     cnt += written;
                 break;
             case ARRAY_POINTER:
-                IOCHECKER(written, fprintf(out, custom ? custom : "[%p - %p]\t", i, val->pv[i]), -1L)
+                IOCHECKER(written, fprintf(out, custom ? custom : "[%zu - %p]\t", i, val->pv[i]), -1L)
                     cnt += written;
                 break;
             case ARRAY_CHAR:
-                IOCHECKER(written, fprintf(out, custom ? custom : "[%d - %c]\t", i, val->cv[i]), -1L)
+                IOCHECKER(written, fprintf(out, custom ? custom : "[%zu - %c]\t", i, val->cv[i]), -1L)
                     cnt += written;
                 break;
             case ARRAY_V64:
@@ -1543,7 +1530,7 @@ long                         arrayfprint(FILE *restrict out, const Array *restri
                     cnt += written;
                 break;
             default:
-                IOCHECKER(written, fprintf(out, "[%ld - ?]\t", i), -1L )
+                IOCHECKER(written, fprintf(out, "[%zu - ?]\t", i), -1L )
                     cnt += written;
                 break;
         }
@@ -1553,7 +1540,7 @@ long                         arrayfprint(FILE *restrict out, const Array *restri
     }
 
     if (i < val->len)
-        cnt += fprintf(out, "and more (%ld) ...\n", val->len - i);
+        cnt += fprintf(out, "and more (%zu) ...\n", val->len - i);
     else
         cnt += fprintf(out, "\n");
 
@@ -1578,10 +1565,10 @@ long                        arraySaveFilevalues(const Array *restrict parr, cons
     if (!f)
         return userraise(-1L, ERR_UNABLE_OPEN_FILE_WRITE, "Can't open '%s' for writing", fname);
 
-    long    total_written = 0;
-    int     typ = arrayGettype(parr), status = 0;
+    long          total_written = 0;
+    ArrayType     typ = arrayGettype(parr), status = 0;
 
-    for (int i = 0; i < parr->len; i++) {
+    for (size_t i = 0; i < parr->len; i++) {
         if (i > 0) {
             if (fputc(delim, f) == EOF) {
                 status = -1;
@@ -1598,7 +1585,7 @@ long                        arraySaveFilevalues(const Array *restrict parr, cons
                 written = fprintf(f, "%ld", parr->lv[i]);
                 break;
             case ARRAY_DOUBLE:
-                written = fprintf(f, "%12.12lf", parr->dv[i]);
+                written = fprintf(f, "%12.12lf", parr->dv[i]);  // ??????
                 break;
             case ARRAY_POINTER:
                 written = fprintf(f, "%p", parr->pv[i]);
@@ -1611,7 +1598,8 @@ long                        arraySaveFilevalues(const Array *restrict parr, cons
                 break;
             default:
                 fclose(f);
-                return userraise(-1L, ERR_UNSUPPORTED_TYPE, "Unsupported type %s\n", arrayGetTypeName(parr));
+                return userraise(-1L, ERR_UNSUPPORTED_TYPE, 
+                    "Unsupported type %d/%s\n", arrayGettype(parr), arrayGetTypeName(parr));
         }
         if (written < 0) {
             status = -1;
@@ -1653,7 +1641,7 @@ long                        arraySaveFile(FILE *restrict out, const Array *restr
     const char  *typ = arrayGetTypeRealName(parr);
     const char  *v64_type  = arrayIsV64(parr) ? arrayGetV64typeName(parr) : "NONV64_TYPE";
 
-    IOCHECKER(written, fprintf(out, "ARRAY: %s / %s : %d\n", typ, v64_type, parr->len), -1)
+    IOCHECKER(written, fprintf(out, "ARRAY: %s / %s : %zu\n", typ, v64_type, parr->len), -1)
         total_written += written;
     IOCHECKER(written, arraySaveValues(out, parr), -1)
         total_written += written;
@@ -1736,7 +1724,7 @@ Array                       *arrayLoadFileByName(const char *fname) {
     Array   *arr = arrayLoadFile(in);
     
     fclose(in);
-    return logret(arr, "Done %d", arr->len);
+    return logret(arr, "Done %zu", arr->len);
 }
 
 // -------------------------- (API) serialization -----------------------
@@ -1749,7 +1737,7 @@ long                            arraySaveTofs(fs *restrict s, const Array *restr
     const char  *typ = arrayTypeGetName(parr->flags);
     const char  *v64_type  = arrayIsV64(parr) ? arrayGetV64typeName(parr) : "NONV64_TYPE";
 
-    total_written += fs_sprintf_concat(s, "ARRAY: %s / %s : %d\n", typ, v64_type, parr->len);
+    total_written += fs_sprintf_concat(s, "ARRAY: %s / %s : %zu\n", typ, v64_type, parr->len);
     total_written += arraySerializeValues(s, parr);
     total_written += fs_sprintf_concat(s, "ARRAY: DONE\n");
     return total_written;
@@ -1760,7 +1748,7 @@ long                            arrayLoadFromfs(const fs *restrict s, Array *res
                  "Nullable input %p", (void*) s);
 
     const char     *data = s->v;
-    int             data_len;
+    long            data_len;
     Array           *pa = arrayParseHeaderStr(&data); 
 
     if (!pa)
@@ -1780,7 +1768,7 @@ long                            arrayLoadFromfs(const fs *restrict s, Array *res
    
     if (parr)    // if arr is NULL then dump read
         *parr = *pa;
-    return (long)(data - s->v);
+    return (long) (data - s->v);
 }
 
 // -------------------------------Testing --------------------------
