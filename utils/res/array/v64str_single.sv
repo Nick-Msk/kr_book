@@ -1,3 +1,3 @@
 ARRAY: ARRAY_V64 / STR : 1
-     0	VALUE64(STR):"single"
+       0	VALUE64(STR):"single"
 ARRAY: DONE

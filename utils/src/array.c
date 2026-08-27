@@ -577,7 +577,7 @@ static size_t                    increase(Array *arr, size_t newsz){
     if (newsz > arr->sz)
         newsz = round_up_2(newsz);
 
-    int         bytes = newsz * arrayGetelemsize(arr);
+    size_t      bytes = newsz * arrayGetelemsize(arr);
     if (bytes < 0) 
         return userraise(-1, ERR_UNKNOWN_TYPE, "Unknown type");
 
@@ -587,7 +587,7 @@ static size_t                    increase(Array *arr, size_t newsz){
     void       *p = NULL;  
     if (bytes > 0) {
         if ( (p = realloc(arr->v, bytes) ) == NULL)
-            userraise(-1, ERR_UNABLE_ALLOCATE, "Unable to allocate %d", bytes);
+            userraise(-1, ERR_UNABLE_ALLOCATE, "Unable to allocate %zu", bytes);
     } else
         free(arr->v);
     arr->v = p; // iv/dv/pv... is the same
@@ -785,7 +785,7 @@ static long             arrayFsLoadValues(const char *restrict initdata, Array *
     ArrayType       typ = arrayGettype(parr);
     fs              buf = FS();
 
-    //for (int i = 0; i < arr->len; i++) { // foreach
+    //for (size_t i = 0; i < arr->len; i++) { // foreach
     Array_pforeach_idx(parr, i) {
         char             *endptr;
         
@@ -1184,11 +1184,13 @@ Array                          *arrayShuffle(Array *parr) {
         userraise(NULL, ERR_UNSUPPORTED_TYPE, 
                         "unsupported type for shuffle %d/%s", arrayGettype(parr), arrayGetTypeName(parr));
     // in case if arr.len < 2 that'll do nothing
-    char    *data = parr->v;  // raw byte pointer
-    for (size_t i = parr->len - 1; i > 0; i--) {
-        int j = rndint(i);
-        // swap elements at indices i and j
-        item_exch(data + i * elem_size, data + j * elem_size, elem_size);   
+    if (parr->len > 1) {
+        char    *data = parr->v;  // raw byte pointer
+        for (size_t i = parr->len - 1; i > 0; i--) {
+            int j = rndint(i);
+            // swap elements at indices i and j
+            item_exch(data + i * elem_size, data + j * elem_size, elem_size);   
+        }
     }
     return parr;
 }
@@ -1791,11 +1793,11 @@ tf1(const char *name)
     test_sub("subtest %d: double", ++subnum);
     {
         Array *arr = DArrayCreate(100, ARRAY_FILLTYPE_ZERO);
-        for (int i = 0; i < arr->len; i++)
+        for (size_t i= 0; i < arr->len; i++)
             test_validatefree(
                 arr->dv[i] == 0.0,
                 ARRAYFREE(arr),
-                "%d: Element must be 0.0, but not %lf", i, arr->dv[i]
+                "%zu: Element must be 0.0, but not %lf", i, arr->dv[i]
             );
         test_validatefree(
             arrayIsvalid(arr),
@@ -1809,11 +1811,11 @@ tf1(const char *name)
     test_sub("subtest %d: int", ++subnum);
     {
         Array *arr = IarrayCreate(100, ARRAY_FILLTYPE_ZERO);
-        for (int i = 0; i < arr->len; i++)
+        for (size_t i= 0; i < arr->len; i++)
             test_validatefree(
                 arr->iv[i] == 0,
                 ARRAYFREE(arr),
-                "%d: Element must be 0 but not %d", i, arr->iv[i]
+                "%zu: Element must be 0 but not %d", i, arr->iv[i]
             );
         test_validatefree(
             arrayIsvalid(arr),
@@ -1827,11 +1829,11 @@ tf1(const char *name)
     test_sub("subtest %d: long", ++subnum);
     {
         Array *arr = LArrayCreate(100, ARRAY_FILLTYPE_ZERO);
-        for (int i = 0; i < arr->len; i++)
+        for (size_t i= 0; i < arr->len; i++)
             test_validatefree(
                 arr->lv[i] == 0L,
                 ARRAYFREE(arr),
-                "%d: Element must be 0L but not %ld", i, arr->lv[i]
+                "%zu: Element must be 0L but not %ld", i, arr->lv[i]
             );
         test_validatefree(
             arrayIsvalid(arr),
@@ -1856,21 +1858,21 @@ tf2(const char *name)
     {
         Array *arr = DArrayCreate(100, ARRAY_FILLTYPE_ASC);
         // ASC check
-        for (int i = 0; i < arr->len - 1; i++)
+        for (size_t i = 0; i < arr->len - 1; i++)
             test_validatefree(
                 arr->dv[i] <= arr->dv[i + 1],
                 ARRAYFREE(arr),
-                "ASC violation: arr[%d]=%f > arr[%d]=%f",
+                "ASC violation: arr[%zu]=%f > arr[%zu]=%f",
                 i, arr->dv[i], i + 1, arr->dv[i + 1]
             );
         // refill to DESC
         arrayFillAll(arr, ARRAY_FILLTYPE_DESC);
         // DESC check
-        for (int i = 0; i < arr->len - 1; i++)
+        for (size_t i = 0; i < arr->len - 1; i++)
             test_validatefree(
                 arr->dv[i] >= arr->dv[i + 1],
                 ARRAYFREE(arr),
-                "DESC violation: arr[%d]=%f < arr[%d]=%f",
+                "DESC violation: arr[%zu]=%f < arr[%zu]=%f",
                 i, arr->dv[i], i + 1, arr->dv[i + 1]
             );
         ARRAYFREE(arr);
@@ -1879,19 +1881,19 @@ tf2(const char *name)
     test_sub("subtest %d: int asc/desc", ++subnum);
     {
         Array *arr = IarrayCreate(100, ARRAY_FILLTYPE_ASC);
-        for (int i = 0; i < arr->len - 1; i++)
+        for (size_t i = 0; i < arr->len - 1; i++)
             test_validatefree(
                 arr->iv[i] <= arr->iv[i + 1],
                 ARRAYFREE(arr),
-                "ASC violation: arr[%d]=%d > arr[%d]=%d",
+                "ASC violation: arr[%zu]=%d > arr[%zu]=%d",
                 i, arr->iv[i], i + 1, arr->iv[i + 1]
             );
         arrayFillAll(arr, ARRAY_FILLTYPE_DESC);
-        for (int i = 0; i < arr->len - 1; i++)
+        for (size_t i = 0; i < arr->len - 1; i++)
             test_validatefree(
                 arr->iv[i] >= arr->iv[i + 1],
                 ARRAYFREE(arr),
-                "DESC violation: arr[%d]=%d < arr[%d]=%d",
+                "DESC violation: arr[%zu]=%d < arr[%zu]=%d",
                 i, arr->iv[i], i + 1, arr->iv[i + 1]
             );
         ARRAYFREE(arr);
@@ -1900,19 +1902,19 @@ tf2(const char *name)
     test_sub("subtest %d: long asc/desc", ++subnum);
     {
         Array *arr = LArrayCreate(100, ARRAY_FILLTYPE_ASC);
-        for (int i = 0; i < arr->len - 1; i++)
+        for (size_t i= 0; i < arr->len - 1; i++)
             test_validatefree(
                 arr->lv[i] <= arr->lv[i + 1],
                 ARRAYFREE(arr),
-                "ASC violation: arr[%d]=%ld > arr[%d]=%ld",
+                "ASC violation: arr[%zu]=%ld > arr[%zu]=%ld",
                 i, arr->lv[i], i + 1, arr->lv[i + 1]
             );
         arrayFillAll(arr, ARRAY_FILLTYPE_DESC);
-        for (int i = 0; i < arr->len - 1; i++)
+        for (size_t i= 0; i < arr->len - 1; i++)
             test_validatefree(
                 arr->lv[i] >= arr->lv[i + 1],
                 ARRAYFREE(arr),
-                "DESC violation: arr[%d]=%ld < arr[%d]=%ld",
+                "DESC violation: arr[%zu]=%ld < arr[%zu]=%ld",
                 i, arr->lv[i], i + 1, arr->lv[i + 1]
             );
         ARRAYFREE(arr);
@@ -1945,7 +1947,7 @@ tf3(const char *name)
         test_validatefree(
             arrayIsvalid(arr) && arr->len == 10 && arr->sz >= 10 && arr->dv != NULL,
             ARRAYFREE(arr),
-            "Shrink failed: len=%d, sz=%d, v=%p", arr->len, arr->sz, (void*)arr->dv
+            "Shrink failed: len=%zu, sz=%zu, v=%p", arr->len, arr->sz, (void*)arr->dv
         );
         ARRAYFREE(arr);
     }
@@ -1959,7 +1961,7 @@ tf3(const char *name)
         test_validatefree(
             arrayIsvalid(arr) && arr->len == 10 && arr->sz >= 10 && arr->iv != NULL,
             ARRAYFREE(arr),
-            "Shrink failed: len=%d, sz=%d, v=%p", arr->len, arr->sz, (void*)arr->iv
+            "Shrink failed: len=%zu, sz=%zu, v=%p", arr->len, arr->sz, (void*)arr->iv
         );
         ARRAYFREE(arr);
     }
@@ -1973,7 +1975,7 @@ tf3(const char *name)
         test_validatefree(
             arrayIsvalid(arr) && arr->len == 10 && arr->sz >= 10 && arr->lv != NULL,
             ARRAYFREE(arr),
-            "Shrink failed: len=%d, sz=%d, v=%p", arr->len, arr->sz, (void*)arr->lv
+            "Shrink failed: len=%zu, sz=%zu, v=%p", arr->len, arr->sz, (void*)arr->lv
         );
         ARRAYFREE(arr);
     }
@@ -2011,16 +2013,16 @@ tf4(const char *name)
             loaded != NULL && arrayIsvalid(loaded) &&
             arr->len == loaded->len && arr->flags == loaded->flags,
             (ARRAYFREE(arr), ARRAYFREE(loaded)),
-            "Length or flags mismatch: len %d vs %d, flags %d vs %d",
+            "Length or flags mismatch: len %zu vs %zu, flags %d vs %d",
             arr->len, loaded->len, arr->flags, loaded->flags
         );
 
         // поэлементное сравнение
-        for (int i = 0; i < arr->len; i++)
+        for (size_t i= 0; i < arr->len; i++)
             test_validatefree(
                 arr->iv[i] == loaded->iv[i],
                 (ARRAYFREE(arr), ARRAYFREE(loaded)),
-                "arr[%d] = %d != arr2[%d] = %d",
+                "arr[%zu] = %d != arr2[%zu] = %d",
                 i, arr->iv[i], i, loaded->iv[i]
             );
 
@@ -2041,15 +2043,15 @@ tf4(const char *name)
             loaded != NULL && arrayIsvalid(loaded) &&
             arr->len == loaded->len && arr->flags == loaded->flags,
             (ARRAYFREE(arr), ARRAYFREE(loaded)),
-            "Length or flags mismatch: len %d vs %d, flags %d vs %d",
+            "Length or flags mismatch: len %zu vs %zu, flags %d vs %d",
             arr->len, loaded->len, arr->flags, loaded->flags
         );
 
-        for (int i = 0; i < arr->len; i++)
+        for (size_t i= 0; i < arr->len; i++)
             test_validatefree(
                 arr->lv[i] == loaded->lv[i],
                 (ARRAYFREE(arr), ARRAYFREE(loaded)),
-                "arr[%d] = %ld != arr2[%d] = %ld",
+                "arr[%zu] = %ld != arr2[%zu] = %ld",
                 i, arr->lv[i], i, loaded->lv[i]
             );
 
@@ -2081,15 +2083,15 @@ tf5(const char *name)
             loaded != NULL && arrayIsvalid(loaded) &&
             arr->len == loaded->len && arr->flags == loaded->flags,
             (ARRAYFREE(arr), ARRAYFREE(loaded)),
-            "Length or flags mismatch: len %d vs %d, flags %d vs %d",
+            "Length or flags mismatch: len %zu vs %zu, flags %d vs %d",
             arr->len, loaded->len, arr->flags, loaded->flags
         );
 
-        for (int i = 0; i < arr->len; i++)
+        for (size_t i= 0; i < arr->len; i++)
             test_validatefree(
                 fabs(arr->dv[i] - loaded->dv[i]) <= FLT_EPSILON / 100,
                 (ARRAYFREE(arr), ARRAYFREE(loaded)),
-                "arr[%d] = %15.15lf != arr2[%d] = %15.15lf",
+                "arr[%zu] = %15.15lf != arr2[%zu] = %15.15lf",
                 i, arr->dv[i], i, loaded->dv[i]
             );
 
@@ -2115,7 +2117,7 @@ tf6(const char *name)
 
         // проверяем, что порядок нарушен (не все элементы строго возрастают)
         bool ordered = true;
-        for (int i = 0; i < arr->len - 1; i++) {
+        for (size_t i= 0; i < arr->len - 1; i++) {
             if (arr->dv[i] > arr->dv[i + 1]) {
                 ordered = false;
                 break;
@@ -2136,7 +2138,7 @@ tf6(const char *name)
         arrayShuffle(arr);
 
         bool ordered = true;
-        for (int i = 0; i < arr->len - 1; i++) {
+        for (size_t i= 0; i < arr->len - 1; i++) {
             if (arr->iv[i] > arr->iv[i + 1]) {
                 ordered = false;
                 break;
@@ -2157,7 +2159,7 @@ tf6(const char *name)
         arrayShuffle(arr);
 
         bool ordered = true;
-        for (int i = 0; i < arr->len - 1; i++) {
+        for (size_t i= 0; i < arr->len - 1; i++) {
             if (arr->lv[i] > arr->lv[i + 1]) {
                 ordered = false;
                 break;
@@ -2186,20 +2188,20 @@ tf7(const char *name)
     {
         Array *arr = DArrayCreate(10000, ARRAY_FILLTYPE_RND);
         arrayQsort(arr, ARRAY_SORTTYPE_ASC);
-        for (int i = 1; i < arr->len; i++)
+        for (size_t i= 1; i < arr->len; i++)
             test_validatefree(
                 arr->dv[i - 1] <= arr->dv[i],
                 ARRAYFREE(arr),
-                "ASC violation: arr[%d]=%f > arr[%d]=%f",
+                "ASC violation: arr[%zu]=%f > arr[%zu]=%f",
                 i - 1, arr->dv[i - 1], i, arr->dv[i]
             );
 
         arrayQsort(arr, ARRAY_SORTTYPE_DESC);
-        for (int i = 1; i < arr->len; i++)
+        for (size_t i= 1; i < arr->len; i++)
             test_validatefree(
                 arr->dv[i - 1] >= arr->dv[i],
                 ARRAYFREE(arr),
-                "DESC violation: arr[%d]=%f < arr[%d]=%f",
+                "DESC violation: arr[%zu]=%f < arr[%zu]=%f",
                 i - 1, arr->dv[i - 1], i, arr->dv[i]
             );
         ARRAYFREE(arr);
@@ -2210,20 +2212,20 @@ tf7(const char *name)
     {
         Array *arr = IarrayCreate(100000, ARRAY_FILLTYPE_RND);
         arrayQsort(arr, ARRAY_SORTTYPE_ASC);
-        for (int i = 1; i < arr->len; i++)
+        for (size_t i= 1; i < arr->len; i++)
             test_validatefree(
                 arr->iv[i - 1] <= arr->iv[i],
                 ARRAYFREE(arr),
-                "ASC violation: arr[%d]=%d > arr[%d]=%d",
+                "ASC violation: arr[%zu]=%d > arr[%zu]=%d",
                 i - 1, arr->iv[i - 1], i, arr->iv[i]
             );
 
         arrayQsort(arr, ARRAY_SORTTYPE_DESC);
-        for (int i = 1; i < arr->len; i++)
+        for (size_t i= 1; i < arr->len; i++)
             test_validatefree(
                 arr->iv[i - 1] >= arr->iv[i],
                 ARRAYFREE(arr),
-                "DESC violation: arr[%d]=%d < arr[%d]=%d",
+                "DESC violation: arr[%zu]=%d < arr[%zu]=%d",
                 i - 1, arr->iv[i - 1], i, arr->iv[i]
             );
         ARRAYFREE(arr);
@@ -2234,20 +2236,20 @@ tf7(const char *name)
     {
         Array *arr = LArrayCreate(100000, ARRAY_FILLTYPE_RND);
         arrayQsort(arr, ARRAY_SORTTYPE_ASC);
-        for (int i = 1; i < arr->len; i++)
+        for (size_t i= 1; i < arr->len; i++)
             test_validatefree(
                 arr->lv[i - 1] <= arr->lv[i],
                 ARRAYFREE(arr),
-                "ASC violation: arr[%d]=%ld > arr[%d]=%ld",
+                "ASC violation: arr[%zu]=%ld > arr[%zu]=%ld",
                 i - 1, arr->lv[i - 1], i, arr->lv[i]
             );
 
         arrayQsort(arr, ARRAY_SORTTYPE_DESC);
-        for (int i = 1; i < arr->len; i++)
+        for (size_t i= 1; i < arr->len; i++)
             test_validatefree(
                 arr->lv[i - 1] >= arr->lv[i],
                 ARRAYFREE(arr),
-                "DESC violation: arr[%d]=%ld < arr[%d]=%ld",
+                "DESC violation: arr[%zu]=%ld < arr[%zu]=%ld",
                 i - 1, arr->lv[i - 1], i, arr->lv[i]
             );
         ARRAYFREE(arr);
@@ -2265,7 +2267,7 @@ tf8(const char *name)
 
     test_sub("subtest %d: increase int array", ++subnum);
     {
-        int initsz = 25;
+        size_t initsz = 25;
         Array *arr = IarrayCreate(initsz, ARRAY_FILLTYPE_RND);
 
         arr = arrayIncrease(arr, initsz * 3);
@@ -2273,55 +2275,55 @@ tf8(const char *name)
         test_validatefree(
             arr->len == initsz * 3,
             ARRAYFREE(arr),
-            "Array length %d must be %d", arr->len, initsz * 3
+            "Array length %zu must be %zu", arr->len, initsz * 3
         );
-        for (int i = initsz; i < arr->len; i++)
+        for (size_t i= initsz; i < arr->len; i++)
             test_validatefree(
                 arr->iv[i] == 0,
                 ARRAYFREE(arr),
-                "arr[%d] must be zero, but not %d", i, arr->iv[i]
+                "arr[%zu] must be zero, but not %d", i, arr->iv[i]
             );
         ARRAYFREE(arr);
     }
 
     test_sub("subtest %d: increase double array", ++subnum);
     {
-        int initsz = 25;
-        Array *arr = DArrayCreate(initsz, ARRAY_FILLTYPE_RND);
+        size_t   initsz = 25;
+        Array   *arr = DArrayCreate(initsz, ARRAY_FILLTYPE_RND);
 
         arr = arrayIncrease(arr, initsz * 3);
 
         test_validatefree(
             arr->len == initsz * 3,
             ARRAYFREE(arr),
-            "Array length %d must be %d", arr->len, initsz * 3
+            "Array length %zu must be %zu", arr->len, initsz * 3
         );
-        for (int i = initsz; i < arr->len; i++)
+        for (size_t i= initsz; i < arr->len; i++)
             test_validatefree(
                 arr->dv[i] == 0.0,
                 ARRAYFREE(arr),
-                "arr[%d] must be zero, but not %lf", i, arr->dv[i]
+                "arr[%zu] must be zero, but not %lf", i, arr->dv[i]
             );
         ARRAYFREE(arr);
     }
 
     test_sub("subtest %d: increase long array", ++subnum);
     {
-        int initsz = 25;
-        Array *arr = LArrayCreate(initsz, ARRAY_FILLTYPE_RND);
+        size_t  initsz = 25;
+        Array  *arr = LArrayCreate(initsz, ARRAY_FILLTYPE_RND);
 
         arr = arrayIncrease(arr, initsz * 5);
 
         test_validatefree(
             arr->len == initsz * 5,
             ARRAYFREE(arr),
-            "Array length %d must be %d", arr->len, initsz * 5
+            "Array length %zu must be %zu", arr->len, initsz * 5
         );
-        for (int i = initsz; i < arr->len; i++)
+        for (size_t i= initsz; i < arr->len; i++)
             test_validatefree(
                 arr->lv[i] == 0L,
                 ARRAYFREE(arr),
-                "arr[%d] must be zero, but not %ld", i, arr->lv[i]
+                "arr[%zu] must be zero, but not %ld", i, arr->lv[i]
             );
         ARRAYFREE(arr);
     }
@@ -2339,11 +2341,11 @@ tf9(const char *name)
     test_sub("subtest %d: creating pointer array", ++subnum);
     {
         Array *parr = PArrayCreate(100, ARRAY_FILLTYPE_ZERO);
-        for (int i = 0; i < parr->len; i++)
+        for (size_t i= 0; i < parr->len; i++)
             test_validatefree(
                 parr->pv[i] == NULL,
                 ARRAYFREE(parr),
-                "Element %d must be NULL, but not %p", i, (void*)parr->pv[i]
+                "Element %zu must be NULL, but not %p", i, (void*)parr->pv[i]
             );
         test_validatefree(
             arrayIsvalid(parr),
@@ -2355,8 +2357,8 @@ tf9(const char *name)
 
     test_sub("subtest %d: shrinking", ++subnum);
     {
-        Array *parr = PArrayCreate(100, ARRAY_FILLTYPE_ZERO);
-        int cnt = 10;
+        Array  *parr = PArrayCreate(100, ARRAY_FILLTYPE_ZERO);
+        size_t  cnt = 10;
         parr = arrayShrink(parr, cnt);
         test_validatefree(
             arrayIsvalid(parr),
@@ -2366,7 +2368,7 @@ tf9(const char *name)
         test_validatefree(
             parr->len == cnt && parr->sz >= cnt && parr->pv != NULL,
             ARRAYFREE(parr),
-            "Shrink failed: len=%d, sz=%d, v=%p", parr->len, parr->sz, (void*)parr->pv
+            "Shrink failed: len=%zu, sz=%zu, v=%p", parr->len, parr->sz, (void*)parr->pv
         );
         ARRAYFREE(parr);
     }
@@ -2386,15 +2388,15 @@ tf9(const char *name)
         test_validatefree(
             parr->len == loaded->len && parr->flags == loaded->flags,
             (ARRAYFREE(parr), ARRAYFREE(loaded)),
-            "Length or flags mismatch: len %d vs %d, flags %d vs %d",
+            "Length or flags mismatch: len %zu vs %zu, flags %d vs %d",
             parr->len, loaded->len, parr->flags, loaded->flags
         );
 
-        for (int i = 0; i < parr->len; i++)
+        for (size_t i = 0; i < parr->len; i++)
             test_validatefree(
                 parr->pv[i] == loaded->pv[i],
                 (ARRAYFREE(parr), ARRAYFREE(loaded)),
-                "arr[%d] = %p != arr2[%d] = %p",
+                "arr[%zu] = %p != arr2[%zu] = %p",
                 i, (void*)parr->pv[i], i, (void*)loaded->pv[i]
             );
 
@@ -2408,24 +2410,24 @@ tf9(const char *name)
         Array *parr = PArrayCreate(cnt, ARRAY_FILLTYPE_ZERO);
 
         // fill array with descending addresses
-        for (int i = 0; i < parr->len; i++)
+        for (size_t i = 0; i < parr->len; i++)
             parr->pv[i] = parr->pv + cnt - 1 - i;
 
         arrayQsort(parr, ARRAY_SORTTYPE_ASC);
-        for (int i = 1; i < parr->len; i++)
+        for (size_t i = 1; i < parr->len; i++)
             test_validatefree(
                 (uintptr_t)parr->pv[i - 1] <= (uintptr_t)parr->pv[i],
                 ARRAYFREE(parr),
-                "ASC violation: arr[%d]=%p > arr[%d]=%p",
+                "ASC violation: arr[%zu]=%p > arr[%zu]=%p",
                 i - 1, (void*)parr->pv[i - 1], i, (void*)parr->pv[i]
             );
 
         arrayQsort(parr, ARRAY_SORTTYPE_DESC);
-        for (int i = 1; i < parr->len; i++)
+        for (size_t i = 1; i < parr->len; i++)
             test_validatefree(
                 (uintptr_t)parr->pv[i - 1] >= (uintptr_t)parr->pv[i],
                 ARRAYFREE(parr),
-                "DESC violation: arr[%d]=%p < arr[%d]=%p",
+                "DESC violation: arr[%zu]=%p < arr[%zu]=%p",
                 i - 1, (void*)parr->pv[i - 1], i, (void*)parr->pv[i]
             );
         ARRAYFREE(parr);
@@ -2433,20 +2435,20 @@ tf9(const char *name)
 
     test_sub("subtest %d: increase pointer array", ++subnum);
     {
-        int initsz = 25;
+        size_t initsz = 25;
         Array *arr = PArrayCreate(initsz, ARRAY_FILLTYPE_ZERO);
         arr = arrayIncrease(arr, initsz * 3);
 
         test_validatefree(
             arr->len == initsz * 3,
             ARRAYFREE(arr),
-            "Array length %d must be %d", arr->len, initsz * 3
+            "Array length %zu must be %zu", arr->len, initsz * 3
         );
-        for (int i = initsz; i < arr->len; i++)
+        for (size_t i = initsz; i < arr->len; i++)
             test_validatefree(
                 arr->pv[i] == NULL,
                 ARRAYFREE(arr),
-                "arr[%d] must be NULL, but not %p", i, (void*)arr->pv[i]
+                "arr[%zu] must be NULL, but not %p", i, (void*)arr->pv[i]
             );
         ARRAYFREE(arr);
     }
@@ -2464,21 +2466,21 @@ tf10(const char *name)
     /* 1. Int ascending series */
     test_sub("subtest %d: int asc series", ++subnum);
     {
-        int     cnt = 100;
+        size_t   cnt = 100;
         Array   *arr = IarrayCreate(cnt, ARRAY_FILLTYPE_ASC_SERIES);
 
-        int     len = arraylen(arr);
+        size_t   len = arraylen(arr);
         test_validatefree(
             len == cnt,
             ARRAYFREE(arr),
-            "Array length = %d, expected %d", len, cnt
+            "Array length = %zu, expected %zu", len, cnt
         );
 
-        for (int i = 0; i < cnt; i++) {
+        for (size_t i = 0; i < cnt; i++) {
             test_validatefree(
-                arr->iv[i] == i,
+                arr->iv[i] == (int) i,
                 ARRAYFREE(arr),
-                "Int asc series: arr[%d] = %d, expected %d", i, arr->iv[i], i
+                "Int asc series: arr[%zu] = %d, expected %zu", i, arr->iv[i], i
             );
         }
     }
@@ -2486,22 +2488,22 @@ tf10(const char *name)
     /* 2. Int descending series */
     test_sub("subtest %d: int desc series", ++subnum);
     {
-        int     cnt = 50;
+        size_t     cnt = 50;
         Array   *arr = IarrayCreate(cnt, ARRAY_FILLTYPE_DESC_SERIES);
 
-        int     len = arraylen(arr);
+        size_t     len = arraylen(arr);
         test_validatefree(
             len == cnt,
             ARRAYFREE(arr),
-            "Array length = %d, expected %d", len, cnt
+            "Array length = %zu, expected %zu", len, cnt
         );
 
-        for (int i = 0; i < cnt; i++) {
-            int expected = cnt - 1 - i;
+        for (size_t i = 0; i < cnt; i++) {
+            size_t expected = cnt - 1 - i;
             test_validatefree(
-                arr->iv[i] == expected,
+                arr->iv[i] == (int) expected,
                 ARRAYFREE(arr),
-                "Int desc series: arr[%d] = %d, expected %d", i, arr->iv[i], expected
+                "Int desc series: arr[%zu] = %d, expected %zu", i, arr->iv[i], expected
             );
         }
     }
@@ -2509,21 +2511,21 @@ tf10(const char *name)
     /* 3. Long ascending series */
     test_sub("subtest %d: long asc series", ++subnum);
     {
-        int     cnt = 70;
-        Array   *arr = LArrayCreate(cnt, ARRAY_FILLTYPE_ASC_SERIES);
+        size_t     cnt = 70;
+        Array     *arr = LArrayCreate(cnt, ARRAY_FILLTYPE_ASC_SERIES);
 
-        int     len = arraylen(arr);
+        size_t     len = arraylen(arr);
         test_validatefree(
             len == cnt,
             ARRAYFREE(arr),
-            "Array length = %d, expected %d", len, cnt
+            "Array length = %zu, expected %zu", len, cnt
         );
 
-        for (int i = 0; i < cnt; i++) {
+        for (size_t i = 0; i < cnt; i++) {
             test_validatefree(
                 arr->lv[i] == (long)i,
                 ARRAYFREE(arr),
-                "Long asc series: arr[%d] = %ld, expected %ld", i, arr->lv[i], (long)i
+                "Long asc series: arr[%zu] = %ld, expected %ld", i, arr->lv[i], (long)i
             );
         }
     }
@@ -2531,22 +2533,22 @@ tf10(const char *name)
     /* 4. Long descending series */
     test_sub("subtest %d: long desc series", ++subnum);
     {
-        int     cnt = 40;
+        size_t     cnt = 40;
         Array   *arr = LArrayCreate(cnt, ARRAY_FILLTYPE_DESC_SERIES);
 
-        int     len = arraylen(arr);
+        size_t     len = arraylen(arr);
         test_validatefree(
             len == cnt,
             ARRAYFREE(arr),
-            "Array length = %d, expected %d", len, cnt
+            "Array length = %zu, expected %zu", len, cnt
         );
 
-        for (int i = 0; i < cnt; i++) {
+        for (size_t i = 0; i < cnt; i++) {
             long expected = (long)(cnt - 1 - i);
             test_validatefree(
                 arr->lv[i] == expected,
                 ARRAYFREE(arr),
-                "Long desc series: arr[%d] = %ld, expected %ld", i, arr->lv[i], expected
+                "Long desc series: arr[%zu] = %ld, expected %ld", i, arr->lv[i], expected
             );
         }
     }
@@ -2554,21 +2556,21 @@ tf10(const char *name)
     /* 5. Double ascending series */
     test_sub("subtest %d: double asc series", ++subnum);
     {
-        int     cnt = 30;
+        size_t     cnt = 30;
         Array   *arr = DArrayCreate(cnt, ARRAY_FILLTYPE_ASC_SERIES);
 
-        int     len = arraylen(arr);
+        size_t     len = arraylen(arr);
         test_validatefree(
             len == cnt,
             ARRAYFREE(arr),
-            "Array length = %d, expected %d", len, cnt
+            "Array length = %zu, expected %zu", len, cnt
         );
 
-        for (int i = 0; i < cnt; i++) {
+        for (size_t i = 0; i < cnt; i++) {
             test_validatefree(
                 arr->dv[i] == (double)i,
                 ARRAYFREE(arr),
-                "Double asc series: arr[%d] = %f, expected %f", i, arr->dv[i], (double)i
+                "Double asc series: arr[%zu] = %f, expected %f", i, arr->dv[i], (double)i
             );
         }
     }
@@ -2576,22 +2578,22 @@ tf10(const char *name)
     /* 6. Double descending series */
     test_sub("subtest %d: double desc series", ++subnum);
     {
-        int     cnt = 25;
+        size_t     cnt = 25;
         Array   *arr = DArrayCreate(cnt, ARRAY_FILLTYPE_DESC_SERIES);
 
-        int     len = arraylen(arr);
+        size_t     len = arraylen(arr);
         test_validatefree(
             len == cnt,
             ARRAYFREE(arr),
-            "Array length = %d, expected %d", len, cnt
+            "Array length = %zu, expected %zu", len, cnt
         );
 
-        for (int i = 0; i < cnt; i++) {
+        for (size_t i = 0; i < cnt; i++) {
             double expected = (double)(cnt - 1 - i);
             test_validatefree(
                 arr->dv[i] == expected,
                 ARRAYFREE(arr),
-                "Double desc series: arr[%d] = %f, expected %f", i, arr->dv[i], expected
+                "Double desc series: arr[%zu] = %f, expected %f", i, arr->dv[i], expected
             );
         }
     }
@@ -2599,12 +2601,12 @@ tf10(const char *name)
     /* 7. Empty array */
     test_sub("subtest %d: empty series", ++subnum);
     {
-        Array   *arr = IarrayCreate(0, ARRAY_FILLTYPE_ASC_SERIES);
-        int     len = arraylen(arr);
+        Array      *arr = IarrayCreate(0, ARRAY_FILLTYPE_ASC_SERIES);
+        size_t     len = arraylen(arr);
         test_validatefree(
             len == 0,
             ARRAYFREE(arr),
-            "Empty array length = %d, expected 0", len
+            "Empty array length = %zu, expected 0", len
         );
     }
 
@@ -2642,36 +2644,36 @@ tf11(const char *name)
     /* 1. Fill middle of int array with ascending series */
     test_sub("subtest %d: fill middle with asc series", ++subnum);
     {
-        int     cnt = 50;
-        Array   *arr = IarrayCreate(cnt, ARRAY_FILLTYPE_ZERO);
-        int     from = 10, to = 20;
+        size_t     cnt = 50;
+        Array     *arr = IarrayCreate(cnt, ARRAY_FILLTYPE_ZERO);
+        size_t     from = 10, to = 20;
 
         arrayFillRange(arr, ARRAY_FILLTYPE_ASC_SERIES, from, to);
 
-        int     len = arraylen(arr);
+        size_t     len = arraylen(arr);
         test_validatefree(
             len == cnt,
             ARRAYFREE(arr),
-            "Array length = %d, expected %d", len, cnt
+            "Array length = %zu, expected %zu", len, cnt
         );
 
         // Elements before 'from' and after 'to' must remain zero
-        for (int i = 0; i < cnt; i++) {
+        for (size_t i = 0; i < cnt; i++) {
             if (i >= from && i < to)
                 continue;
             test_validatefree(
                 arr->iv[i] == 0,
                 ARRAYFREE(arr),
-                "Element [%d] = %d, expected 0 (outside range)", i, arr->iv[i]
+                "Element [%zu] = %d, expected 0 (outside range)", i, arr->iv[i]
             );
         }
 
         // Inside the range, values must equal the index
-        for (int i = from; i < to; i++) {
+        for (size_t i = from; i < to; i++) {
             test_validatefree(
-                arr->iv[i] == i,
+                arr->iv[i] == (int) i,
                 ARRAYFREE(arr),
-                "Element [%d] = %d, expected %d (inside range)", i, arr->iv[i], i
+                "Element [%zu] = %d, expected %zu (inside range)", i, arr->iv[i], i
             );
         }
     }
@@ -2679,23 +2681,23 @@ tf11(const char *name)
     /* 2. Full fill of long array with descending series */
     test_sub("subtest %d: full fill with desc series (long)", ++subnum);
     {
-        int     cnt = 30;
-        Array   *arr = LArrayCreate(cnt, ARRAY_FILLTYPE_SAFE_EMPTY);
+        size_t     cnt = 30;
+        Array     *arr = LArrayCreate(cnt, ARRAY_FILLTYPE_SAFE_EMPTY);
         arrayFillRange(arr, ARRAY_FILLTYPE_DESC_SERIES, 0, cnt);
 
-        int     len = arraylen(arr);
+        size_t     len = arraylen(arr);
         test_validatefree(
             len == cnt,
             ARRAYFREE(arr),
-            "Array length = %d, expected %d", len, cnt
+            "Array length = %zu, expected %zu", len, cnt
         );
 
-        for (int i = 0; i < cnt; i++) {
+        for (size_t i = 0; i < cnt; i++) {
             long expected = (long)(cnt - 1 - i);
             test_validatefree(
                 arr->lv[i] == expected,
                 ARRAYFREE(arr),
-                "Element [%d] = %ld, expected %ld", i, arr->lv[i], expected
+                "Element [%zu] = %ld, expected %ld", i, arr->lv[i], expected
             );
         }
     }
@@ -2703,22 +2705,22 @@ tf11(const char *name)
     /* 3. Empty range (from == to) – array remains unchanged */
     test_sub("subtest %d: from == to leaves array unchanged", ++subnum);
     {
-        int     cnt = 20;
-        Array   *arr = IarrayCreate(cnt, ARRAY_FILLTYPE_ASC_SERIES);  // [0..19]
+        size_t     cnt = 20;
+        Array     *arr = IarrayCreate(cnt, ARRAY_FILLTYPE_ASC_SERIES);  // [0..19]
         arrayFillRange(arr, ARRAY_FILLTYPE_RND, 5, 5);
 
-        int     len = arraylen(arr);
+        size_t     len = arraylen(arr);
         test_validatefree(
             len == cnt,
             ARRAYFREE(arr),
-            "Array length = %d, expected %d", len, cnt
+            "Array length = %zu, expected %zu", len, cnt
         );
 
-        for (int i = 0; i < cnt; i++) {
+        for (size_t i = 0; i < cnt; i++) {
             test_validatefree(
-                arr->iv[i] == i,
+                arr->iv[i] == (int) i,
                 ARRAYFREE(arr),
-                "Element [%d] = %d, expected %d (unchanged after empty fill)", i, arr->iv[i], i
+                "Element [%zu] = %d, expected %zu (unchanged after empty fill)", i, arr->iv[i], i
             );
         }
     }
@@ -2726,15 +2728,15 @@ tf11(const char *name)
     /* 4. Out-of-bounds – program must not crash */
     test_sub("subtest %d: out-of-bounds does not crash", ++subnum);
     {
-        int     cnt = 10;
-        Array   *arr = IarrayCreate(cnt, ARRAY_FILLTYPE_ZERO);
+        size_t     cnt = 10;
+        Array     *arr = IarrayCreate(cnt, ARRAY_FILLTYPE_ZERO);
         arrayFillRange(arr, ARRAY_FILLTYPE_ASC_SERIES, -5, cnt + 5);
 
-        int     len = arraylen(arr);
+        size_t     len = arraylen(arr);
         test_validatefree(
             len == cnt,
             ARRAYFREE(arr),
-            "After out-of-bounds fill, length = %d, expected %d", len, cnt
+            "After out-of-bounds fill, length = %zu, expected %zu", len, cnt
         );
         // Content is not checked, as behavior is undefined
     }
@@ -2742,33 +2744,33 @@ tf11(const char *name)
     /* 5. Double array, ascending series fill in a sub-range */
     test_sub("subtest %d: double asc series fill range", ++subnum);
     {
-        int     cnt = 25, from = 5, to = 15;
-        Array   *arr = DArrayCreate(cnt, ARRAY_FILLTYPE_ZERO);
+        size_t     cnt = 25, from = 5, to = 15;
+        Array     *arr = DArrayCreate(cnt, ARRAY_FILLTYPE_ZERO);
         arrayFillRange(arr, ARRAY_FILLTYPE_ASC_SERIES, from, to);
 
-        int     len = arraylen(arr);
+        size_t     len = arraylen(arr);
         test_validatefree(
             len == cnt,
             ARRAYFREE(arr),
-            "Array length = %d, expected %d", len, cnt
+            "Array length = %zu, expected %zu", len, cnt
         );
 
         // Elements outside the range must remain zero
-        for (int i = 0; i < cnt; i++) {
+        for (size_t i = 0; i < cnt; i++) {
             if (i >= from && i < to) continue;
             test_validatefree(
                 arr->dv[i] == 0.0,
                 ARRAYFREE(arr),
-                "Element [%d] = %f, expected 0.0 (outside range)", i, arr->dv[i]
+                "Element [%zu] = %f, expected 0.0 (outside range)", i, arr->dv[i]
             );
         }
 
         // Inside the range, values must equal the index
-        for (int i = from; i < to; i++) {
+        for (size_t i = from; i < to; i++) {
             test_validatefree(
                 arr->dv[i] == (double)i,
                 ARRAYFREE(arr),
-                "Element [%d] = %f, expected %f", i, arr->dv[i], (double)i
+                "Element [%zu] = %f, expected %f", i, arr->dv[i], (double)i
             );
         }
     }
@@ -2787,7 +2789,7 @@ tf12(const char *name)
     /* 1. int array */
     test_sub("subtest %d: int array (even half, odd zero)", ++subnum);
     {
-        int     cnt = 10;
+        size_t   cnt = 10;
         Array   *arr = IarrayCreate(cnt, ARRAY_FILLTYPE_ASC_SERIES);   // 0..9
 
         IArray_foreach(arr, elem) {
@@ -2800,9 +2802,9 @@ tf12(const char *name)
         test_validatefree(arraylen(arr) == cnt, ARRAYFREE(arr), "Length mismatch");
 
         int expected[] = {0, 0, 1, 0, 2, 0, 3, 0, 4, 0};
-        for (int i = 0; i < cnt; i++)
+        for (size_t i = 0; i < cnt; i++)
             test_validatefree(arr->iv[i] == expected[i], ARRAYFREE(arr),
-                "int[%d]=%d expected %d", i, arr->iv[i], expected[i]);
+                "int[%zu]=%d expected %d", i, arr->iv[i], expected[i]);
 
         ARRAYFREE(arr);
     }
@@ -2810,7 +2812,7 @@ tf12(const char *name)
     /* 2. long array */
     test_sub("subtest %d: long array", ++subnum);
     {
-        int     cnt = 8;
+        size_t   cnt = 8;
         Array   *arr = LArrayCreate(cnt, ARRAY_FILLTYPE_ASC_SERIES);
 
         LArray_foreach(arr, elem) {
@@ -2823,9 +2825,9 @@ tf12(const char *name)
         test_validatefree(arraylen(arr) == cnt, ARRAYFREE(arr), "Length mismatch");
 
         long expected[] = {0L, 0L, 1L, 0L, 2L, 0L, 3L, 0L};
-        for (int i = 0; i < cnt; i++)
+        for (size_t i = 0; i < cnt; i++)
             test_validatefree(arr->lv[i] == expected[i], ARRAYFREE(arr),
-                "long[%d]=%ld expected %ld", i, arr->lv[i], expected[i]);
+                "long[%zu]=%ld expected %ld", i, arr->lv[i], expected[i]);
 
         ARRAYFREE(arr);
     }
@@ -2833,7 +2835,7 @@ tf12(const char *name)
     /* 3. double array */
     test_sub("subtest %d: double array", ++subnum);
     {
-        int     cnt = 6;
+        size_t   cnt = 6;
         Array   *arr = DArrayCreate(cnt, ARRAY_FILLTYPE_ASC_SERIES);
 
         DArray_foreach(arr, elem) {
@@ -2843,12 +2845,16 @@ tf12(const char *name)
                 *elem = 0.0;
         }
 
-        test_validatefree(arraylen(arr) == cnt, ARRAYFREE(arr), "Length mismatch");
+        test_validatefree(
+            arraylen(arr) == cnt, 
+            ARRAYFREE(arr), 
+            "Length mismatch"
+        );
 
         double expected[] = {0.0, 0.0, 1.0, 0.0, 2.0, 0.0};
-        for (int i = 0; i < cnt; i++)
+        for (size_t i = 0; i < cnt; i++)
             test_validatefree(arr->dv[i] == expected[i], ARRAYFREE(arr),
-                "double[%d]=%f expected %f", i, arr->dv[i], expected[i]);
+                "double[%zu]=%f expected %f", i, arr->dv[i], expected[i]);
 
         ARRAYFREE(arr);
     }
@@ -2856,7 +2862,7 @@ tf12(const char *name)
     /* 4. pointer array (no‑op) */
     test_sub("subtest %d: pointer array (no‑op)", ++subnum);
     {
-        int     cnt = 3;
+        size_t   cnt = 3;
         Array   *arr = PArrayCreate(cnt, ARRAY_FILLTYPE_SAFE_EMPTY);
         arr->pv[0] = (void*)1; arr->pv[1] = (void*)2; arr->pv[2] = (void*)3;
 
@@ -2876,20 +2882,20 @@ tf12(const char *name)
 }
 
 // ------------------------- TEST 13 ---------------------------------
-static bool keep_if_index_not_multiple_of_3(Array *arr, int pos) {
+static bool keep_if_index_not_multiple_of_3(Array *arr, size_t pos) {
     (void)arr;
     return (pos % 3) != 0;
 }
 
-static void square_int(Array *arr, int pos) {
+static void square_int(Array *arr, size_t pos) {
     int val = arr->iv[pos];
     arr->iv[pos] = val * val;
 }
-static void square_long(Array *arr, int pos) {
+static void square_long(Array *arr, size_t pos) {
     long val = arr->lv[pos];
     arr->lv[pos] = val * val;
 }
-static void mul_one_point_five_double(Array *arr, int pos) {
+static void mul_one_point_five_double(Array *arr, size_t pos) {
     arr->dv[pos] *= 1.5;
 }
 
@@ -2902,23 +2908,23 @@ tf13(const char *name)
     /* 1. int array */
     test_sub("subtest %d: int array (square non‑multiples of 3)", ++subnum);
     {
-        int     cnt = 10;
-        Array   *arr = IarrayCreate(cnt, ARRAY_FILLTYPE_ASC_SERIES);
+        size_t     cnt = 10;
+        Array     *arr = IarrayCreate(cnt, ARRAY_FILLTYPE_ASC_SERIES);
 
         arrayForeach(arr, keep_if_index_not_multiple_of_3, square_int);
 
         test_validatefree(
             arraylen(arr) == cnt,
             ARRAYFREE(arr),
-            "Array length = %d, expected %d", arraylen(arr), cnt
+            "Array length = %zu, expected %zu", arraylen(arr), cnt
         );
 
         int expected[] = {0, 1, 4, 3, 16, 25, 6, 49, 64, 9};
-        for (int i = 0; i < cnt; i++) {
+        for (size_t i = 0; i < cnt; i++) {
             test_validatefree(
                 arr->iv[i] == expected[i],
                 ARRAYFREE(arr),
-                "int proc: arr[%d] = %d, expected %d", i, arr->iv[i], expected[i]
+                "int proc: arr[%zu] = %d, expected %d", i, arr->iv[i], expected[i]
             );
         }
 
@@ -2928,7 +2934,7 @@ tf13(const char *name)
     /* 2. long array */
     test_sub("subtest %d: long array", ++subnum);
     {
-        int     cnt = 8;
+        size_t   cnt = 8;
         Array   *arr = LArrayCreate(cnt, ARRAY_FILLTYPE_ASC_SERIES);
 
         arrayForeach(arr, keep_if_index_not_multiple_of_3, square_long);
@@ -2936,15 +2942,15 @@ tf13(const char *name)
         test_validatefree(
             arraylen(arr) == cnt,
             ARRAYFREE(arr),
-            "Array length = %d, expected %d", arraylen(arr), cnt
+            "Array length = %zu, expected %zu", arraylen(arr), cnt
         );
 
         long expected[] = {0L, 1L, 4L, 3L, 16L, 25L, 6L, 49L};
-        for (int i = 0; i < cnt; i++) {
+        for (size_t i = 0; i < cnt; i++) {
             test_validatefree(
                 arr->lv[i] == expected[i],
                 ARRAYFREE(arr),
-                "long proc: arr[%d] = %ld, expected %ld", i, arr->lv[i], expected[i]
+                "long proc: arr[%zu] = %ld, expected %ld", i, arr->lv[i], expected[i]
             );
         }
 
@@ -2954,7 +2960,7 @@ tf13(const char *name)
     /* 3. double array */
     test_sub("subtest %d: double array", ++subnum);
     {
-        int     cnt = 6;
+        size_t   cnt = 6;
         Array   *arr = DArrayCreate(cnt, ARRAY_FILLTYPE_ASC_SERIES);
 
         arrayForeach(arr, keep_if_index_not_multiple_of_3, mul_one_point_five_double);
@@ -2962,15 +2968,15 @@ tf13(const char *name)
         test_validatefree(
             arraylen(arr) == cnt,
             ARRAYFREE(arr),
-            "Array length = %d, expected %d", arraylen(arr), cnt
+            "Array length = %zu, expected %zu", arraylen(arr), cnt
         );
 
         double expected[] = {0.0, 1.5, 3.0, 3.0, 6.0, 7.5};
-        for (int i = 0; i < cnt; i++) {
+        for (size_t i = 0; i < cnt; i++) {
             test_validatefree(
                 arr->dv[i] == expected[i],
                 ARRAYFREE(arr),
-                "double proc: arr[%d] = %f, expected %f", i, arr->dv[i], expected[i]
+                "double proc: arr[%zu] = %f, expected %f", i, arr->dv[i], expected[i]
             );
         }
 
@@ -2994,7 +3000,7 @@ tf_v64array_str_fs(const char *name)
         test_validatefree(
             arr->len == 0 && arr->sz == 0 && arr->v64 == NULL,
             ARRAYFREE(arr),
-            "Empty STR array: len=%d, sz=%d, v64=%p (expected 0,0,NULL)",
+            "Empty STR array: len=%zu, sz=%zu, v64=%p (expected 0,0,NULL)",
             arr->len, arr->sz, (void*)arr->v64
         );
         ARRAYFREE(arr);
@@ -3006,14 +3012,14 @@ tf_v64array_str_fs(const char *name)
         test_validatefree(
             arr->len == 5 && arr->sz >= 5,
             ARRAYFREE(arr),
-            "ZERO STR array: len=%d, sz=%d (expected 5, >=5)", arr->len, arr->sz
+            "ZERO STR array: len=%zu, sz=%zu (expected 5, >=5)", arr->len, arr->sz
         );
-        for (int i = 0; i < 5; i++) {
+        for (size_t i = 0; i < 5; i++) {
             test_validatefree(
                 value64_str(arr->v64[i]) != NULL &&
                 strcmp(value64_str(arr->v64[i]), "") == 0,
                 ARRAYFREE(arr),
-                "STR[%d] must be empty string, got '%s'",
+                "STR[%zu] must be empty string, got '%s'",
                 i, value64_str(arr->v64[i])
             );
         }
@@ -3034,9 +3040,9 @@ tf_v64array_str_fs(const char *name)
         test_validatefree(
             arr->len == 4,
             ARRAYFREE(arr),
-            "ASC STR array: len=%d (expected 4)", arr->len
+            "ASC STR array: len=%zu (expected 4)", arr->len
         );
-        for (int i = 1; i < 4; i++) {
+        for (size_t i = 1; i < 4; i++) {
             test_validatefree(
                 strlen(value64_str(arr->v64[i])) >= strlen(value64_str(arr->v64[i-1])),
                 ARRAYFREE(arr),
@@ -3055,7 +3061,7 @@ tf_v64array_str_fs(const char *name)
             ARRAYFREE(arr),
             "DESC STR array: len=%d (expected 4)", arr->len
         );
-        for (int i = 1; i < 4; i++) {
+        for (size_t i = 1; i < 4; i++) {
             test_validatefree(
                 strlen(value64_str(arr->v64[i])) <= strlen(value64_str(arr->v64[i-1])),
                 ARRAYFREE(arr),
@@ -3073,7 +3079,7 @@ tf_v64array_str_fs(const char *name)
         test_validatefree(
             arr->len == 0 && arr->sz == 0 && arr->v64 == NULL,
             ARRAYFREE(arr),
-            "Empty FS array: len=%d, sz=%d, v64=%p (expected 0,0,NULL)",
+            "Empty FS array: len=%zu, sz=%zu, v64=%p (expected 0,0,NULL)",
             arr->len, arr->sz, (void*)arr->v64
         );
         ARRAYFREE(arr);
@@ -3086,14 +3092,14 @@ tf_v64array_str_fs(const char *name)
         test_validatefree(
             arr->len == 5 && arr->sz >= 5,
             ARRAYFREE(arr),
-            "ZERO FS array: len=%d, sz=%d (expected 5, >=5)", arr->len, arr->sz
+            "ZERO FS array: len=%zu, sz=%zu (expected 5, >=5)", arr->len, arr->sz
         );
-        for (int i = 0; i < 5; i++) {
+        for (size_t i = 0; i < 5; i++) {
             fs *f = value64_fs(arr->v64[i]);
             test_validatefree(
                 f != NULL && fs_len(f) == 0 && fs_str(f)[0] == '\0',
                 ARRAYFREE(arr),
-                "FS[%d] must be empty fs", i
+                "FS[%zu] must be empty fs", i
             );
         }
         ARRAYFREE(arr);
@@ -3106,9 +3112,9 @@ tf_v64array_str_fs(const char *name)
         test_validatefree(
             arr->len == 3,
             ARRAYFREE(arr),
-            "ASC FS array: len=%d (expected 3)", arr->len
+            "ASC FS array: len=%zu (expected 3)", arr->len
         );
-        for (int i = 1; i < 3; i++) {
+        for (size_t i = 1; i < 3; i++) {
             test_validatefree(
                 fs_len(value64_fs(arr->v64[i])) >= fs_len(value64_fs(arr->v64[i-1])),
                 ARRAYFREE(arr),
@@ -3128,7 +3134,7 @@ tf_v64array_str_fs(const char *name)
             ARRAYFREE(arr),
             "DESC FS array: len=%d (expected 3)", arr->len
         );
-        for (int i = 1; i < 3; i++) {
+        for (size_t i = 1; i < 3; i++) {
             test_validatefree(
                 fs_len(value64_fs(arr->v64[i])) <= fs_len(value64_fs(arr->v64[i-1])),
                 ARRAYFREE(arr),
@@ -3146,15 +3152,15 @@ tf_v64array_str_fs(const char *name)
         test_validatefree(
             arr->len == 5,
             ARRAYFREE(arr),
-            "RND STR array: len=%d (expected 5)", arr->len
+            "RND STR array: len=%zu (expected 5)", arr->len
         );
-        for (int i = 0; i < 5; i++) {
+        for (size_t i = 0; i < 5; i++) {
             const char *s = value64_str(arr->v64[i]);
             logmsg("VALUE64_STR: ARRAY_FILLTYPE_RND: %s", s);
             test_validatefree(
                 s != NULL && strlen(s) > 0,
                 ARRAYFREE(arr),
-                "RND STR[%d] must be non‑empty, got '%s'", i, s ? s : "NULL"
+                "RND STR[%zu] must be non‑empty, got '%s'", i, s ? s : "NULL"
             );
         }
         ARRAYFREE(arr);
@@ -3167,15 +3173,15 @@ tf_v64array_str_fs(const char *name)
         test_validatefree(
             arr->len == 5,
             ARRAYFREE(arr),
-            "RND FS array: len=%d (expected 5)", arr->len
+            "RND FS array: len=%zu (expected 5)", arr->len
         );
-        for (int i = 0; i < 5; i++) {
+        for (size_t i = 0; i < 5; i++) {
             fs *f = value64_fs(arr->v64[i]);
             logmsg("VALUE64_FS: ARRAY_FILLTYPE_RND: %s", fs_str(f));
             test_validatefree(
                 f != NULL && fs_len(f) > 0,
                 ARRAYFREE(arr),
-                "RND FS[%d] must be non‑empty, got len=%zu", i, f ? fs_len(f) : -1
+                "RND FS[%zu] must be non‑empty, got len=%zu", i, f ? fs_len(f) : -1
             );
         }
         ARRAYFREE(arr);
@@ -3187,7 +3193,7 @@ tf_v64array_str_fs(const char *name)
     {
         Array *arr = V64ArrayCreate(4, ARRAY_FILLTYPE_ASC, VALUE64_STR);
         test_validatefree(arr->len == 4, ARRAYFREE(arr), "len check");
-        for (int i = 1; i < 4; i++) {
+        for (size_t i = 1; i < 4; i++) {
             test_validatefree(
                 strlen(value64_str(arr->v64[i])) >= strlen(value64_str(arr->v64[i-1])),
                 ARRAYFREE(arr),
@@ -3202,7 +3208,7 @@ tf_v64array_str_fs(const char *name)
     {
         Array *arr = V64ArrayCreate(4, ARRAY_FILLTYPE_DESC, VALUE64_FS);
         test_validatefree(arr->len == 4, ARRAYFREE(arr), "len check");
-        for (int i = 1; i < 4; i++) {
+        for (size_t i = 1; i < 4; i++) {
             test_validatefree(
                 fs_len(value64_fs(arr->v64[i])) <= fs_len(value64_fs(arr->v64[i-1])),
                 ARRAYFREE(arr),
@@ -3217,11 +3223,11 @@ tf_v64array_str_fs(const char *name)
     test_sub("subtest %d: ZERO STR array must have empty strings", ++subnum);
     {
         Array *arr = V64ArrayCreate(3, ARRAY_FILLTYPE_ZERO, VALUE64_STR);
-        for (int i = 0; i < 3; i++) {
+        for (size_t i = 0; i < 3; i++) {
             test_validatefree(
                 strcmp(value64_str(arr->v64[i]), "") == 0,
                 ARRAYFREE(arr),
-                "ZERO STR[%d] must be empty", i
+                "ZERO STR[%zu] must be empty", i
             );
         }
         ARRAYFREE(arr);
@@ -3252,14 +3258,14 @@ tf_v64array_shrink_increase(const char *name)
         test_validatefree(
             arr->len == 6 && arr->sz >= 6,
             ARRAYFREE(arr),
-            "After increase len=%d (expected 6)", arr->len
+            "After increase len=%zu (expected 6)", arr->len
         );
         // новые элементы должны быть пустыми строками
-        for (int i = 3; i < 6; i++) {
+        for (size_t i = 3; i < 6; i++) {
             test_validatefree(
                 value64_str(arr->v64[i]) != NULL && strcmp(value64_str(arr->v64[i]), "") == 0,
                 ARRAYFREE(arr),
-                "STR[%d] must be empty after increase", i
+                "STR[%zu] must be empty after increase", i
             );
         }
 
@@ -3268,7 +3274,7 @@ tf_v64array_shrink_increase(const char *name)
         test_validatefree(
             arr->len == 3 && arr->sz >= 3,
             ARRAYFREE(arr),
-            "After shrink len=%d (expected 3)", arr->len
+            "After shrink len=%zu (expected 3)", arr->len
         );
         // старые элементы должны сохраниться
         test_validatefree(
@@ -3296,15 +3302,15 @@ tf_v64array_shrink_increase(const char *name)
         test_validatefree(
             arr->len == 4 && arr->sz >= 4,
             ARRAYFREE(arr),
-            "After increase len=%d (expected 4)", arr->len
+            "After increase len=%zu (expected 4)", arr->len
         );
         // новые элементы – пустые fs
-        for (int i = 2; i < 4; i++) {
+        for (size_t i = 2; i < 4; i++) {
             fs *f = value64_fs(arr->v64[i]);
             test_validatefree(
                 f != NULL && fs_len(f) == 0,
                 ARRAYFREE(arr),
-                "FS[%d] must be empty after increase", i
+                "FS[%zu] must be empty after increase", i
             );
         }
 
@@ -3313,7 +3319,7 @@ tf_v64array_shrink_increase(const char *name)
         test_validatefree(
             arr->len == 1 && arr->sz >= 1,
             ARRAYFREE(arr),
-            "After shrink len=%d (expected 1)", arr->len
+            "After shrink len=%zu (expected 1)", arr->len
         );
         // первый элемент должен сохраниться
         test_validatefree(
@@ -3338,7 +3344,7 @@ tf_v64array_shrink_increase(const char *name)
         test_validatefree(
             arr->len == 0 && arr->sz == 0,
             ARRAYFREE(arr),
-            "Shrink to zero: len=%d sz=%d (expected 0,0)", arr->len, arr->sz
+            "Shrink to zero: len=%zu sz=%zu (expected 0,0)", arr->len, arr->sz
         );
         // v64 должен быть NULL (память освобождена)
         test_validatefree(
@@ -3372,11 +3378,11 @@ tf_v64array_sort(const char *name)
         arrayQsort(arr, ARRAY_SORTTYPE_ASC);
 
         const char *expected[] = {"alpha", "beta", "charlie", "delta"};
-        for (int i = 0; i < 4; i++) {
+        for (size_t i = 0; i < 4; i++) {
             test_validatefree(
                 strcmp(value64_str(arr->v64[i]), expected[i]) == 0,
                 ARRAYFREE(arr),
-                "STR ASC [%d]: expected '%s', got '%s'",
+                "STR ASC [%zu]: expected '%s', got '%s'",
                 i, expected[i], value64_str(arr->v64[i])
             );
         }
@@ -3395,11 +3401,11 @@ tf_v64array_sort(const char *name)
         arrayQsort(arr, ARRAY_SORTTYPE_DESC);
 
         const char *expected[] = {"delta", "charlie", "beta", "alpha"};
-        for (int i = 0; i < 4; i++) {
+        for (size_t i = 0; i < 4; i++) {
             test_validatefree(
                 strcmp(value64_str(arr->v64[i]), expected[i]) == 0,
                 ARRAYFREE(arr),
-                "STR DESC [%d]: expected '%s', got '%s'",
+                "STR DESC [%zu]: expected '%s', got '%s'",
                 i, expected[i], value64_str(arr->v64[i])
             );
         }
@@ -3419,11 +3425,11 @@ tf_v64array_sort(const char *name)
         arrayQsort(arr, ARRAY_SORTTYPE_ASC);
 
         const char *expected[] = {"/aaa", "/bbb", "/mmm", "/zzz"};
-        for (int i = 0; i < 4; i++) {
+        for (size_t i = 0; i < 4; i++) {
             test_validatefree(
                 strcmp(fs_str(value64_fs(arr->v64[i])), expected[i]) == 0,
                 ARRAYFREE(arr),
-                "FS ASC [%d]: expected '%s', got '%s'",
+                "FS ASC [%zu]: expected '%s', got '%s'",
                 i, expected[i], fs_str(value64_fs(arr->v64[i]))
             );
         }
@@ -3442,11 +3448,11 @@ tf_v64array_sort(const char *name)
         arrayQsort(arr, ARRAY_SORTTYPE_DESC);
 
         const char *expected[] = {"/zzz", "/mmm", "/bbb", "/aaa"};
-        for (int i = 0; i < 4; i++) {
+        for (size_t i = 0; i < 4; i++) {
             test_validatefree(
                 strcmp(fs_str(value64_fs(arr->v64[i])), expected[i]) == 0,
                 ARRAYFREE(arr),
-                "FS DESC [%d]: expected '%s', got '%s'",
+                "FS DESC [%zu]: expected '%s', got '%s'",
                 i, expected[i], fs_str(value64_fs(arr->v64[i]))
             );
         }
@@ -3491,11 +3497,11 @@ tf_v64array_sort(const char *name)
         arr->v64[2] = value64_createstr("c");
         arrayQsort(arr, ARRAY_SORTTYPE_ASC);
         const char *exp[] = {"a", "b", "c"};
-        for (int i = 0; i < 3; i++) {
+        for (size_t i = 0; i < 3; i++) {
             test_validatefree(
                 strcmp(value64_str(arr->v64[i]), exp[i]) == 0,
                 ARRAYFREE(arr),
-                "Already sorted STR [%d] must stay '%s'", i, exp[i]
+                "Already sorted STR [%zu] must stay '%s'", i, exp[i]
             );
         }
         ARRAYFREE(arr);
@@ -3511,11 +3517,11 @@ tf_v64array_sort(const char *name)
         arr->v64[3] = value64_createstr("c");
         arrayQsort(arr, ARRAY_SORTTYPE_ASC);
         const char *exp[] = {"a", "a", "b", "c"};
-        for (int i = 0; i < 4; i++) {
+        for (size_t i = 0; i < 4; i++) {
             test_validatefree(
                 strcmp(value64_str(arr->v64[i]), exp[i]) == 0,
                 ARRAYFREE(arr),
-                "Duplicates STR [%d] must be '%s'", i, exp[i]
+                "Duplicates STR [%zu] must be '%s'", i, exp[i]
             );
         }
         ARRAYFREE(arr);
@@ -3553,11 +3559,11 @@ tf_v64array_sort(const char *name)
         arr->v64[2] = value64_createfs_asstr("/c");
         arrayQsort(arr, ARRAY_SORTTYPE_ASC);
         const char *exp[] = {"/a", "/b", "/c"};
-        for (int i = 0; i < 3; i++) {
+        for (size_t i = 0; i < 3; i++) {
             test_validatefree(
                 strcmp(fs_str(value64_fs(arr->v64[i])), exp[i]) == 0,
                 ARRAYFREE(arr),
-                "Already sorted FS [%d] must stay '%s'", i, exp[i]
+                "Already sorted FS [%zu] must stay '%s'", i, exp[i]
             );
         }
         ARRAYFREE(arr);
@@ -3573,11 +3579,11 @@ tf_v64array_sort(const char *name)
         arr->v64[3] = value64_createfs_asstr("/c");
         arrayQsort(arr, ARRAY_SORTTYPE_ASC);
         const char *exp[] = {"/a", "/a", "/b", "/c"};
-        for (int i = 0; i < 4; i++) {
+        for (size_t i = 0; i < 4; i++) {
             test_validatefree(
                 strcmp(fs_str(value64_fs(arr->v64[i])), exp[i]) == 0,
                 ARRAYFREE(arr),
-                "Duplicates FS [%d] must be '%s'", i, exp[i]
+                "Duplicates FS [%zu] must be '%s'", i, exp[i]
             );
         }
         ARRAYFREE(arr);
@@ -3615,14 +3621,14 @@ tf_v64arraySaveFile_load(const char *name)
         test_validatefree(
             loaded->len == orig->len,
             (ARRAYFREE(orig), ARRAYFREE(loaded)),
-            "STR load: len=%d, expected %d", loaded->len, orig->len
+            "STR load: len=%zu, expected %zu", loaded->len, orig->len
         );
 
-        for (int i = 0; i < orig->len; i++) {
+        for (size_t i = 0; i < orig->len; i++) {
             test_validatefree(
                 strcmp(value64_str(orig->v64[i]), value64_str(loaded->v64[i])) == 0,
                 (ARRAYFREE(orig), ARRAYFREE(loaded)),
-                "STR[%d]: orig='%s', loaded='%s'",
+                "STR[%zu]: orig='%s', loaded='%s'",
                 i, value64_str(orig->v64[i]), value64_str(loaded->v64[i])
             );
         }
@@ -3649,16 +3655,16 @@ tf_v64arraySaveFile_load(const char *name)
         test_validatefree(
             loaded->len == orig->len,
             (ARRAYFREE(orig), ARRAYFREE(loaded)),
-            "FS load: len=%d, expected %d", loaded->len, orig->len
+            "FS load: len=%zu, expected %zu", loaded->len, orig->len
         );
 
-        for (int i = 0; i < orig->len; i++) {
+        for (size_t i = 0; i < orig->len; i++) {
             fs *f_orig = value64_fs(orig->v64[i]);
             fs *f_load = value64_fs(loaded->v64[i]);
             test_validatefree(
                 f_orig && f_load && strcmp(fs_str(f_orig), fs_str(f_load)) == 0,
                 (ARRAYFREE(orig), ARRAYFREE(loaded)),
-                "FS[%d]: orig='%s', loaded='%s'",
+                "FS[%zu]: orig='%s', loaded='%s'",
                 i, f_orig ? fs_str(f_orig) : "NULL",
                 f_load ? fs_str(f_load) : "NULL"
             );
@@ -3683,7 +3689,7 @@ tf_v64arraySaveFile_load(const char *name)
         test_validatefree(
             loaded->len == 0 && loaded->v64 == NULL,
             (ARRAYFREE(orig), ARRAYFREE(loaded)),
-            "Loaded empty STR: len=%d, v64=%p (expected 0, NULL)", loaded->len, (void*)loaded->v64
+            "Loaded empty STR: len=%zu, v64=%p (expected 0, NULL)", loaded->len, (void*)loaded->v64
         );
 
         ARRAYFREE(orig);
@@ -3704,7 +3710,7 @@ tf_v64arraySaveFile_load(const char *name)
         test_validatefree(
             loaded->len == 1,
             (ARRAYFREE(orig), ARRAYFREE(loaded)),
-            "Loaded single STR: len=%d, expected 1", loaded->len
+            "Loaded single STR: len=%zu, expected 1", loaded->len
         );
         test_validatefree(
             strcmp(value64_str(orig->v64[0]), value64_str(loaded->v64[0])) == 0,
@@ -3732,7 +3738,7 @@ tf_v64arraySaveFile_load(const char *name)
         test_validatefree(
             loaded->len == 0 && loaded->v64 == NULL,
             (ARRAYFREE(orig), ARRAYFREE(loaded)),
-            "Loaded empty FS: len=%d, v64=%p (expected 0, NULL)", loaded->len, (void*)loaded->v64
+            "Loaded empty FS: len=%zu, v64=%p (expected 0, NULL)", loaded->len, (void*)loaded->v64
         );
 
         ARRAYFREE(orig);
@@ -3753,7 +3759,7 @@ tf_v64arraySaveFile_load(const char *name)
         test_validatefree(
             loaded->len == 1,
             (ARRAYFREE(orig), ARRAYFREE(loaded)),
-            "Loaded single FS: len=%d, expected 1", loaded->len
+            "Loaded single FS: len=%zu, expected 1", loaded->len
         );
         fs *f_orig = value64_fs(orig->v64[0]);
         fs *f_load = value64_fs(loaded->v64[0]);
@@ -3783,11 +3789,11 @@ tf_array_bsearch(const char *name)
     test_sub("subtest %d: INT find existing", ++subnum);
     {
         Array *arr = IarrayCreate(10, ARRAY_FILLTYPE_ASC_SERIES); // 0,1,2,...,9
-        int idx;
+        long idx;
         test_validatefree(
             (idx = arrayBsearchInt(arr, 5)) == 5,
             ARRAYFREE(arr),
-            "INT asc: expected idx=5, got %d", idx
+            "INT asc: expected idx=5, got %ld", idx
         );
         ARRAYFREE(arr);
     }
@@ -3795,11 +3801,11 @@ tf_array_bsearch(const char *name)
     test_sub("subtest %d: INT find missing", ++subnum);
     {
         Array *arr = IarrayCreate(10, ARRAY_FILLTYPE_ASC_SERIES);
-        int idx;
+        long idx;
         test_validatefree(
             (idx = arrayBsearchInt(arr, 99)) == -1,
             ARRAYFREE(arr),
-            "INT asc missing: expected -1, got %d", idx
+            "INT asc missing: expected -1, got %ld", idx
         );
         ARRAYFREE(arr);
     }
@@ -3818,11 +3824,11 @@ tf_array_bsearch(const char *name)
     test_sub("subtest %d: INT rev search", ++subnum);
     {
         Array *arr = IarrayCreate(10, ARRAY_FILLTYPE_DESC_SERIES); // 9,8,...,0
-        int idx;
+        long idx;
         test_validatefree(
             (idx = arrayBsearchIntrev(arr, 5)) == 4,   // 9(0),8(1),7(2),6(3),5(4)
             ARRAYFREE(arr),
-            "INT desc: expected idx=4, got %d", idx
+            "INT desc: expected idx=4, got %ld", idx
         );
         ARRAYFREE(arr);
     }
@@ -3842,11 +3848,11 @@ tf_array_bsearch(const char *name)
     test_sub("subtest %d: LONG find existing", ++subnum);
     {
         Array *arr = LArrayCreate(10, ARRAY_FILLTYPE_ASC_SERIES);
-        int idx;
+        long idx;
         test_validatefree(
             (idx = arrayBsearchLong(arr, 7L)) == 7,
             ARRAYFREE(arr),
-            "LONG asc: expected idx=7, got %d", idx
+            "LONG asc: expected idx=7, got %ld", idx
         );
         ARRAYFREE(arr);
     }
@@ -3854,11 +3860,11 @@ tf_array_bsearch(const char *name)
     test_sub("subtest %d: LONG rev missing", ++subnum);
     {
         Array *arr = LArrayCreate(10, ARRAY_FILLTYPE_DESC_SERIES);
-        int idx;
+        long idx;
         test_validatefree(
             (idx = arrayBsearchLongRev(arr, 100L)) == -1,
             ARRAYFREE(arr),
-            "LONG desc missing: expected -1, got %d", idx
+            "LONG desc missing: expected -1, got %ld", idx
         );
         ARRAYFREE(arr);
     }
@@ -3878,11 +3884,11 @@ tf_array_bsearch(const char *name)
     test_sub("subtest %d: DBL rev search", ++subnum);
     {
         Array *arr = DArrayCreate(5, ARRAY_FILLTYPE_DESC_SERIES); // 4.0,3.0,...,0.0
-        int idx;
+        long idx;
         test_validatefree(
             (idx = arrayBsearchDblRev(arr, 2.0)) == 2,   // 4(0),3(1),2(2)
             ARRAYFREE(arr),
-            "DBL desc: expected idx=2, got %d", idx
+            "DBL desc: expected idx=2, got %ld", idx
         );
         ARRAYFREE(arr);
     }
@@ -3897,11 +3903,11 @@ tf_array_bsearch(const char *name)
         arr->v64[3] = value64_createstr("d");
 
         value64 key = LITERAL64_STR("c");
-        int idx;
+        long idx;
         test_validatefree(
             (idx = arrayBsearchV64(arr, key)) == 2,
             ARRAYFREE(arr),
-            "STR asc: expected idx=2, got %d", idx
+            "STR asc: expected idx=2, got %ld", idx
         );
         ARRAYFREE(arr);
     }
@@ -3916,11 +3922,11 @@ tf_array_bsearch(const char *name)
         arr->v64[3] = value64_createstr("a");
 
         value64 key = LITERAL64_STR("x");
-        int idx;
+        long idx;
         test_validatefree(
             (idx = arrayBsearchV64Rev(arr, key)) == -1,
             ARRAYFREE(arr),
-            "STR desc missing: expected -1, got %d", idx
+            "STR desc missing: expected -1, got %ld", idx
         );
         ARRAYFREE(arr);
     }
@@ -3938,11 +3944,11 @@ tf_array_bsearch(const char *name)
         arrayQsort(arr, ARRAY_SORTTYPE_ASC);
 
         value64 key = value64_createfs_asstr("/beta");
-        int idx;
+        long idx;
         test_validatefree(
             (idx = arrayBsearchV64(arr, key)) == 1,
             (ARRAYFREE(arr), value64_freefs(&key)),
-            "FS asc: expected idx=1, got %d", idx
+            "FS asc: expected idx=1, got %ld", idx
         );
         value64_freefs(&key);
         ARRAYFREE(arr);
@@ -3979,7 +3985,7 @@ tf_carray_create_fill_free(const char *name)
         test_validatefree(
             arr->len == 0 && arr->sz == 0 && arr->cv == NULL,
             ARRAYFREE(arr),
-            "Empty CHAR array: len=%d, sz=%d, cv=%p (expected 0,0,NULL)",
+            "Empty CHAR array: len=%zu, sz=%zu, cv=%p (expected 0,0,NULL)",
             arr->len, arr->sz, (void*)arr->cv
         );
         ARRAYFREE(arr);
@@ -3992,14 +3998,14 @@ tf_carray_create_fill_free(const char *name)
         test_validatefree(
             arr->len == 5 && arr->sz >= 5,
             ARRAYFREE(arr),
-            "ZERO CHAR array: len=%d, sz=%d (expected 5, >=5)", arr->len, arr->sz
+            "ZERO CHAR array: len=%zu, sz=%zu (expected 5, >=5)", arr->len, arr->sz
         );
         // Проверяем, что все элементы — '\0'
-        for (int i = 0; i < 5; i++) {
+        for (size_t i = 0; i < 5; i++) {
             test_validatefree(
                 arr->cv[i] == '\0',
                 ARRAYFREE(arr),
-                "CHAR[%d] must be '\\0', got '%c'", i, arr->cv[i]
+                "CHAR[%zu] must be '\\0', got '%c'", i, arr->cv[i]
             );
         }
         ARRAYFREE(arr);
@@ -4012,10 +4018,10 @@ tf_carray_create_fill_free(const char *name)
         test_validatefree(
             arr->len == 4,
             ARRAYFREE(arr),
-            "ASC CHAR array: len=%d (expected 4)", arr->len
+            "ASC CHAR array: len=%zu (expected 4)", arr->len
         );
         // Элементы не должны быть '\0' и должны следовать в алфавитном порядке
-        for (int i = 1; i < 4; i++) {
+        for (size_t i = 1; i < 4; i++) {
             test_validatefree(
                 arr->cv[i - 1] <= arr->cv[i],
                 ARRAYFREE(arr),
@@ -4032,10 +4038,10 @@ tf_carray_create_fill_free(const char *name)
         test_validatefree(
             arr->len == 4,
             ARRAYFREE(arr),
-            "DESC CHAR array: len=%d (expected 4)", arr->len
+            "DESC CHAR array: len=%zu (expected 4)", arr->len
         );
         // Элементы должны быть не возрастающими
-        for (int i = 1; i < 4; i++) {
+        for (size_t i = 1; i < 4; i++) {
             test_validatefree(
                 arr->cv[i - 1] >= arr->cv[i],
                 ARRAYFREE(arr),
@@ -4061,11 +4067,11 @@ tf_carray_sort(const char *name)
         Array *arr = CArrayCreate(6, ARRAY_FILLTYPE_RND);
         arrayQsort(arr, ARRAY_SORTTYPE_ASC);
 
-        for (int i = 1; i < arr->len; i++) {
+        for (size_t i = 1; i < arr->len; i++) {
             test_validatefree(
                 arr->cv[i - 1] <= arr->cv[i],
                 ARRAYFREE(arr),
-                "ASC CHAR: cv[%d]='%c' > cv[%d]='%c'",
+                "ASC CHAR: cv[%zu]='%c' > cv[%zu]='%c'",
                 i - 1, arr->cv[i - 1], i, arr->cv[i]
             );
         }
@@ -4078,11 +4084,11 @@ tf_carray_sort(const char *name)
         Array *arr = CArrayCreate(6, ARRAY_FILLTYPE_RND);
         arrayQsort(arr, ARRAY_SORTTYPE_DESC);
 
-        for (int i = 1; i < arr->len; i++) {
+        for (size_t i = 1; i < arr->len; i++) {
             test_validatefree(
                 arr->cv[i - 1] >= arr->cv[i],
                 ARRAYFREE(arr),
-                "DESC CHAR: cv[%d]='%c' < cv[%d]='%c'",
+                "DESC CHAR: cv[%zu]='%c' < cv[%zu]='%c'",
                 i - 1, arr->cv[i - 1], i, arr->cv[i]
             );
         }
@@ -4155,11 +4161,11 @@ tf_array_bsearch_char(const char *name)
     {
         Array *arr = CArrayCreate(5, ARRAY_FILLTYPE_SAFE_EMPTY);
         arr->cv[0] = 'a'; arr->cv[1] = 'b'; arr->cv[2] = 'c'; arr->cv[3] = 'd'; arr->cv[4] = 'e';
-        int idx = arrayBsearchChar(arr, 'c');
+        long idx = arrayBsearchChar(arr, 'c');
         test_validatefree(
             idx == 2,
             ARRAYFREE(arr),
-            "CHAR asc: expected idx=2, got %d", idx
+            "CHAR asc: expected idx=2, got %ld", idx
         );
         ARRAYFREE(arr);
     }
@@ -4168,11 +4174,11 @@ tf_array_bsearch_char(const char *name)
     {
         Array *arr = CArrayCreate(5, ARRAY_FILLTYPE_SAFE_EMPTY);
         arr->cv[0] = 'a'; arr->cv[1] = 'b'; arr->cv[2] = 'c'; arr->cv[3] = 'd'; arr->cv[4] = 'e';
-        int idx = arrayBsearchChar(arr, 'z');
+        long idx = arrayBsearchChar(arr, 'z');
         test_validatefree(
             idx == -1,
             ARRAYFREE(arr),
-            "CHAR asc missing: expected -1, got %d", idx
+            "CHAR asc missing: expected -1, got %ld", idx
         );
         ARRAYFREE(arr);
     }
@@ -4181,11 +4187,11 @@ tf_array_bsearch_char(const char *name)
     {
         Array *arr = CArrayCreate(5, ARRAY_FILLTYPE_SAFE_EMPTY);
         arr->cv[0] = 'e'; arr->cv[1] = 'd'; arr->cv[2] = 'c'; arr->cv[3] = 'b'; arr->cv[4] = 'a';
-        int idx = arrayBsearchCharRev(arr, 'b');
+        long idx = arrayBsearchCharRev(arr, 'b');
         test_validatefree(
             idx == 3,   // e(0),d(1),c(2),b(3),a(4)
             ARRAYFREE(arr),
-            "CHAR desc: expected idx=3, got %d", idx
+            "CHAR desc: expected idx=3, got %ld", idx
         );
         ARRAYFREE(arr);
     }
@@ -4219,15 +4225,15 @@ tf_arraySaveFile_load_char(const char *name)
         test_validatefree(
             loaded->len == orig->len,
             (ARRAYFREE(orig), ARRAYFREE(loaded)),
-            "CHAR load: len=%d, expected %d", loaded->len, orig->len
+            "CHAR load: len=%zu, expected %zu", loaded->len, orig->len
         );
 
         // сравниваем поэлементно
-        for (int i = 0; i < orig->len; i++) {
+        for (size_t i = 0; i < orig->len; i++) {
             test_validatefree(
                 orig->cv[i] == loaded->cv[i],
                 (ARRAYFREE(orig), ARRAYFREE(loaded)),
-                "CHAR[%d]: orig='%c', loaded='%c'",
+                "CHAR[%zu]: orig='%c', loaded='%c'",
                 i, orig->cv[i], loaded->cv[i]
             );
         }
@@ -4249,7 +4255,7 @@ tf_arraySaveFile_load_char(const char *name)
         test_validatefree(
             loaded->len == 0 && loaded->cv == NULL,
             (ARRAYFREE(orig), ARRAYFREE(loaded)),
-            "Loaded empty CHAR: len=%d, cv=%p (expected 0, NULL)", loaded->len, (void*)loaded->cv
+            "Loaded empty CHAR: len=%zu, cv=%p (expected 0, NULL)", loaded->len, (void*)loaded->cv
         );
 
         ARRAYFREE(orig);
@@ -4472,7 +4478,7 @@ tf_ArrayDel(const char *name)
             arr != NULL && arraylen(arr) == 3 &&
             arr->iv[0] == 10 && arr->iv[1] == 30 && arr->iv[2] == 40,
             ARRAYFREE(arr),
-            "Del middle 1: expected [10,30,40] len=3, got len=%d", arraylen(arr)
+            "Del middle 1: expected [10,30,40] len=3, got len=%zu", arraylen(arr)
         );
         ARRAYFREE(arr);
     }
@@ -4488,7 +4494,7 @@ tf_ArrayDel(const char *name)
             arr != NULL && arraylen(arr) == 2 &&
             arr->iv[0] == 10 && arr->iv[1] == 40,
             ARRAYFREE(arr),
-            "Del middle 2: expected [10,40] len=2, got len=%d", arraylen(arr)
+            "Del middle 2: expected [10,40] len=2, got len=%zu", arraylen(arr)
         );
         ARRAYFREE(arr);
     }
@@ -4504,7 +4510,7 @@ tf_ArrayDel(const char *name)
             arr != NULL && arraylen(arr) == 3 &&
             arr->iv[0] == 20 && arr->iv[1] == 30 && arr->iv[2] == 40,
             ARRAYFREE(arr),
-            "Del start: expected [20,30,40] len=3, got len=%d", arraylen(arr)
+            "Del start: expected [20,30,40] len=3, got len=%zu", arraylen(arr)
         );
         ARRAYFREE(arr);
     }
@@ -4520,7 +4526,7 @@ tf_ArrayDel(const char *name)
             arr != NULL && arraylen(arr) == 3 &&
             arr->iv[0] == 10 && arr->iv[1] == 20 && arr->iv[2] == 30,
             ARRAYFREE(arr),
-            "Del end: expected [10,20,30] len=3, got len=%d", arraylen(arr)
+            "Del end: expected [10,20,30] len=3, got len=%zu", arraylen(arr)
         );
         ARRAYFREE(arr);
     }
@@ -4535,7 +4541,7 @@ tf_ArrayDel(const char *name)
         test_validatefree(
             arr != NULL && arraylen(arr) == 0,
             ARRAYFREE(arr),
-            "Del all: expected empty array, got len=%d", arraylen(arr)
+            "Del all: expected empty array, got len=%zu", arraylen(arr)
         );
         ARRAYFREE(arr);
     }
@@ -4551,7 +4557,7 @@ tf_ArrayDel(const char *name)
             arr != NULL && arraylen(arr) == 3 &&
             arr->iv[0] == 1 && arr->iv[1] == 2 && arr->iv[2] == 3,
             ARRAYFREE(arr),
-            "Del zero: array must remain unchanged, len=%d", arraylen(arr)
+            "Del zero: array must remain unchanged, len=%zu", arraylen(arr)
         );
         ARRAYFREE(arr);
     }
@@ -4567,7 +4573,7 @@ tf_ArrayDel(const char *name)
             arr != NULL && arraylen(arr) == 3 &&
             arr->iv[0] == 1 && arr->iv[1] == 2 && arr->iv[2] == 3,
             ARRAYFREE(arr),
-            "Del beyond: array must remain unchanged, len=%d", arraylen(arr)
+            "Del beyond: array must remain unchanged, len=%zu", arraylen(arr)
         );
         ARRAYFREE(arr);
     }
@@ -4583,7 +4589,7 @@ tf_ArrayDel(const char *name)
             arr != NULL && arraylen(arr) == 2 &&
             arr->iv[0] == 10 && arr->iv[1] == 20,
             ARRAYFREE(arr),
-            "Del over: expected [10,20] len=2, got len=%d", arraylen(arr)
+            "Del over: expected [10,20] len=2, got len=%zu", arraylen(arr)
         );
         ARRAYFREE(arr);
     }
@@ -4599,7 +4605,7 @@ tf_ArrayDel(const char *name)
             arr != NULL && arraylen(arr) == 2 &&
             arr->iv[0] == 10 && arr->iv[1] == 20,
             ARRAYFREE(arr),
-            "Del over: expected [10,20] len=2, got len=%d", arraylen(arr)
+            "Del over: expected [10,20] len=2, got len=%zu", arraylen(arr)
         );
         ARRAYFREE(arr);
     }
@@ -4626,7 +4632,7 @@ tf_ArrayAdd(const char *name)
             arr != NULL && arraylen(arr) == 4 &&
             arr->iv[0] == 10 && arr->iv[1] == 99 && arr->iv[2] == 20 && arr->iv[3] == 30,
             ARRAYFREE(arr),
-            "Add middle 1: expected [10,99,20,30] len=4, got len=%d", arraylen(arr)
+            "Add middle 1: expected [10,99,20,30] len=4, got len=%zu", arraylen(arr)
         );
         ARRAYFREE(arr);
     }
@@ -4643,7 +4649,7 @@ tf_ArrayAdd(const char *name)
             arr != NULL && arraylen(arr) == 4 &&
             arr->iv[0] == 5 && arr->iv[1] == 7 && arr->iv[2] == 10 && arr->iv[3] == 15,
             ARRAYFREE(arr),
-            "Add middle 2: expected [5,7,10,15] len=4, got len=%d", arraylen(arr)
+            "Add middle 2: expected [5,7,10,15] len=4, got len=%zu", arraylen(arr)
         );
         ARRAYFREE(arr);
     }
@@ -4659,7 +4665,7 @@ tf_ArrayAdd(const char *name)
             arr != NULL && arraylen(arr) == 3 &&
             arr->iv[0] == 10 && arr->iv[1] == 20 && arr->iv[2] == 30,
             ARRAYFREE(arr),
-            "Add start: expected [10,20,30] len=3, got len=%d", arraylen(arr)
+            "Add start: expected [10,20,30] len=3, got len=%zu", arraylen(arr)
         );
         ARRAYFREE(arr);
     }
@@ -4675,7 +4681,7 @@ tf_ArrayAdd(const char *name)
             arr != NULL && arraylen(arr) == 3 &&
             arr->iv[0] == 1 && arr->iv[1] == 2 && arr->iv[2] == 3,
             ARRAYFREE(arr),
-            "Add end: expected [1,2,3] len=3, got len=%d", arraylen(arr)
+            "Add end: expected [1,2,3] len=3, got len=%zu", arraylen(arr)
         );
         ARRAYFREE(arr);
     }
@@ -4690,7 +4696,7 @@ tf_ArrayAdd(const char *name)
             arr != NULL && arraylen(arr) == 3 &&
             arr->iv[0] == 1 && arr->iv[1] == 2 && arr->iv[2] == 3,
             ARRAYFREE(arr),
-            "Add zero: array unchanged, len=%d", arraylen(arr)
+            "Add zero: array unchanged, len=%zu", arraylen(arr)
         );
         ARRAYFREE(arr);
     }
@@ -4705,7 +4711,7 @@ tf_ArrayAdd(const char *name)
             arr != NULL && arraylen(arr) == 3 &&
             arr->iv[0] == 1 && arr->iv[1] == 2 && arr->iv[2] == 3,
             ARRAYFREE(arr),
-            "Add out of bounds: array unchanged, len=%d", arraylen(arr)
+            "Add out of bounds: array unchanged, len=%zu", arraylen(arr)
         );
         ARRAYFREE(arr);
     }
@@ -4722,7 +4728,7 @@ tf_ArrayAdd(const char *name)
             arr != NULL && arraylen(arr) == 3 &&
             arr->iv[0] == 10 && arr->iv[1] == 20 && arr->iv[2] == 30,
             ARRAYFREE(arr),
-            "Add to empty: expected [10,20,30] len=3, got len=%d", arraylen(arr)
+            "Add to empty: expected [10,20,30] len=3, got len=%zu", arraylen(arr)
         );
         ARRAYFREE(arr);
     }
@@ -5021,9 +5027,9 @@ tf26_array_v64_zero_fill_all(const char *name)
         Array *arr = V64ArrayCreate(5, ARRAY_FILLTYPE_ZERO, VALUE64_INT);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 0; i < 5; i++) {
+        for (size_t i = 0; i < 5; i++) {
             test_validatefree(value64_int(arr->v64[i]) == 0,
-                              ARRAYFREE(arr), "INT[%d] must be 0", i);
+                              ARRAYFREE(arr), "INT[%zu] must be 0", i);
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5035,9 +5041,9 @@ tf26_array_v64_zero_fill_all(const char *name)
         Array *arr = V64ArrayCreate(5, ARRAY_FILLTYPE_ZERO, VALUE64_LONG);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 0; i < 5; i++) {
+        for (size_t i = 0; i < 5; i++) {
             test_validatefree(value64_long(arr->v64[i]) == 0L,
-                              ARRAYFREE(arr), "LONG[%d] must be 0", i);
+                              ARRAYFREE(arr), "LONG[%zu] must be 0", i);
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5049,9 +5055,9 @@ tf26_array_v64_zero_fill_all(const char *name)
         Array *arr = V64ArrayCreate(5, ARRAY_FILLTYPE_ZERO, VALUE64_ULONG);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 0; i < 5; i++) {
+        for (size_t i = 0; i < 5; i++) {
             test_validatefree(value64_ulong(arr->v64[i]) == 0UL,
-                              ARRAYFREE(arr), "ULONG[%d] must be 0", i);
+                              ARRAYFREE(arr), "ULONG[%zu] must be 0", i);
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5063,9 +5069,9 @@ tf26_array_v64_zero_fill_all(const char *name)
         Array *arr = V64ArrayCreate(5, ARRAY_FILLTYPE_ZERO, VALUE64_DBL);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 0; i < 5; i++) {
+        for (size_t i = 0; i < 5; i++) {
             test_validatefree(fabs(value64_dbl(arr->v64[i]) - 0.0) < 1e-9,
-                              ARRAYFREE(arr), "DBL[%d] must be 0.0", i);
+                              ARRAYFREE(arr), "DBL[%zu] must be 0.0", i);
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5077,9 +5083,9 @@ tf26_array_v64_zero_fill_all(const char *name)
         Array *arr = V64ArrayCreate(5, ARRAY_FILLTYPE_ZERO, VALUE64_CHR);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 0; i < 5; i++) {
+        for (size_t i = 0; i < 5; i++) {
             test_validatefree(value64_char(arr->v64[i]) == '\0',
-                              ARRAYFREE(arr), "CHR[%d] must be \\0", i);
+                              ARRAYFREE(arr), "CHR[%zu] must be \\0", i);
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5091,9 +5097,9 @@ tf26_array_v64_zero_fill_all(const char *name)
         Array *arr = V64ArrayCreate(5, ARRAY_FILLTYPE_ZERO, VALUE64_BOOL);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 0; i < 5; i++) {
+        for (size_t i = 0; i < 5; i++) {
             test_validatefree(value64_bool(arr->v64[i]) == false,
-                              ARRAYFREE(arr), "BOOL[%d] must be false", i);
+                              ARRAYFREE(arr), "BOOL[%zu] must be false", i);
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5105,9 +5111,9 @@ tf26_array_v64_zero_fill_all(const char *name)
         Array *arr = V64ArrayCreate(5, ARRAY_FILLTYPE_ZERO, VALUE64_PTR);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 0; i < 5; i++) {
+        for (size_t i = 0; i < 5; i++) {
             test_validatefree(value64_ptr(arr->v64[i]) == NULL,
-                              ARRAYFREE(arr), "PTR[%d] must be NULL", i);
+                              ARRAYFREE(arr), "PTR[%zu] must be NULL", i);
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5119,10 +5125,10 @@ tf26_array_v64_zero_fill_all(const char *name)
         Array *arr = V64ArrayCreate(5, ARRAY_FILLTYPE_ZERO, VALUE64_FS);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 0; i < 5; i++) {
+        for (size_t i = 0; i < 5; i++) {
             test_validatefree(
                 value64_fs(arr->v64[i]) != NULL && fs_len(value64_fs(arr->v64[i])) == 0,
-                ARRAYFREE(arr), "FS[%d] must be empty", i);
+                ARRAYFREE(arr), "FS[%zu] must be empty", i);
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5134,10 +5140,10 @@ tf26_array_v64_zero_fill_all(const char *name)
         Array *arr = V64ArrayCreate(5, ARRAY_FILLTYPE_ZERO, VALUE64_STR);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 0; i < 5; i++) {
+        for (size_t i = 0; i < 5; i++) {
             test_validatefree(
                 value64_str(arr->v64[i]) != NULL && strcmp(value64_str(arr->v64[i]), "") == 0,
-                ARRAYFREE(arr), "STR[%d] must be empty string", i);
+                ARRAYFREE(arr), "STR[%zu] must be empty string", i);
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5157,9 +5163,9 @@ tf27_array_v64_asc_series_fill_all(const char *name)
     {
         Array *arr = V64ArrayCreate(5, ARRAY_FILLTYPE_ASC_SERIES, VALUE64_INT);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
-        for (int i = 0; i < arraylen(arr); i++) {
-            test_validatefree(value64_int(arr->v64[i]) == i,
-                              ARRAYFREE(arr), "INT[%d] must be %d, got %d", i, i, value64_int(arr->v64[i]));
+        for (size_t i = 0; i < arraylen(arr); i++) {
+            test_validatefree(value64_int(arr->v64[i]) == (int) i,
+                              ARRAYFREE(arr), "INT[%zu] must be %zu, got %d", i, i, value64_int(arr->v64[i]));
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5169,9 +5175,9 @@ tf27_array_v64_asc_series_fill_all(const char *name)
     {
         Array *arr = V64ArrayCreate(5, ARRAY_FILLTYPE_ASC_SERIES, VALUE64_LONG);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
-        for (int i = 0; i < arraylen(arr); i++) {
-            test_validatefree(value64_long(arr->v64[i]) == i,
-                              ARRAYFREE(arr), "LONG[%d] must be %d", i, i);
+        for (size_t i = 0; i < arraylen(arr); i++) {
+            test_validatefree(value64_long(arr->v64[i]) == (long) i,
+                              ARRAYFREE(arr), "LONG[%zu] must be %zu", i, i);
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5181,9 +5187,9 @@ tf27_array_v64_asc_series_fill_all(const char *name)
     {
         Array *arr = V64ArrayCreate(5, ARRAY_FILLTYPE_ASC_SERIES, VALUE64_ULONG);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             test_validatefree(value64_ulong(arr->v64[i]) == (unsigned long)i,
-                              ARRAYFREE(arr), "ULONG[%d] must be %d", i, i);
+                              ARRAYFREE(arr), "ULONG[%zu] must be %zu", i, i);
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5193,9 +5199,9 @@ tf27_array_v64_asc_series_fill_all(const char *name)
     {
         Array *arr = V64ArrayCreate(5, ARRAY_FILLTYPE_ASC_SERIES, VALUE64_DBL);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             test_validatefree(fabs(value64_dbl(arr->v64[i]) - i) < 1e-9,
-                              ARRAYFREE(arr), "DBL[%d] must be %d", i, i);
+                              ARRAYFREE(arr), "DBL[%zu] must be %zu", i, i);
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5205,9 +5211,9 @@ tf27_array_v64_asc_series_fill_all(const char *name)
     {
         Array *arr = V64ArrayCreate(5, ARRAY_FILLTYPE_ASC_SERIES, VALUE64_CHR);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             test_validatefree(value64_char(arr->v64[i]) == (char)i,
-                              ARRAYFREE(arr), "CHR[%d] must be %d", i, i);
+                              ARRAYFREE(arr), "CHR[%zu] must be %zu", i, i);
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5217,10 +5223,10 @@ tf27_array_v64_asc_series_fill_all(const char *name)
     {
         Array *arr = V64ArrayCreate(5, ARRAY_FILLTYPE_ASC_SERIES, VALUE64_BOOL);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             bool expected = (i % 2 != 0);
             test_validatefree(value64_bool(arr->v64[i]) == expected,
-                              ARRAYFREE(arr), "BOOL[%d] must be %s", i, expected ? "true" : "false");
+                              ARRAYFREE(arr), "BOOL[%zu] must be %s", i, expected ? "true" : "false");
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5230,11 +5236,11 @@ tf27_array_v64_asc_series_fill_all(const char *name)
     {
         Array *arr = V64ArrayCreate(5, ARRAY_FILLTYPE_ASC_SERIES, VALUE64_STR);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             char expected[16];
-            snprintf(expected, sizeof(expected), "%d", i);
+            snprintf(expected, sizeof(expected), "%zu", i);
             test_validatefree(strcmp(value64_str(arr->v64[i]), expected) == 0,
-                              ARRAYFREE(arr), "STR[%d] must be '%s'", i, expected);
+                              ARRAYFREE(arr), "STR[%zu] must be '%s'", i, expected);
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5244,11 +5250,11 @@ tf27_array_v64_asc_series_fill_all(const char *name)
     {
         Array *arr = V64ArrayCreate(5, ARRAY_FILLTYPE_ASC_SERIES, VALUE64_FS);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             char expected[16];
-            snprintf(expected, sizeof(expected), "%d", i);
+            snprintf(expected, sizeof(expected), "%zu", i);
             test_validatefree(fs_cmpstr(value64_fs(arr->v64[i]), expected) == 0,
-                              ARRAYFREE(arr), "FS[%d] must be '%s'", i, expected);
+                              ARRAYFREE(arr), "FS[%zu] must be '%s'", i, expected);
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5270,11 +5276,11 @@ tf28_array_v64_asc_fill_all_random(const char *name)
         Array *arr = V64ArrayCreate(8, ARRAY_FILLTYPE_ASC, VALUE64_INT);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 1; i < arraylen(arr); i++) {
+        for (size_t i = 1; i < arraylen(arr); i++) {
             int diff = value64_int(arr->v64[i]) - value64_int(arr->v64[i-1]);
             test_validatefree(diff >= 1 && diff <= g_array_acs_rndinc,
                               ARRAYFREE(arr),
-                              "INT difference at %d must be 1..%d, got %d", 
+                              "INT difference at %zu must be 1..%d, got %d", 
                               i, g_array_acs_rndinc, diff);
         }
         ARRAYFREE(arr);
@@ -5287,11 +5293,11 @@ tf28_array_v64_asc_fill_all_random(const char *name)
         Array *arr = V64ArrayCreate(8, ARRAY_FILLTYPE_ASC, VALUE64_LONG);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 1; i < arraylen(arr); i++) {
+        for (size_t i = 1; i < arraylen(arr); i++) {
             long diff = value64_long(arr->v64[i]) - value64_long(arr->v64[i-1]);
             test_validatefree(diff >= 1 && diff <= g_array_acs_rndinc,
                               ARRAYFREE(arr),
-                              "LONG difference at %d must be 1..%d, got %ld", 
+                              "LONG difference at %zu must be 1..%d, got %ld", 
                               i, g_array_acs_rndinc, diff);
         }
         ARRAYFREE(arr);
@@ -5304,11 +5310,11 @@ tf28_array_v64_asc_fill_all_random(const char *name)
         Array *arr = V64ArrayCreate(8, ARRAY_FILLTYPE_ASC, VALUE64_ULONG);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 1; i < arraylen(arr); i++) {
+        for (size_t i = 1; i < arraylen(arr); i++) {
             unsigned long diff = value64_ulong(arr->v64[i]) - value64_ulong(arr->v64[i-1]);
             test_validatefree(diff >= 1 && diff <= g_array_acs_rndinc,
                               ARRAYFREE(arr),
-                              "ULONG difference at %d must be 1..%d, got %lu", 
+                              "ULONG difference at %zu must be 1..%d, got %lu", 
                               i, g_array_acs_rndinc, diff);
         }
         ARRAYFREE(arr);
@@ -5321,11 +5327,11 @@ tf28_array_v64_asc_fill_all_random(const char *name)
         Array *arr = V64ArrayCreate(8, ARRAY_FILLTYPE_ASC, VALUE64_DBL);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 1; i < arraylen(arr); i++) {
+        for (size_t i = 1; i < arraylen(arr); i++) {
             double diff = value64_dbl(arr->v64[i]) - value64_dbl(arr->v64[i-1]);
             test_validatefree(diff >= 1.0 && diff <= g_array_acs_rndinc + 0.0,
                               ARRAYFREE(arr),
-                              "DBL difference at %d must be 1.0..%g, got %f", 
+                              "DBL difference at %zu must be 1.0..%g, got %f", 
                               i, g_array_acs_rndinc + 0.0, diff);
         }
         ARRAYFREE(arr);
@@ -5338,11 +5344,11 @@ tf28_array_v64_asc_fill_all_random(const char *name)
         Array *arr = V64ArrayCreate(8, ARRAY_FILLTYPE_ASC, VALUE64_CHR);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 1; i < arraylen(arr); i++) {
+        for (size_t i = 1; i < arraylen(arr); i++) {
             int diff = (unsigned char)value64_char(arr->v64[i]) - (unsigned char)value64_char(arr->v64[i-1]);
             test_validatefree(diff >= 1 && diff <= g_array_acs_rndinc,
                               ARRAYFREE(arr),
-                              "CHR difference at %d must be 1..%d, got %d", 
+                              "CHR difference at %zu must be 1..%d, got %d", 
                               i, g_array_acs_rndinc, diff);
         }
         ARRAYFREE(arr);
@@ -5355,10 +5361,10 @@ tf28_array_v64_asc_fill_all_random(const char *name)
         Array *arr = V64ArrayCreate(8, ARRAY_FILLTYPE_ASC, VALUE64_BOOL);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             test_validatefree(value64_bool(arr->v64[i]) == true || value64_bool(arr->v64[i]) == false,
                               ARRAYFREE(arr),
-                              "BOOL[%d] must be true or false", i);
+                              "BOOL[%zu] must be true or false", i);
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5370,16 +5376,16 @@ tf28_array_v64_asc_fill_all_random(const char *name)
         Array *arr = V64ArrayCreate(8, ARRAY_FILLTYPE_ASC, VALUE64_STR);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 1; i < arraylen(arr); i++) {
+        for (size_t i = 1; i < arraylen(arr); i++) {
             int prev, curr;
             test_validatefree(sscanf(value64_str(arr->v64[i-1]), "%d", &prev) == 1 &&
                               sscanf(value64_str(arr->v64[i]), "%d", &curr) == 1,
                               ARRAYFREE(arr),
-                              "STR[%d] parse error", i);
+                              "STR[%zu] parse error", i);
             int diff = curr - prev;
             test_validatefree(diff >= 1 && diff <= g_array_acs_rndinc,
                               ARRAYFREE(arr),
-                              "STR difference at %d must be 1..%d, got %d", 
+                              "STR difference at %zu must be 1..%d, got %d", 
                               i, g_array_acs_rndinc, diff);
         }
         ARRAYFREE(arr);
@@ -5392,16 +5398,16 @@ tf28_array_v64_asc_fill_all_random(const char *name)
         Array *arr = V64ArrayCreate(8, ARRAY_FILLTYPE_ASC, VALUE64_FS);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 1; i < arraylen(arr); i++) {
+        for (size_t i = 1; i < arraylen(arr); i++) {
             int prev, curr;
             test_validatefree(sscanf(fs_str(value64_fs(arr->v64[i-1])), "%d", &prev) == 1 &&
                               sscanf(fs_str(value64_fs(arr->v64[i])), "%d", &curr) == 1,
                               ARRAYFREE(arr),
-                              "FS[%d] parse error", i);
+                              "FS[%zu] parse error", i);
             int diff = curr - prev;
             test_validatefree(diff >= 1 && diff <= g_array_acs_rndinc,
                               ARRAYFREE(arr),
-                              "FS difference at %d must be 1..%d, got %d", 
+                              "FS difference at %zu must be 1..%d, got %d", 
                               i, g_array_acs_rndinc, diff);
         }
         ARRAYFREE(arr);
@@ -5424,11 +5430,11 @@ tf29_array_v64_desc_fill_all_random(const char *name)
         Array *arr = V64ArrayCreate(8, ARRAY_FILLTYPE_DESC, VALUE64_INT);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 1; i < arraylen(arr); i++) {
+        for (size_t i = 1; i < arraylen(arr); i++) {
             int diff = value64_int(arr->v64[i-1]) - value64_int(arr->v64[i]);
             test_validatefree(diff >= 1 && diff <= g_array_desc_rndinc,
                               ARRAYFREE(arr),
-                              "INT difference at %d must be 1..%d, got %d", 
+                              "INT difference at %zu must be 1..%d, got %d", 
                               i, g_array_desc_rndinc, diff);
         }
         ARRAYFREE(arr);
@@ -5441,11 +5447,11 @@ tf29_array_v64_desc_fill_all_random(const char *name)
         Array *arr = V64ArrayCreate(8, ARRAY_FILLTYPE_DESC, VALUE64_LONG);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 1; i < arraylen(arr); i++) {
+        for (size_t i = 1; i < arraylen(arr); i++) {
             long diff = value64_long(arr->v64[i-1]) - value64_long(arr->v64[i]);
             test_validatefree(diff >= 1 && diff <= g_array_desc_rndinc,
                               ARRAYFREE(arr),
-                              "LONG difference at %d must be 1..%d, got %ld", 
+                              "LONG difference at %zu must be 1..%d, got %ld", 
                               i, g_array_desc_rndinc, diff);
         }
         ARRAYFREE(arr);
@@ -5458,11 +5464,11 @@ tf29_array_v64_desc_fill_all_random(const char *name)
         Array *arr = V64ArrayCreate(8, ARRAY_FILLTYPE_DESC, VALUE64_ULONG);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 1; i < arraylen(arr); i++) {
+        for (size_t i = 1; i < arraylen(arr); i++) {
             unsigned long diff = value64_ulong(arr->v64[i-1]) - value64_ulong(arr->v64[i]);
             test_validatefree(diff >= 1 && diff <= g_array_desc_rndinc,
                               ARRAYFREE(arr),
-                              "ULONG difference at %d must be 1..%d, got %lu", 
+                              "ULONG difference at %d must be 1..%zu, got %lu", 
                               g_array_desc_rndinc, i, diff);
         }
         ARRAYFREE(arr);
@@ -5475,11 +5481,11 @@ tf29_array_v64_desc_fill_all_random(const char *name)
         Array *arr = V64ArrayCreate(8, ARRAY_FILLTYPE_DESC, VALUE64_DBL);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 1; i < arraylen(arr); i++) {
+        for (size_t i = 1; i < arraylen(arr); i++) {
             double diff = value64_dbl(arr->v64[i-1]) - value64_dbl(arr->v64[i]);
             test_validatefree(diff >= 1.0 && diff <= g_array_desc_rndinc + 0.0,
                               ARRAYFREE(arr),
-                              "DBL difference at %d must be 1.0..%g, got %f", 
+                              "DBL difference at %zu must be 1.0..%g, got %f", 
                               i, g_array_desc_rndinc + 0.0, diff);
         }
         ARRAYFREE(arr);
@@ -5492,11 +5498,11 @@ tf29_array_v64_desc_fill_all_random(const char *name)
         Array *arr = V64ArrayCreate(8, ARRAY_FILLTYPE_DESC, VALUE64_CHR);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 1; i < arraylen(arr); i++) {
+        for (size_t i = 1; i < arraylen(arr); i++) {
             int diff = (unsigned char)value64_char(arr->v64[i-1]) - (unsigned char)value64_char(arr->v64[i]);
             test_validatefree(diff >= 1 && diff <= g_array_desc_rndinc,
                               ARRAYFREE(arr),
-                              "CHR difference at %d must be 1..%d, got %d", 
+                              "CHR difference at %zu must be 1..%d, got %d", 
                               i, g_array_desc_rndinc, diff);
         }
         ARRAYFREE(arr);
@@ -5509,10 +5515,10 @@ tf29_array_v64_desc_fill_all_random(const char *name)
         Array *arr = V64ArrayCreate(8, ARRAY_FILLTYPE_DESC, VALUE64_BOOL);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             test_validatefree(value64_bool(arr->v64[i]) == true || value64_bool(arr->v64[i]) == false,
                               ARRAYFREE(arr),
-                              "BOOL[%d] must be true or false", i);
+                              "BOOL[%zu] must be true or false", i);
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5524,16 +5530,16 @@ tf29_array_v64_desc_fill_all_random(const char *name)
         Array *arr = V64ArrayCreate(8, ARRAY_FILLTYPE_DESC, VALUE64_STR);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 1; i < arraylen(arr); i++) {
+        for (size_t i = 1; i < arraylen(arr); i++) {
             int prev, curr;
             test_validatefree(sscanf(value64_str(arr->v64[i-1]), "%d", &prev) == 1 &&
                               sscanf(value64_str(arr->v64[i]), "%d", &curr) == 1,
                               ARRAYFREE(arr),
-                              "STR[%d] parse error", i);
+                              "STR[%zu] parse error", i);
             int diff = prev - curr;
             test_validatefree(diff >= 1 && diff <= g_array_desc_rndinc,
                               ARRAYFREE(arr),
-                              "STR difference at %d must be 1..%d, got %d", 
+                              "STR difference at %zu must be 1..%d, got %d", 
                               i, g_array_desc_rndinc, diff);
         }
         ARRAYFREE(arr);
@@ -5546,16 +5552,16 @@ tf29_array_v64_desc_fill_all_random(const char *name)
         Array *arr = V64ArrayCreate(8, ARRAY_FILLTYPE_DESC, VALUE64_FS);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 1; i < arraylen(arr); i++) {
+        for (size_t i = 1; i < arraylen(arr); i++) {
             int prev, curr;
             test_validatefree(sscanf(fs_str(value64_fs(arr->v64[i-1])), "%d", &prev) == 1 &&
                               sscanf(fs_str(value64_fs(arr->v64[i])), "%d", &curr) == 1,
                               ARRAYFREE(arr),
-                              "FS[%d] parse error", i);
+                              "FS[%zu] parse error", i);
             int diff = prev - curr;
             test_validatefree(diff >= 1 && diff <= g_array_desc_rndinc,
                               ARRAYFREE(arr),
-                              "FS difference at %d must be 1..%d, got %d", 
+                              "FS difference at %zu must be 1..%d, got %d", 
                               i, g_array_desc_rndinc, diff);
         }
         ARRAYFREE(arr);
@@ -5579,11 +5585,11 @@ tf30_array_v64_desc_series_fill_all(const char *name)
         Array *arr = V64ArrayCreate(N, ARRAY_FILLTYPE_DESC_SERIES, VALUE64_INT);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             int expected = N - 1 - i;
             test_validatefree(value64_int(arr->v64[i]) == expected,
                               ARRAYFREE(arr),
-                              "INT[%d] must be %d, got %d", i, expected, value64_int(arr->v64[i]));
+                              "INT[%zu] must be %d, got %d", i, expected, value64_int(arr->v64[i]));
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5596,11 +5602,11 @@ tf30_array_v64_desc_series_fill_all(const char *name)
         Array *arr = V64ArrayCreate(N, ARRAY_FILLTYPE_DESC_SERIES, VALUE64_LONG);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             long expected = N - 1 - i;
             test_validatefree(value64_long(arr->v64[i]) == expected,
                               ARRAYFREE(arr),
-                              "LONG[%d] must be %ld, got %ld", i, expected, value64_long(arr->v64[i]));
+                              "LONG[%zu] must be %ld, got %ld", i, expected, value64_long(arr->v64[i]));
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5613,11 +5619,11 @@ tf30_array_v64_desc_series_fill_all(const char *name)
         Array *arr = V64ArrayCreate(N, ARRAY_FILLTYPE_DESC_SERIES, VALUE64_ULONG);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             unsigned long expected = N - 1 - i;
             test_validatefree(value64_ulong(arr->v64[i]) == expected,
                               ARRAYFREE(arr),
-                              "ULONG[%d] must be %lu, got %lu", i, expected, value64_ulong(arr->v64[i]));
+                              "ULONG[%zu] must be %lu, got %lu", i, expected, value64_ulong(arr->v64[i]));
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5630,11 +5636,11 @@ tf30_array_v64_desc_series_fill_all(const char *name)
         Array *arr = V64ArrayCreate(N, ARRAY_FILLTYPE_DESC_SERIES, VALUE64_DBL);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             double expected = N - 1 - i;
             test_validatefree(fabs(value64_dbl(arr->v64[i]) - expected) < 1e-9,
                               ARRAYFREE(arr),
-                              "DBL[%d] must be %f, got %f", i, expected, value64_dbl(arr->v64[i]));
+                              "DBL[%zu] must be %f, got %f", i, expected, value64_dbl(arr->v64[i]));
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5648,10 +5654,10 @@ tf30_array_v64_desc_series_fill_all(const char *name)
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
         char expected =  N - 1;   // 7, 6, ..., 0
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             test_validatefree(value64_char(arr->v64[i]) == expected,
                               ARRAYFREE(arr),
-                              "CHR[%d] must be '%c'/%d, got '%c'/%d", 
+                              "CHR[%zu] must be '%c'/%d, got '%c'/%d", 
                               i, expected, expected, value64_char(arr->v64[i]), value64_char(arr->v64[i]));
             expected--;
         }
@@ -5666,10 +5672,10 @@ tf30_array_v64_desc_series_fill_all(const char *name)
         Array *arr = V64ArrayCreate(N, ARRAY_FILLTYPE_DESC_SERIES, VALUE64_BOOL);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             test_validatefree(value64_bool(arr->v64[i]) == true || value64_bool(arr->v64[i]) == false,
                               ARRAYFREE(arr),
-                              "BOOL[%d] must be true or false", i);
+                              "BOOL[%zu] must be true or false", i);
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5682,12 +5688,12 @@ tf30_array_v64_desc_series_fill_all(const char *name)
         Array *arr = V64ArrayCreate(N, ARRAY_FILLTYPE_DESC_SERIES, VALUE64_STR);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             char expected[16];
-            snprintf(expected, sizeof(expected), "%d", N - 1 - i);
+            snprintf(expected, sizeof(expected), "%zu", N - 1 - i);
             test_validatefree(strcmp(value64_str(arr->v64[i]), expected) == 0,
                               ARRAYFREE(arr),
-                              "STR[%d] must be '%s', got '%s'", i, expected, value64_str(arr->v64[i]));
+                              "STR[%zu] must be '%s', got '%s'", i, expected, value64_str(arr->v64[i]));
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5700,12 +5706,12 @@ tf30_array_v64_desc_series_fill_all(const char *name)
         Array *arr = V64ArrayCreate(N, ARRAY_FILLTYPE_DESC_SERIES, VALUE64_FS);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             char expected[16];
-            snprintf(expected, sizeof(expected), "%d", N - 1 - i);
+            snprintf(expected, sizeof(expected), "%zu", N - 1 - i);
             test_validatefree(fs_cmpstr(value64_fs(arr->v64[i]), expected) == 0,
                               ARRAYFREE(arr),
-                              "FS[%d] must be '%s', got '%s'", i, expected, fs_str(value64_fs(arr->v64[i])));
+                              "FS[%zu] must be '%s', got '%s'", i, expected, fs_str(value64_fs(arr->v64[i])));
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5730,11 +5736,11 @@ tf31_array_v64_rnd_fill_all(const char *name)
 
         int prev = value64_int(arr->v64[0]);
         bool all_same = true;
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             int val = value64_int(arr->v64[i]);
             test_validatefree(val >= 0 && val <= 10 * N,
                               ARRAYFREE(arr),
-                              "INT[%d] out of range: %d", i, val);
+                              "INT[%zu] out of range: %d", i, val);
             if (i > 0 && val != prev) all_same = false;
             prev = val;
         }
@@ -5752,11 +5758,11 @@ tf31_array_v64_rnd_fill_all(const char *name)
 
         long prev = value64_long(arr->v64[0]);
         bool all_same = true;
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             long val = value64_long(arr->v64[i]);
             test_validatefree(val >= 0 && val <= 10 * N,
                               ARRAYFREE(arr),
-                              "LONG[%d] out of range: %ld", i, val);
+                              "LONG[%zu] out of range: %ld", i, val);
             if (i > 0 && val != prev) all_same = false;
             prev = val;
         }
@@ -5774,11 +5780,11 @@ tf31_array_v64_rnd_fill_all(const char *name)
 
         unsigned long prev = value64_ulong(arr->v64[0]);
         bool all_same = true;
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             unsigned long val = value64_ulong(arr->v64[i]);
             test_validatefree(val >= 0 && val <= 10UL * N,
                               ARRAYFREE(arr),
-                              "ULONG[%d] out of range: %lu", i, val);
+                              "ULONG[%zu] out of range: %lu", i, val);
             if (i > 0 && val != prev) all_same = false;
             prev = val;
         }
@@ -5796,11 +5802,11 @@ tf31_array_v64_rnd_fill_all(const char *name)
 
         double prev = value64_dbl(arr->v64[0]);
         bool all_same = true;
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             double val = value64_dbl(arr->v64[i]);
             test_validatefree(val >= 0.0 && val <= 10.0 * N,
                               ARRAYFREE(arr),
-                              "DBL[%d] out of range: %f", i, val);
+                              "DBL[%zu] out of range: %f", i, val);
             if (i > 0 && fabs(val - prev) > 1e-9) all_same = false;
             prev = val;
         }
@@ -5818,11 +5824,11 @@ tf31_array_v64_rnd_fill_all(const char *name)
 
         unsigned char prev = (unsigned char)value64_char(arr->v64[0]);
         bool all_same = true;
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             unsigned char val = (unsigned char)value64_char(arr->v64[i]);
             test_validatefree(val <= 10 * N,
                               ARRAYFREE(arr),
-                              "CHR[%d] out of range: %u", i, val);
+                              "CHR[%zu] out of range: %u", i, val);
             if (i > 0 && val != prev) all_same = false;
             prev = val;
         }
@@ -5839,11 +5845,11 @@ tf31_array_v64_rnd_fill_all(const char *name)
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
         bool saw_true = false, saw_false = false;
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             bool b = value64_bool(arr->v64[i]);
             test_validatefree(b == true || b == false,
                               ARRAYFREE(arr),
-                              "BOOL[%d] must be true or false", i);
+                              "BOOL[%zu] must be true or false", i);
             if (b) saw_true = true;
             else saw_false = true;
         }
@@ -5863,18 +5869,18 @@ tf31_array_v64_rnd_fill_all(const char *name)
 
         int prev = -1;
         bool all_same = true;
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             const char *s = value64_str(arr->v64[i]);
             test_validatefree(s != NULL && s[0] != '\0',
                               ARRAYFREE(arr),
-                              "STR[%d] must be non-empty", i);
+                              "STR[%zu] must be non-empty", i);
             int num;
             test_validatefree(sscanf(s, "%d", &num) == 1,
                               ARRAYFREE(arr),
-                              "STR[%d] must be numeric, got '%s'", i, s);
+                              "STR[%zu] must be numeric, got '%s'", i, s);
             test_validatefree(num >= 0 && num <= 10 * N,
                               ARRAYFREE(arr),
-                              "STR[%d] out of range: %d", i, num);
+                              "STR[%zu] out of range: %d", i, num);
             if (i > 0 && num != prev) all_same = false;
             prev = num;
         }
@@ -5892,18 +5898,18 @@ tf31_array_v64_rnd_fill_all(const char *name)
 
         int prev = -1;
         bool all_same = true;
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             const char *s = fs_str(value64_fs(arr->v64[i]));
             test_validatefree(s != NULL && s[0] != '\0',
                               ARRAYFREE(arr),
-                              "FS[%d] must be non-empty", i);
+                              "FS[%zu] must be non-empty", i);
             int num;
             test_validatefree(sscanf(s, "%d", &num) == 1,
                               ARRAYFREE(arr),
-                              "FS[%d] must be numeric, got '%s'", i, s);
+                              "FS[%zu] must be numeric, got '%s'", i, s);
             test_validatefree(num >= 0 && num <= 10 * N,
                               ARRAYFREE(arr),
-                              "FS[%d] out of range: %d", i, num);
+                              "FS[%zu] out of range: %d", i, num);
             if (i > 0 && num != prev) all_same = false;
             prev = num;
         }
@@ -5928,14 +5934,17 @@ tf32_array_safe_empty(const char *name)
         Array *arr = V64ArrayCreate(5, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        int cnt = arrayFillRangeSAFEEMPTY(arr, 0, arraylen(arr));
-        test_validatefree(cnt == arraylen(arr), ARRAYFREE(arr),
-                          "expected %d filled, got %d", arraylen(arr), cnt);
+        long cnt = arrayFillRangeSAFEEMPTY(arr, 0, arraylen(arr));
+        test_validatefree(
+            cnt == (long) arraylen(arr), 
+            ARRAYFREE(arr),
+            "expected %zu filled, got %ld", arraylen(arr), cnt
+        );
 
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             test_validatefree(value64_str(arr->v64[i]) == NULL,
                               ARRAYFREE(arr),
-                              "STR[%d] must be NULL", i);
+                              "STR[%zu] must be NULL", i);
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5947,20 +5956,20 @@ tf32_array_safe_empty(const char *name)
         Array *arr = V64ArrayCreate(5, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        int cnt = arrayFillRangeSAFEEMPTY(arr, 0, arraylen(arr));
-        test_validatefree(cnt == arraylen(arr), ARRAYFREE(arr),
-                          "expected %d filled, got %d", arraylen(arr), cnt);
+        long cnt = arrayFillRangeSAFEEMPTY(arr, 0, arraylen(arr));
+        test_validatefree(cnt == (long) arraylen(arr), ARRAYFREE(arr),
+                          "expected %zu filled, got %ld", arraylen(arr), cnt);
 
-        for (int i = 0; i < arraylen(arr); i++) {
+        for (size_t i = 0; i < arraylen(arr); i++) {
             fs *f = value64_fs(arr->v64[i]);
 
             test_validatefree(f != NULL && fs_isempty(f),
                             ARRAYFREE(arr),
-                            "FS[%d] must be non-NULL %p and == FS() ", i, f
+                            "FS[%zu] must be non-NULL %p and == FS() ", i, f
             );
             if (f)
                 test_validatefree(fs_len(f) == 0, ARRAYFREE(arr),
-                                  "FS[%d] must be empty, len=%zu", i, fs_len(f));
+                                  "FS[%zu] must be empty, len=%zu", i, fs_len(f));
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
@@ -5972,15 +5981,15 @@ tf32_array_safe_empty(const char *name)
         Array *arr = IarrayCreate(5, ARRAY_FILLTYPE_ASC_SERIES);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "IarrayCreate failed");
 
-        int cnt = arrayFillRangeSAFEEMPTY(arr, 0, arraylen(arr));
+        long cnt = arrayFillRangeSAFEEMPTY(arr, 0, arraylen(arr));
         test_validatefree(cnt == 0, ARRAYFREE(arr),
-                          "expected 0, got %d", cnt);
+                          "expected 0, got %ld", cnt);
 
         // Значения должны остаться прежними (заполнены ASC_SERIES)
-        for (int i = 0; i < arraylen(arr); i++) {
-            test_validatefree(arr->iv[i] == i,
+        for (size_t i = 0; i < arraylen(arr); i++) {
+            test_validatefree(arr->iv[i] == (int) i,
                               ARRAYFREE(arr),
-                              "INT[%d] must be %d, got %d", i, i, arr->iv[i]);
+                              "INT[%zu] must be %zu, got %d", i, i, arr->iv[i]);
         }
         ARRAYFREE(arr);
         fs_alloc_check(true);
