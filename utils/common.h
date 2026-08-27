@@ -667,20 +667,20 @@ extern bool              try_parse_bool(const char *restrict str, bool *restrict
 
 // ----------------------------------- IO -------------------------------------
 #define IOCHECKER(w, cmd, ret) \
-    for (int w = (cmd), _once = 1; _once; _once = 0) \
+    for (long w = (cmd), _once = 1; _once; _once = 0) \
         if (w < 0) \
             return userraise( (ret), ERR_STREAM_ERROR, "IO error"); \
         else
 
 // simple return
 #define IOCHECKERSIMPLE(w, cmd, ret) \
-    for (int w = (cmd), _once = 1; _once; _once = 0) \
+    for (long w = (cmd), _once = 1; _once; _once = 0) \
         if (w < 0) \
             return (ret); \
         else
 
 #define IOCHECKERACTION(w, cmd, ret, act) \
-    for (int w = (cmd), _once = 1; _once; _once = 0) \
+    for (long w = (cmd), _once = 1; _once; _once = 0) \
         if (w < 0) {\
             (act); \
             return userraise( (ret), ERR_STREAM_ERROR, "IO error"); \
