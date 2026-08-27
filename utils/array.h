@@ -41,6 +41,11 @@ typedef enum ArrayFillType{
     ARRAY_FILLTYPE_MAX          // not a real value
 } ArrayFillType;
 
+typedef enum ArraySortType{
+    ARRAY_SORTTYPE_DESC = ARRAY_FILLTYPE_DESC,
+    ARRAY_SORTTYPE_ASC  = ARRAY_FILLTYPE_ASC
+} ArraySortType;
+
 /**
  * @struct ArrayFillTypeInfo
  * @brief Internal metadata containing properties of an ArrayFillType.
@@ -646,42 +651,111 @@ extern Array                       *ArrayAdd(Array *parr, int from, int cnt, Arr
  * @param arr array (by value)
  * @param ord sort order (ARRAY_FILLTYPE_ASC or ARRAY_FILLTYPE_DESC)
  */
-extern void                         ArrayQsort(Array *parr, ArrayFillType ord);
+extern void                         ArrayQsort(Array *parr, ArraySortType ord);
 // ---------------------------- binary searchers --------------------------------
-// int
-extern int                          ArrayBsearchIntCommon(const Array *parr, int val, bool acs);
+// generallized
+extern int                          ArrayBsearchCommon(const Array *parr, value64 val, bool acs);
+/**
+ * @brief Binary search for an integer in a sorted INT array.
+ *
+ * The array must be of type ARRAY_INT and sorted in ascending order.
+ *
+ * @param arr array (by value)
+ * @param val value to search for
+ * @return index of the found element (>=0), or -1 if not found
+ */
+static inline int                   ArrayBsearchIntCommon(const Array *parr, int val, bool acs) {
+    if (!ArrayIsint(parr))
+        userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchInt requires ARRAY_INT");
+    value64 v = value64_createint(val);
+    return ArrayBsearchCommon(parr, v, acs);
+}
 static inline int                   ArrayBsearchInt(const Array *parr, int val) {
     return ArrayBsearchIntCommon(parr, val, true);
 }
 static inline int                   ArrayBsearchIntrev(const Array *parr, int val) {
     return ArrayBsearchIntCommon(parr, val, false);
 }
-// long
-extern int                          ArrayBsearchLongCommon(const Array *parr, long val, bool acs);
+/**
+ * @brief Binary search for a long in a sorted LONG array.
+ *
+ * The array must be of type ARRAY_LONG and sorted in ascending order.
+ *
+ * @param arr array (by value)
+ * @param val value to search for
+ * @return index of the found element (>=0), or -1 if not found
+ */
+static inline int                   ArrayBsearchLongCommon(const Array *parr, long val, bool acs) {
+    if (!ArrayIslong(parr))
+        userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchLong requires ARRAY_LONG");
+    value64 v = value64_createlong(val);
+    return ArrayBsearchCommon(parr, v, acs);
+}
 static inline int                   ArrayBsearchLong(const Array *parr, long val) {
     return ArrayBsearchLongCommon(parr, val, true);
 }
 static inline int                   ArrayBsearchLongRev(const Array *parr, long val) {
     return ArrayBsearchLongCommon(parr, val, false);
 }
-// double
-extern int                          ArrayBsearchDblCommon(const Array *parr, double val, bool acs);
+/**
+ * @brief Binary search for a double in a sorted DOUBLE array.
+ *
+ * The array must be of type ARRAY_DOUBLE and sorted in ascending order.
+ *
+ * @param arr array (by value)
+ * @param val value to search for
+ * @return index of the found element (>=0), or -1 if not found
+ */
+static inline  int                  ArrayBsearchDblCommon(const Array *parr, double val, bool acs) {
+    if (!ArrayIsdouble(parr))
+        userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchDbl requires ARRAY_DOUBLE");
+    value64 v = value64_createdbl(val);
+    return ArrayBsearchCommon(parr, v, acs);
+}
 static inline int                   ArrayBsearchDbl(const Array *parr, double val) {
     return ArrayBsearchDblCommon(parr, val, true);
 }
 static inline int                   ArrayBsearchDblRev(const Array *parr, double val) {
     return ArrayBsearchDblCommon(parr, val, false);
 }
-// char
-extern int                          ArrayBsearchCharCommon(const Array *parr, char val, bool acs);
+/**
+ * @brief Binary search for a double in a sorted DOUBLE array.
+ *
+ * The array must be of type ARRAY_DOUBLE and sorted in ascending order.
+ *
+ * @param arr array (by value)
+ * @param val value to search for
+ * @return index of the found element (>=0), or -1 if not found
+ */
+static inline int                   ArrayBsearchCharCommon(const Array *parr, char val, bool acs) {
+    if (!ArrayIschar(parr))
+        userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchChar requires ARRAY_CHAR");
+    value64 v = value64_createchar(val);
+    return ArrayBsearchCommon(parr, v, acs);
+}
 static inline int                   ArrayBsearchChar(const Array *parr, char val) {
     return ArrayBsearchCharCommon(parr, val, true);
 }
 static inline int                   ArrayBsearchCharRev(const Array *parr, char val) {
     return ArrayBsearchCharCommon(parr, val, false);
 }
-// V64
-extern int                          ArrayBsearchV64Common(const Array *parr, value64 val, bool acs);
+/**
+ * @brief Binary search for a value64 in a sorted V64 array.
+ *
+ * The array must be of type ARRAY_V64 and sorted in ascending or descending
+ * order according to its v64type.
+ *
+ * @param arr array (by value)
+ * @param val value to search for
+ * @param asc true if array is sorted ascending, false if descending
+ * @return index of the found element (>=0), or -1 if not found
+ */
+static inline int                   ArrayBsearchV64Common(const Array *parr, value64 val, bool acs) {
+    if (!ArrayIsV64(parr))
+        userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchV64 requires ARRAY_V64");
+
+    return ArrayBsearchCommon(parr, val, acs);
+}
 static inline int                   ArrayBsearchV64(const Array *parr, value64 val) {
     return ArrayBsearchV64Common(parr, val, true);
 }

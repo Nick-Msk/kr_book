@@ -381,12 +381,12 @@ static bool                     equal_v64(const Array *p1, const Array *p2) {
 }
 
 typedef                         int (*pointer_comparator)(const void *restrict i1, const void *restrict i2);
-typedef                         pointer_comparator (*QsortGetcompFunc)(const Array *parr, ArrayFillType ord);
+typedef                         pointer_comparator (*QsortGetcompFunc)(const Array *parr, ArraySortType ord);
 
 #define DEFINE_SIMPLE_QSORT_FACTORY(name, asc_func, desc_func) \
-static pointer_comparator       get_##name##_cmp(const Array *p, ArrayFillType ord) { \
+static pointer_comparator       get_##name##_cmp(const Array *p, ArraySortType ord) { \
     (void) p; \
-    return (ord == ARRAY_FILLTYPE_ASC) ? (pointer_comparator) asc_func : (pointer_comparator) desc_func; \
+    return (ord == ARRAY_SORTTYPE_ASC) ? (pointer_comparator) asc_func : (pointer_comparator) desc_func; \
 }
 
 DEFINE_SIMPLE_QSORT_FACTORY(int,        pint_cmp,  pint_revcmp)
@@ -397,32 +397,77 @@ DEFINE_SIMPLE_QSORT_FACTORY(char,       pchar_cmp, pchar_revcmp)
 
 #undef DEFINE_SIMPLE_QSORT_FACTORY
 
-static pointer_comparator           get_v64_cmp(const Array *parr, ArrayFillType ord) {
-    return (ord == ARRAY_FILLTYPE_ASC) 
+static pointer_comparator           get_v64_cmp(const Array *parr, ArraySortType ord) {
+    return (ord == ARRAY_SORTTYPE_ASC) 
             ? value64_getPComparator(parr->v64type) 
             : value64_getPRevComparator(parr->v64type);
 }
 
+typedef int             (*ArraySearchFunc)(const Array*, value64, bool);
+
+/*
+static int                          bin_search_int(const Array *p, value64 v, bool acs) {
+    if (p->len == 0)
+        return -1;
+    int target = v.ival; // Предполагаем, что value64 умеет приводиться к примитиву
+    int *found = bsearch(&target, p->iv, p->len, sizeof(int), acs ? pint_cmp : pint_revcmp);
+    return found ? (int)(found - p->iv) : -1;
+}
+
+static int                          bin_search_long(const Array *p, value64 v, bool acs) {
+    if (p->len == 0) return -1;
+    long target = (long)v.lval;
+    long *found = bsearch(&target, p->lv, p->len, sizeof(long), acs ? plong_cmp : plong_revcmp);
+    return found ? (int)(found - p->lv) : -1;
+}
+
+static int                          bin_search_double(const Array *p, value64 v, bool acs) {
+    if (p->len == 0)
+        return -1;
+    double target = v.dval;
+    double *found = bsearch(&target, p->dv, p->len, sizeof(double), acs ? pdbl_cmp : pdbl_revcmp);
+    return found ? (int)(found - p->dv) : -1;
+}
+
+static int                          bin_search_char(const Array *p, value64 v, bool acs) {
+    if (p->len == 0) 
+        return -1;
+    char target = (char)v.cval;
+    char *found = bsearch(&target, p->cv, p->len, sizeof(char), acs ? pchar_cmp : pchar_revcmp);
+    return found ? (int)(found - p->cv) : -1;
+}
+
+// Для V64 у нас уже были готовые функции, просто оборачиваем их в нужный сигнатурный тип
+static int                          bin_search_v64(const Array *p, value64 v, bool acs) {
+    if (p->len == 0) 
+        return -1;
+    if (acs)
+        return value64_binsearch(v, p->v64type, p->v64, p->len);
+    else
+        return value64_rev_binsearch(v, p->v64type, p->v64, p->len);
+} */
+
 // general interface
 typedef struct {
     ArrayCompareFunc            basic_comparator;     // fill part of array
-    QsortGetcompFunc            get_qsort_comparator;       // per element
+    QsortGetcompFunc            get_comparator;       // per element
+    //ArraySearchFunc             binsearch; 
     // others
 } ArrayInterface;
 
 static const                    ArrayInterface ARRAYINTERFACE[] = {
     [ARRAY_INT]     = { .basic_comparator = equal_int, 
-                        .get_qsort_comparator = get_int_cmp },
+                        .get_comparator = get_int_cmp },
     [ARRAY_LONG]    = { .basic_comparator = equal_long,
-                        .get_qsort_comparator = get_long_cmp },
+                        .get_comparator = get_long_cmp },
     [ARRAY_DOUBLE]  = { .basic_comparator = equal_double, 
-                        .get_qsort_comparator = get_double_cmp},
+                        .get_comparator = get_double_cmp},
     [ARRAY_POINTER] = { .basic_comparator = equal_pointer,
-                        .get_qsort_comparator = get_pointer_cmp },
+                        .get_comparator = get_pointer_cmp },
     [ARRAY_CHAR]    = { .basic_comparator = equal_char,
-                        .get_qsort_comparator = get_char_cmp },
+                        .get_comparator = get_char_cmp },
     [ARRAY_V64]     = { .basic_comparator = equal_v64,
-                        .get_qsort_comparator = get_v64_cmp }
+                        .get_comparator = get_v64_cmp }
 };
 
 static const ArrayInterface       *getTypedInterface(ArrayType typ) {
@@ -1294,7 +1339,9 @@ bool                            ArrayNoteq(const Array *restrict parr1, const Ar
  *
  * @throws ERR_UNSUPPORTED_TYPE if the array type cannot be sorted
  */
-void                                ArrayQsort(Array *parr, ArrayFillType ord) {
+void                                ArrayQsort(Array *parr, ArraySortType ord) {
+    invraisecode(ERR_NULLABLE_PTR, parr != NULL,
+                 "Null pointers %p", parr);
     int                 sz = ArrayGetelemsize(parr);
     if (sz <= 0)
         userraiseint(ERR_UNSUPPORTED_TYPE, 
@@ -1302,8 +1349,8 @@ void                                ArrayQsort(Array *parr, ArrayFillType ord) {
     pointer_comparator  cmp = NULL;
    
     const ArrayInterface *ti = getTypedInterface(ArrayGettype(parr));
-    if (ti && ti->get_qsort_comparator)
-        cmp = ti->get_qsort_comparator(parr, ord);
+    if (ti && ti->get_comparator)
+        cmp = ti->get_comparator(parr, ord);
 
     if (cmp)
         qsort(parr->v, parr->len, sz, cmp);
@@ -1311,133 +1358,106 @@ void                                ArrayQsort(Array *parr, ArrayFillType ord) {
         userraiseint(ERR_UNSUPPORTED_TYPE, 
                 "Unsupported type %d/%s", ArrayGettype(parr), ArrayGetTypeName(parr));
     
+}
+/**
+ * @brief Performs a generic binary search on an array using its internal interface.
+ *
+ * This function provides a polymorphic way to search for a value in any supported 
+ * array type. It uses the array's specific comparator (retrieved from the 
+ * interface) to perform the search.
+ *
+ * @param[in] parr The array to search. Must not be NULL and must be sorted 
+ *                 according to the direction specified by @p acs.
+ * @param[in] val  The value to search for, wrapped in a @ref value64 union. 
+ *                 @important The @p val must be initialized with the member 
+ *                 corresponding to the array's type (e.g., if the array is 
+ *                 ARRAY_INT, @p val.ival must be set).
+ * @param[in] acs  The sorting direction. @c true for ascending, @c false 
+ *                 for descending.
+ *
+ * @return The zero-based index of the found element; @c -1 if the element 
+ *         is not found or if the array is empty.
+ *
+ * @note Complexity: O(log n).
+ * @warning If the array is not sorted in the direction specified by @p acs, 
+ *          the result is undefined.
+ */
+int                         ArrayBsearchCommon(const Array *parr, value64 val, bool acs) {
+    invraisecode(ERR_NULLABLE_PTR, parr != NULL,
+                 "Null pointers %p", parr);
 
-    /*ArrayType typ = ArrayGettype(parr);
-    switch (typ) {
-        case ARRAY_INT:     
-            cmp = (ord == ARRAY_FILLTYPE_ASC) ? pint_cmp  : pint_revcmp;  
-            break;
-        case ARRAY_LONG:    cmp = (ord == ARRAY_FILLTYPE_ASC) ? plong_cmp : plong_revcmp; 
-            break;
-        case ARRAY_DOUBLE:  
-            cmp = (ord == ARRAY_FILLTYPE_ASC) ? pdbl_cmp  : pdbl_revcmp;  
-            break;
-        case ARRAY_POINTER: 
-            cmp = (ord == ARRAY_FILLTYPE_ASC) ? pptr_cmp  : pptr_revcmp;  
-            break;
-        case ARRAY_CHAR:    
-            cmp = (ord == ARRAY_FILLTYPE_ASC) ? pchar_cmp : pchar_revcmp; 
-        break;
-        case ARRAY_V64:
-            cmp = (ord == ARRAY_FILLTYPE_ASC) 
-                    ? value64_getPComparator(parr->v64type)
-                    : value64_getPRevComparator(parr->v64type);
-        break;
-        default:
-            userraiseint(ERR_UNSUPPORTED_TYPE, "Unsupported type %s", ArrayGetTypeName(parr));
+    if (parr->len == 0) // this is discussable
+        return -1;
+    pointer_comparator    cmp = NULL;
+    const ArrayInterface *ti = getTypedInterface(ArrayGettype(parr));
+    int                   elemsize = ArrayGetelemsize(parr);
+
+    if (elemsize > 0 && ti && ti->get_comparator)
+        cmp = ti->get_comparator(parr, acs ? ARRAY_SORTTYPE_ASC: ARRAY_SORTTYPE_DESC);
+
+    if (!cmp) {
+        return userraiseint(ERR_UNSUPPORTED_TYPE, "No comparator for type (size %d) %d/%s, v64(%d/%s)", elemsize,
+                     ArrayGettype(parr), ArrayGetTypeName(parr), 
+                     parr->v64type, value64_typename(parr->v64type));
     }
-    
-    if (cmp)
-        qsort(parr->v, parr->len, sz, cmp);*/
+    // parr->v as generic for parr
+    const char *found = bsearch(&val.u64, parr->v, parr->len, elemsize, cmp);
+
+    return found != NULL? (found - (const char *) parr->v) / elemsize: -1;
 }
 
-/**
- * @brief Binary search for an integer in a sorted INT array.
- *
- * The array must be of type ARRAY_INT and sorted in ascending order.
- *
- * @param arr array (by value)
- * @param val value to search for
- * @return index of the found element (>=0), or -1 if not found
- */
-int                         ArrayBsearchIntCommon(const Array *parr, int val, bool acs) {
-    if (!ArrayIsint(parr))
-        userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchInt requires ARRAY_INT");
-    if (parr->len == 0)
-        return -1;
-    pointer_comparator cmp = acs ? pint_cmp : pint_revcmp;
-    const int *found = (const int*) bsearch(&val, parr->iv, parr->len, sizeof(int), cmp);
-    return found ? (int)(found - parr->iv) : -1;
-}
+// int                         ArrayBsearchIntCommon(const Array *parr, int val, bool acs) {
+//     if (!ArrayIsint(parr))
+//         userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchInt requires ARRAY_INT");
+//     if (parr->len == 0)
+//         return -1;
+//     pointer_comparator cmp = acs ? pint_cmp : pint_revcmp;
+//     const int *found = (const int*) bsearch(&val, parr->iv, parr->len, sizeof(int), cmp);
+//     return found ? (int)(found - parr->iv) : -1;
+// }
 
-/**
- * @brief Binary search for a long in a sorted LONG array.
- *
- * The array must be of type ARRAY_LONG and sorted in ascending order.
- *
- * @param arr array (by value)
- * @param val value to search for
- * @return index of the found element (>=0), or -1 if not found
- */
-int                         ArrayBsearchLongCommon(const Array *parr, long val, bool acs) {
-    if (!ArrayIslong(parr))
-        userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchLong requires ARRAY_LONG");
-    if (parr->len == 0)
-        return -1;
-    pointer_comparator cmp = acs ? plong_cmp : plong_revcmp;
-    const long *found = (const long*) bsearch(&val, parr->lv, parr->len, sizeof(long), cmp);
-    return found ? (int)(found - parr->lv) : -1;
-}
 
-/**
- * @brief Binary search for a double in a sorted DOUBLE array.
- *
- * The array must be of type ARRAY_DOUBLE and sorted in ascending order.
- *
- * @param arr array (by value)
- * @param val value to search for
- * @return index of the found element (>=0), or -1 if not found
- */
-int                         ArrayBsearchDblCommon(const Array *parr, double val, bool acs) {
-    if (!ArrayIsdouble(parr))
-        userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchDbl requires ARRAY_DOUBLE");
-    if (parr->len == 0)
-        return -1;
-    pointer_comparator cmp = acs ? pdbl_cmp : pdbl_revcmp;    
-    const double *found = (const double*)bsearch(&val, parr->dv, parr->len, sizeof(double), cmp);
-    return found ? (int)(found - parr->dv) : -1;
-}
-/**
- * @brief Binary search for a double in a sorted DOUBLE array.
- *
- * The array must be of type ARRAY_DOUBLE and sorted in ascending order.
- *
- * @param arr array (by value)
- * @param val value to search for
- * @return index of the found element (>=0), or -1 if not found
- */
-int                         ArrayBsearchCharCommon(const Array *parr, char val, bool acs) {
-    if (!ArrayIschar(parr))
-        userraiseint(ERR_UNSUPPORTED_TYPE, "Requires ARRAY_CHAR");
-    if (parr->len == 0)
-        return -1;
-    pointer_comparator  cmp = acs ? pchar_cmp : pchar_revcmp;    
-    const               char *found = (const char *) bsearch(&val, parr->cv, parr->len, sizeof(char), cmp);
-    return found ? (int)(found - parr->cv) : -1;
-}
+// int                         ArrayBsearchLongCommon(const Array *parr, long val, bool acs) {
+//     if (!ArrayIslong(parr))
+//         userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchLong requires ARRAY_LONG");
+//     if (parr->len == 0)
+//         return -1;
+//     pointer_comparator cmp = acs ? plong_cmp : plong_revcmp;
+//     const long *found = (const long*) bsearch(&val, parr->lv, parr->len, sizeof(long), cmp);
+//     return found ? (int)(found - parr->lv) : -1;
+// }
 
-/**
- * @brief Binary search for a value64 in a sorted V64 array.
- *
- * The array must be of type ARRAY_V64 and sorted in ascending or descending
- * order according to its v64type.
- *
- * @param arr array (by value)
- * @param val value to search for
- * @param asc true if array is sorted ascending, false if descending
- * @return index of the found element (>=0), or -1 if not found
- */
-int                         ArrayBsearchV64Common(const Array *parr, value64 val, bool asc) {
-    if (!ArrayIsV64(parr))
-        userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchV64 requires ARRAY_V64");
-    if (parr->len == 0)
-        return -1;
 
-    if (asc)
-        return value64_binsearch(val, parr->v64type, parr->v64, parr->len);
-    else
-        return value64_rev_binsearch(val, parr->v64type, parr->v64, parr->len);
-}
+// int                         ArrayBsearchDblCommon(const Array *parr, double val, bool acs) {
+//     if (!ArrayIsdouble(parr))
+//         userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchDbl requires ARRAY_DOUBLE");
+//     if (parr->len == 0)
+//         return -1;
+//     pointer_comparator cmp = acs ? pdbl_cmp : pdbl_revcmp;    
+//     const double *found = (const double*)bsearch(&val, parr->dv, parr->len, sizeof(double), cmp);
+//     return found ? (int)(found - parr->dv) : -1;
+// }
+
+// int                         ArrayBsearchCharCommon(const Array *parr, char val, bool acs) {
+//     if (!ArrayIschar(parr))
+//         userraiseint(ERR_UNSUPPORTED_TYPE, "Requires ARRAY_CHAR");
+//     if (parr->len == 0)
+//         return -1;
+//     pointer_comparator  cmp = acs ? pchar_cmp : pchar_revcmp;    
+//     const               char *found = (const char *) bsearch(&val, parr->cv, parr->len, sizeof(char), cmp);
+//     return found ? (int)(found - parr->cv) : -1;
+// }
+// int                         ArrayBsearchV64Common(const Array *parr, value64 val, bool asc) {
+//     if (!ArrayIsV64(parr))
+//         userraiseint(ERR_UNSUPPORTED_TYPE, "ArrayBsearchV64 requires ARRAY_V64");
+//     if (parr->len == 0)
+//         return -1;
+
+//     if (asc)
+//         return value64_binsearch(val, parr->v64type, parr->v64, parr->len);
+//     else
+//         return value64_rev_binsearch(val, parr->v64type, parr->v64, parr->len);
+// }
 
 // -----------------------------------------------------------------------------------------------------
 // if condition is 0-ptr == ALL
@@ -2272,7 +2292,7 @@ tf7(const char *name)
     test_sub("subtest %d: double asc/desc", ++subnum);
     {
         Array *arr = DArray_create(10000, ARRAY_FILLTYPE_RND);
-        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_SORTTYPE_ASC);
         for (int i = 1; i < arr->len; i++)
             test_validatefree(
                 arr->dv[i - 1] <= arr->dv[i],
@@ -2281,7 +2301,7 @@ tf7(const char *name)
                 i - 1, arr->dv[i - 1], i, arr->dv[i]
             );
 
-        ArrayQsort(arr, ARRAY_FILLTYPE_DESC);
+        ArrayQsort(arr, ARRAY_SORTTYPE_DESC);
         for (int i = 1; i < arr->len; i++)
             test_validatefree(
                 arr->dv[i - 1] >= arr->dv[i],
@@ -2296,7 +2316,7 @@ tf7(const char *name)
     test_sub("subtest %d: int asc/desc", ++subnum);
     {
         Array *arr = IArray_create(100000, ARRAY_FILLTYPE_RND);
-        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_SORTTYPE_ASC);
         for (int i = 1; i < arr->len; i++)
             test_validatefree(
                 arr->iv[i - 1] <= arr->iv[i],
@@ -2305,7 +2325,7 @@ tf7(const char *name)
                 i - 1, arr->iv[i - 1], i, arr->iv[i]
             );
 
-        ArrayQsort(arr, ARRAY_FILLTYPE_DESC);
+        ArrayQsort(arr, ARRAY_SORTTYPE_DESC);
         for (int i = 1; i < arr->len; i++)
             test_validatefree(
                 arr->iv[i - 1] >= arr->iv[i],
@@ -2320,7 +2340,7 @@ tf7(const char *name)
     test_sub("subtest %d: long asc/desc", ++subnum);
     {
         Array *arr = LArray_create(100000, ARRAY_FILLTYPE_RND);
-        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_SORTTYPE_ASC);
         for (int i = 1; i < arr->len; i++)
             test_validatefree(
                 arr->lv[i - 1] <= arr->lv[i],
@@ -2329,7 +2349,7 @@ tf7(const char *name)
                 i - 1, arr->lv[i - 1], i, arr->lv[i]
             );
 
-        ArrayQsort(arr, ARRAY_FILLTYPE_DESC);
+        ArrayQsort(arr, ARRAY_SORTTYPE_DESC);
         for (int i = 1; i < arr->len; i++)
             test_validatefree(
                 arr->lv[i - 1] >= arr->lv[i],
@@ -2498,7 +2518,7 @@ tf9(const char *name)
         for (int i = 0; i < parr->len; i++)
             parr->pv[i] = parr->pv + cnt - 1 - i;
 
-        ArrayQsort(parr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(parr, ARRAY_SORTTYPE_ASC);
         for (int i = 1; i < parr->len; i++)
             test_validatefree(
                 (uintptr_t)parr->pv[i - 1] <= (uintptr_t)parr->pv[i],
@@ -2507,7 +2527,7 @@ tf9(const char *name)
                 i - 1, (void*)parr->pv[i - 1], i, (void*)parr->pv[i]
             );
 
-        ArrayQsort(parr, ARRAY_FILLTYPE_DESC);
+        ArrayQsort(parr, ARRAY_SORTTYPE_DESC);
         for (int i = 1; i < parr->len; i++)
             test_validatefree(
                 (uintptr_t)parr->pv[i - 1] >= (uintptr_t)parr->pv[i],
@@ -3456,7 +3476,7 @@ tf_v64array_sort(const char *name)
         arr->v64[2] = value64_createstr("charlie");
         arr->v64[3] = value64_createstr("beta");
 
-        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_SORTTYPE_ASC);
 
         const char *expected[] = {"alpha", "beta", "charlie", "delta"};
         for (int i = 0; i < 4; i++) {
@@ -3479,7 +3499,7 @@ tf_v64array_sort(const char *name)
         arr->v64[2] = value64_createstr("charlie");
         arr->v64[3] = value64_createstr("beta");
 
-        ArrayQsort(arr, ARRAY_FILLTYPE_DESC);
+        ArrayQsort(arr, ARRAY_SORTTYPE_DESC);
 
         const char *expected[] = {"delta", "charlie", "beta", "alpha"};
         for (int i = 0; i < 4; i++) {
@@ -3503,7 +3523,7 @@ tf_v64array_sort(const char *name)
         arr->v64[2] = value64_createfs_asstr("/mmm");
         arr->v64[3] = value64_createfs_asstr("/bbb");
 
-        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_SORTTYPE_ASC);
 
         const char *expected[] = {"/aaa", "/bbb", "/mmm", "/zzz"};
         for (int i = 0; i < 4; i++) {
@@ -3526,7 +3546,7 @@ tf_v64array_sort(const char *name)
         arr->v64[2] = value64_createfs_asstr("/mmm");
         arr->v64[3] = value64_createfs_asstr("/bbb");
 
-        ArrayQsort(arr, ARRAY_FILLTYPE_DESC);
+        ArrayQsort(arr, ARRAY_SORTTYPE_DESC);
 
         const char *expected[] = {"/zzz", "/mmm", "/bbb", "/aaa"};
         for (int i = 0; i < 4; i++) {
@@ -3546,7 +3566,7 @@ tf_v64array_sort(const char *name)
     test_sub("subtest %d: STR sort empty array", ++subnum);
     {
         Array *arr = V64Array_create(0, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
-        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);   // must not crash
+        ArrayQsort(arr, ARRAY_SORTTYPE_ASC);   // must not crash
         test_validatefree(
             arr->len == 0,
             Arrayfree(arr),
@@ -3560,7 +3580,7 @@ tf_v64array_sort(const char *name)
     {
         Array *arr = V64Array_create(1, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
         arr->v64[0] = value64_createstr("single");
-        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_SORTTYPE_ASC);
         test_validatefree(
             strcmp(value64_str(arr->v64[0]), "single") == 0,
             Arrayfree(arr),
@@ -3576,7 +3596,7 @@ tf_v64array_sort(const char *name)
         arr->v64[0] = value64_createstr("a");
         arr->v64[1] = value64_createstr("b");
         arr->v64[2] = value64_createstr("c");
-        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_SORTTYPE_ASC);
         const char *exp[] = {"a", "b", "c"};
         for (int i = 0; i < 3; i++) {
             test_validatefree(
@@ -3596,7 +3616,7 @@ tf_v64array_sort(const char *name)
         arr->v64[1] = value64_createstr("b");
         arr->v64[2] = value64_createstr("a");
         arr->v64[3] = value64_createstr("c");
-        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_SORTTYPE_ASC);
         const char *exp[] = {"a", "a", "b", "c"};
         for (int i = 0; i < 4; i++) {
             test_validatefree(
@@ -3612,7 +3632,7 @@ tf_v64array_sort(const char *name)
     test_sub("subtest %d: FS sort empty array", ++subnum);
     {
         Array *arr = V64Array_create(0, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
-        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_SORTTYPE_ASC);
         test_validatefree(arr->len == 0, Arrayfree(arr), "Empty FS array after sort must still be empty");
         Arrayfree(arr);
     }
@@ -3622,7 +3642,7 @@ tf_v64array_sort(const char *name)
     {
         Array *arr = V64Array_create(1, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
         arr->v64[0] = value64_createfs_asstr("/only");
-        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_SORTTYPE_ASC);
         test_validatefree(
             strcmp(fs_str(value64_fs(arr->v64[0])), "/only") == 0,
             Arrayfree(arr),
@@ -3638,7 +3658,7 @@ tf_v64array_sort(const char *name)
         arr->v64[0] = value64_createfs_asstr("/a");
         arr->v64[1] = value64_createfs_asstr("/b");
         arr->v64[2] = value64_createfs_asstr("/c");
-        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_SORTTYPE_ASC);
         const char *exp[] = {"/a", "/b", "/c"};
         for (int i = 0; i < 3; i++) {
             test_validatefree(
@@ -3658,7 +3678,7 @@ tf_v64array_sort(const char *name)
         arr->v64[1] = value64_createfs_asstr("/b");
         arr->v64[2] = value64_createfs_asstr("/a");
         arr->v64[3] = value64_createfs_asstr("/c");
-        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_SORTTYPE_ASC);
         const char *exp[] = {"/a", "/a", "/b", "/c"};
         for (int i = 0; i < 4; i++) {
             test_validatefree(
@@ -4022,7 +4042,7 @@ tf_array_bsearch(const char *name)
         arr->v64[2] = value64_createfs_asstr("/gamma");
         arr->v64[3] = value64_createfs_asstr("/delta");
 
-        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_SORTTYPE_ASC);
 
         value64 key = value64_createfs_asstr("/beta");
         int idx;
@@ -4146,7 +4166,7 @@ tf_carray_sort(const char *name)
     test_sub("subtest %d: CHAR sort ASC", ++subnum);
     {
         Array *arr = CArray_create(6, ARRAY_FILLTYPE_RND);
-        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_SORTTYPE_ASC);
 
         for (int i = 1; i < arr->len; i++) {
             test_validatefree(
@@ -4163,7 +4183,7 @@ tf_carray_sort(const char *name)
     test_sub("subtest %d: CHAR sort DESC", ++subnum);
     {
         Array *arr = CArray_create(6, ARRAY_FILLTYPE_RND);
-        ArrayQsort(arr, ARRAY_FILLTYPE_DESC);
+        ArrayQsort(arr, ARRAY_SORTTYPE_DESC);
 
         for (int i = 1; i < arr->len; i++) {
             test_validatefree(
@@ -4180,7 +4200,7 @@ tf_carray_sort(const char *name)
     test_sub("subtest %d: CHAR sort empty", ++subnum);
     {
         Array *arr = CArray_create(0, ARRAY_FILLTYPE_SAFE_EMPTY);
-        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);   // не должно упасть
+        ArrayQsort(arr, ARRAY_SORTTYPE_ASC);   // не должно упасть
         test_validatefree(arr->len == 0, Arrayfree(arr), "Empty array must stay empty after sort");
         Arrayfree(arr);
     }
@@ -4190,7 +4210,7 @@ tf_carray_sort(const char *name)
     {
         Array *arr = CArray_create(1, ARRAY_FILLTYPE_SAFE_EMPTY);
         arr->cv[0] = 'x';
-        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_SORTTYPE_ASC);
         test_validatefree(
             arr->cv[0] == 'x',
             Arrayfree(arr),
@@ -4204,7 +4224,7 @@ tf_carray_sort(const char *name)
     {
         Array *arr = CArray_create(3, ARRAY_FILLTYPE_SAFE_EMPTY);
         arr->cv[0] = 'a'; arr->cv[1] = 'b'; arr->cv[2] = 'c';
-        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_SORTTYPE_ASC);
         test_validatefree(
             arr->cv[0] == 'a' && arr->cv[1] == 'b' && arr->cv[2] == 'c',
             Arrayfree(arr),
@@ -4218,7 +4238,7 @@ tf_carray_sort(const char *name)
     {
         Array *arr = CArray_create(4, ARRAY_FILLTYPE_SAFE_EMPTY);
         arr->cv[0] = 'b'; arr->cv[1] = 'a'; arr->cv[2] = 'b'; arr->cv[3] = 'c';
-        ArrayQsort(arr, ARRAY_FILLTYPE_ASC);
+        ArrayQsort(arr, ARRAY_SORTTYPE_ASC);
         test_validatefree(
             arr->cv[0] == 'a' && arr->cv[1] == 'b' && arr->cv[2] == 'b' && arr->cv[3] == 'c',
             Arrayfree(arr),
