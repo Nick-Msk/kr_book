@@ -132,9 +132,9 @@ typedef struct {
     ArraySlice      *first_child;
 } Array;
 // condition func
-typedef         bool (*Array_cond)(Array *arr, int pos);
+typedef         bool (*ArrayCond)(Array *arr, int pos);
 // prosessing func
-typedef         void (*Array_proc)(Array *arr, int pos);
+typedef         void (*ArrayProc)(Array *arr, int pos);
 
 typedef struct ArraySlice {
     Array       *parent;       // Ссылка на владельца
@@ -764,10 +764,10 @@ static inline int                   arrayBsearchV64Rev(const Array *parr, value6
 }
 // -------------------------------------- foreach ---------------------------------------
 // if condition is 0-ptr == ALL
-extern int                          arrayForeach(Array *restrict parr, Array_cond cond, Array_proc func);
+extern int                          arrayForeach(Array *restrict parr, ArrayCond cond, ArrayProc func);
 // if condition is 0-ptr == ALL
 // TODO:
-extern int                          arrayForeachRev(Array *restrict parr, Array_cond cond, Array_proc func);
+extern int                          arrayForeachRev(Array *restrict parr, ArrayCond cond, ArrayProc func);
 
 //#define                       Array_apply(arr, condition, action)
 

@@ -306,13 +306,13 @@ static v64GenTypedFactory          getTypedFillFactory(value64_type vt64, ArrayF
 
 typedef int                     (*ArrayFillRangeFunc)(Array *parr, int from, int to);
 
-static int                      ArrayFillRange_ASC(Array *parr, int from, int to);
-static int                      ArrayFillRange_DESC(Array *parr, int from, int to);
-static int                      ArrayFillRange_ZERO(Array *parr, int from, int to);
-static int                      ArrayFillRange_SAFE_EMPTY(Array *parr, int from, int to);
-static int                      ArrayFillRange_RND(Array *parr, int from, int to);
-static int                      ArrayFillRange_ASC_SERIES(Array *parr, int from, int to);
-static int                      ArrayFillRange_DESC_SERIES(Array *parr, int from, int to);
+static int                      arrayFillRangeASC(Array *parr, int from, int to);
+static int                      arrayFillRangeDESC(Array *parr, int from, int to);
+static int                      arrayFillRangeZERO(Array *parr, int from, int to);
+static int                      arrayFillRangeSAFEEMPTY(Array *parr, int from, int to);
+static int                      arrayFillRangeRND(Array *parr, int from, int to);
+static int                      arrayFillRangeASCSERIES(Array *parr, int from, int to);
+static int                      arrayFillRangeDESCSERIES(Array *parr, int from, int to);
 
 // general interface
 typedef struct {
@@ -321,13 +321,13 @@ typedef struct {
 } FilledInterface;
 
 static const FilledInterface         FILLERINTERFACE[] = {
-    [ARRAY_FILLTYPE_ASC]         = { .typefiller = ArrayFillRange_ASC },
-    [ARRAY_FILLTYPE_DESC]        = { .typefiller = ArrayFillRange_DESC },
-    [ARRAY_FILLTYPE_ZERO]        = { .typefiller = ArrayFillRange_ZERO },
-    [ARRAY_FILLTYPE_SAFE_EMPTY]  = { .typefiller = ArrayFillRange_SAFE_EMPTY },
-    [ARRAY_FILLTYPE_RND]         = { .typefiller = ArrayFillRange_RND },
-    [ARRAY_FILLTYPE_ASC_SERIES]  = { .typefiller = ArrayFillRange_ASC_SERIES },
-    [ARRAY_FILLTYPE_DESC_SERIES] = { .typefiller = ArrayFillRange_DESC_SERIES },
+    [ARRAY_FILLTYPE_ASC]         = { .typefiller = arrayFillRangeASC },
+    [ARRAY_FILLTYPE_DESC]        = { .typefiller = arrayFillRangeDESC },
+    [ARRAY_FILLTYPE_ZERO]        = { .typefiller = arrayFillRangeZERO },
+    [ARRAY_FILLTYPE_SAFE_EMPTY]  = { .typefiller = arrayFillRangeSAFEEMPTY },
+    [ARRAY_FILLTYPE_RND]         = { .typefiller = arrayFillRangeRND },
+    [ARRAY_FILLTYPE_ASC_SERIES]  = { .typefiller = arrayFillRangeASCSERIES },
+    [ARRAY_FILLTYPE_DESC_SERIES] = { .typefiller = arrayFillRangeDESCSERIES },
 };
 
 static const FilledInterface      *getFilledInterface(ArrayFillType filltyp) {
@@ -640,7 +640,7 @@ static int                  moveelem(Array *parr, int dest_idx, int src_idx, int
  * @param arr pointer to the array to fill
  * @return positive value in suceess, -1 if failed 
  */
-static int                          ArrayFileLoadValues(FILE *restrict in, Array *restrict parr) {
+static int                          arrayFileLoadValues(FILE *restrict in, Array *restrict parr) {
     ArrayType   typ = arrayGettype(parr);
     fs          buf = FS();
     int         cnt = 0;
@@ -695,7 +695,7 @@ static int                          ArrayFileLoadValues(FILE *restrict in, Array
  * @param arr constant pointer to the array
  * @return number of bytes written
  */
-static long                         ArraySaveValues(FILE *restrict out, const Array *restrict parr) {
+static long                         arraySaveValues(FILE *restrict out, const Array *restrict parr) {
     long        total = 0L;
     ArrayType   typ = arrayGettype(parr);
     Array_pforeach_idx(parr, i)
@@ -740,7 +740,7 @@ static long                         ArraySaveValues(FILE *restrict out, const Ar
  * @param arr constant pointer to the array
  * @return number of bytes written
  */
-static long                 ArraySerializeValues(fs *restrict s, const Array *restrict parr) {
+static long                 arraySerializeValues(fs *restrict s, const Array *restrict parr) {
     long        total = 0L;
     ArrayType   typ = arrayGettype(parr);
 
@@ -791,7 +791,7 @@ static long                 ArraySerializeValues(fs *restrict s, const Array *re
  * @param arr   pointer to the array to fill
  * @return count of bytes read
  */
-static long             ArrayFsLoadValues(const char *restrict initdata, Array *restrict parr) {
+static long             arrayFsLoadValues(const char *restrict initdata, Array *restrict parr) {
     const char     *data = initdata;
     ArrayType       typ = arrayGettype(parr);
     fs              buf = FS();
@@ -848,7 +848,7 @@ static long             ArrayFsLoadValues(const char *restrict initdata, Array *
     return data - initdata; // total read
 }
 
-static Array                  *ArrayParseHeaderFile(FILE *in) {
+static Array                  *arrayParseHeaderFile(FILE *in) {
     int                 cnt = 0;
     char                typ[ARRAY_MAX_TYPE_STR], v64typ[ARRAY_MAX_TYPE_STR] = "";
 
@@ -894,7 +894,7 @@ static Array                  *ArrayParseHeaderFile(FILE *in) {
         return parr;
 }
 
-static Array                   *ArrayParseHeaderStr(const char **base) {
+static Array                   *arrayParseHeaderStr(const char **base) {
     // ---------- 1. Parse header ----------
     char            typ[ARRAY_MAX_TYPE_STR], v64typ[ARRAY_MAX_TYPE_STR] = "";
     int             cnt = 0, header_len = 0;
@@ -918,7 +918,7 @@ static Array                   *ArrayParseHeaderStr(const char **base) {
     return parr;
 }
 
-static bool                     ArrayParseFooterFile(FILE *in) {
+static bool                     arrayParseFooterFile(FILE *in) {
     char            typ[ARRAY_MAX_TYPE_STR];
     if (fscanf(in, " ARRAY: %" TOSTRING(ARRAY_MAX_TYPE_STR_WO_LAST) "s", typ) != 1 || strcmp(typ, "DONE") != 0)
         return userraise(false, ERR_WRONG_INPUT_FORMAT, "Wrong final piece '%s'", typ);
@@ -926,7 +926,7 @@ static bool                     ArrayParseFooterFile(FILE *in) {
         return true;
 }
 
-static bool                     ArrayParseFooterStr(const char **base) {
+static bool                     arrayParseFooterStr(const char **base) {
     const char     *data = *base;
     int             footer_len = 0;
     if (sscanf(data, "ARRAY: DONE%n", &footer_len) != 1) {
@@ -985,7 +985,7 @@ int                             arrayFillAll(Array *parr, ArrayFillType typ){
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      ArrayFillRange_ASC(Array *parr, int from, int to) {
+static int                      arrayFillRangeASC(Array *parr, int from, int to) {
 
     value64_type              vt64 = arrayGetV64mapType(parr);
     v64GenTypedFactory        ti = getTypedFillFactory(vt64, ARRAY_FILLTYPE_ASC);
@@ -1009,7 +1009,7 @@ static int                      ArrayFillRange_ASC(Array *parr, int from, int to
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      ArrayFillRange_DESC(Array *parr, int from, int to) {
+static int                      arrayFillRangeDESC(Array *parr, int from, int to) {
 
     value64_type              vt64 = arrayGetV64mapType(parr);
     const int                 start_num = (to - from + 1) * g_array_desc_rndinc;
@@ -1036,7 +1036,7 @@ static int                      ArrayFillRange_DESC(Array *parr, int from, int t
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      ArrayFillRange_ZERO(Array *parr, int from, int to){
+static int                      arrayFillRangeZERO(Array *parr, int from, int to){
 
     value64_type    vt64 = arrayGetV64mapType(parr);
 
@@ -1059,7 +1059,7 @@ static int                      ArrayFillRange_ZERO(Array *parr, int from, int t
 /// @param to     end index 
 /// @return       count of filled elements
 /// @note         no generator here!
-static int                      ArrayFillRange_SAFE_EMPTY(Array *parr, int from, int to) {
+static int                      arrayFillRangeSAFEEMPTY(Array *parr, int from, int to) {
     value64_type    vt64 = arrayGetV64mapType(parr);
 
     v64GenTypedFactory ti = getTypedFillFactory(vt64, ARRAY_FILLTYPE_SAFE_EMPTY);
@@ -1079,7 +1079,7 @@ static int                      ArrayFillRange_SAFE_EMPTY(Array *parr, int from,
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      ArrayFillRange_RND(Array *parr, int from, int to) {
+static int                      arrayFillRangeRND(Array *parr, int from, int to) {
     const int       rnd_max = 10 * (to - from);
     const int       rndinc  = to - from;
     value64_type    vt64 = arrayGetV64mapType(parr);
@@ -1104,7 +1104,7 @@ static int                      ArrayFillRange_RND(Array *parr, int from, int to
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      ArrayFillRange_ASC_SERIES(Array *parr, int from, int to){
+static int                      arrayFillRangeASCSERIES(Array *parr, int from, int to){
     value64_type              vt64 = arrayGetV64mapType(parr);
     v64GenTypedFactory        ti = getTypedFillFactory(vt64,  ARRAY_FILLTYPE_ASC_SERIES);
 
@@ -1127,7 +1127,7 @@ static int                      ArrayFillRange_ASC_SERIES(Array *parr, int from,
 /// @param from   start index 
 /// @param to     end index 
 /// @return       count of filled elements
-static int                      ArrayFillRange_DESC_SERIES(Array *parr, int from, int to) {
+static int                      arrayFillRangeDESCSERIES(Array *parr, int from, int to) {
     value64_type              vt64 = arrayGetV64mapType(parr);
     v64GenTypedFactory        ti = getTypedFillFactory(vt64, ARRAY_FILLTYPE_DESC_SERIES);
     const int                 start_num = (to - 1); // the same as for scalar types
@@ -1191,7 +1191,7 @@ Array                          *arrayShrink(Array *parr, int newsz){
  * @brief Shuffle array elements using the Fisher–Yates algorithm.
  * @param arr array (by value)
  */
-Array                       *arrayShuffle(Array *parr) {
+Array                          *arrayShuffle(Array *parr) {
     int elem_size = arrayGetelemsize(parr);
     if (elem_size <= 0)
         userraise(NULL, ERR_UNSUPPORTED_TYPE, 
@@ -1426,62 +1426,9 @@ int                         arrayBsearchCommon(const Array *parr, value64 val, b
     return found != NULL? (found - (const char *) parr->v) / elemsize: -1;
 }
 
-// int                         arrayBsearchIntCommon(const Array *parr, int val, bool acs) {
-//     if (!arrayIsint(parr))
-//         userraiseint(ERR_UNSUPPORTED_TYPE, "arrayBsearchInt requires ARRAY_INT");
-//     if (parr->len == 0)
-//         return -1;
-//     pointer_comparator cmp = acs ? pint_cmp : pint_revcmp;
-//     const int *found = (const int*) bsearch(&val, parr->iv, parr->len, sizeof(int), cmp);
-//     return found ? (int)(found - parr->iv) : -1;
-// }
-
-
-// int                         arrayBsearchLongCommon(const Array *parr, long val, bool acs) {
-//     if (!arrayIslong(parr))
-//         userraiseint(ERR_UNSUPPORTED_TYPE, "arrayBsearchLong requires ARRAY_LONG");
-//     if (parr->len == 0)
-//         return -1;
-//     pointer_comparator cmp = acs ? plong_cmp : plong_revcmp;
-//     const long *found = (const long*) bsearch(&val, parr->lv, parr->len, sizeof(long), cmp);
-//     return found ? (int)(found - parr->lv) : -1;
-// }
-
-
-// int                         arrayBsearchDblCommon(const Array *parr, double val, bool acs) {
-//     if (!arrayIsdouble(parr))
-//         userraiseint(ERR_UNSUPPORTED_TYPE, "arrayBsearchDbl requires ARRAY_DOUBLE");
-//     if (parr->len == 0)
-//         return -1;
-//     pointer_comparator cmp = acs ? pdbl_cmp : pdbl_revcmp;    
-//     const double *found = (const double*)bsearch(&val, parr->dv, parr->len, sizeof(double), cmp);
-//     return found ? (int)(found - parr->dv) : -1;
-// }
-
-// int                         arrayBsearchCharCommon(const Array *parr, char val, bool acs) {
-//     if (!arrayIschar(parr))
-//         userraiseint(ERR_UNSUPPORTED_TYPE, "Requires ARRAY_CHAR");
-//     if (parr->len == 0)
-//         return -1;
-//     pointer_comparator  cmp = acs ? pchar_cmp : pchar_revcmp;    
-//     const               char *found = (const char *) bsearch(&val, parr->cv, parr->len, sizeof(char), cmp);
-//     return found ? (int)(found - parr->cv) : -1;
-// }
-// int                         arrayBsearchV64Common(const Array *parr, value64 val, bool asc) {
-//     if (!arrayIsV64(parr))
-//         userraiseint(ERR_UNSUPPORTED_TYPE, "arrayBsearchV64 requires ARRAY_V64");
-//     if (parr->len == 0)
-//         return -1;
-
-//     if (asc)
-//         return value64_binsearch(val, parr->v64type, parr->v64, parr->len);
-//     else
-//         return value64_rev_binsearch(val, parr->v64type, parr->v64, parr->len);
-// }
-
 // -----------------------------------------------------------------------------------------------------
 // if condition is 0-ptr == ALL
-int                         arrayForeach(Array *restrict arr, Array_cond cond, Array_proc func){
+int                         arrayForeach(Array *restrict arr, ArrayCond cond, ArrayProc func){
     int     cnt = 0;
     //for (int i = 0; i < arraylen(arr); i++)
     Array_pforeach_idx(arr, i) {
@@ -1708,7 +1655,7 @@ long                        arraySaveFile(FILE *restrict out, const Array *restr
 
     IOCHECKER(written, fprintf(out, "ARRAY: %s / %s : %d\n", typ, v64_type, parr->len), -1)
         total_written += written;
-    IOCHECKER(written, ArraySaveValues(out, parr), -1)
+    IOCHECKER(written, arraySaveValues(out, parr), -1)
         total_written += written;
     IOCHECKER(written, fprintf(out, "ARRAY: DONE\n"), -1)
         total_written += written;
@@ -1752,16 +1699,16 @@ long                        arraySaveFileByName(const Array *parr, const char *f
 Array                           *arrayLoadFile(FILE *in) {
     invraisecode(ERR_NULLABLE_PTR, in != NULL, "Nullable input");
 
-    Array *parr = ArrayParseHeaderFile(in); 
+    Array *parr = arrayParseHeaderFile(in); 
     if (!parr)
         return userraise(parr, ERR_UNSUPPORTED_TYPE, "Unable to create array");
 
-    if (ArrayFileLoadValues(in, parr) < 0) {
+    if (arrayFileLoadValues(in, parr) < 0) {
         arrayFree(parr);
         userraise(parr, ERR_WRONG_INPUT_FORMAT, "Unable to read value from file");
     }
 
-    if (!ArrayParseFooterFile(in) ) {
+    if (!arrayParseFooterFile(in) ) {
         arrayFree(parr);
         userraise(parr, ERR_WRONG_INPUT_FORMAT, "Unable to finish create array");
     }
@@ -1794,7 +1741,7 @@ Array                       *arrayLoadFileByName(const char *fname) {
 
 // -------------------------- (API) serialization -----------------------
 
-long                        arraySaveTofs(fs *restrict s, const Array *restrict parr) {
+long                            arraySaveTofs(fs *restrict s, const Array *restrict parr) {
     invraisecode(ERR_NULLABLE_PTR, s != NULL && parr != NULL, 
             "Fs nullable or arr is null %p %p", s, parr);
 
@@ -1803,7 +1750,7 @@ long                        arraySaveTofs(fs *restrict s, const Array *restrict 
     const char  *v64_type  = arrayIsV64(parr) ? arrayGetV64typeName(parr) : "NONV64_TYPE";
 
     total_written += fs_sprintf_concat(s, "ARRAY: %s / %s : %d\n", typ, v64_type, parr->len);
-    total_written += ArraySerializeValues(s, parr);
+    total_written += arraySerializeValues(s, parr);
     total_written += fs_sprintf_concat(s, "ARRAY: DONE\n");
     return total_written;
 }
@@ -1814,18 +1761,18 @@ long                            arrayLoadFromfs(const fs *restrict s, Array *res
 
     const char     *data = s->v;
     int             data_len;
-    Array           *pa = ArrayParseHeaderStr(&data); 
+    Array           *pa = arrayParseHeaderStr(&data); 
 
     if (!pa)
         return userraise(-1, ERR_UNSUPPORTED_TYPE, "Unable to create array");
 
-    if ( (data_len = ArrayFsLoadValues(data, pa) )  < 0) {
+    if ( (data_len = arrayFsLoadValues(data, pa) )  < 0) {
         arrayFree(pa);
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to read value from str");
     } else
         data += data_len;   // shift
 
-    if (!ArrayParseFooterStr(&data) ) {
+    if (!arrayParseFooterStr(&data) ) {
         arrayFree(pa);
         userraiseint(ERR_WRONG_INPUT_FORMAT, "Unable to finish create array");
     }
@@ -1840,7 +1787,6 @@ long                            arrayLoadFromfs(const fs *restrict s, Array *res
 
 #ifdef ARRAYTESTING
 
-//#include <signal.h>
 #include <float.h>
 #include <math.h>
 #include "test.h"
@@ -5074,7 +5020,7 @@ tf_ArrayAdd(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
-// ------------------------- TEST ArrayFillRange_ZERO with V64 generator -------------------------
+// ------------------------- TEST arrayFillRangeZERO with V64 generator -------------------------
 static TestStatus
 tf26_array_v64_zero_fill_all(const char *name)
 {
@@ -5212,7 +5158,7 @@ tf26_array_v64_zero_fill_all(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
-// ------------------------- TEST ArrayFillRange_ASC_SERIES with V64 generator -------------------------
+// ------------------------- TEST arrayFillRangeASCSERIES with V64 generator -------------------------
 static TestStatus
 tf27_array_v64_asc_series_fill_all(const char *name)
 {
@@ -5323,7 +5269,7 @@ tf27_array_v64_asc_series_fill_all(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
-// ------------------------- TEST ArrayFillRange_ASC with V64 generator (random increase) -------------------------
+// ------------------------- TEST arrayFillRangeASC with V64 generator (random increase) -------------------------
 static TestStatus
 tf28_array_v64_asc_fill_all_random(const char *name)
 {
@@ -5477,7 +5423,7 @@ tf28_array_v64_asc_fill_all_random(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
-// ------------------------- TEST ArrayFillRange_DESC with V64 generator (random decrease) -------------------------
+// ------------------------- TEST arrayFillRangeDESC with V64 generator (random decrease) -------------------------
 static TestStatus
 tf29_array_v64_desc_fill_all_random(const char *name)
 {
@@ -5631,7 +5577,7 @@ tf29_array_v64_desc_fill_all_random(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
-// ------------------------- TEST ArrayFillRange_DESC_SERIES with V64 generator -------------------------
+// ------------------------- TEST arrayFillRangeDESCSERIES with V64 generator -------------------------
 static TestStatus
 tf30_array_v64_desc_series_fill_all(const char *name)
 {
@@ -5780,7 +5726,7 @@ tf30_array_v64_desc_series_fill_all(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
-// ------------------------- TEST ArrayFillRange_RND with V64 generator -------------------------
+// ------------------------- TEST arrayFillRangeRND with V64 generator -------------------------
 static TestStatus
 tf31_array_v64_rnd_fill_all(const char *name)
 {
@@ -5981,7 +5927,7 @@ tf31_array_v64_rnd_fill_all(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
-// ------------------------- TEST ArrayFillRange_SAFE_EMPTY -------------------------
+// ------------------------- TEST arrayFillRangeSAFEEMPTY -------------------------
 static TestStatus
 tf32_array_safe_empty(const char *name)
 {
@@ -5994,7 +5940,7 @@ tf32_array_safe_empty(const char *name)
         Array *arr = V64ArrayCreate(5, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_STR);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        int cnt = ArrayFillRange_SAFE_EMPTY(arr, 0, arraylen(arr));
+        int cnt = arrayFillRangeSAFEEMPTY(arr, 0, arraylen(arr));
         test_validatefree(cnt == arraylen(arr), ARRAYFREE(arr),
                           "expected %d filled, got %d", arraylen(arr), cnt);
 
@@ -6013,7 +5959,7 @@ tf32_array_safe_empty(const char *name)
         Array *arr = V64ArrayCreate(5, ARRAY_FILLTYPE_SAFE_EMPTY, VALUE64_FS);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "V64ArrayCreate failed");
 
-        int cnt = ArrayFillRange_SAFE_EMPTY(arr, 0, arraylen(arr));
+        int cnt = arrayFillRangeSAFEEMPTY(arr, 0, arraylen(arr));
         test_validatefree(cnt == arraylen(arr), ARRAYFREE(arr),
                           "expected %d filled, got %d", arraylen(arr), cnt);
 
@@ -6038,7 +5984,7 @@ tf32_array_safe_empty(const char *name)
         Array *arr = IarrayCreate(5, ARRAY_FILLTYPE_ASC_SERIES);
         test_validatefree(arr != NULL, ARRAYFREE(arr), "IarrayCreate failed");
 
-        int cnt = ArrayFillRange_SAFE_EMPTY(arr, 0, arraylen(arr));
+        int cnt = arrayFillRangeSAFEEMPTY(arr, 0, arraylen(arr));
         test_validatefree(cnt == 0, ARRAYFREE(arr),
                           "expected 0, got %d", cnt);
 
@@ -6087,13 +6033,13 @@ main( /*int argc, char *argv[] */ )
       , TESTADD(tf_array_eq_noteq,                      "arrayEq / arrayNoteq (all types, edge cases)")
       , TESTADD(tf_ArrayDel,                            "arrayDel simple test")
       , TESTADD(tf_ArrayAdd,                            "arrayAdd simple test")
-      , TESTADD(tf26_array_v64_zero_fill_all,           "ArrayFillRange_ZERO with V64 generator")
-      , TESTADD(tf27_array_v64_asc_series_fill_all,     "ArrayFillRange_ASC_SERIES with V64 generator")
-      , TESTADD(tf28_array_v64_asc_fill_all_random,     "ArrayFillRange_ASC_RND with V64 generator (random increase)")
+      , TESTADD(tf26_array_v64_zero_fill_all,           "arrayFillRangeZERO with V64 generator")
+      , TESTADD(tf27_array_v64_asc_series_fill_all,     "arrayFillRangeASCSERIES with V64 generator")
+      , TESTADD(tf28_array_v64_asc_fill_all_random,     "arrayFillRangeASC_RND with V64 generator (random increase)")
       , TESTADD(tf29_array_v64_desc_fill_all_random,    "ArrayFillRange_DESC_RND with V64 generators (random decrease)")
-      , TESTADD(tf30_array_v64_desc_series_fill_all,    "ArrayFillRange_DESC_SERIES with V64 generator")
-      , TESTADD(tf31_array_v64_rnd_fill_all,            "ArrayFillRange_RND with V64 generators all types")
-      , TESTADD(tf32_array_safe_empty,                  "ArrayFillRange_SAFE_EMPTY simple test")
+      , TESTADD(tf30_array_v64_desc_series_fill_all,    "arrayFillRangeDESCSERIES with V64 generator")
+      , TESTADD(tf31_array_v64_rnd_fill_all,            "arrayFillRangeRND with V64 generators all types")
+      , TESTADD(tf32_array_safe_empty,                  "arrayFillRangeSAFEEMPTY simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
