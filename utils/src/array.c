@@ -380,7 +380,7 @@ static bool                     equal_v64(const Array *p1, const Array *p2) {
     return true;
 }
 
-typedef                         int (*pointer_comparator)(const void *restrict i1, const void *restrict i2);
+//typedef                         int (*pointer_comparator)(const void *restrict i1, const void *restrict i2);
 typedef                         pointer_comparator (*QsortGetcompFunc)(const Array *parr, ArraySortType ord);
 
 #define DEFINE_SIMPLE_QSORT_FACTORY(name, asc_func, desc_func) \
@@ -397,77 +397,97 @@ DEFINE_SIMPLE_QSORT_FACTORY(char,       pchar_cmp, pchar_revcmp)
 
 #undef DEFINE_SIMPLE_QSORT_FACTORY
 
-static pointer_comparator           get_v64_cmp(const Array *parr, ArraySortType ord) {
+static pointer_comparator               get_v64_cmp(const Array *parr, ArraySortType ord) {
     return (ord == ARRAY_SORTTYPE_ASC) 
             ? value64_getPComparator(parr->v64type) 
             : value64_getPRevComparator(parr->v64type);
 }
 
-typedef int             (*ArraySearchFunc)(const Array*, value64, bool);
+typedef int                    (*ArrayPumpFunc)(const Array*, v64Gen*, int, int);
 
-/*
-static int                          bin_search_int(const Array *p, value64 v, bool acs) {
-    if (p->len == 0)
-        return -1;
-    int target = v.ival; // Предполагаем, что value64 умеет приводиться к примитиву
-    int *found = bsearch(&target, p->iv, p->len, sizeof(int), acs ? pint_cmp : pint_revcmp);
-    return found ? (int)(found - p->iv) : -1;
+static int                      pump_v64(const Array *p, v64Gen *g, int from, int to) {
+    int cnt = 0;
+    for (int i = from; i < to && v64GenHasnext(g); i++) {
+        p->v64[i] = v64GenNext(g);
+        cnt++;
+    }
+    return cnt;
+}
+static int                      pump_int(const Array *p, v64Gen *g, int from, int to) {
+    int cnt = 0;
+    for (int i = from; i < to && v64GenHasnext(g); i++) {
+        p->iv[i] = v64GenNext(g).ival;
+        cnt++;
+    }
+    return cnt;
+}
+static int                      pump_long(const Array *p, v64Gen *g, int from, int to) {
+    int cnt = 0;
+    for (int i = from; i < to && v64GenHasnext(g); i++) {
+        p->lv[i] = v64GenNext(g).lval;
+        cnt++;
+    }
+    return cnt;
+}
+static int                      pump_double(const Array *p, v64Gen *g, int from, int to) {
+    int cnt = 0;
+    for (int i = from; i < to && v64GenHasnext(g); i++) {
+        p->dv[i] = v64GenNext(g).dval;
+        cnt++;
+    }
+    return cnt;
+}
+static int                      pump_char(const Array *p, v64Gen *g, int from, int to) {
+    int cnt = 0;
+    for (int i = from; i < to && v64GenHasnext(g); i++) {
+        p->cv[i] = v64GenNext(g).cval;
+        cnt++;
+    }
+    return cnt;
+}
+static int                      pump_pointer(const Array *p, v64Gen *g, int from, int to) {
+    int cnt = 0;
+    for (int i = from; i < to && v64GenHasnext(g); i++) {
+        p->pv[i] = v64GenNext(g).pval;
+        cnt++;
+    }
+    return cnt;
 }
 
-static int                          bin_search_long(const Array *p, value64 v, bool acs) {
-    if (p->len == 0) return -1;
-    long target = (long)v.lval;
-    long *found = bsearch(&target, p->lv, p->len, sizeof(long), acs ? plong_cmp : plong_revcmp);
-    return found ? (int)(found - p->lv) : -1;
-}
-
-static int                          bin_search_double(const Array *p, value64 v, bool acs) {
-    if (p->len == 0)
-        return -1;
-    double target = v.dval;
-    double *found = bsearch(&target, p->dv, p->len, sizeof(double), acs ? pdbl_cmp : pdbl_revcmp);
-    return found ? (int)(found - p->dv) : -1;
-}
-
-static int                          bin_search_char(const Array *p, value64 v, bool acs) {
-    if (p->len == 0) 
-        return -1;
-    char target = (char)v.cval;
-    char *found = bsearch(&target, p->cv, p->len, sizeof(char), acs ? pchar_cmp : pchar_revcmp);
-    return found ? (int)(found - p->cv) : -1;
-}
-
-// Для V64 у нас уже были готовые функции, просто оборачиваем их в нужный сигнатурный тип
-static int                          bin_search_v64(const Array *p, value64 v, bool acs) {
-    if (p->len == 0) 
-        return -1;
-    if (acs)
-        return value64_binsearch(v, p->v64type, p->v64, p->len);
-    else
-        return value64_rev_binsearch(v, p->v64type, p->v64, p->len);
-} */
 
 // general interface
 typedef struct {
     ArrayCompareFunc            basic_comparator;     // fill part of array
     QsortGetcompFunc            get_comparator;       // per element
-    //ArraySearchFunc             binsearch; 
+    ArrayPumpFunc               pump;
     // others
 } ArrayInterface;
 
 static const                    ArrayInterface ARRAYINTERFACE[] = {
-    [ARRAY_INT]     = { .basic_comparator = equal_int, 
-                        .get_comparator = get_int_cmp },
-    [ARRAY_LONG]    = { .basic_comparator = equal_long,
-                        .get_comparator = get_long_cmp },
-    [ARRAY_DOUBLE]  = { .basic_comparator = equal_double, 
-                        .get_comparator = get_double_cmp},
-    [ARRAY_POINTER] = { .basic_comparator = equal_pointer,
-                        .get_comparator = get_pointer_cmp },
-    [ARRAY_CHAR]    = { .basic_comparator = equal_char,
-                        .get_comparator = get_char_cmp },
-    [ARRAY_V64]     = { .basic_comparator = equal_v64,
-                        .get_comparator = get_v64_cmp }
+    [ARRAY_INT]     = { .basic_comparator   = equal_int, 
+                        .get_comparator     = get_int_cmp,
+                        .pump               = pump_int
+                      },
+    [ARRAY_LONG]    = { .basic_comparator   = equal_long,
+                        .get_comparator     = get_long_cmp,
+                        .pump               = pump_long
+                      },
+    [ARRAY_DOUBLE]  = { .basic_comparator   = equal_double, 
+                        .get_comparator     = get_double_cmp,
+                        .pump               = pump_double
+                      },
+    [ARRAY_POINTER] = { .basic_comparator   = equal_pointer,
+                        .get_comparator     = get_pointer_cmp,
+                        .pump               = pump_pointer
+                      },
+    [ARRAY_CHAR]    = { .basic_comparator   = equal_char,
+                        .get_comparator     = get_char_cmp,
+                        .pump               = pump_char
+                      },
+    [ARRAY_V64]     = { .basic_comparator   = equal_v64,
+                        .get_comparator     = get_v64_cmp,
+                        .pump               = pump_v64
+                      }
 };
 
 static const ArrayInterface       *getTypedInterface(ArrayType typ) {
@@ -1475,105 +1495,46 @@ int                         Array_foreach_proc(Array *restrict arr, Array_cond c
 }
 
 /**
- * @brief Fills a specified range within a v64 Array using a generator.
- * 
- * This function takes elements from the provided v64 generator and writes them 
- * into the destination array starting from index @p from up to (but not including) 
- * index @p to. 
+ * @brief Fills the entire Array using a generator.
  * 
  * @note **Safety Features:**
  * - If @p from or @p to are outside the actual bounds of the array, they are 
  *   automatically clamped to the array's size to prevent memory corruption.
  * - The operation stops if the generator runs out of elements before the 
  *   specified range is completed.
- * - If @p from > @p to, the function returns an error via userraise.
  *
  * @param[in] parr Pointer to the destination Array (must be of type ARRAY_V64).
- * @param[in] gen  Pointer to the v64 generator providing the data.
+ * @param[in] gen  Pointer to the v64 generator.
  * @param[in] from The starting index for the fill operation (inclusive).
  * @param[in] to   The ending index for the fill operation (exclusive).
  * 
  * @return The number of elements successfully written to the array.
- *         Returns -1 (via userraise) if input pointers are NULL or indices are negative.
  */
-static int                   ArrayGenPumprangeV64(Array *restrict parr, v64Gen *restrict gen, int from, int to) {    
-    int cnt = 0;
-    value64 *const end = parr->v64 + to;
-    value64 *pv = parr->v64 + from;
-
-    while (v64GenHasnext(gen) && pv < end) {
-        *pv++ = v64GenNext(gen);
-        cnt++;
-    }
-    return cnt; // cnt can be less than to - from
-}
-// intenal, no checking, size copy
-static int                   ArrayGenPumprangeBySize(Array *restrict parr, v64Gen *restrict gen, int from, int to, int sz) {
-    int             cnt = 0;
-    char           *pv = (char *) parr->v + from * sz;
-    char    *const end = (char *) parr->v + to * sz;
-
-    while (v64GenHasnext(gen) && pv < end) {
-        value64 tmp = v64GenNext(gen);   // сохраняем значение, чтобы не брать адрес rvalue
-
-        switch (ArrayGettype(parr)) {
-            case ARRAY_INT:
-                *(int *)pv = tmp.ival;
-                break;
-            case ARRAY_LONG:
-                *(long *)pv = tmp.lval;
-                break;
-            case ARRAY_DOUBLE:
-                *(double *)pv = tmp.dval;
-                break;
-            case ARRAY_CHAR:
-                *(char *)pv = tmp.cval;
-                break;
-            case ARRAY_POINTER:
-                *(void **)pv = tmp.pval;
-                break;
-            default:
-                return userraise(-1, ERR_UNSUPPORTED_TYPE,
-                                 "Unsupported scalar type %d/%s",
-                                 ArrayGettype(parr), ArrayGetTypeName(parr));
-        }
-        pv += sz;
-        cnt++;
-    }
-    return cnt;
-}
-
-// pump gen data into parr, no convertatiob here! Types must be equal
-int                          ArrayGenPumprangeScalar(Array *restrict parr, v64Gen *restrict gen, int from, int to) {
+int                         ArrayGenPumprange(Array *restrict parr, v64Gen *restrict gen, int from, int to) {
     invraisecode(parr != NULL && gen != NULL, ERR_NULLABLE_PTR, 
         "Null input %p %p", parr, gen);
-    invraisecode(!ArrayIsV64(parr), ERR_UNSUPPORTED_TYPE, 
-        "Only scalar supported by scalar pump, but not %d/%s", ArrayGettype(parr), ArrayGetTypeName(parr));
-    
-    if (ArrayGetV64mapType(parr) != gen->type) {
-        return userraise(-1, ERR_TYPES_MISMATCH, 
-            "%d/%s vs %d/%s", 
-            ArrayGettype(parr), ArrayGetTypeName(parr),
-            gen->type, value64_typename(gen->type));
-    }
-   
-    return ArrayGenPumprangeBySize(parr, gen, from, to, ArrayGetelemsize(parr));
-}
 
-// entry point, check here!
-// pump for v64 & scalar
-int                          ArrayGenPumprange(Array *restrict parr, v64Gen *restrict gen, int from, int to) {
-    invraisecode(parr != NULL && gen != NULL, ERR_NULLABLE_PTR, 
-        "Null input %p %p", parr, gen);
-    // fixing ranges
     fixrangesbysz(parr, &from, &to);
 
-    int     cnt = 0;
-    // v64 have universale pumper while every scalar type - it's own
-    if (ArrayIsV64(parr))
-        cnt = ArrayGenPumprangeV64(parr, gen, from, to);
-    else
-        cnt = ArrayGenPumprangeScalar(parr, gen, from, to);
+    ArrayType typ = ArrayGettype(parr);
+    const ArrayInterface *ti = getTypedInterface(typ);
+
+    if (!ti || !ti->pump) {
+        return userraise(-1, ERR_UNSUPPORTED_TYPE, 
+            "No pump function for type %d/%s", ArrayGettype(parr), ArrayGetTypeName(parr));
+    }
+    // Если это массив V64, проверяем соответствие типа в генераторе
+    if (ArrayIsV64(parr)) {
+        if (ArrayGetV64mapType(parr) != gen->type) {
+            return userraise(-1, ERR_TYPES_MISMATCH, "%d/%s vs %d/%s", 
+                             typ, ArrayGetTypeName(parr), 
+                             gen->type, value64_typename(gen->type));
+        }
+    }
+
+    // 5. Запуск специализированного цикла (VTable call)
+    int cnt = ti->pump(parr, gen, from, to);
+
     return logsimpleret(cnt, "Generated %d", cnt);
 }
 
