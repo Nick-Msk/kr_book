@@ -225,7 +225,7 @@ static inline size_t                arrayTypeGetElemSize(ArrayType t) {
  * @param name The string to parse (e.g., "ARRAY_INT").
  * @return ArrayType The corresponding enum value, or ARRAY_UNKNOWN if no match is found.
  */
-static ArrayType                    arrayTypeFromName(const char *name) {
+static inline ArrayType               arrayTypeFromName(const char *name) {
     if (!name)
         return ARRAY_UNKNOWN;
     for (size_t i = 0; i < COUNT(ARRAY_TYPE_TABLE); i++) {
@@ -470,7 +470,7 @@ static inline bool                  arrayIsvalid(const Array *parr){
  * @note This function assumes that the array type is valid and 
  *       matches a known entry in the metadata table.
  */
-static size_t                       arrayGetelemsize(const Array *parr) {
+static inline size_t               arrayGetelemsize(const Array *parr) {
     invraisecode(ERR_NULLABLE_PTR, parr != NULL, "Null pointer");
 
     return arrayGetTypeInfo(parr)->elem_size;
