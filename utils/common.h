@@ -673,6 +673,26 @@ extern bool              try_parse_bool(const char *restrict str, bool *restrict
         else
 
 // simple return
+#define WRITE_OR_RET_NOLOG(cmd, ret)                                \
+    ({ long _w = (cmd);                                             \
+       if (_w < 0)                                                  \
+           return (ret);   \
+       _w; })
+// logging error
+#define WRITE_OR_RET(cmd, ret)                                      \
+    ({ long _w = (cmd);                                             \
+       if (_w < 0)                                                  \
+           return userraise((ret), ERR_STREAM_ERROR, "IO error");   \
+       _w; })
+// free or fclose or release
+#define WRITE_OR_RET_ACTION(cmd, ret, act) \
+    ({ long _w = (cmd); \
+       if (_w < 0) { \
+            (act); \
+           return userraise((ret), ERR_STREAM_ERROR, "IO error"); }  \
+       _w; })
+
+// simple return
 #define IOCHECKERSIMPLE(w, cmd, ret) \
     for (long w = (cmd), _once = 1; _once; _once = 0) \
         if (w < 0) \
