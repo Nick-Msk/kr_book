@@ -346,7 +346,6 @@ long                                    fs_techfprint(FILE *restrict out, const 
     long     cnt = 0;
     if (out){
         if (s){
-            logsimple("%p", s);
             size_t     len = MIN(FS_TECH_PRINT_COUNT, s->len);
             // TODO: use guard here
             cnt += fprintf(out, "FS: %s: len [%zu], sz [%zu], flags [%d], s [%.*s", name, s->len, s->sz, s->flags, (unsigned) len, s->v);
