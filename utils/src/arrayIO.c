@@ -599,6 +599,8 @@ long                            arraySaveTofs(fs *restrict s, const Array *restr
     return total_written;
 }
 
+// new DS 
+
 long                            arrayLoadFromfs(const fs *restrict s, Array *restrict parr) {
     invraisecode(ERR_NULLABLE_PTR, fs_isnull(s),
                  "Nullable input %p", (void*) s);

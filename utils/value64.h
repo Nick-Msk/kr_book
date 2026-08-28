@@ -1088,7 +1088,7 @@ static inline int                   value64_techprint(value64 val, value64_type 
 #define VALUE64_TECHFPRINT(out, val, typ)   value64_techfprint( (out), (val), (typ), #val)
 #define VALUE64_TECHPRINT(val, typ)         value64_techprint((val), (typ), #val)
 
-// Write adapters, into FILE *  => NEED TO BE REFACTORE TO USE Ds (???)
+// Write adapters, into FILE *  => NEED TO BE REFACTORE TO USE DS (???)
 extern int                          value64_fprint_int  (FILE *out, value64 val);
 extern int                          value64_fprint_long  (FILE *out, value64 val);
 extern int                          value64_fprint_ulong(FILE *out, value64 val);
@@ -1105,7 +1105,7 @@ extern int                          value64_fprint_FILE (FILE *out, value64 val)
 
 // string readers!
 // fs must be initialized, val can be NULL, it means just check
-// Read adapteds (from fs) => NEED TO BE REFACTORE TO USE Ds
+// Read adapteds (from fs) => NEED TO BE REFACTORE TO USE DS
 
 extern bool                         value64_sreadval_int(value64 *restrict val, fs *restrict buf);
 extern bool                         value64_sreadval_long(value64 *restrict val, fs *restrict buf);
@@ -1117,18 +1117,18 @@ extern bool                         value64_sreadval_fs(value64 *restrict val, f
 extern bool                         value64_sreadval_str(value64 *restrict val, fs *restrict buf);
 
 
-// generic Ds reader, NOTE: it calls value64_sreadval_<type>
-extern bool                         value64_dsreadval(Ds *restrict ds, value64_type typ, value64 *restrict val, fs *restrict buf);
+// generic DS reader, NOTE: it calls value64_sreadval_<type>
+extern bool                         value64_dsreadval(DS *restrict ds, value64_type typ, value64 *restrict val, fs *restrict buf);
 
 // generic c-str reader, NOTE: it calls value64_sreadval_<type>
 static inline bool                  value64_strreadval(const char *restrict str, value64_type typ, value64 *restrict val, fs *restrict buf) {
-    Ds ds = dsCreateconst(str);
+    DS ds = dsCreateconst(str);
     return value64_dsreadval(&ds, typ, val, buf);
 }
 
 // generic FILE  reader, NOTE: it calls value64_sreadval_<type>
 static inline bool                  value64_freadval(FILE *restrict in, value64_type typ, value64 *restrict val, fs *restrict buf) {
-    Ds ds = dsCreatef(in);
+    DS ds = dsCreatef(in);
     return value64_dsreadval(&ds, typ, val, buf);
 }
 
@@ -1136,7 +1136,7 @@ static inline bool                  value64_freadval(FILE *restrict in, value64_
 extern int                          value64_tofile(FILE *out, value64 val, value64_type typ, bool savetypeinfo);
 
 /**
- * @brief Loads a value64 from Ds source
+ * @brief Loads a value64 from DS source
  *
  * The expected format is:
  *   VALUE64(<type>): <value>
@@ -1156,7 +1156,7 @@ extern int                          value64_tofile(FILE *out, value64 val, value
  * @throws ERR_NULLABLE_PTR if `in` is NULL
  * @throws ERR_UNSUPPORTED_TYPE on unknown or unsupported type
  */
-extern int                          value64_loadds(Ds *restrict ds, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf);
+extern int                          value64_loadds(DS *restrict ds, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf);
 
 /**
  * @brief Loads a value64 from a text stream (formatted).
@@ -1180,7 +1180,7 @@ extern int                          value64_loadds(Ds *restrict ds, value64 *res
  * @throws ERR_UNSUPPORTED_TYPE on unknown or unsupported type
  */
 static inline int           value64_loadfile(FILE *restrict in, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf) {
-    Ds ds = dsCreatef(in);
+    DS ds = dsCreatef(in);
     return value64_loadds(&ds, val, typ, loadtypeinfo, buf);
 }
 /**
@@ -1201,7 +1201,7 @@ static inline int           value64_loadfile(FILE *restrict in, value64 *restric
  * @return number of characters consumed, or a negative value on error
  */
 static inline int                   value64_loadstr(const char *restrict source, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf) {
-    Ds ds = dsCreateconst(source);
+    DS ds = dsCreateconst(source);
     return value64_loadds(&ds, val, typ, loadtypeinfo, buf);
 }
 

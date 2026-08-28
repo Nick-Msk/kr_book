@@ -2,7 +2,7 @@
 #include "ds_adapter.h"
 
 /********************************************************************
-                 Ds - fs adapter MODULE IMPLEMENTATION
+                 DS - fs adapter MODULE IMPLEMENTATION
 ********************************************************************/
 
 // ------------------------------ Utilities ------------------------
@@ -198,7 +198,7 @@ static bool                     dsHelperParseUnsigned(const char *restrict str, 
 
 // --------------------------- API ---------------------------------
 
-int                         dsPrintf(Ds *restrict pds, const char *restrict msg, ...) {
+int                         dsPrintf(DS *restrict pds, const char *restrict msg, ...) {
     invraisecode(pds != NULL && msg != NULL, ERR_NULLABLE_PTR, 
         "Null input %p %p", pds, msg);
 
@@ -231,7 +231,7 @@ int                         dsPrintf(Ds *restrict pds, const char *restrict msg,
     return total;
 }
 
-int                         dsScanf(Ds *restrict pds, const char *restrict msg, ...) {
+int                         dsScanf(DS *restrict pds, const char *restrict msg, ...) {
     invraisecode(pds != NULL && msg != NULL, ERR_NULLABLE_PTR, 
         "Null input %p %p", pds, msg);
     
@@ -260,7 +260,7 @@ int                         dsScanf(Ds *restrict pds, const char *restrict msg, 
 }
 
 
-bool                        dsParseInt(Ds *restrict pds, int *restrict pval) {
+bool                        dsParseInt(DS *restrict pds, int *restrict pval) {
     invraisecode(pds != NULL && pval != NULL, ERR_NULLABLE_PTR, 
         "Null input %p %p", pds, pval);
     switch (pds->type) {
@@ -279,7 +279,7 @@ bool                        dsParseInt(Ds *restrict pds, int *restrict pval) {
     return true;
 }
 
-bool                        dsParseLong(Ds *restrict pds, long *restrict pval) {
+bool                        dsParseLong(DS *restrict pds, long *restrict pval) {
     invraisecode(pds != NULL && pval != NULL, ERR_NULLABLE_PTR, 
         "Null input %p %p", pds, pval);
     switch (pds->type) {
@@ -298,7 +298,7 @@ bool                        dsParseLong(Ds *restrict pds, long *restrict pval) {
     return true;
 }
 
-bool                        dsParseUnsigned(Ds *restrict pds, unsigned int *restrict pval) {
+bool                        dsParseUnsigned(DS *restrict pds, unsigned int *restrict pval) {
     invraisecode(pds != NULL && pval != NULL, ERR_NULLABLE_PTR, "Null input %p %p", pds, pval);
     switch (pds->type) {
         case DS_FILE:
@@ -315,7 +315,7 @@ bool                        dsParseUnsigned(Ds *restrict pds, unsigned int *rest
     return true;
 }
 
-bool                        dsParseUnsignedLong(Ds *restrict pds, unsigned long *restrict pval) {
+bool                        dsParseUnsignedLong(DS *restrict pds, unsigned long *restrict pval) {
     invraisecode(pds != NULL && pval != NULL, ERR_NULLABLE_PTR, "Null input %p %p", pds, pval);
     switch (pds->type) {
         case DS_FILE:
@@ -332,7 +332,7 @@ bool                        dsParseUnsignedLong(Ds *restrict pds, unsigned long 
     return true;
 }
 
-bool                        dsParseDouble(Ds *restrict pds, double *restrict pdval) {
+bool                        dsParseDouble(DS *restrict pds, double *restrict pdval) {
     invraisecode(pds != NULL && pdval != NULL, ERR_NULLABLE_PTR, 
         "Null input %p %p", pds, pdval);
 
@@ -354,7 +354,7 @@ bool                        dsParseDouble(Ds *restrict pds, double *restrict pdv
     return true;
 }
 
-bool                        dsParseChar(Ds *restrict pds, char *restrict pval) {
+bool                        dsParseChar(DS *restrict pds, char *restrict pval) {
     invraisecode(pds != NULL && pval != NULL, ERR_NULLABLE_PTR, "Null input %p %p", pds, pval);
 
     switch (pds->type) {
@@ -394,7 +394,7 @@ tf_ds_printf(const char *name)
     {
         const char *fname = "res/ds/test_printf_file.dsadp";
         FILE *fp = fopen(fname, "w");
-        Ds ds = dsCreatef(fp);
+        DS ds = dsCreatef(fp);
 
         int written = dsPrintf(&ds, "Hello %d", 42);
         fclose(fp);
@@ -413,7 +413,7 @@ tf_ds_printf(const char *name)
     {
         const char *fname = "res/ds/test_printf_multi.dsadp";
         FILE *fp = fopen(fname, "w");
-        Ds ds = dsCreatef(fp);
+        DS ds = dsCreatef(fp);
 
         int written = dsPrintf(&ds, "%d + %d = %d", 2, 3, 5);
         fclose(fp);
@@ -432,7 +432,7 @@ tf_ds_printf(const char *name)
     test_sub("subtest %d: dsPrintf to FS", ++subnum);
     {
         fs s = FS();
-        Ds ds = dsCreatefs(&s);
+        DS ds = dsCreatefs(&s);
         int written = dsPrintf(&ds, "Value=%d", 99);
         test_validate(written > 0, "dsPrintf must return > 0");
 
@@ -447,7 +447,7 @@ tf_ds_printf(const char *name)
     test_sub("subtest %d: dsPrintf to FS multiple calls", ++subnum);
     {
         fs s = FS();
-        Ds ds = dsCreatefs(&s);
+        DS ds = dsCreatefs(&s);
         dsPrintf(&ds, "Line1\n");
         dsPrintf(&ds, "Line2");
         test_validate(strcmp(ds.s.v, "Line1\nLine2") == 0,
@@ -457,21 +457,21 @@ tf_ds_printf(const char *name)
     }
 #endif /* !NO_FSDS */
 
-    /* 5. NULL Ds должен вызвать исключение */
-    test_sub("subtest %d: dsPrintf with NULL Ds raises SIGINT", ++subnum);
+    /* 5. NULL DS должен вызвать исключение */
+    test_sub("subtest %d: dsPrintf with NULL DS raises SIGINT", ++subnum);
     {
         if (!try()) {
             dsPrintf(NULL, "test");
-            test_validate(false, "Should have raised SIGINT for NULL Ds");
+            test_validate(false, "Should have raised SIGINT for NULL DS");
         } else {
-            logsimple("Exception correctly raised for NULL Ds");
+            logsimple("Exception correctly raised for NULL DS");
         }
     }
     /* 4. DS_STR: запись ровно на границе буфера (без переполнения) */
     test_sub("subtest %d: dsPrintf string boundary (no overflow)", ++subnum);
     {
         char buf[] = "..........";   // strlen = 10 → cap = 10 (достаточно для "123456789" + '\0')
-        Ds ds = dsCreatestr(buf);
+        DS ds = dsCreatestr(buf);
 
         int written = dsPrintf(&ds, "123456789");   // нужно 9 символов + '\0' → 10
         test_validate(written == 9,
@@ -486,7 +486,7 @@ tf_ds_printf(const char *name)
     test_sub("subtest %d: dsPrintf string overflow", ++subnum);
     {
         char buf[5] = "12";               // strlen = 2 → cap = 2
-        Ds ds = dsCreatestr(buf);
+        DS ds = dsCreatestr(buf);
         int written = dsPrintf(&ds, "Hello World");   // нужно 11 символов
         test_validate(written == -1,
                     "dsPrintf overflow must return -1, got %d", written);
@@ -504,7 +504,7 @@ tf_ds_printf(const char *name)
     {
         const int cnt = 50;
         char buf[cnt];
-        Ds ds = dsCreatestrCap(buf, cnt);
+        DS ds = dsCreatestrCap(buf, cnt);
         dsPrintf(&ds, "Line1\n");
         dsPrintf(&ds, "Line2");
 
@@ -531,7 +531,7 @@ tf_ds_scanf(const char *name)
         fclose(fp);
 
         fp = fopen(fname, "r");
-        Ds ds = dsCreatef(fp);
+        DS ds = dsCreatef(fp);
         int i;
         double d;
         char s[10];
@@ -547,7 +547,7 @@ tf_ds_scanf(const char *name)
     test_sub("subtest %d: dsScanf from mutable string", ++subnum);
     {
         char buf[32] = "10 20 30";
-        Ds ds = dsCreatestr(buf);
+        DS ds = dsCreatestr(buf);
         int a, b, c;
         dsScanf(&ds, "%d", &a);
         dsScanf(&ds, "%d", &b);
@@ -561,7 +561,7 @@ tf_ds_scanf(const char *name)
     test_sub("subtest %d: dsScanf from const string", ++subnum);
     {
         const char *text = "3.14";
-        Ds ds = dsCreateconst(text);
+        DS ds = dsCreateconst(text);
         double d;
         int ret = dsScanf(&ds, "%lf", &d);
         test_validate(ret == 1, "dsScanf must return 1, got %d", ret);
@@ -574,7 +574,7 @@ tf_ds_scanf(const char *name)
     test_sub("subtest %d: dsScanf from FS", ++subnum);
     {
         fs s = FS();
-        Ds ds = dsCreatefs(&s);
+        DS ds = dsCreatefs(&s);
         dsputc('A', &ds);
         dsputc('B', &ds);
         ds.pos = 0;
@@ -592,7 +592,7 @@ tf_ds_scanf(const char *name)
     test_sub("subtest %d: dsScanf on empty string", ++subnum);
     {
         char buf[4] = "";
-        Ds ds = dsCreatestr(buf);
+        DS ds = dsCreatestr(buf);
         int val;
         int ret = dsScanf(&ds, "%d", &val);
         test_validate(ret <= 0, "dsScanf on empty string must fail, got %d", ret);
@@ -602,20 +602,20 @@ tf_ds_scanf(const char *name)
     test_sub("subtest %d: dsScanf with invalid format", ++subnum);
     {
         char buf[8] = "abc";
-        Ds ds = dsCreatestr(buf);
+        DS ds = dsCreatestr(buf);
         int val;
         int ret = dsScanf(&ds, "%d", &val);
         test_validate(ret <= 0, "dsScanf on non‑numeric string must fail, got %d", ret);
     }
 
-    test_sub("subtest %d: dsScanf with NULL Ds raises SIGINT", ++subnum);
+    test_sub("subtest %d: dsScanf with NULL DS raises SIGINT", ++subnum);
     {
         if (!try()) {
             int dummy;
             dsScanf(NULL, "%d", &dummy);
-            test_validate(false, "Should have raised SIGINT for NULL Ds");
+            test_validate(false, "Should have raised SIGINT for NULL DS");
         } else {
-            logsimple("Exception correctly raised for NULL Ds");
+            logsimple("Exception correctly raised for NULL DS");
         }
     }
 
@@ -632,7 +632,7 @@ tf_ds_scanf_printf(const char *name)
     test_sub("subtest %d: dsPrintf + dsScanf round-trip (position)", ++subnum);
     {
         char buf[128];
-        Ds ds = dsCreatestrCap(buf, sizeof(buf));   // cap = 128
+        DS ds = dsCreatestrCap(buf, sizeof(buf));   // cap = 128
 
         // Записываем несколько значений
         size_t written_pos = dsPrintf(&ds, "%d %s %c", 42, "test", 'X');
@@ -659,7 +659,7 @@ tf_ds_scanf_printf(const char *name)
     test_sub("subtest %d: multiple printf / scanf round‑trip", ++subnum);
     {
         char buf[256];
-        Ds ds = dsCreatestrCap(buf, sizeof(buf));
+        DS ds = dsCreatestrCap(buf, sizeof(buf));
 
         // ---------- запись ----------
         int pt1 = dsPrintf(&ds, "%d ", 10);      // "10 "
@@ -727,7 +727,7 @@ tf_ds_parsers(const char *name)
     test_sub("subtest %d: dsParseInt from mutable string", ++subnum);
     {
         char buf[64] = "42 123";
-        Ds ds = dsCreatestrCap(buf, sizeof(buf));
+        DS ds = dsCreatestrCap(buf, sizeof(buf));
         int val;
         test_validate(dsParseInt(&ds, &val) && val == 42,
                       "dsParseInt: expected 42, got %d", val);
@@ -737,7 +737,7 @@ tf_ds_parsers(const char *name)
     test_sub("subtest %d: dsParseInt from const string", ++subnum);
     {
         const char *text = "-10 999";
-        Ds ds = dsCreateconst(text);
+        DS ds = dsCreateconst(text);
         int val;
         test_validate(dsParseInt(&ds, &val) && val == -10,
                       "dsParseInt const: expected -10, got %d", val);
@@ -751,7 +751,7 @@ tf_ds_parsers(const char *name)
         fprintf(fp, "77");
         fclose(fp);
         fp = fopen(fname, "r");
-        Ds ds = dsCreatef(fp);
+        DS ds = dsCreatef(fp);
         int val;
         test_validatefree(dsParseInt(&ds, &val) && val == 77,
                           fclose(fp),
@@ -762,14 +762,14 @@ tf_ds_parsers(const char *name)
     test_sub("subtest %d: dsParseInt fails on non‑numeric", ++subnum);
     {
         char buf[32] = "abc";
-        Ds ds = dsCreatestrCap(buf, sizeof(buf));
+        DS ds = dsCreatestrCap(buf, sizeof(buf));
         int val;
         test_validate(!dsParseInt(&ds, &val),
                       "dsParseInt on 'abc' must fail, got val=%d", val);
         test_validate(ds.pos == 0, "pos must stay 0, got %zu", ds.pos);
     }
 
-    test_sub("subtest %d: dsParseInt NULL Ds raises", ++subnum);
+    test_sub("subtest %d: dsParseInt NULL DS raises", ++subnum);
     {
         if (!try()) {
             int v;
@@ -784,7 +784,7 @@ tf_ds_parsers(const char *name)
     test_sub("subtest %d: dsParseLong basic", ++subnum);
     {
         char buf[64] = "123456789012";
-        Ds ds = dsCreatestrCap(buf, sizeof(buf));
+        DS ds = dsCreatestrCap(buf, sizeof(buf));
         long val;
         test_validate(dsParseLong(&ds, &val) && val == 123456789012L,
                       "dsParseLong: expected 123456789012, got %ld", val);
@@ -793,7 +793,7 @@ tf_ds_parsers(const char *name)
     test_sub("subtest %d: dsParseLong fails on empty", ++subnum);
     {
         char buf[4] = "";
-        Ds ds = dsCreatestrCap(buf, sizeof(buf));
+        DS ds = dsCreatestrCap(buf, sizeof(buf));
         long val;
         test_validate(!dsParseLong(&ds, &val),
                       "dsParseLong on empty must fail");
@@ -803,7 +803,7 @@ tf_ds_parsers(const char *name)
     test_sub("subtest %d: dsParseUnsigned basic", ++subnum);
     {
         char buf[64] = "3000000000";
-        Ds ds = dsCreatestrCap(buf, sizeof(buf));
+        DS ds = dsCreatestrCap(buf, sizeof(buf));
         unsigned int val;
         test_validate(dsParseUnsigned(&ds, &val) && val == 3000000000u,
                       "dsParseUnsigned: expected 3000000000u, got %u", val);
@@ -813,7 +813,7 @@ tf_ds_parsers(const char *name)
     test_sub("subtest %d: dsParseUnsignedLong basic", ++subnum);
     {
         char buf[64] = "18446744073709551615";
-        Ds ds = dsCreatestrCap(buf, sizeof(buf));
+        DS ds = dsCreatestrCap(buf, sizeof(buf));
         unsigned long val;
         test_validate(dsParseUnsignedLong(&ds, &val) && val == 18446744073709551615UL,
                       "dsParseUnsignedLong: expected max, got %lu", val);
@@ -823,7 +823,7 @@ tf_ds_parsers(const char *name)
     test_sub("subtest %d: dsParseDouble basic", ++subnum);
     {
         char buf[64] = "3.1415 -2.5e1";
-        Ds ds = dsCreatestrCap(buf, sizeof(buf));
+        DS ds = dsCreatestrCap(buf, sizeof(buf));
         double val;
         test_validate(dsParseDouble(&ds, &val) && val == 3.1415,
                       "dsParseDouble: expected 3.1415, got %lf", val);
@@ -834,7 +834,7 @@ tf_ds_parsers(const char *name)
     test_sub("subtest %d: dsParseDouble fails on text", ++subnum);
     {
         char buf[16] = "hello";
-        Ds ds = dsCreatestrCap(buf, sizeof(buf));
+        DS ds = dsCreatestrCap(buf, sizeof(buf));
         double val;
         test_validate(!dsParseDouble(&ds, &val),
                       "dsParseDouble on text must fail");
@@ -844,7 +844,7 @@ tf_ds_parsers(const char *name)
     test_sub("subtest %d: dsParseChar basic", ++subnum);
     {
         char buf[64] = "A B";
-        Ds ds = dsCreatestrCap(buf, sizeof(buf));
+        DS ds = dsCreatestrCap(buf, sizeof(buf));
         char c;
         test_validate(dsParseChar(&ds, &c) && c == 'A',
                       "dsParseChar: expected 'A', got '%c'", c);
@@ -857,7 +857,7 @@ tf_ds_parsers(const char *name)
     test_sub("subtest %d: dsParseChar fails on empty", ++subnum);
     {
         char buf[4] = "";
-        Ds ds = dsCreatestrCap(buf, sizeof(buf));
+        DS ds = dsCreatestrCap(buf, sizeof(buf));
         char c;
         test_validate(!dsParseChar(&ds, &c),
                       "dsParseChar on empty must fail");
@@ -868,7 +868,7 @@ tf_ds_parsers(const char *name)
     test_sub("subtest %d: dsParseInt from FS", ++subnum);
     {
         fs s = FS();
-        Ds ds = dsCreatefs(&s);
+        DS ds = dsCreatefs(&s);
         dsPrintf(&ds, "%d", 202);
         dsReset(&ds);
         int val;
@@ -884,7 +884,7 @@ tf_ds_parsers(const char *name)
     test_sub("subtest %d: dsParseInt after overflow", ++subnum);
     {
         char buf[8] = "";   // cap = 8
-        Ds ds = dsCreatestrCap(buf, sizeof(buf));
+        DS ds = dsCreatestrCap(buf, sizeof(buf));
         dsPrintf(&ds, "12345678");   // попытка записи не влезет
         dsReset(&ds);
         int val;

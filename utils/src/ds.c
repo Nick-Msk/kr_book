@@ -83,7 +83,7 @@ static int                  ds_print_buffer_content(FILE *restrict out, const ch
 
 // -------------------- CONSTRUCTOTS/DESTRUCTORS -------------------
 
-bool                        dsInitf(Ds *restrict pds, FILE *restrict fp) {
+bool                        dsInitf(DS *restrict pds, FILE *restrict fp) {
     if (pds == NULL || fp == NULL)
         return false;
     pds->type = DS_FILE;
@@ -91,7 +91,7 @@ bool                        dsInitf(Ds *restrict pds, FILE *restrict fp) {
     return true;
 }
 
-bool                        dsInitstrCap(Ds *restrict pds, char *restrict buf, size_t cap) {
+bool                        dsInitstrCap(DS *restrict pds, char *restrict buf, size_t cap) {
     if (pds == NULL || buf == NULL)
         return false;
     pds->type = DS_STR;
@@ -105,7 +105,7 @@ bool                        dsInitstrCap(Ds *restrict pds, char *restrict buf, s
     return true;
 }
 
-bool                        dsInitconst(Ds *restrict pds, const char *restrict buf) {
+bool                        dsInitconst(DS *restrict pds, const char *restrict buf) {
     if (pds == NULL || buf == NULL)
         return false;
     pds->type = DS_CONSTSTR;
@@ -116,7 +116,7 @@ bool                        dsInitconst(Ds *restrict pds, const char *restrict b
 }
 
 #ifndef NO_FSDS
-    bool                    dsInitfs(Ds *restrict pds, fs *restrict s) {
+    bool                    dsInitfs(DS *restrict pds, fs *restrict s) {
         if (pds == NULL || s == NULL)
             return false;
         pds->type = DS_FS;
@@ -128,7 +128,7 @@ bool                        dsInitconst(Ds *restrict pds, const char *restrict b
 
 // --------------------- ACCESS AND MODIFICATION --------------------
 
-int                         dsgetc(Ds *pds) {
+int                         dsgetc(DS *pds) {
     switch (pds->type) {
         case DS_FILE:
             return fgetc(pds->fp);
@@ -148,7 +148,7 @@ int                         dsgetc(Ds *pds) {
     }
 }
 
-int                             dsungetc(int c, Ds *pds) {
+int                             dsungetc(int c, DS *pds) {
     if (c == EOF)   // NOT SURE, LET IT BE FOR NOW
         return EOF;
     switch (pds->type) {
@@ -170,7 +170,7 @@ int                             dsungetc(int c, Ds *pds) {
 }
 
 // only for DS_STR and DS_FS
-int                         dsreplacec(int c, Ds *pds) {
+int                         dsreplacec(int c, DS *pds) {
     if (c == EOF)
         return EOF;
     switch (pds->type) {
@@ -186,7 +186,7 @@ int                         dsreplacec(int c, Ds *pds) {
     }
 }
 
-int                         dsputc(int c, Ds *pds) {
+int                         dsputc(int c, DS *pds) {
     if (c == EOF)
         return EOF;
     switch (pds->type) {
@@ -206,7 +206,7 @@ int                         dsputc(int c, Ds *pds) {
     }
 }
 
-int                         dsTechFPrint(FILE *restrict out, const Ds *restrict pds, const char *restrict name) {
+int                         dsTechFPrint(FILE *restrict out, const DS *restrict pds, const char *restrict name) {
     if (!pds || !out) 
         return -1;
 
@@ -263,7 +263,7 @@ int                         dsTechFPrint(FILE *restrict out, const Ds *restrict 
 #include "test.h"
 #include "checker.h"
 
-// ------------------------- TEST Ds (DataSource) -------------------------
+// ------------------------- TEST DS (DataSource) -------------------------
 static TestStatus
 tf_ds(const char *name)
 {
@@ -273,7 +273,7 @@ tf_ds(const char *name)
     /* ========== 1. Строковый источник: чтение ========== */
     test_sub("subtest %d: dsgetc from string", ++subnum);
     {
-        Ds ds;
+        DS ds;
         char text[] = "Hello";
         dsInitstr(&ds, text);
 
@@ -288,7 +288,7 @@ tf_ds(const char *name)
     /* ========== 2. dsungetc для строки ========== */
     test_sub("subtest %d: dsungetc for string", ++subnum);
     {
-        Ds ds;
+        DS ds;
         char text[] = "AB";
         dsInitstr(&ds, text);
 
@@ -305,7 +305,7 @@ tf_ds(const char *name)
     /* ========== 3. Константный строковый источник ========== */
     test_sub("subtest %d: const string source", ++subnum);
     {
-        Ds ds;
+        DS ds;
         const char *text = "World";
         dsInitconst(&ds, text);
 
@@ -320,7 +320,7 @@ tf_ds(const char *name)
     /* ========== 4. dsungetc для константной строки ========== */
     test_sub("subtest %d: dsungetc for const string", ++subnum);
     {
-        Ds ds;
+        DS ds;
         const char *text = "XY";
         dsInitconst(&ds, text);
 
@@ -341,7 +341,7 @@ tf_ds(const char *name)
         fclose(fp);
 
         fp = fopen(fname, "r");
-        Ds ds;
+        DS ds;
         dsInitf(&ds, fp);
         test_validate(dsgetc(&ds) == 'T', "First char must be 'T'");
         test_validate(dsgetc(&ds) == 'e', "Second char must be 'e'");
@@ -360,7 +360,7 @@ tf_ds(const char *name)
         fclose(fp);
 
         fp = fopen(fname, "r");
-        Ds ds;
+        DS ds;
         dsInitf(&ds, fp);
         int c = dsgetc(&ds);
         test_validate(c == 'Z', "Char must be 'Z'");
@@ -373,7 +373,7 @@ tf_ds(const char *name)
     /* ========== 7. dsTechFPrint для строки (вывод в файл) ========== */
     test_sub("subtest %d: dsTechFPrint for string", ++subnum);
     {
-        Ds ds;
+        DS ds;
         char text[] = "Data";
         dsInitstr(&ds, text);
         dsgetc(&ds);  // 'D'
@@ -397,7 +397,7 @@ tf_ds(const char *name)
     /* ========== 8. Граничные случаи ========== */
     test_sub("subtest %d: empty string", ++subnum);
     {
-        Ds ds;
+        DS ds;
         char text[] = "";
         dsInitstr(&ds, text);
         test_validate(dsgetc(&ds) == EOF, "Empty string must return EOF immediately");
@@ -405,7 +405,7 @@ tf_ds(const char *name)
 
     test_sub("subtest %d: dsungetc on empty string (buffer underflow)", ++subnum);
     {
-        Ds ds;
+        DS ds;
         char text[] = "X";
         dsInitstr(&ds, text);
         int c = dsgetc(&ds);  // 'X'
@@ -423,7 +423,7 @@ tf_ds(const char *name)
     /* ========== 9. dsreplacec ========== */
     test_sub("subtest %d: dsreplacec basic", ++subnum);
     {
-        Ds ds;
+        DS ds;
         char text[] = "Hello";
         dsInitstr(&ds, text);
 
@@ -442,7 +442,7 @@ tf_ds(const char *name)
 
     test_sub("subtest %d: dsreplacec with EOF", ++subnum);
     {
-        Ds ds;
+        DS ds;
         char text[] = "AB";
         dsInitstr(&ds, text);
         dsgetc(&ds);  // 'A'
@@ -456,7 +456,7 @@ tf_ds(const char *name)
 
     test_sub("subtest %d: dsreplacec at pos 0", ++subnum);
     {
-        Ds ds;
+        DS ds;
         char text[] = "XY";
         dsInitstr(&ds, text);
         // позиция 0, замена невозможна
@@ -476,7 +476,7 @@ tf_ds(const char *name)
         fclose(fp);
 
         fp = fopen(fname, "r");
-        Ds ds;
+        DS ds;
         dsInitf(&ds, fp);
         int c = dsgetc(&ds);  // 'F'
         test_validate(c == 'F', "First file char must be 'F'");
@@ -497,7 +497,7 @@ tf_ds(const char *name)
     test_sub("subtest %d: dsReset on DS_STR", ++subnum);
     {
         char text[] = "XYZ";
-        Ds ds = dsCreatestr(text);
+        DS ds = dsCreatestr(text);
         dsgetc(&ds); // 'X'
         dsgetc(&ds); // 'Y'
         dsReset(&ds);
@@ -513,7 +513,7 @@ tf_ds(const char *name)
         fclose(fp);
 
         fp = fopen(fname, "r");
-        Ds ds = dsCreatef(fp);
+        DS ds = dsCreatef(fp);
         dsgetc(&ds); // 'A'
         dsgetc(&ds); // 'B'
         dsReset(&ds);
@@ -525,7 +525,7 @@ tf_ds(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
-// ------------------------- TEST Ds additional functions -------------------------
+// ------------------------- TEST DS additional functions -------------------------
 static TestStatus
 tf_ds_extra(const char *name)
 {
@@ -536,7 +536,7 @@ tf_ds_extra(const char *name)
     test_sub("subtest %d: dsStrbuf on DS_STR", ++subnum);
     {
         char text[] = "Hello";
-        Ds ds = dsCreatestr(text);
+        DS ds = dsCreatestr(text);
         const char *p = dsStrbuf(&ds);
         test_validate(p == text, "dsStrbuf must return original buffer pointer");
     }
@@ -545,7 +545,7 @@ tf_ds_extra(const char *name)
     test_sub("subtest %d: dsStrbuf on DS_CONSTSTR", ++subnum);
     {
         const char *text = "World";
-        Ds ds = dsCreateconst(text);
+        DS ds = dsCreateconst(text);
         const char *p = dsStrbuf(&ds);
         test_validate(p == text, "dsStrbuf must return original const pointer");
     }
@@ -559,7 +559,7 @@ tf_ds_extra(const char *name)
         fclose(fp);
 
         fp = fopen(fname, "r");
-        Ds ds = dsCreatef(fp);
+        DS ds = dsCreatef(fp);
         const char *p = dsStrbuf(&ds);
         test_validate(p == NULL, "dsStrbuf on file must return NULL");
         fclose(fp);
@@ -568,8 +568,8 @@ tf_ds_extra(const char *name)
     /* 4. dsIsstr – строковые источники */
     test_sub("subtest %d: dsIsstr true for DS_STR and DS_CONSTSTR", ++subnum);
     {
-        Ds ds1 = dsCreatestr("a");
-        Ds ds2 = dsCreateconst("b");
+        DS ds1 = dsCreatestr("a");
+        DS ds2 = dsCreateconst("b");
         test_validate(dsIsstr(&ds1) && dsIsstr(&ds2), "Both DS_STR and DS_CONSTSTR must be recognised as strings");
     }
 
@@ -582,7 +582,7 @@ tf_ds_extra(const char *name)
         fclose(fp);
 
         fp = fopen(fname, "r");
-        Ds ds = dsCreatef(fp);
+        DS ds = dsCreatef(fp);
         test_validate(!dsIsstr(&ds), "File source must not be a string");
         fclose(fp);
     }
@@ -591,7 +591,7 @@ tf_ds_extra(const char *name)
     test_sub("subtest %d: dsSavepos/dsRestorepos on DS_STR", ++subnum);
     {
         char text[] = "ABCDEF";
-        Ds ds = dsCreatestr(text);
+        DS ds = dsCreatestr(text);
         // читаем несколько символов
         dsgetc(&ds); // 'A'
         dsgetc(&ds); // 'B'
@@ -612,7 +612,7 @@ tf_ds_extra(const char *name)
         fclose(fp);
 
         fp = fopen(fname, "r");
-        Ds ds = dsCreatef(fp);
+        DS ds = dsCreatef(fp);
         dsgetc(&ds); // '1'
         dsgetc(&ds); // '2'
         dsSavepos(&ds);
@@ -628,7 +628,7 @@ tf_ds_extra(const char *name)
     test_sub("subtest %d: dsRestorepos without Save (DS_STR)", ++subnum);
     {
         char text[] = "XYZ";
-        Ds ds = dsCreatestr(text);
+        DS ds = dsCreatestr(text);
         dsgetc(&ds); // 'X'
         dsgetc(&ds); // 'Y'
         dsRestorepos(&ds); // без Save – поведение не определено, но не должно падать
@@ -645,7 +645,7 @@ tf_ds_extra(const char *name)
         fclose(fp);
 
         fp = fopen(fname, "r");
-        Ds ds = dsCreatef(fp);
+        DS ds = dsCreatef(fp);
         dsgetc(&ds); // 'A'
         dsgetc(&ds); // 'B'
         dsRestorepos(&ds); // без Save – filesavepos == 0
@@ -669,7 +669,7 @@ tf_ds_putc(const char *name)
     {
         const char  *fname = "res/ds/test_putc_file.ds";
         FILE        *fp = fopen(fname, "w");
-        Ds           ds = dsCreatef(fp);
+        DS           ds = dsCreatef(fp);
         int          c;
 
         c = dsputc('A', &ds);
@@ -693,7 +693,7 @@ tf_ds_putc(const char *name)
     test_sub("subtest %d: dsputc to mutable string", ++subnum);
     {
         char text[10] = ".........";
-        Ds ds = dsCreatestr(text);
+        DS ds = dsCreatestr(text);
         int c;
 
         c = dsputc('X', &ds);
@@ -712,7 +712,7 @@ tf_ds_putc(const char *name)
     test_sub("subtest %d: dsputc past null terminator returns EOF", ++subnum);
     {
         char text[5] = "AB";
-        Ds ds = dsCreatestr(text);
+        DS ds = dsCreatestr(text);
         ds.pos = 2;                   // встали на нуль-терминатор
         int c = dsputc('X', &ds);
         test_validate(c == EOF,
@@ -723,7 +723,7 @@ tf_ds_putc(const char *name)
     test_sub("subtest %d: dsputc to const string returns EOF", ++subnum);
     {
         const char *text = "const";
-        Ds ds = dsCreateconst(text);
+        DS ds = dsCreateconst(text);
         int c = dsputc('A', &ds);
         test_validate(c == EOF,
                       "dsputc on const string must return EOF, got '%c'", c);
@@ -732,7 +732,7 @@ tf_ds_putc(const char *name)
     /* 5. Передача EOF возвращает EOF */
     test_sub("subtest %d: dsputc(EOF) returns EOF", ++subnum);
     {
-        Ds ds = dsCreatef(stdout);   // любой валидный Ds
+        DS ds = dsCreatef(stdout);   // любой валидный DS
         int c = dsputc(EOF, &ds);
         test_validate(c == EOF,
                       "dsputc(EOF) must return EOF, got '%c'", c);
@@ -753,7 +753,7 @@ tf_ds_fs(const char *name)
     test_sub("subtest %d: dsputc/dsgetc round‑trip on FS", ++subnum);
     {
         fs s = FS();
-        Ds ds = dsCreatefs(&s);
+        DS ds = dsCreatefs(&s);
         int c;
 
         // записываем три символа
@@ -785,12 +785,12 @@ tf_ds_fs(const char *name)
     test_sub("subtest %d: dsputc auto‑extend on FS", ++subnum);
     {
         fs s = FS();
-        Ds ds = dsCreatefs(&s);
+        DS ds = dsCreatefs(&s);
         ds.pos = 5;
         int c = dsputc('X', &ds);
         test_validate(c == 'X', "dsputc at pos 5 must return 'X', got '%c'", c);
 
-        // проверяем внутреннее состояние Ds
+        // проверяем внутреннее состояние DS
         test_validate(ds.s.len == 6 && ds.s.v[5] == 'X' && ds.s.v[6] == '\0',
                     "FS len must be 6, str[5]='X', str[6]='\\0', got len=%zu, str='%s'",
                     ds.s.len, ds.s.v);
@@ -804,7 +804,7 @@ tf_ds_fs(const char *name)
         const char  pattern[] = "Test1";
         int         c; 
         fs          s = fscopy(pattern);
-        Ds          ds = dsCreatefs(&s);
+        DS          ds = dsCreatefs(&s);
         //ds.pos = 0;
         for (int i = 0; i < (int) strlen(pattern); i++) {
             c = dsgetc(&ds);
@@ -828,7 +828,7 @@ tf_ds_fs(const char *name)
     test_sub("subtest %d: dsgetc beyond len on EMPTY FS returns EOF", ++subnum);
     {
         fs s = FS();
-        Ds ds = dsCreatefs(&s);
+        DS ds = dsCreatefs(&s);
         //ds.pos = 0;
         int c = dsgetc(&ds);
         test_validate(c == EOF, "dsgetc on empty FS must return EOF, got '%c'", c);
@@ -847,8 +847,8 @@ main( /*int argc, char *argv[] */ )
     logsimpleinit("Start");
 
     testenginestd(
-        TESTADD(tf_ds,           "Ds (DataSource) simple tests"),
-        TESTADD(tf_ds_extra,     "Ds additional functions"),
+        TESTADD(tf_ds,           "DS (DataSource) simple tests"),
+        TESTADD(tf_ds_extra,     "DS additional functions"),
         TESTADD(tf_ds_putc,      "dsputc simple test"),
         TESTADD(tf_ds_fs,        "dsputc / dsgetc for DS_FS test")
     );

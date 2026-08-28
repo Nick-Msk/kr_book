@@ -126,7 +126,7 @@ v64GenInit(v64GenFunc func, value64_type type, off_t limit,
     return res;
 }
 
-// --------------------------- Creator from Source (c-str, FILE *, Ds *) series ------------
+// --------------------------- Creator from Source (c-str, FILE *, DS *) series ------------
 
 // RETURNS: CHR
 // REGITRSY ALLOCATION:
@@ -515,7 +515,7 @@ v64GenRandom(v64Gen *gen) {
     }
 }
 
-// ------------------------- Source generators (Ds or fs or c-str or FILE *) ------------------------
+// ------------------------- Source generators (DS or fs or c-str or FILE *) ------------------------
 
 /**
  * @brief Parse fs from fs, dividev by newline

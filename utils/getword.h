@@ -122,7 +122,7 @@ extern GetlineStattus                getstring_newline_append(FILE *restrict in,
  * @throws ERR_WRONG_INPUT_FORMAT on missing / unterminated quotes or
  *         a dangling backslash at the end of input
  */
-bool                        getconvstring_ds(Ds *restrict in, fs *restrict str, bool removequot);
+bool                        getconvstring_ds(DS *restrict in, fs *restrict str, bool removequot);
 
 /**
  * @brief Reads a text token from a FILE

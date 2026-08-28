@@ -1581,7 +1581,7 @@ int                         value64_fprint_FILE(FILE *restrict out, value64 val)
 typedef int                                 (*value64_formatter_fn)(FILE *restrict, value64);
 typedef bool                                (*value64_fs_reader_fn)(value64 *restrict, fs *restrict);
 typedef int                                 (*value64_fs_writer_fn)(fs *restrict, value64);
-// TODO: need to be refactored to use Ds as common source!
+// TODO: need to be refactored to use DS as common source!
 typedef struct {
     value64_formatter_fn        file_writer;        // write TYPE from FILE *
     value64_fs_writer_fn        fs_writer;     // write TYPE to fs*
@@ -1669,7 +1669,7 @@ int                        value64_techfprint(FILE *restrict out, value64 val, v
 
 // --------------------------------- SERIALIZATION -----------------------------------------
 
-// TODO: need to be refactored to universal Ds
+// TODO: need to be refactored to universal DS
 /**
  * @brief Serializes a value64 object into a human-readable text format in a file.
  * 
@@ -1902,18 +1902,18 @@ bool                            value64_sreadval_bool(value64 *restrict pval, fs
  *
  * Calls the existing try_parse_bool() function.  An empty string is treated
  * as false (as if "false" were written).
- * TODO: only getconvstring_ds read a Ds!!!  Refactoring is required
+ * TODO: only getconvstring_ds read a DS!!!  Refactoring is required
  *
  * @param pval  pointer to the value64 to fill (may be NULL)
  * @param buf   fast‑string containing the textual representation
  * @return      true on success, false on parse error
  */
 
-bool                            value64_dsreadval(Ds *restrict ds, value64_type typ, value64 *restrict val, fs *restrict buf) {
+bool                            value64_dsreadval(DS *restrict ds, value64_type typ, value64 *restrict val, fs *restrict buf) {
     invraisecode(ds != NULL && buf != NULL, ERR_NULLABLE_PTR,
         "Null pointers %p %p", ds, buf);
 
-    // TODO: need to be refactored to make dapters use directly Ds
+    // TODO: need to be refactored to make dapters use directly DS
     if (!getconvstring_ds(ds, buf, true) )
         return userraise(false, ERR_WRONG_INPUT_FORMAT, "EOF or wrong format");
     
@@ -1947,7 +1947,7 @@ bool                            value64_dsreadval(Ds *restrict ds, value64_type 
  * @throws ERR_WRONG_INPUT_FORMAT if the header format is incorrect.
  * @throws ERR_UNKNOWN_TYPE if the parsed type string is not recognized.
  */
-static value64_type             value64_parse_header(Ds *pds, bool loadtypeinfo, value64_type typ) {
+static value64_type             value64_parse_header(DS *pds, bool loadtypeinfo, value64_type typ) {
     #define VALUE64_FLOAD_FORMAT_LEN        32
     #define VALUE64_FLOAD_FORMAT_MUNUS1     31
 
@@ -2007,7 +2007,7 @@ static value64_type             value64_parse_header(Ds *pds, bool loadtypeinfo,
  * @note If `buf` is NULL, the function performs a local allocation for the 
  *       intermediate buffer to ensure memory safety.
  */
-int                         value64_loadds(Ds *restrict pds, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf) {
+int                         value64_loadds(DS *restrict pds, value64 *restrict val, value64_type typ, bool loadtypeinfo, fs *restrict buf) {
     invraisecode(pds != NULL, ERR_NULLABLE_PTR,
         "Null pointers %p", pds);
 

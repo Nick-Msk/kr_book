@@ -62,7 +62,7 @@ static inline int       charconv(int c){
     }
 }
 
-bool                        getconvstring_ds(Ds *restrict in, fs *restrict str, bool removequot) {
+bool                        getconvstring_ds(DS *restrict in, fs *restrict str, bool removequot) {
     invraisecode(in != NULL && str != NULL, ERR_NULLABLE_PTR, 
         "Null pointers %p - %p", in, str);
 
@@ -226,14 +226,14 @@ GetlineStattus          getstring_newline_append(FILE *restrict in, fs *restrict
 bool                 getconvstring(FILE *restrict in, fs *restrict str, bool removequot) {
     invraisecode(in != NULL && str != NULL, ERR_NULLABLE_PTR,
         "Nullable input %p %p", in, str);
-    Ds s = dsCreatef(in);
+    DS s = dsCreatef(in);
     return getconvstring_ds(&s, str, removequot);
 }
 // conversion string from const char *
 bool                 getconvstring_cstr(const char *restrict in, fs *restrict str, bool removequot){
     invraisecode(in != NULL && str != NULL, ERR_NULLABLE_PTR,
         "Nullable input %p %p", in, str);
-    Ds s = dsCreateconst(in);
+    DS s = dsCreateconst(in);
     return getconvstring_ds(&s, str, removequot);
 }
 

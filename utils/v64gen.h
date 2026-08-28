@@ -166,7 +166,7 @@ extern value64                  v64GenDescRnd(v64Gen *gen);
 extern value64                  v64GenRandom(v64Gen *gen);
 
 // SOURCE based genenarator constrctors
-// source (Ds or c-str or FILE *) group
+// source (DS or c-str or FILE *) group
 extern value64                  v64GenStringToChar(v64Gen *gen);
 extern value64                  v64GenFSToChar(v64Gen *gen);
 /**
@@ -575,7 +575,7 @@ v64GenCreatorUnlimFsRnd(const char *fmt, int rndinc)
 {
     return v64GenCreatorFsRnd(-1L, fmt, rndinc);
 }
-// --------------------------- Creator from Source (c-str, FILE *, Ds *) series ------------
+// --------------------------- Creator from Source (c-str, FILE *, DS *) series ------------
 
 // RETURNS: VALUE64/CHR
 // REGITRSY ALLOCATION:
