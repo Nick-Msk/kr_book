@@ -1,4 +1,5 @@
 #include "array.h"
+#include "ds.h"
 
 
 /********************************************************************
@@ -585,6 +586,22 @@ Array                       *arrayLoadFileByName(const char *fname) {
 
 // -------------------------- (API) serialization -----------------------
 
+
+long                            arraySaveToDS(DS *restrict out, Array *restrict parr) {
+    invraisecode(ERR_NULLABLE_PTR, out != NULL && parr != NULL, 
+        "Fs nullable or arr is null %p %p", out, parr);
+
+    long        total_written = 0L;
+    const char  *typ = arrayTypeGetName(parr->flags);
+    const char  *v64_type  =  arrayGetV64typeName(parr);
+
+    // TODO: 
+    // total_written += WRITE_OR_RET(fs_dsprintf(out, "ARRAY: %s / %s : %zu\n", typ, v64_type, parr->len), -1L);
+    // total_written += WRITE_OR_RET(arraySerializeValuesToDS(out, parr), -1);
+    // total_written += WRITE_OR_RET(fs_sprintf_concat(out, "ARRAY: DONE\n"), -1);
+    return total_written;
+}
+
 long                            arraySaveTofs(fs *restrict s, const Array *restrict parr) {
     invraisecode(ERR_NULLABLE_PTR, s != NULL && parr != NULL, 
             "Fs nullable or arr is null %p %p", s, parr);
@@ -600,6 +617,11 @@ long                            arraySaveTofs(fs *restrict s, const Array *restr
 }
 
 // new DS 
+long                            arrayLoadFromDS(DS *restrict source, Array *restrict parr) {
+    long total = 0L;
+    // TODO:
+    return total;
+}
 
 long                            arrayLoadFromfs(const fs *restrict s, Array *restrict parr) {
     invraisecode(ERR_NULLABLE_PTR, fs_isnull(s),
