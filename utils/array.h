@@ -19,6 +19,8 @@
 #include "error.h"
 #include "v64gen.h"
 
+#include "ds.h"
+
 // ---------------------------------------------------------------------------------
 // --------------------------- Public Array API ------------------------------------
 // ---------------------------------------------------------------------------------
@@ -406,7 +408,7 @@ static inline const char           *arrayGetV64typeName(const Array *parr) {
     if (arrayIsV64(parr))
         return value64_typename(parr->v64type);    // query V64 API
     else
-        return "Not V64 type";
+        return "NONV64_TYPE";
 }
 
 /// @brief check if array is INT
@@ -814,6 +816,9 @@ static inline long                  arrayGenPumpall(Array *restrict parr, v64Gen
 
 // ----------------- PRINTERS/SERIALYZATION ----------------------
 
+// -------------------------------------------- DS ------------------------------------------
+extern long                         arraySaveToDS(DS *restrict out, Array *restrict parr);
+
 extern long                         arrayfprint(FILE *restrict out, const Array *restrict parr, size_t limit);
 
 static inline long                  arrayprint(const Array *parr, size_t limit){
@@ -851,6 +856,7 @@ extern long                         arraySaveTofs(fs *restrict s, const Array *r
  * @return    number of characters consumed, or -1 on error
  */
 extern long                         arrayLoadFromfs(const fs *restrict s, Array *restrict parr); 
+
 
 // ------------------ ETC. -------------------------
 
