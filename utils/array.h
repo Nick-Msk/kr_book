@@ -781,10 +781,8 @@ extern long                         arrayForeachRev(Array *restrict parr, ArrayC
     for (typeof_unqual(*(p)) *_begin_ = (p) + (len) - 1, *(elem) = _begin_; \
          (elem) >= _begin_ ; \
          --(elem))  
-// Использование:
 #define Array_pforeach_idx(parr, i) \
     for (size_t i = 0; i < (parr)->len; ++i) 
-// Array_foreach_idx_rev(my_array, i); 
 #define Array_pforeach_idx_rev(parr, i) \
     for (ssize_t i = (parr)->len - 1; i >= 0; --i)  
 

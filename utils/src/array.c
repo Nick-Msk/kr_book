@@ -1,6 +1,6 @@
 // only array.h
 #include "array.h"
-
+#include "ds.h"
 
 /********************************************************************
                  ARRAY MODULE IMPLEMENTATION
@@ -15,14 +15,44 @@ int                      g_array_rec_line        = 20;  // TODO: rework that to 
 static const int        g_array_acs_rndinc      = 5;
 static const int        g_array_desc_rndinc     = 5;
 
+// -------------------------- Factories ----------------------------
 
+// -------------------------- 1 API method per 1 filler type! --------------------------------
 
+typedef long                    (*ArrayFillRangeFunc)(Array *parr, size_t from, size_t to);
 
-// internal type
+static long                      arrayFillRangeASC(Array *parr, size_t from, size_t to);
+static long                      arrayFillRangeDESC(Array *parr, size_t from, size_t to);
+static long                      arrayFillRangeZERO(Array *parr, size_t from, size_t to);
+static long                      arrayFillRangeSAFEEMPTY(Array *parr, size_t from, size_t to);
+static long                      arrayFillRangeRND(Array *parr, size_t from, size_t to);
+static long                      arrayFillRangeASCSERIES(Array *parr, size_t from, size_t to);
+static long                      arrayFillRangeDESCSERIES(Array *parr, size_t from, size_t to);
 
-// ---------- pseudo-header for utility procedures -----------------
+// general interface
+typedef struct {
+    ArrayFillRangeFunc      typefiller;     // fill part of array
+    // others
+} FilledInterface;
 
-// ------------------------------ Utilities ------------------------
+static const FilledInterface         FILLERINTERFACE[] = {
+    [ARRAY_FILLTYPE_ASC]         = { .typefiller = arrayFillRangeASC },
+    [ARRAY_FILLTYPE_DESC]        = { .typefiller = arrayFillRangeDESC },
+    [ARRAY_FILLTYPE_ZERO]        = { .typefiller = arrayFillRangeZERO },
+    [ARRAY_FILLTYPE_SAFE_EMPTY]  = { .typefiller = arrayFillRangeSAFEEMPTY },
+    [ARRAY_FILLTYPE_RND]         = { .typefiller = arrayFillRangeRND },
+    [ARRAY_FILLTYPE_ASC_SERIES]  = { .typefiller = arrayFillRangeASCSERIES },
+    [ARRAY_FILLTYPE_DESC_SERIES] = { .typefiller = arrayFillRangeDESCSERIES },
+};
+
+// ----------------------------- Basic Filler Interfaces -------------------------------------
+static const FilledInterface      *getFilledInterface(ArrayFillType filltyp) {
+    if (filltyp < 0 || filltyp >= COUNT(FILLERINTERFACE) ) 
+        return userraise(NULL, ERR_UNSUPPORTED_INTERFACE, 
+                    "Unable to find  filler interface for %d/%s", 
+                        filltyp, arrayFillTypeGetName(filltyp));
+    return &FILLERINTERFACE[filltyp];
+}
 
 // ---------------------- TYPE FILLERS -----------------------------
 // factory-wrappers -- ACS (rnd) series
@@ -294,42 +324,6 @@ static v64GenTypedFactory          getTypedFillFactory(value64_type vt64, ArrayF
         NULL;
     return ARRAYTYPEFILLERINTERFACE[vt64][ft];
 }
-// ----------------------------- Basic Filler Interfaces -------------------------------------
-// -------------------------- 1 API method per 1 filler type! --------------------------------
-
-typedef long                    (*ArrayFillRangeFunc)(Array *parr, size_t from, size_t to);
-
-static long                      arrayFillRangeASC(Array *parr, size_t from, size_t to);
-static long                      arrayFillRangeDESC(Array *parr, size_t from, size_t to);
-static long                      arrayFillRangeZERO(Array *parr, size_t from, size_t to);
-static long                      arrayFillRangeSAFEEMPTY(Array *parr, size_t from, size_t to);
-static long                      arrayFillRangeRND(Array *parr, size_t from, size_t to);
-static long                      arrayFillRangeASCSERIES(Array *parr, size_t from, size_t to);
-static long                      arrayFillRangeDESCSERIES(Array *parr, size_t from, size_t to);
-
-// general interface
-typedef struct {
-    ArrayFillRangeFunc      typefiller;     // fill part of array
-    // others
-} FilledInterface;
-
-static const FilledInterface         FILLERINTERFACE[] = {
-    [ARRAY_FILLTYPE_ASC]         = { .typefiller = arrayFillRangeASC },
-    [ARRAY_FILLTYPE_DESC]        = { .typefiller = arrayFillRangeDESC },
-    [ARRAY_FILLTYPE_ZERO]        = { .typefiller = arrayFillRangeZERO },
-    [ARRAY_FILLTYPE_SAFE_EMPTY]  = { .typefiller = arrayFillRangeSAFEEMPTY },
-    [ARRAY_FILLTYPE_RND]         = { .typefiller = arrayFillRangeRND },
-    [ARRAY_FILLTYPE_ASC_SERIES]  = { .typefiller = arrayFillRangeASCSERIES },
-    [ARRAY_FILLTYPE_DESC_SERIES] = { .typefiller = arrayFillRangeDESCSERIES },
-};
-
-static const FilledInterface      *getFilledInterface(ArrayFillType filltyp) {
-    if (filltyp < 0 || filltyp >= COUNT(FILLERINTERFACE) ) 
-        return userraise(NULL, ERR_UNSUPPORTED_INTERFACE, 
-                    "Unable to find  filler interface for %d/%s", 
-                        filltyp, arrayFillTypeGetName(filltyp));
-    return &FILLERINTERFACE[filltyp];
-}
 
 // ----------------------------- Basic Array Interfaces -------------------------------------
 // ----- Sorting, binary search ect... 1 API method per 1 ArrayType type!
@@ -491,6 +485,7 @@ static const ArrayInterface       *getTypedInterface(ArrayType typ) {
     return &ARRAYINTERFACE[typ];
 }
 
+// -------------------------- Utilities ------------------------
 
 /**
  * @brief Allocates and initializes a new Array descriptor.
