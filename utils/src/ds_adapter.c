@@ -378,7 +378,13 @@ dsfsHelperTechprintTofs(fs *restrict out, size_t pos, const fs *restrict s, cons
     if (s) {
         size_t     len = MIN(FS_TECH_PRINT_COUNT, s->len);
         pos += WRITE_OR_RET(fs_sprintf_position(out, pos, 
-            "FS: %s: len [%zu], sz [%zu], flags [%d], s [%.*s", name, s->len, s->sz, s->flags, (unsigned) len, s->v), -1L);
+            "FS: %s: len [%zu], sz [%zu], flags [%d], s [", name, s->len, s->sz, s->flags), -1L);
+        
+        if (s->v)
+            pos += WRITE_OR_RET(fs_sprintf_position(out, pos, "%.*s", (unsigned) len, s->v), -1L);
+        else
+            pos += WRITE_OR_RET(fs_sprintf_position(out, pos, "<NULL>"), -1);
+
         if (FS_TECH_PRINT_COUNT < s->len)
             pos += WRITE_OR_RET(fs_sprintf_position(out, pos, "..."), -1L);
         pos += WRITE_OR_RET(fs_sprintf_position(out, pos, "]\n"), -1L);
@@ -977,7 +983,193 @@ tf_ds_parsers(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST fs_dstechprintf -------------------------
+static TestStatus
+tf5_fs_dstechprintf(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
 
+    /* 1. Вывод в DS_FILE */
+    test_sub("subtest %d: DS_FILE output", ++subnum);
+    {
+        const char *fname = "res/fs/dstechprintf_file.tmp";
+        FILE *fp = fopen(fname, "w+");
+        test_validatefree(fp != NULL, remove(fname), "fopen failed");
+
+        DS ds = { .type = DS_FILE, .fp = fp, .pos = 0 };
+        fs sample = fscopy("hello");
+
+        long written = fs_dstechprintf(&ds, &sample, "sample_fs");
+        test_validatefree(written > 0, (fsfree(sample), fclose(fp), remove(fname)),
+                          "expected positive written count");
+
+        // перематываем и читаем файл
+        rewind(fp);
+        char buf[256];
+        size_t n = fread(buf, 1, sizeof(buf)-1, fp);
+        buf[n] = '\0';
+
+        // проверяем, что в файле есть основные части
+        test_validatefree(strstr(buf, "sample_fs") != NULL,
+                          (fsfree(sample), fclose(fp), remove(fname)),
+                          "file content must contain name");
+        test_validatefree(strstr(buf, "hello") != NULL,
+                          (fsfree(sample), fclose(fp), remove(fname)),
+                          "file content must contain fs data");
+
+        fsfree(sample);
+        fclose(fp);
+        remove(fname);
+        fs_alloc_check(true);
+    }
+
+    /* 2. Вывод в DS_STR */
+    test_sub("subtest %d: DS_STR output", ++subnum);
+    {
+        char buffer[256];
+        DS ds = { .type = DS_STR, .ptr = buffer, .cap = sizeof(buffer), .pos = 0 };
+        fs sample = fscopy("test");
+
+        long written = fs_dstechprintf(&ds, &sample, "str_fs");
+        test_validatefree(written > 0, (fsfree(sample)), "expected positive count");
+
+        buffer[ds.pos] = '\0';
+        test_validatefree(strstr(buffer, "str_fs") != NULL,
+                          (fsfree(sample)),
+                          "DS_STR content must contain name");
+        test_validatefree(strstr(buffer, "test") != NULL,
+                          (fsfree(sample)),
+                          "DS_STR content must contain fs data");
+        test_validatefree(ds.pos == (size_t)written,
+                          (fsfree(sample)),
+                          "DS_STR pos must equal written");
+
+        fsfree(sample);
+        fs_alloc_check(true);
+    }
+
+    /* 3. Вывод в DS_FS */
+    test_sub("subtest %d: DS_FS output", ++subnum);
+    {
+        fs out = FS();
+        DS ds = { .type = DS_FS, .s = out, .pos = 0 };
+        fs sample = fscopy("world");
+
+        long written = fs_dstechprintf(&ds, &sample, "fs_fs");
+        test_validatefree(written > 0, (fsfree(sample), fsfree(out)), "expected positive count");
+
+        test_validatefree(strstr(fs_str(&out), "fs_fs") != NULL,
+                          (fsfree(sample), fsfree(out)),
+                          "DS_FS content must contain name");
+        test_validatefree(strstr(fs_str(&out), "world") != NULL,
+                          (fsfree(sample), fsfree(out)),
+                          "DS_FS content must contain fs data");
+        test_validatefree(ds.pos == (size_t)written,
+                          (fsfree(sample), fsfree(out)),
+                          "DS_FS pos must equal written");
+
+        fsfree(sample);
+        fsfree(out);
+        fs_alloc_check(true);
+    }
+
+    /* 4. Ошибка при неподдерживаемом типе DS */
+    test_sub("subtest %d: unsupported DS type", ++subnum);
+    {
+        DS ds = { .type = 100500 /* some value */, .fp = NULL, .ptr = NULL, .cap = 0, .pos = 0 };
+        fs sample = FS();
+
+        if (!try()) {
+            long res = fs_dstechprintf(&ds, &sample, "bad");
+            test_validatefree(false, (fsfree(sample)), "must raise error");
+            (void)res;
+        } else {
+            test_validatefree(true, (fsfree(sample)), "correctly raised error");
+        }
+
+        fsfree(sample);
+        fs_alloc_check(true);
+    }
+
+    /* 5. NULL выходной параметр */
+    test_sub("subtest %d: NULL output", ++subnum);
+    {
+        fs sample = FS();
+
+        if (!try()) {
+            fs_dstechprintf(NULL, &sample, "null");
+            test_validatefree(false, (fsfree(sample)), "must raise error");
+        } else {
+            test_validatefree(true, (fsfree(sample)), "correctly raised error");
+        }
+
+        fsfree(sample);
+        fs_alloc_check(true);
+    }
+
+        /* 6. Пустая строка с выделенной памятью (fscopy("")) */
+    test_sub("subtest %d: empty fs with allocated buffer", ++subnum);
+    {
+        char buffer[256];
+        DS ds = { .type = DS_STR, .ptr = buffer, .cap = sizeof(buffer), .pos = 0 };
+        fs sample = fscopy("");
+
+        long written = fs_dstechprintf(&ds, &sample, "empty_fs");
+        test_validatefree(written > 0, (fsfree(sample)), "expected positive count");
+
+        buffer[ds.pos] = '\0';
+        test_validatefree(strstr(buffer, "empty_fs") != NULL,
+                          (fsfree(sample)),
+                          "buffer must contain name");
+        test_validatefree(strstr(buffer, "len [0]") != NULL,
+                          (fsfree(sample)),
+                          "buffer must indicate len 0");
+
+        fsfree(sample);
+        fs_alloc_check(true);
+    }
+
+    /* 7. Пустой fs без памяти (FS()) */
+    test_sub("subtest %d: empty fs without memory (FS())", ++subnum);
+    {
+        char buffer[256];
+        DS ds = { .type = DS_STR, .ptr = buffer, .cap = sizeof(buffer), .pos = 0 };
+        fs sample = FS();
+
+        long written = fs_dstechprintf(&ds, &sample, "null_fs");
+        test_validatefree(written > 0, (fsfree(sample)), "expected positive count");
+
+        buffer[ds.pos] = '\0';
+        test_validatefree(strstr(buffer, "null_fs") != NULL,
+                          (fsfree(sample)),
+                          "buffer must contain name");
+        test_validatefree(strstr(buffer, "<NULL>") != NULL,
+                          (fsfree(sample)),
+                          "buffer must indicate NULL string");
+
+        fsfree(sample);
+        fs_alloc_check(true);
+    }
+
+    /* 8. NULL fs (s == NULL) */
+    test_sub("subtest %d: NULL fs (s == NULL)", ++subnum);
+    {
+        char buffer[256];
+        DS ds = { .type = DS_STR, .ptr = buffer, .cap = sizeof(buffer), .pos = 0 };
+
+        long written = fs_dstechprintf(&ds, NULL, "null_ptr");
+        test_validate(written > 0, "expected positive count");
+
+        buffer[ds.pos] = '\0';
+        test_validate(strstr(buffer, "null_ptr") != NULL,
+                      "buffer must contain name");
+        test_validate(strstr(buffer, "<NULL>") != NULL,
+                      "buffer must indicate NULL");
+    }
+
+    return TEST_PASSED;
+}
 
 // -------------------------------------------------------------------
 int
