@@ -18,6 +18,7 @@
 #include "checker.h"
 #include "common.h"
 #include "value64.h"
+#include "fs.h"
 
 // ---------------------------------------------------------------------------------
 // --------------------------- Public DS - fs adapter API --------------------------
@@ -52,6 +53,10 @@ extern int                         dsPrintf(DS *restrict ds, const char *restric
  * @return     number of successfully matched items, or -1 on error
  */
 extern int                         dsScanf(DS *restrict pds, const char *restrict msg, ...) __attribute__ ((format (scanf, 2, 3)));
+
+// -------------------------------------- fs adapter ------------------------------------------------
+extern long                        fs_dsprintf(DS *restrict out, const fs *restrict s);
+extern long                        fs_dsserialize(DS *restrict out, const fs *restrict s);
 
 // ------------------------------- SCANNERS ----------------------------------------
 

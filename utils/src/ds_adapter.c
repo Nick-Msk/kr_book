@@ -22,7 +22,7 @@
  * @return The number of characters written (excluding null terminator), 
  *         or -1 if the buffer is too small or an error occurred.
  */
-int                         dsHelperVPrintStr(char *ptr, size_t pos, size_t cap, const char *fmt, va_list ap) {
+static int                      dsHelperVPrintStr(char *ptr, size_t pos, size_t cap, const char *fmt, va_list ap) {
     int needed = vsnprintf(NULL, 0, fmt, ap);
     if (needed < 0)
         return userraise(-1, ERR_STREAM_ERROR, "Unable to vsnprintf NULL");
@@ -51,7 +51,7 @@ int                         dsHelperVPrintStr(char *ptr, size_t pos, size_t cap,
  * @param ap    variadic argument list (as passed to vfscanf)
  * @return      number of successfully matched items, or a negative value on error
  */
-static int dsHelperVScanf(const char *buf, size_t cap, size_t *ppos, const char *fmt, va_list ap) {
+static int                      dsHelperVScanf(const char *buf, size_t cap, size_t *ppos, const char *fmt, va_list ap) {
     size_t remaining = cap - *ppos;
     if (remaining == 0)
         return userraise(-1, ERR_OUT_OF_BUFFER, "Buffer exhausted");
@@ -85,7 +85,7 @@ static int dsHelperVScanf(const char *buf, size_t cap, size_t *ppos, const char 
  * @return true if parsing was successful and the value is within integer bounds, 
  *         false otherwise (raises error via @c userraise).
  */
-static bool dsHelperParseLong(const char *restrict str, long *restrict plval, size_t *restrict pos) {
+static bool                     dsHelperParseLong(const char *restrict str, long *restrict plval, size_t *restrict pos) {
     char    *endptr;
     errno = 0;
     long    val = strtol(str, &endptr, 10);
@@ -217,7 +217,7 @@ int                         dsPrintf(DS *restrict pds, const char *restrict msg,
             }
             break;
         case DS_FS:     // this is autoextendable
-            IOCHECKER(wr, fs_sprintf_position(&pds->s, pds->pos, msg, ap), -1) {
+            IOCHECKER(wr, fs_vsprintf_position(&pds->s, pds->pos, msg, ap), -1) {
                 total += wr;
                 pds->pos += wr; // iterator over fs pds->s
             }
@@ -258,7 +258,6 @@ int                         dsScanf(DS *restrict pds, const char *restrict msg, 
     va_end(ap);
     return ret;
 }
-
 
 bool                        dsParseInt(DS *restrict pds, int *restrict pval) {
     invraisecode(pds != NULL && pval != NULL, ERR_NULLABLE_PTR, 
@@ -362,15 +361,98 @@ bool                        dsParseChar(DS *restrict pds, char *restrict pval) {
             if (fscanf(pds->fp, " %c", pval) != 1) // " %c" skips whitespace
                 return userraise(false, ERR_UNABLE_PARSE_DATA, "Failed to read char from file");
             break;
-        case DS_STR:
-        case DS_FS:
-        case DS_CONSTSTR:
+        case DS_STR: case DS_FS: case DS_CONSTSTR:
             return dsHelperParseChar(dsStrbuf(pds) + pds->pos, pval, &pds->pos);
         default:
             return userraise(false, ERR_UNSUPPORTED_TYPE, "Unsupported %s", DSTypeName(pds->type));
     }
     return true;
 }
+
+// -------------------------------------- fs adapters ------------------------------------------------
+
+// Helper for techprint fs 
+static long                     
+dsfsHelperTechprintTofs(fs *restrict out, size_t pos, const fs *restrict s, const char *restrict name) {
+    long    initpos = pos;
+    if (s) {
+        size_t     len = MIN(FS_TECH_PRINT_COUNT, s->len);
+        pos += WRITE_OR_RET(fs_sprintf_position(out, pos, 
+            "FS: %s: len [%zu], sz [%zu], flags [%d], s [%.*s", name, s->len, s->sz, s->flags, (unsigned) len, s->v), -1L);
+        if (FS_TECH_PRINT_COUNT < s->len)
+            pos += WRITE_OR_RET(fs_sprintf_position(out, pos, "..."), -1L);
+        pos += WRITE_OR_RET(fs_sprintf_position(out, pos, "]\n"), -1L);
+    } else 
+        pos += WRITE_OR_RET(fs_sprintf_position(out, pos, "FS: %s: <NULL>\n", name), -1);
+    return pos - initpos; 
+}
+
+// print fs data into stream out
+long                            fs_dsprintf(DS *restrict out, const fs *restrict s) {
+    if (!out)
+        return userraise(-1L, ERR_NULL_OUTPUT, "");
+    switch (out->type) {
+        case DS_FILE:
+            fs_fprint(out->fp, s, "");
+        default:
+            return userraise(-1L, ERR_UNSUPPORTED_TYPE, "Unsupported %s", DSTypeName(out->type));
+    }
+}
+
+// techprint used temporary fs buffer (low performace) in order to have the same logic for all path
+long                            fs_dstechprintf(DS *restrict out, const fs *restrict s, const char *restrict name) {
+    if (!out)
+        return userraise(-1L, ERR_NULL_OUTPUT, "");
+    if (int_notin(out->type, DS_FILE, DS_STR, DS_FS) )
+        return userraise(-1L, ERR_UNSUPPORTED_TYPE, 
+            "Unsupported %d/%s", out->type, DSTypeName(out->type));
+
+    fs           buf = FS();      // empty
+    size_t       total_prepared, actual_written = 0;
+    // common printer for all types! 
+    // That is not very good for perf, but ok for techprint
+    off_t        res_helper = WRITE_OR_RET_ACTION(
+            dsfsHelperTechprintTofs(&buf, 0L, s, name), -1, 
+            fsfree(buf));
+    total_prepared = (size_t) res_helper;
+
+    switch (out->type) {
+        case DS_FILE: {
+            size_t written;
+            if ( (written = fwrite(buf.v, sizeof(char), buf.len, out->fp) ) < buf.len) {
+                fsfree(buf);
+                return userraise(-1L, ERR_STREAM_ERROR,
+                    "Unable to fwrite %zu bytes (only %zu)", buf.len, written);
+            }
+            actual_written = written;
+            break;
+        }
+        case DS_STR: {
+            size_t       remaining = out->cap - out->pos;
+            actual_written = (remaining < total_prepared) ? remaining : total_prepared;
+            memcpy(out->ptr + out->pos, buf.v, actual_written);
+            out->pos += actual_written;
+            break;
+        }
+        case DS_FS:
+            fs_setlen(&out->s, out->pos);   // just in case
+            fs_cat(&out->s, buf);
+            out->pos += (actual_written = total_prepared);
+            break;
+        default:    // just to avoid warning
+    }
+    fsfree(buf);
+
+    return actual_written;
+}
+
+long                            fs_dsserialize(DS *restrict out, const fs *restrict s) {
+    if (!out || !s)
+        return userraise(-1L, ERR_NULL_OUTPUT, "%p %p", out, scalbln);
+    long    total = 0L;
+    return total;
+}
+
 
 // -------------------- CONSTRUCTOTS/DESTRUCTORS -------------------
 
@@ -895,6 +977,8 @@ tf_ds_parsers(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -906,6 +990,7 @@ main( /*int argc, char *argv[] */ )
       , TESTADD(tf_ds_scanf,           "dsScanf() simple tests")
       , TESTADD(tf_ds_scanf_printf,    "dsScanf() and dsPrintf() combined tests")
       , TESTADD(tf_ds_parsers,         "dsParse<type> simple tests")
+      , TESTADD(tf5_fs_dstechprintf,   "fs_dstechprintf simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
