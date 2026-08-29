@@ -174,9 +174,17 @@ char                                    *fs_elem0(fs *s, size_t pos){
         fs_setlen(s, pos + 1);
     return fs_get(s, pos);
 }
-
 // sprintf to particular position
-long                                    fs_sprintf_position(fs *restrict s, size_t pos, const char *restrict fmt, va_list ap)
+long                                    fs_sprintf_position(fs *restrict s, size_t pos, const char *restrict fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    long    cnt = fs_vsprintf_position(s, pos, fmt, ap);
+    va_end(ap);
+    return cnt;
+}
+
+// sprintf to particular position, va_list
+long                                    fs_vsprintf_position(fs *restrict s, size_t pos, const char *restrict fmt, va_list ap)
 {
     // logenter("len %d pos %d", s->len, pos);
     va_list ap2;
@@ -184,7 +192,7 @@ long                                    fs_sprintf_position(fs *restrict s, size
     int needed = vsnprintf(NULL, 0, fmt, ap);
     // va_end(ap);
     if (needed < 0)
-        return logsimpleerr(-1, "vsnprintf length failed");
+        return logsimpleerr(-1L, "vsnprintf length failed");
 
     if (s->sz < pos + 1 + needed)
         increasesize(s, pos + 1 + needed, true);
@@ -360,33 +368,32 @@ long                                    fs_techfprint(FILE *restrict out, const 
 
 // out == 0 is OK fow now
 bool                                    fs_validate(FILE *restrict out, const fs *restrict s){
-    logenter("%p - %p", s, s ? s->v: 0);
 
     if (!s){    // TODO: think about string creation via faststring here!!
         if (out)
             fprintf(out, "null pointer");
-        return logerr(false, "null pointer");
+        return logsimpleerr(false, "null pointer");
     }
     if (!s->v){
         if (out)
             fprintf(out, "nullable string");
-        return logerr(false, "nullable string");
+        return logsimpleerr(false, "nullable string");
     }
     // depents on which iterator engine is active
     if (s->len >= s->sz){
         if (out)
             fprintf(out, "len [%zu] must be < sz [%zu]", s->len, s->sz);
-        return logerr(false, "len [%zu] must be < sz [%zu]", s->len, s->sz);
+        return logsimpleerr(false, "len [%zu] must be < sz [%zu]", s->len, s->sz);
     }
     {
         size_t len = strlen(s->v);
-        if (len < s->len){
+        if (len != s->len){
             if (out)
                 fprintf(out, "srtlen [%zu] can't be more than len [%zu]", len, s->len);
-            return logerr(false, "srtlen [%zu] can't be more than len [%zu]", len, s->len);
+            return logsimpleerr(false, "srtlen [%zu] can't be more than len [%zu]", len, s->len);
         }
     }
-    return logret(true, "true");
+    return true;
 }
 // TODO: refactor that!!!!!!!
 extern bool                             fs_free_body_alloc_checker(int *freecnt, int *alloccnt){
@@ -4424,6 +4431,219 @@ tf38_fs_icmpstr(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST fs_sprintf_position -------------------------
+static TestStatus
+tf39_fs_sprintf_position(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Запись в пустой буфер с pos=0 */
+    test_sub("subtest %d: write into empty buffer at pos 0", ++subnum);
+    {
+        fs s = fsinit(16);
+        long cnt = fs_sprintf_position(&s, 0, "hello %d", 42);
+        test_validatefree(cnt == 8, fsfree(s), "expected 8, got %ld", cnt);
+        test_validatefree(strcmp(fs_str(&s), "hello 42") == 0, fsfree(s),
+                          "expected 'hello 42', got '%s'", fs_str(&s));
+        test_validatefree(fs_len(&s) == 8, fsfree(s), "expected len 8, got %zu", fs_len(&s));
+        test_validatefree(
+            fs_validate(logfile, &s),
+            fsfree(s), 
+            "Validation failed"
+        );
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 2. Дописывание в конец (pos = len) */
+    test_sub("subtest %d: append at end", ++subnum);
+    {
+        fs s = fsinit(16);
+        long cnt = fs_sprintf_position(&s, 0, "abc");
+        cnt = fs_sprintf_position(&s, cnt, "def");
+        test_validatefree(cnt == 3, fsfree(s), "expected 3, got %ld", cnt);
+        test_validatefree(strcmp(fs_str(&s), "abcdef") == 0, fsfree(s),
+                          "expected 'abcdef', got '%s'", fs_str(&s));
+        test_validatefree(
+            fs_len(&s) == 6, 
+            fsfree(s), 
+            "expected len 6, got %zu", fs_len(&s)
+        );
+        test_validatefree(
+            fs_validate(logfile, &s),
+            fsfree(s), 
+            "Validation failed"
+        );
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 3. Перезапись в середине (pos < len) */
+    test_sub("subtest %d: overwrite at middle truncates", ++subnum);
+    {
+        fs s = fsinit(16);
+        fs_sprintf_position(&s, 0, "hello");
+        long cnt = fs_sprintf_position(&s, 1, "A");
+        test_validatefree(cnt == 1, fsfree(s), "expected 1, got %ld", cnt);
+        test_validatefree(strcmp(fs_str(&s), "hA") == 0, fsfree(s),
+                        "expected 'hA', got '%s'", fs_str(&s));
+        test_validatefree(fs_len(&s) == 2, fsfree(s), "expected len 2, got %zu", fs_len(&s));
+        test_validatefree(
+            fs_validate(logfile, &s),
+            fsfree(s), 
+            "Validation failed"
+        );
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 4. Расширение буфера при нехватке места */
+    test_sub("subtest %d: buffer expands when needed", ++subnum);
+    {
+        fs s = fsinit(4);
+        long cnt = fs_sprintf_position(&s, 0, "long text %d", 123);
+        test_validatefree(cnt == 13, fsfree(s), "expected 13, got %ld", cnt);
+        test_validatefree(fs_sz(&s) >= 14, fsfree(s), "expected sz >= 14, got%zu", fs_sz(&s));
+        test_validatefree(strcmp(fs_str(&s), "long text 123") == 0, fsfree(s),
+                          "expected 'long text 123', got '%s'", fs_str(&s));
+        test_validatefree(
+            fs_validate(logfile, &s),
+            fsfree(s), 
+            "Validation failed"
+        );
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 5. Несколько последовательных записей с разными позициями */
+    test_sub("subtest %d: multiple writes", ++subnum);
+    {
+        fs s = fsinit(16);
+        fs_sprintf_position(&s, 0, "one");
+        fs_sprintf_position(&s, 3, "-two");
+        fs_sprintf_position(&s, 7, "-three");
+        test_validatefree(strcmp(fs_str(&s), "one-two-three") == 0, fsfree(s),
+                          "expected 'one-two-three', got '%s'", fs_str(&s));
+        test_validatefree(fs_len(&s) == 13, fsfree(s), "expected len 13, got %zu", fs_len(&s));
+        test_validatefree(
+            fs_validate(logfile, &s),
+            fsfree(s), 
+            "Validation failed"
+        );
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 1. Пустой буфер (FS()) и непустое сообщение */
+    test_sub("subtest %d: empty buffer with non-empty message", ++subnum);
+    {
+        fs s = FS();   // sz=0
+        long cnt = fs_sprintf_position(&s, 0, "hello");
+        test_validatefree(cnt == 5, fsfree(s), "expected 5, got %ld", cnt);
+        test_validatefree(strcmp(fs_str(&s), "hello") == 0, fsfree(s),
+                          "expected 'hello', got '%s'", fs_str(&s));
+        test_validatefree(fs_sz(&s) >= 6, fsfree(s), "expected sz >= 6, got %zu", fs_sz(&s));
+        test_validatefree(
+            fs_validate(logfile, &s),
+            fsfree(s), 
+            "Validation failed"
+        );
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: write into FS() at pos 0", ++subnum);
+    {
+        fs s = FS();
+        int     pos = 100;
+        long cnt = fs_sprintf_position(&s, pos, "hello %d", 42);
+        test_validatefree(cnt == 8, fsfree(s), "expected 8, got %ld", cnt);
+        test_validatefree(strcmp(fs_str(&s) + pos, "hello 42") == 0, fsfree(s),
+                          "expected 'hello 42' at pos %d, got '%s'", pos, fs_str(&s));
+        // no validation here
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 2. Пустое сообщение (""), пустой буфер */
+    test_sub("subtest %d: empty message", ++subnum);
+    {
+        fs s = FS();
+        long cnt = fs_sprintf_position(&s, 0, "");
+        test_validatefree(cnt == 0, fsfree(s), "expected 0, got %ld", cnt);
+        test_validatefree(fs_str(&s) != NULL && fs_str(&s)[0] == '\0', fsfree(s),
+                          "expected empty string");
+        test_validatefree(fs_len(&s) == 0, fsfree(s), "expected len 0, got %zu", fs_len(&s));
+        test_validatefree(fs_sz(&s) >= 1, fsfree(s), "expected sz >= 1, got %zu", fs_sz(&s));
+        test_validatefree(
+            fs_validate(logfile, &s),
+            fsfree(s), 
+            "Validation failed"
+        );
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 3. Запись за пределами текущей длины (pos > len) */
+    test_sub("subtest %d: write beyond current length", ++subnum);
+    {
+        fs s = fsinit(16);
+        fs_sprintf_position(&s, 0, "a");       // len=1
+        long cnt = fs_sprintf_position(&s, 5, "b");
+        test_validatefree(cnt == 1, fsfree(s), "expected 1, got %ld", cnt);
+        test_validatefree(fs_len(&s) == 6, fsfree(s), "expected len 6, got %zu", fs_len(&s));
+        // содержимое между 1 и 4 может быть мусором, поэтому проверяем только конец
+        test_validatefree(fs_str(&s)[5] == 'b', fsfree(s), "expected 'b' at pos 5");
+        // no validation here! Writing out a bound!
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 9. Расширение при точной границе pos == sz-1 */
+    test_sub("subtest %d: buffer expansion at exact boundary", ++subnum);
+    {
+        fs s = fsinit(4);   // sz станет 8 после округления
+        long cnt1 = fs_sprintf_position(&s, 0, "abc");          // len=3
+        long cnt2 = fs_sprintf_position(&s, 3, "defghijklmnop"); // 13 символов
+        test_validatefree(cnt1 == 3, fsfree(s), "expected 3, got %ld", cnt1);
+        test_validatefree(cnt2 == 13, fsfree(s), "expected 13, got %ld", cnt2);
+        test_validatefree(strcmp(fs_str(&s), "abcdefghijklmnop") == 0, fsfree(s),
+                        "expected 'abcdefghijklmnop', got '%s'", fs_str(&s));
+        test_validatefree(fs_len(&s) == 16, fsfree(s), "expected len 16, got %zu", fs_len(&s));
+        test_validatefree(fs_sz(&s) >= 17, fsfree(s), "expected sz >= 17, got %zu", fs_sz(&s));
+        test_validatefree(
+            fs_validate(logfile, &s),
+            fsfree(s), 
+            "Validation failed"
+        );
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 5. Многократное дописывание с расширением */
+    test_sub("subtest %d: multiple appends with expansions", ++subnum);
+    {
+        fs s = fsinit(2);
+        fs_sprintf_position(&s, 0, "1");
+        fs_sprintf_position(&s, 1, "2");
+        fs_sprintf_position(&s, 2, "3");
+        fs_sprintf_position(&s, 3, "4");
+        test_validatefree(strcmp(fs_str(&s), "1234") == 0, fsfree(s),
+                          "expected '1234', got '%s'", fs_str(&s));
+        test_validatefree(fs_len(&s) == 4, fsfree(s), "expected len 4, got %zu", fs_len(&s));
+        test_validatefree(
+            fs_validate(logfile, &s),
+            fsfree(s), 
+            "Validation failed"
+        );
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -4470,7 +4690,8 @@ main( /* int argc, const char *argv[] */)
         TESTADD(tf35_fs_isempty,        "fs_isempty() simple tests"),
         TESTADD(tf36_fs_movetostr,      "fs_movetostr() simple tests"),
         TESTADD(tf37_fs_cmpstr,         "fs_cmpstr() series simple tests"),
-        TESTADD(tf38_fs_icmpstr,        "fs_icmpstr()/fs_nicmpstr()  simple tests")
+        TESTADD(tf38_fs_icmpstr,        "fs_icmpstr()/fs_nicmpstr()  simple tests"),
+        TESTADD(tf39_fs_sprintf_position,   "fs_sprintf_position simple tests")
     );
 
     return logret(0, "end...");  // as replace of logclose()

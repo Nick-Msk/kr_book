@@ -136,7 +136,7 @@ static inline fs             fscopyf(const char *fmt, ...) __attribute__ (( form
  * @warning This function may trigger a `realloc` and/or throw a system 
  *          exception if memory allocation fails.
  */
-extern long                  fs_sprintf_position(fs *restrict s, size_t pos, const char *restrict fmt, va_list ap);
+extern long                  fs_vsprintf_position(fs *restrict s, size_t pos, const char *restrict fmt, va_list ap);
 
 #define             FSEMPTY (fs){.sz = 0, .len = 0, .flags = FS_FLAG_STATIC, .v = ""}
 #define             FSLITERAL(val) (fs){.sz = strlen(val) + 1, .len = strlen(val), .flags = FS_FLAG_STATIC, .v = (char *) (val) }
@@ -229,7 +229,7 @@ static inline fs            fscopyf(const char *fmt, ...) {
     fs s = FS();
     va_list ap;
     va_start(ap, fmt);
-    fs_sprintf_position(&s, 0, fmt, ap);
+    fs_vsprintf_position(&s, 0, fmt, ap);
     va_end(ap);
     return s;
 }
@@ -574,7 +574,7 @@ static inline long           fs_sprintf(fs *restrict s, const char *restrict fmt
     invraisecode(s != 0 && fmt != 0, ERR_NULLABLE_PTR, "%p - %p", s, fmt);
     va_list ap;
     va_start(ap, fmt);
-    int res = fs_sprintf_position(s, 0, fmt, ap);
+    int res = fs_vsprintf_position(s, 0, fmt, ap);
     va_end(ap);
     return res;
 }
@@ -583,7 +583,7 @@ static inline long           fs_sprintf_concat(fs *restrict s, const char *restr
     invraisecode(s != 0 && fmt != 0, ERR_NULLABLE_PTR, "%p - %p", s, fmt);
     va_list ap;
     va_start(ap, fmt);
-    int res = fs_sprintf_position(s, s->len, fmt, ap);
+    int res = fs_vsprintf_position(s, s->len, fmt, ap);
     va_end(ap);
     return res;
 }
@@ -824,12 +824,12 @@ static inline long           fs_techprint(const fs *s, const char *name){
     return fs_techfprint(stdout, s, name);
 }
 
-extern long                   fs_fprint(FILE *restrict out, const fs *restrict s, const char *name);
+extern long                  fs_fprint(FILE *restrict out, const fs *restrict s, const char *name);
 static inline long           fs_print(const fs *restrict s, const char *restrict name){
     return fs_fprint(stdout, s, name);
 }
 
-extern long                   fs_fprintlim(FILE *restrict out, const fs *restrict s, size_t lim, const char *name);
+extern long                  fs_fprintlim(FILE *restrict out, const fs *restrict s, size_t lim, const char *name);
 static inline long           fs_printlim(const fs *restrict s, size_t lim, const char *restrict name){
     return fs_fprintlim(stdout, s, lim, name);
 }
