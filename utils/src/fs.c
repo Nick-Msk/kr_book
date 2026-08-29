@@ -29,7 +29,7 @@ static atomic_int               g_free_body_cnt         = 0;
 // ------------------------------ Utilities -------------- ----------
 
 /**
- * @brief Manages the capacity of an fs (file system) object.
+ * @brief Manages the capacity of an fs object.
  *
  * This function handles memory expansion for buffers allocated on the heap.
  * If the buffer is a fixed-size/static buffer (does not have @c FS_FLAG_ALLOC),
