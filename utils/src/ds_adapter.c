@@ -370,6 +370,7 @@ bool                        dsParseChar(DS *restrict pds, char *restrict pval) {
 }
 
 // -------------------------------------- fs adapters ------------------------------------------------
+// ------------------------------- NOTE: no call to fs.c from here -----------------------------------
 
 // Helper for techprint fs 
 static long                     
@@ -392,17 +393,49 @@ dsfsHelperTechprintTofs(fs *restrict out, size_t pos, const fs *restrict s, cons
         pos += WRITE_OR_RET(fs_sprintf_position(out, pos, "FS: %s: <NULL>\n", name), -1);
     return pos - initpos; 
 }
+// helper fs => ds
+static long
+dsfsHelperFsDs(DS *restrict out, const fs *restrict s) {
+    size_t  total_prepared = s->len, actual_written = 0L;
+    switch (out->type) {
+        case DS_FILE: {
+            size_t written = fwrite(s->v, sizeof(char), s->len, out->fp);
+            if (written < total_prepared)
+                return userraise(-1L, ERR_STREAM_ERROR,
+                    "Unable to fwrite %zu bytes (only %zu)", total_prepared, written);
+            actual_written = written;
+            break;
+        }
+        case DS_STR: {
+            size_t       remaining = out->cap - out->pos;
+            if (remaining > 0)
+                remaining--;
+            actual_written = (remaining < total_prepared) ? remaining : total_prepared;
+            if (remaining > 0)
+                memcpy(out->ptr + out->pos, s->v, actual_written);
+            out->pos += actual_written;
+            break;
+        }
+        case DS_FS:
+            fs_setlen(&out->s, out->pos);   // just in case
+            fs_cat(&out->s, *s);
+            out->pos += (actual_written = total_prepared);
+            break;
+        default:    // just to avoid warning
+    }
+    return actual_written;
+}
 
 // print fs data into stream out
 long                            fs_dsprintf(DS *restrict out, const fs *restrict s) {
     if (!out)
         return userraise(-1L, ERR_NULL_OUTPUT, "");
-    switch (out->type) {
-        case DS_FILE:
-            fs_fprint(out->fp, s, "");
-        default:
-            return userraise(-1L, ERR_UNSUPPORTED_TYPE, "Unsupported %s", DSTypeName(out->type));
-    }
+    if (!s) // that is normal behaviour, just log
+        return logsimpleret(0L, "NUll fs");
+    if (int_notin(out->type, DS_FILE, DS_STR, DS_FS) )
+        return userraise(-1L, ERR_UNSUPPORTED_TYPE, 
+            "Unsupported %d/%s", out->type, DSTypeName(out->type));
+    return dsfsHelperFsDs(out, s);
 }
 
 // techprint used temporary fs buffer (low performace) in order to have the same logic for all path
@@ -414,7 +447,7 @@ long                            fs_dstechprintf(DS *restrict out, const fs *rest
             "Unsupported %d/%s", out->type, DSTypeName(out->type));
 
     fs           buf = FS();      // empty
-    size_t       total_prepared, actual_written = 0;
+    size_t       total_prepared, actual_written = 0L;
     // common printer for all types! 
     // That is not very good for perf, but ok for techprint
     off_t        res_helper = WRITE_OR_RET_ACTION(
@@ -485,7 +518,8 @@ tf_ds_printf(const char *name)
         DS ds = dsCreatef(fp);
 
         int written = dsPrintf(&ds, "Hello %d", 42);
-        fclose(fp);
+        //fclose(fp);
+        dsFree(&ds);
         test_validate(written > 0, "dsPrintf must return > 0, got %d", written);
 
         fp = fopen(fname, "r");
@@ -504,13 +538,16 @@ tf_ds_printf(const char *name)
         DS ds = dsCreatef(fp);
 
         int written = dsPrintf(&ds, "%d + %d = %d", 2, 3, 5);
-        fclose(fp);
+        //fclose(fp);
+        dsFree(&ds);
+
         test_validate(written > 0, "dsPrintf must return > 0");
 
         fp = fopen(fname, "r");
         char buf[32] = {0};
         fread(buf, 1, sizeof(buf)-1, fp);
         fclose(fp);
+        
         test_validate(strcmp(buf, "2 + 3 = 5") == 0,
                       "File must contain '2 + 3 = 5', got '%s'", buf);
     }
@@ -624,7 +661,8 @@ tf_ds_scanf(const char *name)
         double d;
         char s[10];
         int ret = dsScanf(&ds, "%d %lf %s", &i, &d, s);
-        fclose(fp);
+        //fclose(fp);
+        dsFree(&ds);
         test_validate(ret == 3, "dsScanf must return 3, got %d", ret);
         test_validate(i == 42 && d == 3.14 && strcmp(s, "hello") == 0,
                       "File values: i=%d, d=%.2f, s='%s' (expected 42, 3.14, 'hello')",
@@ -844,7 +882,8 @@ tf_ds_parsers(const char *name)
         test_validatefree(dsParseInt(&ds, &val) && val == 77,
                           fclose(fp),
                           "dsParseInt file: expected 77, got %d", val);
-        fclose(fp);
+        //fclose(fp);
+        dsFree(&ds);
     }
 
     test_sub("subtest %d: dsParseInt fails on non‑numeric", ++subnum);
@@ -993,32 +1032,29 @@ tf5_fs_dstechprintf(const char *name)
     /* 1. DS_FILE output */
     test_sub("subtest %d: DS_FILE output", ++subnum);
     {
-        const char *fname = "res/ds_adapter/dstechprintf_file.ds";
-        FILE *fp = fopen(fname, "w+");
-        test_validate(fp != NULL, "fopen failed");
+        DS      ds = dsCreateFilename("res/ds_adapter/dstechprintf_file.ds", "w+");
+        fs      sample = fscopy("hello");
 
-        DS ds = dsCreatef(fp);
-        fs sample = fscopy("hello");
-
-        long written = fs_dstechprintf(&ds, &sample, "sample_fs");
-        test_validatefree(written > 0, (fsfree(sample), fclose(fp)),
+        long    written = fs_dstechprintf(&ds, &sample, "sample_fs");
+        test_validatefree(written > 0, (fsfree(sample), dsFree(&ds)),
                           "expected positive written count");
 
         // перематываем и читаем файл
-        rewind(fp);
-        char buf[256];
-        size_t n = fread(buf, 1, sizeof(buf)-1, fp);
+        rewind(ds.fp);
+        char    buf[256];
+        size_t  n = fread(buf, 1, sizeof(buf)-1, ds.fp);
         buf[n] = '\0';
 
         test_validatefree(strstr(buf, "sample_fs") != NULL,
-                          (fsfree(sample), fclose(fp)),
+                          (fsfree(sample), dsFree(&ds)),
                           "file content must contain name");
         test_validatefree(strstr(buf, "hello") != NULL,
-                          (fsfree(sample), fclose(fp)),
+                          (fsfree(sample), dsFree(&ds)),
                           "file content must contain fs data");
 
         fsfree(sample);
-        fclose(fp);
+        //fclose(fp);
+        dsFree(&ds);
         fs_alloc_check(true);
     }
 
@@ -1170,6 +1206,179 @@ tf5_fs_dstechprintf(const char *name)
 
     return TEST_PASSED;
 }
+
+// ------------------------- TEST fs_dsprintf -------------------------
+static TestStatus
+tf6_fs_dsprintf(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Вывод в DS_FILE */
+    test_sub("subtest %d: DS_FILE output", ++subnum);
+    {
+        const char *fname = "res/ds_adapter/dsprintf_file.ds";
+        DS ds = dsCreateFilename(fname, "w+");
+        test_validatefree(ds.fp != NULL, (dsFree(&ds)), "can't open file");
+
+        fs sample = fscopy("hello");
+        long written = fs_dsprintf(&ds, &sample);
+        test_validatefree(written == 5, (dsFree(&ds), fsfree(sample)),
+                          "expected 5, got %ld", written);
+
+        rewind(ds.fp);
+        char buf[16];
+        size_t n = fread(buf, 1, sizeof(buf)-1, ds.fp);
+        buf[n] = '\0';
+        test_validatefree(strcmp(buf, "hello") == 0,
+                          (dsFree(&ds), fsfree(sample)),
+                          "file content mismatch: '%s'", buf);
+
+        dsFree(&ds);
+        fsfree(sample);
+        fs_alloc_check(true);
+    }
+
+    /* 2. Вывод в DS_STR с достаточной ёмкостью */
+    test_sub("subtest %d: DS_STR output, enough capacity", ++subnum);
+    {
+        char buffer[256];
+        DS ds = dsCreatestrCap(buffer, sizeof(buffer));
+        fs sample = fscopy("world");
+
+        long written = fs_dsprintf(&ds, &sample);
+        test_validatefree(written == 5, (fsfree(sample)), "expected 5, got %ld", written);
+
+        buffer[ds.pos] = '\0';
+        test_validatefree(strcmp(buffer, "world") == 0,
+                          (fsfree(sample)),
+                          "buffer mismatch: '%s'", buffer);
+        test_validatefree(ds.pos == 5, (fsfree(sample)),
+                          "pos expected 5, got %zu", ds.pos);
+
+        fsfree(sample);
+        fs_alloc_check(true);
+    }
+
+    /* 3. Вывод в DS_STR с ограниченной ёмкостью (truncate) */
+    test_sub("subtest %d: DS_STR output, limited capacity", ++subnum);
+    {
+        char buffer[4];   // реально поместится 3 символа + '\0'
+        DS ds = dsCreatestrCap(buffer, sizeof(buffer));
+        fs sample = fscopy("hello");
+
+        long written = fs_dsprintf(&ds, &sample);
+        test_validatefree(written == 3, (fsfree(sample)),
+                          "expected truncated 3, got %ld", written);
+
+        buffer[ds.pos] = '\0';
+        test_validatefree(strcmp(buffer, "hel") == 0,
+                          (fsfree(sample)),
+                          "buffer mismatch: '%s'", buffer);
+        test_validatefree(ds.pos == 3, (fsfree(sample)),
+                          "pos expected 3, got %zu", ds.pos);
+
+        fsfree(sample);
+        fs_alloc_check(true);
+    }
+
+    /* 4. Вывод в DS_FS */
+    test_sub("subtest %d: DS_FS output", ++subnum);
+    {
+        fs out = FS();
+        DS ds = dsCreatefs(&out);   // владение out переходит в ds
+        fs sample = fscopy("fsdata");
+
+        long written = fs_dsprintf(&ds, &sample);
+        test_validatefree(written == 6, (dsFree(&ds), fsfree(sample)),
+                          "expected 6, got %ld", written);
+
+        test_validatefree(strcmp(fs_str(&ds.s), "fsdata") == 0,
+                          (dsFree(&ds), fsfree(sample)),
+                          "DS_FS content mismatch");
+
+        dsFree(&ds);
+        fsfree(sample);
+        fs_alloc_check(true);
+    }
+
+    /* 5. Пустая строка с выделенной памятью */
+    test_sub("subtest %d: empty fs with allocated buffer", ++subnum);
+    {
+        char buffer[16];
+        DS ds = dsCreatestrCap(buffer, sizeof(buffer));
+        fs sample = fscopy("");
+
+        long written = fs_dsprintf(&ds, &sample);
+        test_validatefree(written == 0, (fsfree(sample)), "expected 0, got %ld", written);
+
+        fsfree(sample);
+        fs_alloc_check(true);
+    }
+
+    /* 6. Пустой fs без памяти (FS()) */
+    test_sub("subtest %d: empty fs without memory (FS())", ++subnum);
+    {
+        char buffer[16];
+        DS ds = dsCreatestrCap(buffer, sizeof(buffer));
+        fs sample = FS();
+
+        long written = fs_dsprintf(&ds, &sample);
+        test_validatefree(written == 0, (fsfree(sample)), "expected 0, got %ld", written);
+
+        fsfree(sample);
+        fs_alloc_check(true);
+    }
+
+    /* 7. NULL fs (s == NULL) */
+    test_sub("subtest %d: NULL fs (s == NULL)", ++subnum);
+    {
+        char buffer[16];
+        DS ds = dsCreatestrCap(buffer, sizeof(buffer));
+
+        long written = fs_dsprintf(&ds, NULL);
+        test_validate(written == 0, "expected 0, got %ld", written);
+
+        fs_alloc_check(true);
+    }
+
+    /* 8. Ошибка при неподдерживаемом типе DS */
+    test_sub("subtest %d: unsupported DS type", ++subnum);
+    {
+        DS ds = {0};
+        ds.type = (DSType)999;
+
+        fs sample = fscopy("x");
+        if (!try()) {
+            fs_dsprintf(&ds, &sample);
+            test_validatefree(false, (fsfree(sample)), "must raise error");
+        } else {
+            test_validatefree(true, (fsfree(sample)), "correctly raised error");
+        }
+
+        fsfree(sample);
+        fs_alloc_check(true);
+    }
+
+    /* 9. NULL выходной параметр */
+    test_sub("subtest %d: NULL output", ++subnum);
+    {
+        fs sample = fscopy("x");
+
+        if (!try()) {
+            fs_dsprintf(NULL, &sample);
+            test_validatefree(false, (fsfree(sample)), "must raise error");
+        } else {
+            test_validatefree(true, (fsfree(sample)), "correctly raised error");
+        }
+
+        fsfree(sample);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -1182,6 +1391,7 @@ main( /*int argc, char *argv[] */ )
       , TESTADD(tf_ds_scanf_printf,    "dsScanf() and dsPrintf() combined tests")
       , TESTADD(tf_ds_parsers,         "dsParse<type> simple tests")
       , TESTADD(tf5_fs_dstechprintf,   "fs_dstechprintf simple test")
+      , TESTADD(tf6_fs_dsprintf,       "fs_dsprintf simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()

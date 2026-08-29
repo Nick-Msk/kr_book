@@ -57,6 +57,8 @@ extern int                         dsScanf(DS *restrict pds, const char *restric
 // -------------------------------------- fs adapter ------------------------------------------------
 extern long                        fs_dsprintf(DS *restrict out, const fs *restrict s);
 extern long                        fs_dsserialize(DS *restrict out, const fs *restrict s);
+extern long                        fs_dstechprintf(DS *restrict out, const fs *restrict s, const char *restrict name);
+
 
 // ------------------------------- SCANNERS ----------------------------------------
 
