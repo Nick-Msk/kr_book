@@ -97,19 +97,28 @@ typedef struct DS {
  * @param[out] DS Pointer to the DS structure to be initialized.
  * @param[in]  fp Pointer to the input file (FILE*).
  */
-extern bool                    dsInitf(DS *restrict pds, FILE *restrict fp);
+extern bool                     dsInitf(DS *restrict pds, FILE *restrict fp);
 /**
  * @brief Initializes a DS object for reading from a file. wrapper for dsInitf
  * 
  * @param[in]  fp Pointer to the input file (FILE*).
  * @return     DS (initialied or not)
  */
-static inline DS               dsCreatef(FILE *fp) {
-    DS      tmp = DSFILE();
-    if (dsInitf(&tmp, fp) )
-        return tmp;
-    DS      empty = {0};
-    return empty;
+static inline DS                dsCreatef(FILE *fp) {
+    DS      res = DSFILE();
+    if (dsInitf(&res, fp) )
+        return res;
+    res = (DS) {0};
+    return res;
+}
+extern bool                     dsInitFilename(DS *restrict pds, const char *restrict fname, const char *restrict mode);
+
+static inline DS                dsCreateFilename(const char *restrict fname, const char *restrict mode) {
+    DS      res = DSFILE();
+    if (dsInitFilename(&res, fname, mode) )
+        return res;
+    res = (DS) {0};
+    return res;
 }
 /**
  * @brief Initializes a Datasource (DS) object for reading from a c-string.
@@ -205,13 +214,22 @@ static inline DS                dsCreatefsempty(void) {
     return dsCreatefs(&tmp);
 }
 
-// DS_FS only
+#endif  /* !NO_FSDS */   
+
+// DS_FS or DS_FILE
 static inline void              dsFree(DS *pds) {
-    if (pds && pds->type == DS_FS)
-        fsfree(pds->s);
+    if (pds) {
+#ifndef NO_FSDS
+        if (pds->type == DS_FS)
+            fsfree(pds->s);
+#endif  /* !NO_FSDS */   
+        if (pds->type == DS_FILE)
+            fclose(pds->fp);
+        *pds = (DS) {0};
+    }
 }
 
-#endif  /* !NO_FSDS */   
+#define DSFREE(ds) dsFree(&(ds))
 
 // ----------------------------------------------------------------------
 

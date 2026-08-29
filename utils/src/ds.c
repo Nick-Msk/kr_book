@@ -91,6 +91,17 @@ bool                        dsInitf(DS *restrict pds, FILE *restrict fp) {
     return true;
 }
 
+bool                        dsInitFilename(DS *restrict pds, const char *restrict fname, const char *restrict mode) {
+    if (pds == NULL || fname == NULL || mode == NULL)
+        return false;
+    FILE *f = fopen(fname, mode);
+    if (f == NULL)
+        return sysraise(false, 
+            "Unable to open file '%s' for '%s'", fname, mode);
+    return dsInitf(pds, f);     // now pds owned f
+}
+
+
 bool                        dsInitstrCap(DS *restrict pds, char *restrict buf, size_t cap) {
     if (pds == NULL || buf == NULL)
         return false;
@@ -348,7 +359,8 @@ tf_ds(const char *name)
         test_validate(dsgetc(&ds) == 's', "Third char must be 's'");
         test_validate(dsgetc(&ds) == 't', "Fourth char must be 't'");
         test_validate(dsgetc(&ds) == EOF, "After end must be EOF");
-        fclose(fp);
+        //fclose(fp);
+        dsFree(&ds);
     }
 
     /* ========== 6. dsungetc для файла ========== */
@@ -367,7 +379,8 @@ tf_ds(const char *name)
         dsungetc(c, &ds);
         int c2 = dsgetc(&ds);
         test_validate(c2 == 'Z', "After ungetc, char must be 'Z' again");
-        fclose(fp);
+        //fclose(fp);
+        dsFree(&ds);
     }
 
     /* ========== 7. dsTechFPrint для строки (вывод в файл) ========== */
@@ -840,6 +853,110 @@ tf_ds_fs(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST dsCreateFilename / dsInitFilename -------------------------
+static TestStatus
+tf5_ds_create_filename(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Создание нового файла для записи, закрытие через dsFree */
+    test_sub("subtest %d: create new file for write", ++subnum);
+    {
+        const char *fname = "res/ds/ds_create_write.tmp";
+        DS ds = dsCreateFilename(fname, "w");
+        test_validatefree(ds.fp != NULL, (dsFree(&ds)),
+                          "file must be opened for writing");
+
+        fprintf(ds.fp, "hello\n");
+        dsFree(&ds);   // dsFree теперь закрывает FILE*
+        fs_alloc_check(true);
+    }
+
+    /* 2. Открытие существующего файла для чтения */
+    test_sub("subtest %d: open existing file for read", ++subnum);
+    {
+        const char *fname = "res/ds/ds_create_read.tmp";
+        FILE *w = fopen(fname, "w");
+        test_validate(w != NULL, "can't create file");
+        fputs("world", w);
+        fclose(w);
+
+        DS ds = dsCreateFilename(fname, "r");
+        test_validatefree(ds.fp != NULL, (dsFree(&ds)),
+                          "file must be opened for reading");
+
+        char buf[10];
+        size_t n = fread(buf, 1, sizeof(buf)-1, ds.fp);
+        buf[n] = '\0';
+        test_validatefree(strcmp(buf, "world") == 0,
+                          (dsFree(&ds)),
+                          "content mismatch: '%s'", buf);
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* 3. Открытие несуществующего файла для чтения должно завершиться ошибкой */
+    test_sub("subtest %d: open non-existing for read fails", ++subnum);
+    {
+        const char *fname = "res/ds/no_such_file.tmp";
+        DS ds = dsCreateFilename(fname, "r");
+        test_validate(ds.fp == NULL,
+                      "expected fp == NULL, got %p", (void*)ds.fp);
+        // dsFree не вызываем, так как fp == NULL (или вызвать и проверить, что не падает)
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* 4. Режим добавления */
+    test_sub("subtest %d: append mode", ++subnum);
+    {
+        const char *fname = "res/ds/ds_create_append.tmp";
+        FILE *w = fopen(fname, "w");
+        test_validate(w != NULL, "can't create file");
+        fputs("one", w);
+        fclose(w);
+
+        DS ds = dsCreateFilename(fname, "a");
+        test_validatefree(ds.fp != NULL, (dsFree(&ds)),
+                          "file must be opened for append");
+        fputs("two", ds.fp);
+        dsFree(&ds);
+
+        FILE *r = fopen(fname, "r");
+        test_validate(r != NULL, "can't reopen for check");
+        char buf[20];
+        size_t n = fread(buf, 1, sizeof(buf)-1, r);
+        buf[n] = '\0';
+        test_validatefree(strcmp(buf, "onetwo") == 0,
+                          (fclose(r)),
+                          "append content mismatch: '%s'", buf);
+        fclose(r);
+        fs_alloc_check(true);
+    }
+
+    /* 5. NULL аргументы */
+    test_sub("subtest %d: NULL arguments fail", ++subnum);
+    {
+        DS tmp = DSFILE();
+        bool ok1 = dsInitFilename(NULL, "file", "r");
+        bool ok2 = dsInitFilename(&tmp, NULL, "r");
+        bool ok3 = dsInitFilename(&tmp, "file", NULL);
+
+        test_validate(!ok1 && !ok2 && !ok3,
+                      "all NULL variants must fail");
+
+        // dsCreateFilename с NULL должен вернуть пустой DS
+        DS bad = dsCreateFilename(NULL, "r");
+        test_validate(bad.fp == NULL && bad.type == 0,
+                      "dsCreateFilename(NULL) must return empty DS");
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -847,10 +964,11 @@ main( /*int argc, char *argv[] */ )
     logsimpleinit("Start");
 
     testenginestd(
-        TESTADD(tf_ds,           "DS (DataSource) simple tests"),
-        TESTADD(tf_ds_extra,     "DS additional functions"),
-        TESTADD(tf_ds_putc,      "dsputc simple test"),
-        TESTADD(tf_ds_fs,        "dsputc / dsgetc for DS_FS test")
+        TESTADD(tf_ds,                  "DS (DataSource) simple tests")
+      , TESTADD(tf_ds_extra,            "DS additional functions")
+      , TESTADD(tf_ds_putc,             "dsputc simple test")
+      , TESTADD(tf_ds_fs,               "dsputc / dsgetc for DS_FS test")
+      , TESTADD(tf5_ds_create_filename, "dsCreateFilename/dsInitFilename simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
