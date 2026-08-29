@@ -447,12 +447,15 @@ long                            fs_dstechprintf(DS *restrict out, const fs *rest
             "Unsupported %d/%s", out->type, DSTypeName(out->type));
 
     fs           buf = FS();      // empty
-    size_t       total_prepared, actual_written = 0L;
     // common printer for all types! 
     // That is not very good for perf, but ok for techprint
-    off_t        res_helper = WRITE_OR_RET_ACTION(
-            dsfsHelperTechprintTofs(&buf, 0L, s, name), -1, 
-            fsfree(buf));
+    WRITE_OR_RET_ACTION(dsfsHelperTechprintTofs(&buf, 0L, s, name), -1, 
+                        fsfree(buf));
+
+    long  actual_written = dsfsHelperFsDs(out, &buf);
+    fsfree(buf);
+    return actual_written;
+    /*
     total_prepared = (size_t) res_helper;
 
     switch (out->type) {
@@ -482,7 +485,7 @@ long                            fs_dstechprintf(DS *restrict out, const fs *rest
     }
     fsfree(buf);
 
-    return actual_written;
+    return actual_written; */
 }
 
 long                            fs_dsserialize(DS *restrict out, const fs *restrict s) {
