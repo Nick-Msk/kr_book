@@ -236,8 +236,10 @@ static inline fs            fscopyf(const char *fmt, ...) {
 
 // -------------------- ACCESS AND MODIFICATORS ------------------------
 
-static inline long           fs_sprintf(fs *restrict s, const char *restrict fmt, ...) __attribute__ (( format (printf, 2, 3) ) );
-static inline long           fs_sprintf_concat(fs *restrict s, const char *restrict fmt, ...)  __attribute__ (( format (printf, 2, 3) ) );
+static inline long           fs_sprintf(fs *restrict s, const char *restrict fmt, ...) 
+    __attribute__ (( format (printf, 2, 3) ) );
+static inline long           fs_sprintf_concat(fs *restrict s, const char *restrict fmt, ...)
+    __attribute__ (( format (printf, 2, 3) ) );
 
 // move only heap alloc fs
 extern fs                    fs_move(fs *orig);
@@ -587,6 +589,9 @@ static inline long           fs_sprintf_concat(fs *restrict s, const char *restr
     va_end(ap);
     return res;
 }
+// sprintf to particular position
+extern long                  fs_sprintf_position(fs *restrict s, size_t pos, const char *restrict fmt, ...)
+    __attribute__ (( format (printf, 3, 4) ) );
 
 // fast in-place left substring
 static inline fs             fs_left(fs *s, size_t cnt){
