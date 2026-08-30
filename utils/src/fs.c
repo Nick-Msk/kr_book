@@ -4644,6 +4644,134 @@ tf39_fs_sprintf_position(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST fs_catstr / fs_catmem -------------------------
+static TestStatus
+tf40_fs_catstr_mem(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ================= fs_catstr ================= */
+
+    /* 1. Конкатенация в пустой fs */
+    test_sub("subtest %d: catstr into empty fs", ++subnum);
+    {
+        fs s = FS();
+        fs_catstr(&s, "hello");
+        test_validatefree(fs_len(&s) == 5, fsfree(s),
+                          "len expected 5, got %zu", fs_len(&s));
+        test_validatefree(strcmp(fs_str(&s), "hello") == 0, fsfree(s),
+                          "content mismatch: '%s'", fs_str(&s));
+        test_validatefree(fs_sz(&s) >= 6, fsfree(s),
+                          "sz expected >= 6, got %zu", fs_sz(&s));
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 2. Конкатенация к непустой строке */
+    test_sub("subtest %d: catstr append", ++subnum);
+    {
+        fs s = fscopy("Hello ");
+        fs_catstr(&s, "world");
+        test_validatefree(strcmp(fs_str(&s), "Hello world") == 0, fsfree(s),
+                          "content mismatch: '%s'", fs_str(&s));
+        test_validatefree(fs_len(&s) == 11, fsfree(s),
+                          "len expected 11, got %zu", fs_len(&s));
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 3. Конкатенация пустой строки */
+    test_sub("subtest %d: catstr empty source", ++subnum);
+    {
+        fs s = fscopy("abc");
+        fs_catstr(&s, "");
+        test_validatefree(strcmp(fs_str(&s), "abc") == 0, fsfree(s),
+                          "content must stay 'abc'");
+        test_validatefree(fs_len(&s) == 3, fsfree(s),
+                          "len expected 3, got %zu", fs_len(&s));
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 4. Расширение буфера */
+    test_sub("subtest %d: catstr buffer expansion", ++subnum);
+    {
+        fs s = fsinit(4);   // небольшой буфер
+        fs_catstr(&s, "long text");
+        test_validatefree(strcmp(fs_str(&s), "long text") == 0, fsfree(s),
+                          "content mismatch: '%s'", fs_str(&s));
+        test_validatefree(fs_sz(&s) >= 10, fsfree(s),
+                          "sz expected >= 10, got %zu", fs_sz(&s));
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* ================= fs_catmem ================= */
+
+    /* 5. Конкатенация фрагмента заданной длины */
+    test_sub("subtest %d: catmem append fixed size", ++subnum);
+    {
+        fs s = fscopy("abc");
+        fs_catmem(&s, "defgh", 3);   // добавит только "def"
+        test_validatefree(strcmp(fs_str(&s), "abcdef") == 0, fsfree(s),
+                          "content mismatch: '%s'", fs_str(&s));
+        test_validatefree(fs_len(&s) == 6, fsfree(s),
+                          "len expected 6, got %zu", fs_len(&s));
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 6. Конкатенация фрагмента с нулевым символом внутри */
+    test_sub("subtest %d: catmem with embedded null", ++subnum);
+    {
+        fs s = fscopy("abc");
+        const char data[] = {'d', '\0', 'e'};
+        fs_catmem(&s, data, sizeof(data) - 1);
+        test_validatefree(fs_len(&s) == 5, fsfree(s),
+                          "len expected 5, got %zu", fs_len(&s));
+        // Проверяем, что первые символы корректны, включая встроенный '\0'
+        test_validatefree(memcmp(fs_str(&s), "abc", 3) == 0, fsfree(s),
+                          "prefix mismatch");
+        test_validatefree(fs_str(&s)[3] == 'd', fsfree(s),
+                          "byte at pos 3 must be 'd'");
+        test_validatefree(fs_str(&s)[4] == '\0', fsfree(s),
+                          "byte at pos 4 must be '\\0'");
+        test_validatefree(fs_str(&s)[5] == '\0', fsfree(s),
+                          "byte at pos 5 must be '\\0'");
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 7. size = 0 */
+    test_sub("subtest %d: catmem zero size", ++subnum);
+    {
+        fs s = fscopy("abc");
+        fs_catmem(&s, "xyz", 0);
+        test_validatefree(strcmp(fs_str(&s), "abc") == 0, fsfree(s),
+                          "content must stay 'abc'");
+        test_validatefree(fs_len(&s) == 3, fsfree(s),
+                          "len expected 3, got %zu", fs_len(&s));
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    /* 8. Расширение буфера для catmem */
+    test_sub("subtest %d: catmem buffer expansion", ++subnum);
+    {
+        fs s = fsinit(2);
+        fs_catmem(&s, "abcdef", 6);
+        test_validatefree(fs_len(&s) == 6, fsfree(s),
+                          "len expected 6, got %zu", fs_len(&s));
+        test_validatefree(memcmp(fs_str(&s), "abcdef", 6) == 0, fsfree(s),
+                          "content mismatch");
+        fsfree(s);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // ------------------------------------------------------------------------------------------------------------------------------
 int
 main( /* int argc, const char *argv[] */)
@@ -4691,7 +4819,8 @@ main( /* int argc, const char *argv[] */)
         TESTADD(tf36_fs_movetostr,      "fs_movetostr() simple tests"),
         TESTADD(tf37_fs_cmpstr,         "fs_cmpstr() series simple tests"),
         TESTADD(tf38_fs_icmpstr,        "fs_icmpstr()/fs_nicmpstr()  simple tests"),
-        TESTADD(tf39_fs_sprintf_position,   "fs_sprintf_position simple tests")
+        TESTADD(tf39_fs_sprintf_position,   "fs_sprintf_position simple tests"),
+        TESTADD(tf40_fs_catstr_mem,     "fs_catstr / fs_catmem simple tests")
     );
 
     return logret(0, "end...");  // as replace of logclose()

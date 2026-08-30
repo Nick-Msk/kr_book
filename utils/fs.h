@@ -555,14 +555,23 @@ static inline fs             fs_reverse(fs str){
 extern void                  fs_sort(fs *s, bool asc);
 // ----------------------------------------------------------------- CAT/CPY/ETC -------------------------------------------------
 extern fs                    fs_cat(fs *target, fs source);
-static inline fs             fs_catstr(fs *restrict target, const char *restrict source){
+// concatenate c-str
+static inline fs             fs_catstr(fs *restrict target, const char *restrict source) {
     fs l = fsliteral(source);
     return fs_cat(target, l);
+}
+// concatenant c-str with size, INTERNAL
+static inline fs            fs_catmem(fs *restrict target, const char *restrict source, size_t len) {
+    fs l = (fs) { .v = (char *) source, .flags = FS_FLAG_STATIC, .len = len, .sz = len + 1};
+    fs_cat(target, l);
+    fs_setlen(target, target->len);
+    
+    return *target;
 }
 // put beginner at the start position of the target
 extern fs                    fs_rev_catstr(fs *restrict target, const char *restrict beginner);
 
-static inline fs             fs_cpy(fs *target, fs source){
+static inline fs             fs_cpy(fs *target, fs source) {
     target->len = 0;
     return fs_cat(target, source);
 }
