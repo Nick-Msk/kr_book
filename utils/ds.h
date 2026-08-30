@@ -260,13 +260,23 @@ extern int                     dsungetc(int c, DS *pds);
 extern int                      dsreplacec(int c, DS *pds);
 
 /**
- * @brief Pushes ANY character into the stream (DS_STR, DS_FS)
+ * @brief Pushes ANY character into the stream (DS_STR, DS_FS, DS_FILE)
  *  
  * @param[in]  c The character to push back.
  * @param[in,out] ds Pointer to the data source.
  * @return The character 'c' if successful, or @c EOF if the operation failed.
  */
 extern int                      dsputc(int c, DS *pds);
+/**
+ * @brief Pushes Ecraned sequence for character into the stream
+ *  
+ * @param[in]  c The ecraning character to push back.
+ * @param[in,out] ds Pointer to the data source.
+ * @return The character 'c' if successful, or @c EOF if the operation failed.
+ */
+extern int                      dsputcEcran(int c, DS *pds);
+
+extern long                     dswrite(DS *restrict out, const char *ptr, size_t len);
 
 /**
  * @brief Debugging print implementation.

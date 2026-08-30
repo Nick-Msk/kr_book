@@ -217,6 +217,64 @@ int                         dsputc(int c, DS *pds) {
     }
 }
 
+int                      dsputcEcran(int c, DS *pds) {
+    switch (c) {
+        case '"':   WRITE_OR_RET(dsputc('\\', pds), EOF); 
+                    WRITE_OR_RET(dsputc('"', pds), EOF);  
+            break;
+        case '\\':  WRITE_OR_RET(dsputc('\\', pds), EOF); 
+                    WRITE_OR_RET(dsputc('\\', pds), EOF); 
+            break;
+        case '\n':  WRITE_OR_RET(dsputc('\\', pds), EOF); 
+                    WRITE_OR_RET(dsputc('n', pds), EOF);
+            break;
+        case '\r':  WRITE_OR_RET(dsputc('\\', pds), EOF); 
+                    WRITE_OR_RET(dsputc('r', pds), EOF);
+            break;
+        case '\t':  WRITE_OR_RET(dsputc('\\', pds), EOF); 
+                    WRITE_OR_RET(dsputc('t', pds), EOF);
+            break;
+        default:    WRITE_OR_RET(dsputc(c, pds), EOF);   
+            break;
+    }
+    return c;
+}
+
+long                     dswrite(DS *restrict out, const char *ptr, size_t len) {
+
+    size_t  total_prepared = len, actual_written = 0L;
+    switch (out->type) {
+        case DS_FILE: {
+            size_t written = fwrite(ptr, sizeof(char), total_prepared, out->fp);
+            if (written < total_prepared)
+                return userraise(-1L, ERR_STREAM_ERROR,
+                    "Unable to fwrite %zu bytes (only %zu)", total_prepared, written);
+            actual_written = written;
+            break;
+        }
+        case DS_STR: {
+            size_t       remaining = out->cap - out->pos;
+            if (remaining > 0)
+                remaining--;
+            actual_written = (remaining < total_prepared) ? remaining : total_prepared;
+            if (remaining > 0)
+                memcpy(out->ptr + out->pos, ptr, actual_written);
+            out->pos += actual_written;
+            break;
+        }
+#ifndef NO_FSDS
+        case DS_FS:
+            fs_setlen(&out->s, out->pos);   // just in case
+            fs_catmem(&out->s, ptr, total_prepared);
+            out->pos += (actual_written = total_prepared);
+            break;
+#endif  /* !NO_FSDS */  
+        default:    // just to avoid warning
+    }
+
+    return actual_written;
+}
+
 int                         dsTechFPrint(FILE *restrict out, const DS *restrict pds, const char *restrict name) {
     if (!pds || !out) 
         return -1;
@@ -900,7 +958,7 @@ tf5_ds_create_filename(const char *name)
     /* 3. Открытие несуществующего файла для чтения должно завершиться ошибкой */
     test_sub("subtest %d: open non-existing for read fails", ++subnum);
     {
-        const char *fname = "res/ds/no_such_file.tmp";
+        const char *fname = "res/ds/no_such_file.ds";
         DS ds = dsCreateFilename(fname, "r");
         test_validate(ds.fp == NULL,
                       "expected fp == NULL, got %p", (void*)ds.fp);
@@ -912,7 +970,7 @@ tf5_ds_create_filename(const char *name)
     /* 4. Режим добавления */
     test_sub("subtest %d: append mode", ++subnum);
     {
-        const char *fname = "res/ds/ds_create_append.tmp";
+        const char *fname = "res/ds/ds_create_append.ds";
         FILE *w = fopen(fname, "w");
         test_validate(w != NULL, "can't create file");
         fputs("one", w);
@@ -957,6 +1015,283 @@ tf5_ds_create_filename(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST dswrite -------------------------
+static TestStatus
+tf6_dswrite(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Запись в DS_FILE */
+    test_sub("subtest %d: DS_FILE write", ++subnum);
+    {
+        const char *fname = "res/ds/dswrite_file.ds";
+        DS ds = dsCreateFilename(fname, "w+");
+        test_validatefree(ds.fp != NULL, (dsFree(&ds)), "can't open file");
+
+        const char *data = "hello file";
+        long written = dswrite(&ds, data, strlen(data));
+        test_validatefree(written == (long)strlen(data),
+                          (dsFree(&ds)),
+                          "expected %zu, got %ld", strlen(data), written);
+
+        rewind(ds.fp);
+        char buf[64];
+        size_t n = fread(buf, 1, sizeof(buf)-1, ds.fp);
+        buf[n] = '\0';
+        test_validatefree(strcmp(buf, data) == 0,
+                          (dsFree(&ds)),
+                          "content mismatch: '%s'", buf);
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* 2. Запись в DS_STR с достаточной ёмкостью */
+    test_sub("subtest %d: DS_STR write, enough capacity", ++subnum);
+    {
+        char buffer[64];
+        DS ds = dsCreatestrCap(buffer, sizeof(buffer));
+        const char *data = "hello str";
+        long written = dswrite(&ds, data, strlen(data));
+        test_validatefree(written == (long)strlen(data),
+                          (dsFree(&ds)),
+                          "expected %zu, got %ld", strlen(data), written);
+
+        buffer[ds.pos] = '\0';
+        test_validatefree(strcmp(buffer, data) == 0,
+                          (dsFree(&ds)),
+                          "content mismatch: '%s'", buffer);
+        test_validatefree(ds.pos == strlen(data), (dsFree(&ds)),
+                          "pos expected %zu, got %zu", strlen(data), ds.pos);
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* 3. Запись в DS_STR с ограниченной ёмкостью (truncate, резерв байта) */
+    test_sub("subtest %d: DS_STR write, limited capacity", ++subnum);
+    {
+        char buffer[4];   // реально можно записать 3 символа + '\0'
+        DS ds = dsCreatestrCap(buffer, sizeof(buffer));
+        const char *data = "hello";
+        long written = dswrite(&ds, data, strlen(data));
+        test_validatefree(written == 3,
+                          (dsFree(&ds)),
+                          "expected truncated 3, got %ld", written);
+
+        buffer[ds.pos] = '\0';
+        test_validatefree(strcmp(buffer, "hel") == 0,
+                          (dsFree(&ds)),
+                          "content mismatch: '%s'", buffer);
+        test_validatefree(ds.pos == 3, (dsFree(&ds)),
+                          "pos expected 3, got %zu", ds.pos);
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* 4. Запись пустой строки (len=0) в DS_STR */
+    test_sub("subtest %d: DS_STR write zero length", ++subnum);
+    {
+        char buffer[16];
+        DS ds = dsCreatestrCap(buffer, sizeof(buffer));
+        long written = dswrite(&ds, "abc", 0);
+        test_validatefree(written == 0, (dsFree(&ds)),
+                          "expected 0, got %ld", written);
+        test_validatefree(ds.pos == 0, (dsFree(&ds)),
+                          "pos expected 0, got %zu", ds.pos);
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* 5. Запись в DS_FS */
+    test_sub("subtest %d: DS_FS write", ++subnum);
+    {
+        fs out = FS();
+        DS ds = dsCreatefs(&out);   // владение переходит в ds
+        const char *data = "hello fs";
+        long written = dswrite(&ds, data, strlen(data));
+        test_validatefree(written == (long)strlen(data),
+                          (dsFree(&ds)),
+                          "expected %zu, got %ld", strlen(data), written);
+
+        test_validatefree(strcmp(fs_str(&ds.s), data) == 0,
+                          (dsFree(&ds)),
+                          "content mismatch: '%s'", fs_str(&ds.s));
+        test_validatefree(ds.pos == strlen(data), (dsFree(&ds)),
+                          "pos expected %zu, got %zu", strlen(data), ds.pos);
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* 6. Запись в DS_FS с встроенным нулём (бинарные данные) */
+    test_sub("subtest %d: DS_FS write binary data", ++subnum);
+    {
+        fs out = FS();
+        DS ds = dsCreatefs(&out);
+        const char data[] = {'a','\0','b'};
+        long written = dswrite(&ds, data, sizeof(data) - 1);
+        test_validatefree(written == (long)sizeof(data) - 1,
+                          (dsFree(&ds)),
+                          "expected %zu, got %ld", sizeof(data), written);
+
+        test_validatefree(fs_len(&ds.s) == sizeof(data) - 1,
+                          (dsFree(&ds)),
+                          "len expected %zu, got %zu", sizeof(data) - 1, fs_len(&ds.s));
+        test_validatefree(memcmp(fs_str(&ds.s), data, sizeof(data) - 1) == 0,
+                          (dsFree(&ds)),
+                          "binary content mismatch");
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* 7. Ошибка при неподдерживаемом типе DS (DS_CONSTSTR) */
+    test_sub("subtest %d: unsupported DS type", ++subnum);
+    {
+        DS ds = {0};
+        ds.type = DS_CONSTSTR;   // только для чтения
+        const char *data = "test";
+        if (!try()) {
+            dswrite(&ds, data, strlen(data));
+            test_validate(false, "must raise error");
+        } else {
+            test_validate(true, "correctly raised error");
+        }
+        fs_alloc_check(true);
+    }
+
+    /* 8. NULL выходной параметр */
+    test_sub("subtest %d: NULL output", ++subnum);
+    {
+        const char *data = "test";
+        if (!try()) {
+            dswrite(NULL, data, strlen(data));
+            test_validate(false, "must raise error");
+        } else {
+            test_validate(true, "correctly raised error");
+        }
+        fs_alloc_check(true);
+    }
+
+        /* 9. Последовательные записи в DS_STR */
+    test_sub("subtest %d: DS_STR multiple writes accumulate", ++subnum);
+    {
+        char buffer[64];
+        DS ds = dsCreatestrCap(buffer, sizeof(buffer));
+
+        const char *parts[] = {"Hello", " ", "world", "!"};
+        size_t total = 0;
+        for (size_t i = 0; i < COUNT(parts); i++) {
+            long w = dswrite(&ds, parts[i], strlen(parts[i]));
+            test_validatefree(w == (long)strlen(parts[i]),
+                              (dsFree(&ds)),
+                              "part %zu: expected %zu, got %ld",
+                              i, strlen(parts[i]), w);
+            total += w;
+        }
+
+        buffer[ds.pos] = '\0';
+        test_validatefree(strcmp(buffer, "Hello world!") == 0,
+                          (dsFree(&ds)),
+                          "accumulated mismatch: '%s'", buffer);
+        test_validatefree(ds.pos == total,
+                          (dsFree(&ds)),
+                          "pos expected %zu, got %zu", total, ds.pos);
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* 10. Последовательные записи в DS_FILE */
+    test_sub("subtest %d: DS_FILE multiple writes accumulate", ++subnum);
+    {
+        const char *fname = "res/ds/dswrite_file_multi.ds";
+        DS ds = dsCreateFilename(fname, "w+");
+        test_validatefree(ds.fp != NULL, (dsFree(&ds)), "can't open file");
+
+        const char *a = "foo";
+        const char *b = "bar";
+        dswrite(&ds, a, strlen(a));
+        dswrite(&ds, b, strlen(b));
+
+        rewind(ds.fp);
+        char buf[32];
+        size_t n = fread(buf, 1, sizeof(buf)-1, ds.fp);
+        buf[n] = '\0';
+        test_validatefree(strcmp(buf, "foobar") == 0,
+                          (dsFree(&ds)),
+                          "file content mismatch: '%s'", buf);
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* 11. Последовательные записи в DS_FS */
+    test_sub("subtest %d: DS_FS multiple writes accumulate", ++subnum);
+    {
+        fs out = FS();
+        DS ds = dsCreatefs(&out);
+
+        const char *a = "one";
+        const char *b = "-two";
+        dswrite(&ds, a, strlen(a));
+        dswrite(&ds, b, strlen(b));
+
+        test_validatefree(strcmp(fs_str(&ds.s), "one-two") == 0,
+                          (dsFree(&ds)),
+                          "fs content mismatch: '%s'", fs_str(&ds.s));
+        test_validatefree(ds.pos == strlen("one-two"),
+                          (dsFree(&ds)),
+                          "pos expected %zu, got %zu", strlen("one-two"), ds.pos);
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* 12. Пустая запись (len=0) в DS_FILE и DS_FS */
+    test_sub("subtest %d: zero-length write in DS_FILE", ++subnum);
+    {
+        // DS_FILE
+        const char *fname = "res/ds/dswrite_zero_file.ds";
+        DS ds_file = dsCreateFilename(fname, "w+");
+        test_validatefree(ds_file.fp != NULL, (dsFree(&ds_file)), "can't open file");
+        long w_file = dswrite(&ds_file, "abc", 0);
+        test_validatefree(w_file == 0, (dsFree(&ds_file)), "expected 0, got %ld", w_file);
+        dsFree(&ds_file);
+
+    }
+    test_sub("subtest %d: zero-length write in DS_FS", ++subnum);
+    {
+        // DS_FS
+        fs out = FS();
+        DS ds_fs = dsCreatefs(&out);
+        long w_fs = dswrite(&ds_fs, "abc", 0);
+        test_validatefree(w_fs == 0, (dsFree(&ds_fs)), "expected 0, got %ld", w_fs);
+        test_validatefree(fs_len(&ds_fs.s) == 0,
+                          (dsFree(&ds_fs)),
+                          "fs len expected 0, got %zu", fs_len(&ds_fs.s));
+        dsFree(&ds_fs);
+        fs_alloc_check(true);
+    }
+
+    /* 13. DS_STR с нулевой ёмкостью (если конструктор позволяет) */
+    test_sub("subtest %d: DS_STR with zero capacity", ++subnum);
+    {
+        // dsCreatestrCap требует cap > 0, поэтому используем DSSTR() и установим cap=0 вручную
+        DS ds = DSSTR();
+        ds.cap = 0;
+        const char *data = "test";
+        long written = dswrite(&ds, data, strlen(data));
+        test_validate(written == 0, "expected 0 for zero capacity, got %ld", written);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -969,6 +1304,7 @@ main( /*int argc, char *argv[] */ )
       , TESTADD(tf_ds_putc,             "dsputc simple test")
       , TESTADD(tf_ds_fs,               "dsputc / dsgetc for DS_FS test")
       , TESTADD(tf5_ds_create_filename, "dsCreateFilename/dsInitFilename simple test")
+      , TESTADD(tf6_dswrite,             "dswrite simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
