@@ -225,7 +225,7 @@ int                         dsPrintf(DS *restrict pds, const char *restrict msg,
         default:
             va_end(ap); // for lulz
             return userraise(-1, ERR_ACTION_NOT_APPLICABLE, 
-                "Can't write to %s", DSTypeName(pds->type) );
+                "Can't write to  %d/%s", pds->type, DSTypeName(pds->type) );
     }
     va_end(ap);
     return total;
@@ -429,43 +429,15 @@ long                            fs_dstechprintf(DS *restrict out, const fs *rest
     long  actual_written = dsfsHelperFsDs(out, &buf);
     fsfree(buf);
     return actual_written;
-    /*
-    total_prepared = (size_t) res_helper;
-
-    switch (out->type) {
-        case DS_FILE: {
-            size_t written;
-            if ( (written = fwrite(buf.v, sizeof(char), buf.len, out->fp) ) < buf.len) {
-                fsfree(buf);
-                return userraise(-1L, ERR_STREAM_ERROR,
-                    "Unable to fwrite %zu bytes (only %zu)", buf.len, written);
-            }
-            actual_written = written;
-            break;
-        }
-        case DS_STR: {
-            size_t       remaining = out->cap - out->pos;
-            actual_written = (remaining < total_prepared) ? remaining : total_prepared;
-            memcpy(out->ptr + out->pos, buf.v, actual_written);
-            out->pos += actual_written;
-            break;
-        }
-        case DS_FS:
-            fs_setlen(&out->s, out->pos);   // just in case
-            fs_cat(&out->s, buf);
-            out->pos += (actual_written = total_prepared);
-            break;
-        default:    // just to avoid warning
-    }
-    fsfree(buf);
-
-    return actual_written; */
 }
 
 long                            fs_dsserialize(DS *restrict out, const fs *restrict s) {
     if (!out || !s)
-        return userraise(-1L, ERR_NULL_OUTPUT, "%p %p", out, scalbln);
+        return userraise(-1L, ERR_NULL_OUTPUT, "%p %p", out, s);
     long    total = 0L;
+
+
+
     return total;
 }
 
