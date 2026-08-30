@@ -29,8 +29,8 @@ static inline int           dsreplace_str(char *restrict ptr, size_t *restrict p
 /**
  * @brief Internal helper for mutable string put.
  */
-static inline int           dsputc_strbuf(char *restrict ptr, size_t *restrict pos, int c) {
-    if (ptr[*pos] != '\0')
+static inline int           dsputc_strbuf(char *restrict ptr, size_t *restrict pos, size_t cap, int c) {
+    if (cap > 0 && *pos < cap)
         return ptr[(*pos)++] = (unsigned char) c;
     else
         return EOF;
@@ -204,7 +204,7 @@ int                         dsputc(int c, DS *pds) {
         case DS_CONSTSTR:
             return EOF;     // N/A
         case DS_STR:
-            return dsputc_strbuf(pds->ptr, &pds->pos, c);
+            return dsputc_strbuf(pds->ptr, &pds->pos, pds->cap, c);
         case DS_FILE:
             return fputc(c, pds->fp);
         case DS_FS:
