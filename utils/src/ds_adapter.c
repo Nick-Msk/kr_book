@@ -396,34 +396,8 @@ dsfsHelperTechprintTofs(fs *restrict out, size_t pos, const fs *restrict s, cons
 // helper fs => ds
 static long
 dsfsHelperFsDs(DS *restrict out, const fs *restrict s) {
-    size_t  total_prepared = s->len, actual_written = 0L;
-    switch (out->type) {
-        case DS_FILE: {
-            size_t written = fwrite(s->v, sizeof(char), s->len, out->fp);
-            if (written < total_prepared)
-                return userraise(-1L, ERR_STREAM_ERROR,
-                    "Unable to fwrite %zu bytes (only %zu)", total_prepared, written);
-            actual_written = written;
-            break;
-        }
-        case DS_STR: {
-            size_t       remaining = out->cap - out->pos;
-            if (remaining > 0)
-                remaining--;
-            actual_written = (remaining < total_prepared) ? remaining : total_prepared;
-            if (remaining > 0)
-                memcpy(out->ptr + out->pos, s->v, actual_written);
-            out->pos += actual_written;
-            break;
-        }
-        case DS_FS:
-            fs_setlen(&out->s, out->pos);   // just in case
-            fs_cat(&out->s, *s);
-            out->pos += (actual_written = total_prepared);
-            break;
-        default:    // just to avoid warning
-    }
-    return actual_written;
+    // just use direct write
+    return dswrite(out, s->v, s->len);
 }
 
 // print fs data into stream out
