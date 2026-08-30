@@ -275,7 +275,14 @@ extern int                      dsputc(int c, DS *pds);
  * @return The character 'c' if successful, or @c EOF if the operation failed.
  */
 extern int                      dsputcEcran(int c, DS *pds);
-
+/**
+ * @brief Pushes c-string into the stream
+ *  
+ * @param[in]  ptr The pointrer to c-string.
+ * @param[in]  len Real length of c-string
+ * @param[in,out] ds Pointer to the data source.
+ * @return The character 'c' if successful, or @c EOF if the operation failed.
+ */
 extern long                     dswrite(DS *restrict out, const char *ptr, size_t len);
 
 /**
