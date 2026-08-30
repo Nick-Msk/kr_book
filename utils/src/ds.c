@@ -218,26 +218,32 @@ int                         dsputc(int c, DS *pds) {
 }
 
 int                      dsputcEcran(int c, DS *pds) {
+    int cnt = 1;
     switch (c) {
         case '"':   WRITE_OR_RET(dsputc('\\', pds), EOF); 
-                    WRITE_OR_RET(dsputc('"', pds), EOF);  
+                    WRITE_OR_RET(dsputc('"', pds), EOF);
+                    cnt++;  
             break;
         case '\\':  WRITE_OR_RET(dsputc('\\', pds), EOF); 
                     WRITE_OR_RET(dsputc('\\', pds), EOF); 
+                    cnt++; 
             break;
         case '\n':  WRITE_OR_RET(dsputc('\\', pds), EOF); 
                     WRITE_OR_RET(dsputc('n', pds), EOF);
+                    cnt++; 
             break;
         case '\r':  WRITE_OR_RET(dsputc('\\', pds), EOF); 
                     WRITE_OR_RET(dsputc('r', pds), EOF);
+                    cnt++; 
             break;
         case '\t':  WRITE_OR_RET(dsputc('\\', pds), EOF); 
                     WRITE_OR_RET(dsputc('t', pds), EOF);
+                    cnt++; 
             break;
         default:    WRITE_OR_RET(dsputc(c, pds), EOF);   
             break;
     }
-    return c;
+    return cnt;
 }
 
 long                     dswrite(DS *restrict out, const char *ptr, size_t len) {
