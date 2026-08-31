@@ -285,6 +285,7 @@ extern int                      dsputcEcran(int c, DS *pds);
  */
 extern long                     dswrite(DS *restrict out, const char *ptr, size_t len);
 
+extern bool                     dsExpect(DS *restrict ds, const char *literal);
 /**
  * @brief Debugging print implementation.
  * Returns the number of characters printed.

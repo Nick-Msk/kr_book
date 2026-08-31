@@ -288,6 +288,20 @@ long                     dswrite(DS *restrict out, const char *ptr, size_t len) 
     return actual_written;
 }
 
+bool                        dsExpect(DS *restrict ds, const char *literal) {
+    dsSavepos(ds);
+    size_t  i = 0;
+    while(literal[i] != '\0') {
+        int c = dsgetc(ds);
+        if (c == EOF || c != (unsigned char) literal[i]) {
+            dsRestorepos(ds);
+            return false;
+        }
+        i++;
+    }
+    return true;
+}
+
 int                         dsTechFPrint(FILE *restrict out, const DS *restrict pds, const char *restrict name) {
     if (!pds || !out) 
         return -1;
@@ -313,7 +327,7 @@ int                         dsTechFPrint(FILE *restrict out, const DS *restrict 
             if (pds->pos < pds->cap) {
                 IOCHECKERSIMPLE(written, fprintf(out, "\" => \""), -1)
                     total += written;
-                IOCHECKERSIMPLE(written, ds_print_buffer_content(out, ptr, pds->pos, pds->cap - pds->pos), -1)
+                IOCHECKERSIMPLE(written, ds_print_buffer_content(out, ptr, pds->pos, pds->cap), -1)
                     total += written;
             }
             IOCHECKERSIMPLE(written, fprintf(out, "\"\n"), -1)
@@ -1294,6 +1308,184 @@ tf6_dswrite(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST dsExpect -------------------------
+// ------------------------- TEST dsExpect (without ok variable) -------------------------
+static TestStatus
+tf7_ds_expect(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. DS_CONSTSTR: успешное совпадение */
+    test_sub("subtest %d: dsExpect success on CONSTSTR", ++subnum);
+    {
+        const char *text = "hello";
+        DS ds = dsCreateconst(text);
+
+        test_validate(dsExpect(&ds, "hell"),
+                      "must return true for matching prefix");
+        test_validate(ds.pos == 4, "pos must advance to 4, got %zu", ds.pos);
+    }
+
+    /* 2. DS_CONSTSTR: несовпадение и откат позиции */
+    test_sub("subtest %d: dsExpect mismatch restores position", ++subnum);
+    {
+        const char *text = "hello";
+        DS ds = dsCreateconst(text);
+        size_t save = ds.pos;
+
+        test_validate(!dsExpect(&ds, "help"),
+                      "must return false for mismatching prefix");
+        test_validate(ds.pos == save,
+                      "pos must be restored to %zu, got %zu", save, ds.pos);
+    }
+
+    /* 3. DS_CONSTSTR: литерал длиннее остатка */
+    test_sub("subtest %d: dsExpect longer than available", ++subnum);
+    {
+        const char *text = "hi";
+        DS ds = dsCreateconst(text);
+
+        test_validate(!dsExpect(&ds, "hello"),
+                      "must return false when literal longer than data");
+        test_validate(ds.pos == 0, "pos must remain 0, got %zu", ds.pos);
+    }
+
+    /* 4. DS_STR: совпадение и позиция */
+    test_sub("subtest %d: dsExpect success on STR", ++subnum);
+    {
+        char buf[16] = "world";
+        DS ds = dsCreatestrCap(buf, sizeof(buf));
+
+        test_validate(dsExpect(&ds, "world"),
+                      "must return true");
+        test_validate(ds.pos == 5, "pos must be 5, got %zu", ds.pos);
+    }
+
+    /* 5. DS_FILE: совпадение и позиция */
+    test_sub("subtest %d: dsExpect on FILE", ++subnum);
+    {
+        const char *fname = "res/ds/dsexpect_file.tmp";
+        FILE *fp = fopen(fname, "w+");
+        test_validatefree(fp != NULL, fclose(fp), "can't open file");
+
+        fputs("hello", fp);
+        rewind(fp);
+
+        DS ds = dsCreatef(fp);
+        test_validatefree(dsExpect(&ds, "hel"),
+                          fclose(fp),
+                          "must match 'hel'");
+        test_validatefree(ftell(fp) == 3,
+                          fclose(fp),
+                          "file pos must be 3, got %ld", ftell(fp));
+        fclose(fp);
+        fs_alloc_check(true);
+    }
+
+    /* 6. DS_FILE: несовпадение и откат */
+    test_sub("subtest %d: dsExpect mismatch restores file pos", ++subnum);
+    {
+        const char *fname = "res/ds/dsexpect_file_mismatch.ds";
+        FILE *fp = fopen(fname, "w+");
+        test_validatefree(fp != NULL, fclose(fp), "can't open file");
+
+        fputs("hello", fp);
+        rewind(fp);
+
+        DS ds = dsCreatef(fp);
+        test_validatefree(!dsExpect(&ds, "help"),
+                          fclose(fp),
+                          "must return false");
+        test_validatefree(ftell(fp) == 0,
+                          fclose(fp),
+                          "file pos must be restored to 0, got %ld", ftell(fp));
+        fclose(fp);
+        fs_alloc_check(true);
+    }
+    /* 8. DS_FS: несовпадение и восстановление позиции */
+    test_sub("subtest %d: dsExpect mismatch on FS restores position", ++subnum);
+    {
+        fs s = fscopy("hello");
+        DS ds = dsCreatefs(&s);
+        size_t save = ds.pos;
+
+        test_validatefree(!dsExpect(&ds, "help"),
+                          dsFree(&ds),
+                          "must return false");
+        test_validatefree(ds.pos == save,
+                          dsFree(&ds),
+                          "pos must be restored to %zu, got %zu", save, ds.pos);
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* 9. DS_FS: литерал длиннее остатка */
+    test_sub("subtest %d: dsExpect longer than FS data", ++subnum);
+    {
+        fs s = fscopy("hi");
+        DS ds = dsCreatefs(&s);
+
+        test_validatefree(!dsExpect(&ds, "hello"),
+                          dsFree(&ds),
+                          "must return false");
+        test_validatefree(ds.pos == 0,
+                          dsFree(&ds),
+                          "pos must remain 0, got %zu", ds.pos);
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* 10. DS_FS: пустой литерал */
+    test_sub("subtest %d: dsExpect empty literal on FS", ++subnum);
+    {
+        fs s = fscopy("hello");
+        DS ds = dsCreatefs(&s);
+
+        test_validatefree(dsExpect(&ds, ""),
+                          dsFree(&ds),
+                          "empty literal must always match");
+        test_validatefree(ds.pos == 0,
+                          dsFree(&ds),
+                          "pos must remain 0, got %zu", ds.pos);
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+#ifndef NO_FSDS
+
+    /* 7. DS_FS: совпадение и позиция */
+    test_sub("subtest %d: dsExpect on FS", ++subnum);
+    {
+        fs s = fscopy("hello");
+        DS ds = dsCreatefs(&s);   // владение переходит в ds
+
+        test_validatefree(dsExpect(&ds, "hello"),
+                          dsFree(&ds),
+                          "must match 'hello'");
+        test_validatefree(ds.pos == 5,
+                          dsFree(&ds),
+                          "pos must be 5, got %zu", ds.pos);
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+#endif  /* !NO_FSDS */  
+
+    /* 8. Пустой литерал */
+    test_sub("subtest %d: dsExpect empty literal", ++subnum);
+    {
+        const char *text = "hello";
+        DS ds = dsCreateconst(text);
+
+        test_validate(dsExpect(&ds, ""),
+                      "empty literal must always match");
+        test_validate(ds.pos == 0, "pos must remain 0, got %zu", ds.pos);
+    }
+
+    return TEST_PASSED;
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -1301,12 +1493,13 @@ main( /*int argc, char *argv[] */ )
     logsimpleinit("Start");
 
     testenginestd(
-        TESTADD(tf_ds,                  "DS (DataSource) simple tests")
-      , TESTADD(tf_ds_extra,            "DS additional functions")
+        TESTADD(tf_ds,                   "DS (DataSource) simple tests")
+      , TESTADD(tf_ds_extra,             "DS additional functions")
       , TESTADD(tf3_ds_putc,             "dsputc simple test")
       , TESTADD(tf4_ds_fs,               "dsputc / dsgetc for DS_FS test")
       , TESTADD(tf5_ds_create_filename, "dsCreateFilename/dsInitFilename simple test")
       , TESTADD(tf6_dswrite,             "dswrite simple test")
+      , TESTADD(tf7_ds_expect,           "dsExpect simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
