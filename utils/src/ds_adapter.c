@@ -436,7 +436,12 @@ long                            fs_dsserialize(DS *restrict out, const fs *restr
         return userraise(-1L, ERR_NULL_OUTPUT, "%p %p", out, s);
     long    total = 0L;
 
+    total += WRITE_OR_RET(dsPrintf(out, "FS \"%zu\" \"", s->len), -1L);
 
+    for (size_t i = 0; i < s->len; i++)
+        total += WRITE_OR_RET(dsputcEcran((unsigned char) s->v[i], out), -1L);
+
+    total += WRITE_OR_RET(dsPrintf(out, "\"\n"), -1L);
 
     return total;
 }
@@ -1328,6 +1333,182 @@ tf6_fs_dsprintf(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST fs_dsserialize (full, with edges) -------------------------
+static TestStatus
+tf7_fs_dsserialize_full(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Обычная строка в DS_STR */
+    test_sub("subtest %d: simple string to DS_STR", ++subnum);
+    {
+        char buffer[256];
+        DS ds = dsCreatestrCap(buffer, sizeof(buffer));
+        fs sample = fscopy("hello");
+
+        long written = fs_dsserialize(&ds, &sample);
+        test_validatefree(written > 0, (dsFree(&ds), fsfree(sample)),
+                          "expected positive bytes written");
+
+        buffer[ds.pos] = '\0';
+        test_validatefree(strcmp(buffer, "FS \"5\" \"hello\"\n") == 0,
+                          (dsFree(&ds), fsfree(sample)),
+                          "serialized mismatch: '%s'", buffer);
+
+        dsFree(&ds);
+        fsfree(sample);
+        fs_alloc_check(true);
+    }
+
+    /* 2. Пустая строка в DS_STR */
+    test_sub("subtest %d: empty string to DS_STR", ++subnum);
+    {
+        char buffer[256];
+        DS ds = dsCreatestrCap(buffer, sizeof(buffer));
+        fs sample = fscopy("");
+
+        long written = fs_dsserialize(&ds, &sample);
+        test_validatefree(written > 0, (dsFree(&ds), fsfree(sample)),
+                          "expected positive bytes written");
+
+        buffer[ds.pos] = '\0';
+        test_validatefree(strcmp(buffer, "FS \"0\" \"\"\n") == 0,
+                          (dsFree(&ds), fsfree(sample)),
+                          "serialized mismatch: '%s'", buffer);
+
+        dsFree(&ds);
+        fsfree(sample);
+        fs_alloc_check(true);
+    }
+
+    /* 3. Строка со всеми экранируемыми символами в DS_STR */
+    test_sub("subtest %d: string with escapes to DS_STR", ++subnum);
+    {
+        char buffer[512];
+        DS ds = dsCreatestrCap(buffer, sizeof(buffer));
+        fs sample = fscopy("a\"b\\c\nd\re\tf");
+
+        long written = fs_dsserialize(&ds, &sample);
+        test_validatefree(written > 0, (dsFree(&ds), fsfree(sample)),
+                          "expected positive bytes written");
+
+        buffer[ds.pos] = '\0';
+        // Ожидаемая строка: FS "9" "a\"b\\c\nd\re\tf"
+        const char *expected = "FS \"11\" \"a\\\"b\\\\c\\nd\\re\\tf\"\n";
+        test_validatefree(strcmp(buffer, expected) == 0,
+                          (dsFree(&ds), fsfree(sample)),
+                          "serialized mismatch:\n got: '%s'\nwant: '%s'",
+                          buffer, expected);
+
+        dsFree(&ds);
+        fsfree(sample);
+        fs_alloc_check(true);
+    }
+
+    /* 4. Вывод в DS_FILE */
+    test_sub("subtest %d: DS_FILE output", ++subnum);
+    {
+        const char *fname = "res/ds_adapter/dsserialize_file_full.ds";
+        DS ds = dsCreateFilename(fname, "w+");
+        test_validatefree(ds.fp != NULL, (dsFree(&ds)), "can't open file");
+
+        fs sample = fscopy("file_test");
+        long written = fs_dsserialize(&ds, &sample);
+        test_validatefree(written > 0, (dsFree(&ds), fsfree(sample)),
+                          "expected positive bytes written");
+
+        rewind(ds.fp);
+        char buf[128];
+        size_t n = fread(buf, 1, sizeof(buf)-1, ds.fp);
+        buf[n] = '\0';
+        test_validatefree(strcmp(buf, "FS \"9\" \"file_test\"\n") == 0,
+                          (dsFree(&ds), fsfree(sample)),
+                          "file content mismatch: '%s'", buf);
+
+        dsFree(&ds);
+        fsfree(sample);
+        fs_alloc_check(true);
+    }
+
+    /* 5. Вывод в DS_FS */
+    test_sub("subtest %d: DS_FS output", ++subnum);
+    {
+        fs out = FS();
+        DS ds = dsCreatefs(&out);   // владение out переходит в ds
+        fs sample = fscopy("fsdata");
+
+        long written = fs_dsserialize(&ds, &sample);
+        test_validatefree(written > 0, (dsFree(&ds), fsfree(sample)),
+                          "expected positive bytes written");
+
+        test_validatefree(strcmp(fs_str(&ds.s), "FS \"6\" \"fsdata\"\n") == 0,
+                          (dsFree(&ds), fsfree(sample)),
+                          "fs content mismatch: '%s'", fs_str(&ds.s));
+
+        dsFree(&ds);
+        fsfree(sample);
+        fs_alloc_check(true);
+    }
+
+    /* 6. DS_STR с ограниченной ёмкостью (truncate) */
+    test_sub("subtest %d: DS_STR limited capacity truncates", ++subnum);
+    {
+        char buffer[10];   // реально поместится 9 символов + '\0'
+        DS ds = dsCreatestrCap(buffer, sizeof(buffer));
+        fs sample = fscopy("hello world");
+
+        long written = fs_dsserialize(&ds, &sample);
+        test_validatefree(written == EOF, //> 0 && written < (long)(sample.len + 10),
+                          (dsFree(&ds), fsfree(sample)),
+                          "expected truncated write with EOF, got %ld bytes", written);
+
+        buffer[sizeof(buffer) - 1] = '\0';
+
+        // Проверяем, что это префикс ожидаемой строки и что нет выхода за границы
+        test_validatefree(strncmp(buffer, "FS \"11\" \"", sizeof(buffer) - 1) == 0,
+                          (dsFree(&ds), fsfree(sample)),
+                          "truncated content does not start correctly: '%s'", buffer);
+
+        dsFree(&ds);
+        fsfree(sample);
+        fs_alloc_check(true);
+    }
+
+    /* 7. NULL выходной параметр */
+    test_sub("subtest %d: NULL output", ++subnum);
+    {
+        fs sample = fscopy("x");
+        if (!try()) {
+            fs_dsserialize(NULL, &sample);
+            test_validatefree(false, (fsfree(sample)), "must raise error");
+        } else {
+            test_validatefree(true, (fsfree(sample)), "correctly raised error");
+        }
+        fsfree(sample);
+        fs_alloc_check(true);
+    }
+
+    /* 8. NULL fs (s == NULL) */
+    test_sub("subtest %d: NULL fs", ++subnum);
+    {
+        char buffer[64];
+        DS ds = dsCreatestrCap(buffer, sizeof(buffer));
+
+        if (!try()) {
+            fs_dsserialize(&ds, NULL);
+            test_validate(false, "must raise error");
+        } else {
+            test_validate(true, "correctly raised error");
+        }
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -1335,12 +1516,13 @@ main( /*int argc, char *argv[] */ )
     logsimpleinit("Start");
 
     testenginestd(
-        TESTADD(tf_ds_printf,          "dsPrintf() simple tests")
-      , TESTADD(tf_ds_scanf,           "dsScanf() simple tests")
-      , TESTADD(tf_ds_scanf_printf,    "dsScanf() and dsPrintf() combined tests")
-      , TESTADD(tf_ds_parsers,         "dsParse<type> simple tests")
-      , TESTADD(tf5_fs_dstechprintf,   "fs_dstechprintf simple test")
-      , TESTADD(tf6_fs_dsprintf,       "fs_dsprintf simple test")
+        TESTADD(tf_ds_printf,               "dsPrintf() simple tests")
+      , TESTADD(tf_ds_scanf,                "dsScanf() simple tests")
+      , TESTADD(tf_ds_scanf_printf,         "dsScanf() and dsPrintf() combined tests")
+      , TESTADD(tf_ds_parsers,              "dsParse<type> simple tests")
+      , TESTADD(tf5_fs_dstechprintf,        "fs_dstechprintf simple test")
+      , TESTADD(tf6_fs_dsprintf,            "fs_dsprintf simple test")
+      , TESTADD(tf7_fs_dsserialize_full,    "fs_dsserialize full test (all edges)")
     );
 
     return logret(0, "end...");  // as replace of logclose()
