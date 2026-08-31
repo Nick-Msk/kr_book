@@ -1,63 +1,39 @@
 CC=gcc #clang
-CFLAGS= -I../utils -Wall -Wextra -std=gnu11 -g -O0 -Wno-gnu-folding-constant -Wno-initializer-overrides -fmacro-backtrace-limit=0
+CFLAGS= -I../../utils -Wall -Wextra -std=gnu11 -g -O0 -Wno-gnu-folding-constant -Wno-initializer-overrides -fmacro-backtrace-limit=0
 # -Wno-initializer-overrides -Wno-unused-function -Wno-format-zero-length
 LDFLAGS=
 LDLIBS=
 
 all:
 
-getint.5.1: src/getint.5.1.c lib/log.o lib/common.o lib/checker.o lib/array.o
-	$(CC) $(CFLAGS)  $^ -o out/$@
-
-getfloat.5.2: src/getfloat.5.2.c lib/log.o lib/common.o lib/checker.o lib/array.o
-	$(CC) $(CFLAGS)  $^ -o out/$@
-
-mystrcat.5.3: src/mystrcat.5.3.c lib/log.o lib/common.o lib/checker.o
-	$(CC) $(CFLAGS)  $^ -o out/$@
-
-mystrend.5.4: src/mystrend.5.4.c lib/log.o lib/common.o lib/checker.o
-	$(CC) $(CFLAGS)  $^ -o out/$@
-
-mystrings.5.5: src/mystrings.5.5.c lib/log.o lib/common.o lib/checker.o
-	$(CC) $(CFLAGS)  $^ -o out/$@
-
-days.5.8: src/days.5.8.c lib/log.o lib/common.o lib/checker.o
-	$(CC) $(CFLAGS)  $^ -o out/$@
-
-echo.p5.10: src/echo.p5.10.c
-	$(CC) $(CFLAGS)  $^ -o out/$@
-
-mygrep.p5.10: src/mygrep.p5.10.c lib/log.o lib/common.o lib/checker.o
-	$(CC) $(CFLAGS)  $^ -o out/$@
-
-tail.5.13: src/tail.5.13.c lib/log.o lib/common.o lib/checker.o lib/fileutils.o lib/fs.o lib/error.o
-	$(CC) $(CFLAGS)  $^ -o out/$@
-
-sortlines.p5.11: src/sortlines.p5.11.c lib/log.o lib/common.o lib/checker.o lib/fileutils.o lib/fs.o lib/error.o
-	$(CC) $(CFLAGS)  $^ -o out/$@
-
-gen_arr: src/gen_arr.c lib/log.o lib/common.o lib/checker.o lib/fileutils.o lib/fs.o lib/error.o lib/array.o
-	$(CC) $(CFLAGS)  $^ -o out/$@
-
-find_keyword.p6.3: src/find_keyword.p6.3.c lib/log.o lib/common.o lib/buffer.o lib/fs.o lib/error.o
-	$(CC) $(CFLAGS)  $^ -o out/$@
-
-find_keyword_ptr.p6.4: src/find_keyword_ptr.p6.4.c lib/log.o lib/common.o lib/buffer.o lib/fs.o lib/error.o
-	$(CC) $(CFLAGS)  $^ -o out/$@
-
-keywords_tree.p6.5: src/keywords_tree.p6.5.c lib/tree_p6.5.o lib/log.o lib/common.o lib/buffer.o lib/fs.o lib/error.o lib/fileutils.o lib/checker.o lib/fs_array.o lib/getword.o
-	$(CC) $(CFLAGS)  $^ -o out/$@
-
-var_group.6.2: src/var_group.6.2.c lib/tree_6.2.o lib/log.o lib/common.o lib/buffer.o lib/fs.o lib/error.o lib/fileutils.o lib/checker.o lib/fs_array.o lib/getword.o
-	$(CC) $(CFLAGS)  $^ -o out/$@
-
-cross_link.6.3: src/cross_link.6.3.c lib/tree_6.3.o lib/log.o lib/common.o lib/buffer.o lib/fs.o lib/error.o lib/fileutils.o lib/checker.o lib/getword.o lib/array.o
-	$(CC) $(CFLAGS)  $^ -o out/$@
-
-calc_count.6.4: src/calc_count.6.4.c lib/tree_6.4.o lib/word_tree.o lib/log.o lib/common.o lib/buffer.o lib/fs.o lib/error.o lib/fileutils.o lib/checker.o lib/getword.o lib/array.o lib/fs_array.o
-	$(CC) $(CFLAGS)  $^ -o out/$@
-
 hash_table.6.5: src/hash_table.6.5.c lib/string_hash.o lib/getword.o lib/log.o lib/common.o lib/fs.o lib/error.o lib/checker.o lib/buffer.o lib/fileutils.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
+upper_lower.7.1: src/upper_lower.7.1.c
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
+formatter.7.2: src/formatter.7.2.c lib/log.o lib/error.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
+miniprint.7.3: src/miniprint.7.3.c lib/log.o lib/error.o lib/checker.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
+miniscanf.7.4: src/miniscanf.7.4.c lib/log.o lib/error.o lib/checker.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
+cat.p7.5: src/cat.p7.5.c lib/log.o lib/error.o lib/checker.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
+fputs_fgets.p7.6: src/fputs_fgets.p7.6.c lib/log.o lib/error.o lib/checker.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
+file_differ7.6: src/file_differ7.6.c lib/log.o lib/error.o lib/checker.o lib/fs.o lib/fileutils.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
+mygrep.7.7: src/mygrep.7.7.c lib/log.o lib/common.o lib/fs.o lib/error.o lib/checker.o lib/fileutils.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
+printfiles.7.8: src/printfiles.7.8.c lib/log.o lib/common.o lib/fs.o lib/error.o lib/checker.o lib/fileutils.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 UTIL_PATH = ../utils

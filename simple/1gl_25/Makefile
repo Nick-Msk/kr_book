@@ -1,37 +1,69 @@
 CC=gcc #clang
-CFLAGS= -I../utils -Wall -Wextra -std=gnu11 -g -O0 -Wno-gnu-folding-constant
+CFLAGS= -I../../utils -Wall -Wextra -std=gnu11 -g -O0 -Wno-gnu-folding-constant
 # -Wno-initializer-overrides -Wno-unused-function -Wno-format-zero-length
 LDFLAGS=
 LDLIBS=
 
 all:
 
-limits.2.9: src/limits.2.9.c
+hello: src/hello.c
+	$(CC) $(CFLAGS) $^ -o $@
+
+test_pi: src/test_pi.c
+	$(CC) $(CFLAGS) $^ -o out/$@
+
+test1: src/test1.c
+	$(CC) $(CFLAGS) $^ -o out/$@
+
+task1.6: src/task1.6.c
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-htoi.2.3: src/htoi.2.3.c lib/log.o
+task1.9: src/task1.9.c
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-# TODO: refactor to use log: metric: common: checker:
-squeeze.2.4: src/squeeze.2.4.c lib/log.o lib/metric.o lib/common.o lib/checker.o
+1.8.task: src/1.8.task.c
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-findanysym.2.5: src/findanysym.2.5.c lib/log.o lib/metric.o lib/common.o
+1.10.task: src/1.10.task.c
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-setbits.2.6: src/setbits.2.6.c lib/log.o lib/common.o lib/checker.o
+1.12.task: src/1.12.task.c
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-invert.2.7: src/invert.2.7.c lib/log.o lib/common.o lib/checker.o
+1.13.task: src/1.13.task.c lib/log.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-rightrot.2.8: src/rightrot.2.8.c lib/log.o lib/common.o lib/checker.o
+1.7gl: src/1.7gl.c
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-bitcount.2.9: src/bitcount.2.9.c lib/log.o lib/common.o lib/checker.o
+1.9gl: src/1.9gl.c
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
-lower.2.10: src/lower.2.10.c lib/log.o lib/common.o lib/checker.o
+1.16.task: src/1.16.task.c lib/log.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
+1.17.task: src/1.17.task.c 
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
+1.18.task: src/1.18.task.c 
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
+1.19.task: src/1.19.task.c 
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
+1.20.task: src/1.20.task.c 
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
+1.21.task: src/1.21.task.c  lib/log.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
+1.22.task: src/1.22.task.c  lib/log.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
+remover.1.23: src/remover.1.23.c  lib/log.o
+	$(CC) $(CFLAGS)  $^ -o out/$@
+
+checker.1.24: src/checker.1.24.c  lib/log.o
 	$(CC) $(CFLAGS)  $^ -o out/$@
 
 UTIL_PATH = ../utils
@@ -49,18 +81,9 @@ lib/error.o:
 	cd $(UTIL_PATH) && $(MAKE) error.o
 	@cp $(UTIL_PATH)/lib/error.o lib/
 
-# TODO: refactor to common:
 lib/common.o:
 	cd $(UTIL_PATH) && $(MAKE) common.o
 	@cp $(UTIL_PATH)/lib/common.o lib/
-
-lib/checker.o:
-	cd $(UTIL_PATH) && $(MAKE) checker.o
-	@cp $(UTIL_PATH)/lib/checker.o lib/
-
-lib/metric.o:
-	cd $(UTIL_PATH) && $(MAKE) metric.o
-	@cp $(UTIL_PATH)/lib/metric.o lib/
 
 .PHONY: clean cleanlog cleanall no_targets__ list
 clean:
@@ -68,7 +91,7 @@ clean:
 	-rm src/.*.un~
 	-rm -rf out/*
 	-rm lib/*
-	@find . -perm -u=x -type f -ls -maxdepth 1 -exec rm {} \;
+	find . -perm -u=x -type f -ls -maxdepth 1 -exec rm {} \;
 
 cleanlog:
 	-rm log/*
