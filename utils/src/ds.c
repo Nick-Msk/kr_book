@@ -75,7 +75,7 @@ static int                  ds_escape_print(FILE *out, unsigned char c) {
  */
 static int                  ds_print_buffer_content(FILE *restrict out, const char *restrict ptr, size_t start, size_t end) {
     int total = 0;
-    for (size_t i = start; ptr[i] != '\0' && (end ==0 || i < end); i++) {
+    for (size_t i = start; (end == 0 || i < end) && ptr[i] != '\0'; i++) {
         total += ds_escape_print(out, (unsigned char) ptr[i]);
     }
     return total;
@@ -309,10 +309,13 @@ int                         dsTechFPrint(FILE *restrict out, const DS *restrict 
             //
             IOCHECKERSIMPLE(written, ds_print_buffer_content(out, ptr, 0, pds->pos), -1)
                 total += written;
-            IOCHECKERSIMPLE(written, fprintf(out, "\" => \""), -1)
-                total += written;
-            IOCHECKERSIMPLE(written, ds_print_buffer_content(out, ptr, pds->pos, 0), -1)
-                total += written;
+            
+            if (pds->pos < pds->cap) {
+                IOCHECKERSIMPLE(written, fprintf(out, "\" => \""), -1)
+                    total += written;
+                IOCHECKERSIMPLE(written, ds_print_buffer_content(out, ptr, pds->pos, pds->cap - pds->pos), -1)
+                    total += written;
+            }
             IOCHECKERSIMPLE(written, fprintf(out, "\"\n"), -1)
                 total += written;
             break;
