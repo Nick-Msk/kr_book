@@ -305,9 +305,34 @@ bool                        dsExpect(DS *restrict pds, const char *literal) {
     return true;
 }
 
-size_t                      dsGetsize(const DS* pds) {
-    size_t size = 0L;
+size_t                      dsGetsize(const DS *pds) {
+    if (pds == NULL)
+        return userraiseint(ERR_NULL_INPUT, 
+            "Ds or literal is null %p", pds);
+    size_t      size = 0L;
 
+    switch (pds->type) {
+        case DS_FILE: {
+            off_t sz = getfilesize(pds->fp);
+            size = (sz > 0) ? (size_t) sz : 0;
+            break;
+        }
+        case DS_STR:
+        case DS_CONSTSTR:            
+            if (pds->cap > 0)
+                size = pds->cap;
+            else
+                size = strlen(dsStrbuf(pds));
+            break;
+        case DS_FS:
+#ifndef NO_FSDS
+            size = pds->s.len;
+            break;
+#endif
+        default:
+            return userraise(0L, ERR_UNSUPPORTED_TYPE, 
+                "Unsupported %d/%s", pds->type, DSTypeName(pds->type));
+    }
 
     return size;
 }
@@ -1496,6 +1521,105 @@ tf7_ds_expect(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST dsGetsize -------------------------
+static TestStatus
+tf8_ds_getsize(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. DS_STR с явной ёмкостью */
+    test_sub("subtest %d: dsGetsize on DS_STR with cap", ++subnum);
+    {
+        char buffer[20] = "hello";
+        DS ds = dsCreatestrCap(buffer, sizeof(buffer));   // cap = 20
+        size_t size = dsGetsize(&ds);
+        test_validate(size == sizeof(buffer),
+                      "expected %zu, got %zu", sizeof(buffer), size);
+    }
+
+    /* 2. DS_STR без ёмкости (dsCreatestr) */
+    test_sub("subtest %d: dsGetsize on DS_STR without cap", ++subnum);
+    {
+        char buffer[20] = "hello";
+        DS ds = dsCreatestr(buffer);                     // cap = 0, strlen = 5
+        size_t size = dsGetsize(&ds);
+        test_validate(size == strlen(buffer),
+                      "expected %zu, got %zu", strlen(buffer), size);
+    }
+
+    /* 3. DS_CONSTSTR */
+    test_sub("subtest %d: dsGetsize on DS_CONSTSTR", ++subnum);
+    {
+        const char *text = "constant string";
+        DS ds = dsCreateconst(text);
+        size_t size = dsGetsize(&ds);
+        test_validate(size == strlen(text),
+                      "expected %zu, got %zu", strlen(text), size);
+    }
+
+    /* 4. DS_FILE */
+    test_sub("subtest %d: dsGetsize on DS_FILE", ++subnum);
+    {
+        const char *fname = "res/ds/ds_getsize_file.ds";
+        FILE *fp = fopen(fname, "w+");
+        test_validatefree(fp != NULL, fclose(fp), "can't create file");
+
+        const char *data = "file data";
+        fwrite(data, 1, strlen(data), fp);
+        fflush(fp);
+
+        DS ds = dsCreatef(fp);
+        size_t size = dsGetsize(&ds);
+        test_validatefree(size == strlen(data),
+                          dsFree(&ds),
+                          "expected %zu, got %zu", strlen(data), size);
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* 5. DS_FS */
+    test_sub("subtest %d: dsGetsize on DS_FS", ++subnum);
+    {
+        fs s = fscopy("fs content");
+        DS ds = dsCreatefs(&s);   // владение переходит в ds
+
+        size_t size = dsGetsize(&ds);
+        test_validatefree(size == strlen("fs content"),
+                          dsFree(&ds),
+                          "expected %zu, got %zu", strlen("fs content"), size);
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: dsGetsize on DS_FS empty", ++subnum);
+    {
+        fs s = fscopy("");
+        DS ds = dsCreatefs(&s);   // владение переходит в ds
+
+        size_t size = dsGetsize(&ds);
+        test_validatefree(size == 0L,
+                          dsFree(&ds),
+                          "expected %zu, got %zu", strlen("fs content"), size);
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* 6. NULL входной параметр */
+    test_sub("subtest %d: dsGetsize(NULL)", ++subnum);
+    {
+        if (!try()) {
+            dsGetsize(NULL);
+            test_validate(false, "must raise error");
+        } else {
+            test_validate(true, "correctly raised error");
+        }
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -1510,6 +1634,7 @@ main( /*int argc, char *argv[] */ )
       , TESTADD(tf5_ds_create_filename, "dsCreateFilename/dsInitFilename simple test")
       , TESTADD(tf6_dswrite,             "dswrite simple test")
       , TESTADD(tf7_ds_expect,           "dsExpect simple test")
+      , TESTADD(tf8_ds_getsize, "dsGetsize simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()

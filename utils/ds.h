@@ -15,6 +15,8 @@
 #include <ctype.h>
 #include <string.h>
 
+#include "fileutils.h"
+
 #ifndef NO_FSDS
     #include "fs.h"
 #endif /* !NO_FSDS */
