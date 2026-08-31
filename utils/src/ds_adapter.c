@@ -436,7 +436,7 @@ long                            fs_dsserialize(DS *restrict out, const fs *restr
         return userraise(-1L, ERR_NULL_OUTPUT, "%p %p", out, s);
     long    total = 0L;
 
-    total += WRITE_OR_RET(dsPrintf(out, "FS \"%zu\" \"", s->len), -1L);
+    total += WRITE_OR_RET(dsPrintf(out, "FS(\"%zu\"): \"", s->len), -1L);
 
     for (size_t i = 0; i < s->len; i++)
         total += WRITE_OR_RET(dsputcEcran((unsigned char) s->v[i], out), -1L);
@@ -446,6 +446,16 @@ long                            fs_dsserialize(DS *restrict out, const fs *restr
     return total;
 }
 
+long                           fs_dsload(DS *restrict in, fs *restrict s) {
+    if (!in)
+        return userraise(-1L, ERR_NULL_INPUT, 
+            "Input DS or fs is null %p %p", in, s);
+    long    total = 0L;
+
+    // TODO: 
+
+    return total;
+}
 
 // -------------------- CONSTRUCTOTS/DESTRUCTORS -------------------
 
@@ -1352,7 +1362,7 @@ tf7_fs_dsserialize_full(const char *name)
                           "expected positive bytes written");
 
         buffer[ds.pos] = '\0';
-        test_validatefree(strcmp(buffer, "FS \"5\" \"hello\"\n") == 0,
+        test_validatefree(strcmp(buffer, "FS(\"5\"): \"hello\"\n") == 0,
                           (dsFree(&ds), fsfree(sample)),
                           "serialized mismatch: '%s'", buffer);
 
@@ -1373,7 +1383,7 @@ tf7_fs_dsserialize_full(const char *name)
                           "expected positive bytes written");
 
         buffer[ds.pos] = '\0';
-        test_validatefree(strcmp(buffer, "FS \"0\" \"\"\n") == 0,
+        test_validatefree(strcmp(buffer, "FS(\"0\"): \"\"\n") == 0,
                           (dsFree(&ds), fsfree(sample)),
                           "serialized mismatch: '%s'", buffer);
 
@@ -1395,7 +1405,7 @@ tf7_fs_dsserialize_full(const char *name)
 
         buffer[ds.pos] = '\0';
         // Ожидаемая строка: FS "9" "a\"b\\c\nd\re\tf"
-        const char *expected = "FS \"11\" \"a\\\"b\\\\c\\nd\\re\\tf\"\n";
+        const char *expected = "FS(\"11\"): \"a\\\"b\\\\c\\nd\\re\\tf\"\n";
         test_validatefree(strcmp(buffer, expected) == 0,
                           (dsFree(&ds), fsfree(sample)),
                           "serialized mismatch:\n got: '%s'\nwant: '%s'",
@@ -1422,7 +1432,7 @@ tf7_fs_dsserialize_full(const char *name)
         char buf[128];
         size_t n = fread(buf, 1, sizeof(buf)-1, ds.fp);
         buf[n] = '\0';
-        test_validatefree(strcmp(buf, "FS \"9\" \"file_test\"\n") == 0,
+        test_validatefree(strcmp(buf, "FS(\"9\"): \"file_test\"\n") == 0,
                           (dsFree(&ds), fsfree(sample)),
                           "file content mismatch: '%s'", buf);
 
@@ -1442,7 +1452,7 @@ tf7_fs_dsserialize_full(const char *name)
         test_validatefree(written > 0, (dsFree(&ds), fsfree(sample)),
                           "expected positive bytes written");
 
-        test_validatefree(strcmp(fs_str(&ds.s), "FS \"6\" \"fsdata\"\n") == 0,
+        test_validatefree(strcmp(fs_str(&ds.s), "FS(\"6\"): \"fsdata\"\n") == 0,
                           (dsFree(&ds), fsfree(sample)),
                           "fs content mismatch: '%s'", fs_str(&ds.s));
 
@@ -1454,7 +1464,7 @@ tf7_fs_dsserialize_full(const char *name)
     /* 6. DS_STR с ограниченной ёмкостью (truncate) */
     test_sub("subtest %d: DS_STR limited capacity truncates", ++subnum);
     {
-        char buffer[10];   // реально поместится 9 символов + '\0'
+        char buffer[12];   // реально поместится 9 символов + '\0'
         DS ds = dsCreatestrCap(buffer, sizeof(buffer));
         fs sample = fscopy("hello world");
 
@@ -1466,7 +1476,7 @@ tf7_fs_dsserialize_full(const char *name)
         buffer[sizeof(buffer) - 1] = '\0';
 
         // Проверяем, что это префикс ожидаемой строки и что нет выхода за границы
-        test_validatefree(strncmp(buffer, "FS \"11\" \"", sizeof(buffer) - 1) == 0,
+        test_validatefree(strncmp(buffer, "FS(\"11\"): \"", sizeof(buffer) - 1) == 0,
                           (dsFree(&ds), fsfree(sample)),
                           "truncated content does not start correctly: '%s'", buffer);
 
