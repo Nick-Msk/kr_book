@@ -29,9 +29,11 @@ static inline int           dsreplace_str(char *restrict ptr, size_t *restrict p
 /**
  * @brief Internal helper for mutable string put.
  */
-static inline int           dsputc_strbuf(char *restrict ptr, size_t *restrict pos, size_t cap, int c) {
-    if (cap > 0 && *pos < cap)
-        return ptr[(*pos)++] = (unsigned char) c;
+static inline int           dsputc_strbuf(char *ptr, size_t pos, size_t cap, int c) {
+    if (cap > 0 && pos < cap) {
+        ptr[pos] = (unsigned char) c;
+        return 1;   // shift
+    }
     else
         return EOF;
 }
@@ -175,7 +177,6 @@ int                             dsungetc(int c, DS *pds) {
             return dsungetc_conststr(ptr, &pds->pos, c);
         }
         default:      
-            //*elemnull(pds->s, pds->pos++) = (unsigned char) c;
             return EOF;
     }
 }
@@ -199,21 +200,27 @@ int                         dsreplacec(int c, DS *pds) {
 
 int                         dsputc(int c, DS *pds) {
     if (c == EOF)
-        return EOF;
+        return logsimpleerr(EOF, "put EOF - do nothing");
+
     switch (pds->type) {
         case DS_CONSTSTR:
-            return EOF;     // N/A
-        case DS_STR:
-            return dsputc_strbuf(pds->ptr, &pds->pos, pds->cap, c);
+            return userraise(EOF, ERR_STREAM_ERROR, "Unable to put to contant stream DS_CONSTSTR");     // только для чтения
+        case DS_STR: {
+            pds->pos += WRITE_OR_RET(dsputc_strbuf(pds->ptr, pds->pos, pds->cap, c), EOF);
+            return 1;
+        }
         case DS_FILE:
-            return fputc(c, pds->fp);
+            WRITE_OR_RET(fputc(c, pds->fp), EOF);
+            pds->pos++;
+            return 1;  // increment
         case DS_FS:
 #ifndef NO_FSDS
-            return *(fs_elem0(&pds->s, pds->pos++) ) = c;   // autoextend with final '\0'
+            elem0(pds->s, pds->pos++) = (unsigned char) c;
+            return 1; // increment
 #else
         default:
             return EOF;
-#endif  /* !NO_FSDS */  
+#endif
     }
 }
 
@@ -734,30 +741,28 @@ tf_ds_extra(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
-// ------------------------- TEST dsputc (output) -------------------------
 static TestStatus
-tf_ds_putc(const char *name)
+tf3_ds_putc(const char *name)
 {
     logenter("%s", name);
     int subnum = 0;
 
-    /* 1. DS_FILE: запись нескольких символов */
+    /* 1. DS_FILE */
     test_sub("subtest %d: dsputc to file", ++subnum);
     {
-        const char  *fname = "res/ds/test_putc_file.ds";
-        FILE        *fp = fopen(fname, "w");
-        DS           ds = dsCreatef(fp);
-        int          c;
+        const char *fname = "res/ds/test_putc_file.ds";
+        FILE *fp = fopen(fname, "w");
+        DS ds = dsCreatef(fp);
+        int res;
 
-        c = dsputc('A', &ds);
-        test_validate(c == 'A', "dsputc 'A' must return 'A', got '%c'", c);
-        c = dsputc('B', &ds);
-        test_validate(c == 'B', "dsputc 'B' must return 'B', got '%c'", c);
-        c = dsputc('C', &ds);
-        test_validate(c == 'C', "dsputc 'C' must return 'C', got '%c'", c);
+        res = dsputc('A', &ds);
+        test_validate(res == 1, "dsputc 'A' must return 1, got %d", res);
+        res = dsputc('B', &ds);
+        test_validate(res == 1, "dsputc 'B' must return 1, got %d", res);
+        res = dsputc('C', &ds);
+        test_validate(res == 1, "dsputc 'C' must return 1, got %d", res);
+
         fclose(fp);
-
-        // проверяем содержимое файла
         fp = fopen(fname, "r");
         char buf[8] = {0};
         fread(buf, 1, 3, fp);
@@ -766,111 +771,99 @@ tf_ds_putc(const char *name)
                       "File must contain 'ABC', got '%s'", buf);
     }
 
-    /* 2. DS_STR: запись в mutable строку */
+    /* 2. DS_STR с явной ёмкостью */
     test_sub("subtest %d: dsputc to mutable string", ++subnum);
     {
         char text[10] = ".........";
-        DS ds = dsCreatestr(text);
-        int c;
+        DS ds = dsCreatestrCap(text, sizeof(text));
+        int res;
 
-        c = dsputc('X', &ds);
-        test_validate(c == 'X', "dsputc 'X' must return 'X', got '%c'", c);
-        c = dsputc('Y', &ds);
-        test_validate(c == 'Y', "dsputc 'Y' must return 'Y', got '%c'", c);
-        c = dsputc('Z', &ds);
-        test_validate(c == 'Z', "dsputc 'Z' must return 'Z', got '%c'", c);
+        res = dsputc('X', &ds);
+        test_validate(res == 1, "dsputc 'X' must return 1, got %d", res);
+        res = dsputc('Y', &ds);
+        test_validate(res == 1, "dsputc 'Y' must return 1, got %d", res);
+        res = dsputc('Z', &ds);
+        test_validate(res == 1, "dsputc 'Z' must return 1, got %d", res);
+
         test_validate(text[0] == 'X' && text[1] == 'Y' && text[2] == 'Z',
                       "String must contain 'XYZ', got '%c%c%c'",
                       text[0], text[1], text[2]);
         test_validate(ds.pos == 3, "pos must be 3, got %zu", ds.pos);
     }
 
-    /* 3. DS_STR: попытка записи за нуль-терминатор */
-    test_sub("subtest %d: dsputc past null terminator returns EOF", ++subnum);
+    /* 3. DS_STR: переполнение */
+    test_sub("subtest %d: dsputc past capacity returns 0", ++subnum);
     {
-        char text[5] = "AB";
-        DS ds = dsCreatestr(text);
-        ds.pos = 2;                   // встали на нуль-терминатор
-        int c = dsputc('X', &ds);
-        test_validate(c == EOF,
-                      "dsputc past null terminator must return EOF, got '%c'", c);
+        char text[3];
+        DS ds = dsCreatestrCap(text, sizeof(text));
+        ds.pos = 2;                   // почти заполнен
+        int res = dsputc('X', &ds);   // запишется, pos станет 3? 
+        test_validate(res == 1, "first write must succeed");
+        res = dsputc('Y', &ds);       // места нет (cap=3, pos=3)
+        test_validate(res == EOF, "dsputc past capacity must return EOF, got %d", res);
     }
 
-    /* 4. DS_CONSTSTR: запись запрещена */
+    /* 4. DS_CONSTSTR */
     test_sub("subtest %d: dsputc to const string returns EOF", ++subnum);
     {
         const char *text = "const";
         DS ds = dsCreateconst(text);
-        int c = dsputc('A', &ds);
-        test_validate(c == EOF,
-                      "dsputc on const string must return EOF, got '%c'", c);
+        int res = dsputc('A', &ds);
+        test_validate(res == EOF,
+                      "dsputc on const string must return EOF, got %d", res);
     }
 
-    /* 5. Передача EOF возвращает EOF */
+    /* 5. dsputc(EOF) */
     test_sub("subtest %d: dsputc(EOF) returns EOF", ++subnum);
     {
-        DS ds = dsCreatef(stdout);   // любой валидный DS
-        int c = dsputc(EOF, &ds);
-        test_validate(c == EOF,
-                      "dsputc(EOF) must return EOF, got '%c'", c);
+        DS ds = dsCreatef(stdout);
+        int res = dsputc(EOF, &ds);
+        test_validate(res == EOF,
+                      "dsputc(EOF) must return EOF, got %d", res);
     }
 
-    return logret(TEST_PASSED, "done");
+    return TEST_PASSED;
 }
 
 // ------------------------- TEST dsputc / dsgetc for DS_FS -------------------------
 static TestStatus
-tf_ds_fs(const char *name)
+tf4_ds_fs(const char *name)
 {
     logenter("%s", name);
     int subnum = 0;
 
 #ifndef NO_FSDS
-    /* 1. DS_FS: запись нескольких символов и чтение (round-trip) */
-    test_sub("subtest %d: dsputc/dsgetc round‑trip on FS", ++subnum);
+    test_sub("subtest %d: dsputc/dsgetc round-trip on FS", ++subnum);
     {
         fs s = FS();
         DS ds = dsCreatefs(&s);
-        int c;
+        int res;
 
-        // записываем три символа
-        c = dsputc('A', &ds);
-        test_validate(c == 'A', "dsputc 'A' must return 'A', got '%c'", c);
-        c = dsputc('B', &ds);
-        test_validate(c == 'B', "dsputc 'B' must return 'B', got '%c'", c);
-        c = dsputc('C', &ds);
-        test_validate(c == 'C', "dsputc 'C' must return 'C', got '%c'", c);
+        res = dsputc('A', &ds);
+        test_validate(res == 1, "dsputc 'A' must return 1");
+        res = dsputc('B', &ds);
+        test_validate(res == 1, "dsputc 'B' must return 1");
+        res = dsputc('C', &ds);
+        test_validate(res == 1, "dsputc 'C' must return 1");
 
-        // сбрасываем позицию на начало для чтения
-        // ds.pos = 0;
         dsReset(&ds);
-
-        c = dsgetc(&ds);
-        test_validate(c == 'A', "dsgetc must read 'A', got '%c'", c);
-        c = dsgetc(&ds);
-        test_validate(c == 'B', "dsgetc must read 'B', got '%c'", c);
-        c = dsgetc(&ds);
-        test_validate(c == 'C', "dsgetc must read 'C', got '%c'", c);
-        c = dsgetc(&ds);
-        test_validate(c == EOF, "dsgetc after 'C' must return EOF, got '%c'", c);
-
+        test_validate(dsgetc(&ds) == 'A', "read A");
+        test_validate(dsgetc(&ds) == 'B', "read B");
+        test_validate(dsgetc(&ds) == 'C', "read C");
+        test_validate(dsgetc(&ds) == EOF, "after C must be EOF");
         dsFree(&ds);
     }
     fs_alloc_check(true);
 
-    /* 2. DS_FS: запись с авто‑расширением (fs_elem0) */
-    test_sub("subtest %d: dsputc auto‑extend on FS", ++subnum);
+    test_sub("subtest %d: dsputc auto-extend on FS", ++subnum);
     {
         fs s = FS();
         DS ds = dsCreatefs(&s);
         ds.pos = 5;
-        int c = dsputc('X', &ds);
-        test_validate(c == 'X', "dsputc at pos 5 must return 'X', got '%c'", c);
-
-        // проверяем внутреннее состояние DS
+        int res = dsputc('X', &ds);
+        test_validate(res == 1, "dsputc at pos 5 must return 1");
         test_validate(ds.s.len == 6 && ds.s.v[5] == 'X' && ds.s.v[6] == '\0',
-                    "FS len must be 6, str[5]='X', str[6]='\\0', got len=%zu, str='%s'",
-                    ds.s.len, ds.s.v);
+                      "FS len=6, str[5]='X', str[6]='\\0'");
         dsFree(&ds);
     }
     fs_alloc_check(true);
@@ -927,7 +920,7 @@ tf5_ds_create_filename(const char *name)
     /* 1. Создание нового файла для записи, закрытие через dsFree */
     test_sub("subtest %d: create new file for write", ++subnum);
     {
-        const char *fname = "res/ds/ds_create_write.tmp";
+        const char *fname = "res/ds/ds_create_write.ds";
         DS ds = dsCreateFilename(fname, "w");
         test_validatefree(ds.fp != NULL, (dsFree(&ds)),
                           "file must be opened for writing");
@@ -940,7 +933,7 @@ tf5_ds_create_filename(const char *name)
     /* 2. Открытие существующего файла для чтения */
     test_sub("subtest %d: open existing file for read", ++subnum);
     {
-        const char *fname = "res/ds/ds_create_read.tmp";
+        const char *fname = "res/ds/ds_create_read.ds";
         FILE *w = fopen(fname, "w");
         test_validate(w != NULL, "can't create file");
         fputs("world", w);
@@ -1307,8 +1300,8 @@ main( /*int argc, char *argv[] */ )
     testenginestd(
         TESTADD(tf_ds,                  "DS (DataSource) simple tests")
       , TESTADD(tf_ds_extra,            "DS additional functions")
-      , TESTADD(tf_ds_putc,             "dsputc simple test")
-      , TESTADD(tf_ds_fs,               "dsputc / dsgetc for DS_FS test")
+      , TESTADD(tf3_ds_putc,             "dsputc simple test")
+      , TESTADD(tf4_ds_fs,               "dsputc / dsgetc for DS_FS test")
       , TESTADD(tf5_ds_create_filename, "dsCreateFilename/dsInitFilename simple test")
       , TESTADD(tf6_dswrite,             "dswrite simple test")
     );

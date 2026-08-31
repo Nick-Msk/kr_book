@@ -264,7 +264,7 @@ extern int                      dsreplacec(int c, DS *pds);
  *  
  * @param[in]  c The character to push back.
  * @param[in,out] ds Pointer to the data source.
- * @return The character 'c' if successful, or @c EOF if the operation failed.
+ * @return The 1 if successful, 0 if no change (FS_STR) or @c EOF if the operation failed.
  */
 extern int                      dsputc(int c, DS *pds);
 /**
