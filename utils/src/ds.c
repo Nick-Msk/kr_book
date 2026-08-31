@@ -288,18 +288,28 @@ long                     dswrite(DS *restrict out, const char *ptr, size_t len) 
     return actual_written;
 }
 
-bool                        dsExpect(DS *restrict ds, const char *literal) {
-    dsSavepos(ds);
+bool                        dsExpect(DS *restrict pds, const char *literal) {
+    if (pds == NULL || literal == NULL)
+        return userraiseint(ERR_NULL_INPUT, 
+            "Ds or literal is null %p %p", pds, literal);
+    dsSavepos(pds);
     size_t  i = 0;
     while(literal[i] != '\0') {
-        int c = dsgetc(ds);
+        int c = dsgetc(pds);
         if (c == EOF || c != (unsigned char) literal[i]) {
-            dsRestorepos(ds);
+            dsRestorepos(pds);
             return false;
         }
         i++;
     }
     return true;
+}
+
+size_t                      dsGetsize(const DS* pds) {
+    size_t size = 0L;
+
+
+    return size;
 }
 
 int                         dsTechFPrint(FILE *restrict out, const DS *restrict pds, const char *restrict name) {

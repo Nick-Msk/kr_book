@@ -283,9 +283,11 @@ extern int                      dsputcEcran(int c, DS *pds);
  * @param[in,out] ds Pointer to the data source.
  * @return The character 'c' if successful, or @c EOF if the operation failed.
  */
-extern long                     dswrite(DS *restrict out, const char *ptr, size_t len);
+extern long                     dswrite(DS *restrict out, const char *restrict ptr, size_t len);
 
-extern bool                     dsExpect(DS *restrict ds, const char *literal);
+extern bool                     dsExpect(DS *restrict ds, const char *restrict literal);
+
+extern size_t                   dsGetsize(const DS* pds);
 /**
  * @brief Debugging print implementation.
  * Returns the number of characters printed.
