@@ -352,6 +352,19 @@ static inline void              dsSavepos(DS *pds) {
             break;
     }
 }
+/**
+ * @brief Return the current position of the data source.
+ * 
+ * @param pds Pointer to the data source.
+ */
+static inline off_t             dsGetpos(const DS *pds) {
+    switch (pds->type) {
+        case DS_FILE:
+            return ftell(pds->fp);
+        case DS_STR: case DS_CONSTSTR: case DS_FS:
+            return pds->pos;
+    }
+}
 
 /**
  * @brief Restores the position of the data source to the last saved state.
