@@ -180,6 +180,10 @@ extern bool                         dsParseChar(DS *restrict pds, char *restrict
 // TODO: not sure about that since V64 has own value64_loadds/value64_loadfile/value64_loadstr
 extern bool                         dsParseV64(DS *restrict pds, value64 *restrict pval, value64_type v64typ);
 
+// parse ONLY dst->len amount! Ex len == 8, ds -> "123456", 
+// result dest contain 123456. Len = 4 => error, return 0L
+extern size_t                       dsParseQuotedLimitedLine(DS *restrict pds, fs *restrict dst);
+
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
 // ------------------------------------ ETC. ----------------------------------------
