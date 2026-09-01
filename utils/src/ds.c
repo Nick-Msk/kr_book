@@ -1620,6 +1620,98 @@ tf8_ds_getsize(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST dsGetpos -------------------------
+static TestStatus
+tf9_ds_getpos(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. DS_CONSTSTR: начальная позиция и после чтения */
+    test_sub("subtest %d: dsGetpos on CONSTSTR", ++subnum);
+    {
+        const char *text = "hello";
+        DS ds = dsCreateconst(text);
+
+        off_t p0 = dsGetpos(&ds);
+        test_validate(p0 == 0, "initial pos expected 0, got %lld", (long long)p0);
+
+        dsgetc(&ds);
+        off_t p1 = dsGetpos(&ds);
+        test_validate(p1 == 1, "after one read expected 1, got %lld", (long long)p1);
+    }
+
+    /* 2. DS_STR с ёмкостью: позиция после записи */
+    test_sub("subtest %d: dsGetpos on DS_STR with writes", ++subnum);
+    {
+        char buffer[16] = "abc";
+        DS ds = dsCreatestrCap(buffer, sizeof(buffer));
+
+        off_t p0 = dsGetpos(&ds);
+        test_validate(p0 == 0, "initial pos expected 0, got %lld", (long long)p0);
+
+        dsputc('X', &ds);
+        off_t p1 = dsGetpos(&ds);
+        test_validate(p1 == 1, "after one write expected 1, got %lld", (long long)p1);
+
+        dsputc('Y', &ds);
+        off_t p2 = dsGetpos(&ds);
+        test_validate(p2 == 2, "after two writes expected 2, got %lld", (long long)p2);
+    }
+
+    /* 3. DS_FS: позиция после записи */
+    test_sub("subtest %d: dsGetpos on DS_FS", ++subnum);
+    {
+        fs s = FS();
+        DS ds = dsCreatefs(&s);   // владение переходит в ds
+
+        off_t p0 = dsGetpos(&ds);
+        test_validatefree(p0 == 0, dsFree(&ds),
+                          "initial pos expected 0, got %lld", (long long)p0);
+
+        dsputc('A', &ds);
+        off_t p1 = dsGetpos(&ds);
+        test_validatefree(p1 == 1, dsFree(&ds),
+                          "after write expected 1, got %lld", (long long)p1);
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: dsGetpos on DS_FILE", ++subnum);
+    {
+        const char *fname = "res/ds/ds_getpos_file.tmp";
+        FILE *fp = fopen(fname, "w+");
+        test_validatefree(fp != NULL, fclose(fp), "can't open file");
+
+        fputs("hello", fp);
+        fflush(fp);
+        rewind(fp);
+
+        DS ds = dsCreatef(fp);
+        off_t p0 = dsGetpos(&ds);
+        test_validatefree(p0 == 0, fclose(fp),
+                        "initial file pos expected 0, got %lld", (long long)p0);
+
+        dsgetc(&ds);
+        off_t p1 = dsGetpos(&ds);
+        test_validatefree(p1 == 1, fclose(fp),
+                        "after one read expected 1, got %lld", (long long)p1);
+
+        // Перед записью синхронизируем позицию (требование стандарта C)
+        fseek(fp, p1, SEEK_SET);
+        dsputc('Z', &ds);
+        off_t p2 = dsGetpos(&ds);
+        test_validatefree(p2 == 2, fclose(fp),
+                        "after write expected 2, got %lld", (long long)p2);
+
+        fclose(fp);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -1631,10 +1723,11 @@ main( /*int argc, char *argv[] */ )
       , TESTADD(tf_ds_extra,             "DS additional functions")
       , TESTADD(tf3_ds_putc,             "dsputc simple test")
       , TESTADD(tf4_ds_fs,               "dsputc / dsgetc for DS_FS test")
-      , TESTADD(tf5_ds_create_filename, "dsCreateFilename/dsInitFilename simple test")
+      , TESTADD(tf5_ds_create_filename,  "dsCreateFilename/dsInitFilename simple test")
       , TESTADD(tf6_dswrite,             "dswrite simple test")
       , TESTADD(tf7_ds_expect,           "dsExpect simple test")
       , TESTADD(tf8_ds_getsize,          "dsGetsize simple test")
+      , TESTADD(tf9_ds_getpos,           "dsGetpos simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
