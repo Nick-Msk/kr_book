@@ -15,7 +15,7 @@
 #include <ctype.h>
 #include <string.h>
 
-#include "fileutils.h"
+// #include "fileutils.h"
 
 #ifndef NO_FSDS
     #include "fs.h"
@@ -287,7 +287,14 @@ extern int                      dsputcEcran(int c, DS *pds);
  */
 extern long                     dswrite(DS *restrict out, const char *restrict ptr, size_t len);
 
-extern bool                     dsExpect(DS *restrict ds, const char *restrict literal);
+/**
+ * @brief Tried to Read c-string from the stream
+ *  
+ * @param[in]  literal c-string
+ * @param[in,out] in Pointer to the data source.
+ * @return The true if successful read, false - otherwise.
+ */
+extern bool                     dsExpect(DS *restrict in, const char *restrict literal);
 
 extern size_t                   dsGetsize(const DS* pds);
 /**

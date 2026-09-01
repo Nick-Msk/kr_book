@@ -313,7 +313,8 @@ size_t                      dsGetsize(const DS *pds) {
 
     switch (pds->type) {
         case DS_FILE: {
-            off_t sz = getfilesize(pds->fp);
+            // off_t sz = getfilesize(pds->fp); // can't use fileutils
+            long    sz = ftell(pds->fp);
             size = (sz > 0) ? (size_t) sz : 0;
             break;
         }
