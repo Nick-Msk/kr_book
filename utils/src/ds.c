@@ -1634,7 +1634,7 @@ main( /*int argc, char *argv[] */ )
       , TESTADD(tf5_ds_create_filename, "dsCreateFilename/dsInitFilename simple test")
       , TESTADD(tf6_dswrite,             "dswrite simple test")
       , TESTADD(tf7_ds_expect,           "dsExpect simple test")
-      , TESTADD(tf8_ds_getsize, "dsGetsize simple test")
+      , TESTADD(tf8_ds_getsize,          "dsGetsize simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
