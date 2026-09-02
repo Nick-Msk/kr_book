@@ -91,7 +91,23 @@ static fs                               increasesize(fs *s, size_t newsz, bool i
     return logret(*s, "%s%zu", fs_alloc(s) ? "increased to " :"No change because non-heap ", s->sz);
 }
 
-// low level copy, NOT check anything
+Apply
+/**
+ * @brief Low-level copy of source data and its null terminator to the target.
+ *
+ * This function appends the content of @p source to @p target, starting at the 
+ * current position defined by @p target->len. It also copies the null terminator 
+ * (\0) from the source and updates the target's length.
+ *
+ * @warning **NO BOUNDS CHECKING PERFORMED.** 
+ * The caller is strictly responsible for ensuring that:
+ * 1. @p target->sz >= (target->len + source->len + 1).
+ * 2. @p source->v contains a null terminator at @p source->v[source->len].
+ *
+ * @param[out] target Pointer to the destination fs structure.
+ * @param[in] source  Pointer to the source fs structure.
+ * @return Pointer to the updated @p target.
+ */
 static inline fs                       *strcopy(fs *restrict target, const fs *restrict source){
     memcpy(target->v + target->len, source->v, source->len + 1);   // with last '\0'
     target->len = target->len + source->len;
