@@ -156,7 +156,43 @@ extern long                        fs_dsserialize(DS *restrict out, const fs *re
  *       @code FS(<unsigned_long>): "<escaped_string>" @endcode
  */
 extern long                        fs_dsload(DS *restrict in, fs *restrict s, bool use_buffer);
-//
+/**
+ * @brief Serializes an @ref fs object into a @ref DS stream.
+ *
+ * This function transforms a raw data source (@ref fs) into a formatted 
+ * string suitable for storage or transmission. It converts the data into 
+ * a structured text format with escaping to ensure data integrity.
+ *
+ * The resulting serialized format is:
+ * @code
+ * FS(<length>): "<escaped_content>"
+ * @endcode
+ * 
+ * where:
+ * - <length> is the number of bytes in the original @ref fs object.
+ * - <escaped_content> is the original data, where special characters 
+ *   (like \n, \t, ", \\) are escaped with a backslash.
+ *
+ * @details
+ * The function performs the following steps:
+ * <ol>
+ *   <li>Writes the header: @c FS("<length>"): "</li>
+ *   <li>Iterates through the source, escaping characters via @ref dsputcEcran.</li>
+ *   <li>Writes the footer: @" and a newline character.</li>
+ * </ol>
+ *
+ * @param[in,out] out The destination @ref DS stream.
+ * @param[in]     s   The source @ref fs object to be serialized.
+ *
+ * @return The total number of bytes written (including header, footer, 
+ *         and escape characters) on success, or -1 on error.
+ *
+ * @note This function is non-idempotent as it modifies the state of the 
+ *       @ref DS stream.
+ * @warning If an error occurs during the process (e.g., disk full, 
+ *          stream error), the function returns -1 and the output 
+ *          stream may be left in a partially written state.
+ */
 extern long                        fs_dstechprint(DS *restrict out, const fs *restrict s, const char *restrict name);
 
 // ------------------------------- SCANNERS ----------------------------------------
