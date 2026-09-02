@@ -195,6 +195,39 @@ static bool                     dsHelperParseUnsigned(const char *restrict str, 
     return true;
 }
 
+/**
+ * @brief Internal helper to parse escaped sequences from a @ref DS stream.
+ *
+ * This function scans the input stream for a quoted string. It handles 
+ * standard escape sequences:
+ * - @code \n @endcode -> newline
+ * - @code \r @endcode -> carriage return
+ * - @code \t @endcode -> tab
+ * - @code \\ @endcode -> backslash
+ * - @code \" @endcode -> double quote
+ *
+ * @details
+ * The function implements a transactional parsing approach:
+ * <ol>
+ *   <li>It saves the current position of the input stream.</li>
+ *   <li>It parses the quoted content, decoding escape sequences.</li>
+ *   <li>If a parsing error occurs (e.g., invalid escape, missing 
+ *       closing quote, or buffer overflow), the input stream position 
+ *       is restored to its original state via @ref dsRestorepos.</li>
+ * </ol>
+ *
+ * @param[in]  in           Pointer to the source @ref DS stream.
+ * @param[in,out] dst       Pointer to the destination character buffer.
+ * @param[in]  dst_capacity The maximum number of characters the buffer 
+ *                          can hold (excluding the null terminator).
+ *
+ * @return The number of decoded characters written to @p dst (excluding 
+ *         the quotes), or 0 if a parsing error occurred.
+ *
+ * @note This function automatically adds a null terminator ('\0') at 
+ *       @code dst[len] @endcode upon successful parsing.
+ * @warning This function modifies the input stream position.
+ */
 static size_t
 dsHelperParseEscapedString(DS *restrict in, char *restrict dst, size_t dst_capacity) {
     dsSavepos(in);                       // запоминаем позицию
@@ -239,8 +272,40 @@ dsHelperParseEscapedString(DS *restrict in, char *restrict dst, size_t dst_capac
     return len; // count of read bytes
 }
 
-// Helper for techprint fs 
-static long                     
+/**
+ * @brief Internal helper to format technical metadata of an @ref fs object into a buffer.
+ *
+ * This function is used by @ref fs_dstechprint to generate a diagnostic string 
+ * describing the state of an @ref fs object. It captures the length, size, 
+ * flags, and a truncated snippet of the actual data.
+ *
+ * The formatted string follows this pattern:
+ * @code
+ * FS: <name>: len [<len>], sz [<sz>], flags [<flags>], s [<data>]
+ * @endcode
+ * 
+ * If the data content exceeds @c FS_TECH_PRINT_COUNT, the string is truncated 
+ * and appended with @c "..." to indicate remaining data.
+ *
+ * @details 
+ * The function uses a position-based writing approach (`fs_sprintf_position`) 
+ * to allow for sequential building of the diagnostic string. It tracks the 
+ * delta of the position to return the total number of bytes appended.
+ *
+ * @param[in,out] out   The destination @ref fs object where the diagnostic 
+ *                      string will be written.
+ * @param[in]     pos   The starting position (offset) within the @ref out 
+ *                      object where writing should begin.
+ * @param[in]     s     The source @ref fs object to be inspected. 
+ *                      If @c NULL, a "<NULL>" placeholder is written.
+ * @param[in]     name  A label representing the object being inspected.
+ *
+ * @return The number of bytes appended to the @ref out object (the delta 
+ *         of @p pos). Returns -1 if any write operation fails.
+ *
+ * @note This function is for debugging purposes only and is not intended 
+ *       for use in production data serialization.
+ */static long                     
 dsfsHelperTechprintTofs(fs *restrict out, size_t pos, const fs *restrict s, const char *restrict name) {
     long    initpos = pos;
     if (s) {
@@ -260,9 +325,11 @@ dsfsHelperTechprintTofs(fs *restrict out, size_t pos, const fs *restrict s, cons
         pos += WRITE_OR_RET(fs_sprintf_position(out, pos, "FS: %s: <NULL>\n", name), -1);
     return pos - initpos; 
 }
-// helper fs => ds
+/**
+ * @brief Internal helper to wtire fs into a @ref DS stream.
+ */
 static long
-dsfsHelperFsDs(DS *restrict out, const fs *restrict s) {
+dsfsHelperFsDSWrite(DS *restrict out, const fs *restrict s) {
     // just use direct write
     return dswrite(out, s->v, s->len);
 }
@@ -462,7 +529,7 @@ long                            fs_dswrite(DS *restrict out, const fs *restrict 
     if (int_notin(out->type, DS_FILE, DS_STR, DS_FS) )
         return userraise(-1L, ERR_UNSUPPORTED_TYPE, 
             "Unsupported %d/%s", out->type, DSTypeName(out->type));
-    return dsfsHelperFsDs(out, s);
+    return dsfsHelperFsDSWrite(out, s);
 }
 
 // techprint used temporary fs buffer (low performace) in order to have the same logic for all path
@@ -479,7 +546,7 @@ long                            fs_dstechprint(DS *restrict out, const fs *restr
     WRITE_OR_RET_ACTION(dsfsHelperTechprintTofs(&buf, 0L, s, name), -1, 
                         fsfree(buf));
 
-    long  actual_written = dsfsHelperFsDs(out, &buf);
+    long  actual_written = dsfsHelperFsDSWrite(out, &buf);
     fsfree(buf);
     return actual_written;
 }
@@ -1931,14 +1998,14 @@ tf9_fs_ds_DS_STR_roundtrip(const char *name)
         long written = fs_dsserialize(&out_ds, &src);
         test_validatefree(written > 0, fsfree(src), "serialize failed");
 
-        buffer[out_ds.pos] = '\0';  // завершаем строку
+        dsFree(&out_ds);
 
         DS in_ds = dsCreateconst(buffer);
         fs dst = FS();
         long read_len = fs_dsload(&in_ds, &dst, true);
         test_validatefree(read_len == (long)src.len, (fsfree(src), fsfree(dst)),
                           "read length mismatch: expected %zu, got %ld", src.len, read_len);
-        test_validatefree(strcmp(fs_str(&dst), fs_str(&src)) == 0,
+        test_validatefree(fscmp(dst, src) == 0,
                           (fsfree(src), fsfree(dst)),
                           "content mismatch: src='%s', dst='%s'", fs_str(&src), fs_str(&dst));
         fsfree(src);

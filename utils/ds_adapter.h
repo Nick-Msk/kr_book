@@ -314,8 +314,25 @@ extern bool                         dsParseChar(DS *restrict pds, char *restrict
 // TODO: not sure about that since V64 has own value64_loadds/value64_loadfile/value64_loadstr
 extern bool                         dsParseV64(DS *restrict pds, value64 *restrict pval, value64_type v64typ);
 
-// parse ONLY dst->len amount! Ex len == 8, ds -> "123456", 
-// result dest contain 123456. Len = 4 => error, return 0L
+/**
+ * @brief Parses a quoted, escaped string from a @ref DS source and stores it in an @ref fs object.
+ *
+ * This function reads a quoted string from the input stream, processes any 
+ * escape sequences (e.g., \n, \t), and writes the decoded content into the 
+ * provided @ref fs buffer.
+ *
+ * @param[in]  pds  Pointer to the source @ref DS stream.
+ * @param[in,out] dst Pointer to the destination @ref fs object. 
+ *                    The @ref dst->sz will be updated to the actual number 
+ *                    of parsed characters upon success.
+ *
+ * @return The number of characters successfully parsed and stored in @p dst.
+ *
+ * @note This function is a wrapper around @ref dsHelperParseEscapedString 
+ *       and automatically updates the @ref fs->len property.
+ * @warning If parsing fails, the input @ref DS stream is rolled back to its 
+ *          original position, and the function returns 0.
+ */
 extern size_t                       dsParseQuotedLimitedLine(DS *restrict pds, fs *restrict dst);
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
