@@ -55,11 +55,109 @@ extern int                         dsPrintf(DS *restrict ds, const char *restric
 extern int                         dsScanf(DS *restrict pds, const char *restrict msg, ...) __attribute__ ((format (scanf, 2, 3)));
 
 // -------------------------------------- fs adapter ------------------------------------------------
-extern long                        fs_dsprintf(DS *restrict out, const fs *restrict s);
+
+/**
+ * @brief Writes the content of an @ref fs object into a @ref DS stream.
+ *
+ * This is an adapter function that bridges the @ref fs data structure 
+ * to the universal @ref DS interface. It performs a direct data transfer 
+ * from the source to the destination stream.
+ *
+ * @param[in,out] out The destination @ref DS stream. Must be a writable 
+ *                    type (e.g., @c DS_FILE, @c DS_STR, or @c DS_FS).
+ * @param[in]     s   The source @ref fs object containing the data to be written.
+ *
+ * @return The number of bytes successfully written on success, or a negative 
+ *         error code if the operation failed (e.g., invalid output type 
+ *         or null pointers).
+ *
+ * @note This function is more efficient than @ref dsputc for bulk data 
+ *       transfers and is preferred when working with @ref fs objects.
+ * @warning If @p out is a read-only stream (e.g., @c DS_CONSTSTR), 
+ *          the function will return an error.
+ */
+extern long                        fs_dswrite(DS *restrict out, const fs *restrict s);
+
+/**
+ * @brief Serializes an @ref fs object into a @ref DS stream.
+ *
+ * This function transforms a raw data source (@ref fs) into a formatted 
+ * string suitable for storage or transmission. It converts the data into 
+ * a structured text format with escaping to ensure data integrity.
+ *
+ * The resulting serialized format is:
+ * @code
+ * FS(<length>): "<escaped_content>"
+ * @endcode
+ * 
+ * where:
+ * - <length> is the number of bytes in the original @ref fs object.
+ * - <escaped_content> is the original data, where special characters 
+ *   (like \n, \t, ", \\) are escaped with a backslash.
+ *
+ * @details
+ * The function performs the following steps:
+ * <ol>
+ *   <li>Writes the header: @c FS("<length>"): "</li>
+ *   <li>Iterates through the source, escaping characters via @ref dsputcEcran.</li>
+ *   <li>Writes the footer: @" and a newline character.</li>
+ * </ol>
+ *
+ * @param[in,out] out The destination @ref DS stream.
+ * @param[in]     s   The source @ref fs object to be serialized.
+ *
+ * @return The total number of bytes written (including header, footer, 
+ *         and escape characters) on success, or -1 on error.
+ *
+ * @note This function is non-idempotent as it modifies the state of the 
+ *       @ref DS stream.
+ * @warning If an error occurs during the process (e.g., disk full, 
+ *          stream error), the function returns -1 and the output 
+ *          stream may be left in a partially written state.
+ */
 extern long                        fs_dsserialize(DS *restrict out, const fs *restrict s);
-extern long                        fs_dsload(DS *restrict in, fs *restrict s);
+/**
+ * @brief Loads a serialized data string from a source into an @ref fs object.
+ *
+ * This function parses a data stream following the custom serialization format:
+ * @code
+ * FS(<length>): "<content>"
+ * @endcode
+ * It automatically handles de-escaping of special characters (e.g., \n, \t, \", \\).
+ *
+ * @details The function provides two modes of operation via the @p use_buffer parameter:
+ * <ul>
+ *   <li><b>Transactional Mode (@p use_buffer = @c true):</b>
+ *       The data is first loaded into a temporary intermediate buffer. The @ref dst 
+ *       object is only updated (via @ref fs_cat) if the entire sequence is read 
+ *       successfully and the actual number of decoded characters matches the 
+ *       length specified in the header. This ensures that @ref dst remains 
+ *       unmodified if an error occurs.</li>
+ *   <li><b>Zero-Copy Mode (@p use_buffer = @c false):</b>
+ *       Data is written directly into the @ref dst object's memory. This is 
+ *       significantly faster as it avoids an extra memory copy, but it is 
+ *       not atomic.</li>
+ * </ul>
+ *
+ * @param[in]  in         Pointer to the input @ref DS source.
+ * @param[in,out] dst     Pointer to the destination @ref fs object to be populated.
+ * @param[in]  use_buffer Toggle for transactional safety. 
+ *                         If @c true, ensures atomicity. 
+ *                         If @c false, optimizes for performance.
+ *
+ * @return The number of bytes successfully loaded on success, or -1 on error.
+ *
+ * @warning If @p use_buffer is set to @c false, an error during parsing (e.g., 
+ *          mismatched length, unexpected EOF, or malformed escape sequence) 
+ *          will leave the @ref dst object in a corrupted or partially-written 
+ *          state.
+ *
+ * @note The input must strictly follow the format: 
+ *       @code FS(<unsigned_long>): "<escaped_string>" @endcode
+ */
+extern long                        fs_dsload(DS *restrict in, fs *restrict s, bool use_buffer);
 //
-extern long                        fs_dstechprintf(DS *restrict out, const fs *restrict s, const char *restrict name);
+extern long                        fs_dstechprint(DS *restrict out, const fs *restrict s, const char *restrict name);
 
 // ------------------------------- SCANNERS ----------------------------------------
 

@@ -453,10 +453,8 @@ size_t                       dsParseQuotedLimitedLine(DS *restrict pds, fs *rest
 // -------------------------------------- fs adapters ------------------------------------------------
 // ------------------------------- NOTE: no call to fs.c from here -----------------------------------
 
-
-
-// print fs data into stream out
-long                            fs_dsprintf(DS *restrict out, const fs *restrict s) {
+// write fs data into stream out
+long                            fs_dswrite(DS *restrict out, const fs *restrict s) {
     if (!out)
         return userraise(-1L, ERR_NULL_OUTPUT, "");
     if (!s) // that is normal behaviour, just log
@@ -468,7 +466,7 @@ long                            fs_dsprintf(DS *restrict out, const fs *restrict
 }
 
 // techprint used temporary fs buffer (low performace) in order to have the same logic for all path
-long                            fs_dstechprintf(DS *restrict out, const fs *restrict s, const char *restrict name) {
+long                            fs_dstechprint(DS *restrict out, const fs *restrict s, const char *restrict name) {
     if (!out)
         return userraise(-1L, ERR_NULL_OUTPUT, "");
     if (int_notin(out->type, DS_FILE, DS_STR, DS_FS) )
@@ -501,15 +499,58 @@ long                            fs_dsserialize(DS *restrict out, const fs *restr
     return total;
 }
 
-long                           fs_dsload(DS *restrict in, fs *restrict s) {
+long                           fs_dsload(DS *restrict in, fs *restrict dst, bool use_buffer) {
     if (!in)
         return userraise(-1L, ERR_NULL_INPUT, 
-            "Input DS or fs is null %p %p", in, s);
-    long    total = 0L;
-
+            "Input DS or fs is null %p %p", in, dst);
     
+    dsSavepos(in);
 
-    return total;
+    if (!dsExpect(in, "FS("))       // not shift position if failed
+        return userraise(-1L, ERR_WRONG_INPUT_FORMAT, "Expected 'FS('");
+
+    unsigned long expected_len = 0;
+    if (!dsParseUnsignedLong(in, &expected_len)) {
+        dsRestorepos(in);
+        return userraise(-1L, ERR_UNABLE_PARSE_DATA, "Failed to read length");
+    }
+
+    if (!dsExpect(in, "): ")) {
+        dsRestorepos(in);
+        return userraise(-1L, ERR_WRONG_INPUT_FORMAT, "Expected '): \"'");
+    }
+    size_t actual_len;
+
+    if (use_buffer) {
+        fs buf = fsinit(expected_len + 1);
+
+        actual_len = dsHelperParseEscapedString(in, buf.v, expected_len + 1);
+
+        if (actual_len != expected_len) {
+            dsRestorepos(in);
+            fsfree(buf);
+            return userraise(-1L, ERR_WRONG_INPUT_FORMAT,
+                            "Wrong quoted line Length mismatch: header %lu, actual %zu",
+                            expected_len, actual_len);
+        }
+        fs_cat(dst, buf);
+        fsfree(buf);
+    } else {
+        fs_resize(dst, expected_len + 1);
+        fs_setlen(dst, 0);
+
+        actual_len = dsHelperParseEscapedString(in, dst->v, expected_len + 1);
+
+        if (actual_len != expected_len) {
+            dsRestorepos(in);
+            return userraise(-1L, ERR_WRONG_INPUT_FORMAT,
+                            "Wrong quoted line Length mismatch: header %lu, actual %zu",
+                            expected_len, actual_len);
+        }
+        fs_setlen(dst, expected_len);   //  fix the length
+    }
+
+    return actual_len;
 }
 
 // -------------------- CONSTRUCTOTS/DESTRUCTORS -------------------
@@ -1041,9 +1082,9 @@ tf_ds_parsers(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
-// ------------------------- TEST fs_dstechprintf -------------------------
+// ------------------------- TEST fs_dstechprint -------------------------
 static TestStatus
-tf5_fs_dstechprintf(const char *name)
+tf5_fs_dstechprint(const char *name)
 {
     logenter("%s", name);
     int subnum = 0;
@@ -1054,7 +1095,7 @@ tf5_fs_dstechprintf(const char *name)
         DS      ds = dsCreateFilename("res/ds_adapter/dstechprintf_file.ds", "w+");
         fs      sample = fscopy("hello");
 
-        long    written = fs_dstechprintf(&ds, &sample, "sample_fs");
+        long    written = fs_dstechprint(&ds, &sample, "sample_fs");
         test_validatefree(written > 0, (fsfree(sample), dsFree(&ds)),
                           "expected positive written count");
 
@@ -1084,7 +1125,7 @@ tf5_fs_dstechprintf(const char *name)
         DS ds = dsCreatestrCap(buffer, sizeof(buffer));
         fs sample = fscopy("test");
 
-        long written = fs_dstechprintf(&ds, &sample, "str_fs");
+        long written = fs_dstechprint(&ds, &sample, "str_fs");
         test_validatefree(written > 0, (fsfree(sample)), "expected positive count");
 
         buffer[ds.pos] = '\0';   // добавляем терминатор
@@ -1109,7 +1150,7 @@ tf5_fs_dstechprintf(const char *name)
         DS ds = dsCreatefs(&out);   // out перемещается в DS, не освобождаем отдельно
         fs sample = fscopy("world");
 
-        long written = fs_dstechprintf(&ds, &sample, "fs_fs");
+        long written = fs_dstechprint(&ds, &sample, "fs_fs");
         test_validatefree(written > 0, (fsfree(sample), dsFree(&ds)),
                           "expected positive count");
 
@@ -1137,7 +1178,7 @@ tf5_fs_dstechprintf(const char *name)
 
         fs sample = FS();
         if (!try()) {
-            fs_dstechprintf(&ds, &sample, "bad");
+            fs_dstechprint(&ds, &sample, "bad");
             test_validatefree(false, (fsfree(sample)), "must raise error");
         } else {
             test_validatefree(true, (fsfree(sample)), "correctly raised error");
@@ -1153,7 +1194,7 @@ tf5_fs_dstechprintf(const char *name)
         fs sample = FS();
 
         if (!try()) {
-            fs_dstechprintf(NULL, &sample, "null");
+            fs_dstechprint(NULL, &sample, "null");
             test_validatefree(false, (fsfree(sample)), "must raise error");
         } else {
             test_validatefree(true, (fsfree(sample)), "correctly raised error");
@@ -1170,7 +1211,7 @@ tf5_fs_dstechprintf(const char *name)
         DS ds = dsCreatestrCap(buffer, sizeof(buffer));
         fs sample = fscopy("");
 
-        long written = fs_dstechprintf(&ds, &sample, "empty_fs");
+        long written = fs_dstechprint(&ds, &sample, "empty_fs");
         test_validatefree(written > 0, (fsfree(sample)), "expected positive count");
 
         buffer[ds.pos] = '\0';
@@ -1192,7 +1233,7 @@ tf5_fs_dstechprintf(const char *name)
         DS ds = dsCreatestrCap(buffer, sizeof(buffer));
         fs sample = FS();
 
-        long written = fs_dstechprintf(&ds, &sample, "null_fs");
+        long written = fs_dstechprint(&ds, &sample, "null_fs");
         test_validatefree(written > 0, (fsfree(sample)), "expected positive count");
 
         buffer[ds.pos] = '\0';
@@ -1213,7 +1254,7 @@ tf5_fs_dstechprintf(const char *name)
         char buffer[256];
         DS ds = dsCreatestrCap(buffer, sizeof(buffer));
 
-        long written = fs_dstechprintf(&ds, NULL, "null_ptr");
+        long written = fs_dstechprint(&ds, NULL, "null_ptr");
         test_validate(written > 0, "expected positive count");
 
         buffer[ds.pos] = '\0';
@@ -1226,9 +1267,9 @@ tf5_fs_dstechprintf(const char *name)
     return TEST_PASSED;
 }
 
-// ------------------------- TEST fs_dsprintf -------------------------
+// ------------------------- TEST fs_dswrite -------------------------
 static TestStatus
-tf6_fs_dsprintf(const char *name)
+tf6_fs_dswrite(const char *name)
 {
     logenter("%s", name);
     int subnum = 0;
@@ -1241,7 +1282,7 @@ tf6_fs_dsprintf(const char *name)
         test_validatefree(ds.fp != NULL, (dsFree(&ds)), "can't open file");
 
         fs sample = fscopy("hello");
-        long written = fs_dsprintf(&ds, &sample);
+        long written = fs_dswrite(&ds, &sample);
         test_validatefree(written == 5, (dsFree(&ds), fsfree(sample)),
                           "expected 5, got %ld", written);
 
@@ -1265,7 +1306,7 @@ tf6_fs_dsprintf(const char *name)
         DS ds = dsCreatestrCap(buffer, sizeof(buffer));
         fs sample = fscopy("world");
 
-        long written = fs_dsprintf(&ds, &sample);
+        long written = fs_dswrite(&ds, &sample);
         test_validatefree(written == 5, (fsfree(sample)), "expected 5, got %ld", written);
 
         buffer[ds.pos] = '\0';
@@ -1286,7 +1327,7 @@ tf6_fs_dsprintf(const char *name)
         DS ds = dsCreatestrCap(buffer, sizeof(buffer));
         fs sample = fscopy("hello");
 
-        long written = fs_dsprintf(&ds, &sample);
+        long written = fs_dswrite(&ds, &sample);
         test_validatefree(written == 3, (fsfree(sample)),
                           "expected truncated 3, got %ld", written);
 
@@ -1308,7 +1349,7 @@ tf6_fs_dsprintf(const char *name)
         DS ds = dsCreatefs(&out);   // владение out переходит в ds
         fs sample = fscopy("fsdata");
 
-        long written = fs_dsprintf(&ds, &sample);
+        long written = fs_dswrite(&ds, &sample);
         test_validatefree(written == 6, (dsFree(&ds), fsfree(sample)),
                           "expected 6, got %ld", written);
 
@@ -1328,7 +1369,7 @@ tf6_fs_dsprintf(const char *name)
         DS ds = dsCreatestrCap(buffer, sizeof(buffer));
         fs sample = fscopy("");
 
-        long written = fs_dsprintf(&ds, &sample);
+        long written = fs_dswrite(&ds, &sample);
         test_validatefree(written == 0, (fsfree(sample)), "expected 0, got %ld", written);
 
         fsfree(sample);
@@ -1342,7 +1383,7 @@ tf6_fs_dsprintf(const char *name)
         DS ds = dsCreatestrCap(buffer, sizeof(buffer));
         fs sample = FS();
 
-        long written = fs_dsprintf(&ds, &sample);
+        long written = fs_dswrite(&ds, &sample);
         test_validatefree(written == 0, (fsfree(sample)), "expected 0, got %ld", written);
 
         fsfree(sample);
@@ -1355,7 +1396,7 @@ tf6_fs_dsprintf(const char *name)
         char buffer[16];
         DS ds = dsCreatestrCap(buffer, sizeof(buffer));
 
-        long written = fs_dsprintf(&ds, NULL);
+        long written = fs_dswrite(&ds, NULL);
         test_validate(written == 0, "expected 0, got %ld", written);
 
         fs_alloc_check(true);
@@ -1369,7 +1410,7 @@ tf6_fs_dsprintf(const char *name)
 
         fs sample = fscopy("x");
         if (!try()) {
-            fs_dsprintf(&ds, &sample);
+            fs_dswrite(&ds, &sample);
             test_validatefree(false, (fsfree(sample)), "must raise error");
         } else {
             test_validatefree(true, (fsfree(sample)), "correctly raised error");
@@ -1385,7 +1426,7 @@ tf6_fs_dsprintf(const char *name)
         fs sample = fscopy("x");
 
         if (!try()) {
-            fs_dsprintf(NULL, &sample);
+            fs_dswrite(NULL, &sample);
             test_validatefree(false, (fsfree(sample)), "must raise error");
         } else {
             test_validatefree(true, (fsfree(sample)), "correctly raised error");
@@ -1874,6 +1915,185 @@ tf8_ds_parse_quoted_line(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST fs_dsserialize / fs_dsload DS_STR round-trip -------------------------
+static TestStatus
+tf9_fs_ds_DS_STR_roundtrip(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Простая строка (use_buffer = true) */
+    test_sub("subtest %d: roundtrip simple string (use_buffer=true)", ++subnum);
+    {
+        fs src = fscopy("hello");
+        char buffer[128];
+        DS out_ds = dsCreatestrCap(buffer, sizeof(buffer));
+        long written = fs_dsserialize(&out_ds, &src);
+        test_validatefree(written > 0, fsfree(src), "serialize failed");
+
+        buffer[out_ds.pos] = '\0';  // завершаем строку
+
+        DS in_ds = dsCreateconst(buffer);
+        fs dst = FS();
+        long read_len = fs_dsload(&in_ds, &dst, true);
+        test_validatefree(read_len == (long)src.len, (fsfree(src), fsfree(dst)),
+                          "read length mismatch: expected %zu, got %ld", src.len, read_len);
+        test_validatefree(strcmp(fs_str(&dst), fs_str(&src)) == 0,
+                          (fsfree(src), fsfree(dst)),
+                          "content mismatch: src='%s', dst='%s'", fs_str(&src), fs_str(&dst));
+        fsfree(src);
+        fsfree(dst);
+        fs_alloc_check(true);
+    }
+
+    /* 2. Пустая строка (use_buffer=true) */
+    test_sub("subtest %d: roundtrip empty string (use_buffer=true)", ++subnum);
+    {
+        fs src = fscopy("");
+        char buffer[128];
+        DS out_ds = dsCreatestrCap(buffer, sizeof(buffer));
+        long written = fs_dsserialize(&out_ds, &src);
+        test_validatefree(written > 0, fsfree(src), "serialize failed");
+
+        buffer[out_ds.pos] = '\0';
+        DS in_ds = dsCreateconst(buffer);
+        fs dst = FS();
+        long read_len = fs_dsload(&in_ds, &dst, true);
+        test_validatefree(read_len == 0 && fs_len(&dst) == 0,
+                          (fsfree(src), fsfree(dst)),
+                          "expected empty, got len=%ld, fs_len=%zu", read_len, fs_len(&dst));
+        fsfree(src);
+        fsfree(dst);
+        fs_alloc_check(true);
+    }
+
+    /* 3. Строка со спецсимволами (use_buffer=true) */
+    test_sub("subtest %d: roundtrip string with escapes (use_buffer=true)", ++subnum);
+    {
+        fs src = fscopy("a\"b\\c\nd\te\rf");
+        char buffer[256];
+        DS out_ds = dsCreatestrCap(buffer, sizeof(buffer));
+        long written = fs_dsserialize(&out_ds, &src);
+        test_validatefree(written > 0, fsfree(src), "serialize failed");
+
+        buffer[out_ds.pos] = '\0';
+        DS in_ds = dsCreateconst(buffer);
+        fs dst = FS();
+        long read_len = fs_dsload(&in_ds, &dst, true);
+        test_validatefree(read_len == (long)src.len, (fsfree(src), fsfree(dst)),
+                          "read length mismatch: expected %zu, got %ld", src.len, read_len);
+        test_validatefree(strcmp(fs_str(&dst), fs_str(&src)) == 0,
+                          (fsfree(src), fsfree(dst)),
+                          "content mismatch:\n src='%s'\n dst='%s'", fs_str(&src), fs_str(&dst));
+        fsfree(src);
+        fsfree(dst);
+        fs_alloc_check(true);
+    }
+
+    /* 4. Простая строка (use_buffer=false) */
+    test_sub("subtest %d: roundtrip simple string (use_buffer=false)", ++subnum);
+    {
+        fs src = fscopy("hello");
+        char buffer[128];
+        DS out_ds = dsCreatestrCap(buffer, sizeof(buffer));
+        long written = fs_dsserialize(&out_ds, &src);
+        test_validatefree(written > 0, fsfree(src), "serialize failed");
+
+        buffer[out_ds.pos] = '\0';
+        DS in_ds = dsCreateconst(buffer);
+        fs dst = FS();
+        long read_len = fs_dsload(&in_ds, &dst, false);
+        test_validatefree(read_len == (long)src.len, (fsfree(src), fsfree(dst)),
+                          "read length mismatch: expected %zu, got %ld", src.len, read_len);
+        test_validatefree(strcmp(fs_str(&dst), fs_str(&src)) == 0,
+                          (fsfree(src), fsfree(dst)),
+                          "content mismatch: src='%s', dst='%s'", fs_str(&src), fs_str(&dst));
+        fsfree(src);
+        fsfree(dst);
+        fs_alloc_check(true);
+    }
+
+    /* 5. Пустая строка (use_buffer=false) */
+    test_sub("subtest %d: roundtrip empty string (use_buffer=false)", ++subnum);
+    {
+        fs src = fscopy("");
+        char buffer[128];
+        DS out_ds = dsCreatestrCap(buffer, sizeof(buffer));
+        long written = fs_dsserialize(&out_ds, &src);
+        test_validatefree(written > 0, fsfree(src), "serialize failed");
+
+        buffer[out_ds.pos] = '\0';
+        DS in_ds = dsCreateconst(buffer);
+        fs dst = FS();
+        long read_len = fs_dsload(&in_ds, &dst, false);
+        test_validatefree(read_len == 0 && fs_len(&dst) == 0,
+                          (fsfree(src), fsfree(dst)),
+                          "expected empty, got len=%ld, fs_len=%zu", read_len, fs_len(&dst));
+        fsfree(src);
+        fsfree(dst);
+        fs_alloc_check(true);
+    }
+
+    /* 6. Строка со спецсимволами (use_buffer=false) */
+    test_sub("subtest %d: roundtrip string with escapes (use_buffer=false)", ++subnum);
+    {
+        fs src = fscopy("a\"b\\c\nd\te\rf");
+        char buffer[256];
+        DS out_ds = dsCreatestrCap(buffer, sizeof(buffer));
+        long written = fs_dsserialize(&out_ds, &src);
+        test_validatefree(written > 0, fsfree(src), "serialize failed");
+
+        buffer[out_ds.pos] = '\0';
+        DS in_ds = dsCreateconst(buffer);
+        fs dst = FS();
+        long read_len = fs_dsload(&in_ds, &dst, false);
+        test_validatefree(read_len == (long)src.len, (fsfree(src), fsfree(dst)),
+                          "read length mismatch: expected %zu, got %ld", src.len, read_len);
+        test_validatefree(strcmp(fs_str(&dst), fs_str(&src)) == 0,
+                          (fsfree(src), fsfree(dst)),
+                          "content mismatch:\n src='%s'\n dst='%s'", fs_str(&src), fs_str(&dst));
+        fsfree(src);
+        fsfree(dst);
+        fs_alloc_check(true);
+    }
+
+    /* 7. Длинная строка (1000 символов) */
+    test_sub("subtest %d: roundtrip long string (1000 chars)", ++subnum);
+    {
+        const size_t N = 1000;
+        char *src_buf = malloc(N + 1);
+        for (size_t i = 0; i < N; ++i)
+            src_buf[i] = (char)('A' + (i % 26));
+        src_buf[N] = '\0';
+
+        fs src = fscopy(src_buf);
+        char *out_buf = malloc(N * 2 + 64);  // с запасом
+        DS out_ds = dsCreatestrCap(out_buf, N * 2 + 64);
+
+        long written = fs_dsserialize(&out_ds, &src);
+        test_validatefree(written > 0, (fsfree(src), free(src_buf), free(out_buf)),
+                          "serialize failed");
+
+        out_buf[out_ds.pos] = '\0';
+        DS in_ds = dsCreateconst(out_buf);
+        fs dst = FS();
+        long read_len = fs_dsload(&in_ds, &dst, true);
+        test_validatefree(read_len == (long)N, (fsfree(src), fsfree(dst), free(src_buf), free(out_buf)),
+                          "read length mismatch: expected %zu, got %ld", N, read_len);
+        test_validatefree(strcmp(fs_str(&dst), src_buf) == 0,
+                          (fsfree(src), fsfree(dst), free(src_buf), free(out_buf)),
+                          "content mismatch");
+
+        fsfree(src);
+        fsfree(dst);
+        free(src_buf);
+        free(out_buf);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -1885,10 +2105,11 @@ main( /*int argc, char *argv[] */ )
       , TESTADD(tf_ds_scanf,                "dsScanf() simple tests")
       , TESTADD(tf_ds_scanf_printf,         "dsScanf() and dsPrintf() combined tests")
       , TESTADD(tf_ds_parsers,              "dsParse<type> simple tests")
-      , TESTADD(tf5_fs_dstechprintf,        "fs_dstechprintf simple test")
-      , TESTADD(tf6_fs_dsprintf,            "fs_dsprintf simple test")
+      , TESTADD(tf5_fs_dstechprint,         "fs_dstechprint simple test")
+      , TESTADD(tf6_fs_dswrite,             "fs_dswrite simple test")
       , TESTADD(tf7_fs_dsserialize_full,    "fs_dsserialize full test (all edges)")
       , TESTADD(tf8_ds_parse_quoted_line,   "dsParseQuotedLimitedLine simple test")
+      , TESTADD(tf9_fs_ds_DS_STR_roundtrip, "fs_dsserialize/fs_dsload DS_STR round-trip test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
