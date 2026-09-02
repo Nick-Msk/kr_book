@@ -567,13 +567,13 @@ long                            fs_dsserialize(DS *restrict out, const fs *restr
 }
 
 long                           fs_dsload(DS *restrict in, fs *restrict dst, bool use_buffer) {
-    if (!in)
+    if (!in || !dst)
         return userraise(-1L, ERR_NULL_INPUT, 
             "Input DS or fs is null %p %p", in, dst);
     
     dsSavepos(in);
 
-    if (!dsExpect(in, "FS("))       // not shift position if failed
+    if (!dsExpect(in, "FS(\""))       // not shift position if failed
         return userraise(-1L, ERR_WRONG_INPUT_FORMAT, "Expected 'FS('");
 
     unsigned long expected_len = 0;
@@ -582,7 +582,7 @@ long                           fs_dsload(DS *restrict in, fs *restrict dst, bool
         return userraise(-1L, ERR_UNABLE_PARSE_DATA, "Failed to read length");
     }
 
-    if (!dsExpect(in, "): ")) {
+    if (!dsExpect(in, "\"): ")) {
         dsRestorepos(in);
         return userraise(-1L, ERR_WRONG_INPUT_FORMAT, "Expected '): \"'");
     }
@@ -591,7 +591,7 @@ long                           fs_dsload(DS *restrict in, fs *restrict dst, bool
     if (use_buffer) {
         fs buf = fsinit(expected_len + 1);
 
-        actual_len = dsHelperParseEscapedString(in, buf.v, expected_len + 1);
+        fs_setlen(&buf, actual_len = dsHelperParseEscapedString(in, buf.v, expected_len + 1) ); //  fix the length
 
         if (actual_len != expected_len) {
             dsRestorepos(in);
@@ -601,6 +601,7 @@ long                           fs_dsload(DS *restrict in, fs *restrict dst, bool
                             expected_len, actual_len);
         }
         fs_cat(dst, buf);
+
         fsfree(buf);
     } else {
         fs_resize(dst, expected_len + 1);
@@ -614,7 +615,7 @@ long                           fs_dsload(DS *restrict in, fs *restrict dst, bool
                             "Wrong quoted line Length mismatch: header %lu, actual %zu",
                             expected_len, actual_len);
         }
-        fs_setlen(dst, expected_len);   //  fix the length
+        fs_setlen(dst, actual_len);   //  fix the length
     }
 
     return actual_len;
@@ -2007,7 +2008,7 @@ tf9_fs_ds_DS_STR_roundtrip(const char *name)
                           "read length mismatch: expected %zu, got %ld", src.len, read_len);
         test_validatefree(fscmp(dst, src) == 0,
                           (fsfree(src), fsfree(dst)),
-                          "content mismatch: src='%s', dst='%s'", fs_str(&src), fs_str(&dst));
+                          "content mismatch: src='%s', dst='%s'", fsstr(src), fsstr(dst));
         fsfree(src);
         fsfree(dst);
         fs_alloc_check(true);
@@ -2022,11 +2023,10 @@ tf9_fs_ds_DS_STR_roundtrip(const char *name)
         long written = fs_dsserialize(&out_ds, &src);
         test_validatefree(written > 0, fsfree(src), "serialize failed");
 
-        buffer[out_ds.pos] = '\0';
         DS in_ds = dsCreateconst(buffer);
         fs dst = FS();
         long read_len = fs_dsload(&in_ds, &dst, true);
-        test_validatefree(read_len == 0 && fs_len(&dst) == 0,
+        test_validatefree(read_len == 0 && fslen(dst) == 0,
                           (fsfree(src), fsfree(dst)),
                           "expected empty, got len=%ld, fs_len=%zu", read_len, fs_len(&dst));
         fsfree(src);
@@ -2043,15 +2043,14 @@ tf9_fs_ds_DS_STR_roundtrip(const char *name)
         long written = fs_dsserialize(&out_ds, &src);
         test_validatefree(written > 0, fsfree(src), "serialize failed");
 
-        buffer[out_ds.pos] = '\0';
         DS in_ds = dsCreateconst(buffer);
         fs dst = FS();
         long read_len = fs_dsload(&in_ds, &dst, true);
-        test_validatefree(read_len == (long)src.len, (fsfree(src), fsfree(dst)),
+        test_validatefree(read_len == (long) src.len, (fsfree(src), fsfree(dst)),
                           "read length mismatch: expected %zu, got %ld", src.len, read_len);
-        test_validatefree(strcmp(fs_str(&dst), fs_str(&src)) == 0,
+        test_validatefree(fscmp(dst, src) == 0,
                           (fsfree(src), fsfree(dst)),
-                          "content mismatch:\n src='%s'\n dst='%s'", fs_str(&src), fs_str(&dst));
+                          "content mismatch:\n src='%s'\n dst='%s'", fsstr(src), fsstr(dst));
         fsfree(src);
         fsfree(dst);
         fs_alloc_check(true);
@@ -2066,15 +2065,14 @@ tf9_fs_ds_DS_STR_roundtrip(const char *name)
         long written = fs_dsserialize(&out_ds, &src);
         test_validatefree(written > 0, fsfree(src), "serialize failed");
 
-        buffer[out_ds.pos] = '\0';
         DS in_ds = dsCreateconst(buffer);
         fs dst = FS();
         long read_len = fs_dsload(&in_ds, &dst, false);
-        test_validatefree(read_len == (long)src.len, (fsfree(src), fsfree(dst)),
+        test_validatefree(read_len == (long) src.len, (fsfree(src), fsfree(dst)),
                           "read length mismatch: expected %zu, got %ld", src.len, read_len);
-        test_validatefree(strcmp(fs_str(&dst), fs_str(&src)) == 0,
+        test_validatefree(fscmp(dst, src) == 0,
                           (fsfree(src), fsfree(dst)),
-                          "content mismatch: src='%s', dst='%s'", fs_str(&src), fs_str(&dst));
+                          "content mismatch: src='%s', dst='%s'", fsstr(src), fsstr(dst));
         fsfree(src);
         fsfree(dst);
         fs_alloc_check(true);
@@ -2089,13 +2087,12 @@ tf9_fs_ds_DS_STR_roundtrip(const char *name)
         long written = fs_dsserialize(&out_ds, &src);
         test_validatefree(written > 0, fsfree(src), "serialize failed");
 
-        buffer[out_ds.pos] = '\0';
         DS in_ds = dsCreateconst(buffer);
         fs dst = FS();
         long read_len = fs_dsload(&in_ds, &dst, false);
-        test_validatefree(read_len == 0 && fs_len(&dst) == 0,
+        test_validatefree(read_len == 0 && fslen(dst) == 0,
                           (fsfree(src), fsfree(dst)),
-                          "expected empty, got len=%ld, fs_len=%zu", read_len, fs_len(&dst));
+                          "expected empty, got len=%ld, fs_len=%zu", read_len, fslen(dst));
         fsfree(src);
         fsfree(dst);
         fs_alloc_check(true);
@@ -2110,15 +2107,14 @@ tf9_fs_ds_DS_STR_roundtrip(const char *name)
         long written = fs_dsserialize(&out_ds, &src);
         test_validatefree(written > 0, fsfree(src), "serialize failed");
 
-        buffer[out_ds.pos] = '\0';
         DS in_ds = dsCreateconst(buffer);
         fs dst = FS();
         long read_len = fs_dsload(&in_ds, &dst, false);
         test_validatefree(read_len == (long)src.len, (fsfree(src), fsfree(dst)),
                           "read length mismatch: expected %zu, got %ld", src.len, read_len);
-        test_validatefree(strcmp(fs_str(&dst), fs_str(&src)) == 0,
+        test_validatefree(fscmp(dst, src) == 0,
                           (fsfree(src), fsfree(dst)),
-                          "content mismatch:\n src='%s'\n dst='%s'", fs_str(&src), fs_str(&dst));
+                          "content mismatch:\n src='%s'\n dst='%s'", fsstr(src), fsstr(dst));
         fsfree(src);
         fsfree(dst);
         fs_alloc_check(true);
@@ -2138,18 +2134,21 @@ tf9_fs_ds_DS_STR_roundtrip(const char *name)
         DS out_ds = dsCreatestrCap(out_buf, N * 2 + 64);
 
         long written = fs_dsserialize(&out_ds, &src);
-        test_validatefree(written > 0, (fsfree(src), free(src_buf), free(out_buf)),
-                          "serialize failed");
+        test_validatefree(
+            written > 0, 
+            (fsfree(src), free(src_buf), free(out_buf)),
+            "serialize failed"
+        );
 
-        out_buf[out_ds.pos] = '\0';
         DS in_ds = dsCreateconst(out_buf);
         fs dst = FS();
         long read_len = fs_dsload(&in_ds, &dst, true);
-        test_validatefree(read_len == (long)N, (fsfree(src), fsfree(dst), free(src_buf), free(out_buf)),
+        test_validatefree(read_len == (long) N, (fsfree(src), fsfree(dst), free(src_buf), free(out_buf)),
                           "read length mismatch: expected %zu, got %ld", N, read_len);
-        test_validatefree(strcmp(fs_str(&dst), src_buf) == 0,
-                          (fsfree(src), fsfree(dst), free(src_buf), free(out_buf)),
-                          "content mismatch");
+        test_validatefree(
+            fscmpstr(dst, src_buf) == 0,
+                        (fsfree(src), fsfree(dst), free(src_buf), free(out_buf)),
+                    "content mismatch '%s' vs '%s'", fsstr(src), fsstr(dst));
 
         fsfree(src);
         fsfree(dst);
