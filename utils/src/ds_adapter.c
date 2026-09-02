@@ -230,9 +230,9 @@ static bool                     dsHelperParseUnsigned(const char *restrict str, 
  */
 static size_t
 dsHelperParseEscapedString(DS *restrict in, char *restrict dst, size_t dst_capacity) {
-    dsSavepos(in);                       // запоминаем позицию
-    bool error = false;
-    size_t len = 0;
+    size_t      pos = dsSavepos(in);                       // запоминаем позицию
+    bool        error = false;
+    size_t      len = 0;
 
     int c = dsgetc(in);
     if (c != '"') {
@@ -263,7 +263,7 @@ dsHelperParseEscapedString(DS *restrict in, char *restrict dst, size_t dst_capac
     }
 
     if (error) {
-        dsRestorepos(in);                 // rollback
+        dsRestorepos(in, pos);                 // rollback
         return userraise(0L, ERR_UNABLE_PARSE_DATA, 
             "Unable to parse quoted line!");
     }
@@ -571,19 +571,19 @@ long                           fs_dsload(DS *restrict in, fs *restrict dst, bool
         return userraise(-1L, ERR_NULL_INPUT, 
             "Input DS or fs is null %p %p", in, dst);
     
-    dsSavepos(in);
+    size_t pos = dsSavepos(in);
 
     if (!dsExpect(in, "FS(\""))       // not shift position if failed
         return userraise(-1L, ERR_WRONG_INPUT_FORMAT, "Expected 'FS('");
 
     unsigned long expected_len = 0;
     if (!dsParseUnsignedLong(in, &expected_len)) {
-        dsRestorepos(in);
+        dsRestorepos(in, pos);
         return userraise(-1L, ERR_UNABLE_PARSE_DATA, "Failed to read length");
     }
 
     if (!dsExpect(in, "\"): ")) {
-        dsRestorepos(in);
+        dsRestorepos(in, pos);
         return userraise(-1L, ERR_WRONG_INPUT_FORMAT, "Expected '): \"'");
     }
     size_t actual_len;
@@ -594,7 +594,7 @@ long                           fs_dsload(DS *restrict in, fs *restrict dst, bool
         fs_setlen(&buf, actual_len = dsHelperParseEscapedString(in, buf.v, expected_len + 1) ); //  fix the length
 
         if (actual_len != expected_len) {
-            dsRestorepos(in);
+            dsRestorepos(in, pos);
             fsfree(buf);
             return userraise(-1L, ERR_WRONG_INPUT_FORMAT,
                             "Wrong quoted line Length mismatch: header %lu, actual %zu",
@@ -610,7 +610,7 @@ long                           fs_dsload(DS *restrict in, fs *restrict dst, bool
         actual_len = dsHelperParseEscapedString(in, dst->v, expected_len + 1);
 
         if (actual_len != expected_len) {
-            dsRestorepos(in);
+            dsRestorepos(in, pos);
             return userraise(-1L, ERR_WRONG_INPUT_FORMAT,
                             "Wrong quoted line Length mismatch: header %lu, actual %zu",
                             expected_len, actual_len);
@@ -2160,6 +2160,146 @@ tf9_fs_ds_DS_STR_roundtrip(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST fs_dsload with DS_CONSTSTR -------------------------
+static TestStatus
+tf10_fs_ds_CONST_roundtrip(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Простая строка */
+    test_sub("subtest %d: load simple string from CONSTSTR", ++subnum);
+    {
+        fs src = fscopy("hello");
+        char buffer[128];
+        DS out_ds = dsCreatestrCap(buffer, sizeof(buffer));
+
+        long written = fs_dsserialize(&out_ds, &src);
+        test_validatefree(written > 0, fsfree(src), "serialize failed");
+
+        DS in_ds = dsCreateconst(buffer);
+        fs dst = FS();
+        long read_len = fs_dsload(&in_ds, &dst, true);
+        test_validatefree(read_len == (long)src.len,
+                          (fsfree(src), fsfree(dst)),
+                          "read length mismatch: expected %zu, got %ld", src.len, read_len);
+        test_validatefree(fscmp(dst, src) == 0,
+                          (fsfree(src), fsfree(dst)),
+                          "content mismatch: src='%s', dst='%s'", fs_str(&src), fs_str(&dst));
+
+        fsfree(src);
+        fsfree(dst);
+        fs_alloc_check(true);
+    }
+
+    /* 2. Пустая строка */
+    test_sub("subtest %d: load empty string from CONSTSTR", ++subnum);
+    {
+        fs src = fscopy("");
+        char buffer[128];
+        DS out_ds = dsCreatestrCap(buffer, sizeof(buffer));
+
+        fs_dsserialize(&out_ds, &src);
+
+        DS in_ds = dsCreateconst(buffer);
+        fs dst = FS();
+        long read_len = fs_dsload(&in_ds, &dst, true);
+        test_validatefree(read_len == 0 && fs_len(&dst) == 0,
+                          (fsfree(src), fsfree(dst)),
+                          "expected empty, got len=%ld, fs_len=%zu", read_len, fs_len(&dst));
+
+        fsfree(src);
+        fsfree(dst);
+        fs_alloc_check(true);
+    }
+
+    /* 3. Строка со спецсимволами */
+    test_sub("subtest %d: load escaped string from CONSTSTR", ++subnum);
+    {
+        fs src = fscopy("a\"b\\c\nd\te\rf");
+        char buffer[256];
+        DS out_ds = dsCreatestrCap(buffer, sizeof(buffer));
+
+        fs_dsserialize(&out_ds, &src);
+
+        DS in_ds = dsCreateconst(buffer);
+        fs dst = FS();
+        long read_len = fs_dsload(&in_ds, &dst, true);
+        test_validatefree(read_len == (long)src.len,
+                          (fsfree(src), fsfree(dst)),
+                          "read length mismatch: expected %zu, got %ld", src.len, read_len);
+        test_validatefree(fscmp(dst, src) == 0,
+                          (fsfree(src), fsfree(dst)),
+                          "content mismatch:\n src='%s'\n dst='%s'", fs_str(&src), fs_str(&dst));
+
+        fsfree(src);
+        fsfree(dst);
+        fs_alloc_check(true);
+    }
+
+    /* 4. Неверный заголовок */
+    test_sub("subtest %d: invalid header restores pos", ++subnum);
+    {
+        const char *serialized = "BAD(\"5\"): \"hello\"";
+        DS ds = dsCreateconst(serialized);
+        fs dst = FS();
+        size_t saved = ds.pos;
+
+        long res = fs_dsload(&ds, &dst, true);
+        test_validatefree(res == -1, fsfree(dst),
+                          "expected -1, got %ld", res);
+        test_validatefree(ds.pos == saved, fsfree(dst),
+                          "pos must be restored to %zu, got %zu", saved, ds.pos);
+
+        fsfree(dst);
+        fs_alloc_check(true);
+    }
+
+    /* 5. Несовпадение длины */
+    test_sub("subtest %d: length mismatch restores pos", ++subnum);
+    {
+        const char *serialized = "FS(\"10\"): \"hello\"";
+        DS ds = dsCreateconst(serialized);
+        fs dst = FS();
+        size_t saved = ds.pos;
+
+        long res = fs_dsload(&ds, &dst, true);
+        test_validatefree(res == -1, fsfree(dst),
+                          "expected -1, got %ld", res);
+        test_validatefree(ds.pos == saved, fsfree(dst),
+                          "pos must be restored to %zu, got %zu", saved, ds.pos);
+
+        fsfree(dst);
+        fs_alloc_check(true);
+    }
+
+    /* 6. NULL аргументы */
+    test_sub("subtest %d: NULL arguments raise error", ++subnum);
+    {
+        fs dst = FS();
+        if (!try()) {
+            fs_dsload(NULL, &dst, true);
+            test_validatefree(false, fsfree(dst), "must raise error for NULL DS");
+        } else {
+            test_validatefree(true, fsfree(dst), "correctly raised error");
+        }
+
+        const char *serialized = "FS(\"1\"): \"a\"";
+        DS ds = dsCreateconst(serialized);
+        if (!try()) {
+            fs_dsload(&ds, NULL, true);
+            test_validate(false, "must raise error for NULL fs");
+        } else {
+            test_validate(true, "correctly raised error");
+        }
+
+        fsfree(dst);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -2176,6 +2316,7 @@ main( /*int argc, char *argv[] */ )
       , TESTADD(tf7_fs_dsserialize_full,    "fs_dsserialize full test (all edges)")
       , TESTADD(tf8_ds_parse_quoted_line,   "dsParseQuotedLimitedLine simple test")
       , TESTADD(tf9_fs_ds_DS_STR_roundtrip, "fs_dsserialize/fs_dsload DS_STR round-trip test")
+      , TESTADD(tf10_fs_ds_CONST_roundtrip, "fs_dsload with DS_CONSTSTR round-trip and errors")
     );
 
     return logret(0, "end...");  // as replace of logclose()
