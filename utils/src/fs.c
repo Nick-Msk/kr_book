@@ -91,7 +91,6 @@ static fs                               increasesize(fs *s, size_t newsz, bool i
     return logret(*s, "%s%zu", fs_alloc(s) ? "increased to " :"No change because non-heap ", s->sz);
 }
 
-Apply
 /**
  * @brief Low-level copy of source data and its null terminator to the target.
  *
