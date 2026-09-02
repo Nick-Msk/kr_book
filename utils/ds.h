@@ -129,14 +129,14 @@ static inline DS                dsCreateFilename(const char *restrict fname, con
  * @param[in]  cap Capacity, if 0L then till '\0' 
  * @param[in]  buf Pointer to a null-terminated string (const char*).
  */
-extern bool                    dsInitstrCap(DS *restrict ds, char *restrict buf, size_t cap);
+extern bool                     dsInitstrCap(DS *restrict ds, char *restrict buf, size_t cap);
 /**
  * @brief Initializes a Datasource (DS) object for reading from a c-string.
  * 
  * @param[out] DS Pointer to the Datasource (DS) structure to be initialized.
  * @param[in]  buf Pointer to a null-terminated string (const char*).
  */
-static inline bool             dsInitstr(DS *restrict ds, char *restrict buf) {
+static inline bool              dsInitstr(DS *restrict ds, char *restrict buf) {
     return dsInitstrCap(ds, buf, 0L);
 }
 /**
@@ -146,7 +146,7 @@ static inline bool             dsInitstr(DS *restrict ds, char *restrict buf) {
  * @param[in]  cap Capacity must be > 0L
  * @return     DS (initialied or not)
  */
-static inline DS               dsCreatestrCap(char *buf, size_t cap) {
+static inline DS                dsCreatestrCap(char *buf, size_t cap) {
     DS      tmp = DSSTR();
     if (cap > 0L && dsInitstrCap(&tmp, buf, cap) )
         return tmp;
@@ -159,7 +159,7 @@ static inline DS               dsCreatestrCap(char *buf, size_t cap) {
  * @param[in]  buf Pointer to a null-terminated string (const char*).
  * @return     DS (initialied or not)
  */
-static inline DS               dsCreatestr(char *buf) {
+static inline DS                dsCreatestr(char *buf) {
     DS      tmp = DSSTR();
     if (dsInitstr(&tmp, buf) )
         return tmp;
@@ -172,14 +172,14 @@ static inline DS               dsCreatestr(char *buf) {
  * @param[out] DS Pointer to the Datasource (DS) structure to be initialized.
  * @param[in]  buf Pointer to a null-terminated string (const char*).
  */
-extern bool                    dsInitconst(DS *restrict pds, const char *restrict buf);
+extern bool                     dsInitconst(DS *restrict pds, const char *restrict buf);
 /**
  * @brief Initializes a Datasource (DS) object for reading from a const c-string.
  * 
  * @param[in]  buf Pointer to a null-terminated string (const char*).
  * @return     DS (initialied or not)
  */
-static inline DS               dsCreateconst(const char *buf) {
+static inline DS                dsCreateconst(const char *buf) {
     DS      tmp = DSCONST();
     if (dsInitconst(&tmp, buf) )
         return tmp;
@@ -301,8 +301,8 @@ extern size_t                   dsGetsize(const DS* pds);
  * @brief Debugging print implementation.
  * Returns the number of characters printed.
  */
-extern int                     dsTechFPrint(FILE *restrict out, const DS *restrict ds, const char *restrict name);
-static inline int              dsTechPrint(const DS *restrict pds, const char *restrict name) {
+extern int                      dsTechFPrint(FILE *restrict out, const DS *restrict ds, const char *restrict name);
+static inline int               dsTechPrint(const DS *restrict pds, const char *restrict name) {
     return dsTechFPrint(stdout, pds, name);
 }
 
