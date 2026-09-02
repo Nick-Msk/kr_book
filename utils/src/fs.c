@@ -356,7 +356,8 @@ long                                    fs_techfprint(FILE *restrict out, const 
         if (s){
             size_t     len = MIN(FS_TECH_PRINT_COUNT, s->len);
             // TODO: use guard here
-            cnt += fprintf(out, "FS: %s: len [%zu], sz [%zu], flags [%d], s [%.*s", name, s->len, s->sz, s->flags, (unsigned) len, s->v);
+            cnt += fprintf(out, "FS: %s: len [%zu], sz [%zu], flags [%d], s(%p)[%.*s", 
+                        name, s->len, s->sz, s->flags, s->v, (unsigned) len, s->v);
             if (FS_TECH_PRINT_COUNT < s->len)
                 cnt += fprintf(out, "...");
             cnt += fprintf(out, "]\n");
