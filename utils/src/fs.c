@@ -211,12 +211,13 @@ fs                                      *fs_resize(fs *s, size_t newsz){
     return s;
 }
 
-fs                                      fs_cat(fs *target, fs source){
+fs                                      fs_cat(fs *target, fs source) {
+    if (source.len == 0)
+        return *target;
     size_t sumlen = target->len + source.len;
     if (target->sz <= sumlen) // sz must be at least len1 + len2 + 1
         increasesize(target, sumlen + 1, true);
-    //memcpy(target->v + target->len, source.v, source.len + 1);   // with last '\0'
-    //target->len = sumlen;
+    
     return *strcopy(target, &source);
 }
 
@@ -1077,6 +1078,181 @@ tf4(const char *name)
         fsfree(s1);
     }
     check_leak(true);
+
+    /* 1. Пустой target (FS()) + непустой source */
+    test_sub("subtest %d: cat to empty target (FS())", ++subnum);
+    {
+        fs target = FS();
+        fs source = fscopy("hello");
+
+        fs_cat(&target, source);
+
+        test_validatefree(fs_len(&target) == 5, (fsfree(target), fsfree(source)),
+                          "len expected 5, got %zu", fs_len(&target));
+        test_validatefree(strcmp(fs_str(&target), "hello") == 0,
+                          (fsfree(target), fsfree(source)),
+                          "content mismatch: '%s'", fs_str(&target));
+        test_validatefree(fs_sz(&target) >= 6, (fsfree(target), fsfree(source)),
+                          "sz expected >= 6, got %zu", fs_sz(&target));
+
+        fsfree(target);
+        fsfree(source);
+        fs_alloc_check(true);
+    }
+
+    /* 2. Непустой target + пустой source (FS()) */
+    test_sub("subtest %d: cat empty source (FS())", ++subnum);
+    {
+        fs target = fscopy("hello");
+        fs source = FS();          // v == NULL
+
+        fs_cat(&target, source);
+
+        test_validatefree(fs_len(&target) == 5, fsfree(target),
+                          "len expected 5, got %zu", fs_len(&target));
+        test_validatefree(strcmp(fs_str(&target), "hello") == 0,
+                          fsfree(target),
+                          "content must stay 'hello', got '%s'", fs_str(&target));
+
+        fsfree(target);
+        fs_alloc_check(true);
+    }
+
+    /* 3. Оба пустые (FS() + FS()) */
+    test_sub("subtest %d: cat empty to empty", ++subnum);
+    {
+        fs target = FS();
+        fs source = FS();
+
+        fs_cat(&target, source);
+
+        test_validatefree(fs_len(&target) == 0, fsfree(target),
+                          "len expected 0, got %zu", fs_len(&target));
+        test_validatefree(fs_str(&target) == NULL || fs_str(&target)[0] == '\0',
+                          fsfree(target),
+                          "empty target must be empty");
+
+        fsfree(target);
+        fs_alloc_check(true);
+    }
+
+    /* 4. Непустой target + пустой source с выделенной памятью (fscopy("")) */
+    test_sub("subtest %d: cat empty allocated source", ++subnum);
+    {
+        fs target = fscopy("hello");
+        fs source = fscopy("");     // v != NULL, len = 0
+
+        fs_cat(&target, source);
+
+        test_validatefree(fs_len(&target) == 5, fsfree(target),
+                          "len expected 5, got %zu", fs_len(&target));
+        test_validatefree(strcmp(fs_str(&target), "hello") == 0,
+                          fsfree(target),
+                          "content must stay 'hello'");
+
+        fsfree(target);
+        fsfree(source);
+        fs_alloc_check(true);
+    }
+
+    /* 5. Две непустые строки */
+    test_sub("subtest %d: cat two non-empty strings", ++subnum);
+    {
+        fs target = fscopy("abc");
+        fs source = fscopy("def");
+
+        fs_cat(&target, source);
+
+        test_validatefree(fs_len(&target) == 6, (fsfree(target), fsfree(source)),
+                          "len expected 6, got %zu", fs_len(&target));
+        test_validatefree(strcmp(fs_str(&target), "abcdef") == 0,
+                          (fsfree(target), fsfree(source)),
+                          "content mismatch: '%s'", fs_str(&target));
+
+        fsfree(target);
+        fsfree(source);
+        fs_alloc_check(true);
+    }
+
+    /* 6. Расширение буфера при cat */
+    test_sub("subtest %d: cat with buffer expansion", ++subnum);
+    {
+        fs target = fsinit(4);      // после округления sz может быть 8
+        fs source = fscopy("long string");
+
+        fs_cat(&target, source);
+
+        test_validatefree(fs_len(&target) == strlen("long string"),
+                          (fsfree(target), fsfree(source)),
+                          "len mismatch: got %zu", fs_len(&target));
+        test_validatefree(strcmp(fs_str(&target), "long string") == 0,
+                          (fsfree(target), fsfree(source)),
+                          "content mismatch: '%s'", fs_str(&target));
+        test_validatefree(fs_sz(&target) >= fs_len(&target) + 1,
+                          (fsfree(target), fsfree(source)),
+                          "sz too small");
+
+        fsfree(target);
+        fsfree(source);
+        fs_alloc_check(true);
+    }
+
+    /* 7. fs_catstr на пустой target */
+    test_sub("subtest %d: catstr to empty target", ++subnum);
+    {
+        fs target = FS();
+
+        fs_catstr(&target, "hello");
+
+        test_validatefree(fs_len(&target) == 5, fsfree(target),
+                          "len expected 5, got %zu", fs_len(&target));
+        test_validatefree(strcmp(fs_str(&target), "hello") == 0,
+                          fsfree(target),
+                          "content mismatch: '%s'", fs_str(&target));
+
+        fsfree(target);
+        fs_alloc_check(true);
+    }
+
+    /* 8. fs_catmem с бинарными данными (включая \0) */
+    test_sub("subtest %d: catmem with embedded null", ++subnum);
+    {
+        fs target = fscopy("abc");
+        const char data[] = {'d', '\0', 'e'};
+
+        fs_catmem(&target, data, sizeof(data) - 1);   // добавляем 'd' и '\0'
+
+        test_validatefree(fs_len(&target) == 5, fsfree(target),
+                          "len expected 5, got %zu", fs_len(&target));
+        test_validatefree(memcmp(fs_str(&target), "abc", 3) == 0,
+                          fsfree(target),
+                          "prefix mismatch");
+        test_validatefree(fs_str(&target)[3] == 'd' &&
+                          fs_str(&target)[4] == '\0',
+                          fsfree(target),
+                          "embedded null mismatch");
+
+        fsfree(target);
+        fs_alloc_check(true);
+    }
+
+    /* 9. fs_catmem с size=0 */
+    test_sub("subtest %d: catmem zero size", ++subnum);
+    {
+        fs target = fscopy("abc");
+
+        fs_catmem(&target, "xyz", 0);
+
+        test_validatefree(fs_len(&target) == 3, fsfree(target),
+                          "len expected 3, got %zu", fs_len(&target));
+        test_validatefree(strcmp(fs_str(&target), "abc") == 0,
+                          fsfree(target),
+                          "content must stay 'abc'");
+
+        fsfree(target);
+        fs_alloc_check(true);
+    }
+
     return logret(TEST_PASSED, "done"); // TEST_FAILED
 }
 
