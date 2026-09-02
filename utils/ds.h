@@ -338,21 +338,6 @@ static inline bool              dsIsstr(const DS *pds) {
 }
 
 /**
- * @brief Saves the current position of the data source for later restoration.
- * 
- * @param pds Pointer to the data source.
- */
-static inline void              dsSavepos(DS *pds) {
-    switch (pds->type) {
-        case DS_FILE:
-            pds->filesavepos = ftell(pds->fp);
-            break;
-        case DS_STR: case DS_CONSTSTR: case DS_FS:
-            pds->strssavepos = pds->pos;
-            break;
-    }
-}
-/**
  * @brief Return the current position of the data source.
  * 
  * @param pds Pointer to the data source.
@@ -365,6 +350,17 @@ static inline off_t             dsGetpos(const DS *pds) {
             return pds->pos;
     }
 }
+/**
+ * @brief Saves the current position of the data source for later restoration.
+ * 
+ * @param pds Pointer to the data source.
+ */
+static inline size_t            dsSavepos(DS *pds) {
+    off_t  pos = dsGetpos(pds);
+    if (pos < 0)
+        sysraiseint("Unable to get stream position");
+    return pos;
+}
 
 /**
  * @brief Restores the position of the data source to the last saved state.
@@ -372,12 +368,12 @@ static inline off_t             dsGetpos(const DS *pds) {
  * @param pds Pointer to the data source.
  * @return true if successful, false otherwise.
  */
-static inline bool              dsRestorepos(DS *pds) {
+static inline bool              dsRestorepos(DS *pds, size_t savepos) {
     switch (pds->type) {
         case DS_FILE:
-            return fseek(pds->fp, pds->filesavepos, SEEK_SET) == 0;
+            return fseek(pds->fp, savepos, SEEK_SET) == 0;
         case DS_STR: case DS_CONSTSTR: case DS_FS:
-            pds->pos = pds->strssavepos;
+            pds->pos = savepos;
             break;
     }
     return true;

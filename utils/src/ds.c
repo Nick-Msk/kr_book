@@ -292,12 +292,12 @@ bool                        dsExpect(DS *restrict pds, const char *literal) {
     if (pds == NULL || literal == NULL)
         return userraiseint(ERR_NULL_INPUT, 
             "Ds or literal is null %p %p", pds, literal);
-    dsSavepos(pds);
+    size_t pos = dsSavepos(pds);
     size_t  i = 0;
     while(literal[i] != '\0') {
         int c = dsgetc(pds);
         if (c == EOF || c != (unsigned char) literal[i]) {
-            dsRestorepos(pds);
+            dsRestorepos(pds, pos);
             return false;
         }
         i++;
@@ -731,10 +731,10 @@ tf_ds_extra(const char *name)
         // читаем несколько символов
         dsgetc(&ds); // 'A'
         dsgetc(&ds); // 'B'
-        dsSavepos(&ds);
+        size_t pos = dsSavepos(&ds);
         dsgetc(&ds); // 'C'
         dsgetc(&ds); // 'D'
-        dsRestorepos(&ds);
+        dsRestorepos(&ds, pos);
         int c = dsgetc(&ds); // должно быть 'C'
         test_validate(c == 'C', "After restore, next char must be 'C', got '%c'", c);
     }
@@ -751,10 +751,10 @@ tf_ds_extra(const char *name)
         DS ds = dsCreatef(fp);
         dsgetc(&ds); // '1'
         dsgetc(&ds); // '2'
-        dsSavepos(&ds);
+        size_t pos = dsSavepos(&ds);
         dsgetc(&ds); // '3'
         dsgetc(&ds); // '4'
-        dsRestorepos(&ds);
+        dsRestorepos(&ds, pos);
         int c = dsgetc(&ds); // должно быть '3'
         test_validate(c == '3', "After restore on file, next char must be '3', got '%c'", c);
         fclose(fp);
@@ -767,7 +767,7 @@ tf_ds_extra(const char *name)
         DS ds = dsCreatestr(text);
         dsgetc(&ds); // 'X'
         dsgetc(&ds); // 'Y'
-        dsRestorepos(&ds); // без Save – поведение не определено, но не должно падать
+        dsRestorepos(&ds, 0L);
         // просто проверяем, что не краш
         int c = dsgetc(&ds);
         test_validate(c == 'X', "Restore without save must not crash");
@@ -784,7 +784,7 @@ tf_ds_extra(const char *name)
         DS ds = dsCreatef(fp);
         dsgetc(&ds); // 'A'
         dsgetc(&ds); // 'B'
-        dsRestorepos(&ds); // без Save – filesavepos == 0
+        dsRestorepos(&ds, 0L);
         int c = dsgetc(&ds); // должно быть 'A'
         test_validate(c == 'A', "Restore without save on file must reset to beginning, got '%c'", c);
         fclose(fp);
