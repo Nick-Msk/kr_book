@@ -299,9 +299,12 @@ extern bool                     dsExpect(DS *restrict in, const char *restrict l
 extern size_t                   dsGetcap(const DS* pds);
 /**
  * @brief Debugging print implementation.
+ * @param out output FILE *
+ * @param pds datasource
+ * @param Name displayed name
  * Returns the number of characters printed.
  */
-extern int                      dsTechFPrint(FILE *restrict out, const DS *restrict ds, const char *restrict name);
+extern int                      dsTechFPrint(FILE *restrict out, const DS *restrict pds, const char *restrict name);
 static inline int               dsTechPrint(const DS *restrict pds, const char *restrict name) {
     return dsTechFPrint(stdout, pds, name);
 }
