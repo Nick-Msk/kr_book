@@ -227,7 +227,7 @@ fs                                      *fs_resize(fs *s, size_t newsz){
 }
 
 fs                                      fs_cat(fs *target, fs source) {
-    if (source.len == 0)
+    if (source.sz == 0)
         return *target;
     size_t sumlen = target->len + source.len;
     if (target->sz <= sumlen) // sz must be at least len1 + len2 + 1
