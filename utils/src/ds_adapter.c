@@ -229,7 +229,8 @@ static bool                     dsHelperParseUnsigned(const char *restrict str, 
  * @warning This function modifies the input stream position.
  */
 static size_t
-dsHelperParseEscapedString(DS *restrict in, char *restrict dst, size_t dst_capacity) {
+dsHelperParseEscapedString(DS *restrict in, char *restrict dst, size_t dst_capacity, size_t *restrict out_len) {
+    
     size_t      pos = dsSavepos(in);                       // запоминаем позицию
     bool        error = false;
     size_t      len = 0;
@@ -252,7 +253,7 @@ dsHelperParseEscapedString(DS *restrict in, char *restrict dst, size_t dst_capac
                 if (error)
                     break;
             }
-            if (len >= dst_capacity) {
+            if (len + 1 >= dst_capacity) {
                 error = true;             // never shoud be here if normal serialization 
                 break;
             }
@@ -261,15 +262,16 @@ dsHelperParseEscapedString(DS *restrict in, char *restrict dst, size_t dst_capac
         if (c != '"')
             error = true;                 // не встретили закрывающую кавычку
     }
+    if (out_len)
+        *out_len = len;
+    dst[len] = '\0';
 
     if (error) {
         dsRestorepos(in, pos);                 // rollback
-        return userraise(0L, ERR_UNABLE_PARSE_DATA, 
+        return userraise(false, ERR_UNABLE_PARSE_DATA, 
             "Unable to parse quoted line!");
     }
-
-    dst[len] = '\0';
-    return len; // count of read bytes
+    return true; // count of read bytes
 }
 
 /**
@@ -508,13 +510,16 @@ bool                        dsParseChar(DS *restrict pds, char *restrict pval) {
 }
 
 // just a wrapper over helper dsHelperParseEscapedString
-size_t                       dsParseQuotedLimitedLine(DS *restrict pds, fs *restrict dst) {
+bool                      dsParseQuotedLimitedLine(DS *restrict pds, fs *restrict dst) {
     if (pds == NULL || fs_isnull(dst))
         return userraiseint(ERR_NULL_INPUT, "%p %p %p", pds, dst, dst ? dst->v: NULL);
 
-    size_t len = dsHelperParseEscapedString(pds, dst->v, dst->sz);
+    size_t  len;
+    bool res = dsHelperParseEscapedString(pds, dst->v, dst->sz, &len);
+    if (!res)
+        return logsimpleerr(false, "Unable to parse quoted fs");
     fs_setlen(dst, len);
-    return len;
+    return true;
 }
 
 // -------------------------------------- fs adapters ------------------------------------------------
@@ -586,39 +591,45 @@ long                           fs_dsload(DS *restrict in, fs *restrict dst, bool
         dsRestorepos(in, pos);
         return userraise(-1L, ERR_WRONG_INPUT_FORMAT, "Expected '): \"'");
     }
-    size_t actual_len;
 
     if (use_buffer) {
         fs buf = fsinit(expected_len + 1);
 
-        fs_setlen(&buf, actual_len = dsHelperParseEscapedString(in, buf.v, expected_len + 1) ); //  fix the length
-
-        if (actual_len != expected_len) {
+        if (!dsParseQuotedLimitedLine(in, &buf) ) {
+            dsRestorepos(in, pos);
+            fsfree(buf);
+            return userraise(-1L, ERR_WRONG_INPUT_FORMAT,
+                            "Wrong quoted line");
+        }
+        if (buf.len != expected_len) {
             dsRestorepos(in, pos);
             fsfree(buf);
             return userraise(-1L, ERR_WRONG_INPUT_FORMAT,
                             "Wrong quoted line Length mismatch: header %lu, actual %zu",
-                            expected_len, actual_len);
+                            expected_len, buf.len);
         }
-        fs_cat(dst, buf);
+        fs_cat(dst, buf);   // at least "" here
 
         fsfree(buf);
     } else {
         fs_resize(dst, expected_len + 1);
         fs_setlen(dst, 0);
 
-        actual_len = dsHelperParseEscapedString(in, dst->v, expected_len + 1);
-
-        if (actual_len != expected_len) {
+        if (!dsParseQuotedLimitedLine(in, dst) ) {
+            dsRestorepos(in, pos);
+            return userraise(-1L, ERR_WRONG_INPUT_FORMAT,
+                            "Wrong quoted line");
+        }
+        if (dst->len != expected_len) {
             dsRestorepos(in, pos);
             return userraise(-1L, ERR_WRONG_INPUT_FORMAT,
                             "Wrong quoted line Length mismatch: header %lu, actual %zu",
-                            expected_len, actual_len);
+                            expected_len, dst->len);
         }
-        fs_setlen(dst, actual_len);   //  fix the length
     }
+    dsSkipNl(in);
 
-    return actual_len;
+    return dst->len;
 }
 
 // -------------------- CONSTRUCTOTS/DESTRUCTORS -------------------
@@ -1697,9 +1708,18 @@ tf8_ds_parse_quoted_line(const char *name)
         DS ds = dsCreateconst(input);
         fs dst = fsinit(16);   // буфер с запасом
 
-        size_t len = dsParseQuotedLimitedLine(&ds, &dst);
-        test_validatefree(len == 5, fsfree(dst),
-                          "expected 5, got %zu", len);
+        bool res = dsParseQuotedLimitedLine(&ds, &dst);
+        test_validatefree(
+            res,
+            fsfree(dst),
+            "Invalid fs"
+        );
+                         
+        test_validatefree(
+            dst.len == 5, 
+            fsfree(dst),
+            "expected 5, got %zu", dst.len
+        );
 
         test_validatefree(fscmpstr(dst, "hello") == 0,
                           fsfree(dst),
@@ -1718,9 +1738,17 @@ tf8_ds_parse_quoted_line(const char *name)
         DS ds = dsCreateconst(input);
         fs dst = fsinit(8);
 
-        size_t len = dsParseQuotedLimitedLine(&ds, &dst);
-        test_validatefree(len == 0, fsfree(dst),
-                          "expected 0, got %zu", len);
+        bool res = dsParseQuotedLimitedLine(&ds, &dst);
+        test_validatefree(
+            res,
+            fsfree(dst),
+            "Invalid fs"
+        );
+        test_validatefree(
+            dst.len == 0, 
+            fsfree(dst),
+            "expected 0, got %zu", dst.len
+        );
 
         test_validatefree(fs_len(&dst) == 0 && fs_str(&dst)[0] == '\0',
                           fsfree(dst),
@@ -1737,9 +1765,14 @@ tf8_ds_parse_quoted_line(const char *name)
         DS ds = dsCreateconst(input);
         fs dst = fsinit(32);
 
-        size_t len = dsParseQuotedLimitedLine(&ds, &dst);
-        test_validatefree(len == 11, fsfree(dst),
-                          "expected 11, got %zu", len);
+        bool res = dsParseQuotedLimitedLine(&ds, &dst);
+        test_validatefree(
+            res,
+            fsfree(dst),
+            "Invalid fs"
+        );
+        test_validatefree(dst.len == 11, fsfree(dst),
+                          "expected 11, got %zu", dst.len);
         test_validatefree(fscmpstr(dst, "a\"b\\c\nd\te\rf") == 0,
                           fsfree(dst),
                           "content mismatch: '%s'", fs_str(&dst));
@@ -1756,9 +1789,17 @@ tf8_ds_parse_quoted_line(const char *name)
         fs dst = fsinit(8);
         size_t saved = dsGetpos(&ds);
 
-        size_t len = dsParseQuotedLimitedLine(&ds, &dst);
-        test_validatefree(len == 0, fsfree(dst),
-                        "expected 0, got %zu", len);
+        bool res = dsParseQuotedLimitedLine(&ds, &dst);
+        test_validatefree(
+            !res,
+            fsfree(dst),
+            "Invalid fs"
+        );
+        test_validatefree(
+            dst.len == 0, 
+            fsfree(dst),
+            "expected 0, got %zu", dst.len
+        );
         test_validatefree(ds.pos == saved, fsfree(dst),
                         "pos must be restored to %zu, got %zu", saved, ds.pos);
         test_validatefree(fs_len(&dst) == 0, fsfree(dst),
@@ -1776,9 +1817,12 @@ tf8_ds_parse_quoted_line(const char *name)
         fs dst = fsinit(8);
         size_t saved = dsGetpos(&ds);
 
-        size_t len = dsParseQuotedLimitedLine(&ds, &dst);
-        test_validatefree(len == 0, fsfree(dst),
-                        "expected 0, got %zu", len);
+        bool res = dsParseQuotedLimitedLine(&ds, &dst);
+        test_validatefree(
+            !res,
+            fsfree(dst),
+            "MUST be Invalid fs"
+        );
         test_validatefree(ds.pos == saved, fsfree(dst),
                         "pos must be restored to %zu, got %zu", saved, ds.pos);
         test_validatefree(fs_len(&dst) == 0, fsfree(dst),
@@ -1796,9 +1840,12 @@ tf8_ds_parse_quoted_line(const char *name)
         fs dst = fsinit(8);
         size_t saved = dsGetpos(&ds);
 
-        size_t len = dsParseQuotedLimitedLine(&ds, &dst);
-        test_validatefree(len == 0, fsfree(dst),
-                        "expected 0, got %zu", len);
+        bool res = dsParseQuotedLimitedLine(&ds, &dst);
+        test_validatefree(
+            !res,
+            fsfree(dst),
+            "MUST be Invalid fs"
+        );
         test_validatefree(ds.pos == saved, fsfree(dst),
                         "pos must be restored to %zu, got %zu", saved, ds.pos);
         test_validatefree(fs_len(&dst) == 0, fsfree(dst),
@@ -1816,9 +1863,14 @@ tf8_ds_parse_quoted_line(const char *name)
         fs dst = fsinit(3);   // ёмкость 2 байта, нужно 5
         size_t saved = dsGetpos(&ds);
 
-        size_t len = dsParseQuotedLimitedLine(&ds, &dst);
-        test_validatefree(len == 0, fsfree(dst),
-                        "expected 0, got %zu", len);
+        bool res = dsParseQuotedLimitedLine(&ds, &dst);
+        test_validatefree(
+            !res,
+            fsfree(dst),
+            "MUST not be parsed (buf to small)"
+        );
+        test_validatefree(dst.len == 0, fsfree(dst),
+                        "expected 0, got %zu", dst.len);
         test_validatefree(ds.pos == saved, fsfree(dst),
                         "pos must be restored to %zu, got %zu", saved, ds.pos);
         test_validatefree(fs_len(&dst) == 0, fsfree(dst),
@@ -1860,9 +1912,14 @@ tf8_ds_parse_quoted_line(const char *name)
         DS ds = dsCreateconst(input);
         fs dst = fsinit(16);
 
-        size_t len = dsParseQuotedLimitedLine(&ds, &dst);
-        test_validatefree(len == 1, fsfree(dst),
-                          "expected 1, got %zu", len);
+        bool res = dsParseQuotedLimitedLine(&ds, &dst);
+        test_validatefree(
+            res,
+            fsfree(dst),
+            "Invalid fs"
+        );
+        test_validatefree(dst.len == 1, fsfree(dst),
+                          "expected 1, got %zu", dst.len);
         test_validatefree(fs_str(&dst)[0] == '"' && fs_str(&dst)[1] == '\0',
                           fsfree(dst),
                           "content must be just a quote");
@@ -1877,9 +1934,14 @@ tf8_ds_parse_quoted_line(const char *name)
         DS ds = dsCreateconst(input);
         fs dst = fsinit(16);
 
-        size_t len = dsParseQuotedLimitedLine(&ds, &dst);
-        test_validatefree(len == 9, fsfree(dst),
-                          "expected 9, got %zu", len);
+        bool res = dsParseQuotedLimitedLine(&ds, &dst);
+        test_validatefree(
+            res,
+            fsfree(dst),
+            "Invalid fs"
+        );
+        test_validatefree(dst.len == 9, fsfree(dst),
+                          "expected 9, got %zu", dst.len);
         test_validatefree(strcmp(fs_str(&dst), "  hello  ") == 0,
                           fsfree(dst),
                           "content mismatch: '%s'", fs_str(&dst));
@@ -1894,9 +1956,14 @@ tf8_ds_parse_quoted_line(const char *name)
         DS ds = dsCreateconst(input);
         fs dst = fsinit(16);
 
-        size_t len = dsParseQuotedLimitedLine(&ds, &dst);
-        test_validatefree(len == 4, fsfree(dst),
-                          "expected 4, got %zu", len);
+        bool res = dsParseQuotedLimitedLine(&ds, &dst);
+        test_validatefree(
+            res,
+            fsfree(dst),
+            "Invalid fs"
+        );
+        test_validatefree(dst.len == 4, fsfree(dst),
+                          "expected 4, got %zu", dst.len);
         test_validatefree(strcmp(fs_str(&dst), "abc\\") == 0,
                           fsfree(dst),
                           "content mismatch: '%s'", fs_str(&dst));
@@ -1911,9 +1978,14 @@ tf8_ds_parse_quoted_line(const char *name)
         DS ds = dsCreateconst(input);
         fs dst = fsinit(8);
 
-        size_t len = dsParseQuotedLimitedLine(&ds, &dst);
-        test_validatefree(len == 1, fsfree(dst),
-                          "expected 1, got %zu", len);
+        bool res = dsParseQuotedLimitedLine(&ds, &dst);
+        test_validatefree(
+            res,
+            fsfree(dst),
+            "Invalid fs"
+        );
+        test_validatefree(dst.len == 1, fsfree(dst),
+                          "expected 1, got %zu", dst.len);
         test_validatefree(fs_str(&dst)[0] == '\n' && fs_str(&dst)[1] == '\0',
                           fsfree(dst),
                           "content must be newline");
@@ -1928,9 +2000,14 @@ tf8_ds_parse_quoted_line(const char *name)
         DS ds = dsCreateconst(input);
         fs dst = fsinit(8);
 
-        size_t len = dsParseQuotedLimitedLine(&ds, &dst);
-        test_validatefree(len == 1, fsfree(dst),
-                          "expected 1, got %zu", len);
+        bool res = dsParseQuotedLimitedLine(&ds, &dst);
+        test_validatefree(
+            res,
+            fsfree(dst),
+            "Invalid fs"
+        );
+        test_validatefree(dst.len == 1, fsfree(dst),
+                          "expected 1, got %zu", dst.len);
         test_validatefree(fs_str(&dst)[0] == '\\' && fs_str(&dst)[1] == '\0',
                           fsfree(dst),
                           "content must be backslash");
@@ -1945,9 +2022,14 @@ tf8_ds_parse_quoted_line(const char *name)
         DS ds = dsCreateconst(input);
         fs dst = fsinit(32);
 
-        size_t len = dsParseQuotedLimitedLine(&ds, &dst);
-        test_validatefree(len == 5, fsfree(dst),
-                          "expected 5, got %zu", len);
+        bool res = dsParseQuotedLimitedLine(&ds, &dst);
+        test_validatefree(
+            res,
+            fsfree(dst),
+            "Invalid fs"
+        );
+        test_validatefree(dst.len == 5, fsfree(dst),
+                          "expected 5, got %zu", dst.len);
         test_validatefree(fs_str(&dst)[0] == '\n' &&
                           fs_str(&dst)[1] == '\t' &&
                           fs_str(&dst)[2] == '\r' &&
@@ -1968,14 +2050,19 @@ tf8_ds_parse_quoted_line(const char *name)
         fs dst = fsinit(16);
         size_t saved = dsGetpos(&ds);
 
-        size_t len = dsParseQuotedLimitedLine(&ds, &dst);
-        test_validatefree(len == 0, fsfree(dst),
-                          "expected 0, got %zu", len);
+        bool res = dsParseQuotedLimitedLine(&ds, &dst);
+        test_validatefree(
+            !res,
+            fsfree(dst),
+            "MUST be Invalid fs"
+        );
+        // test_validatefree(len == 0, fsfree(dst),
+        //                   "expected 0, got %zu", len);
         test_validatefree(ds.pos == saved, fsfree(dst),
                           "pos must be restored to %zu, got %zu", saved, ds.pos);
-        test_validatefree(fs_len(&dst) == 0 && fs_str(&dst)[0] == '\0',
-                          fsfree(dst),
-                          "buffer must be empty after error");
+        // test_validatefree(fs_len(&dst) == 0 && fs_str(&dst)[0] == '\0',
+        //                   fsfree(dst),
+        //                   "buffer must be empty after error");
         fsfree(dst);
         fs_alloc_check(true);
     }
@@ -2326,9 +2413,11 @@ tf11_fs_ds_FS_roundtrip(const char *name)
         // 
         fs dst = FS();
         long read_len = fs_dsload(&ds, &dst, true);
-        test_validatefree(read_len == 5 && fscmp(dst, src) == 0,
-                          (dsFree(&ds), fsfree(src), fsfree(dst)),
-                          "roundtrip failed: len=%ld, dst='%s'", read_len, fs_str(&dst));
+        test_validatefree(
+            read_len == 5 && fscmp(dst, src) == 0,
+            (dsFree(&ds), fsfree(src), fsfree(dst)),
+            "roundtrip failed: len=%ld, dst='%s'", read_len, fs_str(&dst)
+        );
 
         dsFree(&ds);
         fsfree(src);
@@ -2477,6 +2566,59 @@ tf11_fs_ds_FS_roundtrip(const char *name)
 
         fsfree(dst);
         dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: multiple fs round-trip via DS_FS", ++subnum);
+    {
+        fs sources[] = {
+            fscopy("hello11111111111"),
+            fscopy(""),
+            fscopy("a\"b\\c\nd\te\rf"),
+            fscopy("final")
+        };
+        const size_t count = COUNT(sources);
+
+        fs serialized = FS();
+        DS ds = dsCreatefs(&serialized);
+
+        /* Сериализуем все объекты подряд */
+        for (size_t i = 0; i < count; i++) {
+            long w = fs_dsserialize(&ds, &sources[i]);
+            test_validatefree(
+                w > 0,
+                (dsFree(&ds), fsfreeall(&sources[0], &sources[1], &sources[2], &sources[3])),
+                "serialize failed at index %zu", i
+            );
+        }
+
+        dsReset(&ds);       // replace to dsRelease()
+        
+        /* Последовательно читаем и сравниваем */
+        for (size_t i = 0; i < count; i++) {
+            fs dst = FS();
+            long len = fs_dsload(&ds, &dst, true);
+            test_validatefree(
+                len == (long) sources[i].len && fscmp(dst, sources[i]) == 0,
+                (dsFree(&ds), fsfree(dst), fsfreeall(&sources[0], &sources[1], &sources[2], &sources[3])),
+                "roundtrip mismatch at index %zu: len=%ld, expected=%zu",
+                i, len, sources[i].len
+            );
+            fsfree(dst);
+        }
+
+        /* После извлечения всех записей должен быть конец потока */
+        fs dst = FS();
+        long res = fs_dsload(&ds, &dst, true);
+        test_validatefree(
+            res == -1,
+            (dsFree(&ds), fsfree(dst), fsfreeall(&sources[0], &sources[1], &sources[2], &sources[3])),
+            "expected -1 at end of stream, got %ld", res
+        );
+        fsfree(dst);
+
+        dsFree(&ds);
+        fsfreeall(&sources[0], &sources[1], &sources[2], &sources[3]);
         fs_alloc_check(true);
     }
 

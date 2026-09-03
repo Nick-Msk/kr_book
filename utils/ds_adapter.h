@@ -333,7 +333,7 @@ extern bool                         dsParseV64(DS *restrict pds, value64 *restri
  * @warning If parsing fails, the input @ref DS stream is rolled back to its 
  *          original position, and the function returns 0.
  */
-extern size_t                       dsParseQuotedLimitedLine(DS *restrict pds, fs *restrict dst);
+extern bool                       dsParseQuotedLimitedLine(DS *restrict pds, fs *restrict dst);
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
