@@ -296,7 +296,7 @@ extern long                     dswrite(DS *restrict out, const char *restrict p
  */
 extern bool                     dsExpect(DS *restrict in, const char *restrict literal);
 
-extern size_t                   dsGetsize(const DS* pds);
+extern size_t                   dsGetcap(const DS* pds);
 /**
  * @brief Debugging print implementation.
  * Returns the number of characters printed.
@@ -363,9 +363,10 @@ static inline off_t            dsSavepos(DS *pds) {
  * @brief Restores the position of the data source to the last saved state.
  * 
  * @param pds Pointer to the data source.
+ * @param savepos previously saved position
  * @return true if successful, false otherwise.
  */
-static inline bool              dsRestorepos(DS *pds, size_t savepos) {
+static inline bool              dsRestorepos(DS *pds, off_t savepos) {
     switch (pds->type) {
         case DS_FILE:
             return fseek(pds->fp, savepos, SEEK_SET) == 0;

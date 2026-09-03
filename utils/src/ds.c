@@ -305,7 +305,7 @@ bool                        dsExpect(DS *restrict pds, const char *literal) {
     return true;
 }
 
-size_t                      dsGetsize(const DS *pds) {
+size_t                      dsGetcap(const DS *pds) {
     if (pds == NULL)
         return userraiseint(ERR_NULL_INPUT, 
             "Ds or literal is null %p", pds);
@@ -1521,7 +1521,7 @@ tf7_ds_expect(const char *name)
     return TEST_PASSED;
 }
 
-// ------------------------- TEST dsGetsize -------------------------
+// ------------------------- TEST dsGetcap -------------------------
 static TestStatus
 tf8_ds_getsize(const char *name)
 {
@@ -1529,37 +1529,37 @@ tf8_ds_getsize(const char *name)
     int subnum = 0;
 
     /* 1. DS_STR с явной ёмкостью */
-    test_sub("subtest %d: dsGetsize on DS_STR with cap", ++subnum);
+    test_sub("subtest %d: dsGetcap on DS_STR with cap", ++subnum);
     {
         char buffer[20] = "hello";
         DS ds = dsCreatestrCap(buffer, sizeof(buffer));   // cap = 20
-        size_t size = dsGetsize(&ds);
+        size_t size = dsGetcap(&ds);
         test_validate(size == sizeof(buffer),
                       "expected %zu, got %zu", sizeof(buffer), size);
     }
 
     /* 2. DS_STR без ёмкости (dsCreatestr) */
-    test_sub("subtest %d: dsGetsize on DS_STR without cap", ++subnum);
+    test_sub("subtest %d: dsGetcap on DS_STR without cap", ++subnum);
     {
         char buffer[20] = "hello";
         DS ds = dsCreatestr(buffer);                     // cap = 0, strlen = 5
-        size_t size = dsGetsize(&ds);
+        size_t size = dsGetcap(&ds);
         test_validate(size == strlen(buffer),
                       "expected %zu, got %zu", strlen(buffer), size);
     }
 
     /* 3. DS_CONSTSTR */
-    test_sub("subtest %d: dsGetsize on DS_CONSTSTR", ++subnum);
+    test_sub("subtest %d: dsGetcap on DS_CONSTSTR", ++subnum);
     {
         const char *text = "constant string";
         DS ds = dsCreateconst(text);
-        size_t size = dsGetsize(&ds);
+        size_t size = dsGetcap(&ds);
         test_validate(size == strlen(text),
                       "expected %zu, got %zu", strlen(text), size);
     }
 
     /* 4. DS_FILE */
-    test_sub("subtest %d: dsGetsize on DS_FILE", ++subnum);
+    test_sub("subtest %d: dsGetcap on DS_FILE", ++subnum);
     {
         const char *fname = "res/ds/ds_getsize_file.ds";
         FILE *fp = fopen(fname, "w+");
@@ -1570,7 +1570,7 @@ tf8_ds_getsize(const char *name)
         fflush(fp);
 
         DS ds = dsCreatef(fp);
-        size_t size = dsGetsize(&ds);
+        size_t size = dsGetcap(&ds);
         test_validatefree(size == strlen(data),
                           dsFree(&ds),
                           "expected %zu, got %zu", strlen(data), size);
@@ -1579,12 +1579,12 @@ tf8_ds_getsize(const char *name)
     }
 
     /* 5. DS_FS */
-    test_sub("subtest %d: dsGetsize on DS_FS", ++subnum);
+    test_sub("subtest %d: dsGetcap on DS_FS", ++subnum);
     {
         fs s = fscopy("fs content");
         DS ds = dsCreatefs(&s);   // владение переходит в ds
 
-        size_t size = dsGetsize(&ds);
+        size_t size = dsGetcap(&ds);
         test_validatefree(size == strlen("fs content"),
                           dsFree(&ds),
                           "expected %zu, got %zu", strlen("fs content"), size);
@@ -1592,12 +1592,12 @@ tf8_ds_getsize(const char *name)
         fs_alloc_check(true);
     }
 
-    test_sub("subtest %d: dsGetsize on DS_FS empty", ++subnum);
+    test_sub("subtest %d: dsGetcap on DS_FS empty", ++subnum);
     {
         fs s = fscopy("");
         DS ds = dsCreatefs(&s);   // владение переходит в ds
 
-        size_t size = dsGetsize(&ds);
+        size_t size = dsGetcap(&ds);
         test_validatefree(size == 0L,
                           dsFree(&ds),
                           "expected %zu, got %zu", strlen("fs content"), size);
@@ -1606,10 +1606,10 @@ tf8_ds_getsize(const char *name)
     }
 
     /* 6. NULL входной параметр */
-    test_sub("subtest %d: dsGetsize(NULL)", ++subnum);
+    test_sub("subtest %d: dsGetcap(NULL)", ++subnum);
     {
         if (!try()) {
-            dsGetsize(NULL);
+            dsGetcap(NULL);
             test_validate(false, "must raise error");
         } else {
             test_validate(true, "correctly raised error");
@@ -1902,7 +1902,7 @@ main( /*int argc, char *argv[] */ )
       , TESTADD(tf5_ds_create_filename,  "dsCreateFilename/dsInitFilename simple test")
       , TESTADD(tf6_dswrite,             "dswrite simple test")
       , TESTADD(tf7_ds_expect,           "dsExpect simple test")
-      , TESTADD(tf8_ds_getsize,          "dsGetsize simple test")
+      , TESTADD(tf8_ds_getsize,          "dsGetcap simple test")
       , TESTADD(tf9_ds_getpos,           "dsGetpos simple test")
       , TESTADD(tf10_ds_skip_nl,         "dsSkipNl simple test")
     );
