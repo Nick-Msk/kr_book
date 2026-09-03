@@ -355,11 +355,8 @@ static inline off_t             dsGetpos(const DS *pds) {
  * 
  * @param pds Pointer to the data source.
  */
-static inline size_t            dsSavepos(DS *pds) {
-    off_t  pos = dsGetpos(pds);
-    if (pos < 0)
-        sysraiseint("Unable to get stream position");
-    return pos;
+static inline off_t            dsSavepos(DS *pds) {
+    return dsGetpos(pds);
 }
 
 /**
