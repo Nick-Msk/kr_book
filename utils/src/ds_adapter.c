@@ -2300,6 +2300,189 @@ tf10_fs_ds_CONST_roundtrip(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST fs_dsload with DS_FS (round-trip) -------------------------
+static TestStatus
+tf11_fs_ds_FS_roundtrip(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Простая строка, use_buffer = true */
+    test_sub("subtest %d: roundtrip simple string from DS_FS (buffer)", ++subnum);
+    {
+        fs src = fscopy("hello");
+        fs serialized = FS();
+        DS ds = dsCreatefs(&serialized);   // владение serialized переходит в ds
+
+        long written = fs_dsserialize(&ds, &src);
+        test_validatefree(
+            written > 0, 
+            (dsFree(&ds), fsfree(src)), 
+            "serialize failed"
+        );
+
+        dsReset(&ds);                       // сбрасываем позицию для чтения
+        // TODO: fs returned = dsDetach(&ds);
+        // 
+        fs dst = FS();
+        long read_len = fs_dsload(&ds, &dst, true);
+        test_validatefree(read_len == 5 && fscmp(dst, src) == 0,
+                          (dsFree(&ds), fsfree(src), fsfree(dst)),
+                          "roundtrip failed: len=%ld, dst='%s'", read_len, fs_str(&dst));
+
+        dsFree(&ds);
+        fsfree(src);
+        fsfree(dst);
+        fs_alloc_check(true);
+    }
+
+    /* 2. Простая строка, use_buffer = false */
+    test_sub("subtest %d: roundtrip simple string from DS_FS (direct)", ++subnum);
+    {
+        fs src = fscopy("hello");
+        fs serialized = FS();
+        DS ds = dsCreatefs(&serialized);
+
+        fs_dsserialize(&ds, &src);
+        dsReset(&ds);
+
+        fs dst = FS();
+        long read_len = fs_dsload(&ds, &dst, false);
+        test_validatefree(read_len == 5 && fscmp(dst, src) == 0,
+                          (dsFree(&ds), fsfree(src), fsfree(dst)),
+                          "roundtrip failed: len=%ld, dst='%s'", read_len, fs_str(&dst));
+
+        dsFree(&ds);
+        fsfree(src);
+        fsfree(dst);
+        fs_alloc_check(true);
+    }
+
+    /* 3. Пустая строка */
+    test_sub("subtest %d: roundtrip empty string from DS_FS", ++subnum);
+    {
+        fs src = fscopy("");
+        fs serialized = FS();
+        DS ds = dsCreatefs(&serialized);
+
+        fs_dsserialize(&ds, &src);
+        dsReset(&ds);
+
+        fs dst = FS();
+        long read_len = fs_dsload(&ds, &dst, true);
+        test_validatefree(
+            read_len == 0 && fs_len(&dst) == 0,
+            (dsFree(&ds), fsfree(src), fsfree(dst)),
+            "expected empty, got len=%ld, fs_len=%zu", read_len, fs_len(&dst)
+        );
+
+        dsFree(&ds);
+        fsfree(src);
+        fsfree(dst);
+        fs_alloc_check(true);
+    }
+
+    /* 4. Строка со спецсимволами */
+    test_sub("subtest %d: roundtrip escaped string from DS_FS", ++subnum);
+    {
+        fs src = fscopy("a\"b\\c\nd\te\rf");
+        fs serialized = FS();
+        DS ds = dsCreatefs(&serialized);
+
+        fs_dsserialize(&ds, &src);
+        dsReset(&ds);
+
+        fs dst = FS();
+        long read_len = fs_dsload(&ds, &dst, true);
+        test_validatefree(
+            read_len == (long) src.len && fscmp(dst, src) == 0,
+            (dsFree(&ds), fsfree(src), fsfree(dst)),
+            "roundtrip failed: len=%ld, dst='%s'", read_len, fs_str(&dst)
+        );
+
+        dsFree(&ds);
+        fsfree(src);
+        fsfree(dst);
+        fs_alloc_check(true);
+    }
+
+    /* 5. Неверный заголовок (создаём вручную) */
+    test_sub("subtest %d: invalid header restores pos", ++subnum);
+    {
+        fs bad = fscopy("BAD(\"5\"): \"hello\"");
+        DS ds = dsCreatefs(&bad);
+        fs dst = FS();
+        size_t saved = ds.pos;
+
+        long res = fs_dsload(&ds, &dst, true);
+        test_validatefree(
+            res == -1, (dsFree(&ds), fsfree(dst)),
+            "expected -1, got %ld", res
+        );
+        test_validatefree(
+            ds.pos == saved, 
+            (dsFree(&ds), fsfree(dst)),
+            "pos must be restored to %zu, got %zu", saved, ds.pos
+        );
+
+        dsFree(&ds);
+        fsfree(dst);
+        fs_alloc_check(true);
+    }
+
+    /* 6. Несовпадение длины */
+    test_sub("subtest %d: length mismatch restores pos", ++subnum);
+    {
+        fs bad = fscopy("FS(\"10\"): \"hello\"");
+        DS ds = dsCreatefs(&bad);
+        fs dst = FS();
+        size_t saved = ds.pos;
+
+        long res = fs_dsload(&ds, &dst, true);
+        test_validatefree(
+            res == -1, 
+            (dsFree(&ds), fsfree(dst)),
+            "expected -1, got %ld", res
+        );
+        test_validatefree(
+            ds.pos == saved, 
+            (dsFree(&ds), fsfree(dst)),
+            "pos must be restored to %zu, got %zu", saved, ds.pos
+        );
+
+        dsFree(&ds);
+        fsfree(dst);
+        fs_alloc_check(true);
+    }
+
+    /* 7. NULL аргументы */
+    test_sub("subtest %d: NULL arguments raise error", ++subnum);
+    {
+        fs dst = FS();
+        if (!try()) {
+            fs_dsload(NULL, &dst, true);
+            test_validatefree(false, fsfree(dst), "must raise error for NULL DS");
+        } else {
+            test_validatefree(true, fsfree(dst), "correctly raised error");
+        }
+
+        fs src = fscopy("FS(\"1\"): \"a\"");
+        DS ds = dsCreatefs(&src);
+        if (!try()) {
+            fs_dsload(&ds, NULL, true);
+            test_validate(false, "must raise error for NULL fs");
+        } else {
+            test_validate(true, "correctly raised error");
+        }
+
+        fsfree(dst);
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    return TEST_PASSED;
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -2317,6 +2500,7 @@ main( /*int argc, char *argv[] */ )
       , TESTADD(tf8_ds_parse_quoted_line,   "dsParseQuotedLimitedLine simple test")
       , TESTADD(tf9_fs_ds_DS_STR_roundtrip, "fs_dsserialize/fs_dsload DS_STR round-trip test")
       , TESTADD(tf10_fs_ds_CONST_roundtrip, "fs_dsload with DS_CONSTSTR round-trip and errors")
+      , TESTADD(tf11_fs_ds_FS_roundtrip,    "fs_dsload with DS_STR round-trip and errors")
     );
 
     return logret(0, "end...");  // as replace of logclose()
