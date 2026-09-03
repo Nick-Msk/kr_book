@@ -395,5 +395,14 @@ static inline bool              dsReset(DS *pds) {
     }
     return true;
 } 
+static inline bool               dsSkipNl(DS *ds) {
+    int c = dsgetc(ds);
+    if (c == EOF)
+        return false;
+    if (c == '\n')
+        return true;
+    dsungetc(c, ds);           // return back
+    return false;
+}
 
 #endif /* !_DS_H */

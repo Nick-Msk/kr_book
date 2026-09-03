@@ -1712,6 +1712,182 @@ tf9_ds_getpos(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST dsSkipNl (corrected) -------------------------
+static TestStatus
+tf10_ds_skip_nl(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Символ '\n' — потребляется, возвращается true, позиция сдвигается */
+    test_sub("subtest %d: dsSkipNl consumes newline on DS_STR", ++subnum);
+    {
+        char buf[] = "ab\ncd";
+        DS ds = dsCreatestrCap(buf, sizeof(buf));
+
+        // Читаем 'a' и 'b', встаём на '\n'
+        int c1 = dsgetc(&ds);
+        int c2 = dsgetc(&ds);
+        test_validate(c1 == 'a' && c2 == 'b', "wrong chars: %c %c", c1, c2);
+        test_validate(ds.pos == 2, "pos must be 2, got %zu", ds.pos);
+
+        bool res = dsSkipNl(&ds);
+        test_validate(res == true, "expected true");
+        test_validate(ds.pos == 3, "pos must advance to 3, got %zu", ds.pos);
+        int c = dsgetc(&ds);
+        test_validate(c == 'c', "next char must be 'c', got '%c'", c);
+    }
+
+    /* 2. Не '\n' символ — возвращается обратно, false, позиция не меняется */
+    test_sub("subtest %d: dsSkipNl leaves non-newline on DS_STR", ++subnum);
+    {
+        char buf[] = "abc";
+        DS ds = dsCreatestrCap(buf, sizeof(buf));
+
+        // Читаем 'a', встаём на 'b'
+        int c1 = dsgetc(&ds);
+        test_validate(c1 == 'a', "wrong char: %c", c1);
+        test_validate(ds.pos == 1, "pos must be 1, got %zu", ds.pos);
+
+        bool res = dsSkipNl(&ds);
+        test_validate(res == false, "expected false for non-newline");
+        test_validate(ds.pos == 1, "pos must remain 1, got %zu", ds.pos);
+        int c = dsgetc(&ds);
+        test_validate(c == 'b', "next char must still be 'b', got '%c'", c);
+    }
+
+    /* 3. EOF — возвращает false */
+    test_sub("subtest %d: dsSkipNl at EOF on DS_STR", ++subnum);
+    {
+        char buf[] = "ab\n";
+        DS ds = dsCreatestrCap(buf, sizeof(buf));
+
+        // Читаем 'a','b','\n'
+        dsgetc(&ds);
+        dsgetc(&ds);
+        dsgetc(&ds);   // теперь на EOF
+        bool res = dsSkipNl(&ds);
+        test_validate(res == false, "expected false at EOF");
+        test_validate(ds.pos == 3, "pos must remain 3, got %zu", ds.pos);
+    }
+
+    /* 4. DS_CONSTSTR: проверка */
+    test_sub("subtest %d: dsSkipNl on DS_CONSTSTR", ++subnum);
+    {
+        const char *buf = "x\ny";
+        DS ds = dsCreateconst(buf);
+
+        // Читаем 'x', встаём на '\n'
+        int c = dsgetc(&ds);
+        test_validate(c == 'x', "wrong char");
+        bool res = dsSkipNl(&ds);
+        test_validate(res == true, "expected true");
+        test_validate(ds.pos == 2, "pos must advance to 2, got %zu", ds.pos);
+        c = dsgetc(&ds);
+        test_validate(c == 'y', "next char must be 'y'");
+    }
+
+    /* 5. DS_FS: проверка */
+    test_sub("subtest %d: dsSkipNl on DS_FS", ++subnum);
+    {
+        fs s = fscopy("q\nr");
+        DS ds = dsCreatefs(&s);
+
+        // Читаем 'q', встаём на '\n'
+        int c = dsgetc(&ds);
+        test_validatefree(c == 'q', dsFree(&ds), "wrong char");
+        bool res = dsSkipNl(&ds);
+        test_validatefree(res == true, dsFree(&ds), "expected true");
+        test_validatefree(ds.pos == 2, dsFree(&ds), "pos must advance to 2, got %zu", ds.pos);
+        c = dsgetc(&ds);
+        test_validatefree(c == 'r', dsFree(&ds), "next char must be 'r'");
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* 6. DS_FILE: на файле */
+    test_sub("subtest %d: dsSkipNl on DS_FILE", ++subnum);
+    {
+        const char *fname = "res/ds/ds_skip_nl_file.tmp";
+        FILE *fp = fopen(fname, "w+");
+        test_validatefree(fp != NULL, fclose(fp), "can't open file");
+        fputs("ab\ncd", fp);
+        fflush(fp);
+        rewind(fp);
+
+        DS ds = dsCreatef(fp);
+        // Читаем 'a','b'
+        dsgetc(&ds);
+        dsgetc(&ds);
+        bool res = dsSkipNl(&ds);
+        test_validatefree(res == true, fclose(fp), "expected true");
+        test_validatefree(ftell(fp) == 3, fclose(fp), "file pos must be 3, got %ld", ftell(fp));
+        int c = dsgetc(&ds);
+        test_validatefree(c == 'c', fclose(fp), "next char must be 'c'");
+        fclose(fp);
+        fs_alloc_check(true);
+    }
+
+    /* 7. Цикл while (dsSkipNl(&ds)); проматывает несколько \n */
+    test_sub("subtest %d: dsSkipNl loop skips multiple newlines", ++subnum);
+    {
+        char buf[] = "a\n\n\nb";
+        DS ds = dsCreatestrCap(buf, sizeof(buf));
+
+        // читаем 'a'
+        int c = dsgetc(&ds);
+        test_validate(c == 'a', "wrong first char");
+
+        // проматываем все \n
+        while (dsSkipNl(&ds))
+            ;
+
+        // теперь должны стоять на 'b'
+        test_validate(ds.pos == 4, "pos must be 4, got %zu", ds.pos);
+        c = dsgetc(&ds);
+        test_validate(c == 'b', "next char must be 'b', got '%c'", c);
+    }
+
+    /* 8. Цикл while (dsSkipNl(&ds)); останавливается на EOF */
+    test_sub("subtest %d: dsSkipNl loop stops at EOF", ++subnum);
+    {
+        char buf[] = "a\n";
+        DS ds = dsCreatestrCap(buf, sizeof(buf));
+
+        int c = dsgetc(&ds);   // 'a'
+        test_validate(c == 'a', "wrong first char");
+
+        while (dsSkipNl(&ds))
+            ;
+
+        test_validate(ds.pos == 2, "pos must be 2 at EOF");
+        c = dsgetc(&ds);
+        test_validate(c == EOF, "must be EOF");
+    }
+
+    /* 9. Цикл while (dsSkipNl(&ds)); останавливается на значащем символе */
+    test_sub("subtest %d: dsSkipNl loop stops at non-newline", ++subnum);
+    {
+        char buf[] = "x\nabc";
+        DS ds = dsCreatestrCap(buf, sizeof(buf));
+
+        int c = dsgetc(&ds);   // 'x'
+        test_validate(c == 'x', "wrong first char");
+
+        // пропускаем один \n, затем цикл должен остановиться на 'a'
+        bool res = dsSkipNl(&ds);
+        test_validate(res == true, "first skip must be true");
+        while (dsSkipNl(&ds))
+            ;
+
+        test_validate(ds.pos == 2, "pos must be 2, got %zu", ds.pos);
+        c = dsgetc(&ds);
+        test_validate(c == 'a', "next char must be 'a', got '%c'", c);
+    }
+
+    return TEST_PASSED;
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -1728,6 +1904,7 @@ main( /*int argc, char *argv[] */ )
       , TESTADD(tf7_ds_expect,           "dsExpect simple test")
       , TESTADD(tf8_ds_getsize,          "dsGetsize simple test")
       , TESTADD(tf9_ds_getpos,           "dsGetpos simple test")
+      , TESTADD(tf10_ds_skip_nl,         "dsSkipNl simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
