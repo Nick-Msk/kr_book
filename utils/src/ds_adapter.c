@@ -2409,7 +2409,8 @@ tf11_fs_ds_FS_roundtrip(const char *name)
         );
 
         dsReset(&ds);                       // сбрасываем позицию для чтения
-        // TODO: fs returned = dsDetach(&ds);
+        // TODO: fs returned = dsDetachFs(&ds);
+
         // 
         fs dst = FS();
         long read_len = fs_dsload(&ds, &dst, true);
@@ -2625,6 +2626,191 @@ tf11_fs_ds_FS_roundtrip(const char *name)
     return TEST_PASSED;
 }
 
+// ------------------------- TEST dsReleaseFs -------------------------
+static TestStatus
+tf13_ds_release_fs(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    test_sub("subtest %d: release and deserialize round-trip", ++subnum);
+    {
+        fs src = fscopy("hello");
+        fs serialized = FS();
+        DS ds = dsCreatefs(&serialized);   // serialized перемещён в ds
+
+        long written = fs_dsserialize(&ds, &src);
+        test_validatefree(written > 0, (fsfree(src)), "serialize failed");
+
+        fs extracted = FS();
+        test_validatefree(
+            dsReleaseFs(&extracted, &ds),
+            (fsfree(src), fsfree(extracted)),
+            "release failed"
+        );
+
+        // extracted содержит сериализованные данные; создаём DS для чтения
+        DS reader = dsCreatefs(&extracted);   // extracted перемещён в reader
+        fs dst = FS();
+        long read_len = fs_dsload(&reader, &dst, true);
+        test_validatefree(
+            read_len == (long)src.len,
+            (dsFree(&reader), fsfree(src), fsfree(dst)),
+            "read length mismatch: expected %zu, got %ld", src.len, read_len
+        );
+        test_validatefree(
+            fscmp(dst, src) == 0,
+            (dsFree(&reader), fsfree(src), fsfree(dst)),
+            "content mismatch: src='%s', dst='%s'", fs_str(&src), fs_str(&dst)
+        );
+
+        dsFree(&reader);
+        fsfree(src);
+        fsfree(dst);
+        fs_alloc_check(true);
+    }
+
+    /* 2. Только освобождение внутреннего fs */
+    test_sub("subtest %d: release with dst == NULL", ++subnum);
+    {
+        fs          serialized = FS();
+        DS          ds = dsCreatefs(&serialized);
+        fs          src = fscopy("world");
+        fs_dsserialize(&ds, &src);
+        
+        test_validatefree(
+            dsReleaseFs(NULL, &ds),
+            (fsfree(src)),
+            "release with NULL must succeed"
+        );
+        test_validatefree(
+            ds.s.v == NULL && ds.s.sz == 0,
+            (dsFree(&ds), fsfree(src)),
+            "internal fs must be freed"
+        );
+        // dsFree(&ds);
+        fsfree(src);
+        fs_alloc_check(true);
+    }
+
+    /* 3. Ошибка при не-FS DS */
+    test_sub("subtest %d: release on non-FS type fails", ++subnum);
+    {
+        char buf[16] = "test";
+        DS ds = dsCreatestrCap(buf, sizeof(buf));
+        fs result = FS();
+
+        test_validate(
+            !dsReleaseFs(&result, &ds),
+            "must return false for non-FS"
+        );
+        fsfree(result);
+        fs_alloc_check(true);
+    }
+
+    /* 4. NULL pds */
+    test_sub("subtest %d: NULL pds fails", ++subnum);
+    {
+        fs result = FS();
+
+        test_validate(
+            !dsReleaseFs(&result, NULL),
+            "must return false for NULL"
+        );
+        fsfree(result);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: release and deserialize round-trip multiple strings", ++subnum);
+{
+    // Исходные строки для теста
+    fs src1 = fscopy("hello");
+    fs src2 = fscopy("world");
+    fs src3 = fscopy("");   // пустая строка тоже допустима
+
+    // Создаём поток для записи
+    fs serialized = FS();
+    DS writer = dsCreatefs(&serialized);   // serialized перемещён в writer
+
+    // Сериализуем все три строки в один поток
+    long written1 = fs_dsserialize(&writer, &src1);
+    long written2 = fs_dsserialize(&writer, &src2);
+    long written3 = fs_dsserialize(&writer, &src3);
+
+    // Можно проверить writtenX > 0, но для наглядности опустим
+    test_validatefree(
+        written1 > 5 && written2 > 5 && written3 > 0,
+        (fsfree(src1), fsfree(src2), fsfree(src3)),
+        "serialize failed"
+    );
+    // Передаём сериализованные данные через dsReleaseFs
+    fs extracted = FS();
+    test_validatefree(
+        dsReleaseFs(&extracted, &writer),
+        (fsfree(src1), fsfree(src2), fsfree(src3), fsfree(extracted)),
+        "release failed"
+    );
+
+    // Создаём поток для чтения из извлечённых данных
+    DS reader = dsCreatefs(&extracted);   // extracted перемещён в reader
+
+    // Загружаем первую строку
+    fs dst1 = FS();
+    long read1 = fs_dsload(&reader, &dst1, true);
+    test_validatefree(
+        read1 == (long)src1.len,
+        (dsFree(&reader), fsfree(src1), fsfree(src2), fsfree(src3), fsfree(dst1)),
+        "read length mismatch for string 1: expected %zu, got %ld", src1.len, read1
+    );
+    test_validatefree(
+        fscmp(dst1, src1) == 0,
+        (dsFree(&reader), fsfree(src1), fsfree(src2), fsfree(src3), fsfree(dst1)),
+        "content mismatch for string 1: src='%s', dst='%s'", fs_str(&src1), fs_str(&dst1)
+    );
+    fsfree(dst1);
+
+    // Загружаем вторую строку
+    fs dst2 = FS();
+    long read2 = fs_dsload(&reader, &dst2, true);
+    test_validatefree(
+        read2 == (long)src2.len,
+        (dsFree(&reader), fsfree(src1), fsfree(src2), fsfree(src3), fsfree(dst2)),
+        "read length mismatch for string 2: expected %zu, got %ld", src2.len, read2
+    );
+    test_validatefree(
+        fscmp(dst2, src2) == 0,
+        (dsFree(&reader), fsfree(src1), fsfree(src2), fsfree(src3), fsfree(dst2)),
+        "content mismatch for string 2: src='%s', dst='%s'", fs_str(&src2), fs_str(&dst2)
+    );
+    fsfree(dst2);
+
+    // Загружаем третью строку
+    fs dst3 = FS();
+    long read3 = fs_dsload(&reader, &dst3, true);
+    test_validatefree(
+        read3 == (long)src3.len,
+        (dsFree(&reader), fsfree(src1), fsfree(src2), fsfree(src3), fsfree(dst3)),
+        "read length mismatch for string 3: expected %zu, got %ld", src3.len, read3
+    );
+    test_validatefree(
+        fscmp(dst3, src3) == 0,
+        (dsFree(&reader), fsfree(src1), fsfree(src2), fsfree(src3), fsfree(dst3)),
+        "content mismatch for string 3: src='%s', dst='%s'", fs_str(&src3), fs_str(&dst3)
+    );
+    fsfree(dst3);
+
+    // Освобождаем все ресурсы
+    dsFree(&reader);
+    fsfree(src1);
+    fsfree(src2);
+    fsfree(src3);
+    fs_alloc_check(true);
+}
+
+    return TEST_PASSED;
+}
+
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -2643,6 +2829,8 @@ main( /*int argc, char *argv[] */ )
       , TESTADD(tf9_fs_ds_DS_STR_roundtrip, "fs_dsserialize/fs_dsload DS_STR round-trip test")
       , TESTADD(tf10_fs_ds_CONST_roundtrip, "fs_dsload with DS_CONSTSTR round-trip and errors")
       , TESTADD(tf11_fs_ds_FS_roundtrip,    "fs_dsload with DS_STR round-trip and errors")
+
+      , TESTADD(tf13_ds_release_fs,         "dsReleaseFs simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
