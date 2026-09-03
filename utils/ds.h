@@ -231,6 +231,19 @@ static inline void              dsFree(DS *pds) {
     }
 }
 
+static inline bool              dsReleaseFs(fs *dst, DS *pds) {
+    if (pds == NULL)
+        return userraise(false, ERR_NULL_INPUT, "Ds is null");
+    if (pds->type != DS_FS)
+        return userraise(false, ERR_UNSUPPORTED_TYPE, 
+            "%d/%s isn't supported", pds->type, DSTypeName(pds->type));
+    if (dst == NULL)        // just free
+        fsfree(pds->s);
+    else 
+        *dst = fs_move(&pds->s);
+    return true;
+}
+
 #define DSFREE(ds) dsFree(&(ds))
 
 // ----------------------------------------------------------------------
