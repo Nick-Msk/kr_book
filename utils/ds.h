@@ -269,6 +269,18 @@ static inline DS                dsCreatefsempty(void) {
 
 #endif  /* !NO_FSDS */   
 
+/**
+ * @brief Releases resources associated with the @ref DS object.
+ * 
+ * This function performs a deep release of the data source:
+ *  - For @c DS_FILE: Closes the file stream using @c fclose().
+ *  - For @c DS_FS: Releases the dynamic buffer using @ref fs_free().
+ *  - For @c DS_STR / @c DS_CONSTSTR: Resets the structure to zero.
+ *
+ * @param[in,out] pds Pointer to the DS structure to be cleared.
+ * @note After calling this function, the @ref DS object is reset to a 
+ *       zero-initialized state.
+ */
 static inline void              dsFree(DS *pds) {
     if (pds) {
 #ifndef NO_FSDS
@@ -277,10 +289,29 @@ static inline void              dsFree(DS *pds) {
 #endif  /* !NO_FSDS */   
         if (pds->type == DS_FILE)
             fclose(pds->fp);
-        *pds = (DS) {0};
+        *pds = DS();
     }
 }
 
+/**
+ * @brief Extracts/releases the @ref fs buffer from a @ref DS object.
+ * 
+ * This function allows transferring ownership of the internal @ref fs 
+ * structure to an external object, or simply destroying it.
+ * 
+ * @param[out] dst Pointer to the destination @ref fs structure. 
+ *                 If @c NULL, the @ref DS buffer is destroyed via @ref fs_free.
+ * @param[in,out] pds Pointer to the source @ref DS object (must be @c DS_FS).
+ * 
+ * @return true if the operation was successful, false if the DS is NULL 
+ *         or the type is not @c DS_FS.
+ * 
+ * @warning This function modifies the @c pds object. Even on success, 
+ *          the @c pds structure is reset to its default state to prevent 
+ *          dangling pointers or double-free errors.
+ * 
+ * @note This function is only valid for @c DS_FS type.
+ */
 static inline bool              dsReleaseFs(fs *restrict dst, DS *restrict pds) {
     if (pds == NULL)
         return userraise(false, ERR_NULL_INPUT, "Ds is null");
@@ -292,16 +323,19 @@ static inline bool              dsReleaseFs(fs *restrict dst, DS *restrict pds) 
             "%d/%s isn't supported", pds->type, DSTypeName(pds->type));
     if (dst == NULL)        // just free
         fsfree(pds->s);
-    else {
+    else
         *dst = fs_move(&pds->s);
-        *pds = DSFS();      // reset
-    }
 
 #endif  /* !NO_FSDS */   
 
+    *pds = DS();      // reset
     return true;
 }
 
+/**
+ * @brief Convenience macro to call @ref dsFree on a pointer.
+ * @param ds Pointer to the DS object.
+ */
 #define DSFREE(ds) dsFree(&(ds))
 
 // ----------------------------------------------------------------------
@@ -467,11 +501,44 @@ static inline bool              dsReset(DS *pds) {
     }
     return true;
 } 
+
+/**
+ * @brief Skips the next character if it is a newline.
+ * 
+ * This function consumes the next character from the source if it is 
+ * a '\n' character. If the character is not a newline or if @c EOF 
+ * is reached, the character is pushed back into the stream and 
+ * @c false is returned.
+ * 
+ * @param[in,out] ds Pointer to the @ref DS source.
+ * @return true if a newline character was consumed, false otherwise.
+ */
 static inline bool               dsSkipNl(DS *ds) {
     int c = dsgetc(ds);
     if (c == EOF)
         return false;
     if (c == '\n')
+        return true;
+    dsungetc(c, ds);           // return back
+    return false;
+}
+
+/**
+ * @brief Skips the next character if it is a whitespace character.
+ * 
+ * This function consumes the next character from the source if it 
+ * satisfies the @c isspace() condition. If the character is not 
+ * whitespace or if @c EOF is reached, the character is pushed back 
+ * into the stream and @c false is returned.
+ * 
+ * @param[in,out] ds Pointer to the @ref DS source.
+ * @return true if a whitespace character was consumed, false otherwise.
+ */
+static inline bool               dsSkipSpace(DS *ds) {
+    int c = dsgetc(ds);
+    if (c == EOF)
+        return false;
+    if (isspace(c))
         return true;
     dsungetc(c, ds);           // return back
     return false;

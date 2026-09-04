@@ -874,7 +874,7 @@ tf3_ds_putc(const char *name)
                       "dsputc(EOF) must return EOF, got %d", res);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST dsputc / dsgetc for DS_FS -------------------------
@@ -1063,7 +1063,7 @@ tf5_ds_create_filename(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST dswrite -------------------------
@@ -1340,7 +1340,7 @@ tf6_dswrite(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST dsExpect -------------------------
@@ -1518,7 +1518,7 @@ tf7_ds_expect(const char *name)
         test_validate(ds.pos == 0, "pos must remain 0, got %zu", ds.pos);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST dsGetcap -------------------------
@@ -1617,7 +1617,7 @@ tf8_ds_getsize(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST dsGetpos -------------------------
@@ -1709,7 +1709,7 @@ tf9_ds_getpos(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST dsSkipNl (corrected) -------------------------
@@ -1885,7 +1885,355 @@ tf10_ds_skip_nl(const char *name)
         test_validate(c == 'a', "next char must be 'a', got '%c'", c);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
+}
+
+// ------------------------- TEST dsSkipSpace -------------------------
+static TestStatus
+tf11_ds_skipspace(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* ============ DS_FILE ============ */
+    test_sub("subtest %d: DS_FILE - skip leading spaces", ++subnum);
+    {
+        FILE *f = fmemopen((void*)"   hello", 8, "r");
+        DS ds = dsCreatef(f);
+        test_validatefree(ds.type == DS_FILE, (dsFree(&ds)), "failed to create DS_FILE");
+
+        while (dsSkipSpace(&ds));
+
+        int c = dsgetc(&ds);
+        test_validatefree(c == 'h', (dsFree(&ds)), "expected 'h', got '%c'", c);
+        dsungetc(c, &ds); // возвращаем 'h', поток снова "hello"
+
+        test_validatefree(dsExpect(&ds, "hello"), (dsFree(&ds)), "remaining mismatch");
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: DS_FILE - no leading spaces", ++subnum);
+    {
+        FILE *f = fmemopen((void*)"hello", 5, "r");
+        DS ds = dsCreatef(f);
+
+        bool skipped = dsSkipSpace(&ds);
+        test_validatefree(!skipped, (dsFree(&ds)), "expected false, got true");
+
+        // позиция не должна измениться (ftell == 0)
+        test_validatefree(ftell(f) == 0, (dsFree(&ds)), "ftell should be 0");
+
+        int c = dsgetc(&ds);
+        test_validatefree(c == 'h', (dsFree(&ds)), "expected 'h', got '%c'", c);
+        dsungetc(c, &ds);
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: DS_FILE - only spaces -> EOF", ++subnum);
+    {
+        FILE *f = fmemopen((void*)"   \t\n", 5, "r");
+        DS ds = dsCreatef(f);
+
+        while (dsSkipSpace(&ds));
+
+        int c = dsgetc(&ds);
+        test_validatefree(c == EOF, (dsFree(&ds)), "expected EOF, got %d", c);
+
+        // можно проверить, что находимся в конце файла
+        test_validatefree(feof(f) != 0, (dsFree(&ds)), "expected feof");
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: DS_FILE - empty string", ++subnum);
+    {
+        FILE *f = tmpfile();
+        DS ds = dsCreatef(f);
+
+        bool skipped = dsSkipSpace(&ds);
+        test_validatefree(!skipped, (dsFree(&ds)), "expected false, got true");
+        test_validatefree(ftell(f) == 0, (dsFree(&ds)), "ftell should be 0");
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: DS_FILE - mixed whitespace", ++subnum);
+    {
+        const char *teststr = " \t\n hello";
+        FILE *f = fmemopen((void*)teststr, strlen(teststr), "r");
+        DS ds = dsCreatef(f);
+
+        while (dsSkipSpace(&ds));
+
+        int c = dsgetc(&ds);
+        test_validatefree(c == 'h', (dsFree(&ds)), "expected 'h', got '%c'", c);
+        dsungetc(c, &ds);
+
+        test_validatefree(dsExpect(&ds, "hello"), (dsFree(&ds)), "remaining mismatch");
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* ============ DS_STR ============ */
+    test_sub("subtest %d: DS_STR - skip leading spaces", ++subnum);
+    {
+        char buf[] = "   hello";
+        DS ds = dsCreatestr(buf);
+
+        while (dsSkipSpace(&ds));
+
+        int c = dsgetc(&ds);
+        test_validatefree(c == 'h', (dsFree(&ds)), "expected 'h', got '%c'", c);
+        dsungetc(c, &ds);
+
+        test_validatefree(dsExpect(&ds, "hello"), (dsFree(&ds)), "remaining mismatch");
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: DS_STR - no leading spaces", ++subnum);
+    {
+        char buf[] = "hello";
+        DS ds = dsCreatestr(buf);
+
+        bool skipped = dsSkipSpace(&ds);
+        test_validatefree(!skipped, (dsFree(&ds)), "expected false, got true");
+        test_validatefree(ds.pos == 0, (dsFree(&ds)), "pos should be 0, got %zu", ds.pos);
+
+        int c = dsgetc(&ds);
+        test_validatefree(c == 'h', (dsFree(&ds)), "expected 'h', got '%c'", c);
+        dsungetc(c, &ds);
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: DS_STR - only spaces -> EOF", ++subnum);
+    {
+        char buf[] = "   \t\n";
+        DS ds = dsCreatestr(buf);
+
+        while (dsSkipSpace(&ds));
+
+        int c = dsgetc(&ds);
+        test_validatefree(c == EOF, (dsFree(&ds)), "expected EOF, got %d", c);
+        test_validatefree(ds.pos == strlen(buf), (dsFree(&ds)), "pos expected %zu, got %zu", strlen(buf), ds.pos);
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: DS_STR - empty string", ++subnum);
+    {
+        char buf[] = "";
+        DS ds = dsCreatestr(buf);
+
+        bool skipped = dsSkipSpace(&ds);
+        test_validatefree(!skipped, (dsFree(&ds)), "expected false, got true");
+        test_validatefree(ds.pos == 0, (dsFree(&ds)), "pos expected 0, got %zu", ds.pos);
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: DS_STR - mixed whitespace", ++subnum);
+    {
+        char buf[] = " \t\n hello";
+        DS ds = dsCreatestr(buf);
+
+        while (dsSkipSpace(&ds));
+
+        int c = dsgetc(&ds);
+        test_validatefree(c == 'h', (dsFree(&ds)), "expected 'h', got '%c'", c);
+        dsungetc(c, &ds);
+
+        test_validatefree(dsExpect(&ds, "hello"), (dsFree(&ds)), "remaining mismatch");
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* ============ DS_CONSTSTR ============ */
+    test_sub("subtest %d: DS_CONSTSTR - skip leading spaces", ++subnum);
+    {
+        const char *buf = "   hello";
+        DS ds = dsCreateconst(buf);
+
+        while (dsSkipSpace(&ds));
+
+        int c = dsgetc(&ds);
+        test_validatefree(c == 'h', (dsFree(&ds)), "expected 'h', got '%c'", c);
+        dsungetc(c, &ds);
+
+        test_validatefree(dsExpect(&ds, "hello"), (dsFree(&ds)), "remaining mismatch");
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: DS_CONSTSTR - no leading spaces", ++subnum);
+    {
+        const char *buf = "hello";
+        DS ds = dsCreateconst(buf);
+
+        bool skipped = dsSkipSpace(&ds);
+        test_validatefree(!skipped, (dsFree(&ds)), "expected false, got true");
+        test_validatefree(ds.pos == 0, (dsFree(&ds)), "pos should be 0, got %zu", ds.pos);
+
+        int c = dsgetc(&ds);
+        test_validatefree(c == 'h', (dsFree(&ds)), "expected 'h', got '%c'", c);
+        dsungetc(c, &ds);
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: DS_CONSTSTR - only spaces -> EOF", ++subnum);
+    {
+        const char *buf = "   \t\n";
+        DS ds = dsCreateconst(buf);
+
+        while (dsSkipSpace(&ds));
+
+        int c = dsgetc(&ds);
+        test_validatefree(c == EOF, (dsFree(&ds)), "expected EOF, got %d", c);
+        test_validatefree(ds.pos == strlen(buf), (dsFree(&ds)), "pos expected %zu, got %zu", strlen(buf), ds.pos);
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: DS_CONSTSTR - empty string", ++subnum);
+    {
+        const char *buf = "";
+        DS ds = dsCreateconst(buf);
+
+        bool skipped = dsSkipSpace(&ds);
+        test_validatefree(!skipped, (dsFree(&ds)), "expected false, got true");
+        test_validatefree(ds.pos == 0, (dsFree(&ds)), "pos expected 0, got %zu", ds.pos);
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: DS_CONSTSTR - mixed whitespace", ++subnum);
+    {
+        const char *buf = " \t\n hello";
+        DS ds = dsCreateconst(buf);
+
+        while (dsSkipSpace(&ds));
+
+        int c = dsgetc(&ds);
+        test_validatefree(c == 'h', (dsFree(&ds)), "expected 'h', got '%c'", c);
+        dsungetc(c, &ds);
+
+        test_validatefree(dsExpect(&ds, "hello"), (dsFree(&ds)), "remaining mismatch");
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* ============ DS_FS ============ */
+    test_sub("subtest %d: DS_FS - skip leading spaces", ++subnum);
+    {
+        fs src = fscopy("   hello");
+        DS ds = dsCreatefs(&src);
+
+        while (dsSkipSpace(&ds));
+
+        int c = dsgetc(&ds);
+        test_validatefree(c == 'h', (dsFree(&ds)), "expected 'h', got '%c'", c);
+        dsungetc(c, &ds);
+
+        test_validatefree(dsExpect(&ds, "hello"), (dsFree(&ds)), "remaining mismatch");
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: DS_FS - no leading spaces", ++subnum);
+    {
+        fs src = fscopy("hello");
+        DS ds = dsCreatefs(&src);
+
+        bool skipped = dsSkipSpace(&ds);
+        test_validatefree(!skipped, (dsFree(&ds)), "expected false, got true");
+        test_validatefree(ds.pos == 0, (dsFree(&ds)), "pos should be 0, got %zu", ds.pos);
+
+        int c = dsgetc(&ds);
+        test_validatefree(c == 'h', (dsFree(&ds)), "expected 'h', got '%c'", c);
+        dsungetc(c, &ds);
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: DS_FS - only spaces -> EOF", ++subnum);
+    {
+        fs src = fscopy("   \t\n");
+        DS ds = dsCreatefs(&src);
+
+        while (dsSkipSpace(&ds));
+
+        int c = dsgetc(&ds);
+        test_validatefree(c == EOF, (dsFree(&ds)), "expected EOF, got %d", c);
+        test_validatefree(ds.pos == ds.s.len, (dsFree(&ds)), "pos expected %zu, got %zu", ds.s.len, ds.pos);
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: DS_FS - empty string", ++subnum);
+    {
+        fs src = fscopy("");
+        DS ds = dsCreatefs(&src);
+
+        bool skipped = dsSkipSpace(&ds);
+        test_validatefree(!skipped, (dsFree(&ds)), "expected false, got true");
+        test_validatefree(ds.pos == 0, (dsFree(&ds)), "pos expected 0, got %zu", ds.pos);
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    test_sub("subtest %d: DS_FS - mixed whitespace", ++subnum);
+    {
+        fs src = fscopy(" \t\n hello");
+        DS ds = dsCreatefs(&src);
+
+        while (dsSkipSpace(&ds));
+
+        int c = dsgetc(&ds);
+        test_validatefree(c == 'h', (dsFree(&ds)), "expected 'h', got '%c'", c);
+        dsungetc(c, &ds);
+
+        test_validatefree(dsExpect(&ds, "hello"), (dsFree(&ds)), "remaining mismatch");
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* ============ NULL argument ============ */
+    test_sub("subtest %d: NULL DS raises error", ++subnum);
+    {
+        if (!try()) {
+            dsSkipSpace(NULL);
+            test_validate(false, "must raise error for NULL DS");
+        } else {
+            test_validate(true, "correctly raised error");
+        }
+        fs_alloc_check(true);
+    }
+
+    return logret(TEST_PASSED, "done");
 }
 
 // -------------------------------------------------------------------
@@ -1905,6 +2253,8 @@ main( /*int argc, char *argv[] */ )
       , TESTADD(tf8_ds_getsize,          "dsGetcap simple test")
       , TESTADD(tf9_ds_getpos,           "dsGetpos simple test")
       , TESTADD(tf10_ds_skip_nl,         "dsSkipNl simple test")
+      , TESTADD(tf11_ds_skipspace,       "dsSkipSpaces simple test")
+
     );
 
     return logret(0, "end...");  // as replace of logclose()
