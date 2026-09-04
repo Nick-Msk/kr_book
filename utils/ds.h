@@ -381,9 +381,12 @@ extern int                      dsputc(int c, DS *pds);
  * @param[in,out] ds Pointer to the data source.
  * @return The character 'c' if successful, or @c EOF if the operation failed.
  */
-extern int                      dsputcEcran(int c, DS *pds);
+extern int                      dsputcEscape(int c, DS *pds);
 
-extern bool                     dsgetcEcran(DS *restrict in, int *c);
+// extern bool                     ds_getc_ecran(DS *restrict in, int *c);
+
+extern int                      dsparseEscaped(DS *restrict in, bool *restrict error);
+
 /**
  * @brief Pushes c-string into the stream
  *  
