@@ -2722,90 +2722,90 @@ tf13_ds_release_fs(const char *name)
     }
 
     test_sub("subtest %d: release and deserialize round-trip multiple strings", ++subnum);
-{
-    // Исходные строки для теста
-    fs src1 = fscopy("hello");
-    fs src2 = fscopy("world");
-    fs src3 = fscopy("");   // пустая строка тоже допустима
+    {
+        // Исходные строки для теста
+        fs src1 = fscopy("hello");
+        fs src2 = fscopy("world");
+        fs src3 = fscopy("");   // пустая строка тоже допустима
 
-    // Создаём поток для записи
-    fs serialized = FS();
-    DS writer = dsCreatefs(&serialized);   // serialized перемещён в writer
+        // Создаём поток для записи
+        fs serialized = FS();
+        DS writer = dsCreatefs(&serialized);   // serialized перемещён в writer
 
-    // Сериализуем все три строки в один поток
-    long written1 = fs_dsserialize(&writer, &src1);
-    long written2 = fs_dsserialize(&writer, &src2);
-    long written3 = fs_dsserialize(&writer, &src3);
+        // Сериализуем все три строки в один поток
+        long written1 = fs_dsserialize(&writer, &src1);
+        long written2 = fs_dsserialize(&writer, &src2);
+        long written3 = fs_dsserialize(&writer, &src3);
 
-    // Можно проверить writtenX > 0, но для наглядности опустим
-    test_validatefree(
-        written1 > 5 && written2 > 5 && written3 > 0,
+        // Можно проверить writtenX > 0, но для наглядности опустим
+        test_validatefree(
+            written1 > 5 && written2 > 5 && written3 > 0,
         (fsfree(src1), fsfree(src2), fsfree(src3)),
-        "serialize failed"
-    );
-    // Передаём сериализованные данные через dsReleaseFs
-    fs extracted = FS();
-    test_validatefree(
-        dsReleaseFs(&extracted, &writer),
-        (fsfree(src1), fsfree(src2), fsfree(src3), fsfree(extracted)),
-        "release failed"
-    );
+            "serialize failed"
+        );
+        // Передаём сериализованные данные через dsReleaseFs
+        fs extracted = FS();
+        test_validatefree(
+            dsReleaseFs(&extracted, &writer),
+            (fsfree(src1), fsfree(src2), fsfree(src3), fsfree(extracted)),
+            "release failed"
+        );
 
-    // Создаём поток для чтения из извлечённых данных
-    DS reader = dsCreatefs(&extracted);   // extracted перемещён в reader
+        // Создаём поток для чтения из извлечённых данных
+        DS reader = dsCreatefs(&extracted);   // extracted перемещён в reader
 
-    // Загружаем первую строку
-    fs dst1 = FS();
-    long read1 = fs_dsload(&reader, &dst1, true);
-    test_validatefree(
-        read1 == (long)src1.len,
-        (dsFree(&reader), fsfree(src1), fsfree(src2), fsfree(src3), fsfree(dst1)),
-        "read length mismatch for string 1: expected %zu, got %ld", src1.len, read1
-    );
-    test_validatefree(
-        fscmp(dst1, src1) == 0,
-        (dsFree(&reader), fsfree(src1), fsfree(src2), fsfree(src3), fsfree(dst1)),
-        "content mismatch for string 1: src='%s', dst='%s'", fs_str(&src1), fs_str(&dst1)
-    );
-    fsfree(dst1);
+        // Загружаем первую строку
+        fs dst1 = FS();
+        long read1 = fs_dsload(&reader, &dst1, true);
+        test_validatefree(
+            read1 == (long)src1.len,
+            (dsFree(&reader), fsfree(src1), fsfree(src2), fsfree(src3), fsfree(dst1)),
+            "read length mismatch for string 1: expected %zu, got %ld", src1.len, read1
+        );
+        test_validatefree(
+            fscmp(dst1, src1) == 0,
+            (dsFree(&reader), fsfree(src1), fsfree(src2), fsfree(src3), fsfree(dst1)),
+            "content mismatch for string 1: src='%s', dst='%s'", fs_str(&src1), fs_str(&dst1)
+        );
+        fsfree(dst1);
 
-    // Загружаем вторую строку
-    fs dst2 = FS();
-    long read2 = fs_dsload(&reader, &dst2, true);
-    test_validatefree(
-        read2 == (long)src2.len,
-        (dsFree(&reader), fsfree(src1), fsfree(src2), fsfree(src3), fsfree(dst2)),
-        "read length mismatch for string 2: expected %zu, got %ld", src2.len, read2
-    );
-    test_validatefree(
-        fscmp(dst2, src2) == 0,
-        (dsFree(&reader), fsfree(src1), fsfree(src2), fsfree(src3), fsfree(dst2)),
-        "content mismatch for string 2: src='%s', dst='%s'", fs_str(&src2), fs_str(&dst2)
-    );
-    fsfree(dst2);
+        // Загружаем вторую строку
+        fs dst2 = FS();
+        long read2 = fs_dsload(&reader, &dst2, true);
+        test_validatefree(
+            read2 == (long)src2.len,
+            (dsFree(&reader), fsfree(src1), fsfree(src2), fsfree(src3), fsfree(dst2)),
+            "read length mismatch for string 2: expected %zu, got %ld", src2.len, read2
+        );
+        test_validatefree(
+            fscmp(dst2, src2) == 0,
+            (dsFree(&reader), fsfree(src1), fsfree(src2), fsfree(src3), fsfree(dst2)),
+            "content mismatch for string 2: src='%s', dst='%s'", fs_str(&src2), fs_str(&dst2)
+        );
+        fsfree(dst2);
 
-    // Загружаем третью строку
-    fs dst3 = FS();
-    long read3 = fs_dsload(&reader, &dst3, true);
-    test_validatefree(
-        read3 == (long)src3.len,
-        (dsFree(&reader), fsfree(src1), fsfree(src2), fsfree(src3), fsfree(dst3)),
-        "read length mismatch for string 3: expected %zu, got %ld", src3.len, read3
-    );
-    test_validatefree(
-        fscmp(dst3, src3) == 0,
-        (dsFree(&reader), fsfree(src1), fsfree(src2), fsfree(src3), fsfree(dst3)),
-        "content mismatch for string 3: src='%s', dst='%s'", fs_str(&src3), fs_str(&dst3)
-    );
-    fsfree(dst3);
+        // Загружаем третью строку
+        fs dst3 = FS();
+        long read3 = fs_dsload(&reader, &dst3, true);
+        test_validatefree(
+            read3 == (long)src3.len,
+            (dsFree(&reader), fsfree(src1), fsfree(src2), fsfree(src3), fsfree(dst3)),
+            "read length mismatch for string 3: expected %zu, got %ld", src3.len, read3
+        );
+        test_validatefree(
+            fscmp(dst3, src3) == 0,
+            (dsFree(&reader), fsfree(src1), fsfree(src2), fsfree(src3), fsfree(dst3)),
+            "content mismatch for string 3: src='%s', dst='%s'", fs_str(&src3), fs_str(&dst3)
+        );
+        fsfree(dst3);
 
-    // Освобождаем все ресурсы
-    dsFree(&reader);
-    fsfree(src1);
-    fsfree(src2);
-    fsfree(src3);
-    fs_alloc_check(true);
-}
+        // Освобождаем все ресурсы
+        dsFree(&reader);
+        fsfree(src1);
+        fsfree(src2);
+        fsfree(src3);
+        fs_alloc_check(true);
+    }
 
     return TEST_PASSED;
 }
