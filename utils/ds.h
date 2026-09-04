@@ -3,9 +3,22 @@
  * @brief Universal interface for reading/writing data from various sources.
  *
  * This module provides a @ref DS abstraction that allows the same 
- * code to read characters from both standard I/O streams (FILE*) and 
- * memory buffers (const char*).
- * This is low-level code, NO FS (#ifndef), LOG OR USERRASE allowed!
+ * code to read/write characters from various sources:
+ *  - @c DS_FILE: Standard C I/O streams (FILE*).
+ *  - @c DS_STR: Mutable memory buffers (char*).
+ *  - @c DS_CONSTSTR: Constant memory buffers (const char*).
+ *  - @c DS_FS: Automated dynamic strings (via @ref fs).
+ *
+ * @section ownership Ownership Rules:
+ * - @b DS_FILE: The @ref DS object __owns__ the @c FILE* pointer and will 
+ *   automatically call @c fclose() during @ref dsFree().
+ * - @b DS_FS: The @ref DS object __owns__ the @ref fs structure and will 
+ *   automatically call @ref fs_free() during @ref dsFree().
+ * - @b DS_STR / @c DS_CONSTSTR: The @ref DS object __DOES NOT__ own the 
+ *   memory buffer. The user is responsible for the lifetime of the buffer. 
+ *   @ref dsFree() will only reset the DS structure.
+ *
+ * @note This is low-level code. Errors are reported via @c EOF or return codes.
  */
 
 #ifndef _DS_H
@@ -36,6 +49,11 @@ typedef enum {
     DS_FS        /**< FS, suppoerted via ifndef NO_FSDS */
 } DSType;
 
+/**
+ * @brief Returns the string representation of the @ref DSType.
+ * @param typ The type to convert.
+ * @return A constant string representing the type.
+ */
 static inline const char               *DSTypeName(DSType typ) {
     switch (typ) {
         CASE_RETURN(DS_FILE);
@@ -48,10 +66,11 @@ static inline const char               *DSTypeName(DSType typ) {
 
 /**
  * @struct DS
- * @brief A wrapper for the data source.
+ * @brief A unified wrapper for multiple data source types.
  *
- * This structure encapsulates the logic for both file and buffer reading,
- * providing a unified interface for sequential data access.
+ * Provides a consistent interface for sequential data access (reading,
+ * writing, and seeking) regardless of whether the source is a file, 
+ * a string, or a dynamic buffer.
  */
 typedef struct DS {
     DSType type;                /**< Determines which union member is active. */
@@ -79,6 +98,9 @@ typedef struct DS {
     };
 } DS;
 
+/** @name Macro Constructors
+ * Macros for quick initialization of DS objects.
+ * @{ */
 #define DS(...) (DS) {.type = DS_STR, .pos = 0L, .ptr = NULL,\
      .strssavepos = 0L, __VA_ARGS__}
 #define DSFILE(...) (DS) {.type = DS_FILE, .fp = NULL,\
@@ -91,20 +113,22 @@ typedef struct DS {
 #ifndef NO_FSDS
     #define DSFS(...) (DS) {.type = DS_FS, .pos = 0L, .s = FS(), .strssavepos = 0L, __VA_ARGS__}
 #endif  /* !NO_FSDS */    
-
+/** @} */
 
 /**
  * @brief Initializes a DS object for reading from a file.
  * 
- * @param[out] DS Pointer to the DS structure to be initialized.
- * @param[in]  fp Pointer to the input file (FILE*).
+ * @param[out] pds Pointer to the DS structure.
+ * @param[in]  fp Pointer to an open FILE pointer.
+ * @return true if successful, false otherwise.
  */
 extern bool                     dsInitf(DS *restrict pds, FILE *restrict fp);
+
 /**
- * @brief Initializes a DS object for reading from a file. wrapper for dsInitf
+ * @brief Creates and initializes a DS object for a file.
  * 
- * @param[in]  fp Pointer to the input file (FILE*).
- * @return     DS (initialied or not)
+ * @param[in]  fp Pointer to an open FILE pointer.
+ * @return A initialized DS object (or a zeroed DS on failure).
  */
 static inline DS                dsCreatef(FILE *fp) {
     DS      res = DSFILE();
@@ -113,8 +137,24 @@ static inline DS                dsCreatef(FILE *fp) {
     res = (DS) {0};
     return res;
 }
+
+/**
+ * @brief Initializes a DS object for a file given its filename.
+ * 
+ * @param[out] pds Pointer to the DS structure.
+ * @param[in]  fname Filename to open.
+ * @param[in]  mode File mode (e.g., "r", "w+", "a").
+ * @return true if successful, false otherwise.
+ */
 extern bool                     dsInitFilename(DS *restrict pds, const char *restrict fname, const char *restrict mode);
 
+/**
+ * @brief Creates and initializes a DS object for a file by filename.
+ * 
+ * @param[in]  fname Filename to open.
+ * @param[in]  mode File mode.
+ * @return A initialized DS object (or a zeroed DS on failure).
+ */
 static inline DS                dsCreateFilename(const char *restrict fname, const char *restrict mode) {
     DS      res = DSFILE();
     if (dsInitFilename(&res, fname, mode) )
@@ -122,19 +162,22 @@ static inline DS                dsCreateFilename(const char *restrict fname, con
     res = (DS) {0};
     return res;
 }
+
 /**
- * @brief Initializes a Datasource (DS) object for reading from a c-string.
+ * @brief Initializes a DS object for a mutable string buffer.
  * 
- * @param[out] DS Pointer to the Datasource (DS) structure to be initialized.
- * @param[in]  cap Capacity, if 0L then till '\0' 
- * @param[in]  buf Pointer to a null-terminated string (const char*).
+ * @param[out] ds Pointer to the DS structure.
+ * @param[in]  buf Pointer to the buffer.
+ * @param[in]  cap Capacity of the buffer (if 0, uses strlen of buf).
+ * @return true if successful, false otherwise.
  */
 extern bool                     dsInitstrCap(DS *restrict ds, char *restrict buf, size_t cap);
+
 /**
- * @brief Initializes a Datasource (DS) object for reading from a c-string.
+ * @brief Initializes a DS object for a mutable string buffer (auto-detect capacity).
  * 
- * @param[out] DS Pointer to the Datasource (DS) structure to be initialized.
- * @param[in]  buf Pointer to a null-terminated string (const char*).
+ * @param[in]  buf Pointer to the null-terminated string.
+ * @return true if successful, false otherwise.
  */
 static inline bool              dsInitstr(DS *restrict ds, char *restrict buf) {
     return dsInitstrCap(ds, buf, 0L);
@@ -144,7 +187,7 @@ static inline bool              dsInitstr(DS *restrict ds, char *restrict buf) {
  * 
  * @param[in]  buf Pointer to a null-terminated string (const char*).
  * @param[in]  cap Capacity must be > 0L
- * @return     DS (initialied or not)
+ * @return     A initialized DS object (or a zeroed DS on failure).
  */
 static inline DS                dsCreatestrCap(char *buf, size_t cap) {
     DS      tmp = DSSTR();
@@ -157,7 +200,7 @@ static inline DS                dsCreatestrCap(char *buf, size_t cap) {
  * @brief Initializes a Datasource (DS) object for reading from a c-string.
  * 
  * @param[in]  buf Pointer to a null-terminated string (const char*).
- * @return     DS (initialied or not)
+ * @return      A initialized DS object (or a zeroed DS on failure).
  */
 static inline DS                dsCreatestr(char *buf) {
     DS      tmp = DSSTR();
@@ -170,14 +213,15 @@ static inline DS                dsCreatestr(char *buf) {
  * @brief Initializes a Datasource (DS) object for reading from a const c-string.
  * 
  * @param[out] DS Pointer to the Datasource (DS) structure to be initialized.
- * @param[in]  buf Pointer to a null-terminated string (const char*).
+ * @param[in]  buf Pointer to a null-terminated string (const char *).
+ * @return true if successful, false otherwise.
  */
 extern bool                     dsInitconst(DS *restrict pds, const char *restrict buf);
 /**
  * @brief Initializes a Datasource (DS) object for reading from a const c-string.
  * 
  * @param[in]  buf Pointer to a null-terminated string (const char*).
- * @return     DS (initialied or not)
+ * @return     A initialized DS object (or a zeroed DS on failure).
  */
 static inline DS                dsCreateconst(const char *buf) {
     DS      tmp = DSCONST();
@@ -188,19 +232,21 @@ static inline DS                dsCreateconst(const char *buf) {
 }
 // ----------------------------------------------------------------------
 #ifndef NO_FSDS
+
 /**
- * @brief Initializes a DS object for reading from a fs.
+ * @brief Initializes a DS object for a dynamic @ref fs buffer.
  * 
- * @param[out] DS Pointer to the DS structure to be initialized.
- * @param[in]  s Pointer to the fs.
- * @note       fs s is MOVED into DS structure!
+ * @param[out] pds Pointer to the DS structure.
+ * @param[in]  s Pointer to the fs object.
+ * @return true if successful, false otherwise.
+ * @note The @ref fs structure is moved into the DS object.
  */
 extern bool                     dsInitfs(DS *restrict pds, fs *restrict s);
 /**
- * @brief Initializes a DS object for reading from a file. wrapper for dsInitf
+ * @brief Creates and initializes a DS object for a dynamic @ref fs buffer.
  * 
  * @param[in]  s Pointer to the fs.
- * @return     DS (initialied or not).
+ * @return     A initialized DS object (or a zeroed DS on failure).
  * @note       fs s is MOVED into DS structure!
  */
 static inline DS                dsCreatefs(fs *s) {
@@ -210,7 +256,12 @@ static inline DS                dsCreatefs(fs *s) {
     DS      empty = {0};
     return empty;
 }
-// for wrire mostly
+
+/**
+ * @brief Creates a new, empty dynamic @ref fs buffer.
+ * 
+ * @return A new empty @ref fs object.
+ */
 static inline DS                dsCreatefsempty(void) {
     fs  tmp = FS();
     return dsCreatefs(&tmp);
@@ -241,8 +292,10 @@ static inline bool              dsReleaseFs(fs *restrict dst, DS *restrict pds) 
             "%d/%s isn't supported", pds->type, DSTypeName(pds->type));
     if (dst == NULL)        // just free
         fsfree(pds->s);
-    else 
+    else {
         *dst = fs_move(&pds->s);
+        *pds = DSFS();      // reset
+    }
 
 #endif  /* !NO_FSDS */   
 
