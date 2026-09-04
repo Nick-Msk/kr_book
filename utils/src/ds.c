@@ -253,6 +253,23 @@ int                      dsputcEcran(int c, DS *pds) {
     return cnt;
 }
 
+bool                     dsgetcEcran(DS *restrict in, int *c) {
+    int esc = dsgetc(in);
+    switch (esc) {
+        case '\\': esc = '\\'; break;
+        case '"':  esc = '"';  break;
+        case 'n':  esc = '\n'; break;
+        case 'r':  esc = '\r'; break;
+        case 't':  esc = '\t'; break;
+        default:
+            dsungetc(esc, in); 
+            return false;
+    }
+    if (c)
+        *c = esc;
+    return true;
+}
+
 long                     dswrite(DS *restrict out, const char *ptr, size_t len) {
 
     size_t  total_prepared = len, actual_written = 0L;
@@ -2236,6 +2253,182 @@ tf11_ds_skipspace(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
+// ------------------------- TEST dsgetcEcran -------------------------
+static TestStatus
+tf12_ds_getc_ecran(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. DS_STR: все корректные escape-последовательности */
+    test_sub("subtest %d: DS_STR - valid escapes", ++subnum);
+    {
+        char buf[] = "\\\"nrt";
+        DS ds = dsCreatestr(buf);
+        int c;
+
+        test_validatefree(dsgetcEcran(&ds, &c) && c == '\\', (dsFree(&ds)), "backslash failed");
+        test_validatefree(dsgetcEcran(&ds, &c) && c == '"',  (dsFree(&ds)), "quote failed");
+        test_validatefree(dsgetcEcran(&ds, &c) && c == '\n', (dsFree(&ds)), "newline failed");
+        test_validatefree(dsgetcEcran(&ds, &c) && c == '\r', (dsFree(&ds)), "carriage return failed");
+        test_validatefree(dsgetcEcran(&ds, &c) && c == '\t', (dsFree(&ds)), "tab failed");
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* 2. DS_STR: неверный escape символ возвращается обратно */
+    test_sub("subtest %d: DS_STR - invalid escape char is ungot", ++subnum);
+    {
+        char buf[] = "x";
+        DS ds = dsCreatestr(buf);
+        int c = 0;
+        bool res = dsgetcEcran(&ds, &c);
+        test_validatefree(!res, (dsFree(&ds)), "expected false, got true");
+
+        int ch = dsgetc(&ds);
+        test_validatefree(ch == 'x', (dsFree(&ds)), "expected 'x' after unget, got '%c'", ch);
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* 3. DS_STR: EOF (пустая строка) */
+    test_sub("subtest %d: DS_STR - EOF returns false", ++subnum);
+    {
+        char buf[] = "";
+        DS ds = dsCreatestr(buf);
+        int c = 0;
+        bool res = dsgetcEcran(&ds, &c);
+        test_validatefree(!res, (dsFree(&ds)), "expected false, got true");
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* 4. DS_STR: NULL c — просто потребляет корректный символ */
+    test_sub("subtest %d: DS_STR - NULL c consumes valid escape", ++subnum);
+    {
+        char buf[] = "n";
+        DS ds = dsCreatestr(buf);
+        bool res = dsgetcEcran(&ds, NULL);
+        test_validatefree(res, (dsFree(&ds)), "expected true for valid escape");
+
+        // Позиция должна продвинуться на 1
+        test_validatefree(ds.pos == 1, (dsFree(&ds)), "pos expected 1, got %zu", ds.pos);
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* 5. DS_CONSTSTR: все корректные escape */
+    test_sub("subtest %d: DS_CONSTSTR - valid escapes", ++subnum);
+    {
+        const char *buf = "\\\"nrt";
+        DS ds = dsCreateconst(buf);
+        int c;
+
+        test_validatefree(dsgetcEcran(&ds, &c) && c == '\\', (dsFree(&ds)), "backslash failed");
+        test_validatefree(dsgetcEcran(&ds, &c) && c == '"',  (dsFree(&ds)), "quote failed");
+        test_validatefree(dsgetcEcran(&ds, &c) && c == '\n', (dsFree(&ds)), "newline failed");
+        test_validatefree(dsgetcEcran(&ds, &c) && c == '\r', (dsFree(&ds)), "carriage return failed");
+        test_validatefree(dsgetcEcran(&ds, &c) && c == '\t', (dsFree(&ds)), "tab failed");
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* 6. DS_FS: все корректные escape */
+    test_sub("subtest %d: DS_FS - valid escapes", ++subnum);
+    {
+        fs src = fscopy("\\\"nrt");
+        DS ds = dsCreatefs(&src);
+        int c;
+
+        test_validatefree(dsgetcEcran(&ds, &c) && c == '\\', (dsFree(&ds)), "backslash failed");
+        test_validatefree(dsgetcEcran(&ds, &c) && c == '"',  (dsFree(&ds)), "quote failed");
+        test_validatefree(dsgetcEcran(&ds, &c) && c == '\n', (dsFree(&ds)), "newline failed");
+        test_validatefree(dsgetcEcran(&ds, &c) && c == '\r', (dsFree(&ds)), "carriage return failed");
+        test_validatefree(dsgetcEcran(&ds, &c) && c == '\t', (dsFree(&ds)), "tab failed");
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* 7. DS_FS: неверный escape возвращается обратно */
+    test_sub("subtest %d: DS_FS - invalid escape char is ungot", ++subnum);
+    {
+        fs src = fscopy("q");
+        DS ds = dsCreatefs(&src);
+        int c = 0;
+        bool res = dsgetcEcran(&ds, &c);
+        test_validatefree(!res, (dsFree(&ds)), "expected false, got true");
+
+        int ch = dsgetc(&ds);
+        test_validatefree(ch == 'q', (dsFree(&ds)), "expected 'q' after unget, got '%c'", ch);
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* 8. DS_FILE: все корректные escape (через tmpfile) */
+    test_sub("subtest %d: DS_FILE - valid escapes", ++subnum);
+    {
+        const char filename[] = "res/ds_adapter/dsgetcEcran_valid_file.ds";
+        FILE *fp = fopen(filename, "w+");
+        test_validate(fp != NULL, "failed to create temporary file");
+        fputs("\\\"nrt", fp);
+        rewind(fp);
+
+        DS ds = dsCreatef(fp);
+        int c;
+
+        test_validatefree(dsgetcEcran(&ds, &c) && c == '\\', (dsFree(&ds)), "backslash failed");
+        test_validatefree(dsgetcEcran(&ds, &c) && c == '"',  (dsFree(&ds)), "quote failed");
+        test_validatefree(dsgetcEcran(&ds, &c) && c == '\n', (dsFree(&ds)), "newline failed");
+        test_validatefree(dsgetcEcran(&ds, &c) && c == '\r', (dsFree(&ds)), "carriage return failed");
+        test_validatefree(dsgetcEcran(&ds, &c) && c == '\t', (dsFree(&ds)), "tab failed");
+
+        dsFree(&ds);   // закроет файл
+        fs_alloc_check(true);
+    }
+
+    /* 9. DS_FILE: неверный escape возвращается обратно */
+    test_sub("subtest %d: DS_FILE - invalid escape char is ungot", ++subnum);
+    {
+        const char filename[] = "res/ds_adapter/dsgetcEcran_wrong_file.ds";
+        FILE *fp = fopen(filename, "w+");
+        test_validate(fp != NULL, "failed to create temporary file");
+        fputc('z', fp);
+        rewind(fp);
+
+        DS ds = dsCreatef(fp);
+        int c = 0;
+        bool res = dsgetcEcran(&ds, &c);
+        test_validatefree(!res, (dsFree(&ds)), "expected false, got true");
+
+        int ch = dsgetc(&ds);
+        test_validatefree(ch == 'z', (dsFree(&ds)), "expected 'z' after unget, got '%c'", ch);
+
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    /* 10. NULL DS должен вызывать ошибку */
+    test_sub("subtest %d: NULL DS raises error", ++subnum);
+    {
+        if (!try()) {
+            dsgetcEcran(NULL, NULL);
+            test_validate(false, "must raise error for NULL DS");
+        } else {
+            test_validate(true, "correctly raised error");
+        }
+        fs_alloc_check(true);
+    }
+
+    return logret(TEST_PASSED, "done");
+}
+
 // -------------------------------------------------------------------
 int
 main( /*int argc, char *argv[] */ )
@@ -2245,16 +2438,16 @@ main( /*int argc, char *argv[] */ )
     testenginestd(
         TESTADD(tf_ds,                   "DS (DataSource) simple tests")
       , TESTADD(tf_ds_extra,             "DS additional functions")
-      , TESTADD(tf3_ds_putc,             "dsputc simple test")
-      , TESTADD(tf4_ds_fs,               "dsputc / dsgetc for DS_FS test")
+      , TESTADD(tf3_ds_putc,             "dsputc() simple test")
+      , TESTADD(tf4_ds_fs,               "dsputc() / dsgetc() for DS_FS test")
       , TESTADD(tf5_ds_create_filename,  "dsCreateFilename/dsInitFilename simple test")
-      , TESTADD(tf6_dswrite,             "dswrite simple test")
-      , TESTADD(tf7_ds_expect,           "dsExpect simple test")
-      , TESTADD(tf8_ds_getsize,          "dsGetcap simple test")
-      , TESTADD(tf9_ds_getpos,           "dsGetpos simple test")
-      , TESTADD(tf10_ds_skip_nl,         "dsSkipNl simple test")
-      , TESTADD(tf11_ds_skipspace,       "dsSkipSpaces simple test")
-
+      , TESTADD(tf6_dswrite,             "dswrite() simple test")
+      , TESTADD(tf7_ds_expect,           "dsExpect() simple test")
+      , TESTADD(tf8_ds_getsize,          "dsGetcap() simple test")
+      , TESTADD(tf9_ds_getpos,           "dsGetpos() simple test")
+      , TESTADD(tf10_ds_skip_nl,         "dsSkipNl() simple test")
+      , TESTADD(tf11_ds_skipspace,       "dsSkipSpaces() simple test")
+      , TESTADD(tf12_ds_getc_ecran,      "dsgetcEcran() simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()

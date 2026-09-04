@@ -382,6 +382,8 @@ extern int                      dsputc(int c, DS *pds);
  * @return The character 'c' if successful, or @c EOF if the operation failed.
  */
 extern int                      dsputcEcran(int c, DS *pds);
+
+extern bool                     dsgetcEcran(DS *restrict in, int *c);
 /**
  * @brief Pushes c-string into the stream
  *  
