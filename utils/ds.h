@@ -218,7 +218,6 @@ static inline DS                dsCreatefsempty(void) {
 
 #endif  /* !NO_FSDS */   
 
-// DS_FS or DS_FILE
 static inline void              dsFree(DS *pds) {
     if (pds) {
 #ifndef NO_FSDS
@@ -231,9 +230,12 @@ static inline void              dsFree(DS *pds) {
     }
 }
 
-static inline bool              dsReleaseFs(fs *dst, DS *pds) {
+static inline bool              dsReleaseFs(fs *restrict dst, DS *restrict pds) {
     if (pds == NULL)
         return userraise(false, ERR_NULL_INPUT, "Ds is null");
+
+#ifndef NO_FSDS
+
     if (pds->type != DS_FS)
         return userraise(false, ERR_UNSUPPORTED_TYPE, 
             "%d/%s isn't supported", pds->type, DSTypeName(pds->type));
@@ -241,6 +243,9 @@ static inline bool              dsReleaseFs(fs *dst, DS *pds) {
         fsfree(pds->s);
     else 
         *dst = fs_move(&pds->s);
+
+#endif  /* !NO_FSDS */   
+
     return true;
 }
 
