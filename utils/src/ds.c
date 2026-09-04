@@ -84,9 +84,12 @@ static int                  ds_print_buffer_content(FILE *restrict out, const ch
 // helper for ecranned '//' symbols
 static bool                 ds_getc_escape(DS *restrict in, int *c) {
     int esc = dsgetc(in);
+
+    if (esc == EOF)
+        return false;
+
     switch (esc) {
-        case '\\': esc = '\\'; break;
-        case '"':  esc = '"';  break;
+        case '\\': case '"':  break;
         case 'n':  esc = '\n'; break;
         case 'r':  esc = '\r'; break;
         case 't':  esc = '\t'; break;
@@ -276,8 +279,10 @@ int                      dsparseEscaped(DS *restrict in, bool *restrict error) {
     int c = dsgetc(in);
     if (c == EOF)
         return EOF; // no more sym
+
     if (c != '\\')
         return c;   // normal sym
+
     if (!ds_getc_escape(in, &c) ) {
         if (error)
             *error = true;
@@ -2468,7 +2473,7 @@ tf13_dsparseEscaped(const char *name)
     /* 2. DS_STR: все корректные escape-последовательности */
     test_sub("subtest %d: DS_STR - valid escapes", ++subnum);
     {
-        char buf[] = "\\\"nrt";   // символы: \ " n r t
+        char buf[] = {'\\', '\\', '"', '\\', 'n', '\\', 'r', '\\', 't', '\0'};   // символы: \ " n r t
         DS ds = dsCreatestr(buf);
         bool err = false;
         int c;
@@ -2520,7 +2525,7 @@ tf13_dsparseEscaped(const char *name)
     /* 5. DS_STR: error == NULL, корректный escape */
     test_sub("subtest %d: DS_STR - error NULL, valid escape", ++subnum);
     {
-        char buf[] = "n";
+        char buf[] = "\\n";
         DS ds = dsCreatestr(buf);
         int c = dsparseEscaped(&ds, NULL);
         test_validatefree(c == '\n', (dsFree(&ds)), "expected newline, got %d", c);
@@ -2596,7 +2601,7 @@ tf13_dsparseEscaped(const char *name)
     /* 10. DS_FS: все корректные escape */
     test_sub("subtest %d: DS_FS - valid escapes", ++subnum);
     {
-        fs src = fscopy("\\\"nrt");
+        fs src = fscopy((const char[]){'\\', '\\', '\\', '"', '\\', 'n', '\\', 'r', '\\', 't', '\0'});
         DS ds = dsCreatefs(&src);
         bool err = false;
         int c;
@@ -2622,7 +2627,7 @@ tf13_dsparseEscaped(const char *name)
         const char *path = "res/ds/dsparse_ecraned_file.ds";
         FILE *fp = fopen(path, "w");
         test_validate(fp != NULL, "failed to create file for test");
-        fputs("a\\n\\x", fp);
+        fputs("a\\n\\x", fp);   // обычный 'a', затем валидный \n, затем невалидный \x
         fclose(fp);
 
         DS ds = dsCreateFilename(path, "r");
