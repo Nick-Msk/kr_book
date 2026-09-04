@@ -335,6 +335,8 @@ extern bool                         dsParseV64(DS *restrict pds, value64 *restri
  */
 extern bool                       dsParseQuotedLimitedLine(DS *restrict pds, fs *restrict dst);
 
+extern bool                       dsParseQuotedUnlimLine(DS *restrict pds, fs *restrict dst);
+
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
 // ------------------------------------ ETC. ----------------------------------------

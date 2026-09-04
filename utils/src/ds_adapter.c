@@ -1343,7 +1343,7 @@ tf5_fs_dstechprint(const char *name)
                       "buffer must indicate NULL");
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST fs_dswrite -------------------------
@@ -1515,7 +1515,7 @@ tf6_fs_dswrite(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST fs_dsserialize (full, with edges) -------------------------
@@ -1691,7 +1691,7 @@ tf7_fs_dsserialize_full(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST dsParseQuotedLimitedLine -------------------------
@@ -2067,7 +2067,7 @@ tf8_ds_parse_quoted_line(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST fs_dsserialize / fs_dsload DS_STR round-trip -------------------------
@@ -2244,7 +2244,7 @@ tf9_fs_ds_DS_STR_roundtrip(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST fs_dsload with DS_CONSTSTR -------------------------
@@ -2384,7 +2384,7 @@ tf10_fs_ds_CONST_roundtrip(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST fs_dsload with DS_FS (round-trip) -------------------------
@@ -2623,7 +2623,275 @@ tf11_fs_ds_FS_roundtrip(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
+}
+
+// ------------------------- TEST fs_dsload with DS_FILE (round-trip) -------------------------
+static TestStatus
+tf12_fs_ds_FILE_roundtrip(const char *name)
+{
+    logenter("%s", name);
+    int subnum = 0;
+
+    /* 1. Простая строка, use_buffer = true */
+    test_sub("subtest %d: roundtrip simple string from DS_FILE (buffer)", ++subnum);
+    {
+        const char *path = "res/ds_adapter/fs_dsFILE_simple_buf.ds";
+
+        fs src = fscopy("hello");
+        DS ds = dsCreateFilename(path, "w+");
+        test_validatefree(ds.type == DS_FILE, (dsFree(&ds), fsfree(src)), "failed to create DS_FILE");
+
+        long written = fs_dsserialize(&ds, &src);
+        test_validatefree(written > 0, (dsFree(&ds), fsfree(src)), "serialize failed");
+
+        dsReset(&ds);
+
+        fs dst = FS();
+        long read_len = fs_dsload(&ds, &dst, true);
+        test_validatefree(
+            read_len == 5 && fscmp(dst, src) == 0,
+            (dsFree(&ds), fsfree(src), fsfree(dst)),
+            "roundtrip failed: len=%ld, dst='%s'", read_len, fs_str(&dst)
+        );
+
+        dsFree(&ds);
+        fsfree(src);
+        fsfree(dst);
+        fs_alloc_check(true);
+    }
+
+    /* 2. Простая строка, use_buffer = false */
+    test_sub("subtest %d: roundtrip simple string from DS_FILE (direct)", ++subnum);
+    {
+        const char *path = "res/ds_adapter/fs_dsFILE_simple_direct.ds";
+
+        fs src = fscopy("hello");
+        DS ds = dsCreateFilename(path, "w+");
+        test_validatefree(ds.type == DS_FILE, (dsFree(&ds), fsfree(src)), "failed to create DS_FILE");
+
+        fs_dsserialize(&ds, &src);
+        dsReset(&ds);
+
+        fs dst = FS();
+        long read_len = fs_dsload(&ds, &dst, false);
+        test_validatefree(
+            read_len == 5 && fscmp(dst, src) == 0,
+            (dsFree(&ds), fsfree(src), fsfree(dst)),
+            "roundtrip failed: len=%ld, dst='%s'", read_len, fs_str(&dst)
+        );
+
+        dsFree(&ds);
+        fsfree(src);
+        fsfree(dst);
+        fs_alloc_check(true);
+    }
+
+    /* 3. Пустая строка */
+    test_sub("subtest %d: roundtrip empty string from DS_FILE", ++subnum);
+    {
+        const char *path = "res/ds_adapter/fs_dsFILE_empty_buf.ds";
+
+        fs src = fscopy("");
+        DS ds = dsCreateFilename(path, "w+");
+        test_validatefree(ds.type == DS_FILE, (dsFree(&ds), fsfree(src)), "failed to create DS_FILE");
+
+        fs_dsserialize(&ds, &src);
+        dsReset(&ds);
+
+        fs dst = FS();
+        long read_len = fs_dsload(&ds, &dst, true);
+        test_validatefree(
+            read_len == 0 && fs_len(&dst) == 0,
+            (dsFree(&ds), fsfree(src), fsfree(dst)),
+            "expected empty, got len=%ld, fs_len=%zu", read_len, fs_len(&dst)
+        );
+
+        dsFree(&ds);
+        fsfree(src);
+        fsfree(dst);
+        fs_alloc_check(true);
+    }
+
+    /* 4. Строка со спецсимволами */
+    test_sub("subtest %d: roundtrip escaped string from DS_FILE", ++subnum);
+    {
+        const char *path = "res/ds_adapter/fs_dsFILE_escaped_buf.ds";
+
+        fs src = fscopy("a\"b\\c\nd\te\rf");
+        DS ds = dsCreateFilename(path, "w+");
+        test_validatefree(ds.type == DS_FILE, (dsFree(&ds), fsfree(src)), "failed to create DS_FILE");
+
+        fs_dsserialize(&ds, &src);
+        dsReset(&ds);
+
+        fs dst = FS();
+        long read_len = fs_dsload(&ds, &dst, true);
+        test_validatefree(
+            read_len == (long) src.len && fscmp(dst, src) == 0,
+            (dsFree(&ds), fsfree(src), fsfree(dst)),
+            "roundtrip failed: len=%ld, dst='%s'", read_len, fs_str(&dst)
+        );
+
+        dsFree(&ds);
+        fsfree(src);
+        fsfree(dst);
+        fs_alloc_check(true);
+    }
+
+    /* 5. Множественный round-trip через DS_FILE */
+    test_sub("subtest %d: multiple fs round-trip via DS_FILE", ++subnum);
+    {
+        const char *path = "res/ds_adapter/fs_dsFILE_multiple_buf.ds";
+
+        fs sources[] = {
+            fscopy("hello11111111111"),
+            fscopy(""),
+            fscopy("a\"b\\c\nd\te\rf"),
+            fscopy("final")
+        };
+        const size_t count = COUNT(sources);
+
+        DS ds = dsCreateFilename(path, "w+");
+        test_validatefree(ds.type == DS_FILE, (dsFree(&ds), fsfreeall(&sources[0], &sources[1], &sources[2], &sources[3])), "failed to create DS_FILE");
+
+        for (size_t i = 0; i < count; i++) {
+            long w = fs_dsserialize(&ds, &sources[i]);
+            test_validatefree(
+                w > 0,
+                (dsFree(&ds), fsfreeall(&sources[0], &sources[1], &sources[2], &sources[3])),
+                "serialize failed at index %zu", i
+            );
+        }
+
+        dsReset(&ds);
+
+        for (size_t i = 0; i < count; i++) {
+            fs dst = FS();
+            long len = fs_dsload(&ds, &dst, true);
+            test_validatefree(
+                len == (long) sources[i].len && fscmp(dst, sources[i]) == 0,
+                (dsFree(&ds), fsfree(dst), fsfreeall(&sources[0], &sources[1], &sources[2], &sources[3])),
+                "roundtrip mismatch at index %zu: len=%ld, expected=%zu",
+                i, len, sources[i].len
+            );
+            fsfree(dst);
+        }
+
+        fs dst = FS();
+        long res = fs_dsload(&ds, &dst, true);
+        test_validatefree(
+            res == -1,
+            (dsFree(&ds), fsfree(dst), fsfreeall(&sources[0], &sources[1], &sources[2], &sources[3])),
+            "expected -1 at end of stream, got %ld", res
+        );
+        fsfree(dst);
+
+        dsFree(&ds);
+        fsfreeall(&sources[0], &sources[1], &sources[2], &sources[3]);
+        fs_alloc_check(true);
+    }
+
+    /* 6. Неверный заголовок */
+    test_sub("subtest %d: invalid header restores pos", ++subnum);
+    {
+        const char *path = "res/ds_adapter/fs_dsFILE_invalid_header.ds";
+
+        FILE *fp = fopen(path, "w");
+        test_validate(fp != NULL, "failed to create file for test");
+        fprintf(fp, "BAD(\"5\"): \"hello\"");
+        fclose(fp);
+
+        DS ds = dsCreateFilename(path, "r");
+        test_validatefree(ds.type == DS_FILE, (dsFree(&ds)), "failed to open DS_FILE");
+
+        fs dst = FS();
+        off_t saved = dsGetpos(&ds);
+
+        long res = fs_dsload(&ds, &dst, true);
+        test_validatefree(
+            res == -1,
+            (dsFree(&ds), fsfree(dst)),
+            "expected -1, got %ld", res
+        );
+        test_validatefree(
+            dsGetpos(&ds) == saved,
+            (dsFree(&ds), fsfree(dst)),
+            "pos must be restored to %lld, got %lld", saved, dsGetpos(&ds)
+        );
+
+        dsFree(&ds);
+        fsfree(dst);
+        fs_alloc_check(true);
+    }
+
+    /* 7. Несовпадение длины */
+    test_sub("subtest %d: length mismatch restores pos", ++subnum);
+    {
+        const char *path = "res/ds_adapter/fs_dsFILE_length_mismatch.ds";
+
+        FILE *fp = fopen(path, "w");
+        test_validate(fp != NULL, "failed to create file for test");
+        fprintf(fp, "FS(\"10\"): \"hello\"");
+        fclose(fp);
+
+        DS ds = dsCreateFilename(path, "r");
+        test_validatefree(ds.type == DS_FILE, (dsFree(&ds)), "failed to open DS_FILE");
+
+        fs dst = FS();
+        off_t saved = dsGetpos(&ds);
+
+        long res = fs_dsload(&ds, &dst, true);
+        test_validatefree(
+            res == -1,
+            (dsFree(&ds), fsfree(dst)),
+            "expected -1, got %ld", res
+        );
+        test_validatefree(
+            dsGetpos(&ds) == saved,
+            (dsFree(&ds), fsfree(dst)),
+            "pos must be restored to %lld, got %lld", saved, dsGetpos(&ds)
+        );
+
+        dsFree(&ds);
+        fsfree(dst);
+        fs_alloc_check(true);
+    }
+
+    /* 8. NULL аргументы */
+    test_sub("subtest %d: NULL arguments raise error", ++subnum);
+    {
+        fs dst = FS();
+        if (!try()) {
+            fs_dsload(NULL, &dst, true);
+            test_validatefree(false, fsfree(dst), "must raise error for NULL DS");
+        } else {
+            test_validatefree(true, fsfree(dst), "correctly raised error");
+        }
+
+        const char *path = "res/ds_adapter/fs_dsFILE_null_args.ds";
+
+        FILE *fp = fopen(path, "w");
+        test_validate(fp != NULL, "failed to create file for test");
+        fprintf(fp, "FS(\"1\"): \"a\"");
+        fclose(fp);
+
+        DS ds = dsCreateFilename(path, "r");
+        test_validatefree(ds.type == DS_FILE, (dsFree(&ds)), "failed to open DS_FILE");
+
+        if (!try()) {
+            fs_dsload(&ds, NULL, true);
+            test_validate(false, "must raise error for NULL fs");
+        } else {
+            test_validate(true, "correctly raised error");
+        }
+
+        fsfree(dst);
+        dsFree(&ds);
+        fs_alloc_check(true);
+    }
+
+    return logret(TEST_PASSED, "done");
 }
 
 // ------------------------- TEST dsReleaseFs -------------------------
@@ -2807,7 +3075,7 @@ tf13_ds_release_fs(const char *name)
         fs_alloc_check(true);
     }
 
-    return TEST_PASSED;
+    return logret(TEST_PASSED, "done");
 }
 
 
@@ -2828,8 +3096,8 @@ main( /*int argc, char *argv[] */ )
       , TESTADD(tf8_ds_parse_quoted_line,   "dsParseQuotedLimitedLine simple test")
       , TESTADD(tf9_fs_ds_DS_STR_roundtrip, "fs_dsserialize/fs_dsload DS_STR round-trip test")
       , TESTADD(tf10_fs_ds_CONST_roundtrip, "fs_dsload with DS_CONSTSTR round-trip and errors")
-      , TESTADD(tf11_fs_ds_FS_roundtrip,    "fs_dsload with DS_STR round-trip and errors")
-
+      , TESTADD(tf11_fs_ds_FS_roundtrip,    "fs_dsload with DS_FS round-trip and errors")
+      , TESTADD(tf12_fs_ds_FILE_roundtrip,  "fs_dsload with DS_FILE round-trip and errors")
       , TESTADD(tf13_ds_release_fs,         "dsReleaseFs simple test")
     );
 
