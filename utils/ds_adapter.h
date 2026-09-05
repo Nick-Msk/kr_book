@@ -333,8 +333,16 @@ extern bool                         dsParseV64(DS *restrict pds, value64 *restri
  * @warning If parsing fails, the input @ref DS stream is rolled back to its 
  *          original position, and the function returns 0.
  */
-extern bool                       dsParseQuotedLimitedfs(DS *restrict pds, fs *restrict dst, size_t maxlen);
+extern bool                       dsParseQuotedLimitedfs(DS *restrict in, fs *restrict dst, size_t maxlen, bool use_buffer);
 
+static inline bool                dsParseQuotedLimitedfsDirect(DS *restrict in, fs *restrict dst, size_t maxlen) {
+    return dsParseQuotedLimitedfs(in, dst, maxlen, false);
+}
+static inline bool                dsParseQuotedLimitedfsBuffered(DS *restrict in, fs *restrict dst, size_t maxlen) {
+    return dsParseQuotedLimitedfs(in, dst, maxlen, true);
+}
+
+// TODO: remove to use dsParseQuotedLimitedfs with maxlen == 0L
 extern bool                       dsParseQuotedUnlimfs(DS *restrict pds, fs *restrict dst/*, bool use_buffer*/);
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
