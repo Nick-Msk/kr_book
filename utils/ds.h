@@ -383,8 +383,8 @@ extern int                      dsputc(int c, DS *pds);
  */
 extern int                      dsputcEscape(int c, DS *pds);
 
-// extern bool                     ds_getc_ecran(DS *restrict in, int *c);
-
+extern bool                     dsgetcEscaped(DS *restrict in, int *c);
+// NOT USE! TO BE REMOVED!!!
 extern int                      dsparseEscaped(DS *restrict in, bool *restrict error);
 
 /**

@@ -82,7 +82,7 @@ static int                  ds_print_buffer_content(FILE *restrict out, const ch
 }
 
 // helper for ecranned '//' symbols
-static bool                 ds_getc_escape(DS *restrict in, int *c) {
+bool                        dsgetcEscaped(DS *restrict in, int *c) {
     int esc = dsgetc(in);
 
     if (esc == EOF)
@@ -283,7 +283,7 @@ int                      dsparseEscaped(DS *restrict in, bool *restrict error) {
     if (c != '\\')
         return c;   // normal sym
 
-    if (!ds_getc_escape(in, &c) ) {
+    if (!dsgetcEscaped(in, &c) ) {
         if (error)
             *error = true;
         return EOF; // something wrong with ercanning, stream is rolled back
@@ -2274,7 +2274,7 @@ tf11_ds_skipspace(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
-// ------------------------- TEST ds_getc_escape -------------------------
+// ------------------------- TEST dsgetcEscaped -------------------------
 static TestStatus
 tf12_ds_getc_ecran(const char *name)
 {
@@ -2288,11 +2288,11 @@ tf12_ds_getc_ecran(const char *name)
         DS ds = dsCreatestr(buf);
         int c;
 
-        test_validatefree(ds_getc_escape(&ds, &c) && c == '\\', (dsFree(&ds)), "backslash failed");
-        test_validatefree(ds_getc_escape(&ds, &c) && c == '"',  (dsFree(&ds)), "quote failed");
-        test_validatefree(ds_getc_escape(&ds, &c) && c == '\n', (dsFree(&ds)), "newline failed");
-        test_validatefree(ds_getc_escape(&ds, &c) && c == '\r', (dsFree(&ds)), "carriage return failed");
-        test_validatefree(ds_getc_escape(&ds, &c) && c == '\t', (dsFree(&ds)), "tab failed");
+        test_validatefree(dsgetcEscaped(&ds, &c) && c == '\\', (dsFree(&ds)), "backslash failed");
+        test_validatefree(dsgetcEscaped(&ds, &c) && c == '"',  (dsFree(&ds)), "quote failed");
+        test_validatefree(dsgetcEscaped(&ds, &c) && c == '\n', (dsFree(&ds)), "newline failed");
+        test_validatefree(dsgetcEscaped(&ds, &c) && c == '\r', (dsFree(&ds)), "carriage return failed");
+        test_validatefree(dsgetcEscaped(&ds, &c) && c == '\t', (dsFree(&ds)), "tab failed");
 
         dsFree(&ds);
         fs_alloc_check(true);
@@ -2304,7 +2304,7 @@ tf12_ds_getc_ecran(const char *name)
         char buf[] = "x";
         DS ds = dsCreatestr(buf);
         int c = 0;
-        bool res = ds_getc_escape(&ds, &c);
+        bool res = dsgetcEscaped(&ds, &c);
         test_validatefree(!res, (dsFree(&ds)), "expected false, got true");
 
         int ch = dsgetc(&ds);
@@ -2320,7 +2320,7 @@ tf12_ds_getc_ecran(const char *name)
         char buf[] = "";
         DS ds = dsCreatestr(buf);
         int c = 0;
-        bool res = ds_getc_escape(&ds, &c);
+        bool res = dsgetcEscaped(&ds, &c);
         test_validatefree(!res, (dsFree(&ds)), "expected false, got true");
 
         dsFree(&ds);
@@ -2332,7 +2332,7 @@ tf12_ds_getc_ecran(const char *name)
     {
         char buf[] = "n";
         DS ds = dsCreatestr(buf);
-        bool res = ds_getc_escape(&ds, NULL);
+        bool res = dsgetcEscaped(&ds, NULL);
         test_validatefree(res, (dsFree(&ds)), "expected true for valid escape");
 
         // Позиция должна продвинуться на 1
@@ -2349,11 +2349,11 @@ tf12_ds_getc_ecran(const char *name)
         DS ds = dsCreateconst(buf);
         int c;
 
-        test_validatefree(ds_getc_escape(&ds, &c) && c == '\\', (dsFree(&ds)), "backslash failed");
-        test_validatefree(ds_getc_escape(&ds, &c) && c == '"',  (dsFree(&ds)), "quote failed");
-        test_validatefree(ds_getc_escape(&ds, &c) && c == '\n', (dsFree(&ds)), "newline failed");
-        test_validatefree(ds_getc_escape(&ds, &c) && c == '\r', (dsFree(&ds)), "carriage return failed");
-        test_validatefree(ds_getc_escape(&ds, &c) && c == '\t', (dsFree(&ds)), "tab failed");
+        test_validatefree(dsgetcEscaped(&ds, &c) && c == '\\', (dsFree(&ds)), "backslash failed");
+        test_validatefree(dsgetcEscaped(&ds, &c) && c == '"',  (dsFree(&ds)), "quote failed");
+        test_validatefree(dsgetcEscaped(&ds, &c) && c == '\n', (dsFree(&ds)), "newline failed");
+        test_validatefree(dsgetcEscaped(&ds, &c) && c == '\r', (dsFree(&ds)), "carriage return failed");
+        test_validatefree(dsgetcEscaped(&ds, &c) && c == '\t', (dsFree(&ds)), "tab failed");
 
         dsFree(&ds);
         fs_alloc_check(true);
@@ -2366,11 +2366,11 @@ tf12_ds_getc_ecran(const char *name)
         DS ds = dsCreatefs(&src);
         int c;
 
-        test_validatefree(ds_getc_escape(&ds, &c) && c == '\\', (dsFree(&ds)), "backslash failed");
-        test_validatefree(ds_getc_escape(&ds, &c) && c == '"',  (dsFree(&ds)), "quote failed");
-        test_validatefree(ds_getc_escape(&ds, &c) && c == '\n', (dsFree(&ds)), "newline failed");
-        test_validatefree(ds_getc_escape(&ds, &c) && c == '\r', (dsFree(&ds)), "carriage return failed");
-        test_validatefree(ds_getc_escape(&ds, &c) && c == '\t', (dsFree(&ds)), "tab failed");
+        test_validatefree(dsgetcEscaped(&ds, &c) && c == '\\', (dsFree(&ds)), "backslash failed");
+        test_validatefree(dsgetcEscaped(&ds, &c) && c == '"',  (dsFree(&ds)), "quote failed");
+        test_validatefree(dsgetcEscaped(&ds, &c) && c == '\n', (dsFree(&ds)), "newline failed");
+        test_validatefree(dsgetcEscaped(&ds, &c) && c == '\r', (dsFree(&ds)), "carriage return failed");
+        test_validatefree(dsgetcEscaped(&ds, &c) && c == '\t', (dsFree(&ds)), "tab failed");
 
         dsFree(&ds);
         fs_alloc_check(true);
@@ -2382,7 +2382,7 @@ tf12_ds_getc_ecran(const char *name)
         fs src = fscopy("q");
         DS ds = dsCreatefs(&src);
         int c = 0;
-        bool res = ds_getc_escape(&ds, &c);
+        bool res = dsgetcEscaped(&ds, &c);
         test_validatefree(!res, (dsFree(&ds)), "expected false, got true");
 
         int ch = dsgetc(&ds);
@@ -2404,11 +2404,11 @@ tf12_ds_getc_ecran(const char *name)
         DS ds = dsCreatef(fp);
         int c;
 
-        test_validatefree(ds_getc_escape(&ds, &c) && c == '\\', (dsFree(&ds)), "backslash failed");
-        test_validatefree(ds_getc_escape(&ds, &c) && c == '"',  (dsFree(&ds)), "quote failed");
-        test_validatefree(ds_getc_escape(&ds, &c) && c == '\n', (dsFree(&ds)), "newline failed");
-        test_validatefree(ds_getc_escape(&ds, &c) && c == '\r', (dsFree(&ds)), "carriage return failed");
-        test_validatefree(ds_getc_escape(&ds, &c) && c == '\t', (dsFree(&ds)), "tab failed");
+        test_validatefree(dsgetcEscaped(&ds, &c) && c == '\\', (dsFree(&ds)), "backslash failed");
+        test_validatefree(dsgetcEscaped(&ds, &c) && c == '"',  (dsFree(&ds)), "quote failed");
+        test_validatefree(dsgetcEscaped(&ds, &c) && c == '\n', (dsFree(&ds)), "newline failed");
+        test_validatefree(dsgetcEscaped(&ds, &c) && c == '\r', (dsFree(&ds)), "carriage return failed");
+        test_validatefree(dsgetcEscaped(&ds, &c) && c == '\t', (dsFree(&ds)), "tab failed");
 
         dsFree(&ds);   // закроет файл
         fs_alloc_check(true);
@@ -2425,7 +2425,7 @@ tf12_ds_getc_ecran(const char *name)
 
         DS ds = dsCreatef(fp);
         int c = 0;
-        bool res = ds_getc_escape(&ds, &c);
+        bool res = dsgetcEscaped(&ds, &c);
         test_validatefree(!res, (dsFree(&ds)), "expected false, got true");
 
         int ch = dsgetc(&ds);
@@ -2439,7 +2439,7 @@ tf12_ds_getc_ecran(const char *name)
     test_sub("subtest %d: NULL DS raises error", ++subnum);
     {
         if (!try()) {
-            ds_getc_escape(NULL, NULL);
+            dsgetcEscaped(NULL, NULL);
             test_validate(false, "must raise error for NULL DS");
         } else {
             test_validate(true, "correctly raised error");
@@ -2685,7 +2685,7 @@ main( /*int argc, char *argv[] */ )
       , TESTADD(tf9_ds_getpos,           "dsGetpos() simple test")
       , TESTADD(tf10_ds_skip_nl,         "dsSkipNl() simple test")
       , TESTADD(tf11_ds_skipspace,       "dsSkipSpaces() simple test")
-      , TESTADD(tf12_ds_getc_ecran,      "ds_getc_escape() simple test")
+      , TESTADD(tf12_ds_getc_ecran,      "dsgetcEscaped() simple test")
       , TESTADD(tf13_dsparseEscaped,     "dsparseEscaped() simple test")
     );
 
