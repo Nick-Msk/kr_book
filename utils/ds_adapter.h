@@ -99,7 +99,7 @@ extern long                        fs_dswrite(DS *restrict out, const fs *restri
  * The function performs the following steps:
  * <ol>
  *   <li>Writes the header: @c FS("<length>"): "</li>
- *   <li>Iterates through the source, escaping characters via @ref dsputcEcran.</li>
+ *   <li>Iterates through the source, escaping characters via @ref dsputcEscape.</li>
  *   <li>Writes the footer: @" and a newline character.</li>
  * </ol>
  *
@@ -177,7 +177,7 @@ extern long                        fs_dsload(DS *restrict in, fs *restrict s, bo
  * The function performs the following steps:
  * <ol>
  *   <li>Writes the header: @c FS("<length>"): "</li>
- *   <li>Iterates through the source, escaping characters via @ref dsputcEcran.</li>
+ *   <li>Iterates through the source, escaping characters via @ref dsputcEscape.</li>
  *   <li>Writes the footer: @" and a newline character.</li>
  * </ol>
  *
@@ -333,9 +333,9 @@ extern bool                         dsParseV64(DS *restrict pds, value64 *restri
  * @warning If parsing fails, the input @ref DS stream is rolled back to its 
  *          original position, and the function returns 0.
  */
-extern bool                       dsParseQuotedLimitedLine(DS *restrict pds, fs *restrict dst);
+extern bool                       dsParseQuotedLimitedfs(DS *restrict pds, fs *restrict dst, size_t maxlen);
 
-extern bool                       dsParseQuotedUnlimLine(DS *restrict pds, fs *restrict dst);
+extern bool                       dsParseQuotedUnlimfs(DS *restrict pds, fs *restrict dst/*, bool use_buffer*/);
 
 // ------------------------ PRINTERS/CHECKERS ---------------------------------------
 
