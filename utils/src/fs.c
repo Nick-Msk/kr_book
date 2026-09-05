@@ -581,7 +581,7 @@ fs                                      fs_load(const char *restrict fname, fs *
 fs                                      fsinit(size_t n){
     fs      res = FS();     // fsalloc flag
     increasesize(&res, n, true);
-    *res.v = '\0';
+    fs_setlen(&res, 0);
     return logsimpleret(res, "Created empty with sz %zu", res.sz);
 }
 // just create fs in heap!

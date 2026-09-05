@@ -198,8 +198,6 @@ static inline fs            fsliteral(const char *lit){
 }
 extern fs                   fsinit(size_t sz);
 
-// fs HEAP creator !
-
 // wrapper for functions
 static inline fs           *fs_init_or_use(fs *s) {
     if (s)
