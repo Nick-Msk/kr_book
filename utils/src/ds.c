@@ -215,7 +215,7 @@ int                         dsputc(int c, DS *pds) {
             return 1;  // increment
         case DS_FS:
 #ifndef NO_FSDS
-            elem0(pds->s, pds->pos++) = (unsigned char) c;
+            elem0(pds->s, pds->pos++) = (unsigned char) c;  // TODO: change to elem()
             return 1; // increment
 #else
         default:
@@ -394,14 +394,16 @@ int                         dsTechFPrint(FILE *restrict out, const DS *restrict 
                         name ? name : "", pds->pos, pds->type == DS_STR ? pds->cap : 0), -1)
                     total += written;
             //
-            IOCHECKERSIMPLE(written, ds_print_buffer_content(out, ptr, 0, pds->pos), -1)
-                total += written;
-            
-            if (pds->pos < pds->cap) {
-                IOCHECKERSIMPLE(written, fprintf(out, "\" => \""), -1)
+            if (ptr) {
+                IOCHECKERSIMPLE(written, ds_print_buffer_content(out, ptr, 0, pds->pos), -1)
                     total += written;
-                IOCHECKERSIMPLE(written, ds_print_buffer_content(out, ptr, pds->pos, pds->cap), -1)
-                    total += written;
+                
+                if (pds->pos < pds->cap) {
+                    IOCHECKERSIMPLE(written, fprintf(out, "\" => \""), -1)
+                        total += written;
+                    IOCHECKERSIMPLE(written, ds_print_buffer_content(out, ptr, pds->pos, pds->cap), -1)
+                        total += written;
+                }
             }
             IOCHECKERSIMPLE(written, fprintf(out, "\"\n"), -1)
                 total += written;
@@ -411,7 +413,7 @@ int                         dsTechFPrint(FILE *restrict out, const DS *restrict 
 #ifndef NO_FSDS
             IOCHECKERSIMPLE(written, fprintf(out, "[DS_FS %s] pos=%zu ", name ? name : "", pds->pos), -1)
                 total += written;
-            IOCHECKERSIMPLE(written, fs_techfprint(out, &pds->s, NULL), -1)
+            IOCHECKERSIMPLE(written, fs_techfprint(out, &pds->s, "joined fs"), -1)
                 total += written;
 #else
             IOCHECKERSIMPLE(written, fprintf(out, "[DS_FS %s (Not supported)]\n", name ? name : ""), -1)
