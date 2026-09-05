@@ -385,7 +385,7 @@ extern int                      dsputcEscape(int c, DS *pds);
 
 extern bool                     dsgetcEscaped(DS *restrict in, int *c);
 // NOT USE! TO BE REMOVED!!!
-extern int                      dsparseEscaped(DS *restrict in, bool *restrict error);
+// extern int                      dsparseEscaped(DS *restrict in, bool *restrict error);
 
 /**
  * @brief Pushes c-string into the stream

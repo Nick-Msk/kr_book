@@ -81,27 +81,6 @@ static int                  ds_print_buffer_content(FILE *restrict out, const ch
     return total;
 }
 
-// helper for ecranned '//' symbols
-bool                        dsgetcEscaped(DS *restrict in, int *c) {
-    int esc = dsgetc(in);
-
-    if (esc == EOF)
-        return false;
-
-    switch (esc) {
-        case '\\': case '"':  break;
-        case 'n':  esc = '\n'; break;
-        case 'r':  esc = '\r'; break;
-        case 't':  esc = '\t'; break;
-        default:
-            dsungetc(esc, in); 
-            return false;
-    }
-    if (c)
-        *c = esc;
-    return true;
-}
-
 // --------------------------- API ---------------------------------
 
 // -------------------- CONSTRUCTOTS/DESTRUCTORS -------------------
@@ -274,22 +253,43 @@ int                      dsputcEscape(int c, DS *pds) {
     return cnt;
 }
 
-// process symbol (normal or ecranned)
-int                      dsparseEscaped(DS *restrict in, bool *restrict error) {
-    int c = dsgetc(in);
-    if (c == EOF)
-        return EOF; // no more sym
+// helper for ecranned '//' symbols
+bool                        dsgetcEscaped(DS *restrict in, int *c) {
+    int esc = dsgetc(in);
 
-    if (c != '\\')
-        return c;   // normal sym
+    if (esc == EOF)
+        return false;
 
-    if (!dsgetcEscaped(in, &c) ) {
-        if (error)
-            *error = true;
-        return EOF; // something wrong with ercanning, stream is rolled back
-    } 
-    return c;   // converted from ecranned
+    switch (esc) {
+        case '\\': case '"':  break;
+        case 'n':  esc = '\n'; break;
+        case 'r':  esc = '\r'; break;
+        case 't':  esc = '\t'; break;
+        default:
+            dsungetc(esc, in); 
+            return false;
+    }
+    if (c)
+        *c = esc;
+    return true;
 }
+
+// process symbol (normal or ecranned)
+// int                      dsparseEscaped(DS *restrict in, bool *restrict error) {
+//     int c = dsgetc(in);
+//     if (c == EOF)
+//         return EOF; // no more sym
+
+//     if (c != '\\')
+//         return c;   // normal sym
+
+//     if (!dsgetcEscaped(in, &c) ) {
+//         if (error)
+//             *error = true;
+//         return EOF; // something wrong with ercanning, stream is rolled back
+//     } 
+//     return c;   // converted from ecranned
+// }
 
 long                     dswrite(DS *restrict out, const char *ptr, size_t len) {
 
@@ -2450,222 +2450,222 @@ tf12_ds_getc_ecran(const char *name)
     return logret(TEST_PASSED, "done");
 }
 
-// ------------------------- TEST dsparseEscaped -------------------------
-static TestStatus
-tf13_dsparseEscaped(const char *name)
-{
-    logenter("%s", name);
-    int subnum = 0;
+// // ------------------------- TEST dsparseEscaped -------------------------
+// static TestStatus
+// tf13_dsparseEscaped(const char *name)
+// {
+//     logenter("%s", name);
+//     int subnum = 0;
 
-    /* 1. DS_STR: обычный символ без слэша */
-    test_sub("subtest %d: DS_STR - ordinary char", ++subnum);
-    {
-        char buf[] = "a";
-        DS ds = dsCreatestr(buf);
-        bool err = false;
-        int c = dsparseEscaped(&ds, &err);
-        test_validatefree(c == 'a' && !err, (dsFree(&ds)), "expected 'a', got %d, err=%d", c, err);
+//     /* 1. DS_STR: обычный символ без слэша */
+//     test_sub("subtest %d: DS_STR - ordinary char", ++subnum);
+//     {
+//         char buf[] = "a";
+//         DS ds = dsCreatestr(buf);
+//         bool err = false;
+//         int c = dsparseEscaped(&ds, &err);
+//         test_validatefree(c == 'a' && !err, (dsFree(&ds)), "expected 'a', got %d, err=%d", c, err);
 
-        dsFree(&ds);
-        fs_alloc_check(true);
-    }
+//         dsFree(&ds);
+//         fs_alloc_check(true);
+//     }
 
-    /* 2. DS_STR: все корректные escape-последовательности */
-    test_sub("subtest %d: DS_STR - valid escapes", ++subnum);
-    {
-        char buf[] = {'\\', '\\', '"', '\\', 'n', '\\', 'r', '\\', 't', '\0'};   // символы: \ " n r t
-        DS ds = dsCreatestr(buf);
-        bool err = false;
-        int c;
+//     /* 2. DS_STR: все корректные escape-последовательности */
+//     test_sub("subtest %d: DS_STR - valid escapes", ++subnum);
+//     {
+//         char buf[] = {'\\', '\\', '"', '\\', 'n', '\\', 'r', '\\', 't', '\0'};   // символы: \ " n r t
+//         DS ds = dsCreatestr(buf);
+//         bool err = false;
+//         int c;
 
-        c = dsparseEscaped(&ds, &err);
-        test_validatefree(c == '\\' && !err, (dsFree(&ds)), "backslash failed");
-        c = dsparseEscaped(&ds, &err);
-        test_validatefree(c == '"'  && !err, (dsFree(&ds)), "quote failed");
-        c = dsparseEscaped(&ds, &err);
-        test_validatefree(c == '\n' && !err, (dsFree(&ds)), "newline failed");
-        c = dsparseEscaped(&ds, &err);
-        test_validatefree(c == '\r' && !err, (dsFree(&ds)), "carriage return failed");
-        c = dsparseEscaped(&ds, &err);
-        test_validatefree(c == '\t' && !err, (dsFree(&ds)), "tab failed");
+//         c = dsparseEscaped(&ds, &err);
+//         test_validatefree(c == '\\' && !err, (dsFree(&ds)), "backslash failed");
+//         c = dsparseEscaped(&ds, &err);
+//         test_validatefree(c == '"'  && !err, (dsFree(&ds)), "quote failed");
+//         c = dsparseEscaped(&ds, &err);
+//         test_validatefree(c == '\n' && !err, (dsFree(&ds)), "newline failed");
+//         c = dsparseEscaped(&ds, &err);
+//         test_validatefree(c == '\r' && !err, (dsFree(&ds)), "carriage return failed");
+//         c = dsparseEscaped(&ds, &err);
+//         test_validatefree(c == '\t' && !err, (dsFree(&ds)), "tab failed");
 
-        dsFree(&ds);
-        fs_alloc_check(true);
-    }
+//         dsFree(&ds);
+//         fs_alloc_check(true);
+//     }
 
-    /* 3. DS_STR: некорректный escape -> EOF, error=true, символ возвращается */
-    test_sub("subtest %d: DS_STR - invalid escape", ++subnum);
-    {
-        char buf[] = "\\x";
-        DS ds = dsCreatestr(buf);
-        bool err = false;
-        int c = dsparseEscaped(&ds, &err);
-        test_validatefree(c == EOF && err, (dsFree(&ds)), "expected EOF and error, got c=%d err=%d", c, err);
+//     /* 3. DS_STR: некорректный escape -> EOF, error=true, символ возвращается */
+//     test_sub("subtest %d: DS_STR - invalid escape", ++subnum);
+//     {
+//         char buf[] = "\\x";
+//         DS ds = dsCreatestr(buf);
+//         bool err = false;
+//         int c = dsparseEscaped(&ds, &err);
+//         test_validatefree(c == EOF && err, (dsFree(&ds)), "expected EOF and error, got c=%d err=%d", c, err);
 
-        int ch = dsgetc(&ds);
-        test_validatefree(ch == 'x', (dsFree(&ds)), "expected 'x' after unget, got '%c'", ch);
+//         int ch = dsgetc(&ds);
+//         test_validatefree(ch == 'x', (dsFree(&ds)), "expected 'x' after unget, got '%c'", ch);
 
-        dsFree(&ds);
-        fs_alloc_check(true);
-    }
+//         dsFree(&ds);
+//         fs_alloc_check(true);
+//     }
 
-    /* 4. DS_STR: EOF (пустая строка) -> EOF, error=false */
-    test_sub("subtest %d: DS_STR - EOF", ++subnum);
-    {
-        char buf[] = "";
-        DS ds = dsCreatestr(buf);
-        bool err = false;
-        int c = dsparseEscaped(&ds, &err);
-        test_validatefree(c == EOF && !err, (dsFree(&ds)), "expected EOF, got c=%d err=%d", c, err);
+//     /* 4. DS_STR: EOF (пустая строка) -> EOF, error=false */
+//     test_sub("subtest %d: DS_STR - EOF", ++subnum);
+//     {
+//         char buf[] = "";
+//         DS ds = dsCreatestr(buf);
+//         bool err = false;
+//         int c = dsparseEscaped(&ds, &err);
+//         test_validatefree(c == EOF && !err, (dsFree(&ds)), "expected EOF, got c=%d err=%d", c, err);
 
-        dsFree(&ds);
-        fs_alloc_check(true);
-    }
+//         dsFree(&ds);
+//         fs_alloc_check(true);
+//     }
 
-    /* 5. DS_STR: error == NULL, корректный escape */
-    test_sub("subtest %d: DS_STR - error NULL, valid escape", ++subnum);
-    {
-        char buf[] = "\\n";
-        DS ds = dsCreatestr(buf);
-        int c = dsparseEscaped(&ds, NULL);
-        test_validatefree(c == '\n', (dsFree(&ds)), "expected newline, got %d", c);
+//     /* 5. DS_STR: error == NULL, корректный escape */
+//     test_sub("subtest %d: DS_STR - error NULL, valid escape", ++subnum);
+//     {
+//         char buf[] = "\\n";
+//         DS ds = dsCreatestr(buf);
+//         int c = dsparseEscaped(&ds, NULL);
+//         test_validatefree(c == '\n', (dsFree(&ds)), "expected newline, got %d", c);
 
-        // проверяем, что позиция продвинулась на 2 (слэш и 'n')
-        test_validatefree(ds.pos == 2, (dsFree(&ds)), "pos expected 2, got %zu", ds.pos);
+//         // проверяем, что позиция продвинулась на 2 (слэш и 'n')
+//         test_validatefree(ds.pos == 2, (dsFree(&ds)), "pos expected 2, got %zu", ds.pos);
 
-        dsFree(&ds);
-        fs_alloc_check(true);
-    }
+//         dsFree(&ds);
+//         fs_alloc_check(true);
+//     }
 
-    /* 6. DS_STR: error == NULL, некорректный escape */
-    test_sub("subtest %d: DS_STR - error NULL, invalid escape", ++subnum);
-    {
-        char buf[] = "\\z";
-        DS ds = dsCreatestr(buf);
-        int c = dsparseEscaped(&ds, NULL);
-        test_validatefree(c == EOF, (dsFree(&ds)), "expected EOF, got %d", c);
+//     /* 6. DS_STR: error == NULL, некорректный escape */
+//     test_sub("subtest %d: DS_STR - error NULL, invalid escape", ++subnum);
+//     {
+//         char buf[] = "\\z";
+//         DS ds = dsCreatestr(buf);
+//         int c = dsparseEscaped(&ds, NULL);
+//         test_validatefree(c == EOF, (dsFree(&ds)), "expected EOF, got %d", c);
 
-        int ch = dsgetc(&ds);
-        test_validatefree(ch == 'z', (dsFree(&ds)), "expected 'z' after unget, got '%c'", ch);
+//         int ch = dsgetc(&ds);
+//         test_validatefree(ch == 'z', (dsFree(&ds)), "expected 'z' after unget, got '%c'", ch);
 
-        dsFree(&ds);
-        fs_alloc_check(true);
-    }
+//         dsFree(&ds);
+//         fs_alloc_check(true);
+//     }
 
-    /* 7. DS_CONSTSTR: обычный символ */
-    test_sub("subtest %d: DS_CONSTSTR - ordinary char", ++subnum);
-    {
-        const char *buf = "h";
-        DS ds = dsCreateconst(buf);
-        bool err = false;
-        int c = dsparseEscaped(&ds, &err);
-        test_validatefree(c == 'h' && !err, (dsFree(&ds)), "expected 'h', got %d", c);
+//     /* 7. DS_CONSTSTR: обычный символ */
+//     test_sub("subtest %d: DS_CONSTSTR - ordinary char", ++subnum);
+//     {
+//         const char *buf = "h";
+//         DS ds = dsCreateconst(buf);
+//         bool err = false;
+//         int c = dsparseEscaped(&ds, &err);
+//         test_validatefree(c == 'h' && !err, (dsFree(&ds)), "expected 'h', got %d", c);
 
-        dsFree(&ds);
-        fs_alloc_check(true);
-    }
+//         dsFree(&ds);
+//         fs_alloc_check(true);
+//     }
 
-    /* 8. DS_CONSTSTR: корректный и некорректный escape */
-    test_sub("subtest %d: DS_CONSTSTR - mixed escapes", ++subnum);
-    {
-        const char *buf = "\\n\\q";
-        DS ds = dsCreateconst(buf);
-        bool err = false;
-        int c = dsparseEscaped(&ds, &err);
-        test_validatefree(c == '\n' && !err, (dsFree(&ds)), "newline failed");
+//     /* 8. DS_CONSTSTR: корректный и некорректный escape */
+//     test_sub("subtest %d: DS_CONSTSTR - mixed escapes", ++subnum);
+//     {
+//         const char *buf = "\\n\\q";
+//         DS ds = dsCreateconst(buf);
+//         bool err = false;
+//         int c = dsparseEscaped(&ds, &err);
+//         test_validatefree(c == '\n' && !err, (dsFree(&ds)), "newline failed");
 
-        c = dsparseEscaped(&ds, &err);
-        test_validatefree(c == EOF && err, (dsFree(&ds)), "expected invalid escape error");
+//         c = dsparseEscaped(&ds, &err);
+//         test_validatefree(c == EOF && err, (dsFree(&ds)), "expected invalid escape error");
 
-        // после ошибки 'q' должна быть в потоке
-        int ch = dsgetc(&ds);
-        test_validatefree(ch == 'q', (dsFree(&ds)), "expected 'q', got '%c'", ch);
+//         // после ошибки 'q' должна быть в потоке
+//         int ch = dsgetc(&ds);
+//         test_validatefree(ch == 'q', (dsFree(&ds)), "expected 'q', got '%c'", ch);
 
-        dsFree(&ds);
-        fs_alloc_check(true);
-    }
+//         dsFree(&ds);
+//         fs_alloc_check(true);
+//     }
 
-    /* 9. DS_FS: обычный символ */
-    test_sub("subtest %d: DS_FS - ordinary char", ++subnum);
-    {
-        fs src = fscopy("b");
-        DS ds = dsCreatefs(&src);
-        bool err = false;
-        int c = dsparseEscaped(&ds, &err);
-        test_validatefree(c == 'b' && !err, (dsFree(&ds)), "expected 'b', got %d", c);
+//     /* 9. DS_FS: обычный символ */
+//     test_sub("subtest %d: DS_FS - ordinary char", ++subnum);
+//     {
+//         fs src = fscopy("b");
+//         DS ds = dsCreatefs(&src);
+//         bool err = false;
+//         int c = dsparseEscaped(&ds, &err);
+//         test_validatefree(c == 'b' && !err, (dsFree(&ds)), "expected 'b', got %d", c);
 
-        dsFree(&ds);
-        fs_alloc_check(true);
-    }
+//         dsFree(&ds);
+//         fs_alloc_check(true);
+//     }
 
-    /* 10. DS_FS: все корректные escape */
-    test_sub("subtest %d: DS_FS - valid escapes", ++subnum);
-    {
-        fs src = fscopy((const char[]){'\\', '\\', '\\', '"', '\\', 'n', '\\', 'r', '\\', 't', '\0'});
-        DS ds = dsCreatefs(&src);
-        bool err = false;
-        int c;
+//     /* 10. DS_FS: все корректные escape */
+//     test_sub("subtest %d: DS_FS - valid escapes", ++subnum);
+//     {
+//         fs src = fscopy((const char[]){'\\', '\\', '\\', '"', '\\', 'n', '\\', 'r', '\\', 't', '\0'});
+//         DS ds = dsCreatefs(&src);
+//         bool err = false;
+//         int c;
 
-        c = dsparseEscaped(&ds, &err);
-        test_validatefree(c == '\\' && !err, (dsFree(&ds)), "backslash failed");
-        c = dsparseEscaped(&ds, &err);
-        test_validatefree(c == '"'  && !err, (dsFree(&ds)), "quote failed");
-        c = dsparseEscaped(&ds, &err);
-        test_validatefree(c == '\n' && !err, (dsFree(&ds)), "newline failed");
-        c = dsparseEscaped(&ds, &err);
-        test_validatefree(c == '\r' && !err, (dsFree(&ds)), "carriage return failed");
-        c = dsparseEscaped(&ds, &err);
-        test_validatefree(c == '\t' && !err, (dsFree(&ds)), "tab failed");
+//         c = dsparseEscaped(&ds, &err);
+//         test_validatefree(c == '\\' && !err, (dsFree(&ds)), "backslash failed");
+//         c = dsparseEscaped(&ds, &err);
+//         test_validatefree(c == '"'  && !err, (dsFree(&ds)), "quote failed");
+//         c = dsparseEscaped(&ds, &err);
+//         test_validatefree(c == '\n' && !err, (dsFree(&ds)), "newline failed");
+//         c = dsparseEscaped(&ds, &err);
+//         test_validatefree(c == '\r' && !err, (dsFree(&ds)), "carriage return failed");
+//         c = dsparseEscaped(&ds, &err);
+//         test_validatefree(c == '\t' && !err, (dsFree(&ds)), "tab failed");
 
-        dsFree(&ds);
-        fs_alloc_check(true);
-    }
+//         dsFree(&ds);
+//         fs_alloc_check(true);
+//     }
 
-        /* 11. DS_FILE: обычный символ и escape (используем обычный файл) */
-    test_sub("subtest %d: DS_FILE - mixed escapes", ++subnum);
-    {
-        const char *path = "res/ds/dsparse_ecraned_file.ds";
-        FILE *fp = fopen(path, "w");
-        test_validate(fp != NULL, "failed to create file for test");
-        fputs("a\\n\\x", fp);   // обычный 'a', затем валидный \n, затем невалидный \x
-        fclose(fp);
+//         /* 11. DS_FILE: обычный символ и escape (используем обычный файл) */
+//     test_sub("subtest %d: DS_FILE - mixed escapes", ++subnum);
+//     {
+//         const char *path = "res/ds/dsparse_ecraned_file.ds";
+//         FILE *fp = fopen(path, "w");
+//         test_validate(fp != NULL, "failed to create file for test");
+//         fputs("a\\n\\x", fp);   // обычный 'a', затем валидный \n, затем невалидный \x
+//         fclose(fp);
 
-        DS ds = dsCreateFilename(path, "r");
-        test_validatefree(ds.type == DS_FILE, (dsFree(&ds)), "failed to open DS_FILE");
+//         DS ds = dsCreateFilename(path, "r");
+//         test_validatefree(ds.type == DS_FILE, (dsFree(&ds)), "failed to open DS_FILE");
 
-        bool err = false;
-        int c;
+//         bool err = false;
+//         int c;
 
-        c = dsparseEscaped(&ds, &err);
-        test_validatefree(c == 'a' && !err, (dsFree(&ds)), "ordinary char failed");
+//         c = dsparseEscaped(&ds, &err);
+//         test_validatefree(c == 'a' && !err, (dsFree(&ds)), "ordinary char failed");
 
-        c = dsparseEscaped(&ds, &err);
-        test_validatefree(c == '\n' && !err, (dsFree(&ds)), "newline failed");
+//         c = dsparseEscaped(&ds, &err);
+//         test_validatefree(c == '\n' && !err, (dsFree(&ds)), "newline failed");
 
-        c = dsparseEscaped(&ds, &err);
-        test_validatefree(c == EOF && err, (dsFree(&ds)), "invalid escape failed");
+//         c = dsparseEscaped(&ds, &err);
+//         test_validatefree(c == EOF && err, (dsFree(&ds)), "invalid escape failed");
 
-        int ch = dsgetc(&ds);
-        test_validatefree(ch == 'x', (dsFree(&ds)), "expected 'x' after unget, got '%c'", ch);
+//         int ch = dsgetc(&ds);
+//         test_validatefree(ch == 'x', (dsFree(&ds)), "expected 'x' after unget, got '%c'", ch);
 
-        dsFree(&ds);
-        fs_alloc_check(true);
-    }
+//         dsFree(&ds);
+//         fs_alloc_check(true);
+//     }
 
-    /* 12. NULL DS должен вызывать ошибку */
-    test_sub("subtest %d: NULL DS raises error", ++subnum);
-    {
-        if (!try()) {
-            dsparseEscaped(NULL, NULL);
-            test_validate(false, "must raise error for NULL DS");
-        } else {
-            test_validate(true, "correctly raised error");
-        }
-        fs_alloc_check(true);
-    }
+//     /* 12. NULL DS должен вызывать ошибку */
+//     test_sub("subtest %d: NULL DS raises error", ++subnum);
+//     {
+//         if (!try()) {
+//             dsparseEscaped(NULL, NULL);
+//             test_validate(false, "must raise error for NULL DS");
+//         } else {
+//             test_validate(true, "correctly raised error");
+//         }
+//         fs_alloc_check(true);
+//     }
 
-    return logret(TEST_PASSED, "done");
-}
+//     return logret(TEST_PASSED, "done");
+// }
 
 // -------------------------------------------------------------------
 int
@@ -2686,7 +2686,7 @@ main( /*int argc, char *argv[] */ )
       , TESTADD(tf10_ds_skip_nl,         "dsSkipNl() simple test")
       , TESTADD(tf11_ds_skipspace,       "dsSkipSpaces() simple test")
       , TESTADD(tf12_ds_getc_ecran,      "dsgetcEscaped() simple test")
-      , TESTADD(tf13_dsparseEscaped,     "dsparseEscaped() simple test")
+      //, TESTADD(tf13_dsparseEscaped,     "dsparseEscaped() simple test")
     );
 
     return logret(0, "end...");  // as replace of logclose()
